@@ -1910,6 +1910,9 @@ enum TypeHint {
   IMAGE
   VIDEO
   AUDIO
+  STATEMENT
+  FIELD
+  RUN
 }
 
 enum TypeTag {
@@ -1923,9 +1926,8 @@ enum TypeTag {
   FUNCTION
   ENUM
   LITERAL
-  NULL
-  ANY
   TYPE_REFERENCE
+  NODE
 }
 
 scalar UUID

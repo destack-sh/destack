@@ -37,6 +37,7 @@ const INTERFACES: Record<string, any> = {
   file: FileInput,
   secret: SecretInput,
   vector: VectorInput,
+  // nocheckin: RichText/AnnotatedTextInput
 };
 
 const props = defineProps<{

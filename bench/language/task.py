@@ -114,15 +114,16 @@ async def run_task(
 ) -> dict:
     total_attempts = 0
     step_attempts = 0
+    # in priority order
     models = [
         task.session.module.resolve(m)
         for m in (
             "openai.lib.chat.gpt4",
-            "openai.lib.chat.gpt3",
             "anthropic.lib.text.claude-instant-1",
+            "openai.lib.chat.gpt3",
             "anthropic.lib.text.claude-2",
         )
-    ]  # in priority order
+    ]
     model_idx = 0
     log = logger.bind(task=task, inputs=describe_type(inputs), nonce=nonce, models=models)
 

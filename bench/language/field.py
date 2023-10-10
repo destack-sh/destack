@@ -90,8 +90,6 @@ class TypeError(TypeError):
 
 
 PRIMITIVE_TYPES = [
-    TypeTag.ANY,
-    TypeTag.NULL,
     TypeTag.BOOLEAN,
     TypeTag.NUMBER,
     TypeTag.STRING,
@@ -164,6 +162,10 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.IMAGE: TypeTag.FILE,
     TypeHint.VIDEO: TypeTag.FILE,
     TypeHint.AUDIO: TypeTag.FILE,
+    # node
+    TypeHint.STATEMENT: TypeTag.NODE,
+    TypeHint.FIELD: TypeTag.NODE,
+    TypeHint.RUN: TypeTag.NODE,
 }
 
 STORAGE_FORMAT_BY_TYPE_TAG = {
@@ -201,7 +203,7 @@ def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeSto
 
 @node_component
 class IsTyped(Node):
-    """Abstract base for Field nas HasFields/Statement types"""
+    """Shared base for Field and HasFields/Statement types"""
 
     tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
     hint: TypeHint | None = nproperty(default=None, validate=enum_validator(TypeHint))

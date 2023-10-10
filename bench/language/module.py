@@ -742,6 +742,10 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         """Gets a node by some id (as determined by the logic of the list)."""
         raise NotImplementedError
 
+    def index(self, node: NodeT) -> int:
+        """Gets the index of a node in the list."""
+        raise NotImplementedError
+
 
 class NodeList(NodeListBase[NodeT]):
     """
@@ -908,6 +912,9 @@ class NodeList(NodeListBase[NodeT]):
             ):
                 return child
         return None
+
+    def index(self, node: NodeT) -> int:
+        return self._nodes.index(node)
 
     def __bool__(self):
         return bool(self._nodes)
@@ -1898,6 +1905,15 @@ class ScopeNode(Node):
             raise LookupError(f"{path} not found in {self!r}")
         return result
 
+    def _get_visible_scopes(self) -> dict[str, "ScopeNode"]:
+        """Returns the scopes visible from this node."""
+        scopes = {**self._scopes_by_name}
+        if self.parent:
+            for name, child in self.parent._get_visible_scopes().items():
+                if name not in scopes:  # shadowing
+                    scopes[name] = child
+        return scopes
+
     def _on_issue(self, subject: "Node", type: IssueType, message: str = None, **kwargs):
         from bench.language import File, Statement
         from bench.language.issue import Issue
@@ -2067,6 +2083,12 @@ class Module(ScopeNode):
         if self.committed:
             self._lookup_cache[path] = resolved
         return resolved
+
+    def _get_visible_scopes(self) -> dict[str, "ScopeNode"]:
+        scopes = {**self._scopes_by_name}
+        for builtin in self.builtins:
+            scopes.update(builtin._get_visible_scopes())
+        return scopes
 
     def _activate_inner(self, session: "Session"):
         for dependency in self.dependencies.values():

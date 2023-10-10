@@ -79,8 +79,8 @@ export function formatDiffSeconds(fromStr: string, toStr: string | DateTime): st
   return formatDuration(diffMs);
 }
 
-export function formatDuration(durationMs: number): string {
-  if (durationMs < 100) {
+export function formatDuration(durationMs: number, options?: { hideMillis?: boolean }): string {
+  if (durationMs < 100 && !options?.hideMillis) {
     return `${Math.round(durationMs)}ms`;
   } else if (durationMs < 60000) {
     return `${(durationMs / 1000).toFixed(1)}s`;

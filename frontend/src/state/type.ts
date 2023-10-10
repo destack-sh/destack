@@ -25,7 +25,7 @@ export const TYPEHINT_KEYWORD: Partial<Record<TypeHint, string>> = {
   [TypeHint.Email]: "email",
   [TypeHint.Url]: "URL",
   [TypeHint.Markdown]: "markdown",
-  [TypeHint.RichText]: "rich",
+  [TypeHint.RichText]: "rich text",
   [TypeHint.Html]: "HTML",
   [TypeHint.Code]: "code",
   [TypeHint.Key]: "key",
@@ -57,6 +57,7 @@ export const SUPPORTED_TYPEHINTS: Partial<Record<TypeHint, TypeTag>> = {
   [TypeHint.Html]: TypeTag.String,
   [TypeHint.Code]: TypeTag.String,
   [TypeHint.Key]: TypeTag.String,
+  [TypeHint.RichText]: TypeTag.String,
   [TypeHint.Phone]: TypeTag.String,
   [TypeHint.Secret]: TypeTag.String,
   // number
@@ -193,6 +194,7 @@ import {
   ClockIcon,
   CodeBracketIcon,
   DocumentIcon,
+  DocumentTextIcon,
   FingerPrintIcon,
   HandThumbUpIcon,
   HashtagIcon,
@@ -200,7 +202,6 @@ import {
   KeyIcon,
   LinkIcon,
   LockClosedIcon,
-  MinusSmallIcon,
   PhoneIcon,
   PhotoIcon,
   SparklesIcon,
@@ -214,7 +215,6 @@ export const ICONS_BY_TAG_OUTLINE: Partial<Record<TypeTag, any>> = {
   [TypeTag.Number]: HashtagIcon,
   [TypeTag.Boolean]: CheckIcon,
   [TypeTag.Vector]: SparklesIcon,
-  [TypeTag.Null]: MinusSmallIcon,
   [TypeTag.File]: DocumentIcon,
   [TypeTag.Struct]: getStatementIconOutline(StatementType.Type, TypeTag.Struct),
   [TypeTag.Enum]: getStatementIconOutline(StatementType.Type, TypeTag.Enum),
@@ -234,6 +234,7 @@ export const ICONS_BY_HINT_OUTLINE: Partial<Record<TypeHint, any>> = {
   [TypeHint.Code]: CodeBracketIcon,
   [TypeHint.Key]: KeyIcon,
   [TypeHint.Secret]: LockClosedIcon,
+  [TypeHint.RichText]: DocumentTextIcon,
   // number
   [TypeHint.Integer]: HashtagIcon, // should have a different icon from float
   [TypeHint.Float]: HashtagIcon,

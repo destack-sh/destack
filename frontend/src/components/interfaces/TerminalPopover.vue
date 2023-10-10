@@ -9,6 +9,7 @@ import { useBenchState, type StatementHeader, usePanelContext } from "@/state/be
 import { SessionAccessLevel, useCurrentSessions } from "@/state/session";
 import { useTerminal } from "@/state/terminal";
 import { makeTextMention, makeTextPlain, renderTextHtml, type TextSpan } from "@/state/text";
+import { getUUIDFromGlobalID } from "@/utils/functools";
 import { CommandLineIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { PlayIcon, SparklesIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside } from "@vueuse/core";
@@ -34,6 +35,7 @@ const expanded = computed(() => active.value || generatingRun.value || generated
 const generatingRun = ref<Run | null>(null);
 const generatedFrom = ref<string | null>(null);
 const generatedCode = ref<string | null>(null);
+const generatedRun = ref<Run | null>(null);
 const generatedCodeCondensed = computed(
   () => generatedCode.value != null && generatedCode.value.split("\n").length < 5
 );
@@ -59,6 +61,7 @@ async function run() {
     generatedFrom.value = inputText.value.replace(/<span.*?>/g, "").replace(/<\/span>/g, "");
     const { result, run } = terminal.runTextToCode(inputText.value);
     generatingRun.value = run;
+    generatedRun.value = run;
     const { code } = await result;
     if (generatingRun.value?.id != run.id) return; // cancelled or something
     generatedCode.value = code;
@@ -79,6 +82,7 @@ async function cancel() {
 function discardGenerated() {
   generatedCode.value = null;
   generatedFrom.value = null;
+  generatedRun.value = null;
 }
 
 async function apply() {
@@ -168,7 +172,7 @@ defineExpose({
       <span v-if="expanded" class="ml-auto flex flex-shrink-0 items-center self-start">
         <!-- Active -->
         <span v-if="generatingRun != null" class="mr-0.5 text-gray-400">
-          {{ session.getDurationFormatted(generatingRun) }}
+          {{ session.getDurationFormatted(generatingRun, { hideMillis: true }) }}
         </span>
         <!-- Start/stop -->
         <button
@@ -207,6 +211,13 @@ defineExpose({
           >
             <CommandLineIcon class="h-4 w-4" /> To Terminal
           </span> -->
+          <span
+            v-if="generatedRun != null"
+            class="ml-auto text-gray-400 underline-offset-2 hover:cursor-pointer hover:underline"
+            @click="bench.openViewRun(generatedRun, { group: panel.panel.value.group, opposite: true, focus: true })"
+          >
+            #{{ getUUIDFromGlobalID(generatedRun.id).slice(-7, -1) }}
+          </span>
         </div>
         <!-- Code preview -->
         <MonacoEditor
@@ -217,7 +228,7 @@ defineExpose({
           :wrap="generatedCodeCondensed"
         />
         <!-- Controls -->
-        <!-- Apply/Discard should also tag the task run with feedback -->
+        <!-- Apply/Discard should also tag the task run with feedback (as a demo and because it would be useful) -->
         <div
           class="right-2 flex flex-row-reverse gap-3 rounded-sm"
           :class="generatedCodeCondensed ? '' : '  absolute bottom-2 bg-white/80'"

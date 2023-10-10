@@ -44,20 +44,27 @@ const inputSync = syncProperty({
 });
 const inputRef: Ref<InstanceType<typeof MonacoEditor | typeof AnnotatedText> | null> = ref(null);
 const logsTileRefs = ref<Record<string, InstanceType<typeof LogsTile> | null>>({});
-const scopePath = computed(() => {
-  if (bench.lastActiveFileCk == null) return null;
-  const nodePath = module.nodePathOf(bench.lastActiveFileCk);
-  if (nodePath?.some((n) => (n.name ?? "").trim().length == 0)) {
-    return null;
+const scope = computed(() => bench.lastActiveFileCk);
+const scopePaths = computed(() => {
+  const scopes = [scope.value, ...(terminal.runs.value?.map((r) => r.scope) ?? [])];
+  const scopePaths: Record<string, string> = {};
+  for (const scope of scopes) {
+    if (scope == null || scopePaths[scope] != null) continue;
+    const nodePath = module.nodePathOf(scope);
+    if (nodePath?.some((n) => (n.name ?? "").trim().length == 0)) {
+      continue;
+    }
+    const scopePath = nodePath?.map((n) => toPyIdentifier(n.name ?? "", IdentifierType.PATH)).join(".");
+    if (scopePath != null) scopePaths[scope] = scopePath;
   }
-  return nodePath?.map((n) => toPyIdentifier(n.name ?? "", IdentifierType.PATH)).join(".");
+  return scopePaths;
 });
 const focusedRunId = ref<string | null>(null);
 const expandedRunIds = ref<string[]>([]);
 const lastRunActive = computed(() =>
   panel.value.lastRunId == null ? false : session.isActive({ id: panel.value.lastRunId })
 );
-const convertingText = ref(false);
+const canRun = computed(() => (input.value.trim() ?? "").length > 0);
 
 function focus(f: "first" | "last" = "last") {
   inputRef.value?.focus?.("last");
@@ -96,9 +103,7 @@ function navigateInputDown() {
 }
 
 async function run() {
-  if ((input.value.trim() ?? "").length == 0) {
-    return; // nothing to run
-  }
+  if (!canRun.value) return;
   const { run, result } = terminal.runCode(input.value, {
     scope: bench.lastActiveFileCk ?? undefined,
     accessLevel: panel.value.accessLevel,
@@ -134,7 +139,7 @@ defineExpose({
       </div>
       <!-- Previous runs -->
       <div
-        v-for="{ run, code } in terminal.runs.value"
+        v-for="{ run, code, scope } in terminal.runs.value"
         :key="run.id"
         class="opacity-150 border-l-4 border-t border-orange-900/[15%] py-1.5 transition-colors"
         :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"
@@ -143,7 +148,9 @@ defineExpose({
           <!-- Header -->
           <div class="flex flex-row items-start justify-between pl-4 pr-4 font-mono text-gray-400">
             <!-- Scope -->
-            <span> {{ module.path.value }}</span>
+            <span class="font-semibold"
+              >{{ module.path.value }}<template v-if="scope">.{{ scopePaths[scope] }}</template>
+            </span>
             <!-- Extra info & controls -->
             <div class="flex select-none flex-row gap-1.5 text-gray-400">
               <!-- Run ID -->
@@ -208,7 +215,7 @@ defineExpose({
           <div class="flex flex-row items-start font-mono text-orange-600">
             <!-- Current context/path & mode -->
             <span class="font-semibold"
-              >{{ module.path.value }}<template v-if="scopePath">.{{ scopePath }}</template>
+              >{{ module.path.value }}<template v-if="scope">.{{ scopePaths[scope] }}</template>
             </span>
             <!-- Access level -->
             <button
@@ -247,12 +254,11 @@ defineExpose({
         </div>
         <!-- Run -->
         <button
-          class="flex-shrink-0 self-start rounded-sm px-1.5 py-1 text-orange-600 hover:bg-orange-100"
+          class="flex-shrink-0 self-start rounded-sm px-1.5 py-1.5 transition-colors duration-150 hover:bg-orange-100"
+          :class="lastRunActive || canRun ? 'text-orange-600' : 'text-gray-400'"
           @click="lastRunActive && panel.lastRunId != null ? session.kill({ id: panel.lastRunId }) : run()"
-          :disabled="convertingText"
         >
-          <BusySpinnerIcon v-if="convertingText" class="h-6 w-6 animate-spin text-white" />
-          <PlayIcon v-else-if="!lastRunActive" class="h-6 w-6" />
+          <PlayIcon v-if="!lastRunActive" class="h-6 w-6" />
           <StopIcon v-else class="h-6 w-6" />
         </button>
       </div>

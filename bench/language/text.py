@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Optional, Union
 from uuid import UUID
 
-from bench.language import IssueType
 from bench.language.const import MNT, ModuleNodeType, NodeReference, TypedNodeReference
 from bench.language.module import Node, NodeVisitor, ScopeNode, node_component, nproperty, nruntime
 
@@ -14,7 +13,7 @@ class HasText(Node):
     """Some instruction text with optional references."""
 
     text: str | None = nproperty(default=None)
-    _text_spans: list["TextSpan"] | None = nruntime(default=None, copy=lambda v: deepcopy(v))
+    _text_parsed: Optional["Text"] = nruntime(default=None, copy=lambda v: deepcopy(v))
 
     @property
     def text_plain(self) -> Optional[str]:
@@ -23,20 +22,17 @@ class HasText(Node):
         return "".join(str(s) for s in self._text_spans)
 
     @property
-    def text_spans(self) -> list["TextSpan"]:
-        if self.text is None:
+    def _text_spans(self) -> list["TextSpan"]:
+        if self._text_parsed is None:
             return []
-        elif self._text_spans is None:
-            raise RuntimeError(f"{self!r} is not interpreted")
-        else:
-            return self._text_spans
+        return self._text_parsed.spans
 
     @property
     def mentions(self) -> list["TextMention"]:
-        return [span for span in self.text_spans if isinstance(span, TextMention)]
+        return [span for span in self._text_spans if isinstance(span, TextMention)]
 
     def _clear_inner(self) -> None:
-        self._text_spans = None
+        self._text_parsed = None
 
     def _interp_inner(self, scope: ScopeNode) -> None:
         if self.text is None:
@@ -45,13 +41,41 @@ class HasText(Node):
         if self._new:
             # crude way of parsing out simple @mentions for new stuff
             # TODO @Cleanup @Architecture: institutionalize post-user-set special interp (value coerce/clean)
-            self._text_spans = parse_text_simple(self.text)
+            spans = parse_text_multi(self.text)
         else:
-            self._text_spans = parse_text_html(self.text)
+            spans = parse_text_html(self.text)
 
-        # resolve references
-        parsed_string_references = False
+        self._text_parsed = Text(spans=spans, _raw_text=self.text)
+        changed_source = self._text_parsed._resolve(scope)
+        if changed_source:
+            # update text with resolved references
+            self.text = render_text_html(self._text_parsed.spans)
+
+    def _visit_inner(self, visitor: NodeVisitor) -> None:
+        if self._text_spans is None:
+            return
         for span in self._text_spans:
+            if isinstance(span, TextMention) and isinstance(span.reference, Node):
+                visitor.visit_reference(span.reference)
+
+
+@dataclass
+class Text:
+    spans: list["TextSpan"]
+    _raw_text: str | None = None
+
+    @property
+    def text_plain(self) -> Optional[str]:
+        return "".join(str(s) for s in self.spans)
+
+    @property
+    def mentions(self) -> list["TextMention"]:
+        return [span for span in self.spans if isinstance(span, TextMention)]
+
+    def _resolve(self, scope: "ScopeNode") -> bool:
+        # resolve references
+        changed_source = False
+        for span in self.spans:
             if not isinstance(span, TextMention):
                 continue
             if isinstance(span.reference, Node):
@@ -62,26 +86,12 @@ class HasText(Node):
                     resolved = scope.lookup(span.reference.ref, node_t=span.reference.type)
                 else:
                     resolved = scope.lookup(span.reference)
-            if resolved is None:
-                self._on_issue(
-                    type=IssueType.MISSING_REFERENCE, subject=self, path=span.reference_path
-                )
-                continue
-            if isinstance(span.reference, str) or isinstance(span.reference.ref, str):
-                # user code set a string reference, need to track change
-                parsed_string_references = True
-            span.reference = resolved  # success
-
-        if parsed_string_references:
-            # update text with resolved references
-            self.text = render_text_html(self._text_spans)
-
-    def _visit_inner(self, visitor: NodeVisitor) -> None:
-        if self._text_spans is None:
-            return
-        for span in self._text_spans:
-            if isinstance(span, TextMention) and isinstance(span.reference, Node):
-                visitor.visit_reference(span.reference)
+            if resolved is not None:
+                if isinstance(span.reference, str) or isinstance(span.reference.ref, str):
+                    # user code set a string reference, need to track change
+                    changed_source = True
+                span.reference = resolved  # success
+        return changed_source
 
 
 @dataclass
@@ -214,7 +224,7 @@ def patch_text_html(text_raw: str | None, target_cks: dict[UUID, UUID]) -> str |
 SIMPLE_MENTION_REGEX = re.compile(r"@(?P<ident>[a-zA-Z0-9_.]+)")
 
 
-def parse_text_simple(text_raw: str) -> list[TextSpan]:
+def parse_text_multi(text_raw: str) -> list[TextSpan]:
     """
     Parses text in the @<path> format (and in HTML format).
     """
@@ -249,8 +259,8 @@ def render_text_simple(text_spans: list[TextSpan]) -> str:
     for span in text_spans:
         if isinstance(span, TextMention):
             # should be smarter about qualifying/scoping paths here
-            path = span.reference.py_ident if isinstance(span.reference, Node) else "???"
-            spans_str.append("@" + path)
+            path = span.reference.py_ident if isinstance(span.reference, Node) else None
+            spans_str.append("@" + (path or "???"))
         else:
             spans_str.append(span.text)
     return "".join(spans_str)

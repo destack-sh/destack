@@ -2,6 +2,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import timedelta
+from functools import partial
 from typing import Any, Optional, Union
 from uuid import UUID
 
@@ -529,7 +530,7 @@ class ModuleWorkerProcess(ModuleWriter):
                 job.run_data.inputs,
                 statement,
                 map_k=lambda f: (f._typed_key, f.py_ident),
-                map_v=unpack_value_flat,
+                map_v=partial(unpack_value_flat, scope=self.module),
                 is_output=False,
             )
 

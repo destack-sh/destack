@@ -2,6 +2,7 @@ import enum
 import inspect
 from dataclasses import dataclass, field, fields, is_dataclass
 from datetime import date, datetime, time
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -36,8 +37,9 @@ from bench.language.field import (
     TypeError,
     Vector,
 )
-from bench.language.module import NodeStatus
+from bench.language.module import Node, NodeStatus, ScopeNode
 from bench.language.remote import RemoteObject, Secret
+from bench.language.text import Text, parse_text_multi, render_text_html
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
@@ -266,7 +268,7 @@ class TypeMapper:
         """
         raise NotImplementedError
 
-    def unpack_value(self, type: IsTyped, value: Any) -> Any:
+    def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
         """Converts and coerces a raw flat value of the type into an instance value."""
         return value
 
@@ -388,7 +390,7 @@ class StaticPyTypeMapper(TypeMapper):
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return isinstance(value, self._all_py_types)
 
-    def unpack_value(self, type: IsTyped, value: Any) -> Any:
+    def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
         return self.py_type(value)
 
 
@@ -417,7 +419,7 @@ class StringifyTypeMapping(StaticPyTypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return self.py_type == py_type
 
-    def unpack_value(self, type: IsTyped, value: Any) -> Any:
+    def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
         return self.py_type(value)
 
     def pack_value(self, type: IsTyped, value: Any) -> str:
@@ -441,7 +443,7 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
 
         return Type(tag=TypeTag.STRING, hint=self.HINT_BY_PY_TYPE[py_type])
 
-    def unpack_value(self, type: IsTyped, value: Any) -> Any:
+    def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
         if isinstance(value, self.py_type):
             return value
         return self.py_type.fromisoformat(value)
@@ -474,7 +476,7 @@ class EnumMapper(TypeMapper):
             return value in type.resolved_fields
         return isinstance(value, Field) and value.key in type.resolved_fields
 
-    def unpack_value(self, type: HasFields, value: Any) -> Any:
+    def unpack_value(self, type: HasFields, scope: ScopeNode, value: Any) -> Any:
         field_ = type.resolved_fields.get(value)
         return field_.name if field_ else value
 
@@ -487,7 +489,43 @@ class RichTextMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is RichText
 
-    # nocheckin: implement rich text (with mentions, resolve in module?)
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
+        from bench.language.statement import Type
+
+        return Type(name=None, tag=TypeTag.STRING, hint=TypeHint.RICH_TEXT)
+
+    def is_instance_value(self, type: IsTyped, value: Any) -> bool:
+        return isinstance(value, (str, Text))
+
+    def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
+        spans = parse_text_multi(value)
+        text = Text(spans=spans, _raw_text=value)
+        text._resolve(scope)
+        return text
+
+    def pack_value(self, type: IsTyped, value: Any) -> Any:
+        if not isinstance(value, Text):
+            return value
+        return render_text_html(value.spans)
+
+
+class NodeMapper(TypeMapper):
+    def is_instance_type(self, py_type: type) -> bool:
+        return issubclass(py_type, Node)
+
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
+        from bench.language.statement import Type
+
+        hint = {Statement: TypeHint.STATEMENT, Field: TypeHint.FIELD}.get(py_type)
+        if hint is None:
+            raise ValueError(f"cannot map {py_type}")
+        return Type(name=None, tag=TypeTag.NODE, hint=hint)
+
+    def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
+        raise NotImplementedError("node values not yet supported")
+
+    def pack_value(self, type: IsTyped, value: Any) -> Any:
+        raise NotImplementedError("node values not yet supported")
 
 
 class RemoteObjectMapper(TypeMapper):
@@ -502,7 +540,7 @@ class RemoteObjectMapper(TypeMapper):
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return isinstance(value, RemoteObject)
 
-    def unpack_value(self, type: IsTyped, value: Any) -> Any:
+    def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
         return RemoteObject(
             id=UUID(value["id"]),
             name=value["name"],
@@ -536,7 +574,7 @@ class SecretTypeMapper(TypeMapper):
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return isinstance(value, Secret)
 
-    def unpack_value(self, type: IsTyped, value: Any) -> Any:
+    def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
         return Secret(id=UUID(value["id"]), sha512=value["sha512"])
 
     def pack_value(self, type: IsTyped, value: Any) -> Any:
@@ -573,7 +611,7 @@ class StructTypeMapper(TypeMapper):
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return isinstance(value, Mapping) or is_dataclass(value)
 
-    def unpack_value(self, type: IsTyped, value: Any) -> Any:
+    def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
         return TypedDict(value, type) if not isinstance(value, TypedDict) else value
 
     def pack_value(self, type: IsTyped, value: Any) -> Any:
@@ -689,28 +727,33 @@ def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any,
         )
 
 
-def unpack_value_flat(value: Any, type: IsTyped, ignore_array: bool = False) -> Any:
+def unpack_value_flat(
+    value: Any, type: IsTyped, scope: Optional[ScopeNode] = None, ignore_array: bool = False
+) -> Any:
     """Maps to the proper Python representation of the given value."""
     if value is None:  # skip null values
         return None  # type checking is done elsewhere
+    scope = scope or type.scope
+    if scope is None:
+        raise ValueError(f"cannot unpack without scope: {type!r}")
     # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
     mapping = get_type_mapper_by_type(type)
     try:
         if type.flags & TypeFlag.IsArrayable:  # keep as is
             if not isinstance(value, list):
-                return mapping.unpack_value(type, value)
+                return mapping.unpack_value(type, scope, value)
             else:
-                return [mapping.unpack_value(type, v) for v in value]
+                return [mapping.unpack_value(type, scope, v) for v in value]
         elif type.flags & TypeFlag.IsArray and not ignore_array:  # promote to array
             if not isinstance(value, list):
                 value = [value]
             else:
-                return [mapping.unpack_value(type, v) for v in value]
+                return [mapping.unpack_value(type, scope, v) for v in value]
         else:  # trim to element
             if isinstance(value, list):
                 value = value[0]
             else:
-                return mapping.unpack_value(type, value)
+                return mapping.unpack_value(type, scope, value)
     except (KeyError, ValueError, TypeError):
         logger.warning("unpack_failed", exc_info=True, value=value, type=type)
         return value  # type checking is done elsewhere
@@ -730,6 +773,8 @@ def pack_value_flat(value: Any, type: IsTyped, *args, **kwargs) -> Any:
 def unpack_value(
     value: Any,
     type: HasFields,
+    # TODO @Cleanup: always pass unpacking scope explicitly?
+    scope: Optional[ScopeNode] = None,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
     ignore_empty: bool = True,
@@ -737,11 +782,14 @@ def unpack_value(
     map_k: Callable[[Field], tuple[str, str]] = None,
 ):
     """Unpacks/deserializes the given value into a Python/Bench representation."""
+    scope = scope or type.scope
+    if scope is None:
+        raise ValueError(f"cannot unpack without scope: {type!r}")
     return map_value(
         value=value,
         type=type,
         map_k=map_k or (lambda f: (f._typed_key, f.py_ident)),
-        map_v=unpack_value_flat,
+        map_v=partial(unpack_value_flat, scope=scope),
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
         ignore_empty=ignore_empty,
@@ -790,7 +838,6 @@ register_mapper(StringTypeMapper(Key, TypeTag.STRING, hint=TypeHint.KEY), hints=
 register_mapper(
     StaticPyTypeMapper(float, TypeTag.NUMBER, alt_py_types=[int]), tags=[TypeTag.NUMBER]
 )
-register_mapper(StaticPyTypeMapper(type(None), TypeTag.NULL), tags=[TypeTag.NULL])
 register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN])
 register_mapper(VectorTypeMapper(), tags=[TypeTag.VECTOR])
 register_mapper(RemoteObjectMapper(), tags=[TypeTag.FILE])
@@ -799,6 +846,7 @@ register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])
 register_mapper(FunctionTypeMapper(), tags=[TypeTag.FUNCTION])
 register_mapper(JsonTypeMapper(), tags=[TypeTag.JSON])
 # type hints
+register_mapper(RichTextMapper(), hints=[TypeHint.RICH_TEXT])
 register_mapper(
     StringifyTypeMapping(UUID, TypeTag.STRING, hint=TypeHint.UUID), hints=[TypeHint.UUID]
 )
