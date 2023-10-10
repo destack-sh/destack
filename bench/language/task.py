@@ -118,9 +118,9 @@ async def run_task(
         task.session.module.resolve(m)
         for m in (
             "openai.lib.chat.gpt4",
+            "openai.lib.chat.gpt3",
             "anthropic.lib.text.claude-instant-1",
             "anthropic.lib.text.claude-2",
-            "openai.lib.chat.gpt3",
         )
     ]  # in priority order
     model_idx = 0

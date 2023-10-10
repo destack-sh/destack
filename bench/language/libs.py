@@ -589,8 +589,8 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         messages.append(
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Additional user instructions for task '{task.name}':\n {context_str}"
-                f"\nFollow the above very carefully.",
+                content=f"More on task '{task.name}':\n {context_str}"
+                f"\nFollow the above carefully.",
             )
         )
 
@@ -873,8 +873,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         context_str = await self._render_context(task, view, exclude_output=True)
         if context_str:
             messages.append(
-                f"Additional user instructions for task '{task.name}':\n {context_str}"
-                f"\nFollow the above very carefully."
+                f"More on task '{task.name}':\n {context_str}" f"\nFollow the above carefully."
             )
 
         # inputs
@@ -1266,13 +1265,15 @@ for name, module in DEFAULT_MODULES.items():
     module._clear_self()
     module._local_tree.set(nodes)
     for node in nodes:
+        # we re-init above to reset the key, so manually update lists
         if isinstance(node, ScopeNode):
-            node._update_lists(node)  # we re-init above to reset the key, so manually update lists
+            node._update_lists(node)
     # patch references
     for node in nodes:
         # TODO @Broken: use same reference patching as in wire (and share with hot reload, etc.)
         if node.mnt == MNT.STATEMENT and HasText in node._components:
-            # only doing text is fine? (wait, why does this even work - shouldn't we patch all refs?)
+            # only patching text here is fine since we clear after all ids/cks are updated
+            # and only in-text references are not automatically updated
             node.text = patch_text_html(node.text, target_cks)
     module._index_rec()
     module._interp_rec()
