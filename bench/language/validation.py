@@ -67,6 +67,8 @@ NAME_REGEX = re.compile(r"^[a-zA-Z0-9_.\-:/ \xa0]*$")
 
 
 def validate_name(value: str, on_issue: PropertyValidationHandler):
+    if not isinstance(value, str):
+        on_issue(f"not a string ({type(value)})")
     if len(value) > MAX_NAME_LENGTH:
         on_issue(f"too long ({len(value)} > {MAX_NAME_LENGTH})")
     if not NAME_REGEX.match(value):

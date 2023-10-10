@@ -273,7 +273,7 @@ watch(
 );
 
 // remember view history for each 'significant' model value
-// (we don't debounce or such in here, so the owner of this component calls mark whenever a write happens so we can restore the view later)
+// (we don't debounce or such in here, so the owner of this component must call 'mark' whenever a write happens so we can restore the view later)
 const viewHistory: Record<number, monaco.Position | null> = {};
 function markPosition() {
   // store current view with model value hash
