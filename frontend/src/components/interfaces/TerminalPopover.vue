@@ -3,12 +3,14 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
+import { formatDuration } from "@/composables/useNow";
+import type { Run } from "@/gql/graphql";
 import { useBenchState, type StatementHeader, usePanelContext } from "@/state/bench";
-import { SessionAccessLevel } from "@/state/session";
+import { SessionAccessLevel, useCurrentSessions } from "@/state/session";
 import { useTerminal } from "@/state/terminal";
 import { makeTextMention, makeTextPlain, renderTextHtml, type TextSpan } from "@/state/text";
 import { CommandLineIcon, XMarkIcon } from "@heroicons/vue/24/outline";
-import { PlayIcon, SparklesIcon } from "@heroicons/vue/24/solid";
+import { PlayIcon, SparklesIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside } from "@vueuse/core";
 import { ref, nextTick, computed } from "vue";
 
@@ -18,6 +20,7 @@ const props = defineProps<{
 const bench = useBenchState();
 const panel = usePanelContext();
 const terminal = useTerminal();
+const session = useCurrentSessions();
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const inputRef = ref<InstanceType<typeof AnnotatedText> | null>(null);
@@ -27,8 +30,8 @@ const canRun = computed(
   () => inputRef.value?.spans.some((s) => s.type == "text" && s.text.trim() != "") ?? false
 );
 const active = ref(false);
-const expanded = computed(() => active.value || generating.value || generatedCode.value != null);
-const generating = ref(false);
+const expanded = computed(() => active.value || generatingRun.value || generatedCode.value != null);
+const generatingRun = ref<Run | null>(null);
 const generatedFrom = ref<string | null>(null);
 const generatedCode = ref<string | null>(null);
 const applyingCode = ref(false);
@@ -41,21 +44,31 @@ onClickOutside(containerRef, () => {
 });
 
 async function run() {
-  if (generating.value) return;
-  discard();
-  generating.value = true;
+  if (generatingRun.value || !canRun.value) return;
+  discardGenerated();
   try {
-    // nocheckin: allow cancel task in terminal popover/panel
     // clear input text from span references (ignore content)
     generatedFrom.value = inputText.value.replace(/<span.*?>/g, "").replace(/<\/span>/g, "");
-    const { code } = await terminal.runText(inputText.value);
+    const { result, run } = terminal.runText(inputText.value);
+    generatingRun.value = run;
+    const { code } = await result;
+    if (generatingRun.value?.id != run.id) return; // cancelled or something
     generatedCode.value = code;
   } finally {
-    generating.value = false;
+    generatingRun.value = null;
   }
 }
 
-function discard() {
+async function cancel() {
+  if (generatingRun.value == null) return;
+  const success = await session.kill(generatingRun.value);
+  if (!success) {
+    console.error("failed to kill run", generatingRun.value);
+    generatingRun.value = null;
+  }
+}
+
+function discardGenerated() {
   generatedCode.value = null;
   generatedFrom.value = null;
 }
@@ -65,7 +78,8 @@ async function apply() {
   applyingCode.value = true;
   try {
     await terminal.runCode(generatedCode.value, { scope: props.fileCk, accessLevel: SessionAccessLevel.Update });
-    discard();
+    // nocheckin: handle generated code error
+    discardGenerated();
     inputText.value = "";
     close();
   } finally {
@@ -113,7 +127,7 @@ defineExpose({
           : 'w-10 rounded-2xl ring-opacity-20 hover:cursor-pointer hover:bg-orange-100',
       ]"
       @click="active ? focus() : open(inputText)"
-      @keydown.escape.stop.prevent="discard(), close()"
+      @keydown.escape.stop.prevent="discardGenerated(), close()"
     >
       <!-- Open/close button -->
       <button
@@ -135,16 +149,21 @@ defineExpose({
       />
       <span v-if="inputText.length == 0">&nbsp;</span>
       <!-- Run -->
-      <button
-        v-if="expanded"
-        class="ml-auto flex-shrink-0 self-start rounded-sm p-1 transition-colors duration-150 hover:bg-orange-100"
-        :class="[canRun ? 'text-orange-600' : 'text-gray-400']"
-        :disabled="!canRun || generating"
-        @click="run()"
-      >
-        <PlayIcon v-if="!generating" class="h-4 w-4" />
-        <BusySpinnerIcon v-else class="h-4 w-4 animate-spin" />
-      </button>
+      <span v-if="expanded" class="ml-auto flex flex-shrink-0 items-center self-start">
+        <!-- Active -->
+        <span v-if="generatingRun != null" class="mr-0.5 text-gray-400">
+          {{ session.getDurationFormatted(generatingRun) }}
+        </span>
+        <!-- Start/stop -->
+        <button
+          class="rounded-sm p-1 transition-colors duration-150 hover:bg-orange-100"
+          :class="[canRun || generatingRun ? 'text-orange-600' : 'text-gray-400']"
+          @click="generatingRun ? cancel() : run()"
+        >
+          <PlayIcon v-if="!generatingRun" class="h-4 w-4" />
+          <StopIcon v-else class="h-4 w-4" />
+        </button>
+      </span>
       <!-- Show in terminal -->
       <span
         v-if="expanded"
@@ -187,7 +206,7 @@ defineExpose({
           <!-- Reject -->
           <button
             class="flex flex-row items-center gap-1 rounded-sm px-1.5 py-1 text-gray-700 hover:bg-orange-100"
-            @click="discard"
+            @click="discardGenerated"
           >
             <XMarkIcon class="h-4 w-4" />
             <span>Discard</span>

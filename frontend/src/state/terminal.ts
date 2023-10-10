@@ -70,11 +70,11 @@ function _useTerminal() {
     }))
   );
 
-  async function runText(text: string): Promise<{ code: string; run?: Run }> {
+  function runText(text: string): { result: Promise<{ code: string }>; run: Run } {
     if (textToCodeTask.value == null) {
       throw new Error("text to code task not found");
     }
-    const { result } = session.run(textToCodeTask.value, {
+    const { run, result } = session.run(textToCodeTask.value, {
       inputs: { text },
       globalValue: { bot: TERMINAL_BOT_LABEL },
       accessLevel: SessionAccessLevel.Read,
@@ -82,13 +82,15 @@ function _useTerminal() {
       block: 60,
       timeoutSeconds: 60,
     });
-    const { run } = await result;
-    const code = run?.outputs?.[codeOutputKey.value ?? ""];
-    if (run?.status != RunStatus.Completed || code == null) {
-      console.warn("run failed", run);
-      throw new Error(`run failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`);
-    }
-    return { code };
+    const codeResult = result.then(({ run, logs }) => {
+      const code = run?.outputs?.[codeOutputKey.value ?? ""] as string;
+      if (run?.status != RunStatus.Completed || code == null) {
+        console.warn("run failed", run);
+        throw new Error(`run failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`);
+      }
+      return { code };
+    });
+    return { result: codeResult, run };
   }
 
   function runCode(code: string, options: { scope?: string; accessLevel: SessionAccessLevel }) {
