@@ -50,7 +50,7 @@ from bench.language.task import (
     TaskError,
     TaskErrorType,
 )
-from bench.language.text import TextMention, patch_text_html
+from bench.language.text import Text, TextMention, patch_text_html, render_text_simple
 from bench.language.typing import map_value, pack_value_flat
 from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
 
@@ -228,13 +228,17 @@ class BaseTextTaskCompiler(TaskCompiler):
         """Model-friendly rendering of instantiated value."""
         if type._effective_tag == TypeTag.ENUM:
             return type.resolved_fields.get(value).name
+        elif type.hint == TypeHint.RICH_TEXT and isinstance(value, Text):
+            return render_text_simple(value.spans)
+        elif type.hint in (TypeHint.STATEMENT, TypeHint.FIELD):
+            return value.py_ident
         else:
             return pack_value_flat(value, type, *args, **kwargs)
 
     def _render_text(self, text: HasText) -> str:
         if text.text is None:
             return "<no text>"
-        return "".join(str(s) if isinstance(s, TextMention) else str(s) for s in text.text_spans)
+        return "".join(str(s) if isinstance(s, TextMention) else str(s) for s in text._text_spans)
 
     def _render_statement_header(self, statement: Statement, *, name: str = None) -> Optional[str]:
         """Model-friendly string describing statement header."""
@@ -1017,21 +1021,20 @@ def _generate_symbolx_bench_file():
     idiomatic_bench.children.extend(
         Statement.new(
             StatementType.TEXT,
-            text="Use tasks for any ML tasks (no libraries!), and non-trivial extraction, analysis or processing",
+            text="Use Code to run arbitrary Python (you can also call code/tasks in code)",
         ),
-        Statement.new(
-            StatementType.TEXT,
-            text="Use code to run arbitrary Python for anything usually done in code (you can also call code/tasks in code)",
-        ),
+        Statement.new(StatementType.TEXT, text="Use Tasks for any AI text task"),
         Statement.new(StatementType.TEXT, text="Use Types for a reusable type system system"),
         Statement.new(
             StatementType.TEXT,
-            text='Pass references directly if already defined, by name (\\"Reference\\") otherwise',
+            text="Use Databases for examples, contextual data and application state",
         ),
         Statement.new(
             StatementType.TEXT,
-            text="Add text to describe non-trivial nodes, elaborate on the input in plain and concise text  ",
+            text="Use Variables for configuration, secrets and small global app state",
         ),
+        Statement.new(StatementType.TEXT, text="Pass references directly if possible"),
+        Statement.new(StatementType.TEXT, text="Add text to describe any non-trivial nodes  "),
     )
     sample_bench_code = Statement.new(type=StatementType.DATABASE, name="sample bench code")
     sample_bench_code.fields.append(
@@ -1166,20 +1169,20 @@ def _generate_symbolx_bench_file():
         Statement.new(StatementType.TEXT, text="See @bench_description and @idiomatic_bench"),
         Statement.new(
             StatementType.TEXT,
-            text="Check out the @sample_bench_code for syntax, but don't just copy",
+            text="Check out the @sample_bench_code for syntax, but don't just copy them",
         ),
         Statement.new(
             StatementType.TEXT,
-            text="Keep it short and concise, but feel free to add additional useful stuff for broad requests",
+            text="Keep it short and concise, but intelligently extrapolate the user's request (unless it's very specific) ",
         ),
         Statement.new(
             StatementType.TEXT,
             text="Append every new node somewhere (with create, append or extend)",
         ),
-        Statement.new(StatementType.TEXT, text="You musst use Bench primitives for everything"),
+        Statement.new(StatementType.TEXT, text="You must use Bench primitives for everything"),
     )
     generate_bench_code.fields.extend(
-        Field.new("text", TypeTag.STRING, "user input"),
+        Field.new("text", TypeHint.RICH_TEXT, "user input"),
         Field.new(
             "code", TypeHint.CODE, "valid Python code to modify Bench", flags=TypeFlag.IsOutput
         ),

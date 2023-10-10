@@ -176,9 +176,8 @@ class TypeTag(enum.StrEnum):
     FUNCTION = "function"
     ENUM = "enum"
     LITERAL = "literal"
-    NULL = "null"
-    ANY = "any"
     TYPE_REFERENCE = "ref"
+    NODE = "node"
 
     # convenience
     CHOICE = ENUM
@@ -219,6 +218,10 @@ class TypeHint(enum.StrEnum):
     IMAGE = "image"
     VIDEO = "video"
     AUDIO = "audio"
+    # node
+    STATEMENT = "statement"
+    FIELD = "field"
+    RUN = "run"
 
 
 class TypeFlag(enum.IntFlag):

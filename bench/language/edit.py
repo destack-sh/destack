@@ -13,7 +13,7 @@ from more_itertools import first
 
 from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType
 from bench.language.module import UNSET, Module, Node, NodeTree, NRel
-from bench.language.text import render_text_simple
+from bench.language.text import Text, render_text_simple
 from bench.utils.serialize import from_dict
 from bench.utils.utils import omit_empty
 
@@ -715,9 +715,11 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         return repr(value)
     # TODO @Broken: render & parse in-value references properly (e.g. secret, file, node)
     #   Related: figure out good way to set/'coerce' secrets, files, etc. as values
-    elif isinstance(value, str):
-        # render 'text' in simple form
-        if prop and prop.name == "text" and value and node._text_spans:
+    elif isinstance(value, (str, Text)):
+        # render text into simple form
+        if isinstance(value, Text):
+            value = render_text_simple(value.spans)
+        elif prop and prop.name == "text" and value and node._text_spans:
             value = render_text_simple(node._text_spans)
         # if it contains newlines transform into multiline string
         if "\n" in value:

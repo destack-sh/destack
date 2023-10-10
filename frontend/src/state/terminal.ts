@@ -20,6 +20,7 @@ function _useTerminal() {
   const module = useCurrentModule();
   const botLabelKey = computed(() => module.runMetadataKey("bot"));
   const codeKey = computed(() => module.runMetadataKey("code"));
+  const scopeKey = computed(() => module.runMetadataKey("scope"));
   const textToCodeTask = computed(() => module.statementOf("0c8e5c97-7433-51e6-8d2f-61893fc48d04"));
   const codeOutputKey = computed(() => {
     const field = textToCodeTask.value?.fields?.find((f) => f.name == "code");
@@ -60,12 +61,13 @@ function _useTerminal() {
       count: true,
       live: true,
       insertAt: "start",
-      queryAsFilter: (run) => run.value?.[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL,
+      queryAsFilter: (run) => run.value?.[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL && run.statement == null,
     }
   );
   const terminalRuns = computed(() =>
     runs.value?.map((r) => ({
       code: r.value[codeKey.value ?? ""] ?? r.value["code"],
+      scope: r.value[scopeKey.value ?? ""] ?? r.value["scope"],
       run: r,
     }))
   );

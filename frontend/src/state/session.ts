@@ -618,8 +618,11 @@ export function _useSessions(
     return end.diff(DateTime.fromISO(run.startedAt ?? run.createdAt)).as("seconds");
   }
 
-  function getDurationFormatted(run: Pick<Run, "createdAt" | "startedAt" | "terminatedAt" | "duration">): string {
-    return formatDuration(getDurationSeconds(run) * 1000);
+  function getDurationFormatted(
+    run: Pick<Run, "createdAt" | "startedAt" | "terminatedAt" | "duration">,
+    options?: { hideMillis?: boolean }
+  ): string {
+    return formatDuration(getDurationSeconds(run) * 1000, options);
   }
 
   function isActive(run: { id: string }) {

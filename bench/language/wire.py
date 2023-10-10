@@ -1117,16 +1117,13 @@ class RunPacker(DataPacker[RunData, Run]):
 
     def unpack(self, data: RunData, module: Module) -> Run:
         # we leave relational references that aren't in the module as None?
-        statement = module._nodes_by_ck.get(data.statement_ck) or MissingStatement(
-            data.statement_id, data.statement_type
-        )
         if data.error:
             error = RunError(
                 kind=data.error.kind,
                 type=data.error.type,
                 message=data.error.message,
                 traceback=data.error.traceback,
-                statement=statement,
+                statement=None,  # obviously wrong
             )
         else:
             error = None
@@ -1136,7 +1133,7 @@ class RunPacker(DataPacker[RunData, Run]):
             session=None,
             root=LazyRun(data.root_id) if data.root_id else None,
             parent=LazyRun(data.parent_id) if data.parent_id else None,
-            statement=statement,
+            statement=None,  # obviously wrong
             statement_path=data.statement_path,
             trigger=data.trigger_id,
             trigger_type=data.trigger_type,
@@ -1188,7 +1185,6 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
         )
 
     def unpack(self, data: LogEntryData, module: Module) -> lang.LogEntry:
-        statement = module._tree.get(data.statement_ck) or MissingStatement(data.statement_id)
         run = LazyRun(data.run_id) if data.run_id else None
         return lang.LogEntry(
             id=data.id,
@@ -1199,7 +1195,7 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
             level=data.level,
             logger=data.logger,
             message=data.message,
-            statement=statement,
+            statement=None,  # obviously wrong
             run=run,
             value=data.value,
         )
@@ -1240,20 +1236,3 @@ def deserialize_module(module_data: bytes) -> ModuleTreeData:
     module_data_dict = msgpack.unpackb(module_data, raw=False)
     module_data = from_dict(ModuleTreeData, module_data_dict)
     return module_data
-
-
-@dataclass
-class MissingStatement:
-    id: UUID
-    type: Optional[StatementType] = None
-
-    def __str__(self):
-        return str(self.id)
-
-    def __repr__(self):
-        return f"<MissingStatement {self.id} {self.type or '<unknown type>'}>"
-
-    def __getattr__(self, item):
-        if item == "id":
-            return self.id
-        raise AttributeError(f"statement {self.id} not found, so {item} cannot be accessed")
