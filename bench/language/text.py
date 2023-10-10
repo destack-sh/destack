@@ -5,7 +5,7 @@ from typing import Optional, Union
 from uuid import UUID
 
 from bench.language import IssueType
-from bench.language.const import ModuleNodeType, NodeReference, TypedNodeReference
+from bench.language.const import MNT, ModuleNodeType, NodeReference, TypedNodeReference
 from bench.language.module import Node, NodeVisitor, ScopeNode, node_component, nproperty, nruntime
 
 
@@ -184,7 +184,7 @@ def render_text_html(text_spans: list[TextSpan]) -> str:
         if isinstance(span, TextMention):
             if isinstance(span.reference, Node):
                 ref = TEXT_MENTION_TEMPLATE.format(
-                    type=span.reference.mnt, ck=span.reference.ck, path=None
+                    type=span.reference.mnt, ck=span.reference.ck, path=""
                 )
             else:
                 ref = TEXT_MENTION_TEMPLATE.format(
@@ -211,24 +211,27 @@ def patch_text_html(text_raw: str | None, target_cks: dict[UUID, UUID]) -> str |
     return render_text_html(spans)
 
 
+SIMPLE_MENTION_REGEX = re.compile(r"@(?P<ident>[a-zA-Z0-9_.]+)")
+
+
 def parse_text_simple(text_raw: str) -> list[TextSpan]:
     """
-    Parses text in the @<path> format.
+    Parses text in the @<path> format (and in HTML format).
     """
-    SIMPLE_MENTION_REGEX = re.compile(r"@(?P<path>[a-zA-Z0-9_.]+)")
     spans = []
     last_end = 0
 
-    for match in SIMPLE_MENTION_REGEX.finditer(text_raw):
+    combined_regex = re.compile(
+        r"|".join([SIMPLE_MENTION_REGEX.pattern, TEXT_MENTION_REGEX.pattern])
+    )
+
+    for match in combined_regex.finditer(text_raw):
         if match.start() > last_end:
             spans.append(TextPlain(text=text_raw[last_end : match.start()]))
 
-        path = match.group("path")
-        spans.append(
-            TextMention(
-                reference=TypedNodeReference(ModuleNodeType.STATEMENT, path), reference_path=None
-            )
-        )
+        ident = match.group("ident") or UUID(match.group("ck"))
+        mnt = match.group("type") or MNT.STATEMENT
+        spans.append(TextMention(reference=TypedNodeReference(mnt, ident), reference_path=None))
 
         last_end = match.end()
 
