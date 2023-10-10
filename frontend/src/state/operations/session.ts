@@ -96,6 +96,7 @@ export function useSessionOps() {
         $rootValue: JSON
         $globalValue: JSON
         $accessLevel: Int!
+        $tags: [String!]
       ) {
         run(
           input: {
@@ -112,6 +113,7 @@ export function useSessionOps() {
             rootValue: $rootValue
             globalValue: $globalValue
             accessLevel: $accessLevel
+            tags: $tags
           }
         ) {
           ... on RunState {
@@ -146,6 +148,7 @@ export function useSessionOps() {
       rootValue?: any;
       globalValue?: any;
       accessLevel?: number;
+      tags?: string[];
     }
   ) {
     return await ops.perform({
@@ -167,6 +170,7 @@ export function useSessionOps() {
           block: options?.block,
           timeoutSeconds: options?.timeoutSeconds,
           accessLevel: options?.accessLevel ?? SessionAccessLevel.Read,
+          tags: options?.tags,
         });
       },
     });

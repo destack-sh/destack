@@ -2,7 +2,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -17,6 +17,7 @@ from bench.language.const import (
     SessionAccessLevel,
 )
 from bench.language.edit import EditData
+from bench.language.module import _NodeChange
 from bench.language.run import RunErrorKind
 from bench.language.session import ModuleWriter, Session
 from bench.language.typing import map_value, unpack_value_flat
@@ -239,7 +240,9 @@ class WorkerNode(Monitored):
             # store session id separately from run because we write the run data directly
             #  (and the session doesn't actually exist until the run starts)
             session_id = msg.p.session_id or (UUIDT() if not msg.p.scheduled_at else None)
-            job = worker.add_run(run_data, session_id)
+            job = worker.add_run(
+                run_data, session_id, global_value=msg.p.global_value, tags=msg.p.tags
+            )
             error = None
         except RunStartError as e:
             self.log.error("run.start.error", msg=msg, error=e)
@@ -322,6 +325,8 @@ class WorkerNode(Monitored):
 class RunJob:
     run_data: RunData
     session_id: UUID
+    global_value: dict[str, Any] | None = None
+    tags: list[str] | None = None
     priority: int = 10  # default
     task: asyncio.Task | None = None
     session: Optional[Session] = None
@@ -425,7 +430,9 @@ class ModuleWorkerProcess(ModuleWriter):
         duration = utcnow_with_tz() - now
         self.log.info("worker.interp", edits=len(edits), duration=duration.total_seconds())
 
-    def add_run(self, run_data: RunData, session_id: UUID) -> RunJob:
+    def add_run(
+        self, run_data: RunData, session_id: UUID, global_value: dict | None, tags: list[str] | None
+    ) -> RunJob:
         """
         Registers a run to be processed by this worker process.
         If scheduled, the run will be queued after the delay.
@@ -434,7 +441,7 @@ class ModuleWorkerProcess(ModuleWriter):
         if run_data.id in self._scheduled_runs:
             raise RunStartError(StartRunErrorType.ALREADY_SCHEDULED)
 
-        job = RunJob(run_data=run_data, session_id=session_id)
+        job = RunJob(run_data=run_data, session_id=session_id, global_value=global_value, tags=tags)
 
         def _enqueue(priority: int):
             job.priority = priority
@@ -503,9 +510,20 @@ class ModuleWorkerProcess(ModuleWriter):
                     scope = self.module.resolve(UUID(scope))
                 else:
                     scope = self.module
-                statement = Code(code=code, parent=scope)
-                statement._interp_self(scope)
+                statement = Code(code=code)
+                if job.tags:
+                    statement.tags.create_many(*job.tags)
                 statement._track = RunTrackingLevel.ANONYMOUS
+                scope.children.append(statement, _trigger=_NodeChange.UpdateLists)
+                statement._clear_rec()
+                statement._interp_rec()
+                if statement.issues:
+                    raise RunError(
+                        kind=RunErrorKind.Runtime,
+                        type=StartRunErrorType.INVALID_RUN,
+                        message=f"invalid anonymous run: {statement.issues}",
+                        statement=statement,
+                    )
 
             inputs = map_value(
                 job.run_data.inputs,
@@ -526,6 +544,7 @@ class ModuleWorkerProcess(ModuleWriter):
                 trigger_id=job.run_data.trigger_id,
                 root_run_id=job.run_data.id,
                 root_run_value=job.run_data.value,
+                global_run_value=job.global_value,
                 id=job.session_id,
             )
 
@@ -556,11 +575,15 @@ class ModuleWorkerProcess(ModuleWriter):
             #  (where a queued run may be saved after a fast run has completed and flushed)
             if job.run_data.id in self._dirty_dangling_runs:
                 del self._dirty_dangling_runs[job.run_data.id]
-
-            job.terminated.set()
-            self.module._deactivate_rec()
             if job.run_data.id in self._active_runs:
                 del self._active_runs[job.run_data.id]
+
+            # deactivate session
+            self.module._deactivate_rec()
+            if not job.run_data.statement_id and "statement" in locals():
+                statement.parent.children.remove(statement, _trigger=_NodeChange.UpdateLists)
+
+            job.terminated.set()
 
     async def _do_run_in_session(
         self, session: Session, statement: Statement, inputs: dict

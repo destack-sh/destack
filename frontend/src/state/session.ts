@@ -461,6 +461,7 @@ export function _useSessions(
       globalValue?: any;
       accessLevel?: number;
       timeoutSeconds?: number;
+      tags?: string[];
     }
   ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
@@ -508,6 +509,7 @@ export function _useSessions(
           rootValue: options?.rootValue,
           accessLevel: options?.accessLevel ?? SessionAccessLevel.Full,
           timeoutSeconds: options?.timeoutSeconds,
+          tags: options?.tags,
         })
         .then((r) => {
           if (

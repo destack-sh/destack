@@ -712,6 +712,7 @@ class RuntimeHost:
                     trigger_id=run.trigger_id,
                     scheduled_at=run.scheduled_at,
                     metadata=None,
+                    tags=None,
                     root_value=run.value,
                     global_value=None,
                     access_level=run.access_level,

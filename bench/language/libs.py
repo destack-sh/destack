@@ -127,6 +127,14 @@ class JsonSchemaElement:
     enum: Optional[list[str]] = None
     required: Optional[list[str]] = None
 
+    def visit(self) -> None:
+        yield self
+        if self.properties:
+            for p in self.properties:
+                yield from p.visit()
+        if self.items:
+            yield from self.items.visit()
+
     def to_dict(self) -> dict[str, Any]:  # :ToDict
         # map properties to dict by name (Bench doesn't have a native map type yet)
         properties = (
@@ -511,8 +519,7 @@ class OpenAIChatInput(CompiledInput):
     def tokens(self) -> int:
         """Estimated token usage (very rough)."""
         messages_str = "\n".join([f"{m.role}: {m.content}" for m in self.messages])
-        functions_str = json.dumps([f.to_dict() for f in self.functions])
-        return int(len(messages_str) * 0.8 + len(functions_str) * 0.6)
+        return int(len(messages_str) * 0.3)
 
 
 class OpenAIChatCompiler(BaseTextTaskCompiler):
@@ -830,7 +837,7 @@ class AnthropicTextInput(CompiledInput):
     @cached_property
     def tokens(self) -> int:
         """Estimated token usage (very rough)."""
-        return int(len(self.prompt) * 0.8)
+        return int(len(self.prompt) * 0.3)
 
 
 class AnthropicTextCompiler(BaseTextTaskCompiler):

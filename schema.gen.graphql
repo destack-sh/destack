@@ -1421,6 +1421,7 @@ input RunInput {
   block: Float! = 1
   keyed: Boolean! = false
   timeoutSeconds: Int = null
+  tags: [String!] = null
   rootValue: JSON = null
   globalValue: JSON = null
   accessLevel: Int!
