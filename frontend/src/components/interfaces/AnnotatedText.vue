@@ -22,6 +22,7 @@ const props = defineProps<{
   minimalMentions?: boolean;
   file?: { ck: string };
   statement?: { ck: string };
+  allowAllCharacters?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -181,7 +182,7 @@ function onInput(span: TextSpan, index: number, e: InputEvent) {
   }
 
   // check if the input is valid
-  if (!VALID_TEXT_REGEXP.test(text)) {
+  if (!VALID_TEXT_REGEXP.test(text) && !props.allowAllCharacters) {
     const currentPos = window.getSelection()?.anchorOffset ?? 0;
     // invalid input, revert
     (e.target as HTMLElement).innerText = span.text;

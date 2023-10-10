@@ -455,10 +455,16 @@ class SessionQuery:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", session_id))
         if run_id:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", run_id))
-        if statement_ids:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "statement_id", statement_ids))
-        if statement_cks:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "statement_ck", statement_cks))
+        if statement_ids is not None:
+            if statement_ids:
+                query = Query.and_if_set(query, Q(QueryOp.EQUALS, "statement_id", statement_ids))
+            else:
+                query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "statement_id"))
+        if statement_cks is not None:
+            if statement_cks:
+                query = Query.and_if_set(query, Q(QueryOp.EQUALS, "statement_ck", statement_cks))
+            else:
+                query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "statement_ck"))
         if root_only:
             query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "parent_id"))
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)

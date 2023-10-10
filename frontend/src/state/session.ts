@@ -775,8 +775,9 @@ export function useRuns(
     const unsub = sessions.onRunChange((run) => {
       if (
         (filter.projectVersionId.value != null && run.projectVersion?.id !== filter.projectVersionId.value) ||
-        (filter.statementIds.value != null && !filter.statementIds.value.includes(run.statement?.id ?? "")) ||
-        (filter.statementCks.value != null && !filter.statementCks.value.includes(run.statementCk ?? "")) ||
+        ((filter.statementIds.value?.length ?? 0) > 0 &&
+          !filter.statementIds.value?.includes(run.statement?.id ?? "")) ||
+        ((filter.statementCks.value?.length ?? 0) && !filter.statementCks.value?.includes(run.statementCk ?? "")) ||
         (filter.sessionId.value != null && run.session?.id !== filter.sessionId.value) ||
         (options?.queryAsFilter != null && !options.queryAsFilter(run))
       ) {

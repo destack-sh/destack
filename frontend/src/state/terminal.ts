@@ -31,8 +31,8 @@ function _useTerminal() {
     {
       projectId: toRef(bench, "projectId"),
       projectVersionId: toRef(bench, "projectVersionId"),
-      statementIds: ref(null),
-      statementCks: ref(null),
+      statementIds: ref([]),
+      statementCks: ref([]),
       rootOnly: ref(true),
       sessionId: ref(null),
       runId: ref(null),
@@ -70,7 +70,8 @@ function _useTerminal() {
     }))
   );
 
-  function runText(text: string): { result: Promise<{ code: string }>; run: Run } {
+  function runTextToCode(text: string): { result: Promise<{ code: string }>; run: Run } {
+    /** Converts the given rich text (with mentions) to Bench code */
     if (textToCodeTask.value == null) {
       throw new Error("text to code task not found");
     }
@@ -85,7 +86,6 @@ function _useTerminal() {
     const codeResult = result.then(({ run, logs }) => {
       const code = run?.outputs?.[codeOutputKey.value ?? ""] as string;
       if (run?.status != RunStatus.Completed || code == null) {
-        console.warn("run failed", run);
         throw new Error(`run failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`);
       }
       return { code };
@@ -93,21 +93,31 @@ function _useTerminal() {
     return { result: codeResult, run };
   }
 
-  function runCode(code: string, options: { scope?: string; accessLevel: SessionAccessLevel }) {
-    return session.run(code, {
+  function runCode(code: string, options: { scope?: string; accessLevel: SessionAccessLevel; tags?: string[] }) {
+    /** Runs code inside the terminal, raising if the run fails to complete */
+    const { run, result } = session.run(code, {
       scope: options.scope,
-      rootValue: { name: "terminal", bot: TERMINAL_BOT_LABEL, code, scope: options.scope },
+      rootValue: { name: "terminal", code, scope: options.scope },
       globalValue: { bot: TERMINAL_BOT_LABEL },
       accessLevel: options.accessLevel,
-      tags: ["mend", "test"],
+      tags: options.tags,
     });
+    return {
+      run,
+      result: result.then(({ run, logs }) => {
+        if (run.status != RunStatus.Completed) {
+          throw new Error(`run failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`);
+        }
+        return { run, logs };
+      }),
+    };
   }
 
   return {
     runs: terminalRuns,
     loading,
     totalCount,
-    runText,
+    runTextToCode,
     runCode,
   };
 }

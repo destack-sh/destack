@@ -1320,8 +1320,7 @@ export class ViewLogsPanel extends Panel {
 
 export class TerminalPanel extends Panel {
   type = "terminal" as const;
-  input = "";
-  inputMode: "code" | "text" = "code";
+  code = "";
   runMode: "approve" | "immediate" = "approve";
   lastRunId?: string;
   accessLevel: SessionAccessLevel = SessionAccessLevel.Update;
@@ -1332,10 +1331,6 @@ export class TerminalPanel extends Panel {
 
   resetId(): void {
     this.id = "terminal-" + randomHexString();
-  }
-
-  toggleInputMode() {
-    this.inputMode = this.inputMode == "code" ? "text" : "code";
   }
 
   static parsePath(path: string, module: ModuleIndex): Panel | null {

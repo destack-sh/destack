@@ -998,17 +998,16 @@ def _generate_symbolx_bench_file():
     bench_description.children.extend(
         Statement.new(
             StatementType.TEXT,
-            text="All components of a Bench bot use common building blocks, mainly Statements",
+            text="Users typically build bots to automate information extraction, analysis and integration",
+        ),
+        Statement.new(
+            StatementType.TEXT, text="A Bench is a tree of nodes, the main one being Statements"
         ),
         Statement.new(
             StatementType.TEXT,
             text="Statements (like Task, Code, Database, Text) have Fields, Triggers, Records, etc.",
         ),
         Statement.new(StatementType.TEXT, text="Statements are organized into Files"),
-        Statement.new(
-            StatementType.TEXT,
-            text="Users typically build bots to automate information extraction, analysis and integration",
-        ),
     )
     idiomatic_bench = Statement.new(
         type=StatementType.TEXT,
@@ -1022,18 +1021,16 @@ def _generate_symbolx_bench_file():
         ),
         Statement.new(
             StatementType.TEXT,
-            text="Use code when there's something procedural or commonly done in code (incl. to call code/tasks)",
+            text="Use code to run arbitrary Python for anything usually done in code (you can also call code/tasks in code)",
         ),
+        Statement.new(StatementType.TEXT, text="Use Types for a reusable type system system"),
         Statement.new(
-            StatementType.TEXT, text="Use Class and Choice types for reusable type system"
+            StatementType.TEXT,
+            text='Pass references directly if already defined, by name (\\"Reference\\") otherwise',
         ),
         Statement.new(
             StatementType.TEXT,
-            text='Pass references directly if they\'re already defined, by name string (\\"Reference\\") otherwise',
-        ),
-        Statement.new(
-            StatementType.TEXT,
-            text="Add text to describe non-trivial nodes, elaborate/simplify the input text with clear and concise language  ",
+            text="Add text to describe non-trivial nodes, elaborate on the input in plain and concise text  ",
         ),
     )
     sample_bench_code = Statement.new(type=StatementType.DATABASE, name="sample bench code")
@@ -1100,35 +1097,20 @@ def _generate_symbolx_bench_file():
             ),
         ),
         Record.new(
-            text="bot idea generator",
+            text="populate example database",
             code=(
-                'BotIdea = Statement.new(StatementType.TYPE, tag=TypeTag.STRUCT, name="BotIdea", text="An idea for a Bench bot :)")\n'
-                "BotIdea.fields.extend(\n"
-                '    Field.new("name", TypeHint.NAME),\n'
-                '    Field.new("description", TypeTag.STRING, "1-2 line concise description"),\n'
-                ")\n"
-                'example_bots = Statement.new(StatementType.DATABASE, name="example bots")\n'
-                "example_bots.fields.append(Field.new(BotIdea, flags=TypeFlag.IsUnionWith))\n"
-                "generate_bot_ideas = Statement.new(\n"
-                "    type=StatementType.TASK,\n"
-                '    name="generate bot ideas", \n'
-                '    text="Generate 3 bot ideas for someone to build with Bench"\n'
-                ")\n"
-                "generate_bot_ideas.children.extend(\n"
-                "    Statement.new(\n"
-                "        type=StatementType.TEXT,\n"
-                '        text="See the @example_bots for inspiration",\n'
+                'example_bots = Statement.new(type=StatementType.DATABASE, name="example bots")\n'
+                'example_bots.fields.append(Field.new("", "BotIdea", flags=TypeFlag.IsUnionWith))\n'
+                "example_bots.records.extend(\n"
+                "    Record.new(\n"
+                '        name="Github PR Linter",\n'
+                '        description="On every new PR opened on our GitHub repo, scan the diff against our set of natural language lint rules (defined here) and post comments with any issues",\n'
                 "    ),\n"
-                '    Statement.new(type=StatementType.TEXT, text="Feel free to be inspired but don\'t just copy from the @example_bots"),\n'
-                "    Text.new(text=\"Keep it concise and don't include 'bot' in the @name \"),\n"
-                ")\n"
-                "generate_bot_ideas.fields.extend(\n"
-                '    Field.new("notes", TypeTag.STRING, "any additional info by the user"),\n'
-                '    Field.new("ideas", "BotIdea", flags=TypeFlag.IsOutput | TypeFlag.IsArray),\n'
-                ")\n"
-                'generate_bot_ideas.tags.create("randomize")\n'
-                "self.file.extend(BotIdea, example_bots, generate_bot_ideas)\n"
-                "self.file.extend(BotIdea, example_bots, generate_bot_ideas)"
+                "    Record.new(\n"
+                '        name="AI Trend Tracker",\n'
+                '        description="Collate a list of interesting and trending projects across the AI landscape, summarize and send out daily updates ",\n'
+                "    ),\n"
+                ")"
             ),
         ),
         Record.new(
@@ -1184,7 +1166,7 @@ def _generate_symbolx_bench_file():
         Statement.new(StatementType.TEXT, text="See @bench_description and @idiomatic_bench"),
         Statement.new(
             StatementType.TEXT,
-            text="Check out the @sample_bench_code for syntax, but don't just copy it",
+            text="Check out the @sample_bench_code for syntax, but don't just copy",
         ),
         Statement.new(
             StatementType.TEXT,
@@ -1192,9 +1174,9 @@ def _generate_symbolx_bench_file():
         ),
         Statement.new(
             StatementType.TEXT,
-            text="Append everything you create somewhere (with append or extend)",
+            text="Append every new node somewhere (with create, append or extend)",
         ),
-        Statement.new(StatementType.TEXT, text="For top-level statements append to self.file"),
+        Statement.new(StatementType.TEXT, text="You musst use Bench primitives for everything"),
     )
     generate_bench_code.fields.extend(
         Field.new("text", TypeTag.STRING, "user input"),
@@ -1202,16 +1184,6 @@ def _generate_symbolx_bench_file():
             "code", TypeHint.CODE, "valid Python code to modify Bench", flags=TypeFlag.IsOutput
         ),
     )
-    mend_bench_code = Statement.new(
-        type=StatementType.TASK, name="mend bench code", text="Fixes the given bench code"
-    )
-    mend_bench_code.fields.extend(
-        Field.new("code", TypeHint.CODE),
-        Field.new("error", TypeTag.STRING, flags=TypeFlag.IsOptional),
-        Field.new("logs", TypeTag.STRING, flags=TypeFlag.IsOptional),
-        Field.new("edited code", TypeHint.CODE, flags=TypeFlag.IsOutput),
-    )
-    Statement.new(type=StatementType.CODE, name="mend", code="# nocheckin: implement this")
     file = File.new("bench")
     file.statements.extend(
         bench_description,
