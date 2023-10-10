@@ -125,7 +125,7 @@ defineExpose({
           alwaysExpand || expandedLogs.includes(log.id) ? 'whitespace-pre-wrap' : 'max-w-full truncate',
           expandedLogs.includes(log.id) ? 'bg-orange-100 ring-1 ring-orange-600/20 ' : 'hover:bg-orange-50',
         ]"
-        @click="() => toggleExpanded(log)"
+        @click="() => alwaysExpand || toggleExpanded(log)"
       >
         <span v-if="!hideMetadata" class="mr-2 select-none text-gray-400">
           {{ DateTime.fromISO(log.createdAt).toFormat("HH:mm:ss.SSS") }}

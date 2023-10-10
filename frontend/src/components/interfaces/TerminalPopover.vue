@@ -34,7 +34,12 @@ const expanded = computed(() => active.value || generatingRun.value || generated
 const generatingRun = ref<Run | null>(null);
 const generatedFrom = ref<string | null>(null);
 const generatedCode = ref<string | null>(null);
+const generatedCodeCondensed = computed(
+  () => generatedCode.value != null && generatedCode.value.split("\n").length < 5
+);
 const applyingCode = ref(false);
+
+const fullWidth = computed(() => Math.min(panel.size.value.width - 40, 600));
 
 onClickOutside(containerRef, () => {
   if (active.value) {
@@ -44,12 +49,15 @@ onClickOutside(containerRef, () => {
 });
 
 async function run() {
-  if (generatingRun.value || !canRun.value) return;
+  if (!canRun.value) return;
+  if (generatingRun.value) {
+    cancel();
+  }
   discardGenerated();
   try {
     // clear input text from span references (ignore content)
     generatedFrom.value = inputText.value.replace(/<span.*?>/g, "").replace(/<\/span>/g, "");
-    const { result, run } = terminal.runText(inputText.value);
+    const { result, run } = terminal.runTextToCode(inputText.value);
     generatingRun.value = run;
     const { code } = await result;
     if (generatingRun.value?.id != run.id) return; // cancelled or something
@@ -77,11 +85,17 @@ async function apply() {
   if (generatedCode.value == null || generatedFrom.value == null) return;
   applyingCode.value = true;
   try {
-    await terminal.runCode(generatedCode.value, { scope: props.fileCk, accessLevel: SessionAccessLevel.Update });
-    // nocheckin: handle generated code error
+    const { result } = terminal.runCode(generatedCode.value, {
+      scope: props.fileCk,
+      accessLevel: SessionAccessLevel.Update,
+      tags: ["mend"],
+    });
+    await result;
     discardGenerated();
     inputText.value = "";
     close();
+  } catch (e) {
+    console.error("failed to apply code", e);
   } finally {
     applyingCode.value = false;
   }
@@ -123,9 +137,10 @@ defineExpose({
       class="relative flex flex-row gap-1 bg-white px-2 py-1.5 shadow-md ring-1 ring-orange-900 transition-all duration-150"
       :class="[
         expanded
-          ? 'w-[600px] rounded-sm ring-opacity-40'
+          ? 'rounded-sm ring-opacity-40'
           : 'w-10 rounded-2xl ring-opacity-20 hover:cursor-pointer hover:bg-orange-100',
       ]"
+      :style="expanded ? { width: fullWidth + 'px' } : {}"
       @click="active ? focus() : open(inputText)"
       @keydown.escape.stop.prevent="discardGenerated(), close()"
     >
@@ -143,6 +158,7 @@ defineExpose({
         class="min-w-[5px] max-w-full overflow-x-hidden whitespace-pre py-0.5"
         v-model="inputText"
         suppress-shortcuts
+        allow-all-characters
         @click.stop
         @enter="run"
         @enter-right="run"
@@ -178,23 +194,34 @@ defineExpose({
       <div
         v-if="generatedCode != null"
         class="relative flex w-[600px] flex-col gap-1 rounded-sm bg-white px-3 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        :style="{ width: fullWidth + 'px' }"
       >
         <!-- Header -->
         <div class="flex flex-row gap-1 px-1">
           <SparklesIcon class="h-4 w-4 text-orange-600" />
           <span class="max-w-full truncate font-semibold">{{ generatedFrom }}</span>
-          <!-- Jump to terminal -->
-          <span
+          <!-- TODO @UX: jump to terminal from terminal popover generation -->
+          <!-- <span
             class="ml-auto flex flex-row items-center gap-1 text-sm text-gray-400 underline-offset-2 hover:cursor-pointer hover:underline"
             @click="bench.openTerminal({ group: panel.panel.value.group, focus: true, opposite: true })"
           >
             <CommandLineIcon class="h-4 w-4" /> To Terminal
-          </span>
+          </span> -->
         </div>
         <!-- Code preview -->
-        <MonacoEditor v-model="generatedCode" class="max-h-80 overflow-y-auto" language="python" :focused="active" />
+        <MonacoEditor
+          v-model="generatedCode"
+          class="max-h-80 overflow-y-auto"
+          language="python"
+          :focused="active"
+          :wrap="generatedCodeCondensed"
+        />
         <!-- Controls -->
-        <div class="absolute bottom-2 right-2 flex flex-row-reverse gap-3 rounded-sm bg-white/80">
+        <!-- Apply/Discard should also tag the task run with feedback -->
+        <div
+          class="right-2 flex flex-row-reverse gap-3 rounded-sm"
+          :class="generatedCodeCondensed ? '' : '  absolute bottom-2 bg-white/80'"
+        >
           <!-- Apply -->
           <button
             class="flex flex-row items-center gap-1 rounded-sm bg-orange-600 px-1.5 py-1 text-white hover:bg-orange-500"
