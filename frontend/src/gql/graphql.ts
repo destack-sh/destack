@@ -1862,6 +1862,7 @@ export type RunInput = {
   scopeCk?: InputMaybe<Scalars["UUID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   statementId?: InputMaybe<Scalars["GlobalID"]>;
+  tags?: InputMaybe<Array<Scalars["String"]>>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
 };
 
@@ -4315,6 +4316,7 @@ export type StartRunMutationVariables = Exact<{
   rootValue?: InputMaybe<Scalars["JSON"]>;
   globalValue?: InputMaybe<Scalars["JSON"]>;
   accessLevel: Scalars["Int"];
+  tags?: InputMaybe<Array<Scalars["String"]> | Scalars["String"]>;
 }>;
 
 export type StartRunMutation = {
@@ -11615,6 +11617,14 @@ export const StartRunDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "accessLevel" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "tags" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+          },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -11693,6 +11703,11 @@ export const StartRunDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "accessLevel" },
                       value: { kind: "Variable", name: { kind: "Name", value: "accessLevel" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "tags" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "tags" } },
                     },
                   ],
                 },

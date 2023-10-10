@@ -306,6 +306,7 @@ class RunInput:
     block: float = 1.0
     keyed: bool = False
     timeout_seconds: Optional[int] = None
+    tags: Optional[list[str]] = None
     root_value: Optional[JSON] = None
     global_value: Optional[JSON] = None
     access_level: int = None
@@ -662,6 +663,7 @@ class SessionMutation:
             run_id=to_uuid(input.run_id),
             session_id=to_uuid(input.session_id),
             keyed=input.keyed,
+            tags=input.tags,
             root_value=input.root_value,
             global_value=input.global_value,
             access_level=input.access_level,

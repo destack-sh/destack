@@ -30,7 +30,8 @@ class HasReference(Node):
         if not isinstance(self.reference, Node):
             resolved = scope.lookup(self.reference)
         if resolved is None:
-            self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=self.py_ident)
+            path = getattr(self, "py_ident", repr(self))
+            self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=path)
         elif isinstance(self.reference, str):
             # user code set a string reference, need to track change
             self.reference = resolved

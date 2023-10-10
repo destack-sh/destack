@@ -265,6 +265,7 @@ class ReqStartRunPayload(ModuleScoped, Payload):
     inputs: dict[str, typing.Any]
     block: Optional[float]
     keyed: bool
+    tags: Optional[list[str]]
     root_value: Optional[dict[str, typing.Any]]
     global_value: Optional[dict[str, typing.Any]]
     access_level: Optional[SessionAccessLevel]
