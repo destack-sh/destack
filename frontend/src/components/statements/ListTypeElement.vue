@@ -2,9 +2,8 @@
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
-import { TypeTag } from "@/gql/graphql";
-import { makeField, useFields } from "@/state/statement";
-import { generateKeyBetween } from "@/utils/fractional";
+import { StatementType, TypeTag } from "@/gql/graphql";
+import { useFields } from "@/state/statement";
 import { Bars3Icon, PlusIcon, SquaresPlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { useCurrentModule, type Field } from "@/state/module";
@@ -15,10 +14,9 @@ import type { StatementAction } from "@/state/bench";
 const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
 
-const module = useCurrentModule();
 const ops = useOperations();
 
-const isEnum = computed(() => props.statement.tag == TypeTag.Enum);
+const isEnum = computed(() => props.statement.type == StatementType.Choice);
 const fieldsX = useFields(toRef(props, "statement"));
 const { moveFieldTo, selfFields, duplicateField } = fieldsX;
 const fieldsLength = computed(() => selfFields.value?.length ?? 0);

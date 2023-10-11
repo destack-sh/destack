@@ -351,6 +351,8 @@ export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
   [StatementType.Blank]: NoSymbolIcon,
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconSolid,
+  [StatementType.Class]: RectangleGroupIconSolid,
+  [StatementType.Choice]: ChoiceTypeIcon,
   [StatementType.Task]: SparklesIconSolid,
   [StatementType.Variable]: VariableIcon,
   [StatementType.Database]: CircleStackIconSolid,
@@ -361,30 +363,31 @@ export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
 };
 
 export function getStatementIconOutline(type: StatementType, tag?: TypeTag | null) {
-  if (type == StatementType.Type && tag == TypeTag.Struct) {
-    return RectangleGroupIconOutline;
-  } else if (type == StatementType.Type && tag == TypeTag.Enum) {
-    return ChoiceTypeIcon;
-  } else {
-    return STATEMENT_ICONS_OUTLINE[type];
-  }
+  return STATEMENT_ICONS_OUTLINE[type];
 }
 
 export function getStatementIconSolid(type: StatementType, tag?: TypeTag | null) {
-  if (type == StatementType.Type && tag == TypeTag.Struct) {
-    return RectangleGroupIconSolid;
-  } else if (type == StatementType.Type && tag == TypeTag.Enum) {
-    return ChoiceTypeIcon;
-  } else {
-    return STATEMENT_ICONS_SOLID[type];
-  }
+  return STATEMENT_ICONS_SOLID[type];
 }
+
+// :StatementDescriptors
+export const STATEMENT_TYPE_TAGS: Partial<Record<StatementType, TypeTag>> = {
+  [StatementType.Tag]: TypeTag.Struct,
+  [StatementType.Class]: TypeTag.Struct,
+  [StatementType.Choice]: TypeTag.Enum,
+  [StatementType.Database]: TypeTag.Struct,
+  [StatementType.Code]: TypeTag.Function,
+  [StatementType.Task]: TypeTag.Function,
+  [StatementType.Model]: TypeTag.Struct,
+  [StatementType.Flow]: TypeTag.Struct,
+};
 
 export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
   [StatementType.Blank]: "Blank",
   [StatementType.Tag]: "Tag",
   [StatementType.Text]: "Text",
-  [StatementType.Type]: "Type",
+  [StatementType.Class]: "Class",
+  [StatementType.Choice]: "Choice",
   [StatementType.Task]: "Task",
   [StatementType.Code]: "Code",
   [StatementType.Variable]: "Variable",
@@ -395,18 +398,13 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
 };
 
 export function getStatementLabel(type: StatementType, tag?: TypeTag | null) {
-  if (type == StatementType.Type && tag == TypeTag.Struct) {
-    return "Class";
-  } else if (type == StatementType.Type && tag == TypeTag.Enum) {
-    return "Choice";
-  } else {
-    return STATEMENT_TYPE_LABELS[type];
-  }
+  return STATEMENT_TYPE_LABELS[type];
 }
 
 export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Text]: "A plain text comment",
-  [StatementType.Type]: "A class, choice or union type",
+  [StatementType.Class]: "A class (or 'type') of object",
+  [StatementType.Choice]: "A choice of a fixed set of options",
   [StatementType.Database]: "Examples, state, feedback: any records",
   [StatementType.Code]: "Connect, test & customize with Python",
   [StatementType.Task]: "Structured AI model function.",
@@ -419,13 +417,7 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
 };
 
 export function getStatementDescription(type: StatementType, tag?: TypeTag | null) {
-  if (type == StatementType.Type && tag == TypeTag.Struct) {
-    return "A type of an object with some fields";
-  } else if (type == StatementType.Type && tag == TypeTag.Enum) {
-    return "A choice type offering multiple options";
-  } else {
-    return STATEMENT_TYPE_DESCRIPTIONS[type];
-  }
+  return STATEMENT_TYPE_DESCRIPTIONS[type];
 }
 
 export type DatabaseStatementProperties = {
@@ -453,16 +445,12 @@ export type MorphCommand = {
 
 export type MorphIdentity = {
   type: StatementType;
-  tag?: TypeTag | null;
-  flags?: TypeFlag | null;
   headingLevel?: number | null;
 };
 
 export function getMorphIdentity(statement: Statement): MorphIdentity {
   return {
     type: statement.type,
-    tag: statement.tag,
-    flags: statement.flags,
     headingLevel: statement.headingLevel,
   };
 }
@@ -494,10 +482,10 @@ export function useStatementMorph(
     const identity = { type, ...options };
     return {
       group,
-      label: options?.label ?? getStatementLabel(type, options?.tag),
-      iconOutline: options?.icon ?? getStatementIconOutline(type, options?.tag),
-      iconSolid: options?.icon ?? getStatementIconSolid(type, options?.tag),
-      description: options?.description ?? getStatementDescription(type, options?.tag),
+      label: options?.label ?? getStatementLabel(type),
+      iconOutline: options?.icon ?? getStatementIconOutline(type),
+      iconSolid: options?.icon ?? getStatementIconSolid(type),
+      description: options?.description ?? getStatementDescription(type),
       aliases: options?.aliases,
       identity,
     };
@@ -509,7 +497,9 @@ export function useStatementMorph(
     identity: MorphIdentity & { name?: string | null }
   ) {
     let key = null;
-    if ([StatementType.Type, StatementType.Tag, StatementType.Database].includes(identity.type)) {
+    if (
+      [StatementType.Class, StatementType.Choice, StatementType.Tag, StatementType.Database].includes(identity.type)
+    ) {
       key = newDynamicNodeKey(statement.ck);
     }
     ops.statement.morph(null, statement.id, statement, { ...identity, key });
@@ -527,11 +517,10 @@ export function useStatementMorph(
         description: "Just type for a plain comment",
         identity: { type: StatementType.Text, headingLevel: null },
       },
-      simpleStatementCommand(GROUPS.BASIC, StatementType.Type, {
-        tag: TypeTag.Struct,
+      simpleStatementCommand(GROUPS.BASIC, StatementType.Class, {
         aliases: ["type", "struct"],
       }),
-      simpleStatementCommand(GROUPS.BASIC, StatementType.Type, { tag: TypeTag.Enum, aliases: ["type", "enum"] }),
+      simpleStatementCommand(GROUPS.BASIC, StatementType.Choice, { aliases: ["type", "enum"] }),
       simpleStatementCommand(GROUPS.BASIC, StatementType.Database, {
         aliases: ["table", "retrieval", "rag", "samples"],
       }),

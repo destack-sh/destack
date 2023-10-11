@@ -284,9 +284,6 @@ class Statement(CrudNode):
 
     # statement data
     key = models.CharField(max_length=32, null=True, blank=True)
-    tag = models.CharField(max_length=24, choices=get_choices(TypeTag), null=True, blank=True)
-    flags = models.IntegerField(null=True, blank=True)
-    hint = models.CharField(max_length=24, choices=get_choices(TypeHint), null=True, blank=True)
     heading_level = models.IntegerField(null=True, blank=True)
     text = models.TextField(null=True, blank=True)
     code = models.TextField(null=True, blank=True)

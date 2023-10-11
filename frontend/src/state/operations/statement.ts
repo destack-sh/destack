@@ -65,8 +65,6 @@ export function useStatementOps() {
         $code: String
         $text: String
         $value: JSON
-        $tag: TypeTag
-        $flags: Int
         $versioned: Boolean!
       ) {
         createStatement(
@@ -82,8 +80,6 @@ export function useStatementOps() {
             code: $code
             text: $text
             value: $value
-            tag: $tag
-            flags: $flags
             versioned: $versioned
           }
         ) {
@@ -112,8 +108,6 @@ export function useStatementOps() {
             text
             headingLevel
             value
-            tag
-            flags
             referenceCk
             versioned
             tags(filters: { isVisible: true }) {
@@ -258,8 +252,6 @@ export function useStatementOps() {
           text: null,
           key: null,
           value: null,
-          tag: null,
-          flags: null,
           versioned: true,
         });
       },
@@ -285,8 +277,6 @@ export function useStatementOps() {
       key?: string;
       referenceCk?: string;
       text?: string;
-      tag?: TypeTag;
-      flags?: number;
       versioned?: boolean;
     }
   ) {
@@ -306,8 +296,6 @@ export function useStatementOps() {
           value: null,
           key: input.key ?? null,
           text: input.text ?? null,
-          tag: input.tag ?? null,
-          flags: input.flags ?? null,
           versioned: input.versioned ?? true,
         });
       },
@@ -332,21 +320,9 @@ export function useStatementOps() {
         $code: String
         $text: String
         $value: JSON
-        $tag: TypeTag
-        $flags: Int
       ) {
         updateStatement(
-          input: {
-            id: $id
-            orderKey: $orderKey
-            type: $type
-            name: $name
-            code: $code
-            text: $text
-            value: $value
-            tag: $tag
-            flags: $flags
-          }
+          input: { id: $id, orderKey: $orderKey, type: $type, name: $name, code: $code, text: $text, value: $value }
         ) {
           ... on Statement {
             # should match StatementContent fragment
@@ -359,8 +335,6 @@ export function useStatementOps() {
             code
             text
             value
-            tag
-            flags
           }
           ...OperationInfoContent
         }
@@ -378,8 +352,6 @@ export function useStatementOps() {
         key: string | null;
         text: string | null;
         value: any | null;
-        tag: TypeTag | null;
-        flags: number | null;
       }) =>
         ({
           __typename: "Mutation",
@@ -396,8 +368,6 @@ export function useStatementOps() {
             code: vars.code,
             key: vars.key,
             text: vars.text,
-            tag: vars.tag,
-            flags: vars.flags,
             fields: [],
           },
         } as UpdateStatementMutation),
@@ -411,31 +381,18 @@ export function useStatementOps() {
         $id: GlobalID!
         $type: StatementType!
         $name: String
-        $tag: TypeTag
-        $flags: Int
         $key: String
         $headingLevel: Int
         $versioned: Boolean!
       ) {
         morphStatement(
-          input: {
-            id: $id
-            type: $type
-            name: $name
-            tag: $tag
-            flags: $flags
-            key: $key
-            headingLevel: $headingLevel
-            versioned: $versioned
-          }
+          input: { id: $id, type: $type, name: $name, key: $key, headingLevel: $headingLevel, versioned: $versioned }
         ) {
           ... on Statement {
             id
             revision
             type
             name
-            tag
-            flags
             key
             headingLevel
             versioned
@@ -449,8 +406,6 @@ export function useStatementOps() {
         id: string;
         type: StatementType;
         name?: string;
-        tag?: TypeTag;
-        flags?: number;
         key?: string;
         headingLevel?: number;
         versioned: boolean;
@@ -462,8 +417,6 @@ export function useStatementOps() {
             revision: PENDING_REVISION,
             type: vars.type,
             name: vars.name ?? null,
-            tag: vars.tag ?? null,
-            flags: vars.flags ?? null,
             key: vars.key ?? null,
             headingLevel: vars.headingLevel ?? null,
             versioned: vars.versioned,
@@ -478,8 +431,6 @@ export function useStatementOps() {
     oldStatement: {
       type: StatementType;
       name?: string | null;
-      tag?: TypeTag | null;
-      flags?: number | null;
       key?: string | null;
       headingLevel?: number | null;
       versioned?: boolean | null;
@@ -487,8 +438,6 @@ export function useStatementOps() {
     newStatement: {
       type: StatementType;
       name?: string | null;
-      tag?: TypeTag | null;
-      flags?: number | null;
       key?: string | null;
       headingLevel?: number | null;
       versioned?: boolean | null;
@@ -498,8 +447,6 @@ export function useStatementOps() {
       id,
       type: oldStatement.type,
       name: oldStatement.name ?? undefined,
-      tag: oldStatement.tag ?? undefined,
-      flags: oldStatement.flags ?? undefined,
       key: oldStatement.key ?? undefined,
       headingLevel: oldStatement.headingLevel ?? undefined,
       versioned: oldStatement.versioned === undefined ? true : oldStatement.versioned ?? false,
@@ -512,8 +459,6 @@ export function useStatementOps() {
           id,
           type: newStatement.type,
           name: newStatement.name ?? undefined,
-          tag: newStatement.tag ?? undefined,
-          flags: newStatement.flags ?? undefined,
           key: newStatement.key ?? undefined,
           headingLevel: newStatement.headingLevel ?? undefined,
           versioned: newStatement.versioned === undefined ? true : newStatement.versioned ?? false,

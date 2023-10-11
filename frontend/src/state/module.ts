@@ -27,6 +27,7 @@ import { VERSION, WS_CONNECTED } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { computed, isRef, ref, watch, type Ref } from "vue";
+import { STATEMENT_TYPE_TAGS } from "@/state/statement";
 
 export type NodeBase = { __typename: string; id: string; ck: string; name?: string | null };
 // TODO @Cleanup @Robustness: type module objects more correctly
@@ -453,7 +454,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (field.tag == TypeTag.TypeReference) {
       const reference = statementOf(field.referenceCk);
       if (reference == null) return null;
-      tag = reference.tag as TypeTag;
+      tag = STATEMENT_TYPE_TAGS[reference.type] as TypeTag;
     }
     const storageFormat = getStorageFormat(tag, field.hint ?? undefined, field.flags);
     if (tag == TypeTag.Vector) {
@@ -468,7 +469,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (field.tag == TypeTag.TypeReference) {
       const reference = statementOf(field.referenceCk);
       if (reference == null) return field;
-      return { ...field, tag: reference.tag as TypeTag };
+      return { ...field, tag: STATEMENT_TYPE_TAGS[reference.type] as TypeTag };
     } else {
       return field;
     }
@@ -623,21 +624,6 @@ export function newRunId(): string {
 export function newSessionId(): string {
   const nodeId = uuidv4();
   return btoa(`Session:${nodeId}`);
-}
-
-export function getStatementSubtype(statement: {
-  type?: StatementType | null;
-  tag?: TypeTag | null;
-  flags?: number | null;
-}) {
-  if (statement.type == StatementType.Type) {
-    if (statement.tag == TypeTag.Enum) {
-      return "choice";
-    } else {
-      return "type";
-    }
-  }
-  return null;
 }
 
 export function mergeNodePaths(a: NodeBase[], b: NodeBase[]): NodeBase[] {

@@ -120,8 +120,6 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     value: auto
     reference_ck: auto
     versioned: bool
-    tag: Optional[TypeTag]
-    flags: Optional[int]
     tags: list[Tagging] = strawberry_django.field(filters=TaggingFilter)
     triggers: list[Trigger] = strawberry_django.field(filters=TriggerFilter)
     fields: list[Field] = strawberry_django.field(filters=FieldFilter)
@@ -141,8 +139,6 @@ class StatementCreateInput:
     versioned: bool
     parent_id: Optional[GlobalID] = None
     name: Optional[str] = None
-    tag: Optional[TypeTag] = None
-    flags: Optional[int] = None
     text: Optional[str] = None
     key: Optional[str] = None
     reference_ck: Optional[UUID] = None
@@ -158,8 +154,6 @@ class StatementUpdateInput(strawberry_django.NodeInput):
     order_key: Optional[str] = None
     type: Optional[StatementType] = None
     name: Optional[str] = None
-    tag: Optional[TypeTag] = None
-    flags: Optional[int] = None
     text: Optional[str] = None
     key: Optional[str] = None
     reference_ck: Optional[UUID] = None
@@ -177,8 +171,6 @@ class StatementMorphInput(strawberry_django.NodeInput):
     type: StatementType
     versioned: bool
     name: Optional[str] = None
-    tag: Optional[TypeTag] = None
-    flags: Optional[int] = None
     key: Optional[str] = None
     heading_level: Optional[int] = None
 
@@ -281,8 +273,6 @@ class StatementMutation:
             name=input.name,
             parent_statement=parent_statement,
             order_key=input.order_key,
-            tag=input.tag,
-            flags=input.flags,
             text=input.text,
             key=input.key,
             reference_ck=input.reference_ck,
@@ -300,8 +290,6 @@ class StatementMutation:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.type = input.type
         statement.name = input.name
-        statement.tag = input.tag
-        statement.flags = input.flags
         statement.key = input.key
         statement.heading_level = input.heading_level
         statement.versioned = input.versioned

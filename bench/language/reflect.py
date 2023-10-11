@@ -46,14 +46,14 @@ def x_struct(
         bench_type = type_from_instance_type(cls, name=name)
         bench_type.text = text
         if bench_type.tag != TypeTag.STRUCT:
-            raise TypeError(f"expected {TypeTag.STRUCT} for {cls}, got {bench_type.tag}")
+            raise TypeError(f"expected {TypeTag.STRUCT} for {cls}, got {bench_type!r}")
         # add any parent classes as base types
         for base in cls.__bases__:
             if base is object:
                 continue
             base_type = type_from_instance_type(base, name=None)
             if base_type.tag != TypeTag.STRUCT:
-                raise TypeError(f"expected {TypeTag.STRUCT} for {base_type}, got {base_type.tag}")
+                raise TypeError(f"expected {TypeTag.STRUCT} for {base_type!r}, got {base_type!r}")
             bench_type.extend_type(base_type)
         file.statements.append(bench_type)
 
@@ -76,9 +76,9 @@ def x_task(
     name: str, text: str, *, file: File
 ) -> typing.Callable[[typing.Callable], typing.Callable]:
     def decorator(fn):
-        from bench.language.statement import Task
+        from bench.language.statement import Statement
 
-        task = Task(name=name, text=text)
+        task = Statement.task(name=name, text=text)
         file.statements.append(task)
         task_type = type_from_instance_type(fn, name=None)
         task.fields.extend(f._copy_self(reset_id=False) for f in task_type.fields)
@@ -90,11 +90,11 @@ def x_task(
 @typing.dataclass_transform()
 def x_tag(name: str, text: str, *, file: File) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
-        from bench.language.statement import Tag
+        from bench.language.statement import Statement
 
         # also turn tag into dataclass, it's basically a struct
         cls = dataclass(cls)
-        tag = Tag(name=name, text=text)
+        tag = Statement.tag(name=name, text=text)
         file.statements.append(tag)
         tag_type = type_from_instance_type(cls, name=None)
         tag.fields.extend(f._copy_self(reset_id=False) for f in tag_type.fields)
@@ -112,9 +112,9 @@ def x_model(
     name: str, text: str, *, external_name: str, file: File
 ) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
-        from bench.language.statement import Model
+        from bench.language.statement import Statement
 
-        model = Model(name=name, external_name=external_name, text=text)
+        model = Statement.model(name=name, external_name=external_name, text=text)
         file.statements.append(model)
         model_type = type_from_instance_type(cls._endpoint, name=None)
         model.fields.extend(f._copy_self(reset_id=True) for f in model_type.fields)

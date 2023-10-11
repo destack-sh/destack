@@ -37,7 +37,6 @@ from bench.language.module import Node, NodeStatus, NodeTree, ScopeNode
 from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
-from bench.language.statement import STATEMENT_CLASS_BY_TYPE
 from bench.language.text import patch_text_html
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
@@ -422,10 +421,6 @@ class StatementData(NodeData, HasOrder, HasCrud):
     name: Optional[str]
     heading_level: Optional[TextHeadingLevel]
     text: Optional[str]
-    tag: Optional[TypeTag]
-    hint: Optional[TypeHint]
-    flags: Optional[TypeFlag]
-    hint: Optional[TypeHint]
     key: Optional[str]
     code: Optional[str]
     value: Optional[typing.Any]
@@ -457,9 +452,6 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             name=statement.name,
             heading_level=statement.heading_level,
             text=statement.text,
-            tag=statement.tag,
-            hint=statement.hint,
-            flags=statement.flags,
             key=statement.key,
             code=statement.code,
             value=value,
@@ -478,7 +470,6 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
         parent: lang.File | lang.Statement,
         session: Optional[Session],
     ) -> lang.Statement:
-        cls = STATEMENT_CLASS_BY_TYPE[statement.type]
         return lang.Statement(
             id=statement.id,
             ck=statement.ck,
@@ -488,9 +479,6 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             name=statement.name,
             heading_level=statement.heading_level,
             text=statement.text,
-            flags=statement.flags or cls.flags,
-            tag=statement.tag or cls.tag,
-            hint=statement.hint,
             key=statement.key,
             code=statement.code,
             value=statement.value,

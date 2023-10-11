@@ -1592,8 +1592,6 @@ type Statement implements HasCrud & ModuleNode & Node {
   value: JSON
   referenceCk: UUID
   versioned: Boolean!
-  tag: TypeTag
-  flags: Int
   tags(filters: TaggingFilter): [Tagging!]!
   triggers(filters: TriggerFilter): [Trigger!]!
   fields(filters: FieldFilter): [Field!]!
@@ -1640,8 +1638,6 @@ input StatementCreateInput {
   versioned: Boolean!
   parentId: GlobalID = null
   name: String = null
-  tag: TypeTag = null
-  flags: Int = null
   text: String = null
   key: String = null
   referenceCk: UUID = null
@@ -1664,8 +1660,6 @@ input StatementMorphInput {
   type: StatementType!
   versioned: Boolean!
   name: String = null
-  tag: TypeTag = null
-  flags: Int = null
   key: String = null
   headingLevel: Int = null
 }
@@ -1696,7 +1690,8 @@ enum StatementType {
   TAG
   TEXT
   BLANK
-  TYPE
+  CLASS
+  CHOICE
   TASK
   CODE
   FLOW
@@ -1716,8 +1711,6 @@ input StatementUpdateInput {
   orderKey: String = null
   type: StatementType = null
   name: String = null
-  tag: TypeTag = null
-  flags: Int = null
   text: String = null
   key: String = null
   referenceCk: UUID = null

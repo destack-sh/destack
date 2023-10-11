@@ -87,6 +87,9 @@ class IdentifierType(enum.StrEnum):
     FIELD = "field"
 
 
+IdentT = IdentifierType
+
+
 @cachetools.cached(cache={})
 def to_pyidentifier(name: str, type: IdentifierType) -> str:
     """Turns a string into a valid Python identifier."""

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { TypeTag, type Field, StatementType } from "@/gql/graphql";
 import { TypeFlag, useCurrentModule, useNavigation } from "@/state/module";
-import { getStatementIconOutline } from "@/state/statement";
+import { STATEMENT_TYPE_TAGS, getStatementIconOutline } from "@/state/statement";
 import { ICONS_BY_HINT_OUTLINE, ICONS_BY_TAG_OUTLINE, renderBuiltinType } from "@/state/type";
 import { ListBulletIcon } from "@heroicons/vue/24/outline";
 import { useKeyModifier } from "@vueuse/core";
@@ -26,7 +26,9 @@ const resolvedReference = computed(() => {
 const nav = useNavigation();
 const altState = useKeyModifier("Alt");
 
-const resolvedTag = computed(() => resolvedReference.value?.tag ?? props.type.tag);
+const resolvedTag = computed(
+  () => STATEMENT_TYPE_TAGS[resolvedReference.value?.type as StatementType] ?? props.type.tag
+);
 
 const icon = computed(() => {
   if (

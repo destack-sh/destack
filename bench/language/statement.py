@@ -1,5 +1,6 @@
 import typing
 from copy import deepcopy
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
@@ -10,11 +11,10 @@ from bench.language.const import (
     StatementType,
     TextHeadingLevel,
     TypeFlag,
-    TypeHint,
     TypeTag,
 )
 from bench.language.database import HasDatabase
-from bench.language.field import HasFields, IsType, IsTyped
+from bench.language.field import HasFields, TypedDict
 from bench.language.model import HasModel
 from bench.language.module import (
     Node,
@@ -26,6 +26,7 @@ from bench.language.module import (
     nchildren,
     ninternal,
     node,
+    node_component,
     nparent,
     nproperty,
 )
@@ -35,55 +36,97 @@ from bench.language.tagging import HasTags
 from bench.language.task import HasTask
 from bench.language.text import HasText
 from bench.language.trigger import HasTriggers
-from bench.language.validation import enum_validator, flag_validator, validate_name
+from bench.language.validation import enum_validator, validate_name
 from bench.language.value import HasValue
 from bench.utils.func import dict_minus
-from bench.utils.utils import IdentifierType, identity, to_pyidentifier
+from bench.utils.utils import IdentifierType, IdentT, identity, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language import File
 
-# Note that order matters as components are called in order.
-_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node]]] = {
-    StatementType.TYPE: (IsType, HasFields, HasText),
-    StatementType.CODE: (HasCode, HasRun, HasTriggers, HasFields, HasText),
-    StatementType.MODEL: (HasModel, HasRun, HasFields, HasText),
-    StatementType.TASK: (HasTask, HasRun, HasFields, HasText),
-    StatementType.FLOW: (HasRun, HasFields, HasText),
-    # Order matters for Database because HasDatabase _init
-    StatementType.DATABASE: (HasDatabase, HasFields, HasText),
-    StatementType.TAG: (HasFields, HasText),
-    StatementType.VARIABLE: (HasValue, HasFields, HasText),
-    StatementType.REFERENCE: (HasReference, HasText),
-    StatementType.TEXT: (HasText,),
-    StatementType.BLANK: tuple(),
-}
-_missing_types = set(StatementType) - set(_DYNAMIC_COMPONENTS_BY_TYPE)
-assert not _missing_types, f"missing statement components for {_missing_types}"
-_ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node]] = tuple(
-    {c for cs in _DYNAMIC_COMPONENTS_BY_TYPE.values() for c in cs}
+
+@node_component
+class InstantiableType(Node):
+    def _call_inner(self, *args, **kwargs) -> Any:
+        inputs = self._inputs_from_args(args, kwargs)
+        return TypedDict(inputs, self)
+
+
+_STATEMENT_DESCRIPTORS: dict[StatementType, "_StatementDescriptor"] = {}
+
+
+@dataclass(slots=True)
+class _StatementDescriptor:
+    type: StatementType
+    dynamic_components: tuple[typing.Type[Node], ...]
+    identifier: IdentifierType
+    passthrough: tuple[tuple[str, _Passthrough], ...] = tuple()
+    tag: Optional[TypeTag] = None
+
+    def __post_init__(self):
+        if self.type in _STATEMENT_DESCRIPTORS:
+            raise ValueError(f"statement descriptor for {self.type} already exists")
+        _STATEMENT_DESCRIPTORS[self.type] = self
+
+
+# :StatementDescriptors
+_s = _StatementDescriptor
+_s(StatementType.TAG, (HasFields, HasText), IdentT.VARIABLE, tag=TypeTag.STRUCT)
+_s(StatementType.TEXT, (HasText,), IdentT.VARIABLE)
+_s(StatementType.BLANK, (), IdentT.VARIABLE)
+_s(
+    StatementType.CLASS,
+    (InstantiableType, HasFields, HasText),
+    IdentT.TYPE,
+    tag=TypeTag.STRUCT,
+    passthrough=(("fields", _Passthrough.Full),),
 )
+_s(
+    StatementType.CHOICE,
+    (HasFields, HasText),
+    IdentT.TYPE,
+    tag=TypeTag.ENUM,
+    passthrough=(("fields", _Passthrough.Full),),
+)
+_s(StatementType.TASK, (HasTask, HasRun, HasFields, HasText), IdentT.METHOD, tag=TypeTag.FUNCTION)
+_s(
+    StatementType.CODE,
+    (HasCode, HasRun, HasTriggers, HasFields, HasText),
+    IdentT.METHOD,
+    tag=TypeTag.FUNCTION,
+)
+_s(StatementType.FLOW, (HasRun, HasFields, HasText), IdentT.METHOD, tag=TypeTag.FUNCTION)
+_s(StatementType.MODEL, (HasModel, HasRun, HasFields, HasText), IdentT.METHOD, tag=TypeTag.FUNCTION)
+_s(
+    StatementType.VARIABLE,
+    (HasValue, HasFields, HasText),
+    IdentT.VARIABLE,
+    tag=TypeTag.STRUCT,
+    passthrough=(("value", _Passthrough.Full),),
+)
+_s(
+    StatementType.DATABASE,
+    (HasDatabase, HasFields, HasText),
+    IdentT.VARIABLE,
+    tag=TypeTag.STRUCT,
+    passthrough=(("records", _Passthrough.Full),),
+)
+_s(StatementType.REFERENCE, (HasReference, HasText), IdentT.VARIABLE)
+assert len(_STATEMENT_DESCRIPTORS) == len(StatementType), "missing statement descriptors"
+del _s
 
 _IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
-    StatementType.TYPE: IdentifierType.TYPE,
-    StatementType.MODEL: IdentifierType.METHOD,
-    StatementType.TASK: IdentifierType.METHOD,
-    StatementType.FLOW: IdentifierType.METHOD,
-    StatementType.CODE: IdentifierType.METHOD,
-    StatementType.DATABASE: IdentifierType.VARIABLE,
-    StatementType.VARIABLE: IdentifierType.VARIABLE,
-    StatementType.TAG: IdentifierType.VARIABLE,
-    StatementType.REFERENCE: IdentifierType.VARIABLE,
-    StatementType.TEXT: IdentifierType.VARIABLE,
-    StatementType.BLANK: IdentifierType.VARIABLE,
+    t.type: t.identifier for t in _STATEMENT_DESCRIPTORS.values()
 }
 _PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, _Passthrough]]] = {
-    StatementType.VARIABLE: (("value", _Passthrough.Full),),
-    StatementType.DATABASE: (("records", _Passthrough.Full), ("fields", _Passthrough.Scope)),
-    StatementType.TAG: (("fields", _Passthrough.Scope),),
-    StatementType.TYPE: (("fields", _Passthrough.Full),),
+    t.type: t.passthrough for t in _STATEMENT_DESCRIPTORS.values()
 }
-_STATIC_PASSTHROUGH: tuple[tuple[str, _Passthrough]] = (("children", _Passthrough.Scope),)
+_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node]]] = {
+    t.type: t.dynamic_components for t in _STATEMENT_DESCRIPTORS.values()
+}
+_ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node]] = tuple(
+    c for t in _STATEMENT_DESCRIPTORS.values() for c in t.dynamic_components
+)
 
 
 @node(
@@ -110,12 +153,6 @@ class Statement(ScopeNode, HasTags):
     )
     text: str | None = nproperty(default=None)
     key: str | None = ninternal(default=None)
-    # Statement.tag is optional, but IsTyped.tag is not - we validate this manually in init/morph.
-    tag: Optional[TypeTag] = nproperty(
-        default=None, validate=enum_validator(TypeTag), ignore_conflicts_with=(IsTyped,)
-    )
-    hint: Optional[TypeHint] = nproperty(default=None, validate=enum_validator(TypeHint))
-    flags: Optional[TypeFlag] = nproperty(default=0, validate=flag_validator(TypeFlag))
     code: str | None = nproperty(default=None)
     value: Any | None = nproperty(default_factory=dict, copy=deepcopy)
     versioned: bool = nproperty(default=True)
@@ -123,41 +160,31 @@ class Statement(ScopeNode, HasTags):
 
     @staticmethod
     def new(
-        type: Union[str, StatementType, "_StatementProxy"] = None,
+        type: Union[str, StatementType] = None,
         name: str = None,
-        tag: TypeTag = None,
         *args,
         for_parent: Union["Statement", "File", None] = None,
         **kwargs,
     ) -> "Statement":
         if type is None:
             raise ValueError("type must be specified")
-        if isinstance(type, _StatementProxy):
-            type = type.type
         if not isinstance(type, StatementType):
             type = StatementType(type.lower())
-        proxy = STATEMENT_CLASS_BY_TYPE[type]
-        kwargs["tag"] = tag or proxy.tag
-        if proxy.flags and "flags" not in kwargs:
-            kwargs["flags"] = proxy.flags
         return Statement(type=type, name=name, *args, **kwargs)
 
     @staticmethod
     def text_(text: str, *args, **kwargs):
         return Statement.new(type=StatementType.TEXT, text=text, *args, **kwargs)
 
-    # the others are defined below
+    # the others are defined after the class
 
     @staticmethod
     def to_python(
         node: "Statement", props: dict, for_parent: Union["Statement", "File", None] = None
     ) -> tuple[str, dict, dict]:
-        if node.type == StatementType.TYPE:
-            extra_kwargs = {"tag": node.tag}
-        else:
-            extra_kwargs = {}
-
         init_name = f"Statement.{node.type.lower()}"
+        if init_name == "Statement.class":
+            init_name = "Statement.class_"
         if node.type == StatementType.BLANK:
             init_args = {}
         elif node.type == StatementType.TEXT:
@@ -166,8 +193,7 @@ class Statement(ScopeNode, HasTags):
                 init_args = {"name": node.name, **init_args}
             props = dict_minus(props, "text")
         else:
-            init_args = {"name": node.name, **extra_kwargs}
-
+            init_args = {"name": node.name}
         return init_name, init_args, dict_minus(props, "name", "type", "tag", "flags")
 
     @property
@@ -199,6 +225,11 @@ class Statement(ScopeNode, HasTags):
                 if prop.is_runtime and prop.name not in self.__dict__:
                     setattr(self, prop.name, prop.new())
 
+        # IsTyped
+        setattr(self, "tag", _STATEMENT_DESCRIPTORS[self.type].tag)
+        setattr(self, "flags", TypeFlag.Zero)
+        setattr(self, "hint", None)
+
     def morph(self, to_type: StatementType):
         self.type = to_type
         Statement._init_inner(self)
@@ -206,15 +237,6 @@ class Statement(ScopeNode, HasTags):
             self._session.tracer.node_update(self, ["type"])
         # what else to do? trigger re-interp of everything?
         raise NotImplementedError(f"{self!r} does not support morphing yet")
-
-    @property
-    def reference_ck(self) -> Optional[UUID]:
-        if isinstance(self.reference, Statement):
-            return self.reference.ck
-        elif isinstance(self.reference, UUID):
-            return self.reference
-        else:
-            return None
 
     @property
     def path(self) -> str:
@@ -244,6 +266,15 @@ class Statement(ScopeNode, HasTags):
         else:
             return to_pyidentifier(self.name, _IDENTIFIER_BY_TYPE[self.type])
 
+    @property
+    def reference_ck(self) -> Optional[UUID]:
+        if isinstance(self.reference, Statement):
+            return self.reference.ck
+        elif isinstance(self.reference, UUID):
+            return self.reference
+        else:
+            return None
+
 
 # Statement.<type> convenience constructors
 Statement.text = Statement.text_
@@ -256,13 +287,9 @@ for _type in StatementType:
         )
     )
     method_name = _type.lower()
-    if method_name not in locals():
-        setattr(Statement, method_name, method)
-
-#
-# 'Concrete' statements are a mirage, we just have a custom class
-#  where for e.g. statement.type == 'X', the 'concrete' class X
-#
+    if method_name in ("type", "class"):
+        method_name += "_"
+    setattr(Statement, method_name, method)
 
 _ALL_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node]]] = {
     t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Statement.__static_components__ for t in StatementType
@@ -272,63 +299,3 @@ _ALL_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, _Passthrough]]] =
     t: _PASSTHROUGH_BY_TYPE.get(t, tuple()) + Statement.__static_passthrough__
     for t in StatementType
 }
-STATEMENT_CLASS_BY_TYPE: dict[StatementType, "_StatementProxy"] = {}
-
-
-class _StatementProxy:
-    def __init__(
-        self,
-        _type: StatementType,
-        tag: Optional[TypeTag] = None,
-        flags: TypeFlag = 0,
-        register: bool = True,
-    ):
-        self.type = _type
-        self.tag = tag
-        self.flags = flags
-        if register:
-            if _type in STATEMENT_CLASS_BY_TYPE:
-                raise ValueError(f"statement type {_type} already registered")
-            STATEMENT_CLASS_BY_TYPE[_type] = self
-
-    def __call__(self, tag: TypeTag = None, flags: TypeFlag = 0, *args, **kwargs):
-        kwargs["type"] = self.type
-        kwargs["tag"] = tag if tag is not None else self.tag
-        kwargs["flags"] = (flags if flags is not None else self.flags) or 0
-        return Statement(**kwargs)
-
-    def new(self, *args, **kwargs):
-        return Statement.new(self.type, *args, tag=self.tag, flags=self.flags, **kwargs)
-
-    def __instancecheck__(self, instance):
-        return isinstance(instance, Statement) and instance.type == self.type
-
-    def __subclasscheck__(self, subclass):
-        return issubclass(subclass, Statement) and subclass.type == self.type
-
-
-def _make_statement_proxy(
-    _type: StatementType,
-    tag: Optional[TypeTag] = None,
-    flags: TypeFlag = 0,
-    register=True,
-):
-    return _StatementProxy(_type, tag=tag, flags=flags, register=register)
-
-
-Blank = _make_statement_proxy(StatementType.BLANK)
-Text = _make_statement_proxy(StatementType.TEXT)
-Reference = _make_statement_proxy(StatementType.REFERENCE)
-Class = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.STRUCT)
-Choice = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.ENUM, register=False)
-Type = Class
-Tag = _make_statement_proxy(StatementType.TAG, tag=TypeTag.STRUCT)
-Database = _make_statement_proxy(StatementType.DATABASE, tag=TypeTag.STRUCT, flags=TypeFlag.IsArray)
-Model = _make_statement_proxy(StatementType.MODEL, tag=TypeTag.FUNCTION)
-Code = _make_statement_proxy(StatementType.CODE, tag=TypeTag.FUNCTION)
-Task = _make_statement_proxy(StatementType.TASK, tag=TypeTag.FUNCTION)
-Flow = _make_statement_proxy(StatementType.FLOW, tag=TypeTag.FUNCTION)
-Variable = _make_statement_proxy(StatementType.VARIABLE, tag=TypeTag.STRUCT)
-
-_missing_proxies = set(StatementType) - set(STATEMENT_CLASS_BY_TYPE)
-assert not _missing_proxies, f"missing statement proxies for {_missing_proxies}"
