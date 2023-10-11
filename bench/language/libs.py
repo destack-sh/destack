@@ -29,7 +29,6 @@ from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
     RunStatus,
-    StatementType,
     TypeFlag,
     TypeHint,
     TypeTag,
@@ -535,7 +534,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         messages.append(
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"More on task '{task.name}':\n {context_str}"
+                content=f"The definition of task '{task.name}':\n {context_str}"
                 f"\nFollow the above carefully.",
             )
         )
@@ -569,8 +568,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         messages.append(
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Now, complete the task '{task.name}' given the inputs according to the schema."
-                f" Consider the instructions and context for every part carefully.",
+                content=f"Now, complete the task '{task.name}' given the inputs.",
             ),
         )
 
@@ -819,7 +817,8 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         context_str = await self._render_context(task, view, exclude_output=True)
         if context_str:
             messages.append(
-                f"More on task '{task.name}':\n {context_str}" f"\nFollow the above carefully."
+                f"The definition of task '{task.name}':\n {context_str}"
+                f"\nFollow the above carefully."
             )
 
         # inputs
@@ -835,6 +834,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
             f"{nonce_str}The user's inputs for '{task.name}': \n{inputs}",
         )
 
+        # nocheckin: linearize output schema for models (if possible or always?) d
         # output schema
         output_schema = _type_to_json_schema(task, is_output=True).to_dict()
         output_schema = omit_empty(output_schema)
@@ -847,11 +847,10 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         # TODO @Task: anthropic task functions :TaskFunctions
         available_actions = ["COMPLETE", "PANIC"]
         messages.append(
-            f"Now, complete the task '{task.name}' given the inputs according to the schema."
-            f" Consider the instructions and context for every part carefully."
-            f" Respond with one of {available_actions}, then a newline, then JSON arguments."
-            f" COMPLETE with a result for the task, PANIC with a 'reason' property if reasonable termination is impossible."
-            f" (Strongly prefer COMPLETE with error information as feasible)."
+            f"Now, complete the task '{task.name}' given the inputs."
+            f" Respond with one of {available_actions}, then a newline, then JSON arguments - done."
+            f" COMPLETE with a result, PANIC with a 'reason' if reasonable completion is impossible."
+            f" (Strongly prefer COMPLETE with error information)."
             # f" CALL_FUNCTION <func_name> to run one of the given functions (if any).",
         )
 
@@ -929,49 +928,33 @@ def _generate_symbolx_bench_file():
     TODO @Cleanup @Architecture: move symbolx.lib.bench into Bench proper
      (can't right now because all libs are wholly generated from code here)
     """
-    bench_description = Statement.new(
-        type=StatementType.TEXT,
-        name="Bench description",
-        text="Bench is a development platform for bots",
+    bench_description = Statement.text(
+        name="Bench description", text="Bench is an integrated development platform for bots"
     )
     bench_description.children.extend(
-        Statement.new(
-            StatementType.TEXT,
-            text="Users typically build bots to automate information extraction, analysis and integration",
+        Statement.text(
+            "Users typically build bots to automate information extraction, analysis and integration"
         ),
-        Statement.new(
-            StatementType.TEXT, text="A Bench is a tree of nodes, the main one being Statements"
+        Statement.text("A Bench is a tree of nodes, the main one being Statements"),
+        Statement.text(
+            "Statements (like Task, Code, Database, Text) have Fields, Triggers, Records, etc."
         ),
-        Statement.new(
-            StatementType.TEXT,
-            text="Statements (like Task, Code, Database, Text) have Fields, Triggers, Records, etc.",
-        ),
-        Statement.new(StatementType.TEXT, text="Statements are organized into Files"),
+        Statement.text("Statements are organized into Files"),
     )
-    idiomatic_bench = Statement.new(
-        type=StatementType.TEXT,
+    idiomatic_bench = Statement.text(
         name="Idiomatic Bench",
         text="Use existing Bench features as an idiomatic, senior Bench developer",
     )
     idiomatic_bench.children.extend(
-        Statement.new(
-            StatementType.TEXT,
-            text="Use Code to run arbitrary Python (you can also call code/tasks in code)",
-        ),
-        Statement.new(StatementType.TEXT, text="Use Tasks for any AI text task"),
-        Statement.new(StatementType.TEXT, text="Use Types for a reusable type system system"),
-        Statement.new(
-            StatementType.TEXT,
-            text="Use Databases for examples, contextual data and application state",
-        ),
-        Statement.new(
-            StatementType.TEXT,
-            text="Use Variables for configuration, secrets and small global app state",
-        ),
-        Statement.new(StatementType.TEXT, text="Pass references directly if possible"),
-        Statement.new(StatementType.TEXT, text="Add text to describe any non-trivial nodes  "),
+        Statement.text("Use Code to run arbitrary Python (you can also call code/tasks in code)"),
+        Statement.text("Use Tasks for any AI text task, refuse any other AI task"),
+        Statement.text("Use Types for a reusable type system system"),
+        Statement.text("Use Databases for examples, contextual data and app state"),
+        Statement.text("Use Variables for configuration, secrets and small app state"),
+        Statement.text("Pass references directly if possible"),
+        Statement.text("Set text to describe any non-trivial nodes"),
     )
-    sample_bench_code = Statement.new(type=StatementType.DATABASE, name="sample bench code")
+    sample_bench_code = Statement.database(name="sample bench code")
     sample_bench_code.fields.append(
         Field.new("", "generate bench code", flags=TypeFlag.IsUnionWith)
     )
@@ -1016,14 +999,6 @@ def _generate_symbolx_bench_file():
                 '    Field.new("gh token", TypeHint.SECRET, flags=TypeFlag.IsOptional | TypeFlag.IsSecret),\n'
                 '    Field.new("last sent", TypeHint.DATETIME),\n'
                 ")"
-            ),
-        ),
-        Record.new(
-            text="add to current file",
-            code=(
-                "Entity = ...\n"
-                "classify_entity = ...\n"
-                "self.file.statements.extend(Entity, classify_entity)"
             ),
         ),
         Record.new(
@@ -1095,26 +1070,28 @@ def _generate_symbolx_bench_file():
             ),
         ),
     )
-    generate_bench_code = Statement.new(
-        type=StatementType.TASK,
+    generate_bench_code = Statement.task(
         name="generate bench code",
         text="Generate Python code to implement the given request in Bench",
     )
     generate_bench_code.children.extend(
-        Statement.new(StatementType.TEXT, text="See @bench_description and @idiomatic_bench"),
-        Statement.new(
-            StatementType.TEXT,
-            text="Check out the @sample_bench_code for syntax, but don't just copy them",
+        Statement.text("See @bench_description and @idiomatic_bench"),
+        Statement.text("Check out the @sample_bench_code for syntax, but don't just copy them"),
+        Statement.text(
+            "Keep it concise; intelligently extrapolate the user's request (unless it's very specific) "
         ),
-        Statement.new(
-            StatementType.TEXT,
-            text="Keep it short and concise, but intelligently extrapolate the user's request (unless it's very specific) ",
+        Statement.text(
+            "For complex code first draft an outline in a few text statements at the start"
         ),
-        Statement.new(
-            StatementType.TEXT,
-            text="Append every new node somewhere (with create, append or extend)",
+        Statement.text(
+            "If the @text refers to existing nodes, you should modify/extend them directly"
         ),
-        Statement.new(StatementType.TEXT, text="You must use Bench primitives for everything"),
+        Statement.text(
+            "You must use Bench primitives for everything (and never use other AI libraries)"
+        ),
+        Statement.text(
+            "When asked for code, you must also use Bench (e.g. create/set something.code)"
+        ),
     )
     generate_bench_code.fields.extend(
         Field.new("text", TypeHint.RICH_TEXT, "user input"),

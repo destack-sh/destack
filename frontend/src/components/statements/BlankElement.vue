@@ -29,6 +29,8 @@ const ops = useOperations();
 watch(query, (query) => {
   if (query == "") {
     commanding.value = false;
+  } else if (query == " ") {
+    emit("launchAssist", "");
   } else if (query == "/") {
     openCommandSelection();
   } else if (query.startsWith("#")) {
@@ -118,7 +120,7 @@ defineExpose({
       class="h-full w-full select-none items-center group-hover:opacity-100"
     >
       <span class="text-gray-400" v-if="!editing"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
-      <span class="text-gray-400" v-else>Press '/' for commands or just type...</span>
+      <span class="text-gray-400" v-else>Press 'space' for assist, '/' for commands...</span>
     </div>
     <!-- Command selection -->
     <Combobox

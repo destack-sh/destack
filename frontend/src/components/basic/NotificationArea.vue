@@ -74,13 +74,6 @@ function freezeNotification(notification: DisplayNotification) {
           >
             {{ notification.actionText }}
           </button>
-          <!-- Dismiss -->
-          <button
-            class="h-full min-w-0 flex-shrink-0 self-center rounded-sm text-sm text-gray-400 hover:bg-orange-100"
-            @click="notifications.store.dismiss(notification.id as string)"
-          >
-            <XMarkIcon class="h-4 w-4" />
-          </button>
         </div>
       </transition-group>
     </div>

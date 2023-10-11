@@ -141,7 +141,7 @@ defineExpose({
       </div>
       <!-- Previous runs -->
       <div
-        v-for="{ run, code, scope, generatedFrom, generatedIn } in terminal.runs.value"
+        v-for="{ run, code, scope, generatedFrom } in terminal.runs.value"
         :key="run.id"
         class="opacity-150 border-l-4 border-t border-orange-900/[15%] py-1.5 transition-colors"
         :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"
@@ -154,10 +154,15 @@ defineExpose({
               >{{ module.path.value }}<template v-if="scope">.{{ scopePaths[scope] }}</template>
             </span>
             <!-- Extra info & controls -->
-            <div class="flex select-none flex-row gap-1.5 text-gray-400">
+            <div class="flex select-none flex-row gap-2 text-gray-400">
+              <!-- Generated from -->
+              <div v-if="generatedFrom" class="flex max-w-[200px] flex-row items-center font-normal">
+                <SparklesIcon class="h-4 w-4 text-gray-400" />
+                <span class="ml-1 truncate text-gray-400">{{ generatedFrom }}</span>
+              </div>
               <!-- Run ID -->
               <button
-                class="font-mono underline-offset-2 hover:underline"
+                class="flex-shrink-0 font-mono underline-offset-2 hover:underline"
                 @click="bench.openViewRun(run, { focus: true })"
                 :class="[
                   !ACTIVE_RUN_STATUSES.includes(run.status) && run.status != RunStatus.Completed
@@ -175,12 +180,7 @@ defineExpose({
             </div>
           </div>
           <!-- Body -->
-          <div class="flex w-full max-w-full flex-col pl-4 pr-4">
-            <div v-if="generatedFrom" class="flex flex-row">
-              <!-- nocheckin: show generated from in terminal -->
-              <SparklesIcon class="h-4 w-4 text-orange-600" />
-              <span class="truncate text-gray-400">{{ generatedFrom }}</span>
-            </div>
+          <div class="relative flex w-full max-w-full flex-col pl-4 pr-4">
             <MonacoEditor
               :model-value="code"
               wrap

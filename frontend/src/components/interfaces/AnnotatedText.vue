@@ -461,9 +461,12 @@ defineExpose({
         </span>
       </div>
     </template>
+    <!-- Placeholder if empty -->
+    <template v-if="spans.length == 1 && spans[0].type == 'text' && spans[0].text.length == 0">&nbsp;</template>
 
     <!-- Popover -->
     <!-- Prevent scroll and capture click outside -->
+    <!-- nocheckin: close mention popover when navigating cursor outside -->
     <div
       v-if="insertingMentionAt != null"
       class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"

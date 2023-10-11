@@ -1928,6 +1928,7 @@ enum TypeTag {
   LITERAL
   TYPE_REFERENCE
   NODE
+  ANY
 }
 
 scalar UUID
