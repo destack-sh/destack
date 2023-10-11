@@ -17,3 +17,5 @@ export const IS_DEBUG = import.meta.env.MODE === "development";
 export const WS_CONNECTED = ref(false); // auto-set in main.ts, read-only elsewhere
 
 export const ACTIVE_SHARING_TOKEN = ref<string | null>(null);
+
+export const INIT_MONACO = ref(false);

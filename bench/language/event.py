@@ -3,15 +3,15 @@ from dataclasses import dataclass
 from uuid import UUID
 
 
-class EventType(enum.StrEnum):
+class EventKind(enum.StrEnum):
     Edit = "Edit"
-    RunStatusChange = "RunStatusChange"
-    WorkerStatusChange = "WorkerStatusChange"
+    RunChange = "RunChange"
+    WorkerChange = "WorkerChange"
 
 
 @dataclass
 class Event:
     id: UUID
-    type: EventType
+    kind: EventKind
     # edit: Optional[Edit] = None
     # run: Optional[Run] = None

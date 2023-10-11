@@ -129,6 +129,19 @@ function onNavigateDown(span: TextSpan, index: number) {
 
 function onNavigateLeft(span: TextSpan, index: number, e: KeyboardEvent) {
   if (span.type == "text") {
+    // close popover if we're leaving the mention text
+    if (
+      insertingMentionAt.value != null &&
+      (window.getSelection()?.anchorOffset ?? 0) <= insertingMentionAt.value.startChar
+    ) {
+      // update text to include the @query part (excluded in onInput while inserting mention)
+      const newSpans = [...spans.value];
+      newSpans[index] = { ...span, text: fromNbsp((e.target as HTMLSpanElement).innerText ?? "") };
+      spans.value = newSpans;
+      onLocalWrite();
+      closeMentionPopup();
+      return;
+    }
     if (window.getSelection()?.anchorOffset != 0) return; // ignore if not at start of text
     if (index > 0) {
       focus(index - 1, "last");
@@ -466,7 +479,6 @@ defineExpose({
 
     <!-- Popover -->
     <!-- Prevent scroll and capture click outside -->
-    <!-- nocheckin: close mention popover when navigating cursor outside -->
     <div
       v-if="insertingMentionAt != null"
       class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
