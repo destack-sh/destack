@@ -5,6 +5,7 @@ import { defineConfig, loadEnv } from "vite";
 import monacoEditorPlugin from "vite-plugin-monaco-editor";
 import { watch } from "fs";
 import type { Plugin } from "vite";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 function reloadOnVersionChange(): Plugin {
   return {
@@ -32,10 +33,14 @@ export default defineConfig(({ command, mode }) => {
       VITE_APP_ENV: env.APP_ENV,
       VITE_APP_VERSION: JSON.stringify(process.env.npm_package_version),
       VITE_APP_GIT_COMMIT: JSON.stringify(process.env.GIT_COMMIT),
-      // I'm not sure why process.env is required suddenly, but it fixes an error in babel (?).
-      "process.env": {},
+      VITE_APP_ENVIRONMENT: JSON.stringify(process.env.ENVIRONMENT),
     },
-    plugins: [vue(), monacoEditorPlugin({ languageWorkers: ["editorWorkerService", "json"] }), reloadOnVersionChange()],
+    plugins: [
+      nodePolyfills(),
+      vue(),
+      monacoEditorPlugin({ languageWorkers: ["editorWorkerService", "json"] }),
+      reloadOnVersionChange(),
+    ],
     root: "./frontend",
     resolve: {
       alias: {
@@ -48,6 +53,9 @@ export default defineConfig(({ command, mode }) => {
     server: {
       host: "127.0.0.1",
       port: 3000,
+    },
+    optimizeDeps: {
+      exclude: ["@graphql-codegen/cli", "@graphql-codegen/plugin-helpers"],
     },
   };
 });

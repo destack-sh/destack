@@ -5,36 +5,38 @@ export type InputMaybe<T> = Maybe<T>;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 export type MakeOptional<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]?: Maybe<T[SubKey]> };
 export type MakeMaybe<T, K extends keyof T> = Omit<T, K> & { [SubKey in K]: Maybe<T[SubKey]> };
+export type MakeEmpty<T extends { [key: string]: unknown }, K extends keyof T> = { [_ in K]?: never };
+export type Incremental<T> = T | { [P in keyof T]?: P extends " $fragmentName" | "__typename" ? T[P] : never };
 /** All built-in and custom scalars, mapped to their actual values */
 export type Scalars = {
-  ID: string;
-  String: string;
-  Boolean: boolean;
-  Int: number;
-  Float: number;
+  ID: { input: string; output: string };
+  String: { input: string; output: string };
+  Boolean: { input: boolean; output: boolean };
+  Int: { input: number; output: number };
+  Float: { input: number; output: number };
   /** Date with time (isoformat) */
-  DateTime: any;
+  DateTime: { input: any; output: any };
   /** The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID. */
-  GlobalID: any;
+  GlobalID: { input: any; output: any };
   /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
-  JSON: any;
-  UUID: any;
+  JSON: { input: any; output: any };
+  UUID: { input: any; output: any };
 };
 
 export type AccessToken = Node & {
   __typename?: "AccessToken";
-  createdAt: Scalars["DateTime"];
-  expiresAt?: Maybe<Scalars["DateTime"]>;
+  createdAt: Scalars["DateTime"]["output"];
+  expiresAt?: Maybe<Scalars["DateTime"]["output"]>;
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  name?: Maybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["output"];
+  name?: Maybe<Scalars["String"]["output"]>;
   owner: UserOrganization;
-  revokedAt?: Maybe<Scalars["DateTime"]>;
+  revokedAt?: Maybe<Scalars["DateTime"]["output"]>;
   scopes: Array<AccessTokenScope>;
   status: AccessTokenStatus;
-  token?: Maybe<Scalars["String"]>;
-  tokenKey: Scalars["String"];
-  updatedAt: Scalars["DateTime"];
+  token?: Maybe<Scalars["String"]["output"]>;
+  tokenKey: Scalars["String"]["output"];
+  updatedAt: Scalars["DateTime"]["output"];
 };
 
 /** A connection to a list of items. */
@@ -45,20 +47,20 @@ export type AccessTokenConnection = {
   /** Pagination data for this connection */
   pageInfo: PageInfo;
   /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 export type AccessTokenCreateInput = {
-  expiresAt?: InputMaybe<Scalars["DateTime"]>;
-  name?: InputMaybe<Scalars["String"]>;
-  ownerId: Scalars["GlobalID"];
+  expiresAt?: InputMaybe<Scalars["DateTime"]["input"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  ownerId: Scalars["GlobalID"]["input"];
   scopes: Array<AccessTokenScope>;
 };
 
 export type AccessTokenCreatePayload = {
   __typename?: "AccessTokenCreatePayload";
   accessToken: AccessToken;
-  token: Scalars["String"];
+  token: Scalars["String"]["output"];
 };
 
 export type AccessTokenCreatePayloadOperationInfo = AccessTokenCreatePayload | OperationInfo;
@@ -67,7 +69,7 @@ export type AccessTokenCreatePayloadOperationInfo = AccessTokenCreatePayload | O
 export type AccessTokenEdge = {
   __typename?: "AccessTokenEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: AccessToken;
 };
@@ -75,7 +77,7 @@ export type AccessTokenEdge = {
 export type AccessTokenFilter = {
   AND?: InputMaybe<AccessTokenFilter>;
   OR?: InputMaybe<AccessTokenFilter>;
-  includeInactive?: InputMaybe<Scalars["Boolean"]>;
+  includeInactive?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
 
 export type AccessTokenOperationInfo = AccessToken | OperationInfo;
@@ -91,28 +93,28 @@ export enum AccessTokenStatus {
 }
 
 export type Change = {
-  clientId?: Maybe<Scalars["GlobalID"]>;
-  id: Scalars["UUID"];
+  clientId?: Maybe<Scalars["GlobalID"]["output"]>;
+  id: Scalars["UUID"]["output"];
 };
 
 export type Client = Node & {
   __typename?: "Client";
-  active: Scalars["Boolean"];
-  browserName?: Maybe<Scalars["String"]>;
-  closedAt?: Maybe<Scalars["DateTime"]>;
-  createdAt: Scalars["DateTime"];
-  deviceName?: Maybe<Scalars["String"]>;
-  fileId?: Maybe<Scalars["UUID"]>;
+  active: Scalars["Boolean"]["output"];
+  browserName?: Maybe<Scalars["String"]["output"]>;
+  closedAt?: Maybe<Scalars["DateTime"]["output"]>;
+  createdAt: Scalars["DateTime"]["output"];
+  deviceName?: Maybe<Scalars["String"]["output"]>;
+  fileId?: Maybe<Scalars["UUID"]["output"]>;
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  lastSeenAt?: Maybe<Scalars["DateTime"]>;
-  path?: Maybe<Scalars["String"]>;
-  present: Scalars["Boolean"];
+  id: Scalars["GlobalID"]["output"];
+  lastSeenAt?: Maybe<Scalars["DateTime"]["output"]>;
+  path?: Maybe<Scalars["String"]["output"]>;
+  present: Scalars["Boolean"]["output"];
   project?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
-  statementId?: Maybe<Scalars["UUID"]>;
+  statementId?: Maybe<Scalars["UUID"]["output"]>;
   type: ClientType;
-  updatedAt: Scalars["DateTime"];
+  updatedAt: Scalars["DateTime"]["output"];
   user: User;
 };
 
@@ -124,14 +126,14 @@ export type ClientConnection = {
   /** Pagination data for this connection */
   pageInfo: PageInfo;
   /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 /** An edge in a connection. */
 export type ClientEdge = {
   __typename?: "ClientEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: Client;
 };
@@ -144,32 +146,32 @@ export enum ClientType {
 }
 
 export type ClientUpsertInput = {
-  browserName?: InputMaybe<Scalars["String"]>;
-  deviceName?: InputMaybe<Scalars["String"]>;
-  fieldId?: InputMaybe<Scalars["GlobalID"]>;
-  fileId?: InputMaybe<Scalars["GlobalID"]>;
-  id: Scalars["GlobalID"];
-  path?: InputMaybe<Scalars["String"]>;
-  projectId?: InputMaybe<Scalars["GlobalID"]>;
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  recordId?: InputMaybe<Scalars["GlobalID"]>;
-  statementId?: InputMaybe<Scalars["GlobalID"]>;
+  browserName?: InputMaybe<Scalars["String"]["input"]>;
+  deviceName?: InputMaybe<Scalars["String"]["input"]>;
+  fieldId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  fileId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
+  path?: InputMaybe<Scalars["String"]["input"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  recordId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  statementId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   type: ClientType;
 };
 
 export type DeleteObjectInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type Edit = {
   __typename?: "Edit";
   data?: Maybe<IssueResolvedField>;
-  fileId?: Maybe<Scalars["GlobalID"]>;
-  input?: Maybe<Scalars["JSON"]>;
-  projectVersionId: Scalars["GlobalID"];
-  properties?: Maybe<Array<Scalars["String"]>>;
-  revision?: Maybe<Scalars["Int"]>;
-  statementId?: Maybe<Scalars["GlobalID"]>;
+  fileId?: Maybe<Scalars["GlobalID"]["output"]>;
+  input?: Maybe<Scalars["JSON"]["output"]>;
+  projectVersionId: Scalars["GlobalID"]["output"];
+  properties?: Maybe<Array<Scalars["String"]["output"]>>;
+  revision?: Maybe<Scalars["Int"]["output"]>;
+  statementId?: Maybe<Scalars["GlobalID"]["output"]>;
   type: EditType;
 };
 
@@ -240,10 +242,10 @@ export enum EditType {
 
 export type Environment = {
   __typename?: "Environment";
-  language: Scalars["String"];
+  language: Scalars["String"]["output"];
   packages: Array<Package>;
-  platform: Scalars["String"];
-  version: Scalars["String"];
+  platform: Scalars["String"]["output"];
+  version: Scalars["String"]["output"];
 };
 
 export type EnvironmentOperationInfo = Environment | OperationInfo;
@@ -252,91 +254,91 @@ export type Field = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Field";
-    ck: Scalars["UUID"];
-    createdAt: Scalars["DateTime"];
+    ck: Scalars["UUID"]["output"];
+    createdAt: Scalars["DateTime"]["output"];
     createdBy?: Maybe<User>;
-    deletedAt?: Maybe<Scalars["DateTime"]>;
-    flags: Scalars["Int"];
+    deletedAt?: Maybe<Scalars["DateTime"]["output"]>;
+    flags: Scalars["Int"]["output"];
     hint?: Maybe<TypeHint>;
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
-    key: Scalars["String"];
-    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    id: Scalars["GlobalID"]["output"];
+    key: Scalars["String"]["output"];
+    lastEditedAt?: Maybe<Scalars["DateTime"]["output"]>;
     lastEditedBy?: Maybe<User>;
-    name?: Maybe<Scalars["String"]>;
-    orderKey: Scalars["String"];
+    name?: Maybe<Scalars["String"]["output"]>;
+    orderKey: Scalars["String"]["output"];
     parent: Statement;
-    referenceCk?: Maybe<Scalars["UUID"]>;
-    revision: Scalars["Int"];
+    referenceCk?: Maybe<Scalars["UUID"]["output"]>;
+    revision: Scalars["Int"]["output"];
     statement: Statement;
     tag: TypeTag;
-    text?: Maybe<Scalars["String"]>;
-    updatedAt: Scalars["DateTime"];
-    value?: Maybe<Scalars["JSON"]>;
+    text?: Maybe<Scalars["String"]["output"]>;
+    updatedAt: Scalars["DateTime"]["output"];
+    value?: Maybe<Scalars["JSON"]["output"]>;
   };
 
 export type FieldCreateInput = {
-  ck: Scalars["UUID"];
-  flags?: Scalars["Int"];
+  ck: Scalars["UUID"]["input"];
+  flags?: Scalars["Int"]["input"];
   hint?: InputMaybe<TypeHint>;
-  id: Scalars["GlobalID"];
-  key: Scalars["String"];
-  name?: InputMaybe<Scalars["String"]>;
-  orderKey: Scalars["String"];
-  referenceCk?: InputMaybe<Scalars["UUID"]>;
-  statementId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  key: Scalars["String"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  orderKey: Scalars["String"]["input"];
+  referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  statementId: Scalars["GlobalID"]["input"];
   tag: TypeTag;
-  text?: InputMaybe<Scalars["String"]>;
-  value?: InputMaybe<Scalars["JSON"]>;
+  text?: InputMaybe<Scalars["String"]["input"]>;
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 };
 
 export type FieldDeleteInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type FieldFilter = {
   AND?: InputMaybe<FieldFilter>;
   OR?: InputMaybe<FieldFilter>;
-  isVisible?: InputMaybe<Scalars["Boolean"]>;
+  isVisible?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
 
 export type FieldMoveInput = {
-  id: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  orderKey: Scalars["String"]["input"];
 };
 
 export type FieldOperationInfo = Field | OperationInfo;
 
 export type FieldRenameInput = {
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type FieldRestoreInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type FieldUpdateInput = {
-  flags?: Scalars["Int"];
+  flags?: Scalars["Int"]["input"];
   hint?: InputMaybe<TypeHint>;
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-  referenceCk?: InputMaybe<Scalars["UUID"]>;
+  id: Scalars["GlobalID"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
   tag: TypeTag;
-  text?: InputMaybe<Scalars["String"]>;
-  value?: InputMaybe<Scalars["JSON"]>;
+  text?: InputMaybe<Scalars["String"]["input"]>;
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 };
 
 export type FieldUpdateTextInput = {
-  id: Scalars["GlobalID"];
-  text?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["input"];
+  text?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type FieldUpdateTypeInput = {
-  flags?: Scalars["Int"];
+  flags?: Scalars["Int"]["input"];
   hint?: InputMaybe<TypeHint>;
-  id: Scalars["GlobalID"];
-  referenceCk?: InputMaybe<Scalars["GlobalID"]>;
+  id: Scalars["GlobalID"]["input"];
+  referenceCk?: InputMaybe<Scalars["GlobalID"]["input"]>;
   tag: TypeTag;
 };
 
@@ -344,21 +346,21 @@ export type File = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "File";
-    ck: Scalars["UUID"];
-    createdAt: Scalars["DateTime"];
+    ck: Scalars["UUID"]["output"];
+    createdAt: Scalars["DateTime"]["output"];
     createdBy?: Maybe<User>;
-    deletedAt?: Maybe<Scalars["DateTime"]>;
+    deletedAt?: Maybe<Scalars["DateTime"]["output"]>;
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
+    id: Scalars["GlobalID"]["output"];
     issues: Array<Issue>;
-    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    lastEditedAt?: Maybe<Scalars["DateTime"]["output"]>;
     lastEditedBy?: Maybe<User>;
-    name: Scalars["String"];
+    name: Scalars["String"]["output"];
     parent: ModuleNode;
     projectVersion: ProjectVersion;
-    revision: Scalars["Int"];
+    revision: Scalars["Int"]["output"];
     statements: Array<Statement>;
-    updatedAt: Scalars["DateTime"];
+    updatedAt: Scalars["DateTime"]["output"];
   };
 
 export type FileStatementsArgs = {
@@ -366,53 +368,53 @@ export type FileStatementsArgs = {
 };
 
 export type FileCreateInput = {
-  ck: Scalars["UUID"];
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
-  projectVersionId: Scalars["GlobalID"];
+  ck: Scalars["UUID"]["input"];
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  projectVersionId: Scalars["GlobalID"]["input"];
 };
 
 export type FileFilter = {
   AND?: InputMaybe<FileFilter>;
   OR?: InputMaybe<FileFilter>;
-  isVisible?: InputMaybe<Scalars["Boolean"]>;
+  isVisible?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
 
 export type FileMoveInput = {
-  id: Scalars["GlobalID"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  id: Scalars["GlobalID"]["input"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 };
 
 export type FileOperationInfo = File | OperationInfo;
 
 export type FilePasteInput = {
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
-  sourceId: Scalars["GlobalID"];
-  targetCk: Scalars["UUID"];
-  targetId: Scalars["GlobalID"];
-  targetVersionId: Scalars["GlobalID"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  sourceId: Scalars["GlobalID"]["input"];
+  targetCk: Scalars["UUID"]["input"];
+  targetId: Scalars["GlobalID"]["input"];
+  targetVersionId: Scalars["GlobalID"]["input"];
 };
 
 export type FileRenameInput = {
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
 };
 
 export type FileUpdateInput = {
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 };
 
 export type HasCrud = {
-  createdAt: Scalars["DateTime"];
+  createdAt: Scalars["DateTime"]["output"];
   createdBy?: Maybe<User>;
-  deletedAt?: Maybe<Scalars["DateTime"]>;
-  id: Scalars["GlobalID"];
-  lastEditedAt?: Maybe<Scalars["DateTime"]>;
+  deletedAt?: Maybe<Scalars["DateTime"]["output"]>;
+  id: Scalars["GlobalID"]["output"];
+  lastEditedAt?: Maybe<Scalars["DateTime"]["output"]>;
   lastEditedBy?: Maybe<User>;
-  updatedAt: Scalars["DateTime"];
+  updatedAt: Scalars["DateTime"]["output"];
 };
 
 export type HasTriggeredBy = {
@@ -425,10 +427,10 @@ export type HasTriggeredBy = {
 export type Issue = ModuleNode &
   Node & {
     __typename?: "Issue";
-    ck: Scalars["UUID"];
-    id: Scalars["GlobalID"];
+    ck: Scalars["UUID"]["output"];
+    id: Scalars["GlobalID"]["output"];
     kind: IssueKind;
-    message?: Maybe<Scalars["String"]>;
+    message?: Maybe<Scalars["String"]["output"]>;
     parent?: Maybe<ModuleNode>;
     type: IssueType;
   };
@@ -457,10 +459,10 @@ export enum IssueType {
 }
 
 export type KillRunInput = {
-  projectVersionId: Scalars["GlobalID"];
-  restartIfUnresponsive: Scalars["Boolean"];
-  runId: Scalars["GlobalID"];
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  projectVersionId: Scalars["GlobalID"]["input"];
+  restartIfUnresponsive: Scalars["Boolean"]["input"];
+  runId: Scalars["GlobalID"]["input"];
+  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 };
 
 export type KillRunPayload = {
@@ -477,18 +479,18 @@ export type LogChange = {
 
 export type LogEntry = {
   __typename?: "LogEntry";
-  createdAt: Scalars["DateTime"];
-  id: Scalars["GlobalID"];
-  level?: Maybe<Scalars["String"]>;
-  logger?: Maybe<Scalars["String"]>;
-  message?: Maybe<Scalars["String"]>;
-  projectVersionId: Scalars["GlobalID"];
-  runId?: Maybe<Scalars["GlobalID"]>;
-  sessionId?: Maybe<Scalars["GlobalID"]>;
-  statementCk?: Maybe<Scalars["UUID"]>;
-  statementId?: Maybe<Scalars["GlobalID"]>;
-  stream: Scalars["String"];
-  value?: Maybe<Scalars["JSON"]>;
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["GlobalID"]["output"];
+  level?: Maybe<Scalars["String"]["output"]>;
+  logger?: Maybe<Scalars["String"]["output"]>;
+  message?: Maybe<Scalars["String"]["output"]>;
+  projectVersionId: Scalars["GlobalID"]["output"];
+  runId?: Maybe<Scalars["GlobalID"]["output"]>;
+  sessionId?: Maybe<Scalars["GlobalID"]["output"]>;
+  statementCk?: Maybe<Scalars["UUID"]["output"]>;
+  statementId?: Maybe<Scalars["GlobalID"]["output"]>;
+  stream: Scalars["String"]["output"];
+  value?: Maybe<Scalars["JSON"]["output"]>;
 };
 
 /** A connection to a list of items. */
@@ -498,14 +500,14 @@ export type LogEntryConnection = {
   edges: Array<LogEntryEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 /** An edge in a connection. */
 export type LogEntryEdge = {
   __typename?: "LogEntryEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: LogEntry;
 };
@@ -521,14 +523,14 @@ export enum ModuleAccessLevel {
 
 export type ModuleChange = Change & {
   __typename?: "ModuleChange";
-  clientId?: Maybe<Scalars["GlobalID"]>;
+  clientId?: Maybe<Scalars["GlobalID"]["output"]>;
   edits: Array<Edit>;
-  id: Scalars["UUID"];
+  id: Scalars["UUID"]["output"];
 };
 
 export type ModuleNode = {
-  ck: Scalars["UUID"];
-  id: Scalars["GlobalID"];
+  ck: Scalars["UUID"]["output"];
+  id: Scalars["GlobalID"]["output"];
   parent?: Maybe<ModuleNode>;
 };
 
@@ -627,11 +629,11 @@ export type Mutation = {
 };
 
 export type MutationAcceptOrganizationInviteArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type MutationAcceptProjectInviteArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type MutationBatchMoveStatementArgs = {
@@ -659,11 +661,11 @@ export type MutationBatchSoftDeleteStatementArgs = {
 };
 
 export type MutationCancelOrganizationInviteArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type MutationCancelProjectInviteArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type MutationCompleteSignupArgs = {
@@ -835,7 +837,7 @@ export type MutationRestoreTriggerArgs = {
 };
 
 export type MutationRevokeAccessTokenArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type MutationRunArgs = {
@@ -843,7 +845,7 @@ export type MutationRunArgs = {
 };
 
 export type MutationSecretRootLoginArgs = {
-  username: Scalars["String"];
+  username: Scalars["String"]["input"];
 };
 
 export type MutationSnapshotArgs = {
@@ -977,24 +979,24 @@ export type MutationWakeWorkerSetArgs = {
 /** An object with a Globally Unique ID */
 export type Node = {
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["output"];
 };
 
 /** Input of an object that implements the `Node` interface. */
 export type NodeInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type Notification = Node & {
   __typename?: "Notification";
-  archivedAt?: Maybe<Scalars["DateTime"]>;
-  createdAt: Scalars["DateTime"];
-  expiresAt?: Maybe<Scalars["DateTime"]>;
+  archivedAt?: Maybe<Scalars["DateTime"]["output"]>;
+  createdAt: Scalars["DateTime"]["output"];
+  expiresAt?: Maybe<Scalars["DateTime"]["output"]>;
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["output"];
   organizationInvite: OrganizationInvite;
   projectInvite: ProjectInvite;
-  readAt?: Maybe<Scalars["DateTime"]>;
+  readAt?: Maybe<Scalars["DateTime"]["output"]>;
   run: Run;
   status: NotificationStatus;
   type: NotificationType;
@@ -1009,14 +1011,14 @@ export type NotificationConnection = {
   /** Pagination data for this connection */
   pageInfo: PageInfo;
   /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 /** An edge in a connection. */
 export type NotificationEdge = {
   __typename?: "NotificationEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: Notification;
 };
@@ -1024,13 +1026,13 @@ export type NotificationEdge = {
 export type NotificationFilter = {
   AND?: InputMaybe<NotificationFilter>;
   OR?: InputMaybe<NotificationFilter>;
-  createdAt_Gte?: InputMaybe<Scalars["DateTime"]>;
-  notArchived?: InputMaybe<Scalars["Boolean"]>;
+  createdAt_Gte?: InputMaybe<Scalars["DateTime"]["input"]>;
+  notArchived?: InputMaybe<Scalars["Boolean"]["input"]>;
   status?: InputMaybe<NotificationStatus>;
 };
 
 export type NotificationMarkInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
   status: NotificationStatus;
 };
 
@@ -1051,7 +1053,7 @@ export enum NotificationType {
 }
 
 export type NotifyUploadedObjectInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type OperationInfo = {
@@ -1063,11 +1065,11 @@ export type OperationInfo = {
 export type OperationMessage = {
   __typename?: "OperationMessage";
   /** The field that caused the error, or `null` if it isn't associated with any particular field. */
-  field?: Maybe<Scalars["String"]>;
+  field?: Maybe<Scalars["String"]["output"]>;
   /** The kind of this message. */
   kind: OperationMessageKind;
   /** The error message. */
-  message: Scalars["String"];
+  message: Scalars["String"]["output"];
 };
 
 export enum OperationMessageKind {
@@ -1082,47 +1084,47 @@ export type Organization = Node &
   Owner & {
     __typename?: "Organization";
     accessTokens: AccessTokenConnection;
-    canViewDetail: Scalars["Boolean"];
-    canWrite: Scalars["Boolean"];
-    createdAt: Scalars["DateTime"];
-    description?: Maybe<Scalars["String"]>;
+    canViewDetail: Scalars["Boolean"]["output"];
+    canWrite: Scalars["Boolean"]["output"];
+    createdAt: Scalars["DateTime"]["output"];
+    description?: Maybe<Scalars["String"]["output"]>;
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
+    id: Scalars["GlobalID"]["output"];
     invites: OrganizationInviteConnection;
     memberships: OrganizationMembershipConnection;
-    name: Scalars["String"];
+    name: Scalars["String"]["output"];
     projects: ProjectConnection;
-    slug: Scalars["String"];
-    updatedAt: Scalars["DateTime"];
+    slug: Scalars["String"]["output"];
+    updatedAt: Scalars["DateTime"]["output"];
   };
 
 export type OrganizationAccessTokensArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
   filters?: InputMaybe<AccessTokenFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type OrganizationInvitesArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type OrganizationMembershipsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type OrganizationProjectsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 /** A connection to a list of items. */
@@ -1133,33 +1135,33 @@ export type OrganizationConnection = {
   /** Pagination data for this connection */
   pageInfo: PageInfo;
   /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 export type OrganizationCreateInput = {
-  name: Scalars["String"];
-  slug: Scalars["String"];
+  name: Scalars["String"]["input"];
+  slug: Scalars["String"]["input"];
 };
 
 /** An edge in a connection. */
 export type OrganizationEdge = {
   __typename?: "OrganizationEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: Organization;
 };
 
 export type OrganizationInvite = Node & {
   __typename?: "OrganizationInvite";
-  createdAt: Scalars["DateTime"];
-  email: Scalars["String"];
-  emailSentAt?: Maybe<Scalars["DateTime"]>;
+  createdAt: Scalars["DateTime"]["output"];
+  email: Scalars["String"]["output"];
+  emailSentAt?: Maybe<Scalars["DateTime"]["output"]>;
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["output"];
   level: OrganizationRole;
   organization: Organization;
-  updatedAt: Scalars["DateTime"];
+  updatedAt: Scalars["DateTime"]["output"];
   user?: Maybe<User>;
 };
 
@@ -1171,33 +1173,33 @@ export type OrganizationInviteConnection = {
   /** Pagination data for this connection */
   pageInfo: PageInfo;
   /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 /** An edge in a connection. */
 export type OrganizationInviteEdge = {
   __typename?: "OrganizationInviteEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: OrganizationInvite;
 };
 
 export type OrganizationInviteInput = {
-  emails: Array<Scalars["String"]>;
-  id: Scalars["GlobalID"];
+  emails: Array<Scalars["String"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
   level: OrganizationRole;
-  message?: InputMaybe<Scalars["String"]>;
+  message?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type OrganizationMembership = Node & {
   __typename?: "OrganizationMembership";
-  createdAt: Scalars["DateTime"];
+  createdAt: Scalars["DateTime"]["output"];
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["output"];
   level: OrganizationRole;
   organization: Organization;
-  updatedAt: Scalars["DateTime"];
+  updatedAt: Scalars["DateTime"]["output"];
   user: User;
 };
 
@@ -1209,14 +1211,14 @@ export type OrganizationMembershipConnection = {
   /** Pagination data for this connection */
   pageInfo: PageInfo;
   /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 /** An edge in a connection. */
 export type OrganizationMembershipEdge = {
   __typename?: "OrganizationMembershipEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: OrganizationMembership;
 };
@@ -1226,8 +1228,8 @@ export type OrganizationMembershipOperationInfo = OperationInfo | OrganizationMe
 export type OrganizationOperationInfo = OperationInfo | Organization;
 
 export type OrganizationRemoveMembershipInput = {
-  id: Scalars["GlobalID"];
-  userId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  userId: Scalars["GlobalID"]["input"];
 };
 
 export enum OrganizationRole {
@@ -1238,64 +1240,64 @@ export enum OrganizationRole {
 }
 
 export type OrganizationUpdateInput = {
-  description: Scalars["String"];
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
+  description: Scalars["String"]["input"];
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
 };
 
 export type OrganizationUpdateMembershipInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
   level: OrganizationRole;
-  userId: Scalars["GlobalID"];
+  userId: Scalars["GlobalID"]["input"];
 };
 
 export type Owner = {
   accessTokens: AccessTokenConnection;
-  canViewDetail: Scalars["Boolean"];
-  canWrite: Scalars["Boolean"];
-  createdAt: Scalars["DateTime"];
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
+  canViewDetail: Scalars["Boolean"]["output"];
+  canWrite: Scalars["Boolean"]["output"];
+  createdAt: Scalars["DateTime"]["output"];
+  id: Scalars["GlobalID"]["output"];
+  name: Scalars["String"]["output"];
   projects: ProjectConnection;
-  slug: Scalars["String"];
-  updatedAt: Scalars["DateTime"];
+  slug: Scalars["String"]["output"];
+  updatedAt: Scalars["DateTime"]["output"];
 };
 
 export type Package = {
   __typename?: "Package";
-  name: Scalars["String"];
-  version: Scalars["String"];
+  name: Scalars["String"]["output"];
+  version: Scalars["String"]["output"];
 };
 
 /** Information to aid in pagination. */
 export type PageInfo = {
   __typename?: "PageInfo";
   /** When paginating forwards, the cursor to continue. */
-  endCursor?: Maybe<Scalars["String"]>;
+  endCursor?: Maybe<Scalars["String"]["output"]>;
   /** When paginating forwards, are there more items? */
-  hasNextPage: Scalars["Boolean"];
+  hasNextPage: Scalars["Boolean"]["output"];
   /** When paginating backwards, are there more items? */
-  hasPreviousPage: Scalars["Boolean"];
+  hasPreviousPage: Scalars["Boolean"]["output"];
   /** When paginating backwards, the cursor to continue. */
-  startCursor?: Maybe<Scalars["String"]>;
+  startCursor?: Maybe<Scalars["String"]["output"]>;
 };
 
 export type Project = Node & {
   __typename?: "Project";
   accessLevel: ModuleAccessLevel;
-  createdAt: Scalars["DateTime"];
-  description?: Maybe<Scalars["String"]>;
+  createdAt: Scalars["DateTime"]["output"];
+  description?: Maybe<Scalars["String"]["output"]>;
   head: ProjectVersion;
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
+  id: Scalars["GlobalID"]["output"];
+  name: Scalars["String"]["output"];
   owner: UserOrganization;
-  path: Scalars["String"];
-  sharingEnabled: Scalars["Boolean"];
+  path: Scalars["String"]["output"];
+  sharingEnabled: Scalars["Boolean"]["output"];
   sharingLevel: ModuleAccessLevel;
-  sharingToken?: Maybe<Scalars["UUID"]>;
-  slug: Scalars["String"];
-  updatedAt: Scalars["DateTime"];
+  sharingToken?: Maybe<Scalars["UUID"]["output"]>;
+  slug: Scalars["String"]["output"];
+  updatedAt: Scalars["DateTime"]["output"];
   usage: ProjectUsage;
   versions: ProjectVersionConnection;
   visibility: ProjectVisibility;
@@ -1304,17 +1306,17 @@ export type Project = Node & {
 };
 
 export type ProjectVersionsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
   filters?: InputMaybe<ProjectVersionFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type ProjectChange = Change & {
   __typename?: "ProjectChange";
-  clientId?: Maybe<Scalars["GlobalID"]>;
-  id: Scalars["UUID"];
+  clientId?: Maybe<Scalars["GlobalID"]["output"]>;
+  id: Scalars["UUID"]["output"];
 };
 
 /** A connection to a list of items. */
@@ -1325,13 +1327,13 @@ export type ProjectConnection = {
   /** Pagination data for this connection */
   pageInfo: PageInfo;
   /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 export type ProjectCreateInput = {
-  name: Scalars["String"];
-  ownerId: Scalars["GlobalID"];
-  slug: Scalars["String"];
+  name: Scalars["String"]["input"];
+  ownerId: Scalars["GlobalID"]["input"];
+  slug: Scalars["String"]["input"];
   visibility: ProjectVisibility;
 };
 
@@ -1339,60 +1341,60 @@ export type ProjectCreateInput = {
 export type ProjectEdge = {
   __typename?: "ProjectEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: Project;
 };
 
 export type ProjectInvite = Node & {
   __typename?: "ProjectInvite";
-  createdAt: Scalars["DateTime"];
-  email: Scalars["String"];
-  emailSentAt?: Maybe<Scalars["DateTime"]>;
+  createdAt: Scalars["DateTime"]["output"];
+  email: Scalars["String"]["output"];
+  emailSentAt?: Maybe<Scalars["DateTime"]["output"]>;
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["output"];
   level: ModuleAccessLevel;
   project: Project;
-  updatedAt: Scalars["DateTime"];
+  updatedAt: Scalars["DateTime"]["output"];
   user?: Maybe<User>;
 };
 
 export type ProjectInviteInput = {
-  emails: Array<Scalars["String"]>;
-  id: Scalars["GlobalID"];
+  emails: Array<Scalars["String"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
   level: ModuleAccessLevel;
-  message?: InputMaybe<Scalars["String"]>;
+  message?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type ProjectOperationInfo = OperationInfo | Project;
 
 export type ProjectRemoveMembershipInput = {
-  id: Scalars["GlobalID"];
-  userId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  userId: Scalars["GlobalID"]["input"];
 };
 
 export type ProjectUpdateNameInput = {
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
 };
 
 export type ProjectUpdateSharingInput = {
-  id: Scalars["GlobalID"];
-  sharingEnabled: Scalars["Boolean"];
+  id: Scalars["GlobalID"]["input"];
+  sharingEnabled: Scalars["Boolean"]["input"];
   sharingLevel: ModuleAccessLevel;
-  sharingToken: Scalars["UUID"];
+  sharingToken: Scalars["UUID"]["input"];
 };
 
 export type ProjectUpdateVisibilityInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
   visibility: ProjectVisibility;
 };
 
 export type ProjectUsage = {
   __typename?: "ProjectUsage";
-  cacheBytesTotal: Scalars["Int"];
-  objectsBytesTotal: Scalars["Int"];
-  recordsActive: Scalars["Int"];
+  cacheBytesTotal: Scalars["Int"]["output"];
+  objectsBytesTotal: Scalars["Int"]["output"];
+  recordsActive: Scalars["Int"]["output"];
 };
 
 export type ProjectVersion = HasCrud &
@@ -1400,24 +1402,24 @@ export type ProjectVersion = HasCrud &
   Node & {
     __typename?: "ProjectVersion";
     children: Array<ProjectVersion>;
-    ck: Scalars["UUID"];
-    committed: Scalars["Boolean"];
-    committedAt?: Maybe<Scalars["DateTime"]>;
-    createdAt: Scalars["DateTime"];
+    ck: Scalars["UUID"]["output"];
+    committed: Scalars["Boolean"]["output"];
+    committedAt?: Maybe<Scalars["DateTime"]["output"]>;
+    createdAt: Scalars["DateTime"]["output"];
     createdBy?: Maybe<User>;
-    deletedAt?: Maybe<Scalars["DateTime"]>;
-    description?: Maybe<Scalars["String"]>;
+    deletedAt?: Maybe<Scalars["DateTime"]["output"]>;
+    description?: Maybe<Scalars["String"]["output"]>;
     files: Array<File>;
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
-    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    id: Scalars["GlobalID"]["output"];
+    lastEditedAt?: Maybe<Scalars["DateTime"]["output"]>;
     lastEditedBy?: Maybe<User>;
-    name?: Maybe<Scalars["String"]>;
+    name?: Maybe<Scalars["String"]["output"]>;
     parent?: Maybe<ModuleNode>;
     parents: Array<ProjectVersion>;
     project: Project;
-    tag?: Maybe<Scalars["String"]>;
-    updatedAt: Scalars["DateTime"];
+    tag?: Maybe<Scalars["String"]["output"]>;
+    updatedAt: Scalars["DateTime"]["output"];
   };
 
 export type ProjectVersionFilesArgs = {
@@ -1432,14 +1434,14 @@ export type ProjectVersionConnection = {
   /** Pagination data for this connection */
   pageInfo: PageInfo;
   /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 /** An edge in a connection. */
 export type ProjectVersionEdge = {
   __typename?: "ProjectVersionEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: ProjectVersion;
 };
@@ -1447,8 +1449,8 @@ export type ProjectVersionEdge = {
 export type ProjectVersionFilter = {
   AND?: InputMaybe<ProjectVersionFilter>;
   OR?: InputMaybe<ProjectVersionFilter>;
-  fromId: Scalars["GlobalID"];
-  toId: Scalars["GlobalID"];
+  fromId: Scalars["GlobalID"]["input"];
+  toId: Scalars["GlobalID"]["input"];
 };
 
 export type ProjectVersionOperationInfo = OperationInfo | ProjectVersion;
@@ -1489,143 +1491,143 @@ export type Query = {
 };
 
 export type QueryClientsArgs = {
-  active?: InputMaybe<Scalars["Boolean"]>;
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  inSameOrganizations?: Scalars["Boolean"];
-  last?: InputMaybe<Scalars["Int"]>;
-  organizationId?: InputMaybe<Scalars["GlobalID"]>;
-  present?: InputMaybe<Scalars["Boolean"]>;
-  projectId?: InputMaybe<Scalars["GlobalID"]>;
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  userId?: InputMaybe<Scalars["GlobalID"]>;
+  active?: InputMaybe<Scalars["Boolean"]["input"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  inSameOrganizations?: Scalars["Boolean"]["input"];
+  last?: InputMaybe<Scalars["Int"]["input"]>;
+  organizationId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  present?: InputMaybe<Scalars["Boolean"]["input"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  userId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 };
 
 export type QueryCurrentRunsArgs = {
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId: Scalars["GlobalID"]["input"];
 };
 
 export type QueryEnvironmentArgs = {
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 };
 
 export type QueryFeaturedProjectsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type QueryFileArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryModuleArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryOrganizationArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryOwnerBySlugArgs = {
-  slug: Scalars["String"];
+  slug: Scalars["String"]["input"];
 };
 
 export type QueryProjectArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryProjectBySlugArgs = {
-  owner: Scalars["String"];
-  project: Scalars["String"];
+  owner: Scalars["String"]["input"];
+  project: Scalars["String"]["input"];
 };
 
 export type QueryProjectVersionArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryProjectVersionBySlugArgs = {
-  owner: Scalars["String"];
-  project: Scalars["String"];
-  tag: Scalars["String"];
+  owner: Scalars["String"]["input"];
+  project: Scalars["String"]["input"];
+  tag: Scalars["String"]["input"];
 };
 
 export type QueryProjectVersionByTagArgs = {
-  projectId: Scalars["GlobalID"];
-  tag: Scalars["String"];
+  projectId: Scalars["GlobalID"]["input"];
+  tag: Scalars["String"]["input"];
 };
 
 export type QueryRemoteObjectArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryRunArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QuerySearchLogsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  count?: InputMaybe<Scalars["Boolean"]>;
-  limit?: InputMaybe<Scalars["Int"]>;
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  count?: InputMaybe<Scalars["Boolean"]["input"]>;
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   query?: InputMaybe<SearchQuery>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   sort?: InputMaybe<Array<SearchSort>>;
-  statementCks?: InputMaybe<Array<Scalars["UUID"]>>;
-  statementIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]>>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]>>;
 };
 
 export type QuerySearchRecordsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  count?: InputMaybe<Scalars["Boolean"]>;
-  limit?: InputMaybe<Scalars["Int"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  count?: InputMaybe<Scalars["Boolean"]["input"]>;
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
   query?: InputMaybe<SearchQuery>;
   sort?: InputMaybe<Array<SearchSort>>;
-  statementId: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"]["input"];
 };
 
 export type QuerySearchRunsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  count?: InputMaybe<Scalars["Boolean"]>;
-  limit?: InputMaybe<Scalars["Int"]>;
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  count?: InputMaybe<Scalars["Boolean"]["input"]>;
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId: Scalars["GlobalID"]["input"];
   query?: InputMaybe<SearchQuery>;
-  rootOnly?: InputMaybe<Scalars["Boolean"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  rootOnly?: InputMaybe<Scalars["Boolean"]["input"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   sort?: InputMaybe<Array<SearchSort>>;
-  statementCks?: InputMaybe<Array<Scalars["UUID"]>>;
-  statementIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]>>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]>>;
 };
 
 export type QuerySecretArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QuerySessionArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryStatementArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryUserArgs = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryUsersArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
   filters?: InputMaybe<UserFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export enum QueryOp {
@@ -1651,17 +1653,17 @@ export enum QueryOp {
 export type Record = HasCrud &
   Node & {
     __typename?: "Record";
-    ck: Scalars["UUID"];
-    createdAt: Scalars["DateTime"];
+    ck: Scalars["UUID"]["output"];
+    createdAt: Scalars["DateTime"]["output"];
     createdBy?: Maybe<User>;
-    deletedAt?: Maybe<Scalars["DateTime"]>;
+    deletedAt?: Maybe<Scalars["DateTime"]["output"]>;
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
-    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    id: Scalars["GlobalID"]["output"];
+    lastEditedAt?: Maybe<Scalars["DateTime"]["output"]>;
     lastEditedBy?: Maybe<User>;
-    revision: Scalars["Int"];
-    updatedAt: Scalars["DateTime"];
-    value: Scalars["JSON"];
+    revision: Scalars["Int"]["output"];
+    updatedAt: Scalars["DateTime"]["output"];
+    value: Scalars["JSON"]["output"];
   };
 
 export type RecordBatch = {
@@ -1672,13 +1674,13 @@ export type RecordBatch = {
 export type RecordBatchOperationInfo = OperationInfo | RecordBatch;
 
 export type RecordBatchRestoreInput = {
-  ids: Array<Scalars["GlobalID"]>;
-  statementId: Scalars["GlobalID"];
+  ids: Array<Scalars["GlobalID"]["input"]>;
+  statementId: Scalars["GlobalID"]["input"];
 };
 
 export type RecordBatchSoftDeleteInput = {
-  ids: Array<Scalars["GlobalID"]>;
-  statementId: Scalars["GlobalID"];
+  ids: Array<Scalars["GlobalID"]["input"]>;
+  statementId: Scalars["GlobalID"]["input"];
 };
 
 /** A connection to a list of items. */
@@ -1688,28 +1690,28 @@ export type RecordConnection = {
   edges: Array<RecordEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 export type RecordCreateInput = {
-  ck: Scalars["UUID"];
-  id: Scalars["GlobalID"];
-  statementCk: Scalars["UUID"];
-  statementId: Scalars["GlobalID"];
-  statementKey: Scalars["String"];
-  value: Scalars["JSON"];
+  ck: Scalars["UUID"]["input"];
+  id: Scalars["GlobalID"]["input"];
+  statementCk: Scalars["UUID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
+  statementKey: Scalars["String"]["input"];
+  value: Scalars["JSON"]["input"];
 };
 
 export type RecordDeleteInput = {
-  id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
 };
 
 /** An edge in a connection. */
 export type RecordEdge = {
   __typename?: "RecordEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: Record;
 };
@@ -1717,26 +1719,26 @@ export type RecordEdge = {
 export type RecordOperationInfo = OperationInfo | Record;
 
 export type RecordRestoreInput = {
-  id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
 };
 
 export type RecordUpdateInput = {
-  id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
-  value: Scalars["JSON"];
+  id: Scalars["GlobalID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
+  value: Scalars["JSON"]["input"];
 };
 
 export type RemoteObject = Node & {
   __typename?: "RemoteObject";
-  contentLength: Scalars["Int"];
-  contentType: Scalars["String"];
+  contentLength: Scalars["Int"]["output"];
+  contentType: Scalars["String"]["output"];
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  name?: Maybe<Scalars["String"]>;
-  presignedGet?: Maybe<Scalars["String"]>;
-  presignedPost?: Maybe<Scalars["String"]>;
-  sha512: Scalars["String"];
+  id: Scalars["GlobalID"]["output"];
+  name?: Maybe<Scalars["String"]["output"]>;
+  presignedGet?: Maybe<Scalars["String"]["output"]>;
+  presignedPost?: Maybe<Scalars["String"]["output"]>;
+  sha512: Scalars["String"]["output"];
   status: RemoteObjectStatus;
 };
 
@@ -1749,76 +1751,76 @@ export enum RemoteObjectStatus {
 }
 
 export type RequestUploadObjectInput = {
-  contentLength: Scalars["Int"];
-  contentType: Scalars["String"];
-  name?: InputMaybe<Scalars["String"]>;
-  projectId: Scalars["GlobalID"];
-  sha512: Scalars["String"];
+  contentLength: Scalars["Int"]["input"];
+  contentType: Scalars["String"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  projectId: Scalars["GlobalID"]["input"];
+  sha512: Scalars["String"]["input"];
 };
 
 export type ResolvedField = ModuleNode &
   Node & {
     __typename?: "ResolvedField";
-    ck: Scalars["UUID"];
-    fieldCk: Scalars["UUID"];
-    id: Scalars["GlobalID"];
+    ck: Scalars["UUID"]["output"];
+    fieldCk: Scalars["UUID"]["output"];
+    id: Scalars["GlobalID"]["output"];
     parent?: Maybe<ModuleNode>;
     statement?: Maybe<Statement>;
   };
 
 export type RestartWorkerSetInput = {
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 };
 
 export type RestartWorkerSetPayload = {
   __typename?: "RestartWorkerSetPayload";
-  success: Scalars["Boolean"];
+  success: Scalars["Boolean"]["output"];
   workerSet?: Maybe<WorkerSet>;
 };
 
 export type RestartWorkerSetPayloadOperationInfo = OperationInfo | RestartWorkerSetPayload;
 
 export type RestoreInput = {
-  projectVersionId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"]["input"];
 };
 
 export type Run = HasTriggeredBy &
   Node & {
     __typename?: "Run";
     children: Array<Run>;
-    createdAt: Scalars["DateTime"];
+    createdAt: Scalars["DateTime"]["output"];
     descendants: Array<Run>;
-    duration?: Maybe<Scalars["Float"]>;
-    error?: Maybe<Scalars["JSON"]>;
+    duration?: Maybe<Scalars["Float"]["output"]>;
+    error?: Maybe<Scalars["JSON"]["output"]>;
     errorNice?: Maybe<RunError>;
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
-    inputs?: Maybe<Scalars["JSON"]>;
-    outputs?: Maybe<Scalars["JSON"]>;
+    id: Scalars["GlobalID"]["output"];
+    inputs?: Maybe<Scalars["JSON"]["output"]>;
+    outputs?: Maybe<Scalars["JSON"]["output"]>;
     parent?: Maybe<Run>;
     projectVersion: ProjectVersion;
     root?: Maybe<Run>;
     session?: Maybe<Session>;
-    startedAt?: Maybe<Scalars["DateTime"]>;
+    startedAt?: Maybe<Scalars["DateTime"]["output"]>;
     statement?: Maybe<Statement>;
-    statementCk?: Maybe<Scalars["UUID"]>;
+    statementCk?: Maybe<Scalars["UUID"]["output"]>;
     status: RunStatus;
-    terminatedAt?: Maybe<Scalars["DateTime"]>;
+    terminatedAt?: Maybe<Scalars["DateTime"]["output"]>;
     trigger?: Maybe<Trigger>;
     triggerAccessToken?: Maybe<AccessToken>;
     triggerType?: Maybe<TriggerType>;
     triggerUser?: Maybe<User>;
-    updatedAt: Scalars["DateTime"];
-    value?: Maybe<Scalars["JSON"]>;
+    updatedAt: Scalars["DateTime"]["output"];
+    value?: Maybe<Scalars["JSON"]["output"]>;
   };
 
 export type RunCodeFrame = {
   __typename?: "RunCodeFrame";
-  filename: Scalars["String"];
-  line: Scalars["String"];
-  lineno: Scalars["Int"];
-  locals?: Maybe<Scalars["JSON"]>;
-  name: Scalars["String"];
+  filename: Scalars["String"]["output"];
+  line: Scalars["String"]["output"];
+  lineno: Scalars["Int"]["output"];
+  locals?: Maybe<Scalars["JSON"]["output"]>;
+  name: Scalars["String"]["output"];
 };
 
 /** A connection to a list of items. */
@@ -1828,52 +1830,52 @@ export type RunConnection = {
   edges: Array<RunEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 /** An edge in a connection. */
 export type RunEdge = {
   __typename?: "RunEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: Run;
 };
 
 export type RunError = {
   __typename?: "RunError";
-  kind: Scalars["String"];
-  message: Scalars["String"];
-  statementId?: Maybe<Scalars["GlobalID"]>;
+  kind: Scalars["String"]["output"];
+  message: Scalars["String"]["output"];
+  statementId?: Maybe<Scalars["GlobalID"]["output"]>;
   traceback?: Maybe<Array<RunCodeFrame>>;
-  type: Scalars["String"];
+  type: Scalars["String"]["output"];
 };
 
 export type RunInput = {
-  accessLevel: Scalars["Int"];
-  block?: Scalars["Float"];
-  code?: InputMaybe<Scalars["String"]>;
-  globalValue?: InputMaybe<Scalars["JSON"]>;
-  inputs?: InputMaybe<Scalars["JSON"]>;
-  keyed?: Scalars["Boolean"];
-  projectVersionId: Scalars["GlobalID"];
-  rootValue?: InputMaybe<Scalars["JSON"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
-  scopeCk?: InputMaybe<Scalars["UUID"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  statementId?: InputMaybe<Scalars["GlobalID"]>;
-  tags?: InputMaybe<Array<Scalars["String"]>>;
-  timeoutSeconds?: InputMaybe<Scalars["Int"]>;
+  accessLevel: Scalars["Int"]["input"];
+  block?: Scalars["Float"]["input"];
+  code?: InputMaybe<Scalars["String"]["input"]>;
+  globalValue?: InputMaybe<Scalars["JSON"]["input"]>;
+  inputs?: InputMaybe<Scalars["JSON"]["input"]>;
+  keyed?: Scalars["Boolean"]["input"];
+  projectVersionId: Scalars["GlobalID"]["input"];
+  rootValue?: InputMaybe<Scalars["JSON"]["input"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  statementId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  tags?: InputMaybe<Array<Scalars["String"]["input"]>>;
+  timeoutSeconds?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type RunState = {
   __typename?: "RunState";
   error?: Maybe<StartRunErrorType>;
   logs?: Maybe<Array<LogEntry>>;
-  projectVersionId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"]["output"];
   run?: Maybe<Run>;
-  statementId?: Maybe<Scalars["GlobalID"]>;
-  success: Scalars["Boolean"];
+  statementId?: Maybe<Scalars["GlobalID"]["output"]>;
+  success: Scalars["Boolean"]["output"];
 };
 
 export type RunStateOperationInfo = OperationInfo | RunState;
@@ -1901,63 +1903,63 @@ export enum ScheduleType {
 }
 
 export type SearchQuery = {
-  key?: InputMaybe<Scalars["String"]>;
+  key?: InputMaybe<Scalars["String"]["input"]>;
   op: QueryOp;
   queries?: InputMaybe<Array<SearchQuery>>;
-  value?: InputMaybe<Scalars["JSON"]>;
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 };
 
 export type SearchSort = {
-  key: Scalars["String"];
+  key: Scalars["String"]["input"];
   mode?: InputMaybe<SortMode>;
   order?: SortOrder;
 };
 
 export type Secret = Node & {
   __typename?: "Secret";
-  createdAt: Scalars["DateTime"];
+  createdAt: Scalars["DateTime"]["output"];
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  name?: Maybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["output"];
+  name?: Maybe<Scalars["String"]["output"]>;
   project: Project;
-  sha512: Scalars["String"];
-  updatedAt: Scalars["DateTime"];
-  valueRevealed: Scalars["JSON"];
+  sha512: Scalars["String"]["output"];
+  updatedAt: Scalars["DateTime"]["output"];
+  valueRevealed: Scalars["JSON"]["output"];
 };
 
 export type SecretCreateInput = {
-  name?: InputMaybe<Scalars["String"]>;
-  projectId: Scalars["GlobalID"];
-  value: Scalars["JSON"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  projectId: Scalars["GlobalID"]["input"];
+  value: Scalars["JSON"]["input"];
 };
 
 export type SecretDeleteInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type SecretOperationInfo = OperationInfo | Secret;
 
 export type SecretUpdateInput = {
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-  value: Scalars["JSON"];
+  id: Scalars["GlobalID"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  value: Scalars["JSON"]["input"];
 };
 
 export type Session = HasTriggeredBy &
   Node & {
     __typename?: "Session";
-    closedAt?: Maybe<Scalars["DateTime"]>;
-    createdAt: Scalars["DateTime"];
+    closedAt?: Maybe<Scalars["DateTime"]["output"]>;
+    createdAt: Scalars["DateTime"]["output"];
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
-    openedAt?: Maybe<Scalars["DateTime"]>;
+    id: Scalars["GlobalID"]["output"];
+    openedAt?: Maybe<Scalars["DateTime"]["output"]>;
     project: Project;
     runs: Array<Run>;
     trigger?: Maybe<Trigger>;
     triggerAccessToken?: Maybe<AccessToken>;
     triggerType?: Maybe<TriggerType>;
     triggerUser?: Maybe<User>;
-    updatedAt: Scalars["DateTime"];
+    updatedAt: Scalars["DateTime"]["output"];
   };
 
 export type SessionChange = {
@@ -1977,10 +1979,10 @@ export type SessionState = {
 export type SessionStateOperationInfo = OperationInfo | SessionState;
 
 export type SnapshotInput = {
-  description?: InputMaybe<Scalars["String"]>;
-  name?: InputMaybe<Scalars["String"]>;
-  projectVersionId: Scalars["GlobalID"];
-  tag?: InputMaybe<Scalars["String"]>;
+  description?: InputMaybe<Scalars["String"]["input"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  projectVersionId: Scalars["GlobalID"]["input"];
+  tag?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type SnapshotPayload = {
@@ -2017,37 +2019,37 @@ export type Statement = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Statement";
-    ck: Scalars["UUID"];
-    code?: Maybe<Scalars["String"]>;
-    createdAt: Scalars["DateTime"];
+    ck: Scalars["UUID"]["output"];
+    code?: Maybe<Scalars["String"]["output"]>;
+    createdAt: Scalars["DateTime"]["output"];
     createdBy?: Maybe<User>;
-    deletedAt?: Maybe<Scalars["DateTime"]>;
+    deletedAt?: Maybe<Scalars["DateTime"]["output"]>;
     descendants: Array<Statement>;
     fields: Array<Field>;
     file: File;
-    flags?: Maybe<Scalars["Int"]>;
-    headingLevel?: Maybe<Scalars["Int"]>;
+    flags?: Maybe<Scalars["Int"]["output"]>;
+    headingLevel?: Maybe<Scalars["Int"]["output"]>;
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
+    id: Scalars["GlobalID"]["output"];
     issues?: Maybe<Array<Issue>>;
-    key?: Maybe<Scalars["String"]>;
-    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    key?: Maybe<Scalars["String"]["output"]>;
+    lastEditedAt?: Maybe<Scalars["DateTime"]["output"]>;
     lastEditedBy?: Maybe<User>;
-    name?: Maybe<Scalars["String"]>;
-    orderKey: Scalars["String"];
+    name?: Maybe<Scalars["String"]["output"]>;
+    orderKey: Scalars["String"]["output"];
     parent: ModuleNode;
     projectVersion: ProjectVersion;
-    referenceCk?: Maybe<Scalars["UUID"]>;
+    referenceCk?: Maybe<Scalars["UUID"]["output"]>;
     resolvedFields?: Maybe<Array<ResolvedField>>;
-    revision: Scalars["Int"];
+    revision: Scalars["Int"]["output"];
     tag?: Maybe<TypeTag>;
     tags: Array<Tagging>;
-    text?: Maybe<Scalars["String"]>;
+    text?: Maybe<Scalars["String"]["output"]>;
     triggers: Array<Trigger>;
     type: StatementType;
-    updatedAt: Scalars["DateTime"];
-    value?: Maybe<Scalars["JSON"]>;
-    versioned: Scalars["Boolean"];
+    updatedAt: Scalars["DateTime"]["output"];
+    value?: Maybe<Scalars["JSON"]["output"]>;
+    versioned: Scalars["Boolean"]["output"];
   };
 
 export type StatementFieldsArgs = {
@@ -2068,90 +2070,90 @@ export type StatementBatch = {
 };
 
 export type StatementBatchMoveInput = {
-  fileId: Scalars["GlobalID"];
-  ids: Array<Scalars["GlobalID"]>;
-  orderKeys: Array<Scalars["String"]>;
-  parentIds: Array<InputMaybe<Scalars["GlobalID"]>>;
+  fileId: Scalars["GlobalID"]["input"];
+  ids: Array<Scalars["GlobalID"]["input"]>;
+  orderKeys: Array<Scalars["String"]["input"]>;
+  parentIds: Array<InputMaybe<Scalars["GlobalID"]["input"]>>;
 };
 
 export type StatementBatchOperationInfo = OperationInfo | StatementBatch;
 
 export type StatementBatchPasteInput = {
-  sourceIds: Array<Scalars["GlobalID"]>;
-  targetCks: Array<Scalars["UUID"]>;
-  targetFileId: Scalars["GlobalID"];
-  targetIds: Array<Scalars["GlobalID"]>;
-  targetOrderKeys: Array<Scalars["String"]>;
-  targetParentIds: Array<InputMaybe<Scalars["GlobalID"]>>;
+  sourceIds: Array<Scalars["GlobalID"]["input"]>;
+  targetCks: Array<Scalars["UUID"]["input"]>;
+  targetFileId: Scalars["GlobalID"]["input"];
+  targetIds: Array<Scalars["GlobalID"]["input"]>;
+  targetOrderKeys: Array<Scalars["String"]["input"]>;
+  targetParentIds: Array<InputMaybe<Scalars["GlobalID"]["input"]>>;
 };
 
 export type StatementBatchRestoreInput = {
-  ids: Array<Scalars["GlobalID"]>;
+  ids: Array<Scalars["GlobalID"]["input"]>;
 };
 
 export type StatementBatchSoftDeleteInput = {
-  ids: Array<Scalars["GlobalID"]>;
+  ids: Array<Scalars["GlobalID"]["input"]>;
 };
 
 export type StatementCreateInput = {
-  ck: Scalars["UUID"];
-  code?: InputMaybe<Scalars["String"]>;
-  fileId: Scalars["GlobalID"];
-  flags?: InputMaybe<Scalars["Int"]>;
-  id: Scalars["GlobalID"];
-  key?: InputMaybe<Scalars["String"]>;
-  name?: InputMaybe<Scalars["String"]>;
-  orderKey: Scalars["String"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
-  referenceCk?: InputMaybe<Scalars["UUID"]>;
+  ck: Scalars["UUID"]["input"];
+  code?: InputMaybe<Scalars["String"]["input"]>;
+  fileId: Scalars["GlobalID"]["input"];
+  flags?: InputMaybe<Scalars["Int"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
+  key?: InputMaybe<Scalars["String"]["input"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  orderKey: Scalars["String"]["input"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
   tag?: InputMaybe<TypeTag>;
-  text?: InputMaybe<Scalars["String"]>;
+  text?: InputMaybe<Scalars["String"]["input"]>;
   type: StatementType;
-  value?: InputMaybe<Scalars["JSON"]>;
-  versioned: Scalars["Boolean"];
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
+  versioned: Scalars["Boolean"]["input"];
 };
 
 export type StatementDeleteInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type StatementFilter = {
   AND?: InputMaybe<StatementFilter>;
   OR?: InputMaybe<StatementFilter>;
-  isVisible?: InputMaybe<Scalars["Boolean"]>;
+  isVisible?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
 
 export type StatementMorphInput = {
-  flags?: InputMaybe<Scalars["Int"]>;
-  headingLevel?: InputMaybe<Scalars["Int"]>;
-  id: Scalars["GlobalID"];
-  key?: InputMaybe<Scalars["String"]>;
-  name?: InputMaybe<Scalars["String"]>;
+  flags?: InputMaybe<Scalars["Int"]["input"]>;
+  headingLevel?: InputMaybe<Scalars["Int"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
+  key?: InputMaybe<Scalars["String"]["input"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
   tag?: InputMaybe<TypeTag>;
   type: StatementType;
-  versioned: Scalars["Boolean"];
+  versioned: Scalars["Boolean"]["input"];
 };
 
 export type StatementMoveInput = {
-  fileId: Scalars["GlobalID"];
-  id: Scalars["GlobalID"];
-  orderKey?: InputMaybe<Scalars["String"]>;
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  fileId: Scalars["GlobalID"]["input"];
+  id: Scalars["GlobalID"]["input"];
+  orderKey?: InputMaybe<Scalars["String"]["input"]>;
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 };
 
 export type StatementOperationInfo = OperationInfo | Statement;
 
 export type StatementRenameInput = {
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type StatementRestoreInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type StatementSoftDeleteInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export enum StatementType {
@@ -2169,32 +2171,32 @@ export enum StatementType {
 }
 
 export type StatementUpdateHeadingLevelInput = {
-  headingLevel?: InputMaybe<Scalars["Int"]>;
-  id: Scalars["GlobalID"];
+  headingLevel?: InputMaybe<Scalars["Int"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type StatementUpdateInput = {
-  code?: InputMaybe<Scalars["String"]>;
-  flags?: InputMaybe<Scalars["Int"]>;
-  id: Scalars["GlobalID"];
-  key?: InputMaybe<Scalars["String"]>;
-  name?: InputMaybe<Scalars["String"]>;
-  orderKey?: InputMaybe<Scalars["String"]>;
-  referenceCk?: InputMaybe<Scalars["UUID"]>;
+  code?: InputMaybe<Scalars["String"]["input"]>;
+  flags?: InputMaybe<Scalars["Int"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
+  key?: InputMaybe<Scalars["String"]["input"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  orderKey?: InputMaybe<Scalars["String"]["input"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
   tag?: InputMaybe<TypeTag>;
-  text?: InputMaybe<Scalars["String"]>;
+  text?: InputMaybe<Scalars["String"]["input"]>;
   type?: InputMaybe<StatementType>;
-  value?: InputMaybe<Scalars["JSON"]>;
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 };
 
 export type StatementUpdateReferenceInput = {
-  id: Scalars["GlobalID"];
-  referenceCk?: InputMaybe<Scalars["UUID"]>;
+  id: Scalars["GlobalID"]["input"];
+  referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
 };
 
 export type StatementUpdateTextInput = {
-  id: Scalars["GlobalID"];
-  text?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["input"];
+  text?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type Subscription = {
@@ -2207,155 +2209,155 @@ export type Subscription = {
 };
 
 export type SubscriptionClientsChangedArgs = {
-  projectId?: InputMaybe<Scalars["GlobalID"]>;
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 };
 
 export type SubscriptionLogsChangedArgs = {
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  statementCks?: InputMaybe<Array<Scalars["UUID"]>>;
-  statementIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]>>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]>>;
 };
 
 export type SubscriptionModuleChangedArgs = {
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId: Scalars["GlobalID"]["input"];
 };
 
 export type SubscriptionProjectChangedArgs = {
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 };
 
 export type SubscriptionSessionsChangedArgs = {
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 };
 
 export type SymbolUpdateCodeInput = {
-  code?: InputMaybe<Scalars["String"]>;
-  id: Scalars["GlobalID"];
+  code?: InputMaybe<Scalars["String"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type SymbolUpdateValueInput = {
-  id: Scalars["GlobalID"];
-  value?: InputMaybe<Scalars["JSON"]>;
+  id: Scalars["GlobalID"]["input"];
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 };
 
 export type SystemInfo = {
   __typename?: "SystemInfo";
-  gitCommit: Scalars["String"];
-  version: Scalars["String"];
+  gitCommit: Scalars["String"]["output"];
+  version: Scalars["String"]["output"];
 };
 
 export type Tagging = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Tagging";
-    ck: Scalars["UUID"];
-    createdAt: Scalars["DateTime"];
+    ck: Scalars["UUID"]["output"];
+    createdAt: Scalars["DateTime"]["output"];
     createdBy?: Maybe<User>;
-    deletedAt?: Maybe<Scalars["DateTime"]>;
+    deletedAt?: Maybe<Scalars["DateTime"]["output"]>;
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
-    key: Scalars["String"];
-    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    id: Scalars["GlobalID"]["output"];
+    key: Scalars["String"]["output"];
+    lastEditedAt?: Maybe<Scalars["DateTime"]["output"]>;
     lastEditedBy?: Maybe<User>;
     parent: Statement;
-    referenceCk?: Maybe<Scalars["UUID"]>;
-    revision: Scalars["Int"];
+    referenceCk?: Maybe<Scalars["UUID"]["output"]>;
+    revision: Scalars["Int"]["output"];
     statement: Statement;
-    updatedAt: Scalars["DateTime"];
-    value?: Maybe<Scalars["JSON"]>;
+    updatedAt: Scalars["DateTime"]["output"];
+    value?: Maybe<Scalars["JSON"]["output"]>;
   };
 
 export type TaggingCreateInput = {
-  ck: Scalars["UUID"];
-  id: Scalars["GlobalID"];
-  key: Scalars["String"];
-  referenceCk: Scalars["UUID"];
-  statementId: Scalars["GlobalID"];
-  value?: InputMaybe<Scalars["JSON"]>;
+  ck: Scalars["UUID"]["input"];
+  id: Scalars["GlobalID"]["input"];
+  key: Scalars["String"]["input"];
+  referenceCk: Scalars["UUID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 };
 
 export type TaggingDeleteInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type TaggingFilter = {
   AND?: InputMaybe<TaggingFilter>;
   OR?: InputMaybe<TaggingFilter>;
-  isVisible?: InputMaybe<Scalars["Boolean"]>;
+  isVisible?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
 
 export type TaggingOperationInfo = OperationInfo | Tagging;
 
 export type TaggingRestoreInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type TaggingUpdateInput = {
-  id: Scalars["GlobalID"];
-  value?: InputMaybe<Scalars["JSON"]>;
+  id: Scalars["GlobalID"]["input"];
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 };
 
 export type Trigger = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Trigger";
-    active: Scalars["Boolean"];
-    ck: Scalars["UUID"];
-    createdAt: Scalars["DateTime"];
+    active: Scalars["Boolean"]["output"];
+    ck: Scalars["UUID"]["output"];
+    createdAt: Scalars["DateTime"]["output"];
     createdBy?: Maybe<User>;
-    cron?: Maybe<Scalars["String"]>;
-    deletedAt?: Maybe<Scalars["DateTime"]>;
+    cron?: Maybe<Scalars["String"]["output"]>;
+    deletedAt?: Maybe<Scalars["DateTime"]["output"]>;
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
-    interval?: Maybe<Scalars["Int"]>;
-    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    id: Scalars["GlobalID"]["output"];
+    interval?: Maybe<Scalars["Int"]["output"]>;
+    lastEditedAt?: Maybe<Scalars["DateTime"]["output"]>;
     lastEditedBy?: Maybe<User>;
-    mapping?: Maybe<Scalars["JSON"]>;
+    mapping?: Maybe<Scalars["JSON"]["output"]>;
     parent: Statement;
-    revision: Scalars["Int"];
+    revision: Scalars["Int"]["output"];
     scheduleType: ScheduleType;
-    scopeCk?: Maybe<Scalars["UUID"]>;
-    statementCk?: Maybe<Scalars["UUID"]>;
-    timezone?: Maybe<Scalars["String"]>;
+    scopeCk?: Maybe<Scalars["UUID"]["output"]>;
+    statementCk?: Maybe<Scalars["UUID"]["output"]>;
+    timezone?: Maybe<Scalars["String"]["output"]>;
     type: TriggerType;
-    updatedAt: Scalars["DateTime"];
+    updatedAt: Scalars["DateTime"]["output"];
   };
 
 export type TriggerCreateInput = {
-  active: Scalars["Boolean"];
-  ck: Scalars["UUID"];
-  cron?: InputMaybe<Scalars["String"]>;
-  id: Scalars["GlobalID"];
-  interval?: InputMaybe<Scalars["Int"]>;
-  mapping?: InputMaybe<Scalars["JSON"]>;
+  active: Scalars["Boolean"]["input"];
+  ck: Scalars["UUID"]["input"];
+  cron?: InputMaybe<Scalars["String"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
+  interval?: InputMaybe<Scalars["Int"]["input"]>;
+  mapping?: InputMaybe<Scalars["JSON"]["input"]>;
   scheduleType?: InputMaybe<ScheduleType>;
-  scopeCk?: InputMaybe<Scalars["UUID"]>;
-  statementCk?: InputMaybe<Scalars["UUID"]>;
-  statementId: Scalars["GlobalID"];
-  timezone?: InputMaybe<Scalars["String"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  statementCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  statementId: Scalars["GlobalID"]["input"];
+  timezone?: InputMaybe<Scalars["String"]["input"]>;
   type: TriggerType;
 };
 
 export type TriggerDeleteInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type TriggerFilter = {
   AND?: InputMaybe<TriggerFilter>;
   OR?: InputMaybe<TriggerFilter>;
-  isVisible?: InputMaybe<Scalars["Boolean"]>;
+  isVisible?: InputMaybe<Scalars["Boolean"]["input"]>;
 };
 
 export type TriggerOperationInfo = OperationInfo | Trigger;
 
 export type TriggerRestoreInput = {
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 };
 
 export enum TriggerType {
@@ -2369,15 +2371,15 @@ export enum TriggerType {
 }
 
 export type TriggerUpdateInput = {
-  active: Scalars["Boolean"];
-  cron?: InputMaybe<Scalars["String"]>;
-  id: Scalars["GlobalID"];
-  interval?: InputMaybe<Scalars["Int"]>;
-  mapping?: InputMaybe<Scalars["JSON"]>;
+  active: Scalars["Boolean"]["input"];
+  cron?: InputMaybe<Scalars["String"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
+  interval?: InputMaybe<Scalars["Int"]["input"]>;
+  mapping?: InputMaybe<Scalars["JSON"]["input"]>;
   scheduleType?: InputMaybe<ScheduleType>;
-  scopeCk?: InputMaybe<Scalars["UUID"]>;
-  statementCk?: InputMaybe<Scalars["UUID"]>;
-  timezone?: InputMaybe<Scalars["String"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  statementCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  timezone?: InputMaybe<Scalars["String"]["input"]>;
   type: TriggerType;
 };
 
@@ -2430,76 +2432,76 @@ export enum TypeTag {
 }
 
 export type UpdateProjectVersion = {
-  description?: InputMaybe<Scalars["String"]>;
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  tag?: InputMaybe<Scalars["String"]>;
+  description?: InputMaybe<Scalars["String"]["input"]>;
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
+  tag?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type User = Node &
   Owner & {
     __typename?: "User";
     accessTokens: AccessTokenConnection;
-    bot: Scalars["Boolean"];
-    canViewDetail: Scalars["Boolean"];
-    canWrite: Scalars["Boolean"];
-    createdAt: Scalars["DateTime"];
-    description?: Maybe<Scalars["String"]>;
-    email: Scalars["String"];
+    bot: Scalars["Boolean"]["output"];
+    canViewDetail: Scalars["Boolean"]["output"];
+    canWrite: Scalars["Boolean"]["output"];
+    createdAt: Scalars["DateTime"]["output"];
+    description?: Maybe<Scalars["String"]["output"]>;
+    email: Scalars["String"]["output"];
     /** The Globally Unique ID of this object */
-    id: Scalars["GlobalID"];
-    name: Scalars["String"];
+    id: Scalars["GlobalID"]["output"];
+    name: Scalars["String"]["output"];
     notifications: NotificationConnection;
     organizationMemberships: OrganizationMembershipConnection;
     organizations: OrganizationConnection;
     projects: ProjectConnection;
-    slug: Scalars["String"];
+    slug: Scalars["String"]["output"];
     status: UserStatus;
-    updatedAt: Scalars["DateTime"];
-    username: Scalars["String"];
+    updatedAt: Scalars["DateTime"]["output"];
+    username: Scalars["String"]["output"];
   };
 
 export type UserAccessTokensArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
   filters?: InputMaybe<AccessTokenFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type UserNotificationsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
   filters?: InputMaybe<NotificationFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type UserOrganizationMembershipsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type UserOrganizationsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type UserProjectsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  before?: InputMaybe<Scalars["String"]["input"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
 export type UserCompleteSignupInput = {
-  fullName: Scalars["String"];
-  id: Scalars["GlobalID"];
-  username: Scalars["String"];
+  fullName: Scalars["String"]["input"];
+  id: Scalars["GlobalID"]["input"];
+  username: Scalars["String"]["input"];
 };
 
 /** A connection to a list of items. */
@@ -2510,14 +2512,14 @@ export type UserConnection = {
   /** Pagination data for this connection */
   pageInfo: PageInfo;
   /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
 };
 
 /** An edge in a connection. */
 export type UserEdge = {
   __typename?: "UserEdge";
   /** A cursor for use in pagination */
-  cursor: Scalars["String"];
+  cursor: Scalars["String"]["output"];
   /** The item at the end of the edge */
   node: User;
 };
@@ -2525,8 +2527,8 @@ export type UserEdge = {
 export type UserFilter = {
   AND?: InputMaybe<UserFilter>;
   OR?: InputMaybe<UserFilter>;
-  emailEquals?: InputMaybe<Scalars["String"]>;
-  slugPrefix?: InputMaybe<Scalars["String"]>;
+  emailEquals?: InputMaybe<Scalars["String"]["input"]>;
+  slugPrefix?: InputMaybe<Scalars["String"]["input"]>;
 };
 
 export type UserOperationInfo = OperationInfo | User;
@@ -2542,29 +2544,29 @@ export enum UserStatus {
 }
 
 export type UserUpdateInput = {
-  description: Scalars["String"];
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
+  description: Scalars["String"]["input"];
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
 };
 
 export type WakeRuntimeInput = {
-  projectVersionId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"]["input"];
 };
 
 export type WakeRuntimePayload = {
   __typename?: "WakeRuntimePayload";
-  success: Scalars["Boolean"];
+  success: Scalars["Boolean"]["output"];
 };
 
 export type WakeRuntimePayloadOperationInfo = OperationInfo | WakeRuntimePayload;
 
 export type WakeWorkerSetInput = {
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 };
 
 export type WakeWorkerSetPayload = {
   __typename?: "WakeWorkerSetPayload";
-  success: Scalars["Boolean"];
+  success: Scalars["Boolean"]["output"];
   workerSet?: Maybe<WorkerSet>;
 };
 
@@ -2591,21 +2593,21 @@ export enum WorkerRegion {
 
 export type WorkerSet = Node & {
   __typename?: "WorkerSet";
-  availableReplicas: Scalars["Int"];
-  createdAt: Scalars["DateTime"];
-  desiredReplicas: Scalars["Int"];
+  availableReplicas: Scalars["Int"]["output"];
+  createdAt: Scalars["DateTime"]["output"];
+  desiredReplicas: Scalars["Int"]["output"];
   /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  lastActiveAt?: Maybe<Scalars["DateTime"]>;
-  lastBumpedAt?: Maybe<Scalars["DateTime"]>;
+  id: Scalars["GlobalID"]["output"];
+  lastActiveAt?: Maybe<Scalars["DateTime"]["output"]>;
+  lastBumpedAt?: Maybe<Scalars["DateTime"]["output"]>;
   profile: WorkerProfile;
   project: Project;
-  readyReplicas: Scalars["Int"];
+  readyReplicas: Scalars["Int"]["output"];
   region: WorkerRegion;
-  sleeping: Scalars["Boolean"];
+  sleeping: Scalars["Boolean"]["output"];
   status: WorkerSetStatus;
-  targetReplicas: Scalars["Int"];
-  updatedAt: Scalars["DateTime"];
+  targetReplicas: Scalars["Int"]["output"];
+  updatedAt: Scalars["DateTime"]["output"];
 };
 
 export enum WorkerSetStatus {
@@ -2619,8 +2621,8 @@ export enum WorkerSetStatus {
 }
 
 export type MatchingUsersQueryVariables = Exact<{
-  slug?: InputMaybe<Scalars["String"]>;
-  email?: InputMaybe<Scalars["String"]>;
+  slug?: InputMaybe<Scalars["String"]["input"]>;
+  email?: InputMaybe<Scalars["String"]["input"]>;
 }>;
 
 export type MatchingUsersQuery = {
@@ -2637,8 +2639,8 @@ export type MatchingUsersQuery = {
 
 export type NotificationsQueryVariables = Exact<{
   status?: InputMaybe<NotificationStatus>;
-  notArchived?: InputMaybe<Scalars["Boolean"]>;
-  first?: InputMaybe<Scalars["Int"]>;
+  notArchived?: InputMaybe<Scalars["Boolean"]["input"]>;
+  first?: InputMaybe<Scalars["Int"]["input"]>;
 }>;
 
 export type NotificationsQuery = {
@@ -2679,8 +2681,8 @@ export type NotificationsQuery = {
 };
 
 export type ExistingProjectVersionTagQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  tag: Scalars["String"];
+  projectId: Scalars["GlobalID"]["input"];
+  tag: Scalars["String"]["input"];
 }>;
 
 export type ExistingProjectVersionTagQuery = {
@@ -2689,7 +2691,7 @@ export type ExistingProjectVersionTagQuery = {
 };
 
 export type BlankPanelSuggestedFilesQueryVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"]["input"];
 }>;
 
 export type BlankPanelSuggestedFilesQuery = {
@@ -2701,7 +2703,7 @@ export type BlankPanelSuggestedFilesQuery = {
 };
 
 export type FileContentByIdQueryVariables = Exact<{
-  fileId: Scalars["GlobalID"];
+  fileId: Scalars["GlobalID"]["input"];
 }>;
 
 export type FileContentByIdQuery = {
@@ -2720,7 +2722,7 @@ export type FileContentByIdQuery = {
 };
 
 export type StatementContentByIdQueryVariables = Exact<{
-  statementId: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"]["input"];
 }>;
 
 export type StatementContentByIdQuery = {
@@ -2745,8 +2747,8 @@ export type StatementContentByIdQuery = {
 };
 
 export type ProfileAccessTokensQueryVariables = Exact<{
-  slug: Scalars["String"];
-  includeInactive: Scalars["Boolean"];
+  slug: Scalars["String"]["input"];
+  includeInactive: Scalars["Boolean"]["input"];
 }>;
 
 export type ProfileAccessTokensQuery = {
@@ -2802,10 +2804,10 @@ export type ProfileAccessTokensQuery = {
 };
 
 export type CreateAccessTokenMutationVariables = Exact<{
-  ownerId: Scalars["GlobalID"];
+  ownerId: Scalars["GlobalID"]["input"];
   scopes: Array<AccessTokenScope> | AccessTokenScope;
-  expiresAt?: InputMaybe<Scalars["DateTime"]>;
-  name?: InputMaybe<Scalars["String"]>;
+  expiresAt?: InputMaybe<Scalars["DateTime"]["input"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
 }>;
 
 export type CreateAccessTokenMutation = {
@@ -2833,7 +2835,7 @@ export type CreateAccessTokenMutation = {
 };
 
 export type RevokeAccessTokenMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type RevokeAccessTokenMutation = {
@@ -2846,7 +2848,7 @@ export type RevokeAccessTokenMutation = {
 };
 
 export type OrganizationMembersQueryVariables = Exact<{
-  slug: Scalars["String"];
+  slug: Scalars["String"]["input"];
 }>;
 
 export type OrganizationMembersQuery = {
@@ -2899,7 +2901,7 @@ export type OrganizationMembersQuery = {
 };
 
 export type ProfileSettingsQueryVariables = Exact<{
-  slug: Scalars["String"];
+  slug: Scalars["String"]["input"];
 }>;
 
 export type ProfileSettingsQuery = {
@@ -2926,9 +2928,9 @@ export type ProfileSettingsQuery = {
 };
 
 export type UpdateOrganizationMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  description: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
+  description: Scalars["String"]["input"];
 }>;
 
 export type UpdateOrganizationMutation = {
@@ -2941,9 +2943,9 @@ export type UpdateOrganizationMutation = {
 };
 
 export type UpdateUserMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  description: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
+  description: Scalars["String"]["input"];
 }>;
 
 export type UpdateUserMutation = {
@@ -2956,7 +2958,7 @@ export type UpdateUserMutation = {
 };
 
 export type EnvironmentQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 }>;
 
 export type EnvironmentQuery = {
@@ -2978,7 +2980,7 @@ export type EnvironmentQuery = {
 };
 
 export type ProjectVersionsQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 }>;
 
 export type ProjectVersionsQuery = {
@@ -3003,7 +3005,7 @@ export type ProjectVersionsQuery = {
 };
 
 export type CheckOwnerBySlugQueryVariables = Exact<{
-  slug: Scalars["String"];
+  slug: Scalars["String"]["input"];
 }>;
 
 export type CheckOwnerBySlugQuery = {
@@ -3012,8 +3014,8 @@ export type CheckOwnerBySlugQuery = {
 };
 
 export type ProjectBySlugQueryVariables = Exact<{
-  owner: Scalars["String"];
-  project: Scalars["String"];
+  owner: Scalars["String"]["input"];
+  project: Scalars["String"]["input"];
 }>;
 
 export type ProjectBySlugQuery = {
@@ -3024,7 +3026,7 @@ export type ProjectBySlugQuery = {
 };
 
 export type ProjectVersionHeaderQueryVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type ProjectVersionHeaderQuery = {
@@ -3045,8 +3047,8 @@ export type ProjectVersionHeaderQuery = {
 };
 
 export type ExistingProjectBySlugQueryVariables = Exact<{
-  owner: Scalars["String"];
-  project: Scalars["String"];
+  owner: Scalars["String"]["input"];
+  project: Scalars["String"]["input"];
 }>;
 
 export type ExistingProjectBySlugQuery = {
@@ -3132,7 +3134,7 @@ export type FeaturedBenchesQuery = {
 };
 
 export type ProfileHomeQueryVariables = Exact<{
-  slug: Scalars["String"];
+  slug: Scalars["String"]["input"];
 }>;
 
 export type ProfileHomeQuery = {
@@ -3198,7 +3200,7 @@ export type ProfileHomeQuery = {
 };
 
 export type SettingsQueryVariables = Exact<{
-  slug: Scalars["String"];
+  slug: Scalars["String"]["input"];
 }>;
 
 export type SettingsQuery = {
@@ -3280,12 +3282,12 @@ export type ClientContentTypeFragment = {
 } & { " $fragmentName"?: "ClientContentTypeFragment" };
 
 export type ConnectedClientsQueryVariables = Exact<{
-  projectId?: InputMaybe<Scalars["GlobalID"]>;
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  userId?: InputMaybe<Scalars["GlobalID"]>;
-  inSameOrganizations: Scalars["Boolean"];
-  first?: InputMaybe<Scalars["Int"]>;
-  active?: InputMaybe<Scalars["Boolean"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  userId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  inSameOrganizations: Scalars["Boolean"]["input"];
+  first?: InputMaybe<Scalars["Int"]["input"]>;
+  active?: InputMaybe<Scalars["Boolean"]["input"]>;
 }>;
 
 export type ConnectedClientsQuery = {
@@ -3308,8 +3310,8 @@ export type ConnectedClientsQuery = {
 };
 
 export type ClientsChangedSubscriptionVariables = Exact<{
-  projectId?: InputMaybe<Scalars["GlobalID"]>;
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 }>;
 
 export type ClientsChangedSubscription = {
@@ -3329,12 +3331,12 @@ export type ClientStatusFragment = {
 } & { " $fragmentName"?: "ClientStatusFragment" };
 
 export type SearchRecordsQueryVariables = Exact<{
-  statementId: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"]["input"];
   query?: InputMaybe<SearchQuery>;
   sort?: InputMaybe<Array<SearchSort> | SearchSort>;
-  after?: InputMaybe<Scalars["String"]>;
-  limit?: InputMaybe<Scalars["Int"]>;
-  count?: InputMaybe<Scalars["Boolean"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  count?: InputMaybe<Scalars["Boolean"]["input"]>;
 }>;
 
 export type SearchRecordsQuery = {
@@ -3757,7 +3759,7 @@ export type InterpStatementFragment = {
 } & { " $fragmentName"?: "InterpStatementFragment" };
 
 export type ModuleContentByIdQueryVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"]["input"];
 }>;
 
 export type ModuleContentByIdQuery = {
@@ -3779,7 +3781,7 @@ export type ModuleContentByIdQuery = {
 };
 
 export type NewNotificationsQueryVariables = Exact<{
-  after?: InputMaybe<Scalars["String"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
   status?: InputMaybe<NotificationStatus>;
 }>;
 
@@ -3821,7 +3823,7 @@ export type NewNotificationsQuery = {
 };
 
 export type MarkNotificationMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
   status: NotificationStatus;
 }>;
 
@@ -3835,7 +3837,7 @@ export type MarkNotificationMutation = {
 };
 
 export type RemoteObjectQueryVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type RemoteObjectQuery = {
@@ -3844,17 +3846,17 @@ export type RemoteObjectQuery = {
 };
 
 export type UpsertClientMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
   type: ClientType;
-  deviceName?: InputMaybe<Scalars["String"]>;
-  browserName?: InputMaybe<Scalars["String"]>;
-  projectId?: InputMaybe<Scalars["GlobalID"]>;
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  fileId?: InputMaybe<Scalars["GlobalID"]>;
-  statementId?: InputMaybe<Scalars["GlobalID"]>;
-  fieldId?: InputMaybe<Scalars["GlobalID"]>;
-  recordId?: InputMaybe<Scalars["GlobalID"]>;
-  path?: InputMaybe<Scalars["String"]>;
+  deviceName?: InputMaybe<Scalars["String"]["input"]>;
+  browserName?: InputMaybe<Scalars["String"]["input"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  fileId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  statementId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  fieldId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  recordId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  path?: InputMaybe<Scalars["String"]["input"]>;
 }>;
 
 export type UpsertClientMutation = {
@@ -3897,11 +3899,11 @@ export type UpdatePresenceMutation = {
 };
 
 export type CreateFileMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  ck: Scalars["UUID"];
-  projectVersionId: Scalars["GlobalID"];
-  name: Scalars["String"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  id: Scalars["GlobalID"]["input"];
+  ck: Scalars["UUID"]["input"];
+  projectVersionId: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 }>;
 
 export type CreateFileMutation = {
@@ -3945,7 +3947,7 @@ export type CreateFileMutation = {
 };
 
 export type DeleteFileMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type DeleteFileMutation = {
@@ -3958,7 +3960,7 @@ export type DeleteFileMutation = {
 };
 
 export type SoftDeleteFileMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type SoftDeleteFileMutation = {
@@ -3971,7 +3973,7 @@ export type SoftDeleteFileMutation = {
 };
 
 export type RestoreFileMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type RestoreFileMutation = {
@@ -3984,8 +3986,8 @@ export type RestoreFileMutation = {
 };
 
 export type RenameFileMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
 }>;
 
 export type RenameFileMutation = {
@@ -3998,9 +4000,9 @@ export type RenameFileMutation = {
 };
 
 export type UpdateFileMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 }>;
 
 export type UpdateFileMutation = {
@@ -4027,11 +4029,11 @@ export type UpdateFileMutation = {
 };
 
 export type PasteFileMutationVariables = Exact<{
-  sourceId: Scalars["GlobalID"];
-  targetId: Scalars["GlobalID"];
-  targetCk: Scalars["UUID"];
-  targetVersionId: Scalars["GlobalID"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  sourceId: Scalars["GlobalID"]["input"];
+  targetId: Scalars["GlobalID"]["input"];
+  targetCk: Scalars["UUID"]["input"];
+  targetVersionId: Scalars["GlobalID"]["input"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 }>;
 
 export type PasteFileMutation = {
@@ -4053,11 +4055,11 @@ export type PasteFileMutation = {
 };
 
 export type RequestUploadObjectMutationVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-  contentType: Scalars["String"];
-  contentLength: Scalars["Int"];
-  sha512: Scalars["String"];
+  projectId: Scalars["GlobalID"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  contentType: Scalars["String"]["input"];
+  contentLength: Scalars["Int"]["input"];
+  sha512: Scalars["String"]["input"];
 }>;
 
 export type RequestUploadObjectMutation = {
@@ -4080,7 +4082,7 @@ export type RequestUploadObjectMutation = {
 };
 
 export type NotifyUploadedObjectMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type NotifyUploadedObjectMutation = {
@@ -4102,8 +4104,8 @@ export type NotifyUploadedObjectMutation = {
 };
 
 export type CreateOrganizationMutationVariables = Exact<{
-  name: Scalars["String"];
-  slug: Scalars["String"];
+  name: Scalars["String"]["input"];
+  slug: Scalars["String"]["input"];
 }>;
 
 export type CreateOrganizationMutation = {
@@ -4116,10 +4118,10 @@ export type CreateOrganizationMutation = {
 };
 
 export type CreateInvitesMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  emails: Array<Scalars["String"]> | Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  emails: Array<Scalars["String"]["input"]> | Scalars["String"]["input"];
   level: OrganizationRole;
-  message?: InputMaybe<Scalars["String"]>;
+  message?: InputMaybe<Scalars["String"]["input"]>;
 }>;
 
 export type CreateInvitesMutation = {
@@ -4140,7 +4142,7 @@ export type CreateInvitesMutation = {
 };
 
 export type CancelInviteMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type CancelInviteMutation = {
@@ -4174,7 +4176,7 @@ export type CreateProjectMutation = {
 };
 
 export type UpdateProjectVisibilityMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
   visibility: ProjectVisibility;
 }>;
 
@@ -4188,9 +4190,9 @@ export type UpdateProjectVisibilityMutation = {
 };
 
 export type UpdateProjectSharingMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  sharingEnabled: Scalars["Boolean"];
-  sharingToken: Scalars["UUID"];
+  id: Scalars["GlobalID"]["input"];
+  sharingEnabled: Scalars["Boolean"]["input"];
+  sharingToken: Scalars["UUID"]["input"];
   sharingLevel: ModuleAccessLevel;
 }>;
 
@@ -4210,8 +4212,8 @@ export type UpdateProjectSharingMutation = {
 };
 
 export type UpdateProjectNameMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
 }>;
 
 export type UpdateProjectNameMutation = {
@@ -4224,9 +4226,9 @@ export type UpdateProjectNameMutation = {
 };
 
 export type CreateSecretMutationVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-  value: Scalars["JSON"];
+  projectId: Scalars["GlobalID"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  value: Scalars["JSON"]["input"];
 }>;
 
 export type CreateSecretMutation = {
@@ -4239,9 +4241,9 @@ export type CreateSecretMutation = {
 };
 
 export type UpdateSecretMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-  value: Scalars["JSON"];
+  id: Scalars["GlobalID"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  value: Scalars["JSON"]["input"];
 }>;
 
 export type UpdateSecretMutation = {
@@ -4254,7 +4256,7 @@ export type UpdateSecretMutation = {
 };
 
 export type DeleteSecretMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type DeleteSecretMutation = {
@@ -4267,7 +4269,7 @@ export type DeleteSecretMutation = {
 };
 
 export type WakeRuntimeMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"]["input"];
 }>;
 
 export type WakeRuntimeMutation = {
@@ -4280,7 +4282,7 @@ export type WakeRuntimeMutation = {
 };
 
 export type WakeWorkerSetMutationVariables = Exact<{
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 }>;
 
 export type WakeWorkerSetMutation = {
@@ -4293,7 +4295,7 @@ export type WakeWorkerSetMutation = {
 };
 
 export type RestartWorkerSetMutationVariables = Exact<{
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 }>;
 
 export type RestartWorkerSetMutation = {
@@ -4306,20 +4308,20 @@ export type RestartWorkerSetMutation = {
 };
 
 export type StartRunMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-  statementId?: InputMaybe<Scalars["GlobalID"]>;
-  scopeCk?: InputMaybe<Scalars["UUID"]>;
-  code?: InputMaybe<Scalars["String"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  inputs?: InputMaybe<Scalars["JSON"]>;
-  keyed?: InputMaybe<Scalars["Boolean"]>;
-  block?: InputMaybe<Scalars["Float"]>;
-  timeoutSeconds?: InputMaybe<Scalars["Int"]>;
-  rootValue?: InputMaybe<Scalars["JSON"]>;
-  globalValue?: InputMaybe<Scalars["JSON"]>;
-  accessLevel: Scalars["Int"];
-  tags?: InputMaybe<Array<Scalars["String"]> | Scalars["String"]>;
+  projectVersionId: Scalars["GlobalID"]["input"];
+  statementId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  code?: InputMaybe<Scalars["String"]["input"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  inputs?: InputMaybe<Scalars["JSON"]["input"]>;
+  keyed?: InputMaybe<Scalars["Boolean"]["input"]>;
+  block?: InputMaybe<Scalars["Float"]["input"]>;
+  timeoutSeconds?: InputMaybe<Scalars["Int"]["input"]>;
+  rootValue?: InputMaybe<Scalars["JSON"]["input"]>;
+  globalValue?: InputMaybe<Scalars["JSON"]["input"]>;
+  accessLevel: Scalars["Int"]["input"];
+  tags?: InputMaybe<Array<Scalars["String"]["input"]> | Scalars["String"]["input"]>;
 }>;
 
 export type StartRunMutation = {
@@ -4342,9 +4344,9 @@ export type StartRunMutation = {
 };
 
 export type KillMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-  runId: Scalars["GlobalID"];
-  restartIfUnresponsive: Scalars["Boolean"];
+  projectVersionId: Scalars["GlobalID"]["input"];
+  runId: Scalars["GlobalID"]["input"];
+  restartIfUnresponsive: Scalars["Boolean"]["input"];
 }>;
 
 export type KillMutation = {
@@ -4369,20 +4371,20 @@ export type KillMutation = {
 };
 
 export type CreateStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  ck: Scalars["UUID"];
-  fileId: Scalars["GlobalID"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
-  orderKey: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  ck: Scalars["UUID"]["input"];
+  fileId: Scalars["GlobalID"]["input"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  orderKey: Scalars["String"]["input"];
   type: StatementType;
-  name?: InputMaybe<Scalars["String"]>;
-  key?: InputMaybe<Scalars["String"]>;
-  code?: InputMaybe<Scalars["String"]>;
-  text?: InputMaybe<Scalars["String"]>;
-  value?: InputMaybe<Scalars["JSON"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  key?: InputMaybe<Scalars["String"]["input"]>;
+  code?: InputMaybe<Scalars["String"]["input"]>;
+  text?: InputMaybe<Scalars["String"]["input"]>;
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
   tag?: InputMaybe<TypeTag>;
-  flags?: InputMaybe<Scalars["Int"]>;
-  versioned: Scalars["Boolean"];
+  flags?: InputMaybe<Scalars["Int"]["input"]>;
+  versioned: Scalars["Boolean"]["input"];
 }>;
 
 export type CreateStatementMutation = {
@@ -4437,15 +4439,15 @@ export type CreateStatementMutation = {
 };
 
 export type UpdateStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  orderKey: Scalars["String"]["input"];
   type: StatementType;
-  name?: InputMaybe<Scalars["String"]>;
-  code?: InputMaybe<Scalars["String"]>;
-  text?: InputMaybe<Scalars["String"]>;
-  value?: InputMaybe<Scalars["JSON"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  code?: InputMaybe<Scalars["String"]["input"]>;
+  text?: InputMaybe<Scalars["String"]["input"]>;
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
   tag?: InputMaybe<TypeTag>;
-  flags?: InputMaybe<Scalars["Int"]>;
+  flags?: InputMaybe<Scalars["Int"]["input"]>;
 }>;
 
 export type UpdateStatementMutation = {
@@ -4471,14 +4473,14 @@ export type UpdateStatementMutation = {
 };
 
 export type MorphStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
   type: StatementType;
-  name?: InputMaybe<Scalars["String"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
   tag?: InputMaybe<TypeTag>;
-  flags?: InputMaybe<Scalars["Int"]>;
-  key?: InputMaybe<Scalars["String"]>;
-  headingLevel?: InputMaybe<Scalars["Int"]>;
-  versioned: Scalars["Boolean"];
+  flags?: InputMaybe<Scalars["Int"]["input"]>;
+  key?: InputMaybe<Scalars["String"]["input"]>;
+  headingLevel?: InputMaybe<Scalars["Int"]["input"]>;
+  versioned: Scalars["Boolean"]["input"];
 }>;
 
 export type MorphStatementMutation = {
@@ -4502,10 +4504,10 @@ export type MorphStatementMutation = {
 };
 
 export type MoveStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  fileId: Scalars["GlobalID"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
-  orderKey: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  fileId: Scalars["GlobalID"]["input"];
+  parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  orderKey: Scalars["String"]["input"];
 }>;
 
 export type MoveStatementMutation = {
@@ -4533,10 +4535,10 @@ export type MoveStatementMutation = {
 };
 
 export type BatchMoveStatementMutationVariables = Exact<{
-  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
-  fileId: Scalars["GlobalID"];
-  parentIds: Array<InputMaybe<Scalars["GlobalID"]>> | InputMaybe<Scalars["GlobalID"]>;
-  orderKeys: Array<Scalars["String"]> | Scalars["String"];
+  ids: Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"];
+  fileId: Scalars["GlobalID"]["input"];
+  parentIds: Array<InputMaybe<Scalars["GlobalID"]["input"]>> | InputMaybe<Scalars["GlobalID"]["input"]>;
+  orderKeys: Array<Scalars["String"]["input"]> | Scalars["String"]["input"];
 }>;
 
 export type BatchMoveStatementMutation = {
@@ -4567,8 +4569,8 @@ export type BatchMoveStatementMutation = {
 };
 
 export type RenameStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
 }>;
 
 export type RenameStatementMutation = {
@@ -4581,7 +4583,7 @@ export type RenameStatementMutation = {
 };
 
 export type DeleteStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type DeleteStatementMutation = {
@@ -4594,7 +4596,7 @@ export type DeleteStatementMutation = {
 };
 
 export type SoftDeleteStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type SoftDeleteStatementMutation = {
@@ -4607,7 +4609,7 @@ export type SoftDeleteStatementMutation = {
 };
 
 export type BatchDeleteStatementsMutationVariables = Exact<{
-  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
+  ids: Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"];
 }>;
 
 export type BatchDeleteStatementsMutation = {
@@ -4623,7 +4625,7 @@ export type BatchDeleteStatementsMutation = {
 };
 
 export type RestoreStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type RestoreStatementMutation = {
@@ -4641,7 +4643,7 @@ export type RestoreStatementMutation = {
 };
 
 export type BatchRestoreStatementsMutationVariables = Exact<{
-  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
+  ids: Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"];
 }>;
 
 export type BatchRestoreStatementsMutation = {
@@ -4657,12 +4659,12 @@ export type BatchRestoreStatementsMutation = {
 };
 
 export type BatchPasteStatementMutationVariables = Exact<{
-  sourceIds: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
-  targetIds: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
-  targetCks: Array<Scalars["UUID"]> | Scalars["UUID"];
-  targetFileId: Scalars["GlobalID"];
-  targetParentIds: Array<InputMaybe<Scalars["GlobalID"]>> | InputMaybe<Scalars["GlobalID"]>;
-  targetOrderKeys: Array<Scalars["String"]> | Scalars["String"];
+  sourceIds: Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"];
+  targetIds: Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"];
+  targetCks: Array<Scalars["UUID"]["input"]> | Scalars["UUID"]["input"];
+  targetFileId: Scalars["GlobalID"]["input"];
+  targetParentIds: Array<InputMaybe<Scalars["GlobalID"]["input"]>> | InputMaybe<Scalars["GlobalID"]["input"]>;
+  targetOrderKeys: Array<Scalars["String"]["input"]> | Scalars["String"]["input"];
 }>;
 
 export type BatchPasteStatementMutation = {
@@ -4682,8 +4684,8 @@ export type BatchPasteStatementMutation = {
 };
 
 export type UpdateStatementReferenceMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  referenceCk?: InputMaybe<Scalars["UUID"]>;
+  id: Scalars["GlobalID"]["input"];
+  referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
 }>;
 
 export type UpdateStatementReferenceMutation = {
@@ -4696,8 +4698,8 @@ export type UpdateStatementReferenceMutation = {
 };
 
 export type UpdateSymbolCodeMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  code?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["input"];
+  code?: InputMaybe<Scalars["String"]["input"]>;
 }>;
 
 export type UpdateSymbolCodeMutation = {
@@ -4710,8 +4712,8 @@ export type UpdateSymbolCodeMutation = {
 };
 
 export type UpdateStatementTextMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  text?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["input"];
+  text?: InputMaybe<Scalars["String"]["input"]>;
 }>;
 
 export type UpdateStatementTextMutation = {
@@ -4724,8 +4726,8 @@ export type UpdateStatementTextMutation = {
 };
 
 export type UpdateSymbolValueMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  value?: InputMaybe<Scalars["JSON"]>;
+  id: Scalars["GlobalID"]["input"];
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 }>;
 
 export type UpdateSymbolValueMutation = {
@@ -4738,12 +4740,12 @@ export type UpdateSymbolValueMutation = {
 };
 
 export type CreateRecordMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  ck: Scalars["UUID"];
-  statementId: Scalars["GlobalID"];
-  statementCk: Scalars["UUID"];
-  statementKey: Scalars["String"];
-  value: Scalars["JSON"];
+  id: Scalars["GlobalID"]["input"];
+  ck: Scalars["UUID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
+  statementCk: Scalars["UUID"]["input"];
+  statementKey: Scalars["String"]["input"];
+  value: Scalars["JSON"]["input"];
 }>;
 
 export type CreateRecordMutation = {
@@ -4765,9 +4767,9 @@ export type CreateRecordMutation = {
 };
 
 export type UpdateRecordMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
-  value: Scalars["JSON"];
+  id: Scalars["GlobalID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
+  value: Scalars["JSON"]["input"];
 }>;
 
 export type UpdateRecordMutation = {
@@ -4780,8 +4782,8 @@ export type UpdateRecordMutation = {
 };
 
 export type DeleteRecordMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
 }>;
 
 export type DeleteRecordMutation = {
@@ -4794,8 +4796,8 @@ export type DeleteRecordMutation = {
 };
 
 export type SoftDeleteRecordMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
 }>;
 
 export type SoftDeleteRecordMutation = {
@@ -4808,8 +4810,8 @@ export type SoftDeleteRecordMutation = {
 };
 
 export type RestoreRecordMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
 }>;
 
 export type RestoreRecordMutation = {
@@ -4822,8 +4824,8 @@ export type RestoreRecordMutation = {
 };
 
 export type BatchSoftDeleteRecordMutationVariables = Exact<{
-  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
+  ids: Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
 }>;
 
 export type BatchSoftDeleteRecordMutation = {
@@ -4836,8 +4838,8 @@ export type BatchSoftDeleteRecordMutation = {
 };
 
 export type BatchRestoreRecordMutationVariables = Exact<{
-  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
+  ids: Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
 }>;
 
 export type BatchRestoreRecordMutation = {
@@ -4850,18 +4852,18 @@ export type BatchRestoreRecordMutation = {
 };
 
 export type CreateFieldMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  ck: Scalars["UUID"];
-  statementId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  ck: Scalars["UUID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
   tag: TypeTag;
   hint?: InputMaybe<TypeHint>;
-  key: Scalars["String"];
-  orderKey: Scalars["String"];
-  name?: InputMaybe<Scalars["String"]>;
-  text?: InputMaybe<Scalars["String"]>;
-  flags: Scalars["Int"];
-  referenceCk?: InputMaybe<Scalars["UUID"]>;
-  value?: InputMaybe<Scalars["JSON"]>;
+  key: Scalars["String"]["input"];
+  orderKey: Scalars["String"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  text?: InputMaybe<Scalars["String"]["input"]>;
+  flags: Scalars["Int"]["input"];
+  referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 }>;
 
 export type CreateFieldMutation = {
@@ -4896,7 +4898,7 @@ export type CreateFieldMutation = {
 };
 
 export type DeleteFieldMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type DeleteFieldMutation = {
@@ -4909,7 +4911,7 @@ export type DeleteFieldMutation = {
 };
 
 export type SoftDeleteFieldMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type SoftDeleteFieldMutation = {
@@ -4922,7 +4924,7 @@ export type SoftDeleteFieldMutation = {
 };
 
 export type RestoreFieldMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type RestoreFieldMutation = {
@@ -4935,14 +4937,14 @@ export type RestoreFieldMutation = {
 };
 
 export type UpdateFieldMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
   tag: TypeTag;
   hint?: InputMaybe<TypeHint>;
-  name?: InputMaybe<Scalars["String"]>;
-  text?: InputMaybe<Scalars["String"]>;
-  flags: Scalars["Int"];
-  referenceCk?: InputMaybe<Scalars["UUID"]>;
-  value?: InputMaybe<Scalars["JSON"]>;
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  text?: InputMaybe<Scalars["String"]["input"]>;
+  flags: Scalars["Int"]["input"];
+  referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 }>;
 
 export type UpdateFieldMutation = {
@@ -4967,8 +4969,8 @@ export type UpdateFieldMutation = {
 };
 
 export type MoveFieldMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
+  id: Scalars["GlobalID"]["input"];
+  orderKey: Scalars["String"]["input"];
 }>;
 
 export type MoveFieldMutation = {
@@ -4981,12 +4983,12 @@ export type MoveFieldMutation = {
 };
 
 export type CreateTaggingMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  ck: Scalars["UUID"];
-  statementId: Scalars["GlobalID"];
-  key: Scalars["String"];
-  referenceCk: Scalars["UUID"];
-  value?: InputMaybe<Scalars["JSON"]>;
+  id: Scalars["GlobalID"]["input"];
+  ck: Scalars["UUID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
+  key: Scalars["String"]["input"];
+  referenceCk: Scalars["UUID"]["input"];
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 }>;
 
 export type CreateTaggingMutation = {
@@ -5014,7 +5016,7 @@ export type CreateTaggingMutation = {
 };
 
 export type DeleteTaggingMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type DeleteTaggingMutation = {
@@ -5027,7 +5029,7 @@ export type DeleteTaggingMutation = {
 };
 
 export type SoftDeleteTaggingMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type SoftDeleteTaggingMutation = {
@@ -5040,7 +5042,7 @@ export type SoftDeleteTaggingMutation = {
 };
 
 export type RestoreTaggingMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type RestoreTaggingMutation = {
@@ -5053,8 +5055,8 @@ export type RestoreTaggingMutation = {
 };
 
 export type UpdateTaggingMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  value?: InputMaybe<Scalars["JSON"]>;
+  id: Scalars["GlobalID"]["input"];
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
 }>;
 
 export type UpdateTaggingMutation = {
@@ -5067,18 +5069,18 @@ export type UpdateTaggingMutation = {
 };
 
 export type CreateTriggerMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  ck: Scalars["UUID"];
-  statementId: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
+  ck: Scalars["UUID"]["input"];
+  statementId: Scalars["GlobalID"]["input"];
   type: TriggerType;
-  active: Scalars["Boolean"];
-  mapping?: InputMaybe<Scalars["JSON"]>;
+  active: Scalars["Boolean"]["input"];
+  mapping?: InputMaybe<Scalars["JSON"]["input"]>;
   scheduleType?: InputMaybe<ScheduleType>;
-  timezone?: InputMaybe<Scalars["String"]>;
-  interval?: InputMaybe<Scalars["Int"]>;
-  cron?: InputMaybe<Scalars["String"]>;
-  statementCk?: InputMaybe<Scalars["UUID"]>;
-  scopeCk?: InputMaybe<Scalars["UUID"]>;
+  timezone?: InputMaybe<Scalars["String"]["input"]>;
+  interval?: InputMaybe<Scalars["Int"]["input"]>;
+  cron?: InputMaybe<Scalars["String"]["input"]>;
+  statementCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]["input"]>;
 }>;
 
 export type CreateTriggerMutation = {
@@ -5112,7 +5114,7 @@ export type CreateTriggerMutation = {
 };
 
 export type SoftDeleteTriggerMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type SoftDeleteTriggerMutation = {
@@ -5125,7 +5127,7 @@ export type SoftDeleteTriggerMutation = {
 };
 
 export type RestoreTriggerMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type RestoreTriggerMutation = {
@@ -5138,16 +5140,16 @@ export type RestoreTriggerMutation = {
 };
 
 export type UpdateTriggerMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
   type: TriggerType;
-  active: Scalars["Boolean"];
-  mapping?: InputMaybe<Scalars["JSON"]>;
+  active: Scalars["Boolean"]["input"];
+  mapping?: InputMaybe<Scalars["JSON"]["input"]>;
   scheduleType?: InputMaybe<ScheduleType>;
-  timezone?: InputMaybe<Scalars["String"]>;
-  interval?: InputMaybe<Scalars["Int"]>;
-  cron?: InputMaybe<Scalars["String"]>;
-  statementCk?: InputMaybe<Scalars["UUID"]>;
-  scopeCk?: InputMaybe<Scalars["UUID"]>;
+  timezone?: InputMaybe<Scalars["String"]["input"]>;
+  interval?: InputMaybe<Scalars["Int"]["input"]>;
+  cron?: InputMaybe<Scalars["String"]["input"]>;
+  statementCk?: InputMaybe<Scalars["UUID"]["input"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]["input"]>;
 }>;
 
 export type UpdateTriggerMutation = {
@@ -5208,7 +5210,7 @@ export type CompleteSignupMutation = {
 };
 
 export type AcceptOrganizationInviteMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type AcceptOrganizationInviteMutation = {
@@ -5244,10 +5246,10 @@ export type AcceptOrganizationInviteMutation = {
 };
 
 export type UpdateVersionMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  name: Scalars["String"];
-  tag?: InputMaybe<Scalars["String"]>;
-  description?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"]["input"];
+  name: Scalars["String"]["input"];
+  tag?: InputMaybe<Scalars["String"]["input"]>;
+  description?: InputMaybe<Scalars["String"]["input"]>;
 }>;
 
 export type UpdateVersionMutation = {
@@ -5262,10 +5264,10 @@ export type UpdateVersionMutation = {
 };
 
 export type SnapshotMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-  tag?: InputMaybe<Scalars["String"]>;
-  description?: InputMaybe<Scalars["String"]>;
+  projectVersionId: Scalars["GlobalID"]["input"];
+  name?: InputMaybe<Scalars["String"]["input"]>;
+  tag?: InputMaybe<Scalars["String"]["input"]>;
+  description?: InputMaybe<Scalars["String"]["input"]>;
 }>;
 
 export type SnapshotMutation = {
@@ -5289,7 +5291,7 @@ export type SnapshotMutation = {
 };
 
 export type RevealSecretQueryVariables = Exact<{
-  secretId: Scalars["GlobalID"];
+  secretId: Scalars["GlobalID"]["input"];
 }>;
 
 export type RevealSecretQuery = {
@@ -5384,8 +5386,8 @@ export type LogEntryContentFragment = {
 } & { " $fragmentName"?: "LogEntryContentFragment" };
 
 export type CurrentRunsQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId: Scalars["GlobalID"]["input"];
 }>;
 
 export type CurrentRunsQuery = {
@@ -5406,8 +5408,8 @@ export type CurrentRunsQuery = {
 };
 
 export type SessionsChangedSubscriptionVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 }>;
 
 export type SessionsChangedSubscription = {
@@ -5430,7 +5432,7 @@ export type SessionsChangedSubscription = {
 };
 
 export type RefetchProjectWorkerSetsQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 }>;
 
 export type RefetchProjectWorkerSetsQuery = {
@@ -5445,18 +5447,18 @@ export type RefetchProjectWorkerSetsQuery = {
 };
 
 export type SearchRunsQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-  statementIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  statementCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
-  rootOnly: Scalars["Boolean"];
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId: Scalars["GlobalID"]["input"];
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"]>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]> | Scalars["UUID"]["input"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  rootOnly: Scalars["Boolean"]["input"];
   query?: InputMaybe<SearchQuery>;
   sort?: InputMaybe<Array<SearchSort> | SearchSort>;
-  after?: InputMaybe<Scalars["String"]>;
-  limit?: InputMaybe<Scalars["Int"]>;
-  count?: InputMaybe<Scalars["Boolean"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  count?: InputMaybe<Scalars["Boolean"]["input"]>;
 }>;
 
 export type SearchRunsQuery = {
@@ -5480,7 +5482,7 @@ export type SearchRunsQuery = {
 };
 
 export type RunByIdQueryVariables = Exact<{
-  id: Scalars["GlobalID"];
+  id: Scalars["GlobalID"]["input"];
 }>;
 
 export type RunByIdQuery = {
@@ -5494,17 +5496,17 @@ export type RunByIdQuery = {
 };
 
 export type SearchLogsQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  statementIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  statementCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"]>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]> | Scalars["UUID"]["input"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   query?: InputMaybe<SearchQuery>;
   sort?: InputMaybe<Array<SearchSort> | SearchSort>;
-  after?: InputMaybe<Scalars["String"]>;
-  limit?: InputMaybe<Scalars["Int"]>;
-  count?: InputMaybe<Scalars["Boolean"]>;
+  after?: InputMaybe<Scalars["String"]["input"]>;
+  limit?: InputMaybe<Scalars["Int"]["input"]>;
+  count?: InputMaybe<Scalars["Boolean"]["input"]>;
 }>;
 
 export type SearchLogsQuery = {
@@ -5528,12 +5530,12 @@ export type SearchLogsQuery = {
 };
 
 export type LogsChangedSubscriptionVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-  statementIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  statementCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId: Scalars["GlobalID"]["input"];
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"]>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]> | Scalars["UUID"]["input"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
 }>;
 
 export type LogsChangedSubscription = {
@@ -5547,8 +5549,8 @@ export type LogsChangedSubscription = {
 };
 
 export type ModuleChangedSubscriptionVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
+  projectVersionId: Scalars["GlobalID"]["input"];
 }>;
 
 export type ModuleChangedSubscription = {
@@ -5575,7 +5577,7 @@ export type ModuleChangedSubscription = {
 };
 
 export type ProjectChangedSubscriptionVariables = Exact<{
-  projectId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"]["input"];
 }>;
 
 export type ProjectChangedSubscription = {
@@ -5869,6 +5871,60 @@ export const ProjectHeaderFragmentDoc = {
                   },
                 },
               ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "committed" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parents" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "children" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
         ],
@@ -6327,6 +6383,194 @@ export const StatementContentFragmentDoc = {
         ],
       },
     },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaggingContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "hint" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TriggerContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "mapping" } },
+          { kind: "Field", name: { kind: "Name", value: "timezone" } },
+          { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
+          { kind: "Field", name: { kind: "Name", value: "interval" } },
+          { kind: "Field", name: { kind: "Name", value: "cron" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<StatementContentFragment, unknown>;
 export const InterpFileFragmentDoc = {
@@ -6363,6 +6607,29 @@ export const InterpFileFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
         ],
       },
     },
@@ -6474,6 +6741,144 @@ export const InterpStatementFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaggingContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "hint" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
     },
@@ -7158,13 +7563,388 @@ export const FileContentByIdDocument = {
         ],
       },
     },
-    ...FileHeaderFragmentDoc.definitions,
-    ...StatementContentFragmentDoc.definitions,
-    ...TaggingContentFragmentDoc.definitions,
-    ...FieldContentFragmentDoc.definitions,
-    ...TriggerContentFragmentDoc.definitions,
-    ...IssueContentFragmentDoc.definitions,
-    ...ResolvedFieldContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaggingContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "hint" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TriggerContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "mapping" } },
+          { kind: "Field", name: { kind: "Name", value: "timezone" } },
+          { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
+          { kind: "Field", name: { kind: "Name", value: "interval" } },
+          { kind: "Field", name: { kind: "Name", value: "cron" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FileHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "StatementContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "code" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "versioned" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "tags" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "fields" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggers" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TriggerContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issues" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "resolvedFields" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
 export const StatementContentByIdDocument = {
@@ -7222,12 +8002,335 @@ export const StatementContentByIdDocument = {
         ],
       },
     },
-    ...StatementContentFragmentDoc.definitions,
-    ...TaggingContentFragmentDoc.definitions,
-    ...FieldContentFragmentDoc.definitions,
-    ...TriggerContentFragmentDoc.definitions,
-    ...IssueContentFragmentDoc.definitions,
-    ...ResolvedFieldContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaggingContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "hint" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TriggerContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "mapping" } },
+          { kind: "Field", name: { kind: "Name", value: "timezone" } },
+          { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
+          { kind: "Field", name: { kind: "Name", value: "interval" } },
+          { kind: "Field", name: { kind: "Name", value: "cron" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "StatementContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "code" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "versioned" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "tags" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "fields" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggers" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TriggerContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issues" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "resolvedFields" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<StatementContentByIdQuery, StatementContentByIdQueryVariables>;
 export const ProfileAccessTokensDocument = {
@@ -7512,7 +8615,37 @@ export const CreateAccessTokenDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateAccessTokenMutation, CreateAccessTokenMutationVariables>;
 export const RevokeAccessTokenDocument = {
@@ -7564,7 +8697,37 @@ export const RevokeAccessTokenDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RevokeAccessTokenMutation, RevokeAccessTokenMutationVariables>;
 export const OrganizationMembersDocument = {
@@ -7853,7 +9016,37 @@ export const UpdateOrganizationDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateOrganizationMutation, UpdateOrganizationMutationVariables>;
 export const UpdateUserDocument = {
@@ -7934,7 +9127,37 @@ export const UpdateUserDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateUserMutation, UpdateUserMutationVariables>;
 export const EnvironmentDocument = {
@@ -8101,7 +9324,60 @@ export const ProjectVersionsDocument = {
         ],
       },
     },
-    ...ProjectVersionHeaderFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "committed" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parents" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "children" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<ProjectVersionsQuery, ProjectVersionsQueryVariables>;
 export const CheckOwnerBySlugDocument = {
@@ -8203,8 +9479,122 @@ export const ProjectBySlugDocument = {
         ],
       },
     },
-    ...ProjectHeaderFragmentDoc.definitions,
-    ...ProjectVersionHeaderFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "committed" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parents" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "children" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Project" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "slug" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "head" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "visibility" } },
+          { kind: "Field", name: { kind: "Name", value: "accessLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "owner" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "username" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<ProjectBySlugQuery, ProjectBySlugQueryVariables>;
 export const ProjectVersionHeaderDocument = {
@@ -8979,7 +10369,50 @@ export const ConnectedClientsDocument = {
         ],
       },
     },
-    ...ClientContentTypeFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ClientContentType" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Client" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "deviceName" } },
+          { kind: "Field", name: { kind: "Name", value: "browserName" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "user" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "email" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fileId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementId" } },
+          { kind: "Field", name: { kind: "Name", value: "lastSeenAt" } },
+          { kind: "Field", name: { kind: "Name", value: "closedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "present" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<ConnectedClientsQuery, ConnectedClientsQueryVariables>;
 export const ClientsChangedDocument = {
@@ -9027,7 +10460,50 @@ export const ClientsChangedDocument = {
         ],
       },
     },
-    ...ClientContentTypeFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ClientContentType" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Client" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "deviceName" } },
+          { kind: "Field", name: { kind: "Name", value: "browserName" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "user" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "email" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fileId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementId" } },
+          { kind: "Field", name: { kind: "Name", value: "lastSeenAt" } },
+          { kind: "Field", name: { kind: "Name", value: "closedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "present" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<ClientsChangedSubscription, ClientsChangedSubscriptionVariables>;
 export const SearchRecordsDocument = {
@@ -9259,12 +10735,284 @@ export const ModuleContentByIdDocument = {
         ],
       },
     },
-    ...InterpFileFragmentDoc.definitions,
-    ...IssueContentFragmentDoc.definitions,
-    ...InterpStatementFragmentDoc.definitions,
-    ...TaggingContentFragmentDoc.definitions,
-    ...FieldContentFragmentDoc.definitions,
-    ...ResolvedFieldContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaggingContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "hint" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "InterpFile" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issues" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "InterpStatement" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "file" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "tags" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "fields" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issues" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "resolvedFields" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<ModuleContentByIdQuery, ModuleContentByIdQueryVariables>;
 export const NewNotificationsDocument = {
@@ -9478,7 +11226,37 @@ export const MarkNotificationDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<MarkNotificationMutation, MarkNotificationMutationVariables>;
 export const RemoteObjectDocument = {
@@ -9697,7 +11475,37 @@ export const UpsertClientDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpsertClientMutation, UpsertClientMutationVariables>;
 export const CloseClientDocument = {
@@ -9721,7 +11529,37 @@ export const CloseClientDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CloseClientMutation, CloseClientMutationVariables>;
 export const UpdatePresenceDocument = {
@@ -9745,7 +11583,37 @@ export const UpdatePresenceDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdatePresenceMutation, UpdatePresenceMutationVariables>;
 export const CreateFileDocument = {
@@ -9944,13 +11812,366 @@ export const CreateFileDocument = {
         ],
       },
     },
-    ...StatementContentFragmentDoc.definitions,
-    ...TaggingContentFragmentDoc.definitions,
-    ...FieldContentFragmentDoc.definitions,
-    ...TriggerContentFragmentDoc.definitions,
-    ...IssueContentFragmentDoc.definitions,
-    ...ResolvedFieldContentFragmentDoc.definitions,
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaggingContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "hint" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TriggerContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "mapping" } },
+          { kind: "Field", name: { kind: "Name", value: "timezone" } },
+          { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
+          { kind: "Field", name: { kind: "Name", value: "interval" } },
+          { kind: "Field", name: { kind: "Name", value: "cron" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "StatementContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "code" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "versioned" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "tags" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "fields" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggers" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TriggerContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issues" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "resolvedFields" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateFileMutation, CreateFileMutationVariables>;
 export const DeleteFileDocument = {
@@ -10010,7 +12231,37 @@ export const DeleteFileDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<DeleteFileMutation, DeleteFileMutationVariables>;
 export const SoftDeleteFileDocument = {
@@ -10070,7 +12321,37 @@ export const SoftDeleteFileDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SoftDeleteFileMutation, SoftDeleteFileMutationVariables>;
 export const RestoreFileDocument = {
@@ -10130,7 +12411,37 @@ export const RestoreFileDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RestoreFileMutation, RestoreFileMutationVariables>;
 export const RenameFileDocument = {
@@ -10201,7 +12512,37 @@ export const RenameFileDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RenameFileMutation, RenameFileMutationVariables>;
 export const UpdateFileDocument = {
@@ -10290,7 +12631,37 @@ export const UpdateFileDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateFileMutation, UpdateFileMutationVariables>;
 export const PasteFileDocument = {
@@ -10431,14 +12802,419 @@ export const PasteFileDocument = {
         ],
       },
     },
-    ...FileHeaderFragmentDoc.definitions,
-    ...IssueContentFragmentDoc.definitions,
-    ...StatementContentFragmentDoc.definitions,
-    ...TaggingContentFragmentDoc.definitions,
-    ...FieldContentFragmentDoc.definitions,
-    ...TriggerContentFragmentDoc.definitions,
-    ...ResolvedFieldContentFragmentDoc.definitions,
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaggingContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "hint" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TriggerContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "mapping" } },
+          { kind: "Field", name: { kind: "Name", value: "timezone" } },
+          { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
+          { kind: "Field", name: { kind: "Name", value: "interval" } },
+          { kind: "Field", name: { kind: "Name", value: "cron" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FileHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "StatementContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "code" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "versioned" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "tags" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "fields" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggers" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TriggerContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issues" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "resolvedFields" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<PasteFileMutation, PasteFileMutationVariables>;
 export const RequestUploadObjectDocument = {
@@ -10544,7 +13320,37 @@ export const RequestUploadObjectDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RequestUploadObjectMutation, RequestUploadObjectMutationVariables>;
 export const NotifyUploadedObjectDocument = {
@@ -10609,7 +13415,37 @@ export const NotifyUploadedObjectDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<NotifyUploadedObjectMutation, NotifyUploadedObjectMutationVariables>;
 export const CreateOrganizationDocument = {
@@ -10680,7 +13516,37 @@ export const CreateOrganizationDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateOrganizationMutation, CreateOrganizationMutationVariables>;
 export const CreateInvitesDocument = {
@@ -10802,7 +13668,37 @@ export const CreateInvitesDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateInvitesMutation, CreateInvitesMutationVariables>;
 export const CancelInviteDocument = {
@@ -10879,7 +13775,37 @@ export const CancelInviteDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CancelInviteMutation, CancelInviteMutationVariables>;
 export const CreateProjectDocument = {
@@ -10930,9 +13856,153 @@ export const CreateProjectDocument = {
         ],
       },
     },
-    ...ProjectHeaderFragmentDoc.definitions,
-    ...ProjectVersionHeaderFragmentDoc.definitions,
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "committed" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parents" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "children" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Project" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "slug" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "head" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "visibility" } },
+          { kind: "Field", name: { kind: "Name", value: "accessLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "owner" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "username" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateProjectMutation, CreateProjectMutationVariables>;
 export const UpdateProjectVisibilityDocument = {
@@ -11005,7 +14075,37 @@ export const UpdateProjectVisibilityDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateProjectVisibilityMutation, UpdateProjectVisibilityMutationVariables>;
 export const UpdateProjectSharingDocument = {
@@ -11100,7 +14200,37 @@ export const UpdateProjectSharingDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateProjectSharingMutation, UpdateProjectSharingMutationVariables>;
 export const UpdateProjectNameDocument = {
@@ -11170,7 +14300,37 @@ export const UpdateProjectNameDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateProjectNameMutation, UpdateProjectNameMutationVariables>;
 export const CreateSecretDocument = {
@@ -11253,7 +14413,37 @@ export const CreateSecretDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateSecretMutation, CreateSecretMutationVariables>;
 export const UpdateSecretDocument = {
@@ -11336,7 +14526,37 @@ export const UpdateSecretDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateSecretMutation, UpdateSecretMutationVariables>;
 export const DeleteSecretDocument = {
@@ -11383,7 +14603,37 @@ export const DeleteSecretDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<DeleteSecretMutation, DeleteSecretMutationVariables>;
 export const WakeRuntimeDocument = {
@@ -11430,7 +14680,37 @@ export const WakeRuntimeDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<WakeRuntimeMutation, WakeRuntimeMutationVariables>;
 export const WakeWorkerSetDocument = {
@@ -11487,7 +14767,37 @@ export const WakeWorkerSetDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<WakeWorkerSetMutation, WakeWorkerSetMutationVariables>;
 export const RestartWorkerSetDocument = {
@@ -11544,7 +14854,37 @@ export const RestartWorkerSetDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RestartWorkerSetMutation, RestartWorkerSetMutationVariables>;
 export const StartRunDocument = {
@@ -11755,9 +15095,185 @@ export const StartRunDocument = {
         ],
       },
     },
-    ...RunContentFragmentDoc.definitions,
-    ...LogEntryContentFragmentDoc.definitions,
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "RunContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "duration" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "session" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "root" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "inputs" } },
+          { kind: "Field", name: { kind: "Name", value: "outputs" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "errorNice" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "kind" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "message" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "traceback" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "line" } },
+                      { kind: "Field", name: { kind: "Name", value: "filename" } },
+                      { kind: "Field", name: { kind: "Name", value: "lineno" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "locals" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "trigger" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerUser" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerAccessToken" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "LogEntryContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "LogEntry" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
+          { kind: "Field", name: { kind: "Name", value: "sessionId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "runId" } },
+          { kind: "Field", name: { kind: "Name", value: "stream" } },
+          { kind: "Field", name: { kind: "Name", value: "level" } },
+          { kind: "Field", name: { kind: "Name", value: "logger" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<StartRunMutation, StartRunMutationVariables>;
 export const KillDocument = {
@@ -11851,7 +15367,37 @@ export const KillDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<KillMutation, KillMutationVariables>;
 export const CreateStatementDocument = {
@@ -12205,7 +15751,37 @@ export const CreateStatementDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateStatementMutation, CreateStatementMutationVariables>;
 export const UpdateStatementDocument = {
@@ -12354,7 +15930,37 @@ export const UpdateStatementDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateStatementMutation, UpdateStatementMutationVariables>;
 export const MorphStatementDocument = {
@@ -12491,7 +16097,37 @@ export const MorphStatementDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<MorphStatementMutation, MorphStatementMutationVariables>;
 export const MoveStatementDocument = {
@@ -12615,7 +16251,37 @@ export const MoveStatementDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<MoveStatementMutation, MoveStatementMutationVariables>;
 export const BatchMoveStatementDocument = {
@@ -12763,7 +16429,37 @@ export const BatchMoveStatementDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<BatchMoveStatementMutation, BatchMoveStatementMutationVariables>;
 export const RenameStatementDocument = {
@@ -12834,7 +16530,37 @@ export const RenameStatementDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RenameStatementMutation, RenameStatementMutationVariables>;
 export const DeleteStatementDocument = {
@@ -12894,7 +16620,37 @@ export const DeleteStatementDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<DeleteStatementMutation, DeleteStatementMutationVariables>;
 export const SoftDeleteStatementDocument = {
@@ -12954,7 +16710,37 @@ export const SoftDeleteStatementDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SoftDeleteStatementMutation, SoftDeleteStatementMutationVariables>;
 export const BatchDeleteStatementsDocument = {
@@ -13029,7 +16815,37 @@ export const BatchDeleteStatementsDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<BatchDeleteStatementsMutation, BatchDeleteStatementsMutationVariables>;
 export const RestoreStatementDocument = {
@@ -13100,7 +16916,37 @@ export const RestoreStatementDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RestoreStatementMutation, RestoreStatementMutationVariables>;
 export const BatchRestoreStatementsDocument = {
@@ -13175,7 +17021,37 @@ export const BatchRestoreStatementsDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<BatchRestoreStatementsMutation, BatchRestoreStatementsMutationVariables>;
 export const BatchPasteStatementDocument = {
@@ -13329,13 +17205,366 @@ export const BatchPasteStatementDocument = {
         ],
       },
     },
-    ...StatementContentFragmentDoc.definitions,
-    ...TaggingContentFragmentDoc.definitions,
-    ...FieldContentFragmentDoc.definitions,
-    ...TriggerContentFragmentDoc.definitions,
-    ...IssueContentFragmentDoc.definitions,
-    ...ResolvedFieldContentFragmentDoc.definitions,
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaggingContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "FieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "hint" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TriggerContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "mapping" } },
+          { kind: "Field", name: { kind: "Name", value: "timezone" } },
+          { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
+          { kind: "Field", name: { kind: "Name", value: "interval" } },
+          { kind: "Field", name: { kind: "Name", value: "cron" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "StatementContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "code" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "versioned" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "tags" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "fields" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggers" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TriggerContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issues" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "resolvedFields" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<BatchPasteStatementMutation, BatchPasteStatementMutationVariables>;
 export const UpdateStatementReferenceDocument = {
@@ -13406,7 +17635,37 @@ export const UpdateStatementReferenceDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateStatementReferenceMutation, UpdateStatementReferenceMutationVariables>;
 export const UpdateSymbolCodeDocument = {
@@ -13477,7 +17736,37 @@ export const UpdateSymbolCodeDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateSymbolCodeMutation, UpdateSymbolCodeMutationVariables>;
 export const UpdateStatementTextDocument = {
@@ -13548,7 +17837,37 @@ export const UpdateStatementTextDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateStatementTextMutation, UpdateStatementTextMutationVariables>;
 export const UpdateSymbolValueDocument = {
@@ -13619,7 +17938,37 @@ export const UpdateSymbolValueDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateSymbolValueMutation, UpdateSymbolValueMutationVariables>;
 export const CreateRecordDocument = {
@@ -13734,7 +18083,37 @@ export const CreateRecordDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateRecordMutation, CreateRecordMutationVariables>;
 export const UpdateRecordDocument = {
@@ -13816,7 +18195,37 @@ export const UpdateRecordDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateRecordMutation, UpdateRecordMutationVariables>;
 export const DeleteRecordDocument = {
@@ -13886,7 +18295,37 @@ export const DeleteRecordDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<DeleteRecordMutation, DeleteRecordMutationVariables>;
 export const SoftDeleteRecordDocument = {
@@ -13957,7 +18396,37 @@ export const SoftDeleteRecordDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SoftDeleteRecordMutation, SoftDeleteRecordMutationVariables>;
 export const RestoreRecordDocument = {
@@ -14028,7 +18497,37 @@ export const RestoreRecordDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RestoreRecordMutation, RestoreRecordMutationVariables>;
 export const BatchSoftDeleteRecordDocument = {
@@ -14113,7 +18612,37 @@ export const BatchSoftDeleteRecordDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<BatchSoftDeleteRecordMutation, BatchSoftDeleteRecordMutationVariables>;
 export const BatchRestoreRecordDocument = {
@@ -14198,7 +18727,37 @@ export const BatchRestoreRecordDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<BatchRestoreRecordMutation, BatchRestoreRecordMutationVariables>;
 export const CreateFieldDocument = {
@@ -14414,7 +18973,37 @@ export const CreateFieldDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateFieldMutation, CreateFieldMutationVariables>;
 export const DeleteFieldDocument = {
@@ -14474,7 +19063,37 @@ export const DeleteFieldDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<DeleteFieldMutation, DeleteFieldMutationVariables>;
 export const SoftDeleteFieldDocument = {
@@ -14534,7 +19153,37 @@ export const SoftDeleteFieldDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SoftDeleteFieldMutation, SoftDeleteFieldMutationVariables>;
 export const RestoreFieldDocument = {
@@ -14594,7 +19243,37 @@ export const RestoreFieldDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RestoreFieldMutation, RestoreFieldMutationVariables>;
 export const UpdateFieldDocument = {
@@ -14732,7 +19411,37 @@ export const UpdateFieldDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateFieldMutation, UpdateFieldMutationVariables>;
 export const MoveFieldDocument = {
@@ -14802,7 +19511,37 @@ export const MoveFieldDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<MoveFieldMutation, MoveFieldMutationVariables>;
 export const CreateTaggingDocument = {
@@ -14944,7 +19683,37 @@ export const CreateTaggingDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateTaggingMutation, CreateTaggingMutationVariables>;
 export const DeleteTaggingDocument = {
@@ -15004,7 +19773,37 @@ export const DeleteTaggingDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<DeleteTaggingMutation, DeleteTaggingMutationVariables>;
 export const SoftDeleteTaggingDocument = {
@@ -15064,7 +19863,37 @@ export const SoftDeleteTaggingDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SoftDeleteTaggingMutation, SoftDeleteTaggingMutationVariables>;
 export const RestoreTaggingDocument = {
@@ -15124,7 +19953,37 @@ export const RestoreTaggingDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RestoreTaggingMutation, RestoreTaggingMutationVariables>;
 export const UpdateTaggingDocument = {
@@ -15196,7 +20055,37 @@ export const UpdateTaggingDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateTaggingMutation, UpdateTaggingMutationVariables>;
 export const CreateTriggerDocument = {
@@ -15404,7 +20293,37 @@ export const CreateTriggerDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CreateTriggerMutation, CreateTriggerMutationVariables>;
 export const SoftDeleteTriggerDocument = {
@@ -15464,7 +20383,37 @@ export const SoftDeleteTriggerDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SoftDeleteTriggerMutation, SoftDeleteTriggerMutationVariables>;
 export const RestoreTriggerDocument = {
@@ -15524,7 +20473,37 @@ export const RestoreTriggerDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RestoreTriggerMutation, RestoreTriggerMutationVariables>;
 export const UpdateTriggerDocument = {
@@ -15684,7 +20663,37 @@ export const UpdateTriggerDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateTriggerMutation, UpdateTriggerMutationVariables>;
 export const LogoutDocument = {
@@ -15708,7 +20717,37 @@ export const LogoutDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<LogoutMutation, LogoutMutationVariables>;
 export const CompleteSignupDocument = {
@@ -15768,7 +20807,37 @@ export const CompleteSignupDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CompleteSignupMutation, CompleteSignupMutationVariables>;
 export const AcceptOrganizationInviteDocument = {
@@ -15867,7 +20936,37 @@ export const AcceptOrganizationInviteDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<AcceptOrganizationInviteMutation, AcceptOrganizationInviteMutationVariables>;
 export const UpdateVersionDocument = {
@@ -15954,8 +21053,91 @@ export const UpdateVersionDocument = {
         ],
       },
     },
-    ...ProjectVersionHeaderFragmentDoc.definitions,
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "committed" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parents" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "children" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<UpdateVersionMutation, UpdateVersionMutationVariables>;
 export const SnapshotDocument = {
@@ -16073,9 +21255,153 @@ export const SnapshotDocument = {
         ],
       },
     },
-    ...ProjectHeaderFragmentDoc.definitions,
-    ...ProjectVersionHeaderFragmentDoc.definitions,
-    ...OperationInfoContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectVersionHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "committed" } },
+          { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parents" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "children" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ProjectHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Project" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "slug" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "head" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "visibility" } },
+          { kind: "Field", name: { kind: "Name", value: "accessLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "owner" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Organization" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "User" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "slug" } },
+                      { kind: "Field", name: { kind: "Name", value: "username" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SnapshotMutation, SnapshotMutationVariables>;
 export const RevealSecretDocument = {
@@ -16200,9 +21526,191 @@ export const CurrentRunsDocument = {
         ],
       },
     },
-    ...OperationInfoContentFragmentDoc.definitions,
-    ...RunContentFragmentDoc.definitions,
-    ...WorkerSetContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "OperationInfoContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "InlineFragment",
+            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "messages" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "kind" } },
+                      { kind: "Field", name: { kind: "Name", value: "message" } },
+                      { kind: "Field", name: { kind: "Name", value: "field" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "RunContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "duration" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "session" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "root" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "inputs" } },
+          { kind: "Field", name: { kind: "Name", value: "outputs" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "errorNice" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "kind" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "message" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "traceback" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "line" } },
+                      { kind: "Field", name: { kind: "Name", value: "filename" } },
+                      { kind: "Field", name: { kind: "Name", value: "lineno" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "locals" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "trigger" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerUser" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerAccessToken" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "WorkerSetContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WorkerSet" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "region" } },
+          { kind: "Field", name: { kind: "Name", value: "profile" } },
+          { kind: "Field", name: { kind: "Name", value: "sleeping" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          { kind: "Field", name: { kind: "Name", value: "desiredReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "targetReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "availableReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "readyReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "lastActiveAt" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<CurrentRunsQuery, CurrentRunsQueryVariables>;
 export const SessionsChangedDocument = {
@@ -16302,8 +21810,160 @@ export const SessionsChangedDocument = {
         ],
       },
     },
-    ...RunContentFragmentDoc.definitions,
-    ...WorkerSetContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "RunContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "duration" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "session" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "root" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "inputs" } },
+          { kind: "Field", name: { kind: "Name", value: "outputs" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "errorNice" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "kind" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "message" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "traceback" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "line" } },
+                      { kind: "Field", name: { kind: "Name", value: "filename" } },
+                      { kind: "Field", name: { kind: "Name", value: "lineno" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "locals" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "trigger" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerUser" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerAccessToken" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "WorkerSetContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WorkerSet" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "region" } },
+          { kind: "Field", name: { kind: "Name", value: "profile" } },
+          { kind: "Field", name: { kind: "Name", value: "sleeping" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          { kind: "Field", name: { kind: "Name", value: "desiredReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "targetReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "availableReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "readyReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "lastActiveAt" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SessionsChangedSubscription, SessionsChangedSubscriptionVariables>;
 export const RefetchProjectWorkerSetsDocument = {
@@ -16351,7 +22011,34 @@ export const RefetchProjectWorkerSetsDocument = {
         ],
       },
     },
-    ...WorkerSetContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "WorkerSetContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WorkerSet" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "region" } },
+          { kind: "Field", name: { kind: "Name", value: "profile" } },
+          { kind: "Field", name: { kind: "Name", value: "sleeping" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          { kind: "Field", name: { kind: "Name", value: "desiredReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "targetReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "availableReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "readyReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "lastActiveAt" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RefetchProjectWorkerSetsQuery, RefetchProjectWorkerSetsQueryVariables>;
 export const SearchRunsDocument = {
@@ -16541,7 +22228,132 @@ export const SearchRunsDocument = {
         ],
       },
     },
-    ...RunContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "RunContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "duration" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "session" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "root" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "inputs" } },
+          { kind: "Field", name: { kind: "Name", value: "outputs" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "errorNice" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "kind" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "message" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "traceback" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "line" } },
+                      { kind: "Field", name: { kind: "Name", value: "filename" } },
+                      { kind: "Field", name: { kind: "Name", value: "lineno" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "locals" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "trigger" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerUser" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerAccessToken" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SearchRunsQuery, SearchRunsQueryVariables>;
 export const RunByIdDocument = {
@@ -16589,7 +22401,132 @@ export const RunByIdDocument = {
         ],
       },
     },
-    ...RunContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "RunContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "duration" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "session" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "root" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "inputs" } },
+          { kind: "Field", name: { kind: "Name", value: "outputs" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "errorNice" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "kind" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "message" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "traceback" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "line" } },
+                      { kind: "Field", name: { kind: "Name", value: "filename" } },
+                      { kind: "Field", name: { kind: "Name", value: "lineno" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "locals" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "trigger" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerUser" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerAccessToken" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<RunByIdQuery, RunByIdQueryVariables>;
 export const SearchLogsDocument = {
@@ -16769,7 +22706,28 @@ export const SearchLogsDocument = {
         ],
       },
     },
-    ...LogEntryContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "LogEntryContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "LogEntry" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
+          { kind: "Field", name: { kind: "Name", value: "sessionId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "runId" } },
+          { kind: "Field", name: { kind: "Name", value: "stream" } },
+          { kind: "Field", name: { kind: "Name", value: "level" } },
+          { kind: "Field", name: { kind: "Name", value: "logger" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<SearchLogsQuery, SearchLogsQueryVariables>;
 export const LogsChangedDocument = {
@@ -16872,7 +22830,28 @@ export const LogsChangedDocument = {
         ],
       },
     },
-    ...LogEntryContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "LogEntryContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "LogEntry" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
+          { kind: "Field", name: { kind: "Name", value: "sessionId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
+          { kind: "Field", name: { kind: "Name", value: "runId" } },
+          { kind: "Field", name: { kind: "Name", value: "stream" } },
+          { kind: "Field", name: { kind: "Name", value: "level" } },
+          { kind: "Field", name: { kind: "Name", value: "logger" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<LogsChangedSubscription, LogsChangedSubscriptionVariables>;
 export const ModuleChangedDocument = {
@@ -16964,8 +22943,50 @@ export const ModuleChangedDocument = {
         ],
       },
     },
-    ...IssueContentFragmentDoc.definitions,
-    ...ResolvedFieldContentFragmentDoc.definitions,
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
+        ],
+      },
+    },
   ],
 } as unknown as DocumentNode<ModuleChangedSubscription, ModuleChangedSubscriptionVariables>;
 export const ProjectChangedDocument = {
