@@ -3,12 +3,12 @@ from typing import TYPE_CHECKING, Collection, Union
 from uuid import UUID
 
 from bench.language import IssueType
-from bench.language.const import StatementReference
-from bench.language.module import Module, Node, NodeVisitor, ScopeNode, node_component, nproperty
+from bench.language.const import INTERP_NODE_TYPES, MNT, StatementReference
+from bench.language.module import Node, ScopeNode, node_component, nproperty
 from bench.utils.utils import identity
 
 if TYPE_CHECKING:
-    from bench.language.statement import Statement
+    from bench.language.statement import IsTyped, Statement
 
 
 @node_component
@@ -43,34 +43,115 @@ class HasReference(Node):
             visitor.visit_reference(self.reference)
 
 
-class ModuleView:
-    def __init__(self, module: Module, origin: Node):
-        self.module = module
-        self.origin = origin
-        self._nodes_by_distance: list[list[Node]] = []
+class NodeVisitor:
+    def __init__(self):
+        self._reference_by_ck: dict[UUID, Node] = {}
+
+    def __str__(self):
+        return f"{len(self._reference_by_ck)} nodes"
+
+    def __repr__(self):
+        return f"<NodeVisitor {str(self)}>"
+
+    @property
+    def references(self) -> Collection["Node"]:
+        return self._reference_by_ck.values()
+
+    def visit_reference(self, node: "Node"):
+        self._reference_by_ck[node.ck] = node
+
+
+class NodeView:
+    """
+    A view into a (partial?) module graph, composed of multiple viewports.
+    TODO @Architecture: unified node view walking :NodeViews
+    This is not quite right, but we haven't figured out 'federated' tree walking yet.
+     - How do we filter and level of detail across descendants and references?
+     - How and when do we inline out-of-line descendants (like Records or Comments)?
+        (esp. considering there may be thousands of records, need to fetch async)
+     - How do we alias shadowed and anonymous nodes?
+    """
+
+    def __init__(self, scope: ScopeNode):
+        self.scope = scope
+        self._nodes_by_ck: dict[UUID, Node] = {}
 
     @property
     def nodes(self) -> Collection[Node]:
-        return itertools.chain.from_iterable(self._nodes_by_distance)
+        return self._nodes_by_ck.values()
 
-    @property
-    def nodes_by_distance(self) -> list[list[Node]]:
-        return self._nodes_by_distance
+    def view_from_node(
+        self,
+        origin: Node | Collection[Node],
+        ancestors_to: MNT,
+        max_distance: int,
+        exclude: set[MNT] = INTERP_NODE_TYPES,
+    ) -> dict[UUID, Node]:
+        """Collects the entire inline lineage including references up to max_distance"""
+        origins = [origin] if isinstance(origin, Node) else list(origin)
+        if not origins:
+            return {}
 
-    def collect(self) -> None:
-        self._nodes_by_distance = []
+        seen_by_ck: dict[UUID, Node] = {}
+        for origin in origins:
+            parent = origin
+            while parent is not None and parent.mnt != ancestors_to:
+                seen_by_ck[parent.ck] = parent
+                parent = parent.parent
 
-        # TODO @Task: gather module view more intelligently (prevent reference jungle)
-        seen: dict[UUID, Node] = {}
-        child_visitor = NodeVisitor()
-        to_visit = [self.origin]
-        while to_visit:
-            self._nodes_by_distance.append(to_visit)
-            for n in to_visit:
-                seen[n.ck] = n
-                n._visit_self(child_visitor)
+        tree = origins[0].scope._local_root_tree
+        to_visit = [*origins]
+        current_distance = 0
+        while to_visit and current_distance < max_distance:
+            current_distance += 1
+            ref_visitor = NodeVisitor()
+            for node in to_visit:
+                seen_by_ck[node.ck] = node
+                node._visit_self(ref_visitor)
             to_visit = [
                 n
-                for n in itertools.chain(child_visitor.subtree, child_visitor.references)
-                if n.ck not in seen
+                for n in itertools.chain(
+                    *[tree.get_descendants(n.ck) for n in to_visit], ref_visitor.references
+                )
+                if n.ck not in seen_by_ck and n.mnt not in exclude
             ]
+
+        self._nodes_by_ck.update(seen_by_ck)
+        return seen_by_ck
+
+    async def view_records(self, limit: int) -> dict[UUID, Node]:
+        from bench.language.database import HasDatabase
+
+        databases = []
+        for node in self._nodes_by_ck.values():
+            if node.mnt == MNT.STATEMENT and HasDatabase in node._components:
+                databases.append(node)
+        seen_by_ck: dict[UUID, Node] = {}
+        for database in databases:
+            records = await database.records.limit(limit).atolist()
+            for record in records:
+                seen_by_ck[record.ck] = record
+
+        self._nodes_by_ck.update(seen_by_ck)
+        return seen_by_ck
+
+    def view_from_value(
+        self, value: dict, type: "IsTyped", is_output: bool = None
+    ) -> dict[UUID, Node]:
+        from bench.language.text import Text
+        from bench.language.typing import walk_value
+
+        seen_by_ck: dict[UUID, Node] = {}
+
+        for n in walk_value(value, type, is_output):
+            # there's definitely a more efficient way to do this
+            # also see HasValue._visit_inner and :NodesAsValues
+            if isinstance(n, Node):
+                seen_by_ck[n.ck] = n
+            elif isinstance(n, Text):
+                for mention in n.mentions:
+                    if isinstance(mention.reference, Node):
+                        seen_by_ck[mention.reference.ck] = mention.reference
+
+        self._nodes_by_ck.update(seen_by_ck)
+        return seen_by_ck

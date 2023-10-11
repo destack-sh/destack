@@ -6,7 +6,7 @@ import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus } from "@/gql/graphql";
-import { useBenchState, type PanelContext, TerminalPanel, type PanelAction } from "@/state/bench";
+import { useBenchState, type PanelContext, TerminalPanel } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import {
   SESSION_ACCESS_LEVELS,
@@ -19,7 +19,9 @@ import {
 import { useTerminal } from "@/state/terminal";
 import { IdentifierType, toPyIdentifier } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
-import { ArrowRightIcon, PlayIcon, SparklesIcon, StopIcon } from "@heroicons/vue/24/solid";
+import { generate } from "@graphql-codegen/cli";
+import { SparklesIcon } from "@heroicons/vue/24/outline";
+import { PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { nextTick, computed, ref, type Ref, watch } from "vue";
 
 const props = defineProps<{ panel: PanelContext<TerminalPanel>; focused: boolean }>();
@@ -139,7 +141,7 @@ defineExpose({
       </div>
       <!-- Previous runs -->
       <div
-        v-for="{ run, code, scope } in terminal.runs.value"
+        v-for="{ run, code, scope, generatedFrom, generatedIn } in terminal.runs.value"
         :key="run.id"
         class="opacity-150 border-l-4 border-t border-orange-900/[15%] py-1.5 transition-colors"
         :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"
@@ -174,6 +176,11 @@ defineExpose({
           </div>
           <!-- Body -->
           <div class="flex w-full max-w-full flex-col pl-4 pr-4">
+            <div v-if="generatedFrom" class="flex flex-row">
+              <!-- nocheckin: show generated from in terminal -->
+              <SparklesIcon class="h-4 w-4 text-orange-600" />
+              <span class="truncate text-gray-400">{{ generatedFrom }}</span>
+            </div>
             <MonacoEditor
               :model-value="code"
               wrap

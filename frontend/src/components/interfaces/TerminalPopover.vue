@@ -1,9 +1,7 @@
 <script lang="ts" setup>
-import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
-import { formatDuration } from "@/composables/useNow";
 import type { Run } from "@/gql/graphql";
 import { useBenchState, type StatementHeader, usePanelContext } from "@/state/bench";
 import { SessionAccessLevel, useCurrentSessions } from "@/state/session";
@@ -17,6 +15,7 @@ import { ref, nextTick, computed } from "vue";
 
 const props = defineProps<{
   fileCk: string;
+  currentSelection?: StatementHeader[];
 }>();
 const bench = useBenchState();
 const panel = usePanelContext();
@@ -93,6 +92,8 @@ async function apply() {
       scope: props.fileCk,
       accessLevel: SessionAccessLevel.Update,
       tags: ["mend"],
+      generatedFrom: generatedFrom.value,
+      generatedIn: generatedRun.value != null ? getUUIDFromGlobalID(generatedRun.value.id) : undefined,
     });
     await result;
     discardGenerated();
@@ -106,14 +107,14 @@ async function apply() {
 }
 
 function open(text: string, selection?: StatementHeader[], from?: StatementHeader) {
+  if (!text && !selection) {
+    selection = props.currentSelection;
+  }
   if (selection) {
     const spans: TextSpan[] = [...selection.map((s) => makeTextMention(s)), makeTextPlain(" " + text)];
     text = renderTextHtml(spans);
   }
   inputText.value = text ?? "";
-  if (text && !active.value) {
-    run();
-  }
   active.value = true;
   nextTick(focus);
 }
@@ -187,7 +188,7 @@ defineExpose({
       <!-- Show in terminal -->
       <span
         v-if="expanded"
-        class="absolute -bottom-5 right-0 flex animate-fadein-500 flex-row items-center gap-0.5 text-xs text-gray-400 underline-offset-2 transition-opacity duration-150 hover:cursor-pointer hover:underline"
+        class="absolute -bottom-5 right-0 flex animate-fadein-500 flex-row items-center gap-0.5 text-xs text-gray-400 underline-offset-2 transition-opacity duration-500 hover:cursor-pointer hover:underline"
         @click="bench.openTerminal({ group: panel.panel.value.group, focus: true, opposite: true })"
       >
         <CommandLineIcon class="h-4 w-4" /> Terminal

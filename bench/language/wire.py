@@ -12,7 +12,7 @@ from uuid import UUID
 import msgpack
 
 from bench import language as lang
-from bench.language import File, IssueType, Module
+from bench.language import File, IssueType, Module, NodeVisitor
 from bench.language.const import (
     MNT,
     IssueKind,
@@ -33,7 +33,7 @@ from bench.language.const import (
     WorkerSetStatus,
 )
 from bench.language.database import HasDatabase
-from bench.language.module import Node, NodeStatus, NodeTree, NodeVisitor, ScopeNode
+from bench.language.module import Node, NodeStatus, NodeTree, ScopeNode
 from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
@@ -153,7 +153,7 @@ def pack_node(root: NodeT, exclude: set[MNT] | None = None) -> tuple[NodeDataT, 
             packer = _node_packers_by_node[type(node)]
             packed[node.id] = packer.pack(node)
 
-            # records are not part of regular node tree
+            # records are not part of regular node tree :NodeViews
             if (
                 node.mnt == MNT.STATEMENT
                 and HasDatabase in node._components

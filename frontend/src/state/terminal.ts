@@ -22,6 +22,8 @@ function _useTerminal() {
   const codeKey = computed(() => module.runMetadataKey("code"));
   const scopeKey = computed(() => module.runMetadataKey("scope"));
   const textToCodeTask = computed(() => module.statementOf("0c8e5c97-7433-51e6-8d2f-61893fc48d04"));
+  const generatedFromKey = computed(() => module.runMetadataKey("generated_from"));
+  const generatedInKey = computed(() => module.runMetadataKey("generated_in"));
   const codeOutputKey = computed(() => {
     const field = textToCodeTask.value?.fields?.find((f) => f.name == "code");
     if (field == null) return null;
@@ -68,6 +70,8 @@ function _useTerminal() {
     runs.value?.map((r) => ({
       code: r.value[codeKey.value ?? ""] ?? r.value["code"],
       scope: r.value[scopeKey.value ?? ""] ?? r.value["scope"],
+      generatedFrom: r.value[generatedFromKey.value ?? ""] ?? r.value["generated_from"],
+      generatedIn: r.value[generatedInKey.value ?? ""] ?? r.value["generated_in"],
       run: r,
     }))
   );
@@ -95,11 +99,26 @@ function _useTerminal() {
     return { result: codeResult, run };
   }
 
-  function runCode(code: string, options: { scope?: string; accessLevel: SessionAccessLevel; tags?: string[] }) {
+  function runCode(
+    code: string,
+    options: {
+      scope?: string;
+      accessLevel: SessionAccessLevel;
+      tags?: string[];
+      generatedFrom?: string;
+      generatedIn?: string;
+    }
+  ) {
     /** Runs code inside the terminal, raising if the run fails to complete */
     const { run, result } = session.run(code, {
       scope: options.scope,
-      rootValue: { name: "terminal", code, scope: options.scope },
+      rootValue: {
+        name: "terminal",
+        code,
+        scope: options.scope,
+        generated_from: options.generatedFrom,
+        generated_in: options.generatedIn,
+      },
       globalValue: { bot: TERMINAL_BOT_LABEL },
       accessLevel: options.accessLevel,
       tags: options.tags,

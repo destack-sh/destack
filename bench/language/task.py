@@ -7,11 +7,11 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import structlog
 
-from bench.language.const import IssueType, TypeFlag
+from bench.language.const import MNT, IssueType, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.model import HasModel
 from bench.language.module import Node, ScopeNode, node_component, nruntime
-from bench.language.reference import ModuleView
+from bench.language.reference import NodeView
 from bench.language.typing import check_type, unpack_value
 
 from ..utils.func import describe_type
@@ -68,8 +68,12 @@ class HasTask(Node):
 
         # do task
         _randomize = _randomize if _randomize is not None else self._randomize
-        view = ModuleView(self.module, self)
-        view.collect()
+        view = NodeView(self.module)
+        view.view_from_node(self, ancestors_to=MNT.FILE, max_distance=5)
+        await view.view_records(limit=10)
+        seen_from_value = view.view_from_value(inputs, self, is_output=False)
+        view.view_from_node(seen_from_value.values(), ancestors_to=MNT.FILE, max_distance=2)
+
         self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
         try:
             if mono_model:
@@ -108,7 +112,7 @@ TASK_TOTAL_ATTEMPTS = 10
 
 async def run_task(
     task: HasTask,
-    view: ModuleView,
+    view: NodeView,
     inputs: dict,
     nonce: Optional[str],
 ) -> dict:
@@ -118,8 +122,8 @@ async def run_task(
     models = [
         task.session.module.resolve(m)
         for m in (
-            "openai.lib.chat.gpt4",
             "anthropic.lib.text.claude-instant-1",
+            "openai.lib.chat.gpt4",
             "openai.lib.chat.gpt3",
             "anthropic.lib.text.claude-2",
         )
@@ -242,7 +246,7 @@ class TaskCompiler(abc.ABC):
     async def compile(
         self,
         task: HasTask,
-        view: ModuleView,
+        view: NodeView,
         inputs: dict,
         previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],

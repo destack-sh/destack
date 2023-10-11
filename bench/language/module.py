@@ -48,7 +48,7 @@ from bench.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import File, Issue, Session
+    from bench.language import File, Issue, NodeVisitor, Session
     from bench.language.edit import EditData
     from bench.language.wire import NodeData
 
@@ -623,7 +623,7 @@ class _ChangeEffect:
                 affected_nodes.append(child)
                 if isinstance(child, ScopeNode):
                     affected_nodes.extend(
-                        child._local_root_tree.get_descendants(
+                        child._local_root_tree.get_descendants(  #  :NodeViews
                             child.ck, recursive=True, include_self=False
                         )
                     )
@@ -828,7 +828,7 @@ class NodeList(NodeListBase[NodeT]):
 
         # index node into parent scope
         if isinstance(_node, ScopeNode) and _node._local_tree is not None:
-            # subsume if previously detached
+            # subsume if previously detached (ignores out of line nodes, see :NodeViews)
             added = _node._local_tree.get_descendants(_node.ck, recursive=True, include_self=True)
             _node._local_tree.update(_node)  # parent changed
             self._parent._import_scope_tree(_node)
@@ -1509,7 +1509,7 @@ class Node(abc.ABC):
         # tracked set
         if key in self.__internal_properties__:
             if key in self.__list_properties__:
-                raise AttributeError(f"cannot set {self.__properties__[key]} (use NodeList)")
+                return getattr(self, key).set(value)
             else:
                 return super().__setattr__(key, value)
         elif key in self.__tracked_properties__:
@@ -1622,12 +1622,8 @@ class Node(abc.ABC):
                     on_issue(self, f"{prop.name}: invalid value")
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
-        """Visit any referenced nodes."""
-        for prop in self.__list_properties__.values():
-            if prop.children_flags & NRel.Remote:
-                continue
-            for child in getattr(self, prop.name):
-                visitor.visit_child(child)
+        """Visit any non-descendant referenced nodes."""
+        pass
 
     def _activate_inner(self, session: "Session") -> None:
         """'Instantiate' this object in the given session."""
@@ -1736,6 +1732,7 @@ def _make_rec_method(method: NodeMethod, wraps, custom_kwargs: Callable[["Node"]
 
     @functools.wraps(wraps)
     def rec_method(self: "ScopeNode", *args, **kwargs):
+        # ignores out-of-line descendants (see :NodeViews)
         descendants = self._local_root_tree.get_descendants(self.ck, recursive=True)
         method_name = method.self
         if custom_kwargs:
@@ -1937,34 +1934,6 @@ class ScopeNode(Node):
     @property
     def self_errors(self):
         return [i for i in self.errors or [] if i.parent == self]
-
-
-class NodeVisitor:
-    def __init__(self):
-        self._descendant_by_ck: dict[UUID, Node] = {}
-        self._reference_by_ck: dict[UUID, Node] = {}
-
-    def __str__(self):
-        return f"{len(self._descendant_by_ck)} nodes"
-
-    def __repr__(self):
-        return f"<NodeVisitor {str(self)}>"
-
-    @property
-    def subtree(self) -> typing.Collection["Node"]:
-        return self._descendant_by_ck.values()
-
-    @property
-    def references(self) -> typing.Collection["Node"]:
-        return self._reference_by_ck.values()
-
-    def visit_child(self, node: "Node"):
-        if node.ck in self._descendant_by_ck and self._descendant_by_ck[node.ck].id != node.id:
-            raise ValueError(f"cannot visit child {node} twice: {self._descendant_by_ck[node.ck]}")
-        self._descendant_by_ck[node.ck] = node
-
-    def visit_reference(self, node: "Node"):
-        self._reference_by_ck[node.ck] = node
 
 
 @dataclass

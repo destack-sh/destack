@@ -5,7 +5,8 @@ from typing import Optional, Union
 from uuid import UUID
 
 from bench.language.const import MNT, ModuleNodeType, NodeReference, TypedNodeReference
-from bench.language.module import Node, NodeVisitor, ScopeNode, node_component, nproperty, nruntime
+from bench.language.module import Node, ScopeNode, node_component, nproperty, nruntime
+from bench.language.reference import NodeVisitor
 
 
 @node_component
@@ -51,7 +52,7 @@ class HasText(Node):
             # update text with resolved references
             self.text = render_text_html(self._text_parsed.spans)
 
-    def _visit_inner(self, visitor: NodeVisitor) -> None:
+    def _visit_inner(self, visitor: "NodeVisitor") -> None:
         if self._text_spans is None:
             return
         for span in self._text_spans:

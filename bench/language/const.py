@@ -218,7 +218,7 @@ class TypeHint(enum.StrEnum):
     IMAGE = "image"
     VIDEO = "video"
     AUDIO = "audio"
-    # node
+    # node :NodesAsValues
     STATEMENT = "statement"
     FIELD = "field"
     RUN = "run"

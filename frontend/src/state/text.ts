@@ -135,7 +135,11 @@ export function useTextMentions(
       let name = reference.name;
       if (!name) {
         if (reference.__typename == "Statement") {
-          name = reference.text?.replace(/<[^>]*>/g, "");
+          if (reference.type == StatementType.Blank) {
+            name = "<blank>";
+          } else {
+            name = reference.text?.replace(/<[^>]*>/g, "");
+          }
         } else {
           name = reference.__typename;
         }

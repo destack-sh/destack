@@ -26,6 +26,7 @@ import {
   PaperAirplaneIcon as PaperAirplaneIconOutline,
   Bars3BottomLeftIcon,
   ViewColumnsIcon as ViewColumnsIconOutline,
+  NoSymbolIcon,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -335,6 +336,7 @@ export function getEnumColor(field: { ck: string }) {
 }
 
 export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
+  [StatementType.Blank]: NoSymbolIcon,
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconOutline,
   [StatementType.Task]: SparklesIconOutline,
@@ -346,6 +348,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Reference]: ArrowUpRightIcon,
 };
 export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
+  [StatementType.Blank]: NoSymbolIcon,
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconSolid,
   [StatementType.Task]: SparklesIconSolid,
