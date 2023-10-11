@@ -4,7 +4,6 @@ import { useBenchState } from "@/state/bench";
 import { useSecretOps } from "@/state/operations/secret";
 import { SECRET_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
-import assert from "assert";
 
 export type SecretRecord = {
   __typename: typeof SECRET_TYPENAME;

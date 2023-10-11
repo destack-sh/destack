@@ -22,6 +22,7 @@ import { computed, nextTick, ref, watch, type Ref } from "vue";
 import VectorInput from "@/components/inputs/VectorInput.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import CodeInput from "@/components/inputs/CodeInput.vue";
+import RichTextInput from "@/components/inputs/RichTextInput.vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInput,
@@ -30,6 +31,7 @@ const INTERFACES: Record<string, any> = {
   string: StringInput,
   "string.code": CodeInput,
   "string.short": ShortStringInput,
+  "string.rich": RichTextInput,
   number: NumberInput,
   "number.rating": RatingInput,
   enum: EnumInput,
@@ -37,7 +39,6 @@ const INTERFACES: Record<string, any> = {
   file: FileInput,
   secret: SecretInput,
   vector: VectorInput,
-  // nocheckin: RichText/AnnotatedTextInput
 };
 
 const props = defineProps<{

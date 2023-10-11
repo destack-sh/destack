@@ -2414,6 +2414,7 @@ export enum TypeHint {
 }
 
 export enum TypeTag {
+  Any = "ANY",
   Boolean = "BOOLEAN",
   Enum = "ENUM",
   File = "FILE",

@@ -172,9 +172,11 @@ defineExpose({
       <!-- Run -->
       <span v-if="expanded" class="ml-auto flex flex-shrink-0 items-center self-start">
         <!-- Active -->
-        <span v-if="generatingRun != null" class="mr-0.5 text-gray-400">
-          {{ session.getDurationFormatted(generatingRun, { hideMillis: true }) }}
-        </span>
+        <FadeTransition>
+          <span v-if="generatingRun != null" class="mr-0.5 text-gray-400">
+            {{ session.getDurationFormatted(generatingRun, { hideMillis: true }) }}
+          </span>
+        </FadeTransition>
         <!-- Start/stop -->
         <button
           class="rounded-sm p-1 transition-colors duration-150 hover:bg-orange-100"

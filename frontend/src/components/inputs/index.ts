@@ -107,6 +107,13 @@ registerInterface("string.code", {
   minWidth: 200,
   grow: 1.0,
 });
+registerInterface("string.rich", {
+  hints: [TypeHint.RichText],
+  map: coerceToString,
+  debounceMs: 2000,
+  minWidth: 200,
+  grow: 1.0,
+});
 registerInterface("string.short", {
   hints: [TypeHint.Name, TypeHint.Uuid, TypeHint.Email, TypeHint.Url, TypeHint.Key],
   map: coerceToString,

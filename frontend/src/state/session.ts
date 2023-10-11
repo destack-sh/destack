@@ -615,7 +615,8 @@ export function _useSessions(
   function getDurationSeconds(run: Pick<Run, "createdAt" | "startedAt" | "terminatedAt" | "duration">): number {
     if (run.duration != null) return run.duration;
     const end = run.terminatedAt != null ? DateTime.fromISO(run.terminatedAt) : now.value;
-    return end.diff(DateTime.fromISO(run.startedAt ?? run.createdAt)).as("seconds");
+    const duration = end.diff(DateTime.fromISO(run.startedAt ?? run.createdAt)).as("seconds");
+    return Math.max(0, duration);
   }
 
   function getDurationFormatted(

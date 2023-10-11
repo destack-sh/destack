@@ -178,6 +178,7 @@ class TypeTag(enum.StrEnum):
     LITERAL = "literal"
     TYPE_REFERENCE = "ref"
     NODE = "node"
+    ANY = "any"
 
     # convenience
     CHOICE = ENUM

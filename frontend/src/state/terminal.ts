@@ -22,8 +22,8 @@ function _useTerminal() {
   const codeKey = computed(() => module.runMetadataKey("code"));
   const scopeKey = computed(() => module.runMetadataKey("scope"));
   const textToCodeTask = computed(() => module.statementOf("0c8e5c97-7433-51e6-8d2f-61893fc48d04"));
-  const generatedFromKey = computed(() => module.runMetadataKey("generated_from"));
-  const generatedInKey = computed(() => module.runMetadataKey("generated_in"));
+  const generatedFromKey = computed(() => module.runMetadataKey("generated from"));
+  const generatedInKey = computed(() => module.runMetadataKey("generated in"));
   const codeOutputKey = computed(() => {
     const field = textToCodeTask.value?.fields?.find((f) => f.name == "code");
     if (field == null) return null;

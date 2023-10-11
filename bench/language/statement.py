@@ -143,6 +143,12 @@ class Statement(ScopeNode, HasTags):
         return Statement(type=type, name=name, *args, **kwargs)
 
     @staticmethod
+    def text_(text: str, *args, **kwargs):
+        return Statement.new(type=StatementType.TEXT, text=text, *args, **kwargs)
+
+    # the others are defined below
+
+    @staticmethod
     def to_python(
         node: "Statement", props: dict, for_parent: Union["Statement", "File", None] = None
     ) -> tuple[str, dict, dict]:
@@ -150,11 +156,19 @@ class Statement(ScopeNode, HasTags):
             extra_kwargs = {"tag": node.tag}
         else:
             extra_kwargs = {}
-        return (
-            "Statement.new",
-            {"type": node.type, "name": node.name, **extra_kwargs},
-            dict_minus(props, "name", "type", "tag", "flags"),
-        )
+
+        init_name = f"Statement.{node.type.lower()}"
+        if node.type == StatementType.BLANK:
+            init_args = {}
+        elif node.type == StatementType.TEXT:
+            init_args = {"text": node.text}
+            if node.name:
+                init_args = {"name": node.name, **init_args}
+            props = dict_minus(props, "text")
+        else:
+            init_args = {"name": node.name, **extra_kwargs}
+
+        return init_name, init_args, dict_minus(props, "name", "type", "tag", "flags")
 
     @property
     def _components(self) -> tuple[typing.Type[Node]]:
@@ -176,7 +190,7 @@ class Statement(ScopeNode, HasTags):
         return f"{self.path} '{self.name}'" if self.name else self.path
 
     def __repr__(self):
-        return f"<{self.type.camel_name} {self}>"
+        return f"<Statement.{self.type.camel_name} {self}>"
 
     def _init_inner(self) -> None:
         # add runtime properties from dynamic components
@@ -230,6 +244,20 @@ class Statement(ScopeNode, HasTags):
         else:
             return to_pyidentifier(self.name, _IDENTIFIER_BY_TYPE[self.type])
 
+
+# Statement.<type> convenience constructors
+Statement.text = Statement.text_
+for _type in StatementType:
+    if _type in StatementType.TEXT:
+        continue
+    method = staticmethod(
+        lambda name=None, _type=_type, *args, **kwargs: Statement.new(
+            _type, name=name, *args, **kwargs
+        )
+    )
+    method_name = _type.lower()
+    if method_name not in locals():
+        setattr(Statement, method_name, method)
 
 #
 # 'Concrete' statements are a mirage, we just have a custom class
