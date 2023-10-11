@@ -9,7 +9,7 @@ import { computed, watchEffect } from "vue";
 import { useRouter } from "vue-router";
 import { parse as parseUuid, stringify as stringifyUuid } from "uuid";
 
-export const NON_SOCIAL_AUTH_ENABLED = process.env.ENVIRONMENT === "development";
+export const NON_SOCIAL_AUTH_ENABLED = import.meta.env.ENVIRONMENT === "development";
 
 export function encodeSharingToken(uuid: string): string {
   /* Encode hex uuid into base64 */
