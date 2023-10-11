@@ -1586,8 +1586,6 @@ class Node(abc.ABC):
         """Initialize this node."""
         for name, prop in self.__list_properties__.items():
             setattr(self, name, prop.list_type(self, prop))
-        if self._status >= NS.Interpreted and self._session is not None:
-            self._validate_self(self.__tracked_properties__.keys(), on_issue=on_issue_raise)
 
     def _clear_inner(self) -> None:
         """Resets this node's index and interp state."""
@@ -1649,7 +1647,15 @@ class Node(abc.ABC):
 
     # final :ComponentMethods
 
-    _init_self = _make_self_method(NodeMethod.init, _init_inner)
+    def _init_self(self):
+        for meth in _get_component_methods(
+            self._components, NodeMethod.init, self._concrete_cache_key
+        ):
+            meth(self)
+        # validate if in session after all init are done
+        if self._status >= NS.Interpreted and self._session is not None:
+            self._validate_self(self.__tracked_properties__.keys(), on_issue=on_issue_raise)
+
     _clear_self = _make_self_method(NodeMethod.clear, _clear_inner, to_status=NS.Source)
     _index_self = _make_self_method(
         NodeMethod.index, _index_inner, from_status=NS.Source, to_status=NS.Indexed

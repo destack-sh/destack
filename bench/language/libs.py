@@ -50,7 +50,7 @@ from bench.language.reflect import (
     x_task,
 )
 from bench.language.remote import RemoteObject
-from bench.language.statement import Blank, Model, Statement, Task, Type
+from bench.language.statement import Statement
 from bench.language.task import (
     CompiledInput,
     IncapableError,
@@ -175,7 +175,7 @@ _PARAM_TYPE_BY_TAG = {
 
 
 def _type_to_json_schema(
-    type: Union[Field, Type], ignore_array: bool = False, is_output: bool = None
+    type: Union[Field, Statement], ignore_array: bool = False, is_output: bool = None
 ) -> JsonSchemaElement:
     """Convert a Bench type to a JSON schema element."""
     fields = [
@@ -232,7 +232,7 @@ def _type_to_json_schema(
 
 
 class BaseTextTaskCompiler(TaskCompiler):
-    def _render_value_flat(self, value: Any, type: Union[Field, Type], *args, **kwargs) -> Any:
+    def _render_value_flat(self, value: Any, type: Union[Field, Statement], *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
         if type._effective_tag == TypeTag.ENUM:
             return type.resolved_fields.get(value).name
@@ -243,7 +243,9 @@ class BaseTextTaskCompiler(TaskCompiler):
         else:
             return pack_value_flat(value, type, *args, **kwargs)
 
-    async def _render_context(self, task: Task, view: NodeView, *, exclude_output: bool) -> str:
+    async def _render_context(
+        self, task: Statement, view: NodeView, *, exclude_output: bool
+    ) -> str:
         """Model-friendly string describing the entire task context."""
         # ignore output types, they're covered by function schemas
         if exclude_output:
@@ -514,7 +516,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
 
     async def compile(
         self,
-        task: Task,
+        task: Statement,
         view: NodeView,
         inputs: dict,
         previous_results: list[TaskError | Run],
@@ -801,7 +803,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
 
     async def compile(
         self,
-        task: Task,
+        task: Statement,
         view: NodeView,
         inputs: dict,
         previous_results: list[Union[TaskError, "Run"]],
@@ -874,14 +876,14 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
 
         return AnthropicTextInput(task=task, settings=settings, prompt=prompt)
 
-    def can_run(self, model: "Model", input: AnthropicTextInput) -> bool:
+    def can_run(self, model: "Statement", input: AnthropicTextInput) -> bool:
         context_window: int = {
             "claude-2": 100 * 1024,
             "claude-instant-1": 100 * 1024,
         }[model.name]
         return input.tokens <= context_window
 
-    async def run(self, model: "Model", input: AnthropicTextInput) -> dict:
+    async def run(self, model: "Statement", input: AnthropicTextInput) -> dict:
         rep: AnthropicTextCompletion = await model(prompt=input.prompt, settings=input.settings)
 
         try:
@@ -1103,9 +1105,9 @@ def _generate_symbolx_bench_file():
     file.statements.extend(
         bench_description,
         idiomatic_bench,
-        Blank.new(),
+        Statement.blank(),
         sample_bench_code,
-        Blank.new(),
+        Statement.blank(),
         generate_bench_code,
     )
     return file

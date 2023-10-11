@@ -9,7 +9,7 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import Code, LogEntry, Module, Run, RunError, Statement, wire
+from bench.language import LogEntry, Module, Run, RunError, Statement, wire
 from bench.language.const import (
     RUNNABLE_STATEMENT_TYPES,
     ModuleReference,
@@ -511,7 +511,7 @@ class ModuleWorkerProcess(ModuleWriter):
                     scope = self.module.resolve(UUID(scope))
                 else:
                     scope = self.module
-                statement = Code(code=code)
+                statement = Statement.code(code=code)
                 if job.tags:
                     statement.tags.create_many(*job.tags)
                 statement._track = RunTrackingLevel.ANONYMOUS

@@ -216,8 +216,8 @@ export const ICONS_BY_TAG_OUTLINE: Partial<Record<TypeTag, any>> = {
   [TypeTag.Boolean]: CheckIcon,
   [TypeTag.Vector]: SparklesIcon,
   [TypeTag.File]: DocumentIcon,
-  [TypeTag.Struct]: getStatementIconOutline(StatementType.Type, TypeTag.Struct),
-  [TypeTag.Enum]: getStatementIconOutline(StatementType.Type, TypeTag.Enum),
+  [TypeTag.Struct]: getStatementIconOutline(StatementType.Class),
+  [TypeTag.Enum]: getStatementIconOutline(StatementType.Choice),
 };
 export const ICONS_BY_HINT_OUTLINE: Partial<Record<TypeHint, any>> = {
   // string

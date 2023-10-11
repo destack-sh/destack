@@ -176,8 +176,8 @@ export function useTextMentions(
     // all other enum, struct, variable fields
     for (const statement of availableStatements) {
       if (
-        statement.tag != TypeTag.Enum &&
-        statement.tag != TypeTag.Struct &&
+        statement.type != StatementType.Class &&
+        statement.type != StatementType.Choice &&
         statement.type != StatementType.Variable &&
         statement.type != StatementType.Database
       )
@@ -229,28 +229,28 @@ export function useTextMentions(
 
   function getIconOutline(node: MentionableNode) {
     if (node.__typename == "Statement") {
-      return getStatementIconOutline(node.type, node.tag);
+      return getStatementIconOutline(node.type);
     } else if (node.__typename == "File") {
       return CodeBracketIconOutline;
     } else if (node.__typename == "Field") {
       if (node.tag == TypeTag.Literal) {
-        return getStatementIconOutline(StatementType.Type, TypeTag.Enum);
+        return getStatementIconOutline(StatementType.Choice);
       } else {
-        return getStatementIconOutline(StatementType.Type, TypeTag.Struct);
+        return getStatementIconOutline(StatementType.Class);
       }
     }
   }
 
   function getIconSolid(node: MentionableNode) {
     if (node.__typename == "Statement") {
-      return getStatementIconSolid(node.type, node.tag);
+      return getStatementIconSolid(node.type);
     } else if (node.__typename == "File") {
       return CodeBracketIconSolid;
     } else if (node.__typename == "Field") {
       if (node.tag == TypeTag.Literal) {
-        return getStatementIconSolid(StatementType.Type, TypeTag.Enum);
+        return getStatementIconSolid(StatementType.Choice);
       } else {
-        return getStatementIconSolid(StatementType.Type, TypeTag.Struct);
+        return getStatementIconSolid(StatementType.Class);
       }
     }
   }

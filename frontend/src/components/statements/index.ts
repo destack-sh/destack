@@ -248,11 +248,19 @@ register(StatementType.Code, {
   extraControls: [RUN_META],
   elements: [TEXT, FUNCTION_TYPE, { ...CODE, showIfNotExists: true }, RUN],
 });
-register(StatementType.Type, {
+register(StatementType.Class, {
   primaryPart: "type",
   foldable: "list-self",
   needsDeclaration: true,
   hasBases: true,
+  hasTags: true,
+  elements: [TEXT, { ...LIST_TYPE, showIfNotExists: true }],
+});
+register(StatementType.Choice, {
+  primaryPart: "type",
+  foldable: "list-self",
+  needsDeclaration: true,
+  hasBases: false,
   hasTags: true,
   elements: [TEXT, { ...LIST_TYPE, showIfNotExists: true }],
 });

@@ -2,7 +2,7 @@ import enum
 import typing
 import uuid
 from dataclasses import dataclass
-from typing import Any, Collection, Optional, Self, Union
+from typing import Any, Collection, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -49,7 +49,7 @@ from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.language import Statement, Type
+    from bench.language import Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -204,28 +204,7 @@ def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeSto
 class IsTyped(Node):
     """Shared base for Field and HasFields/Statement types"""
 
-    tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
-    hint: TypeHint | None = nproperty(default=None, validate=enum_validator(TypeHint))
-    flags: TypeFlag = nproperty(default=TypeFlag.Zero, validate=flag_validator(TypeFlag))
     key: str = ninternal(default=None)
-
-    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
-        if self.hint is not None:
-            tag = TYPE_TAG_BY_TYPE_HINT[self.hint]
-            if self.tag != tag:
-                on_issue(self, f"expected {tag} for {self.hint} ({self.tag})", ["tag", "hint"])
-        if self.flags & TypeFlag.IsUnionWith:
-            if self.tag != TypeTag.TYPE_REFERENCE:
-                on_issue(
-                    self,
-                    f"expected reference for IsUnionWith ({self.tag})",
-                    ["tag", "reference", "flags"],
-                )
-        if self.flags & TypeFlag.IsSecret:
-            if self.hint != TypeHint.SECRET:
-                on_issue(
-                    self, f"expected secret hint for IsSecret ({self.hint})", ["hint", "flags"]
-                )
 
     @property
     def reference(self) -> Union["Statement", StatementReference, None]:
@@ -282,25 +261,15 @@ class IsTyped(Node):
             and self.reference == other.reference
         )
 
-    def get_field(self, some_id: str, is_output: bool = None) -> Optional["Field"]:
-        # TODO @Cleanup: get rid if get_field/has_field in favor of fields.get
-        #  (but need is_output filtering for that to work, so maybe computed inputs/output NodeList?)
-        for field_ in self.resolved_fields:
-            if is_output is not None and bool(field_.flags & TypeFlag.IsOutput) != is_output:
-                continue
-            if field_.py_ident == some_id or field_.name == some_id or field_.key == some_id:
-                return field_
-        return None
-
-    def has_field(self, some_id: str, is_output: bool = None) -> bool:
-        return self.get_field(some_id, is_output=is_output) is not None
-
 
 @node(mnt=MNT.FIELD)
 class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
     parent: Union["Statement", None] = nparent(MNT.STATEMENT)
     name: str | None = nproperty(default=None, validate=validate_name)
     order_key: str | None = ninternal(default=None)
+    tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
+    hint: TypeHint | None = nproperty(default=None, validate=enum_validator(TypeHint))
+    flags: TypeFlag = nproperty(default=TypeFlag.Zero, validate=flag_validator(TypeFlag))
 
     @staticmethod
     def new(
@@ -394,6 +363,24 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
     def _visit_inner(self, visitor: NodeVisitor) -> None:
         if isinstance(self.reference, Node):
             visitor.visit_reference(self.reference)
+
+    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
+        if self.hint is not None:
+            tag = TYPE_TAG_BY_TYPE_HINT[self.hint]
+            if self.tag != tag:
+                on_issue(self, f"expected {tag} for {self.hint} ({self.tag})", ["tag", "hint"])
+        if self.flags & TypeFlag.IsUnionWith:
+            if self.tag != TypeTag.TYPE_REFERENCE:
+                on_issue(
+                    self,
+                    f"expected reference for IsUnionWith ({self.tag})",
+                    ["tag", "reference", "flags"],
+                )
+        if self.flags & TypeFlag.IsSecret:
+            if self.hint != TypeHint.SECRET:
+                on_issue(
+                    self, f"expected secret hint for IsSecret ({self.hint})", ["hint", "flags"]
+                )
 
     @property
     def path(self) -> str:
@@ -528,28 +515,12 @@ class HasFields(IsTyped):
         self.resolved_fields.set(resolved_fields, _trigger=_NodeChange.UpdateLists)
         self._did_resolve_fields = True
 
-    def extend_type(self, *bases: "Type") -> "Self":
-        """Adds the fields of another type to this one"""
-        for base in bases:
-            field_ = Field(
-                name=None, tag=TypeTag.TYPE_REFERENCE, reference=base, flags=TypeFlag.IsUnionWith
-            )
-            self.fields.append(field_)
-        return self
-
     def _inputs_from_args(self, args, kwargs) -> dict:
         inputs = {**kwargs}
         input_fields = [f for f in self.resolved_fields if not (f.flags & TypeFlag.IsOutput)]
         for input_t, input in zip(input_fields, args):
             inputs[input_t.py_ident] = input
         return inputs
-
-
-@node_component
-class IsType(Node):
-    def _call_inner(self, *args, **kwargs) -> Any:
-        inputs = self._inputs_from_args(args, kwargs)
-        return TypedDict(inputs, self)
 
 
 class TypedDict(dict):

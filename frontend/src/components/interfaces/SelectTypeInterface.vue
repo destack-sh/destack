@@ -67,7 +67,7 @@ const BUILTINS_TYPES_FIELDS = BUILTIN_TYPES.map((tag) => {
 });
 
 const availableStatements = module.statementsLike({
-  types: [StatementType.Type, StatementType.Flow, StatementType.Task],
+  types: [StatementType.Class, StatementType.Choice, StatementType.Flow, StatementType.Task],
   // TODO @UX @Feature: also support code & database type references
   //  (right now this is too noisy and confusing, too much code & 'does database mean relation?', also see :DbRecord)
 });
@@ -90,8 +90,8 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
     // filter references
     if (props.refTypes != null) {
       let refType: TypeTag | null = null;
-      if (statement.type == StatementType.Type) {
-        refType = statement.tag ?? null;
+      if (statement.type == StatementType.Class) {
+        refType = TypeTag.Struct;
       } else if (statement.type == StatementType.Database) {
         refType = TypeTag.Struct;
       } else {

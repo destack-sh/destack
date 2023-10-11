@@ -2027,7 +2027,6 @@ export type Statement = HasCrud &
     descendants: Array<Statement>;
     fields: Array<Field>;
     file: File;
-    flags?: Maybe<Scalars["Int"]["output"]>;
     headingLevel?: Maybe<Scalars["Int"]["output"]>;
     /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"]["output"];
@@ -2042,7 +2041,6 @@ export type Statement = HasCrud &
     referenceCk?: Maybe<Scalars["UUID"]["output"]>;
     resolvedFields?: Maybe<Array<ResolvedField>>;
     revision: Scalars["Int"]["output"];
-    tag?: Maybe<TypeTag>;
     tags: Array<Tagging>;
     text?: Maybe<Scalars["String"]["output"]>;
     triggers: Array<Trigger>;
@@ -2099,14 +2097,12 @@ export type StatementCreateInput = {
   ck: Scalars["UUID"]["input"];
   code?: InputMaybe<Scalars["String"]["input"]>;
   fileId: Scalars["GlobalID"]["input"];
-  flags?: InputMaybe<Scalars["Int"]["input"]>;
   id: Scalars["GlobalID"]["input"];
   key?: InputMaybe<Scalars["String"]["input"]>;
   name?: InputMaybe<Scalars["String"]["input"]>;
   orderKey: Scalars["String"]["input"];
   parentId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
-  tag?: InputMaybe<TypeTag>;
   text?: InputMaybe<Scalars["String"]["input"]>;
   type: StatementType;
   value?: InputMaybe<Scalars["JSON"]["input"]>;
@@ -2124,12 +2120,10 @@ export type StatementFilter = {
 };
 
 export type StatementMorphInput = {
-  flags?: InputMaybe<Scalars["Int"]["input"]>;
   headingLevel?: InputMaybe<Scalars["Int"]["input"]>;
   id: Scalars["GlobalID"]["input"];
   key?: InputMaybe<Scalars["String"]["input"]>;
   name?: InputMaybe<Scalars["String"]["input"]>;
-  tag?: InputMaybe<TypeTag>;
   type: StatementType;
   versioned: Scalars["Boolean"]["input"];
 };
@@ -2158,6 +2152,8 @@ export type StatementSoftDeleteInput = {
 
 export enum StatementType {
   Blank = "BLANK",
+  Choice = "CHOICE",
+  Class = "CLASS",
   Code = "CODE",
   Database = "DATABASE",
   Flow = "FLOW",
@@ -2166,7 +2162,6 @@ export enum StatementType {
   Tag = "TAG",
   Task = "TASK",
   Text = "TEXT",
-  Type = "TYPE",
   Variable = "VARIABLE",
 }
 
@@ -2177,13 +2172,11 @@ export type StatementUpdateHeadingLevelInput = {
 
 export type StatementUpdateInput = {
   code?: InputMaybe<Scalars["String"]["input"]>;
-  flags?: InputMaybe<Scalars["Int"]["input"]>;
   id: Scalars["GlobalID"]["input"];
   key?: InputMaybe<Scalars["String"]["input"]>;
   name?: InputMaybe<Scalars["String"]["input"]>;
   orderKey?: InputMaybe<Scalars["String"]["input"]>;
   referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
-  tag?: InputMaybe<TypeTag>;
   text?: InputMaybe<Scalars["String"]["input"]>;
   type?: InputMaybe<StatementType>;
   value?: InputMaybe<Scalars["JSON"]["input"]>;
@@ -3635,8 +3628,6 @@ export type StatementContentFragment = {
   headingLevel?: number | null;
   code?: string | null;
   value?: any | null;
-  tag?: TypeTag | null;
-  flags?: number | null;
   referenceCk?: any | null;
   versioned: boolean;
   createdAt: any;
@@ -3729,8 +3720,6 @@ export type InterpStatementFragment = {
   revision: number;
   orderKey: string;
   key?: string | null;
-  tag?: TypeTag | null;
-  flags?: number | null;
   referenceCk?: any | null;
   createdAt: any;
   updatedAt: any;
@@ -4382,8 +4371,6 @@ export type CreateStatementMutationVariables = Exact<{
   code?: InputMaybe<Scalars["String"]["input"]>;
   text?: InputMaybe<Scalars["String"]["input"]>;
   value?: InputMaybe<Scalars["JSON"]["input"]>;
-  tag?: InputMaybe<TypeTag>;
-  flags?: InputMaybe<Scalars["Int"]["input"]>;
   versioned: Scalars["Boolean"]["input"];
 }>;
 
@@ -4406,8 +4393,6 @@ export type CreateStatementMutation = {
         text?: string | null;
         headingLevel?: number | null;
         value?: any | null;
-        tag?: TypeTag | null;
-        flags?: number | null;
         referenceCk?: any | null;
         versioned: boolean;
         createdAt: any;
@@ -4446,8 +4431,6 @@ export type UpdateStatementMutationVariables = Exact<{
   code?: InputMaybe<Scalars["String"]["input"]>;
   text?: InputMaybe<Scalars["String"]["input"]>;
   value?: InputMaybe<Scalars["JSON"]["input"]>;
-  tag?: InputMaybe<TypeTag>;
-  flags?: InputMaybe<Scalars["Int"]["input"]>;
 }>;
 
 export type UpdateStatementMutation = {
@@ -4467,8 +4450,6 @@ export type UpdateStatementMutation = {
         code?: string | null;
         text?: string | null;
         value?: any | null;
-        tag?: TypeTag | null;
-        flags?: number | null;
       };
 };
 
@@ -4476,8 +4457,6 @@ export type MorphStatementMutationVariables = Exact<{
   id: Scalars["GlobalID"]["input"];
   type: StatementType;
   name?: InputMaybe<Scalars["String"]["input"]>;
-  tag?: InputMaybe<TypeTag>;
-  flags?: InputMaybe<Scalars["Int"]["input"]>;
   key?: InputMaybe<Scalars["String"]["input"]>;
   headingLevel?: InputMaybe<Scalars["Int"]["input"]>;
   versioned: Scalars["Boolean"]["input"];
@@ -4495,8 +4474,6 @@ export type MorphStatementMutation = {
         revision: number;
         type: StatementType;
         name?: string | null;
-        tag?: TypeTag | null;
-        flags?: number | null;
         key?: string | null;
         headingLevel?: number | null;
         versioned: boolean;
@@ -6268,8 +6245,6 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "tag" } },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {
@@ -6670,8 +6645,6 @@ export const InterpStatementFragmentDoc = {
           },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "key" } },
-          { kind: "Field", name: { kind: "Name", value: "tag" } },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
@@ -7830,8 +7803,6 @@ export const FileContentByIdDocument = {
           { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "tag" } },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {
@@ -8216,8 +8187,6 @@ export const StatementContentByIdDocument = {
           { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "tag" } },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {
@@ -10939,8 +10908,6 @@ export const ModuleContentByIdDocument = {
           },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "key" } },
-          { kind: "Field", name: { kind: "Name", value: "tag" } },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
@@ -12026,8 +11993,6 @@ export const CreateFileDocument = {
           { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "tag" } },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {
@@ -13069,8 +13034,6 @@ export const PasteFileDocument = {
           { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "tag" } },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {
@@ -15465,16 +15428,6 @@ export const CreateStatementDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "TypeTag" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "flags" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "versioned" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
         },
@@ -15549,16 +15502,6 @@ export const CreateStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "tag" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "flags" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "flags" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "versioned" },
                       value: { kind: "Variable", name: { kind: "Name", value: "versioned" } },
                     },
@@ -15619,8 +15562,6 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
-                      { kind: "Field", name: { kind: "Name", value: "tag" } },
-                      { kind: "Field", name: { kind: "Name", value: "flags" } },
                       { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
                       { kind: "Field", name: { kind: "Name", value: "versioned" } },
                       {
@@ -15827,16 +15768,6 @@ export const UpdateStatementDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
         },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "TypeTag" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "flags" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
-        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -15886,16 +15817,6 @@ export const UpdateStatementDocument = {
                       name: { kind: "Name", value: "value" },
                       value: { kind: "Variable", name: { kind: "Name", value: "value" } },
                     },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "tag" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "flags" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "flags" } },
-                    },
                   ],
                 },
               },
@@ -15918,8 +15839,6 @@ export const UpdateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "code" } },
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
-                      { kind: "Field", name: { kind: "Name", value: "tag" } },
-                      { kind: "Field", name: { kind: "Name", value: "flags" } },
                     ],
                   },
                 },
@@ -15988,16 +15907,6 @@ export const MorphStatementDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "TypeTag" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "flags" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "key" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -16042,16 +15951,6 @@ export const MorphStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "tag" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "flags" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "flags" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "key" },
                       value: { kind: "Variable", name: { kind: "Name", value: "key" } },
                     },
@@ -16082,8 +15981,6 @@ export const MorphStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "tag" } },
-                      { kind: "Field", name: { kind: "Name", value: "flags" } },
                       { kind: "Field", name: { kind: "Name", value: "key" } },
                       { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
                       { kind: "Field", name: { kind: "Name", value: "versioned" } },
@@ -17419,8 +17316,6 @@ export const BatchPasteStatementDocument = {
           { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "tag" } },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {

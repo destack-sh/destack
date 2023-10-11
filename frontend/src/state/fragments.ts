@@ -253,8 +253,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     headingLevel
     code
     value
-    tag
-    flags
     referenceCk
     versioned
     tags(filters: { isVisible: true }) {
@@ -351,8 +349,6 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     }
     orderKey
     key
-    tag
-    flags
     referenceCk
     tags(filters: { isVisible: true }) {
       ...TaggingContent

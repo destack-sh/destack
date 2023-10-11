@@ -44,7 +44,7 @@ from bench.language.text import Text, parse_text_multi, render_text_html
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import Statement, Type
+    from bench.language import Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -290,17 +290,20 @@ def check_type(
                 _check(exists, f"extraneous field '{key}'")
 
 
+StatementOrField = Union["Statement", "Field"]
+
+
 class TypeMapper:
     """
     Maps specific types (and values) into and from Python.
-    Don't bother with lists and optional types here.
+    Values and types are flattened for mapping, so ignore lists/optionals/etc.
     """
 
     def is_instance_type(self, py_type: type) -> bool:
         """Whether this mapper can represent the given Python instance type."""
         raise NotImplementedError
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
         """Converts a Python instance type into a Bench Type."""
         raise NotImplementedError
 
@@ -425,10 +428,8 @@ class StaticPyTypeMapper(TypeMapper):
             self.alt_py_types is not None and py_type in self.alt_py_types
         )
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
-        from bench.language.statement import Type
-
-        return Type(name=None, tag=self.tag, hint=self.hint)
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
+        return Field(name=None, tag=self.tag, hint=self.hint)
 
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return isinstance(value, self._all_py_types)
@@ -481,10 +482,8 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
             issubclass(py_type, t) for t in self.HINT_BY_PY_TYPE
         )
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
-        from bench.language.statement import Type
-
-        return Type(tag=TypeTag.STRING, hint=self.HINT_BY_PY_TYPE[py_type])
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
+        return Field(tag=TypeTag.STRING, hint=self.HINT_BY_PY_TYPE[py_type])
 
     def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
         if isinstance(value, self.py_type):
@@ -500,12 +499,12 @@ class EnumMapper(TypeMapper):
         return inspect.isclass(py_type) and issubclass(py_type, enum.StrEnum)
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> IsTyped:
-        from bench.language.statement import Choice
+        from bench.language.statement import Statement
 
         assert issubclass(py_type, enum.StrEnum)
         if py_type in type_map:
             return type_map[py_type]
-        type = Choice(name=py_type.__name__)
+        type = Statement.choice(name=py_type.__name__)
         type_map[py_type] = type
         for py_member in py_type.__members__.values():
             member = Field(name=py_member.name, key=py_member.name, tag=TypeTag.LITERAL)
@@ -532,10 +531,8 @@ class RichTextMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is RichText
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
-        from bench.language.statement import Type
-
-        return Type(name=None, tag=TypeTag.STRING, hint=TypeHint.RICH_TEXT)
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
+        return Field(name=None, tag=TypeTag.STRING, hint=TypeHint.RICH_TEXT)
 
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return isinstance(value, (str, Text))
@@ -556,13 +553,11 @@ class NodeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return issubclass(py_type, Node)
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
-        from bench.language.statement import Type
-
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
         hint = {Statement: TypeHint.STATEMENT, Field: TypeHint.FIELD}.get(py_type)
         if hint is None:
             raise ValueError(f"cannot map {py_type}")
-        return Type(name=None, tag=TypeTag.NODE, hint=hint)
+        return Field(name=None, tag=TypeTag.NODE, hint=hint)
 
     def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
         raise NotImplementedError(":NodesAsValues not yet supported")
@@ -576,9 +571,7 @@ class RemoteObjectMapper(TypeMapper):
         return py_type is RemoteObject
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> IsTyped:
-        from bench.language.statement import Type
-
-        return Type(name=None, tag=TypeTag.FILE)
+        return Field(name=None, tag=TypeTag.FILE)
 
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return isinstance(value, RemoteObject)
@@ -610,9 +603,7 @@ class SecretTypeMapper(TypeMapper):
         return py_type is Secret
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> IsTyped:
-        from bench.language.statement import Type
-
-        return Type(name=None, tag=TypeTag.STRING, hint=TypeHint.SECRET, flags=TypeFlag.IsSecret)
+        return Field(name=None, tag=TypeTag.STRING, hint=TypeHint.SECRET, flags=TypeFlag.IsSecret)
 
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return isinstance(value, Secret)
@@ -632,12 +623,12 @@ class StructTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return is_dataclass(py_type) or is_typeddict(py_type)
 
-    def from_instance_type(self, py_type: type, type_map: dict[str, Any]) -> "Type":
+    def from_instance_type(self, py_type: type, type_map: dict[str, Any]) -> StatementOrField:
         if py_type in type_map:
             return type_map[py_type]
-        from bench.language.statement import Type
+        from bench.language.statement import Statement
 
-        type = Type(name=py_type.__name__, tag=TypeTag.STRUCT)
+        type = Statement.class_(name=py_type.__name__)
         type_map[py_type] = type
         if is_dataclass(py_type):
             for py_field in fields(py_type):
@@ -668,10 +659,8 @@ class JsonTypeMapper(TypeMapper):
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return True  # not sure how to check this
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
-        from bench.language.statement import Type
-
-        return Type(name=None, tag=TypeTag.JSON)
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
+        return Field(name=None, tag=TypeTag.JSON)
 
 
 class FunctionTypeMapper(TypeMapper):
@@ -681,12 +670,12 @@ class FunctionTypeMapper(TypeMapper):
     def is_instance_value(self, type: IsTyped, value: Any) -> bool:
         return value is None or isinstance(value, dict)
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
         if py_type in type_map:
             return type_map[py_type]
-        from bench.language.statement import Type
+        from bench.language.statement import Statement
 
-        type = Type(name=py_type.__name__, tag=TypeTag.FUNCTION)
+        type = Statement.class_(name=py_type.__name__)
         type_map[py_type] = type
         signature = inspect.signature(py_type)
         for py_param in signature.parameters.values():
@@ -717,8 +706,8 @@ _TYPE_MAP: dict[Any, HasFields] = {}
 
 
 def type_from_instance_type(
-    py_type: type, name: Optional[str], type_map: dict[Any, "Type"] = None
-) -> "Type":
+    py_type: type, name: Optional[str], type_map: dict[Any, StatementOrField] = None
+) -> StatementOrField:
     """
     Maps a python type to a Type (recursively).
     Nested types are read/written in the given type_map.
@@ -729,11 +718,14 @@ def type_from_instance_type(
     type = map.from_instance_type(stripped, type_map)
     if name:
         type.name = name
-    type.flags |= flags
+    if flags:
+        type.flags |= flags
     return type
 
 
-def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any, "Type"]) -> Field:
+def field_from_instance_type(
+    py_type: type | str, name: str, type_map: dict[Any, StatementOrField]
+) -> Field:
     name_nice = name.replace("_", " ")
     if to_pyidentifier(name_nice, IdentifierType.FIELD) != name:
         raise ValueError(f"inconsistent field name: {name} != {name_nice}")

@@ -19,7 +19,7 @@ class FieldMapper:
     Don't bother with lists and optional here.
     """
 
-    def to_os_type(self, type: Union[lang.Field, lang.Type], depth: int) -> os.Field:
+    def to_os_type(self, type: Union[lang.Field, lang.Statement], depth: int) -> os.Field:
         raise NotImplementedError
 
 
@@ -50,8 +50,8 @@ def register_mapper(
         field_mappers[TypeSignature(tag, hint, flags)] = mapper
 
 
-def get_mapper(type: Union[lang.Field, lang.Type]) -> FieldMapper:
-    if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Type):
+def get_mapper(type: Union[lang.Field, lang.Statement]) -> FieldMapper:
+    if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Statement):
         return get_mapper(type.reference)  # skip the reference
     stripped_flags = type.flags & TypeFlag.IsSecret
     exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)

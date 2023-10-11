@@ -102,8 +102,6 @@ export type StatementHeader = Pick<
   | "id"
   | "ck"
   | "type"
-  | "tag"
-  | "flags"
   | "name"
   | "text"
   | "headingLevel"

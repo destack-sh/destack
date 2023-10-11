@@ -61,6 +61,7 @@
     "@graphql-codegen/typed-document-node": "^5.0.1",
     "@graphql-codegen/typescript-vue-apollo": "^3.3.7",
     "@graphql-eslint/eslint-plugin": "^3.20.0",
+    "@parcel/watcher": "^2.3.0",
     "@rushstack/eslint-patch": "^1.2.0",
     "@types/dompurify": "^2.4.0",
     "@types/highlight.js": "^10.1.0",
