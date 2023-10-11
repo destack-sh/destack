@@ -7,7 +7,7 @@ from bench.language.validation import ValidationHandler
 from bench.utils.proxy import proxy_value
 
 if TYPE_CHECKING:
-    from bench.language import HasFields, Session
+    from bench.language import HasFields, NodeVisitor, Session
 
 
 @node_component
@@ -31,6 +31,9 @@ class HasValue(Node):
                 )
             except TypeError as e:
                 on_issue(self, f"invalid value: {e}", ["value"])
+
+    def _visit_inner(self, visitor: "NodeVisitor") -> None:
+        pass  # TODO @Broken: visit referenced nodes :NodesAsValues
 
     def _activate_inner(self, session: "Session") -> None:
         if self.value is None:

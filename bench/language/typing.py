@@ -9,6 +9,7 @@ from typing import (
     Callable,
     Collection,
     ForwardRef,
+    Iterable,
     Mapping,
     NamedTuple,
     Optional,
@@ -37,7 +38,7 @@ from bench.language.field import (
     TypeError,
     Vector,
 )
-from bench.language.module import Node, NodeStatus, ScopeNode
+from bench.language.module import NS, Node, ScopeNode
 from bench.language.remote import RemoteObject, Secret
 from bench.language.text import Text, parse_text_multi, render_text_html
 from bench.utils.utils import IdentifierType, to_pyidentifier
@@ -134,9 +135,7 @@ def map_value(
             )
             for item in value
         ]
-    elif type._effective_tag in PRIMITIVE_TYPES:
-        return map_v(value=value, type=type, ignore_array=ignore_array)
-    elif type._effective_tag == TypeTag.ENUM:
+    elif type._effective_tag in PRIMITIVE_TYPES or type._effective_tag == TypeTag.ENUM:
         return map_v(value=value, type=type, ignore_array=ignore_array)
     elif type._effective_tag == TypeTag.JSON:
         return value  # nothing to do ?
@@ -148,11 +147,9 @@ def map_value(
 
     # map into a dict
     mapped = {}
-    if type._status < NodeStatus.Interpreted:
-        raise RuntimeError(f"unexpected unresolved type {type}")
+    assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
     for subtype in type.resolved_fields:
-        if subtype.flags & TypeFlag.IsUnionWith:  # unresolved union
-            raise RuntimeError(f"unexpected union with {type}->{subtype}")
+        assert not subtype.flags & TypeFlag.IsUnionWith, f"unexpected union with {type}->{subtype}"
         if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
             continue
         source_k, target_k = map_k(subtype)
@@ -174,6 +171,52 @@ def map_value(
     if not ignore_outer_map:
         mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
     return mapped
+
+
+def walk_value(
+    value: Any,
+    type: "Statement",
+    is_output: bool = None,
+    get_k: Callable[[Field], str] = None,
+    ignore_array: bool = False,
+) -> Iterable[Any]:
+    """Yields all flat values in the value recursively."""
+    get_k = get_k or (lambda f: f.py_ident)
+
+    if type.flags & TypeFlag.IsArray and not ignore_array:
+        if not isinstance(value, Collection) or isinstance(value, str):
+            # type error, ignore here
+            return
+        for item in value:
+            yield from walk_value(item, type, get_k=get_k, ignore_array=True)
+        return
+    elif type.flags & TypeFlag.IsArrayable and not ignore_array:
+        if _is_arrayable_not_an_array(type, value):
+            yield from walk_value(value, type, get_k=get_k, ignore_array=True)
+            return
+        for item in value:
+            yield from walk_value(item, type, get_k=get_k, ignore_array=True)
+        return
+    elif type._effective_tag in PRIMITIVE_TYPES or type._effective_tag == TypeTag.ENUM:
+        yield value
+        return
+    elif type._effective_tag == TypeTag.JSON:
+        return  # nothing to do ?
+    elif type._effective_tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
+        raise RuntimeError(f"expected struct-like {type} at {value}")
+    if not isinstance(value, Mapping) and not is_dataclass(value):
+        # type error, ignore here
+        return
+
+    assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
+    for subtype in type.resolved_fields:
+        assert not subtype.flags & TypeFlag.IsUnionWith, f"unexpected union with {type}->{subtype}"
+        if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
+            continue
+        k = get_k(subtype)
+        if k not in value:
+            continue
+        yield from walk_value(value[k], subtype, get_k=get_k)
 
 
 TYPENAME_SENTINEL = "__typename"  # :TypeSentinel
@@ -522,10 +565,10 @@ class NodeMapper(TypeMapper):
         return Type(name=None, tag=TypeTag.NODE, hint=hint)
 
     def unpack_value(self, type: IsTyped, scope: ScopeNode, value: Any) -> Any:
-        raise NotImplementedError("node values not yet supported")
+        raise NotImplementedError(":NodesAsValues not yet supported")
 
     def pack_value(self, type: IsTyped, value: Any) -> Any:
-        raise NotImplementedError("node values not yet supported")
+        raise NotImplementedError(":NodesAsValues not yet supported")
 
 
 class RemoteObjectMapper(TypeMapper):

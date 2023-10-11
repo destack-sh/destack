@@ -634,36 +634,47 @@ def diff_modules(
 
 
 def render(
-    *things: list[Edit] | EditBundle | list["Node"] | Node, target="python", record_limit: int = 100
+    *edits: list[Edit] | EditBundle | list["Node"] | Node,
+    target="python",
+    record_limit: int = 100,
+    recursive: bool = True,
 ) -> Optional[str]:
     """
     Renders edits or nodes to code in a language.
     Nodes are coerced into create edits with all descendants.
     """
-    from bench.language.database import HasDatabase
+    from bench.language.database import HasDatabase, Record
     from bench.language.statement import Statement
 
     # coerce to edit bundle
-    things = list(things)
-    if isinstance(things, Node):
-        things = [things]
-    if isinstance(things, list):
-        if not things:
+    edits = list(edits)
+    if isinstance(edits, Node):
+        edits = [edits]
+    if isinstance(edits, list):
+        if not edits:
             return None
-        if isinstance(things[0], Node):
-            nodes: list[Node] = things
-            things = []
+        if isinstance(edits[0], Node):
+            nodes: list[Node] = edits
+            edits = []
             seen_node_cks: set[UUID] = set()
             for node in nodes:
-                tree = node._local_root_tree
-                descendants = list(node._walk_rec())
-                # add records to descendants for databases
-                if HasDatabase in node._components:
-                    descendants.extend(node.records.limit(record_limit))
+                tree = node.scope._local_root_tree
+                if recursive:
+                    descendants = list(node._walk_rec())
+                    # add records to descendants for databases
+                    # (this only works when called synchronously)
+                    if HasDatabase in node._components:
+                        descendants.extend(node.records.limit(record_limit))
+                else:
+                    descendants = [node]
                 # descendants share file id
                 if isinstance(node, Statement):
-                    file = node.file.id
-                    statement = node.id
+                    file = node.file
+                    statement = node
+                elif isinstance(node, Record):
+                    # Records are not in the inline tree, see :NodeViews
+                    file = node.parent.file
+                    statement = node.parent
                 else:
                     file = None
                     statement = None
@@ -678,14 +689,14 @@ def render(
                         file=file or tree.get_ancestor(n.ck, MNT.FILE),
                         statement=statement or tree.get_ancestor(n.ck, MNT.STATEMENT),
                     )
-                    things.append(edit)
-        things = EditBundle(things)
-    if not isinstance(things, EditBundle):
-        raise ValueError(f"cannot render {things!r}")
+                    edits.append(edit)
+        edits = EditBundle(edits)
+    if not isinstance(edits, EditBundle):
+        raise ValueError(f"cannot render {edits!r}")
 
     # render
     if target == "python":
-        return render_as_python(things)
+        return render_as_python(edits)
     else:
         raise ValueError(f"cannot render to {target}")
 

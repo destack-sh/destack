@@ -14,7 +14,16 @@ from uuid import UUID
 import anthropic
 import openai
 
-from bench.language import File, HasRun, HasText, Module, Record, Run, RunError
+from bench.language import (
+    File,
+    HasRun,
+    HasText,
+    Module,
+    Record,
+    Run,
+    RunError,
+    render,
+)
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
@@ -30,7 +39,7 @@ from bench.language.database import HasDatabase
 from bench.language.field import Field, Key, Vector
 from bench.language.model import HasModel, ModelError, ModelErrorType
 from bench.language.module import Node, ScopeNode, get_node_id
-from bench.language.reference import ModuleView
+from bench.language.reference import NodeView
 from bench.language.reflect import (
     _derive_constant_key,
     _model_compilers,
@@ -50,7 +59,7 @@ from bench.language.task import (
     TaskError,
     TaskErrorType,
 )
-from bench.language.text import Text, TextMention, patch_text_html, render_text_simple
+from bench.language.text import Text, patch_text_html, render_text_simple
 from bench.language.typing import map_value, pack_value_flat
 from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
 
@@ -235,65 +244,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         else:
             return pack_value_flat(value, type, *args, **kwargs)
 
-    def _render_text(self, text: HasText) -> str:
-        if text.text is None:
-            return "<no text>"
-        return "".join(str(s) if isinstance(s, TextMention) else str(s) for s in text._text_spans)
-
-    def _render_statement_header(self, statement: Statement, *, name: str = None) -> Optional[str]:
-        """Model-friendly string describing statement header."""
-        name = name or statement.name  # allow overriding name
-        if name:
-            if statement.text:
-                return f"'{statement.type.name.lower()}' {name}: {self._render_text(statement)}"
-            else:
-                return f"'{statement.type.name.lower()}' {name}"
-        elif statement.text:
-            return f"'{statement.type.name.lower()}' {self._render_text(statement)}"
-        else:
-            return None
-
-    # TODO @Performance @Task: cache statement rendering (for databases)
-    async def _render_statement_body(self, statement: Statement) -> tuple[str | None, list[UUID]]:
-        """Model-friendly string describing statement content (excl. header)."""
-        if statement.type == StatementType.VARIABLE:
-            value_str = json.dumps(statement._raw_named_value(), indent=2)
-            return value_str, []
-        elif statement.type == StatementType.DATABASE:
-            records = await statement.limit(10).atolist()
-            records_str = "\n".join([json.dumps(r._raw_named_value(), indent=2) for r in records])
-            return records_str, [r.id for r in records]
-        elif statement.type == StatementType.TYPE:
-            if statement.tag == TypeTag.ENUM:
-                options_str = "\n".join(
-                    "  - " + self._render_field(f) for f in statement.resolved_fields
-                )
-                return f"has options (one of):\n{options_str}", [
-                    f.id for f in statement.resolved_fields
-                ]
-            elif statement.tag == TypeTag.STRUCT:
-                fields_str = "\n".join(
-                    "  - " + self._render_field(f) for f in statement.resolved_fields
-                )
-                return f"has fields (all of):\n{fields_str}", [
-                    f.id for f in statement.resolved_fields
-                ]
-        else:
-            return None, []
-
-    def _render_field(self, field: Field) -> str:
-        if field.tag == TypeTag.LITERAL:
-            if field.text:
-                return f"{field.name}: {self._render_text(field)}"
-            else:
-                return f"{field.name}"
-        else:
-            if field.text:
-                return f"{field.name}: {self._render_text(field)} ({field._type_str})"
-            else:
-                return f"{field.name} ({field._type_str})"
-
-    async def _render_context(self, task: Task, view: ModuleView, *, exclude_output: bool) -> str:
+    async def _render_context(self, task: Task, view: NodeView, *, exclude_output: bool) -> str:
         """Model-friendly string describing the entire task context."""
         # ignore output types, they're covered by function schemas
         if exclude_output:
@@ -305,26 +256,10 @@ class BaseTextTaskCompiler(TaskCompiler):
             }
         else:
             seen_node_ids = set()
-        context_strs = []
-        for level in view.nodes_by_distance:
-            for node in level:
-                if node.id in seen_node_ids:
-                    continue
-                if not isinstance(node, Statement) or node.id == task.id:
-                    continue
-                node: Statement
-                header = self._render_statement_header(node)
-                body, covered_children = await self._render_statement_body(node)
-                for c in covered_children:
-                    seen_node_ids.add(c)
-                if header and body:
-                    context_strs.append(header + body)
-                elif header:
-                    context_strs.append(header)
-                elif body:
-                    context_strs.append(body)
-        context_str = "\n".join(context_strs)
-        return context_str
+        seen_node_ids.add(task.id)
+        nodes_to_render = [n for n in view.nodes if n.id not in seen_node_ids]
+        rendered = render(*nodes_to_render, recursive=False)
+        return rendered
 
     def _render_error(self, error: RunError | TaskError) -> str:
         if isinstance(error, TaskError):
@@ -581,7 +516,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
     async def compile(
         self,
         task: Task,
-        view: ModuleView,
+        view: NodeView,
         inputs: dict,
         previous_results: list[TaskError | Run],
         nonce: Optional[str],
@@ -591,7 +526,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Your main task is {self._render_statement_header(task)}.",
+                content=f"Your main task is '{task.name}'.",
             ),
         ]
 
@@ -869,7 +804,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
     async def compile(
         self,
         task: Task,
-        view: ModuleView,
+        view: NodeView,
         inputs: dict,
         previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],
@@ -877,7 +812,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         # system wrapper
         messages: list[str] = [
             self.SYSTEM_MESSAGE,
-            f"Your main task is {self._render_statement_header(task)}.",
+            f"Your main task is '{task.name}'.",
         ]
 
         # module context

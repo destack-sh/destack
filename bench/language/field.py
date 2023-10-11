@@ -22,7 +22,6 @@ from bench.language.module import (
     NS,
     Node,
     NodeList,
-    NodeVisitor,
     NRel,
     ScopeNode,
     _NodeChange,
@@ -36,7 +35,7 @@ from bench.language.module import (
     nruntime,
 )
 from bench.language.query import FieldQueryOps
-from bench.language.reference import HasReference
+from bench.language.reference import HasReference, NodeVisitor
 from bench.language.text import HasText
 from bench.language.validation import (
     ValidationHandler,
@@ -361,7 +360,7 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         implicit_optional = (
             node.flags == TypeFlag.IsOptional and for_parent and for_parent.tag != TypeTag.FUNCTION
         )
-        if node.flags == 0 or implicit_optional:
+        if "flags" in props and (node.flags == 0 or implicit_optional):
             del props["flags"]
         type = node.reference or node.hint or node.tag
         if for_parent and for_parent.tag == TypeTag.ENUM and node.tag == TypeTag.LITERAL:
