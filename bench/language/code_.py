@@ -354,17 +354,29 @@ class HasCode(Node):
             return _test_async
 
     def _wrap_mend(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
-        """Automatically mend this code on error (nocheckin: implement this)"""
+        """
+        Automatically mend this code on error (not implemented yet)
+        """
+        symbolx_lib.resolve(".bench.generate_bench_code")
+
         if not self._parse.is_async:
 
             def _mend_sync(*args, **kwargs):
-                return callable(*args, **kwargs)
+                try:
+                    return callable(*args, **kwargs)
+                except Exception:
+                    self._inputs_from_args(args, kwargs)
+                    raise  # not yet implemented
 
             return _mend_sync
         else:
 
             async def _mend_async(*args, **kwargs):
-                return await callable(*args, **kwargs)
+                try:
+                    return await callable(*args, **kwargs)
+                except Exception:
+                    self._inputs_from_args(args, kwargs)
+                    raise  # not yet implemented
 
             return _mend_async
 

@@ -123,7 +123,7 @@ TEXT_MENTION_TEMPLATE = (
 @dataclass
 class TextMention:
     reference: Union[NodeReference | TypedNodeReference, Node]
-    reference_path: Optional[str]
+    reference_path: Optional[str] = None
 
     def __str__(self):
         return f"@{self.reference}"

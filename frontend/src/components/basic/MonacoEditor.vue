@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { cyrb53a } from "@/utils/functools";
+import { INIT_MONACO } from "@/utils/globals";
 import loader, { type Monaco } from "@monaco-editor/loader";
 import { useElementSize } from "@vueuse/core";
 import * as monaco from "monaco-editor";
@@ -66,6 +67,7 @@ const { width: editorContainerWidth } = useElementSize(editorContainer);
 watch(editorContainerWidth, onResize, { immediate: true });
 
 onMounted(() => {
+  // init monaco if not already initialized
   loader.init().then(initMonaco);
 });
 
@@ -97,31 +99,34 @@ function initMonaco(monaco: Monaco) {
   }
 
   // define custom theme
-  monaco.editor.defineTheme("bench", {
-    base: "vs",
-    inherit: true,
-    rules: [
-      // make keywords orange
-      { token: "keyword", foreground: "#b45309" },
-      { token: "string.key.json", foreground: "#b45309" },
-      // make comments grey
-      { token: "comment", foreground: "#6b7280" },
-      // make literals and constants orange
-      { token: "number", foreground: "#d97706" },
-      { token: "string", foreground: "#d97706" },
-      { token: "string.value.json", foreground: "#d97706" },
-      { token: "constant.numeric", foreground: "#d97706" },
-      { token: "constant.character", foreground: "#d97706" },
-      { token: "constant.language", foreground: "#d97706" },
-      { token: "constant.other", foreground: "#d97706" },
-      { token: "identifier.python", foreground: "#000000" },
-      // make comments italic
-      { token: "comment", fontStyle: "italic" },
-      // (the below doesn't work because the token type isn't defined yet)
-      { token: "bench-builtin-function", foreground: "#d97706", fontStyle: "bold" },
-    ],
-    colors: BENCH_THEME_COLORS,
-  });
+  if (!INIT_MONACO.value) {
+    monaco.editor.defineTheme("bench", {
+      base: "vs",
+      inherit: true,
+      rules: [
+        // make keywords orange
+        { token: "keyword", foreground: "#b45309" },
+        { token: "string.key.json", foreground: "#b45309" },
+        // make comments grey
+        { token: "comment", foreground: "#6b7280" },
+        // make literals and constants orange
+        { token: "number", foreground: "#d97706" },
+        { token: "string", foreground: "#d97706" },
+        { token: "string.value.json", foreground: "#d97706" },
+        { token: "constant.numeric", foreground: "#d97706" },
+        { token: "constant.character", foreground: "#d97706" },
+        { token: "constant.language", foreground: "#d97706" },
+        { token: "constant.other", foreground: "#d97706" },
+        { token: "identifier.python", foreground: "#000000" },
+        // make comments italic
+        { token: "comment", fontStyle: "italic" },
+        // (the below doesn't work because the token type isn't defined yet)
+        { token: "bench-builtin-function", foreground: "#d97706", fontStyle: "bold" },
+      ],
+      colors: BENCH_THEME_COLORS,
+    });
+    INIT_MONACO.value = true;
+  }
 
   // set height based on line count
   updateEditorHeight(editorContainer.value, props.modelValue);

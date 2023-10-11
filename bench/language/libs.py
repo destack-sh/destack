@@ -834,7 +834,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
             f"{nonce_str}The user's inputs for '{task.name}': \n{inputs}",
         )
 
-        # nocheckin: linearize output schema for models (if possible or always?) d
+        # TODO @Tasks: linearize output (and input?) schema for models (if possible or always?)
         # output schema
         output_schema = _type_to_json_schema(task, is_output=True).to_dict()
         output_schema = omit_empty(output_schema)
