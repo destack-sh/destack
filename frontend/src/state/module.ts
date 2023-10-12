@@ -102,7 +102,7 @@ export enum TypeFlag { // :TypeFlags
   IsSecret = 1 << 4,
   IsStoreOnly = 1 << 5,
   IsArrayable = 1 << 6,
-  IsMetadata = 1 << 7,
+  IsMeta = 1 << 7,
   IsConfig = 1 << 8,
   IsHidden = 1 << 9,
 }

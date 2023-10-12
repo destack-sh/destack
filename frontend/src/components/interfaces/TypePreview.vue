@@ -46,7 +46,7 @@ const icon = computed(() => {
     return null;
   }
 });
-const showName = computed(() => !icon.value || (props.showTypeName && props.type.referenceCk == null));
+const showName = computed(() => (!icon.value || props.showTypeName) && props.type.referenceCk == null);
 </script>
 <template>
   <div class="relative whitespace-nowrap">

@@ -2,7 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
-import type { Run } from "@/gql/graphql";
+import { StatementType, type Run } from "@/gql/graphql";
 import { useBenchState, type StatementHeader, usePanelContext } from "@/state/bench";
 import { SessionAccessLevel, useCurrentSessions } from "@/state/session";
 import { useTerminal } from "@/state/terminal";
@@ -24,6 +24,7 @@ const session = useCurrentSessions();
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const inputRef = ref<InstanceType<typeof AnnotatedText> | null>(null);
+const inputFrom = ref<string | null>(null);
 const inputText = ref("");
 const canRun = computed(
   // check if there is any meaningful text
@@ -85,6 +86,7 @@ function discardGenerated() {
 }
 
 async function apply() {
+  // nocheckin: auto-capture and append new statements at end / after inputFrom
   if (generatedCode.value == null || generatedFrom.value == null) return;
   applyingCode.value = true;
   try {
@@ -107,10 +109,14 @@ async function apply() {
 }
 
 function open(text: string, selection?: StatementHeader[], from?: StatementHeader) {
+  inputFrom.value = from?.id;
   if (!text && !selection) {
+    // default to current selection if nothing is provided
     selection = props.currentSelection;
   }
+  selection = selection?.filter((s) => s.type != StatementType.Blank); // blanks are unhelpful
   if (selection) {
+    // render selection into text
     const spans: TextSpan[] = [...selection.map((s) => makeTextMention(s)), makeTextPlain(" " + text)];
     text = renderTextHtml(spans);
   }

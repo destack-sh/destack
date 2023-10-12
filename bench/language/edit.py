@@ -754,6 +754,8 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
             none_if_invalid=True,
         )
         return omit_empty(value)
+    elif hasattr(type(value), "to_python"):
+        return type(value).to_python(value)
     else:
         raise ValueError(f"cannot render {value!r} (for {node!r}->{name})")
 

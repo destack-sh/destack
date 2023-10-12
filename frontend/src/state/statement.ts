@@ -397,17 +397,17 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
   [StatementType.Reference]: "Reference",
 };
 
-export function getStatementLabel(type: StatementType, tag?: TypeTag | null) {
+export function getStatementLabel(type: StatementType) {
   return STATEMENT_TYPE_LABELS[type];
 }
 
 export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
-  [StatementType.Text]: "A plain text comment",
+  [StatementType.Text]: "A simple text comment or instruction",
   [StatementType.Class]: "A class (or 'type') of object",
   [StatementType.Choice]: "A choice of a fixed set of options",
-  [StatementType.Database]: "Examples, state, feedback: any records",
-  [StatementType.Code]: "Connect, test & customize with Python",
-  [StatementType.Task]: "Structured AI model function.",
+  [StatementType.Database]: "Real-time, multimodal, relational records.",
+  [StatementType.Code]: "Python function or procedure.",
+  [StatementType.Task]: "AI model function.",
   [StatementType.Variable]: "Common values for configuration or secrets",
   [StatementType.Reference]: "Reuse another statement",
   [StatementType.Flow]: "Connect code and tasks with triggers",
@@ -416,7 +416,7 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Tag]: "Organize and transform statements",
 };
 
-export function getStatementDescription(type: StatementType, tag?: TypeTag | null) {
+export function getStatementDescription(type: StatementType) {
   return STATEMENT_TYPE_DESCRIPTIONS[type];
 }
 
@@ -517,12 +517,10 @@ export function useStatementMorph(
         description: "Just type for a plain comment",
         identity: { type: StatementType.Text, headingLevel: null },
       },
-      simpleStatementCommand(GROUPS.BASIC, StatementType.Class, {
-        aliases: ["type", "struct"],
-      }),
+      simpleStatementCommand(GROUPS.BASIC, StatementType.Class, { aliases: ["type", "struct"] }),
       simpleStatementCommand(GROUPS.BASIC, StatementType.Choice, { aliases: ["type", "enum"] }),
       simpleStatementCommand(GROUPS.BASIC, StatementType.Database, {
-        aliases: ["table", "retrieval", "rag", "samples"],
+        aliases: ["table", "retrieval", "rag", "samples", "context"],
       }),
       simpleStatementCommand(GROUPS.BASIC, StatementType.Code),
       simpleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
@@ -538,8 +536,9 @@ export function useStatementMorph(
       ),
 
       // advanced statements
-      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Variable, { aliases: ["const", "config", "secret"] }),
-      // singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow), not fully implemented
+      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Variable, {
+        aliases: ["const", "config", "secret", "let"],
+      }),
       simpleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
       simpleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
     ];
