@@ -1,5 +1,4 @@
-import itertools
-from typing import TYPE_CHECKING, Collection, Union
+from typing import TYPE_CHECKING, Collection, Iterable, Union
 from uuid import UUID
 
 from bench.language import IssueType
@@ -74,11 +73,11 @@ class NodeView:
 
     def __init__(self, scope: ScopeNode):
         self.scope = scope
-        self._nodes_by_ck: dict[UUID, Node] = {}
+        self._nodes_by_ck: dict[UUID, Node] = {}  # in order of discovery
 
     @property
-    def nodes(self) -> Collection[Node]:
-        return self._nodes_by_ck.values()
+    def nodes(self) -> Iterable[Node]:
+        return reversed(self._nodes_by_ck.values())  # see reverse below
 
     def view_from_node(
         self,
@@ -92,6 +91,7 @@ class NodeView:
         if not origins:
             return {}
 
+        # walk parents
         seen_by_ck: dict[UUID, Node] = {}
         for origin in origins:
             parent = origin
@@ -99,22 +99,24 @@ class NodeView:
                 seen_by_ck[parent.ck] = parent
                 parent = parent.parent
 
+        # walk descendants and referents DFS
         tree = origins[0].scope._local_root_tree
-        to_visit = [*origins]
-        current_distance = 0
-        while to_visit and current_distance < max_distance:
-            current_distance += 1
-            ref_visitor = NodeVisitor()
-            for node in to_visit:
-                seen_by_ck[node.ck] = node
-                node._visit_self(ref_visitor)
-            to_visit = [
-                n
-                for n in itertools.chain(
-                    *[tree.get_descendants(n.ck) for n in to_visit], ref_visitor.references
-                )
-                if n.ck not in seen_by_ck and n.mnt not in exclude
-            ]
+
+        def _walk_node_dfs(n: Node, depth: int):
+            seen_by_ck[n.ck] = n
+            if depth >= max_distance:
+                return
+            visitor = NodeVisitor()
+            n._visit_self(visitor)
+            children = tree.get_descendants(n.ck)
+            if children or visitor.references:
+                # reverse so we retain original in-node order when we reverse across all
+                for ref in reversed(children + list(visitor.references)):
+                    if ref.ck not in seen_by_ck and ref.mnt not in exclude:
+                        _walk_node_dfs(ref, depth + 1)
+
+        for origin in origins:
+            _walk_node_dfs(origin, 0)
 
         self._nodes_by_ck.update(seen_by_ck)
         return seen_by_ck

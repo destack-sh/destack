@@ -733,14 +733,10 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         elif prop and prop.name == "text" and value and node._text_spans:
             value = render_text_simple(node._text_spans)
         # if it contains newlines transform into multiline string
+        # and escape any multiline strings inside
         if "\n" in value:
-            # TODO @Performance: render multiline strings as such (nocheckin try this)
-            lines = [line.replace("\\", "\\\\").replace('"', '\\"') for line in value.splitlines()]
-            value = "\n".join(
-                f'"{line}"' if i == len(lines) - 1 else f'"{line}\\n"'
-                for i, line in enumerate(lines)
-            )
-            return f"(\n{value}\n)"
+            value = value.replace('"""', '\\"\\"\\"')
+            return f'"""\\\n{value}"""'
         else:
             value = value.replace('"', '\\"')
             return repr(value)
@@ -864,7 +860,10 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
             n, init_name, init_args, init_kwargs = nodes[0]
             init_kwargs = {**init_args, **init_kwargs}
             kwargs_str = _sep(f"{k}={_render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
-            lines.append(f"{target} = {init_name}({kwargs_str})")
+            if target:
+                lines.append(f"{target} = {init_name}({kwargs_str})")
+            else:  # isn't this an error case?
+                lines.append(f"{init_name}({kwargs_str})")
             continue
 
         # stringify each node
@@ -913,6 +912,6 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
 
         code = black.format_str(code, mode=black.Mode(line_length=100))
     except Exception as e:
-        raise ValueError(f"rendered bad code:\n {code!r}") from e
+        raise ValueError(f"rendered bad code:\n{code}") from e
 
     return code

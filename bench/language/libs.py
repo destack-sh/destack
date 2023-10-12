@@ -232,6 +232,12 @@ def _type_to_json_schema(
 
 
 class BaseTextTaskCompiler(TaskCompiler):
+    SYSTEM_MESSAGE = (
+        "You are a precise and highly capable bot that can do almost anything a user asks."
+        " Interpret inputs generously and attentively, be concise, be considerate."
+        " You are accessed through an API, so don't respond to the user directly."
+    )
+
     def _render_value_flat(self, value: Any, type: Union[Field, Statement], *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
         if type._effective_tag == TypeTag.ENUM:
@@ -270,6 +276,121 @@ class BaseTextTaskCompiler(TaskCompiler):
                 return error.message
         else:
             return f"{error.type}: {error.message}"
+
+    def _compile_run_text(self, run: Run) -> str:
+        if run.status == RunStatus.Failed:
+            return self._compile_error_text(run)
+        else:
+            run_inputs_str = json.dumps(
+                map_value(run.inputs, run.statement, map_v=self._render_value_flat), indent=2
+            )
+            run_outputs_str = json.dumps(
+                map_value(run.outputs, run.statement, map_v=self._render_value_flat), indent=2
+            )
+            return f"Previous result for '{run.statement.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
+
+    def _compile_error_text(self, error: RunError | TaskError) -> str:
+        return f"Avoid previous error: {self._render_error(error)}"
+
+    async def _prepare_text_prompt(
+        self,
+        task: Statement,
+        view: NodeView,
+        inputs: dict,
+        previous_results: list[Union[TaskError, "Run"]],
+        nonce: Optional[str],
+    ) -> str:
+        # system wrapper
+        messages: list[str] = [
+            self.SYSTEM_MESSAGE,
+            f"Your main task is '{task.name}'.",
+        ]
+
+        # module context
+        context_str = await self._render_context(task, view, exclude_output=True)
+        if context_str:
+            messages.append(
+                f"The definition of task '{task.name}':\n {context_str}"
+                f"\nFollow the above carefully."
+            )
+
+        # inputs
+        inputs = map_value(
+            inputs,
+            task,
+            map_k=lambda f: (f.py_ident, f.py_ident),
+            map_v=self._render_value_flat,
+            is_output=False,
+        )
+        nonce_str = f"(nonce:{nonce}\n)" if nonce else ""
+        messages.append(
+            f"{nonce_str}The user's inputs for '{task.name}': \n{inputs}",
+        )
+
+        # output schema
+        output_schema = _type_to_json_schema(task, is_output=True).to_dict()
+        output_schema = omit_empty(output_schema)
+        output_schema_str = json.dumps(output_schema, indent=2)
+        messages.append(
+            f"JSON schema for output to '{task.name}': \n{output_schema_str}",
+        )
+
+        # final CTA
+        # TODO @Task: anthropic task functions :TaskFunctions
+        messages.append(
+            f"Now, complete the task '{task.name}' given the inputs."
+            f" COMPLETE with a result, PANIC with a 'reason' field if completion is impossible."
+            f" (Strongly prefer COMPLETE with error information)."
+            f" Respond with COMPLETE|PANIC\\n\\n"
+            f' "<top-level-field name>":\\n```\n<json value>\n``` (repeat for top-level outputs).'
+        )
+
+        # context from previous runs
+        for result in previous_results:
+            if isinstance(result, TaskError):
+                messages.append(self._compile_error_text(result))
+            elif isinstance(result, Run):
+                messages.append(self._compile_run_text(result))
+            else:
+                raise ValueError(f"unexpected result {result}")
+
+        # compile final prompt
+        prompt = "\n\n".join(messages)
+        return prompt
+
+    def _parse_text_completion(self, model: Statement, task: Statement, completion: str) -> dict:
+        try:
+            header, body = completion.split("\n", maxsplit=1)
+            action = header.strip()
+        except (TypeError, ValueError) as e:
+            raise TaskError(TaskErrorType.InvalidFormat, model, f"invalid response: {str(e)}")
+
+        # parse out all top level fields
+        outputs = {}
+        try:
+            completed_pairs = re.findall(
+                r"['\"](?P<key>.*?)['\"]:\n```([a-z]+)?\n?(?P<body>.*?)\n```", body, flags=re.DOTALL
+            )
+            for key, _, value in completed_pairs:
+                field = task.resolved_fields.get(key)
+                if not field:
+                    continue  # ignore
+                if value.startswith('"') and value.endswith('"'):
+                    value = value[1:-1]
+                if field._effective_tag in (TypeTag.STRUCT, TypeTag.BOOLEAN, TypeTag.NUMBER):
+                    value = json.loads(value)
+                outputs[key] = value
+        except (TypeError, ValueError, JSONDecodeError) as e:
+            raise TaskError(TaskErrorType.InvalidFormat, model, f"invalid JSON arguments: {str(e)}")
+
+        if "COMPLETE" in action:
+            return outputs
+        elif "PANIC" in action:
+            raise TaskError(TaskErrorType.Incapable, outputs.get("reason", "unknown"))
+        elif action == "CALL_FUNCTION":
+            raise NotImplementedError("anthropic task functions :TaskFunctions")
+        else:
+            raise TaskError(TaskErrorType.InvalidFormat, model, f"unknown action {action}")
 
 
 #
@@ -394,17 +515,19 @@ class OpenAIChatCompletionModel(HasModel):
     async def _endpoint(
         self,
         messages: list[OpenAIChatMessage],
-        functions: list[OpenAIFunction],
+        functions: Optional[list[OpenAIFunction]],
         settings: OpenAIChatSettings,
     ) -> OpenAIChatCompletion:
         settings_raw = omit_empty(settings.to_dict())
         messages_raw = [(OpenAIChatMessage.to_dict(m)) for m in messages]
-        functions_raw = [omit_empty(OpenAIFunction.to_dict(f)) for f in functions]
+        functions_raw = (
+            [omit_empty(OpenAIFunction.to_dict(f)) for f in functions] if functions else None
+        )
         try:
             response = await openai.ChatCompletion.acreate(
                 model=self.external_name,
                 messages=messages_raw,
-                functions=functions_raw,
+                **({"functions": functions_raw} if functions_raw else {}),
                 **settings_raw,
                 api_key=self._api_key,
             )
@@ -433,7 +556,8 @@ class OpenAIChatCompletionModel(HasModel):
         )
 
     def _compiler(self) -> "TaskCompiler":
-        return OpenAIChatCompiler()
+        # TODO @Task: select text/chat compiler more intelligently
+        return OpenAITextCompiler()
 
 
 def _map_openai_error(model: Statement, e: Exception) -> ModelError:
@@ -446,7 +570,7 @@ def _map_openai_error(model: Statement, e: Exception) -> ModelError:
 class OpenAIChatInput(CompiledInput):
     settings: OpenAIChatSettings
     messages: list[OpenAIChatMessage]
-    functions: list[OpenAIFunction]
+    functions: Optional[list[OpenAIFunction]]
     statements_by_name: dict[str, HasRun]
 
     def __str__(self):
@@ -463,13 +587,13 @@ class OpenAIChatInput(CompiledInput):
 
 
 class OpenAIChatCompiler(BaseTextTaskCompiler):
-    SYSTEM_MESSAGE = OpenAIChatMessage(
+    CHAT_SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
         content="You are a precise and highly capable bot that can do almost anything a user asks."
         " Interpret inputs generously and attentively, be concise, be considerate."
         " You are accessed through an API, so don't respond to the user directly.",
     )
-    PANIC_FUNCTION = OpenAIFunction(
+    CHAT_PANIC_FUNCTION = OpenAIFunction(
         name="panic",
         text="Error if no reasonable termination is possible at all."
         " Strongly prefer 'complete' with the relevant error info instead.",
@@ -489,16 +613,16 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         ),
     )
 
-    def _compile_function(self, tool: HasRun, prefix: str) -> OpenAIFunction:
+    def _compile_function_chat(self, tool: HasRun, prefix: str) -> OpenAIFunction:
         return OpenAIFunction(
             name=prefix + tool.py_ident,
             text=f"{tool.type.name.lower()} {self._render_text(tool)}",
             parameters=_type_to_json_schema(tool, is_output=False),
         )
 
-    def _compile_run(self, run: Run) -> OpenAIChatMessage:
+    def _compile_run_chat(self, run: Run) -> OpenAIChatMessage:
         if run.status == RunStatus.Failed:
-            return self._compile_error(run.error)
+            return self._compile_error_text(run.error)
         else:
             return OpenAIChatMessage(
                 role=OpenAIChatRole.function,
@@ -508,7 +632,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
                 ),
             )
 
-    def _compile_error(self, error: RunError | TaskError) -> OpenAIChatMessage:
+    def _compile_error_chat(self, error: RunError | TaskError) -> OpenAIChatMessage:
         return OpenAIChatMessage(
             role=OpenAIChatRole.system,
             content=f"Avoid previous error: {self._render_error(error)}",
@@ -524,7 +648,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
     ) -> OpenAIChatInput:
         # system wrapper
         messages: list[OpenAIChatMessage] = [
-            self.SYSTEM_MESSAGE,
+            self.CHAT_SYSTEM_MESSAGE,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
                 content=f"Your main task is '{task.name}'.",
@@ -560,9 +684,9 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         # context from previous runs
         for result in previous_results:
             if isinstance(result, TaskError):
-                messages.append(self._compile_error(result))
+                messages.append(self._compile_error_chat(result))
             elif isinstance(result, Run):
-                messages.append(self._compile_run(result))
+                messages.append(self._compile_run_chat(result))
             else:
                 raise ValueError(f"unexpected result {result}")
 
@@ -587,7 +711,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
                 f" Call this on successful completion.",
                 parameters=_type_to_json_schema(task, is_output=True),
             ),
-            self.PANIC_FUNCTION,
+            self.CHAT_PANIC_FUNCTION,
         ]
 
         # settings
@@ -651,6 +775,60 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         elif function_call == "complete":
             return arguments
         raise UnreachableError(f"unexpected function call {function_call}")
+
+
+class OpenAITextCompiler(BaseTextTaskCompiler):
+    async def compile(
+        self,
+        task: Statement,
+        view: NodeView,
+        inputs: dict,
+        previous_results: list[Union[TaskError, "Run"]],
+        nonce: Optional[str],
+    ) -> OpenAIChatInput:
+        prompt = await self._prepare_text_prompt(task, view, inputs, previous_results, nonce)
+        messages = [OpenAIChatMessage(role=OpenAIChatRole.user, content=prompt)]
+
+        # settings
+        settings = OpenAIChatSettings(
+            temperature=0.8,
+            max_tokens=None,
+            top_p=None,
+            stop=None,
+            logit_bias=None,
+            frequence_penalty=None,
+            presence_penalty=None,
+            function_call=None,
+            user=None,
+        )
+
+        return OpenAIChatInput(
+            task=task,
+            settings=settings,
+            messages=messages,
+            functions=None,
+            statements_by_name={},
+        )
+
+    def can_run(self, model: "Statement", input: OpenAIChatInput) -> bool:
+        context_window: int = {
+            "gpt3": 16 * 1024,
+            "gpt4": 8 * 1024,
+            "gpt4-32k": 32 * 1024,
+        }[model.name]
+        return input.tokens <= context_window
+
+    async def run(
+        self,
+        model: OpenAIChatCompletionModel,
+        input: OpenAIChatInput,
+    ) -> dict:
+        rep = await model(
+            messages=input.messages, functions=input.functions, settings=input.settings
+        )
+        msg: OpenAIChatMessage = rep.message
+        completion = msg.content.strip()
+        return self._parse_text_completion(model, input.task, completion)
 
 
 @x_struct(
@@ -780,27 +958,6 @@ class AnthropicTextInput(CompiledInput):
 
 
 class AnthropicTextCompiler(BaseTextTaskCompiler):
-    SYSTEM_MESSAGE = (
-        "You are a precise and highly capable bot that can do almost anything a user asks."
-        " Interpret inputs generously and attentively, be concise, be considerate."
-        " You are accessed through an API, so don't respond to the user directly."
-    )
-
-    def _compile_run(self, run: Run) -> str:
-        if run.status == RunStatus.Failed:
-            return self._compile_error(run)
-        else:
-            run_inputs_str = json.dumps(
-                map_value(run.inputs, run.statement, map_v=self._render_value_flat), indent=2
-            )
-            run_outputs_str = json.dumps(
-                map_value(run.outputs, run.statement, map_v=self._render_value_flat), indent=2
-            )
-            return f"Previous result for '{run.statement.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
-
-    def _compile_error(self, error: RunError | TaskError) -> str:
-        return f"Avoid previous error: {self._render_error(error)}"
-
     async def compile(
         self,
         task: Statement,
@@ -809,64 +966,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],
     ) -> AnthropicTextInput:
-        # system wrapper
-        messages: list[str] = [
-            self.SYSTEM_MESSAGE,
-            f"Your main task is '{task.name}'.",
-        ]
-
-        # module context
-        context_str = await self._render_context(task, view, exclude_output=True)
-        if context_str:
-            messages.append(
-                f"The definition of task '{task.name}':\n {context_str}"
-                f"\nFollow the above carefully."
-            )
-
-        # inputs
-        inputs = map_value(
-            inputs,
-            task,
-            map_k=lambda f: (f.py_ident, f.py_ident),
-            map_v=self._render_value_flat,
-            is_output=False,
-        )
-        nonce_str = f"(nonce:{nonce}\n)" if nonce else ""
-        messages.append(
-            f"{nonce_str}The user's inputs for '{task.name}': \n{inputs}",
-        )
-
-        # nocheckin: linearize output (and input?) schema for models (if possible or always?)
-        # output schema
-        output_schema = _type_to_json_schema(task, is_output=True).to_dict()
-        output_schema = omit_empty(output_schema)
-        output_schema_str = json.dumps(output_schema, indent=2)
-        messages.append(
-            f"JSON schema for output to '{task.name}': \n{output_schema_str}",
-        )
-
-        # final CTA
-        # TODO @Task: anthropic task functions :TaskFunctions
-        available_actions = ["COMPLETE", "PANIC"]
-        messages.append(
-            f"Now, complete the task '{task.name}' given the inputs."
-            f" Respond with one of {available_actions}, then a newline, then JSON arguments - done."
-            f" COMPLETE with a result, PANIC with a 'reason' if reasonable completion is impossible."
-            f" (Strongly prefer COMPLETE with error information)."
-            # f" CALL_FUNCTION <func_name> to run one of the given functions (if any).",
-        )
-
-        # context from previous runs
-        for result in previous_results:
-            if isinstance(result, TaskError):
-                messages.append(self._compile_error(result))
-            elif isinstance(result, Run):
-                messages.append(self._compile_run(result))
-            else:
-                raise ValueError(f"unexpected result {result}")
-
-        # compile final prompt
-        prompt = "\n\n".join(messages)
+        prompt = await self._prepare_text_prompt(task, view, inputs, previous_results, nonce)
         prompt = f"{anthropic.HUMAN_PROMPT}: {prompt}{anthropic.AI_PROMPT}"
 
         # settings
@@ -885,43 +985,8 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
 
     async def run(self, model: "Statement", input: AnthropicTextInput) -> dict:
         rep: AnthropicTextCompletion = await model(prompt=input.prompt, settings=input.settings)
-
-        try:
-            completion = rep.completion.strip()
-            # action is supposed to come first, but sometimes it's last
-            if completion.startswith("{"):
-                # model goofed, header is in last line
-                header = completion.split("\n")[-1]
-                body = completion[: -len(header)].strip()
-            else:
-                header = completion.split("\n", maxsplit=1)[0]
-                body = completion[len(header) :].strip()
-            header_parts = header.split(" ", maxsplit=1)
-            action = header_parts[0]
-            # function_name = header_parts[1] if len(header_parts) > 1 else None
-        except (ValueError, TypeError) as e:
-            raise TaskError(TaskErrorType.InvalidFormat, model, str(e))
-
-        try:
-            arguments = json.loads(body or "{}")
-        except JSONDecodeError as e:
-            # try to extract the arguments JSON block
-            try:
-                arguments_str = re.match(r"\{.*}", body, flags=re.DOTALL).group(0)
-                arguments = json.loads(arguments_str)
-            except (JSONDecodeError, AttributeError):
-                raise TaskError(
-                    TaskErrorType.InvalidFormat, model, f"invalid JSON arguments: {str(e)}"
-                )
-
-        if action == "COMPLETE":
-            return arguments
-        elif action == "PANIC":
-            raise TaskError(TaskErrorType.Incapable, arguments["reason"])
-        elif action == "CALL_FUNCTION":
-            raise NotImplementedError("anthropic task functions :TaskFunctions")
-        else:
-            raise TaskError(TaskErrorType.InvalidFormat, model, f"unknown action {action}")
+        completion = rep.completion.strip()
+        return self._parse_text_completion(model, input.task, completion)
 
 
 def _generate_symbolx_bench_file():
