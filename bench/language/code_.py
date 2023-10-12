@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from json import JSONDecodeError
 from random import Random
 from typing import Any, Optional
+from uuid import UUID
 
 import structlog
 from more_itertools import first, last
@@ -432,6 +433,7 @@ STATIC_BUILTINS: dict[str, Any] = {
     "first": first,
     "last": last,
     "chain": itertools.chain,
+    "UUID": UUID,
 }
 DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "storage", "cache", "random", "self"}
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)

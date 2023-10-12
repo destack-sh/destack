@@ -203,7 +203,7 @@ defineExpose({
               ]"
             />
             <ErrorTraceback
-              v-if="run.errorNice != null"
+              v-if="run.errorNice != null && expandedRunIds.includes(run.id)"
               hide-preamble
               :error-nice="run.errorNice"
               class="mt-1 border-t border-orange-900/[15%] py-1"

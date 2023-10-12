@@ -86,13 +86,16 @@ function discardGenerated() {
 }
 
 async function apply() {
-  // nocheckin: auto-capture and append new statements at end / after inputFrom
   if (generatedCode.value == null || generatedFrom.value == null) return;
   applyingCode.value = true;
   try {
-    const { result } = terminal.runCode(generatedCode.value, {
+    const appendAfter = inputFrom.value ? `module.resolve(UUID("${getUUIDFromGlobalID(inputFrom.value)}"))` : "None";
+    const appendLine = `file.extend(session.dangling_like(Statement), after=${appendAfter})`;
+    const code = generatedCode.value + "\n" + appendLine;
+    const { result } = terminal.runCode(code, {
       scope: props.fileCk,
       accessLevel: SessionAccessLevel.Update,
+      cleanCode: generatedCode.value,
       tags: ["mend"],
       generatedFrom: generatedFrom.value,
       generatedIn: generatedRun.value != null ? getUUIDFromGlobalID(generatedRun.value.id) : undefined,

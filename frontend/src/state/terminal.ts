@@ -107,6 +107,7 @@ function _useTerminal() {
       tags?: string[];
       generatedFrom?: string;
       generatedIn?: string;
+      cleanCode?: string;
     }
   ) {
     /** Runs code inside the terminal, raising if the run fails to complete */
@@ -114,7 +115,7 @@ function _useTerminal() {
       scope: options.scope,
       rootValue: {
         name: "terminal",
-        code,
+        code: code,
         scope: options.scope,
         generated_from: options.generatedFrom,
         generated_in: options.generatedIn,

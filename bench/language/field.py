@@ -439,7 +439,7 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
 
     @staticmethod
     def literal(name: str, text: str = None, *args, **kwargs) -> "Field":
-        return Field.new(name=name, text=text, tag=TypeTag.LITERAL, *args, **kwargs)
+        return Field.new(name=name, text=text, type=TypeTag.LITERAL, *args, **kwargs)
 
     @staticmethod
     def union(type: Union["Statement", str], *args, **kwargs):

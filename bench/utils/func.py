@@ -40,6 +40,18 @@ def get_first(obj: dict, keys: Iterable[str]):
     return None
 
 
+def next_or_none(iterator: Iterable[Any]) -> Any | None:
+    """
+    Returns the next item in the iterator, or None if the iterator is empty.
+    """
+    try:
+        return next(iterator)
+    except StopIteration:
+        return None
+
+
+nextn = next_or_none
+
 T = TypeVar("T")
 
 

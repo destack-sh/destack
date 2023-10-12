@@ -989,183 +989,173 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         return self._parse_text_completion(model, input.task, completion)
 
 
-def _generate_symbolx_bench_file():
-    """
-    Generated from flotothemoon/bench.
-    TODO @Cleanup @Architecture: move symbolx.lib.bench into Bench proper
-     (can't right now because all libs are wholly generated from code here)
-    """
-    bench_description = Statement.text(
-        name="Bench description", text="Bench is an integrated development platform for bots"
-    )
-    bench_description.children.extend(
-        Statement.text(
-            "Users typically build bots to automate information extraction, analysis and integration"
-        ),
-        Statement.text("A Bench is a tree of nodes, the main one being Statements"),
-        Statement.text("You cannot reuse Python imports in or across statements, only Bench nodes"),
-        Statement.text(
-            "Statements can be Task, Code, Database, Class, etc. and have Fields, Triggers, Records, etc."
-        ),
-        Statement.text("Statements are organized into Files"),
-    )
-    idiomatic_bench = Statement.text(
-        name="Idiomatic Bench",
-        text="Use Bench and its features as an idiomatic, senior Bench developer",
-    )
-    idiomatic_bench.children.extend(
-        Statement.text("Use Code to run arbitrary Python (you can also call code/tasks in code)"),
-        Statement.text("Use Tasks for any AI text task (no code!), refuse any other AI task"),
-        Statement.text("Use Class for reusable struct-like types, use Choice for enum-like types"),
-        Statement.text("Use Databases for examples, contextual data and app state"),
-        Statement.text("Use Variables for configuration, secrets and small app state"),
-        Statement.text("Use and pass references directly if possible, no importing"),
-        Statement.text("Add text to describe any non-trivial nodes"),
-        Statement.text("Use Bench primitives as much feasible"),
-        Statement.text("Never use other AI libraries, only use tasks (no sklearn, pytorch, etc.)"),
-    )
-    sample_bench_code = Statement.database(name="sample bench code")
-    sample_bench_code.fields.append(Field.union("generate bench code"))
-    sample_bench_code.records.extend(
-        Record.new(
-            text="extract PDFs",
-            code=(
-                'DocumentPage = Statement.class_("DocumentPage")\n'
-                "DocumentPage.fields.extend(\n"
-                '    Field.new("number", Type.NUMBER),\n'
-                '    Field.new("text", Type.STRING, "raw text from a specific page"),\n'
-                ")\n"
-                "extract_paper_pages = Statement.code(\n"
-                '    name="extract paper pages",\n'
-                "    code=(\n"
-                '        "from pypdf import PdfReader\\n"\n'
-                '        "\\n"\n'
-                '        "reader = PdfReader(paper.io())\\n"\n'
-                '        "pages = []\\n"\n'
-                '        "for i, page in enumerate(reader.pages):\\n"\n'
-                '        "    text = page.extract_text()\\n"\n'
-                '        "    pages.append(DocumentPage(text=text, number=i))\\n"\n'
-                '        "return dict(pages=pages)\\n"\n'
-                "    ),\n"
-                ")\n"
-                "extract_paper_pages.fields.extend(\n"
-                '    Field.input("paper", Type.FILE.required()),\n'
-                '    Field.output("pages", Type.reference(DocumentPage).array()),\n'
-                ")"
-            ),
-        ),
-        Record.new(
-            text="create variable (for config/secret)",
-            code=(
-                'config = Statement.variable("config")\n'
-                "config.fields.extend(\n"
-                '    Field.new("email", Type.EMAIL),\n'
-                '    Field.new("gh token", Type.SECRET),\n'
-                '    Field.new("last sent", Type.DATETIME),\n'
-                ")\n"
-                "config.email = 'florian@symbolx.com'"
-            ),
-        ),
-        Record.new(
-            text="schedule code with a trigger",
-            code=(
-                "code.triggers.append(Trigger.time('0 */2 * * *'))\n"
-                "# or\n"
-                "code.triggers.append(Trigger.time(60*60*2))"
-            ),
-        ),
-        Record.new(
-            text="populate example database",
-            code=(
-                'example_bots = Statement.database(name="example bots")\n'
-                "# assumes 'BotIdea' is defined somewhere already\n"
-                'example_bots.fields.append(Field.union("BotIdea"))\n'
-                "example_bots.records.extend(\n"
-                "    Record.new(\n"
-                '        name="Github PR Linter",\n'
-                '        description="On every new PR opened on our GitHub repo, scan the diff against our set of natural language lint rules (defined here) and post comments with any issues",\n'
-                "    ),\n"
-                "    Record.new(\n"
-                '        name="AI Trend Tracker",\n'
-                '        description="Collate a list of interesting and trending projects across the AI landscape, summarize and send out daily updates ",\n'
-                "    ),\n"
-                ")"
-            ),
-        ),
-        Record.new(
-            text="use variable / secret",
-            code=(
-                "# use a variable like \n"
-                "config.email\n"
-                "# or through value\n"
-                "config.value.email\n"
-                "# and for secrets\n"
-                "config.gh_token.reveal()\n"
-                "# and for files\n"
-                "config.file.read()"
-            ),
-        ),
-        Record.new(
-            text="classic NER",
-            code=(
-                'Entity = Statement.class_(name="Entity")\n'
-                "Entity.fields.extend(\n"
-                '    Field.new("name", Type.NAME, "the canonical name"), Field.new("entity type", "EntityType")\n'
-                ")\n"
-                'EntityType = Statement.choice(name="EntityType", text="A classic @Entity type")\n'
-                "EntityType.fields.extend(\n"
-                '    Field.literal("Organization"),\n'
-                '    Field.literal("Person", "real or fictional"),\n'
-                '    Field.literal("Product"),\n'
-                '    Field.literal("Location", "including but not limited to physical/geographic"),\n'
-                '    Field.literal("Date", "or time"),\n'
-                '    Field.literal("Other", "if nothing else makes sense"),\n'
-                ")\n"
-                "extract_entities = Statement.task(\n"
-                '    name="extract entities",\n'
-                '    text="Extract any relevant @Entity instances mentioned in the text (deduplicated)",\n'
-                ")\n"
-                "extract_entities.fields.extend(\n"
-                '    Field.input("text", Type.STRING.required()),\n'
-                '    Field.output("entities", Type.reference(Entity).array()),\n'
-                ")"
-            ),
-        ),
-    )
-    generate_bench_code = Statement.task(
-        name="generate bench code",
-        text="Generate Python code to implement the given request in Bench",
-    )
-    generate_bench_code.children.extend(
-        Statement.text("Use the syntax from @sample_bench_code, but don't just copy"),
-        Statement.text("See @bench_description and @idiomatic_bench"),
-        Statement.text(
-            "Keep it concise; intelligently extrapolate the user's request (unless it's very specific) "
-        ),
-        Statement.text(
-            "For complex code first draft an outline in a few text statements at the start"
-        ),
-        Statement.text(
-            "If the @text refers to existing nodes, you should modify/extend them directly"
-        ),
-    )
-    generate_bench_code.fields.extend(
-        Field.input("text", Type.RICH_TEXT, "user input"),
-        Field.output("code", Type.CODE, "valid Python code to modify Bench"),
-    )
-    file = File.new("bench")
-    file.statements.extend(
-        bench_description,
-        idiomatic_bench,
-        Statement.blank(),
-        sample_bench_code,
-        Statement.blank(),
-        generate_bench_code,
-    )
-    return file
+"""
+Generated from flotothemoon/bench.
+TODO @Cleanup @Architecture: move symbolx.lib.bench into Bench proper
+ (can't right now because all libs are wholly generated from code here)
+"""
+bench_description = Statement.text(
+    name="Bench description", text="Bench is an integrated development platform for bots"
+)
+bench_description.children.extend(
+    Statement.text(
+        "Users typically build bots to automate information extraction, analysis and integration"
+    ),
+    Statement.text("A Bench is a tree of nodes, the main one being Statements"),
+    Statement.text("You cannot reuse Python imports in or across statements, only Bench nodes"),
+    Statement.text(
+        "Statements can be Task, Code, Database, Class, etc. and have Fields, Triggers, Records, etc."
+    ),
+    Statement.text("Statements are organized into Files"),
+)
+idiomatic_bench = Statement.text(
+    name="Idiomatic Bench",
+    text="Use Bench and its features as an idiomatic, senior Bench developer",
+)
+idiomatic_bench.children.extend(
+    Statement.text("Use Code to run arbitrary Python (you can also call code/tasks in code)"),
+    Statement.text("Use Tasks for any AI text task (no code!), refuse any other AI task"),
+    Statement.text("Use Class for reusable struct-like types, use Choice for enum-like types"),
+    Statement.text("Use Databases for examples, contextual data and app state"),
+    Statement.text("Use Variables for configuration, secrets and small app state"),
+    Statement.text("Add text to describe any non-trivial nodes"),
+)
+sample_bench_code = Statement.database(name="sample bench code")
+sample_bench_code.fields.append(Field.union("generate bench code"))
+sample_bench_code.records.extend(
+    Record.new(
+        text="extract PDFs",
+        code="""\
+DocumentPage = Statement.class_(name="DocumentPage")
+DocumentPage.fields.extend(
+    Field.new("number", Type.NUMBER),
+    Field.new("text", Type.STRING, "raw text from a specific page"),
+)
+extract_paper_pages = Statement.code(
+    name="extract paper pages",
+    code=\"\"\"\
+from pypdf import PdfReader
 
-
-_symbolx_bench = _generate_symbolx_bench_file()
+reader = PdfReader(paper.io())
+pages = []
+for i, page in enumerate(reader.pages):
+    text = page.extract_text()
+    pages.append(DocumentPage(text=text, number=i))
+return dict(pages=pages)\"\"\",
+)
+extract_paper_pages.fields.extend(
+    Field.input("paper", Type.FILE),
+    Field.output("pages", Type.reference("DocumentPage").array().required()),
+)""",
+    ),
+    Record.new(text="rename field", code="field.name = 'new name'"),
+    Record.new(
+        text="create variable (for config/secret)",
+        code="""\
+config = Statement.variable("config")
+config.fields.extend(
+    Field.new("email", Type.EMAIL),
+    Field.new("gh token", Type.SECRET),
+    Field.new("last sent", Type.DATETIME),
+)
+config.email = 'florian@symbolx.com'""",
+    ),
+    Record.new(
+        text="schedule code with a trigger",
+        code="""\
+code.triggers.append(Trigger.time('0 */2 * * *'))
+# or
+code.triggers.append(Trigger.time(60*60*2))""",
+    ),
+    Record.new(
+        text="add title field to document",
+        code='Document.fields.append(Field.new(\\"title\\", Type.NAME), before=Document.summary)',
+    ),
+    Record.new(
+        text="populate example database",
+        code="""\
+example_bots = Statement.database(name="example bots")
+# assumes 'BotIdea' is defined somewhere already
+example_bots.fields.append(Field.union("BotIdea"))
+example_bots.records.extend(
+    Record.new(
+        name="Github PR Linter",
+        description="On every new PR opened on our GitHub repo, scan the diff against our set of natural language lint rules (defined here) and post comments with any issues",
+    ),
+    Record.new(
+        name="AI Trend Tracker",
+        description="Collate a list of interesting and trending projects across the AI landscape, summarize and send out daily updates ",
+    ),
+)""",
+    ),
+    Record.new(
+        text="use variable / secret",
+        code="""\
+# use a variable like 
+config.email
+# or through value
+config.value.email
+# and for secrets
+config.gh_token.reveal()
+# and for files
+config.file.read()""",
+    ),
+    Record.new(
+        text="classic NER",
+        code="""\
+Entity = Statement.class_(name="Entity")
+Entity.fields.extend(
+    Field.new("name", Type.NAME, "the canonical name"), Field.new("entity type", "EntityType")
+)
+EntityType = Statement.choice(name="EntityType", text="A classic @Entity type")
+EntityType.fields.extend(
+    Field.literal("Organization"),
+    Field.literal("Person", "real or fictional"),
+    Field.literal("Product"),
+    Field.literal("Location", "including but not limited to physical/geographic"),
+    Field.literal("Date", "or time"),
+    Field.literal("Other", "if nothing else makes sense"),
+)
+extract_entities = Statement.task(
+    name="extract entities",
+    text="Extract any relevant @Entity instances mentioned in the text (deduplicated)",
+)
+extract_entities.fields.extend(
+    Field.input("text", Type.STRING.required()),
+    Field.output("entities", Type.reference(Entity).array()),
+)""",
+    ),
+)
+generate_bench_code = Statement.task(
+    name="generate bench code", text="Generate Python code to implement the given request in Bench"
+)
+generate_bench_code.children.extend(
+    Statement.text("Use the syntax from @sample_bench_code, but don't just copy"),
+    Statement.text("See @bench_description and @idiomatic_bench"),
+    Statement.text(
+        "Keep it concise; intelligently extrapolate the user's request (unless it's very specific) "
+    ),
+    Statement.text("For complex code first draft an outline in a few text statements at the start"),
+    Statement.text("If the @text refers to existing nodes, you should modify/extend them directly"),
+    Statement.text("Always use Bench primitives for everything"),
+    Statement.text(
+        "Never use Python classes, methods, imported AI libraries, or imports across statements"
+    ),
+    Statement.blank(),
+)
+generate_bench_code.fields.extend(
+    Field.input("text", Type.RICH_TEXT, "user input"),
+    Field.output("code", Type.CODE, "valid Python code to modify Bench"),
+)
+_symbolx_bench = File.new("bench")
+_symbolx_bench.statements.extend(
+    bench_description,
+    idiomatic_bench,
+    Statement.blank(),
+    sample_bench_code,
+    Statement.blank(),
+    generate_bench_code,
+)
 symbolx_lib.files.append(_symbolx_bench)
 
 DEFAULT_MODULES: dict[str, Module] = {
