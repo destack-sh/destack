@@ -5,7 +5,7 @@ import { defineConfig, loadEnv } from "vite";
 import monacoEditorPlugin from "vite-plugin-monaco-editor";
 import { watch } from "fs";
 import type { Plugin } from "vite";
-import { nodePolyfills } from "vite-plugin-node-polyfills";
+import codegen from "vite-plugin-graphql-codegen";
 
 function reloadOnVersionChange(): Plugin {
   return {
@@ -36,8 +36,8 @@ export default defineConfig(({ command, mode }) => {
       VITE_APP_ENVIRONMENT: JSON.stringify(process.env.ENVIRONMENT),
     },
     plugins: [
-      nodePolyfills(),
       vue(),
+      codegen(),
       monacoEditorPlugin({ languageWorkers: ["editorWorkerService", "json"] }),
       reloadOnVersionChange(),
     ],

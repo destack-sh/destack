@@ -2,7 +2,6 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
-import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus } from "@/gql/graphql";
@@ -19,7 +18,6 @@ import {
 import { useTerminal } from "@/state/terminal";
 import { IdentifierType, toPyIdentifier } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
-import { generate } from "@graphql-codegen/cli";
 import { SparklesIcon } from "@heroicons/vue/24/outline";
 import { PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { nextTick, computed, ref, type Ref, watch } from "vue";
@@ -44,7 +42,7 @@ const inputSync = syncProperty({
   write: () => (panel.value.code = input.value),
   debounceMs: 500,
 });
-const inputRef: Ref<InstanceType<typeof MonacoEditor | typeof AnnotatedText> | null> = ref(null);
+const inputRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
 const logsTileRefs = ref<Record<string, InstanceType<typeof LogsTile> | null>>({});
 const scope = computed(() => bench.lastActiveFileCk);
 const scopePaths = computed(() => {
