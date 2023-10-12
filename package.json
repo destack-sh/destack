@@ -55,9 +55,6 @@
     "vue-router": "^4.1.6",
     "web-worker": "^1.2.0"
   },
-  "overrides": {
-    "@graphql-typed-document-node/core": "3.2.0"
-  },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.0",
     "@graphql-codegen/client-preset": "^4.1.0",
@@ -87,6 +84,7 @@
     "eslint-plugin-vue": "^9.9.0",
     "install": "^0.13.0",
     "jsdom": "^19.0.0",
+    "node-stdlib-browser": "^1.2.0",
     "npm": "^8.19.4",
     "postcss": "^8.4.21",
     "prettier": "^2.8.4",
@@ -101,5 +99,9 @@
     "vite-plugin-node-polyfills": "^0.15.0",
     "vitest": "^0.28.5",
     "vue-tsc": "^1.8.8"
+  },
+  "overrides": {
+    "@graphql-typed-document-node/core": "3.2.0",
+    "cosmiconfig": "8.0.0"
   }
 }
