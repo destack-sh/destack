@@ -181,9 +181,8 @@ class TypeTag(enum.StrEnum):
     NODE = "node"
     ANY = "any"
 
-    # convenience
-    CHOICE = ENUM
-    CLASS = STRUCT
+
+RESERVED_TYPE_TAGS = (TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.STRUCT)
 
 
 class TypeHint(enum.StrEnum):
@@ -235,11 +234,10 @@ class TypeFlag(enum.IntFlag):
     IsArray = 2**1
     IsOptional = 2**2
     IsUnionWith = 2**3
-    # TODO @Cleanup @Architecture: IsSecret shouldn't be a flag?
     IsSecret = 2**4
     IsStoreOnly = 2**5
     IsArrayable = 2**6
-    IsMetadata = 2**7
+    IsMeta = 2**7
     IsConfig = 2**8
     IsHidden = 2**9
 

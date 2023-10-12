@@ -30,7 +30,7 @@ const nameSync = syncProperty({
   debounceMaxWait: 2000,
 });
 const hasName = computed(() => name.value.trim().length > 0);
-const icon = computed(() => getStatementIconSolid(props.statement.type, props.statement.tag));
+const icon = computed(() => getStatementIconSolid(props.statement.type));
 const runButtonRef = ref<HTMLButtonElement | null>(null);
 
 const canOpenInStandaloneEditor = computed(
@@ -73,9 +73,9 @@ defineExpose({
       <span
         class="pointer-events-none absolute left-full top-6 z-30 rounded-sm bg-white px-1.5 py-0.5 text-xs text-gray-500 opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition delay-500 duration-75 hover:delay-in-500 group-hover/icon:opacity-100"
       >
-        <span class="font-semibold"> {{ getStatementLabel(statement.type, statement.tag) }}</span
+        <span class="font-semibold"> {{ getStatementLabel(statement.type) }}</span
         >:
-        {{ getStatementDescription(statement.type, statement.tag) }}
+        {{ getStatementDescription(statement.type) }}
       </span>
     </span>
     <!-- Alt click to open in full -->

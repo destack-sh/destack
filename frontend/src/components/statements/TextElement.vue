@@ -203,7 +203,7 @@ defineExpose({
       :class="[focused ? 'text-gray-400' : 'text-gray-300']"
       @click="textRef?.focus"
     >
-      Type for text...
+      Text...
     </button>
     <!-- Quick inline actions (positioned as not to disturb the flow) -->
     <!-- TODO @UX: inline actions don't wrap properly when text overflows -->

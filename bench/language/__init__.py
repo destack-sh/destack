@@ -11,7 +11,7 @@ from .const import (
 )
 from .database import DatabaseView, Record
 from .edit import render, render_as_python
-from .field import Field, HasFields, ResolvedField, TypeStorageFormat
+from .field import Field, HasFields, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
 from .module import Module, Node, ScopeNode
@@ -71,6 +71,7 @@ __all__ = [
     "Tagging",
     "Trigger",
     "TriggerType",
+    "Type",
     "TypeFlag",
     "TypeHint",
     "TypeStorageFormat",

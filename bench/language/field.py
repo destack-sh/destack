@@ -1,3 +1,4 @@
+import dataclasses
 import enum
 import typing
 import uuid
@@ -9,6 +10,7 @@ import structlog
 
 from bench.language.const import (
     MNT,
+    RESERVED_TYPE_TAGS,
     IssueType,
     StatementReference,
     TypeFlag,
@@ -58,7 +60,7 @@ class TypeError(TypeError):
     def __init__(
         self,
         value: Any,
-        expected: "IsTyped",
+        expected: "HasType",
         message: str = None,
         suberrors: list["TypeError"] = None,
     ):
@@ -165,6 +167,8 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.STATEMENT: TypeTag.NODE,
     TypeHint.FIELD: TypeTag.NODE,
     TypeHint.RUN: TypeTag.NODE,
+    # embedding
+    TypeHint.EMBEDDING: TypeTag.VECTOR,
 }
 
 STORAGE_FORMAT_BY_TYPE_TAG = {
@@ -200,15 +204,117 @@ def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeSto
     return STORAGE_FORMAT_BY_TYPE_TAG[tag]
 
 
+def _type_str(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> str:
+    flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if flags & flag)
+    flags_str = f" ({flag_str})" if flag_str else ""
+    if hint:
+        return f"{hint}{flags_str}"
+    else:
+        return f"{tag}{flags_str}"
+
+
+@dataclass
+class Type:
+    """Detached type information. Mostly for convenient Field construction."""
+
+    # private because this Type isn't meant to be used directly, only for construction
+    _tag: TypeTag
+    _hint: Optional[TypeHint]
+    _flags: TypeFlag
+    _reference: Union["Statement", StatementReference, None] = None
+
+    def __str__(self) -> str:
+        return _type_str(self._tag, self._hint, self._flags)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
+
+    def replace(self, **kwargs) -> "Type":
+        return dataclasses.replace(self, **kwargs)
+
+    def array(self) -> "Type":
+        return self.replace(_flags=self._flags | TypeFlag.IsArray)
+
+    def scalar(self) -> "Type":
+        return self.replace(_flags=self._flags & ~TypeFlag.IsArray)
+
+    def required(self) -> "Type":
+        return self.replace(_flags=self._flags & ~TypeFlag.IsOptional)
+
+    def optional(self) -> "Type":
+        return self.replace(_flags=self._flags | TypeFlag.IsOptional)
+
+    def input(self) -> "Type":
+        return self.replace(_flags=self._flags & ~TypeFlag.IsOutput)
+
+    def output(self) -> "Type":
+        return self.replace(_flags=self._flags | TypeFlag.IsOutput)
+
+    def config(self) -> "Type":
+        return self.replace(_flags=self._flags | TypeFlag.IsConfig)
+
+    def hidden(self) -> "Type":
+        return self.replace(_flags=self._flags | TypeFlag.IsHidden)
+
+    @staticmethod
+    def reference(reference: Union["Statement", StatementReference, None]) -> "Type":
+        return Type(
+            _tag=TypeTag.TYPE_REFERENCE, _hint=None, _flags=TypeFlag.Zero, _reference=reference
+        )
+
+    @staticmethod
+    def from_field(field: "Field") -> "Type":
+        return Type(
+            _tag=field.tag,
+            _hint=field.hint,
+            _flags=field.flags,
+            _reference=field.reference,
+        )
+
+    @staticmethod
+    def from_tag(tag: TypeTag) -> "Type":
+        return Type(_tag=tag, _hint=None, _flags=TypeFlag.Zero)
+
+    @staticmethod
+    def from_hint(hint: TypeHint) -> "Type":
+        return Type(_tag=TYPE_TAG_BY_TYPE_HINT[hint], _hint=hint, _flags=TypeFlag.Zero)
+
+    @staticmethod
+    def to_python(node: "Type") -> str:
+        """Reconstruct minimal Python code to create this type."""
+        if node._tag == TypeTag.TYPE_REFERENCE:
+            node_str = f'Type.reference("{node._reference.py_ident}")'
+        else:
+            node_str = f"Type.{node._hint.name if node._hint else node._tag.name}"
+        if node._flags != TypeFlag.Zero:
+            if node._flags & TypeFlag.IsArray:
+                node_str += ".array()"
+            if node._flags & TypeFlag.IsArrayable:
+                node_str += ".arrayable()"
+            if node._flags & ~TypeFlag.IsOptional:
+                node_str += ".required()"
+            if node._flags & TypeFlag.IsOutput:
+                node_str += ".output()"
+            if node._flags & TypeFlag.IsConfig:
+                node_str += ".config()"
+            if node._flags & TypeFlag.IsHidden:
+                node_str += ".hidden()"
+        return node_str
+
+
+for tag in TypeTag:
+    if tag in RESERVED_TYPE_TAGS:
+        continue
+    _type = Type(_tag=tag, _hint=None, _flags=TypeFlag.IsOptional)
+    setattr(Type, tag.name, _type)
+for hint in TypeHint:
+    _type = Type(_tag=TYPE_TAG_BY_TYPE_HINT[hint], _hint=hint, _flags=TypeFlag.IsOptional)
+    setattr(Type, hint.name, _type)
+
+
 @node_component
-class IsTyped(Node):
-    """Shared base for Field and HasFields/Statement types"""
-
+class HasType(Node):
     key: str = ninternal(default=None)
-
-    @property
-    def reference(self) -> Union["Statement", StatementReference, None]:
-        return None
 
     @property
     def resolved_fields(self) -> Collection["ResolvedField"]:
@@ -230,7 +336,7 @@ class IsTyped(Node):
         return get_storage_format(self.tag, self.hint, self.flags)
 
     @property
-    def _effective_type(self) -> Union["IsTyped", "Statement"]:
+    def _effective_type(self) -> Union["HasType", "Statement"]:
         if isinstance(self.reference, Node):
             return self.reference
         else:
@@ -238,12 +344,7 @@ class IsTyped(Node):
 
     @property
     def _type_str(self) -> str:
-        flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
-        flags_str = f" ({flag_str})" if flag_str else ""
-        if self.hint:
-            return f"{self.hint}{flags_str}"
-        else:
-            return f"{self.tag}{flags_str}"
+        return _type_str(self.tag, self.hint, self.flags)
 
     @property
     def _effective_tag(self) -> TypeTag:
@@ -253,7 +354,7 @@ class IsTyped(Node):
     def _effective_hint(self) -> Optional[TypeHint]:
         return self._effective_type.hint
 
-    def equals_type(self, other: "IsTyped") -> bool:
+    def equals_type(self, other: "HasType") -> bool:
         return (
             self._effective_tag == other._effective_tag
             and self._effective_hint == other._effective_hint
@@ -263,7 +364,7 @@ class IsTyped(Node):
 
 
 @node(mnt=MNT.FIELD)
-class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
+class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
     parent: Union["Statement", None] = nparent(MNT.STATEMENT)
     name: str | None = nproperty(default=None, validate=validate_name)
     order_key: str | None = ninternal(default=None)
@@ -276,9 +377,9 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         name: str = None,
         type: Union[TypeTag, TypeHint, "Statement", str, type] = None,
         text: str = None,
+        flags: TypeFlag = TypeFlag.Zero,
         *args,
         for_parent: "Statement" = None,
-        flags: TypeFlag = TypeFlag.Zero,
         **kwargs,
     ) -> "Field":
         # default to literal or string if no type is specified
@@ -290,8 +391,17 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
             else:
                 type = TypeTag.STRING
 
+        # default to optional if parent is not a function
+        if not (for_parent and for_parent.tag == TypeTag.FUNCTION):
+            flags |= TypeFlag.IsOptional
+
         # coerce type
-        if isinstance(type, TypeTag):
+        if isinstance(type, Type):
+            kwargs["tag"] = type._tag
+            kwargs["hint"] = type._hint
+            flags = type._flags | flags
+            kwargs["reference"] = type._reference
+        elif isinstance(type, TypeTag):
             kwargs["tag"] = type
         elif isinstance(type, TypeHint):
             kwargs["hint"] = type
@@ -310,16 +420,34 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
             kwargs["reference"] = type
         else:
             raise ValueError(f"unexpected type {type!r}")
-
-        # default to optional if parent is not a function
-        if not (for_parent and for_parent.tag == TypeTag.FUNCTION):
-            flags |= TypeFlag.IsOptional
+        if kwargs.get("hint") == TypeHint.SECRET:
+            flags = flags | TypeFlag.IsSecret
 
         return Field(name=name, text=text, flags=flags, *args, **kwargs)
 
+    input = new  # same as new but more explicit
+
+    @staticmethod
+    def output(
+        name: str,
+        type: Union[TypeTag, TypeHint, "Statement", str, type] = None,
+        text: str = None,
+        *args,
+        **kwargs,
+    ) -> "Field":
+        return Field.new(name=name, type=type, flags=TypeFlag.IsOutput, text=text, *args, **kwargs)
+
     @staticmethod
     def literal(name: str, text: str = None, *args, **kwargs) -> "Field":
-        return Field(name=name, text=text, tag=TypeTag.LITERAL, *args, **kwargs)
+        return Field.new(name=name, text=text, tag=TypeTag.LITERAL, *args, **kwargs)
+
+    @staticmethod
+    def union(type: Union["Statement", str], *args, **kwargs):
+        return Field.new(type=type, flags=TypeFlag.IsUnionWith, *args, **kwargs)
+
+    @staticmethod
+    def config(name: str, *args, **kwargs) -> "Field":
+        return Field.new(name=name, flags=TypeFlag.IsConfig, *args, **kwargs)
 
     @staticmethod
     def to_python(
@@ -331,14 +459,22 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         )
         if "flags" in props and (node.flags == 0 or implicit_optional):
             del props["flags"]
-        type = node.reference or node.hint or node.tag
-        if for_parent and for_parent.tag == TypeTag.ENUM and node.tag == TypeTag.LITERAL:
+        if node.tag == TypeTag.LITERAL:
             init_args = {"name": props["name"], "text": props.get("text")}
             init_name = "Field.literal"
+        elif node.flags & TypeFlag.IsUnionWith:
+            init_args = {"type": node.reference}
+            init_name = "Field.union"
         else:
+            type = Type.from_field(node)
             init_args = {"name": props["name"], "type": type, "text": props.get("text")}
-            init_name = "Field.new"
-        init_kwargs = dict_minus(props, "name", "text", "tag", "hint", "reference")
+            if for_parent and for_parent.tag == TypeTag.FUNCTION:
+                init_name = "Field.output" if node.flags & TypeFlag.IsOutput else "Field.input"
+                type._flags &= ~TypeFlag.IsOutput  # ignore flag, already handled
+            else:
+                init_name = "Field.new"
+
+        init_kwargs = dict_minus(props, "name", "flags", "text", "tag", "hint", "reference")
         return init_name, init_args, init_kwargs
 
     def __str__(self):
@@ -451,7 +587,7 @@ class ResolvedField(Field):
 
 
 @node_component
-class HasFields(IsTyped):
+class HasFields(HasType):
     """A node with fields"""
 
     fields: NodeList["Field"] = nchildren(MNT.FIELD, NRel.Named | NRel.Scoped | NRel.Ordered)
@@ -472,7 +608,7 @@ class HasFields(IsTyped):
     def _interp_inner(self, scope: ScopeNode) -> None:
         self._resolve_fields([])
 
-    def _resolve_fields(self: "HasFields", path: list[IsTyped]) -> None:
+    def _resolve_fields(self: "HasFields", path: list[HasType]) -> None:
         """
         Resolves (and inlines) field references and unions.
         """

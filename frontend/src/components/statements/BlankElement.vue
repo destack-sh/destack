@@ -9,7 +9,7 @@ import { StatementType } from "@/gql/graphql";
 import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { useActiveScroll } from "@/composables/useScroll";
 import { usePanelContext } from "@/state/bench";
-import { type StatementProps } from "@/components/statements";
+import type { StatementProps } from "@/components/statements";
 import type { StatementEmit } from "@/components/statements";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { useStatementMorph, type MorphCommand } from "@/state/statement";
@@ -26,15 +26,16 @@ const panel = usePanelContext();
 const ops = useOperations();
 
 // open/close commanding and auto-convert to text on anything else
-watch(query, (query) => {
-  if (query == "") {
+watch(query, (q) => {
+  if (q == "") {
     commanding.value = false;
-  } else if (query == " ") {
+  } else if (q == " ") {
+    query.value = "";
     emit("launchAssist", "");
-  } else if (query == "/") {
+  } else if (q == "/") {
     openCommandSelection();
-  } else if (query.startsWith("#")) {
-    const headingLevel = (query.match(/^#+ /)?.[0].length ?? 0) - 1;
+  } else if (q.startsWith("#")) {
+    const headingLevel = (q.match(/^#+ /)?.[0].length ?? 0) - 1;
     if (headingLevel > 0 && headingLevel < 4) {
       ops.statement.morph(null, props.statement.id, props.statement, {
         type: StatementType.Text,
@@ -44,7 +45,7 @@ watch(query, (query) => {
   } else if (!commanding.value) {
     const tx = openTransaction();
     ops.statement.morph(tx, props.statement.id, props.statement, { type: StatementType.Text });
-    ops.symbol.updateStatementText(tx, props.statement.id, "", query);
+    ops.symbol.updateStatementText(tx, props.statement.id, "", q);
     closeTransaction(tx);
   }
 });
