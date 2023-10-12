@@ -734,6 +734,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
             value = render_text_simple(node._text_spans)
         # if it contains newlines transform into multiline string
         if "\n" in value:
+            # TODO @Performance: render multiline strings as such (nocheckin try this)
             lines = [line.replace("\\", "\\\\").replace('"', '\\"') for line in value.splitlines()]
             value = "\n".join(
                 f'"{line}"' if i == len(lines) - 1 else f'"{line}\\n"'
