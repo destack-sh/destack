@@ -9,10 +9,10 @@ from django.core.management.base import CommandParser
 from django.db import transaction
 
 from bench import models
-from bench.language import wire
+from bench.language import Statement, wire
 from bench.language.builtin import symbolx_lib
-from bench.language.const import INTERP_NODE_TYPES, MNT
-from bench.language.edit import diff_modules
+from bench.language.const import INTERP_NODE_TYPES, MNT, StatementType
+from bench.language.edit import MET, EditData, diff_modules
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.module import NodeTree
 from bench.models import packer
@@ -110,6 +110,19 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
     blank_module_tree = wire.NodeTree(blank_module.nodes)
     new_module = wire.pack_module(module, exclude=set())
     edits = diff_modules(blank_module, new_module, project_id=project.id)
+    # truncate records for new databases
+    #  (manually because this out-of-line change isn't included in the diff)
+    for node in module._nodes:
+        if isinstance(node, Statement) and node.type == StatementType.DATABASE:
+            edit = EditData(
+                type=MET.TRUNCATE_RECORDS,
+                project_version_id=project_v.id,
+                file_id=node.file.id,
+                statement_id=node.id,
+                revision=0,
+            )
+            edit.node = wire.pack_node_flat(node)
+            edits.append(edit)
     packer.write_edits(project_v, blank_module_tree, edits, validate=False, refresh_index=False)
     project_v.commit()
 
