@@ -183,8 +183,8 @@ const {
   })
 );
 const projectLoaded = computed(() => !!projectResult.value?.projectBySlug);
-const project = computed(() => useFragment(ProjectHeaderType, projectResult.value?.projectBySlug));
-const projectHead = computed(() => useFragment(ProjectVersionHeaderType, project.value?.head));
+const projectFetched = computed(() => useFragment(ProjectHeaderType, projectResult.value?.projectBySlug));
+const projectHead = computed(() => useFragment(ProjectVersionHeaderType, projectFetched.value?.head));
 
 // default version to view = head (can be overridden by URL?)
 const versionToViewId = computed(() => {
@@ -213,7 +213,7 @@ watchEffect(() => {
     if (bench.focusedPanel != null) {
       title.value = (bench.focusedPanel.name || "(Unnamed)") + " • " + `${props.owner}/${props.project}`;
     } else {
-      title.value = `${props.owner}/${props.project}${project.value ? " • " + project.value.name : ""}`;
+      title.value = `${props.owner}/${props.project}${projectFetched.value ? " • " + projectFetched.value.name : ""}`;
     }
   }
 });
@@ -244,13 +244,13 @@ const { error: versionError, result: versionResult } = useQuery(
   () => ({ id: versionToViewId.value }),
   () => ({ enabled: !!versionToViewId.value })
 );
-const version = computed(() => versionResult.value?.projectVersion);
-const versionLoaded = computed(() => !!version.value);
+const versionFetched = computed(() => versionResult.value?.projectVersion);
+const versionLoaded = computed(() => !!versionFetched.value);
 
 // react to version load error
 watch(versionError, () => {
   if (versionError.value != null) {
-    const atHead = version.value?.id == projectHead.value?.id;
+    const atHead = versionFetched.value?.id == projectHead.value?.id;
     notifications.show({
       kind: "error",
       type: "version.loadFailed",
@@ -403,33 +403,33 @@ watchEffect(() => {
     ![ModuleAccessLevel.Admin, ModuleAccessLevel.Manage, ModuleAccessLevel.Edit].includes(
       bench.ModuleAccessLevel as ModuleAccessLevel
     ) ||
-    version.value?.committed == true;
+    versionFetched.value?.committed == true;
 });
 
 // prepare/update bench state whenever project changes
 watch(
-  () => [project.value, versionToViewId.value, () => bench.projectId, () => bench.projectVersionId],
+  () => [projectFetched.value, versionToViewId.value, () => bench.projectId, () => bench.projectVersionId],
   () => {
-    if (project.value != null && bench.projectId != project.value.id) {
-      console.log(`load bench ${project.value.slug} (${project.value.id} at ${versionToViewId.value})`);
-      const loaded = load(project.value.id);
+    if (projectFetched.value != null && bench.projectId != projectFetched.value.id) {
+      console.log(`load bench ${projectFetched.value.slug} (${projectFetched.value.id} at ${versionToViewId.value})`);
+      const loaded = load(projectFetched.value.id);
       if (!loaded) {
         bench.$reset();
-        console.log(`no local bench state available, reset bench ${project.value.slug}`);
+        console.log(`no local bench state available, reset bench ${projectFetched.value.slug}`);
       }
-      bench.projectId = project.value.id;
+      bench.projectId = projectFetched.value.id;
     }
     if (versionToViewId.value != null && bench.projectVersionId != versionToViewId.value) {
       bench.projectVersionId = versionToViewId.value;
     }
-    bench.ModuleAccessLevel = project.value?.accessLevel ?? null;
+    bench.ModuleAccessLevel = projectFetched.value?.accessLevel ?? null;
   },
   { immediate: true }
 );
 
 // clear bench state when exiting view
 onBeforeUnmount(() => {
-  if (bench.projectId == project.value?.id) {
+  if (bench.projectId == projectFetched.value?.id) {
     bench.$reset();
   }
 });
@@ -453,7 +453,7 @@ onBeforeUnmount(() => {
           </router-link>
           <span class="text-gray-500">/</span>
           <!-- Project button -->
-          <ProjectPopover v-if="projectLoaded" :project="project">
+          <ProjectPopover v-if="projectLoaded && projectFetched" :project="projectFetched">
             <template v-slot:button="{ open }">
               <PopoverButton
                 class="flex h-full items-center justify-between rounded-sm bg-white p-1 text-left hover:bg-orange-100 focus:outline-none"
@@ -478,29 +478,31 @@ onBeforeUnmount(() => {
           <!-- Version info (if not at head) -->
           <FadeTransition>
             <div
-              v-if="versionToViewId != projectHead?.id && version != null"
+              v-if="versionToViewId != projectHead?.id && versionFetched != null"
               class="ml-1.5 flex flex-row rounded-sm border border-orange-900/[12%] bg-orange-100 px-2 py-0.5 text-sm text-gray-900"
             >
               <span class="relative">
                 <ClockIconOutline class="absolute top-0 h-5 w-5 text-gray-900" />
-                <span class="ml-6 font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
+                <span class="ml-6 font-bold">{{ versionFetched?.tag ?? versionFetched?.name ?? "Autosave" }}</span>
               </span>
               <router-link :to="{ hash: router.currentRoute.value.hash }" class="ml-2.5 flex items-center">
                 <HomeIconSolid class="mr-0.5 h-4 w-4 text-orange-600 hover:text-orange-700" />
               </router-link>
               <router-link
-                :to="{ hash: router.currentRoute.value.hash, query: { version: version.parents[0]?.id } }"
+                :to="{ hash: router.currentRoute.value.hash, query: { version: versionFetched.parents[0]?.id } }"
                 class="ml-1 flex items-center"
-                :class="version.parents.length == 0 ? 'text-gray-400' : ' text-orange-600 hover:text-orange-700'"
-                :disabled="version.parents.length == 0"
+                :class="versionFetched.parents.length == 0 ? 'text-gray-400' : ' text-orange-600 hover:text-orange-700'"
+                :disabled="versionFetched.parents.length == 0"
               >
                 <ArrowLeftIcon class="mr-0.5 h-4 w-4" />
               </router-link>
               <router-link
-                :to="{ hash: router.currentRoute.value.hash, query: { version: version.children[0]?.id } }"
+                :to="{ hash: router.currentRoute.value.hash, query: { version: versionFetched.children[0]?.id } }"
                 class="ml-0 flex items-center"
-                :class="version.children.length == 0 ? 'text-gray-400' : ' text-orange-600 hover:text-orange-700'"
-                :disabled="version.children.length == 0"
+                :class="
+                  versionFetched.children.length == 0 ? 'text-gray-400' : ' text-orange-600 hover:text-orange-700'
+                "
+                :disabled="versionFetched.children.length == 0"
               >
                 <ArrowRightIcon class="mr-0.5 h-4 w-4" />
               </router-link>
@@ -583,7 +585,7 @@ onBeforeUnmount(() => {
       <template v-slot:right>
         <!-- Bench-global controls -->
         <FadeTransition>
-          <div v-if="versionLoaded && project != null" class="flex h-full flex-row items-center space-x-2">
+          <div v-if="versionLoaded && projectFetched != null" class="flex h-full flex-row items-center space-x-2">
             <CurrentRunsPopover />
             <button
               class="rounded-sm p-1 hover:bg-orange-100"
@@ -591,7 +593,7 @@ onBeforeUnmount(() => {
             >
               <CommandLineIcon class="h-5 w-5 text-orange-600" />
             </button>
-            <SharingPopover :project="(project as any as Project)" />
+            <SharingPopover :project="(projectFetched as any as Project)" />
             <NotificationPopover @show="bench.showBenchHeader = true" />
             <OmniCreate @show="bench.showBenchHeader = true" />
           </div>
@@ -679,7 +681,7 @@ onBeforeUnmount(() => {
             :active="bench.activeViewId == activeView.id"
             :focused="bench.focusedViewId == activeView.id"
             :container-size="viewContainerSize"
-            :project="project"
+            :project="projectFetched"
             class="scroll-hidden overflow-y-hidden"
             :style="{ width: '276px', height: windowHeight - 40 + 'px' }"
           />

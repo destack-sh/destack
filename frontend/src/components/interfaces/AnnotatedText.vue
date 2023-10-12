@@ -9,7 +9,7 @@ import {
 } from "@/state/text";
 import { useElementRefs } from "@/composables/useGrid";
 import { nextTick, ref, watch, type Ref, toRef, computed } from "vue";
-import { type ModuleObjectTypename } from "@/state/module";
+import type { ModuleObjectTypename } from "@/state/module";
 import { VALID_TEXT_REGEXP } from "@/utils/validation";
 import type { TextPlain } from "@/state/text";
 import { v4 as uuidv4 } from "uuid";
@@ -447,7 +447,7 @@ defineExpose({
         @keydown.backspace.prevent="onDelete(span, i, $event as KeyboardEvent)"
         @keydown.meta.enter.prevent="emit('toggleLanguage')"
         @keydown.alt.enter.prevent="emit('toggleLanguage')"
-        class="relative inline rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 focus:border-0 focus:outline-none focus:ring-1"
+        class="mousetrap-ignore relative inline rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 focus:border-0 focus:outline-none focus:ring-1"
         :class="[
           minimalMentions ? '' : '-my-0.5 mx-[1px] py-0.5  ',
           minimalMentions ? '' : 'hover:cursor-pointer',
