@@ -40,6 +40,9 @@ class HasValue(Node):
             return
         from bench.language.typing import TypedDict, unpack_value
 
+        if not self._type_of_value and not self.attached:
+            return  # ignore for e.g. new Records that don't have a parent type from DB yet
+
         def _onwrite_value(key: str) -> None:
             from bench.language.typing import check_type
 

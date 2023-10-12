@@ -119,6 +119,7 @@ class Session:
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
 
+        self._dangling_nodes_by_ck: dict[UUID, Node] = {}
         self._past_flushes: list[tuple[int, set[MET]]] = []
         self._pending_flushes: list[tuple[int, Awaitable[bool]]] = []
         self._failed_flush: bool = False
@@ -160,6 +161,13 @@ class Session:
             self.access_level = old_access
 
     @property
+    def dangling(self) -> list[Node]:
+        return list(self._dangling_nodes_by_ck.values())
+
+    def dangling_like(self, type: type[Node]) -> list[Node]:
+        return [n for n in self.dangling if isinstance(n, type)]
+
+    @property
     def is_open(self) -> bool:
         return self.opened_at is not None and self.closed_at is None
 
@@ -186,7 +194,7 @@ class Session:
                 await self.aflush(optimistic=False, refresh_index=True)
 
     async def _do_flush(self, edits: list["EditData"], refresh_index: bool) -> bool:
-        """Flush any pending edits to the module."""
+        """Flush any pending edits to the module"""
         if not edits and not refresh_index:
             return True  # skip if no edits and no index refresh
         # TODO @Robustness: auto-split edits if not in atomic block and too large
@@ -257,6 +265,8 @@ class Session:
         await asyncio.gather(*(task for _, task in self._pending_flushes))
         _active_session.set(None)
         await self.tracer.close()
+        if self.dangling:
+            logger.warn("session.close.dangling", session=self, dangling=self.dangling)
         logger.debug("session.close", session=self)
 
     def close(self):
@@ -434,6 +444,8 @@ class SessionTracer:
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
         self.editor.create_many(*nodes, apply=False)
         for n in nodes:
+            if n.ck in self.session._dangling_nodes_by_ck:
+                del self.session._dangling_nodes_by_ck[n.ck]
             if n.mnt == MNT.STATEMENT:
                 self._new_statement_ids.add(n.id)
 

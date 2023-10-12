@@ -92,6 +92,8 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
       let refType: TypeTag | null = null;
       if (statement.type == StatementType.Class) {
         refType = TypeTag.Struct;
+      } else if (statement.type == StatementType.Choice) {
+        refType = TypeTag.Enum;
       } else if (statement.type == StatementType.Database) {
         refType = TypeTag.Struct;
       } else {

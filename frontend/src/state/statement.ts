@@ -335,11 +335,13 @@ export function getEnumColor(field: { ck: string }) {
   return ENUM_COLORS[idx % ENUM_COLORS.length];
 }
 
-export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
+export const STATEMENT_ICONS_OUTLINE: Record<StatementType, any> = {
   [StatementType.Blank]: NoSymbolIcon,
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconOutline,
   [StatementType.Task]: SparklesIconOutline,
+  [StatementType.Class]: RectangleGroupIconOutline,
+  [StatementType.Choice]: ChoiceTypeIcon,
   [StatementType.Variable]: VariableIcon,
   [StatementType.Database]: CircleStackIconOutline,
   [StatementType.Code]: CodeBracketSquareIconOutline,
@@ -347,7 +349,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Model]: CpuChipIconOutline,
   [StatementType.Reference]: ArrowUpRightIcon,
 };
-export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
+export const STATEMENT_ICONS_SOLID: Record<StatementType, any> = {
   [StatementType.Blank]: NoSymbolIcon,
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconSolid,

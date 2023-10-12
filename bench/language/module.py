@@ -37,7 +37,7 @@ from bench.language.validation import (
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
-from bench.utils.func import did_you_mean_str
+from bench.utils.func import did_you_mean_str, nextn
 from bench.utils.utils import (
     DEBUG,
     IdentifierType,
@@ -623,7 +623,7 @@ class _ChangeEffect:
                 affected_nodes.append(child)
                 if isinstance(child, ScopeNode):
                     affected_nodes.extend(
-                        child._local_root_tree.get_descendants(  #  :NodeViews
+                        child._local_root_tree.get_descendants(  # :NodeViews
                             child.ck, recursive=True, include_self=False
                         )
                     )
@@ -772,17 +772,32 @@ class NodeList(NodeListBase[NodeT]):
             return {n.py_ident: n for n in self._nodes}
         return {}
 
-    @property
-    def _last_ok(self) -> Optional[str]:
-        """Gets the last (top-level) order key in the list."""
+    def _ok_bounds(
+        self, after: NodeT = None, before: NodeT = None
+    ) -> tuple[Optional[str], Optional[str]]:
+        """Gets the order key bounds after the given (default to last)."""
         assert self._flags & NRel.Ordered, f"cannot get order key for {self!r}"
-        if self._flags & NRel.Flat:  # add after last root node
-            last_ok = next(
-                (n.order_key for n in reversed(self._nodes) if n.parent == self._parent), None
+        if after is not None:
+            last_ok = after.order_key
+            next_ok = nextn(
+                n.order_key
+                for n in self._nodes
+                if n.order_key > last_ok and n.parent == after.parent
             )
+            return last_ok, next_ok
+        elif before is not None:
+            next_ok = before.order_key
+            last_ok = nextn(
+                n.order_key
+                for n in reversed(self._nodes)
+                if n.order_key < next_ok and n.parent == before.parent
+            )
+            return last_ok, next_ok
         else:
-            last_ok = self._nodes[-1].order_key if self._nodes else None
-        return last_ok
+            last_ok = nextn(
+                (n.order_key for n in reversed(self._nodes) if n.parent == self._parent)
+            )
+            return last_ok, None
 
     def _update(self, scope: "ScopeNode"):
         """Updates this computed NodeList."""
@@ -811,10 +826,17 @@ class NodeList(NodeListBase[NodeT]):
             if self._flags & NRel.Ordered:
                 self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
 
-    def append(self, _node: NodeT, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
+    def append(
+        self,
+        _node: NodeT,
+        _create: bool = True,
+        after: NodeT = None,
+        before: NodeT = None,
+        _trigger: _NC = _NC.Full,
+    ) -> None:
         assert isinstance(_node, Node), f"cannot append {_node!r} to {self!r}"
         if _node.parent is not None:
-            raise ValueError(f"cannot append {_node!r} to {self}!r: has parent {_node.parent!r}")
+            raise ValueError(f"cannot attach {_node!r} to {self!r}: attached to {_node.parent!r}")
 
         # assign ids if newly attached to the module (ids are derived from ck + module)
         if not _node.attached and self._parent.attached:
@@ -846,7 +868,7 @@ class NodeList(NodeListBase[NodeT]):
 
         # assign order key to ordered nodes
         if self._flags & NRel.Ordered and _node.order_key is None:
-            _node.order_key = generate_key_between(self._last_ok, None)
+            _node.order_key = generate_key_between(*self._ok_bounds(after, before))
         if _trigger:
             # and update every affected node (to list/interp as needed)
             change._effect(_trigger)
@@ -859,13 +881,20 @@ class NodeList(NodeListBase[NodeT]):
         if _node.attached and _create and self._parent._session:
             self._parent._session.tracer.node_create(*added)
 
-    def extend(self, *nodes: NodeT, _create: bool = True, _trigger: _NC = _NC.Full):
+    def extend(
+        self,
+        *nodes: NodeT,
+        _create: bool = True,
+        after: NodeT = None,
+        before: NodeT = None,
+        _trigger: _NC = _NC.Full,
+    ):
         nodes = flatten_list(*nodes)
         if not nodes:
             return
         # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
         if self._flags & NRel.Ordered:
-            oks = generate_n_keys_between(self._last_ok, None, len(nodes))
+            oks = generate_n_keys_between(*self._ok_bounds(after, before), n=len(nodes))
             for node, ok in zip(nodes, oks):
                 node.order_key = ok
 
@@ -1452,6 +1481,8 @@ class Node(abc.ABC):
         if self.ck is None:
             self.ck = uuid4()
             self._new = True
+        if self._session and self._new:
+            self._session._dangling_nodes_by_ck[self.ck] = self
         if self.id is None and self.attached:
             self._assign_id(self.module.id)
         self._init_self()
