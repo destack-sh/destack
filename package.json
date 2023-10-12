@@ -14,7 +14,8 @@
     "test:e2e:ci": "start-server-and-test preview http://127.0.0.1:5050/ 'cypress run'",
     "typecheck": "vue-tsc --noEmit -p tsconfig.vitest.json --composite false",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write --ignore-path .gitignore ."
+    "format": "prettier --write --ignore-path .gitignore .",
+    "gql-generate": "graphql-codegen --watch"
   },
   "dependencies": {
     "@apollo/client": "^3.7.7",
@@ -28,7 +29,7 @@
     "@tailwindcss/aspect-ratio": "^0.4.2",
     "@tailwindcss/forms": "^0.5.3",
     "@tailwindcss/typography": "^0.5.9",
-    "@vue/apollo-composable": "^4.0.0-beta.5",
+    "@vue/apollo-composable": "^4.0.0-beta.11",
     "@vueuse/core": "^9.12.0",
     "apollo-upload-client": "^17.0.0",
     "axios": "^0.27.2",
@@ -42,7 +43,7 @@
     "highlight.js": "^11.8.0",
     "luxon": "^3.2.1",
     "marked": "^4.2.12",
-    "monaco-editor": "^0.40.0",
+    "monaco-editor": "^0.44.0",
     "monaco-languageclient": "^4.0.3",
     "mousetrap": "^1.6.5",
     "pinia": "^2.0.30",
@@ -54,10 +55,12 @@
     "vue-router": "^4.1.6",
     "web-worker": "^1.2.0"
   },
+  "overrides": {
+    "@graphql-typed-document-node/core": "3.2.0"
+  },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.0",
     "@graphql-codegen/client-preset": "^4.1.0",
-    "@graphql-codegen/near-operation-file-preset": "^3.0.0",
     "@graphql-codegen/typed-document-node": "^5.0.1",
     "@graphql-codegen/typescript-vue-apollo": "^3.3.7",
     "@graphql-eslint/eslint-plugin": "^3.20.0",
@@ -91,6 +94,7 @@
     "start-server-and-test": "^1.15.4",
     "svelte2tsx": "^0.6.23",
     "tailwindcss": "^3.3.3",
+    "ts-node": "^10.9.1",
     "typescript": "~5.1",
     "vite": "^4.4.11",
     "vite-plugin-monaco-editor": "^1.1.0",

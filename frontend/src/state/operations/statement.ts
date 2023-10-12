@@ -158,8 +158,6 @@ export function useStatementOps() {
         code: string | null;
         text: string | null;
         value: any | null;
-        tag: TypeTag | null;
-        flags: number | null;
         versioned: boolean;
       }) {
         return {
@@ -186,8 +184,6 @@ export function useStatementOps() {
             text: vars.text,
             headingLevel: null,
             referenceCk: null,
-            tag: vars.tag,
-            flags: vars.flags,
             versioned: vars.versioned,
             tags: [],
             fields: [],

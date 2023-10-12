@@ -3,7 +3,7 @@ import { cyrb53a } from "@/utils/functools";
 import { INIT_MONACO } from "@/utils/globals";
 import loader, { type Monaco } from "@monaco-editor/loader";
 import { useElementSize } from "@vueuse/core";
-import * as monaco from "monaco-editor";
+import type * as monaco from "monaco-editor";
 import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
 
 const props = defineProps<{
@@ -28,7 +28,7 @@ const emit = defineEmits<{
 }>();
 
 const editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null);
-const focused: Ref<boolean> = ref(false);
+const innerFocused: Ref<boolean> = ref(false);
 
 function getEditorHeight(code: string) {
   // TODO @UX: calculate monaco editor height with proper line height, word wrapping, etc.
@@ -107,7 +107,7 @@ function initMonaco(monaco: Monaco) {
         // make keywords orange
         { token: "keyword", foreground: "#b45309" },
         { token: "string.key.json", foreground: "#b45309" },
-        // make comments grey
+        // make comments light grey
         { token: "comment", foreground: "#6b7280" },
         // make literals and constants orange
         { token: "number", foreground: "#d97706" },
@@ -120,8 +120,9 @@ function initMonaco(monaco: Monaco) {
         { token: "identifier.python", foreground: "#000000" },
         // make comments italic
         { token: "comment", fontStyle: "italic" },
-        // (the below doesn't work because the token type isn't defined yet)
-        { token: "bench-builtin-function", foreground: "#d97706", fontStyle: "bold" },
+        // make brackets dark grey
+        { token: "delimiter.bracket", foreground: "#6b7280" },
+        { token: "delimiter.parenthesis", foreground: "#6b7280" },
       ],
       colors: BENCH_THEME_COLORS,
     });
@@ -165,6 +166,10 @@ function initMonaco(monaco: Monaco) {
     theme: "bench",
     occurrencesHighlight: false, // should be yellow but can't figure out how
     contextmenu: false,
+    bracketPairColorization: {
+      enabled: false,
+    },
+    matchBrackets: "never",
   });
 
   function hasInnerWindowOpen() {
@@ -242,10 +247,10 @@ function initMonaco(monaco: Monaco) {
   editor.value.onDidFocusEditorWidget(() => {
     handleCommands(); // always re-register to ensure this runs last
     // see https://github.com/microsoft/monaco-editor/issues/2947
-    focused.value = true;
+    innerFocused.value = true;
   });
   editor.value.onDidBlurEditorWidget(() => {
-    focused.value = false;
+    innerFocused.value = false;
   });
 
   // sync model content change from editor
@@ -324,7 +329,7 @@ function blur() {
   // no op?
 }
 
-defineExpose({ focus, blur, focused, markPosition, width: editorContainerWidth });
+defineExpose({ focus, blur, focused: innerFocused, markPosition, width: editorContainerWidth });
 </script>
 
 <template>

@@ -18,14 +18,7 @@ import {
 } from "@/state/bench";
 import { provideFileState, type FileState, type NavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import {
-  useCurrentModule,
-  type Statement,
-  mergeNodePaths,
-  newNodeIdentity,
-  getNodeIdFromCk,
-  orderStatements,
-} from "@/state/module";
+import { useCurrentModule, type Statement, mergeNodePaths, newNodeIdentity, getNodeIdFromCk } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";

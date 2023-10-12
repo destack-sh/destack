@@ -265,7 +265,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
       ...TriggerContent
     }
     # interp
-    # TODO @Performance: could probably just use module interp state for statement, but would be less responsive on load
+    # TODO @Performance: could probably just use module interp state for statement, but would be slower on initial load
     issues {
       ...IssueContent
     }
