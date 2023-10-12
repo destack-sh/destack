@@ -33,6 +33,12 @@ module.exports = {
         "@graphql-eslint/known-type-names": "error",
       },
     },
+    {
+      files: ["*.ts", "*.tsx"],
+      rules: {
+        "@typescript-eslint/no-empty-function": "off",
+      },
+    },
   ],
   // allow 'Symbol' to be used as a type
   rules: {

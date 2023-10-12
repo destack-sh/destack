@@ -54,8 +54,5 @@ export default defineConfig(({ command, mode }) => {
       host: "127.0.0.1",
       port: 3000,
     },
-    optimizeDeps: {
-      exclude: ["@graphql-codegen/cli", "@graphql-codegen/plugin-helpers"],
-    },
   };
 });
