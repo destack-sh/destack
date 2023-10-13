@@ -134,7 +134,7 @@ export function getStorageFormat(
   hint: TypeHint | undefined | null,
   flags: TypeFlag
 ): TypeStorageFormat | undefined {
-  if (flags & TypeFlag.IsSecret) {
+  if (flags & TypeFlag.IS_SECRET) {
     return TypeStorageFormat.OBJECT;
   }
   if (hint != null && hint in STORAGE_FORMAT_BY_TYPE_HINT) {

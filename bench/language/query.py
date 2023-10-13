@@ -469,7 +469,7 @@ class FieldQueryOps:
     def _subfield(self, name: str, tag: TypeTag, hint: Optional[TypeHint] = None) -> Subfield:
         from bench.language.field import get_storage_format
 
-        storage_format = get_storage_format(tag, hint, TypeFlag.Zero)
+        storage_format = get_storage_format(tag, hint, TypeFlag.ZERO)
         return Subfield(
             parent=self,
             name=name,

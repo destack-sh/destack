@@ -165,7 +165,7 @@ export type DeleteObjectInput = {
 
 export type Edit = {
   __typename?: "Edit";
-  data?: Maybe<IssueResolvedField>;
+  data?: Maybe<ModuleNode>;
   fileId?: Maybe<Scalars["GlobalID"]["output"]>;
   input?: Maybe<Scalars["JSON"]["output"]>;
   projectVersionId: Scalars["GlobalID"]["output"];
@@ -440,8 +440,6 @@ export enum IssueKind {
   Notice = "Notice",
   Warning = "Warning",
 }
-
-export type IssueResolvedField = Issue | ResolvedField;
 
 export enum IssueType {
   AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
@@ -5544,10 +5542,14 @@ export type ModuleChangedSubscription = {
       revision?: number | null;
       input?: any | null;
       data?:
-        | ({ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } })
-        | ({ __typename?: "ResolvedField" } & {
-            " $fragmentRefs"?: { ResolvedFieldContentFragment: ResolvedFieldContentFragment };
-          })
+        | { __typename?: "Field"; id: any; ck: any }
+        | { __typename?: "File"; id: any; ck: any }
+        | { __typename?: "Issue"; id: any; ck: any }
+        | { __typename?: "ProjectVersion"; id: any; ck: any }
+        | { __typename?: "ResolvedField"; id: any; ck: any }
+        | { __typename?: "Statement"; id: any; ck: any }
+        | { __typename?: "Tagging"; id: any; ck: any }
+        | { __typename?: "Trigger"; id: any; ck: any }
         | null;
     }>;
   };
@@ -22810,19 +22812,12 @@ export const ModuleChangedDocument = {
                           selections: [
                             {
                               kind: "InlineFragment",
-                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
-                              },
-                            },
-                            {
-                              kind: "InlineFragment",
-                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ModuleNode" } },
                               selectionSet: {
                                 kind: "SelectionSet",
                                 selections: [
-                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } },
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "ck" } },
                                 ],
                               },
                             },
@@ -22835,50 +22830,6 @@ export const ModuleChangedDocument = {
               ],
             },
           },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "IssueContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "ck" } },
-          { kind: "Field", name: { kind: "Name", value: "kind" } },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-          { kind: "Field", name: { kind: "Name", value: "message" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "parent" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "ResolvedFieldContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "ck" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
     },

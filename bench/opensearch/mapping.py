@@ -42,7 +42,7 @@ def register_mapper(
         mapper = StaticFieldMapper(mapper)
     tags = tags or []
     hints = hints or []
-    flags = flags or TypeFlag.Zero
+    flags = flags or TypeFlag.ZERO
     for tag in tags:
         field_mappers[TypeSignature(tag, None, flags)] = mapper
     for hint in hints:
@@ -53,7 +53,7 @@ def register_mapper(
 def get_mapper(type: Union[lang.Field, lang.Statement]) -> FieldMapper:
     if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Statement):
         return get_mapper(type.reference)  # skip the reference
-    stripped_flags = type.flags & TypeFlag.IsSecret
+    stripped_flags = type.flags & TypeFlag.IS_SECRET
     exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
     mapping = field_mappers.get(exact_signature)
     if mapping is not None:
@@ -167,7 +167,7 @@ register_mapper(
         },
     ),
     tags=[TypeTag.STRING, TypeTag.NUMBER],
-    flags=TypeFlag.IsSecret,
+    flags=TypeFlag.IS_SECRET,
 )
 # struct
 register_mapper(StructFieldMapper(), tags=[TypeTag.STRUCT])
@@ -177,6 +177,6 @@ register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.ENUM])
 
 def map_to_os_field(field: lang.Field) -> os.Field:
     os_field = get_mapper(field).to_os_type(field, depth=0)
-    if field.flags & TypeFlag.IsStoreOnly:
+    if field.flags & TypeFlag.IS_STORE_ONLY:
         os_field.index = False
     return os_field

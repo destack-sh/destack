@@ -229,17 +229,17 @@ class TypeFlag(enum.IntFlag):
     """Extra information for fields"""
 
     # :TypeFlags
-    Zero = 0
-    IsOutput = 2**0
-    IsArray = 2**1
-    IsOptional = 2**2
-    IsUnionWith = 2**3
-    IsSecret = 2**4
-    IsStoreOnly = 2**5
-    IsArrayable = 2**6
-    IsMeta = 2**7
-    IsConfig = 2**8
-    IsHidden = 2**9
+    ZERO = 0
+    IS_OUTPUT = 2**0
+    IS_ARRAY = 2**1
+    IS_OPTIONAL = 2**2
+    IS_UNION_WITH = 2**3
+    IS_SECRET = 2**4
+    IS_STORE_ONLY = 2**5
+    IS_ARRAYABLE = 2**6
+    IS_META = 2**7
+    IS_CONFIG = 2**8
+    IS_HIDDEN = 2**9
 
     @property
     def short_name(self) -> str:
@@ -270,10 +270,9 @@ class TypeStorageFormat(enum.StrEnum):
 class FieldReferenceMask(enum.IntFlag):
     """Per-key mask for field unions"""
 
-    Pick = 2**0
-    Omit = 2**1
-    ToInput = 2**2
-    ToOutput = 2**3
+    PICK = 2**0
+    TO_INPUT = 2**2
+    TO_OUTPUT = 2**3
 
 
 class RemoteObjectStatus(enum.StrEnum):

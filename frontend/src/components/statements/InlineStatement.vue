@@ -668,7 +668,7 @@ function run() {
   Object.values(partsRefs.value).forEach((p) => p?.syncNow?.());
 
   // actually run / launch
-  if (statement.value.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IsOutput))) {
+  if (statement.value.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IS_OUTPUT))) {
     bench.openLaunchRun(statement.value, { group: panel.panel.value.group, focus: true, opposite: true });
   } else {
     sessions.run(props.statement);

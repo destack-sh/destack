@@ -1060,12 +1060,15 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
 class NodeTree(NodeTreeBase[NT]):
     """An indexed tree of module nodes. Can be either language or data nodes."""
 
-    def __init__(self, nodes: list[NT] = None):
+    def __init__(self, nodes: Collection[NT] | "NodeTree" = None):
         self.nodes_by_id: dict[UUID, NT] = {}
         self.nodes_by_ck: dict[UUID, NT] = {}
         self.node_id_by_parent_id: dict[UUID, list[UUID]] = {}
-        for node in nodes or []:
-            self.add(node)
+        if isinstance(nodes, list):
+            for node in nodes or []:
+                self.add(node)
+        elif isinstance(nodes, NodeTree):
+            self.add_tree(nodes)
 
     def __str__(self):
         return f"{len(self.nodes_by_id)} nodes"
@@ -1076,6 +1079,9 @@ class NodeTree(NodeTreeBase[NT]):
     @property
     def nodes(self) -> Collection[NT]:
         return self.nodes_by_ck.values()
+
+    def copy(self):
+        return NodeTree(self)
 
     def deepcopy(self):
         nodes = [deepcopy(node) for node in self.nodes]
@@ -2169,13 +2175,14 @@ class Module(ScopeNode):
 
         # update source
         old_nodes_by_ck: dict[UUID, Node] = {**self.module._tree.nodes_by_ck}
+        old_source = self._source.copy()
         self._apply_edits_to_source(edits)
 
         # update self (this is obviously inefficient, but performs surprisingly okay)
         self._reset_from_source()
 
         # compute change, apply interp source changes if any
-        change = self._compute_change(edits, old_nodes_by_ck)
+        change = self._compute_change(edits, old_nodes_by_ck, old_source)
         if change.interp_edits:
             self._apply_edits_to_source(change.interp_edits)
         return change
@@ -2208,7 +2215,10 @@ class Module(ScopeNode):
         editor.apply_all(edits, raise_on_error=False)
 
     def _compute_change(
-        self, source_edits: list["EditData"], old_nodes_by_ck: dict[UUID, Node]
+        self,
+        source_edits: list["EditData"],
+        old_nodes_by_ck: dict[UUID, Node],
+        old_source: NodeTree,
     ) -> ModuleChange:
         """Computes the change between the old and new module state."""
         from bench.language.edit import ModuleEditor
@@ -2224,21 +2234,21 @@ class Module(ScopeNode):
                 added.append(n)
         removed = [n for n in old_nodes_by_ck.values() if n.ck not in new_nodes]
 
-        # gather interp edits
-        editor = ModuleEditor(self._source, self._project_id, self.id)
-        for node in added:
-            if node.mnt in INTERP_NODE_TYPES:
-                editor.create(node, apply=False)
+        # gather interp edits (delete from old, create in new)
+        old_editor = ModuleEditor(old_source, self._project_id, self.id)
         for node in removed:
             if node.mnt in INTERP_NODE_TYPES:
-                try:
-                    editor.delete(node, apply=False)
-                except ValueError:
-                    pass  # ignore missing interp nodes, fine because parent may have been deleted
+                # recover parent info from source
+                old_node = old_source.nodes_by_ck[node.ck]
+                old_editor.delete(old_node, apply=False)
+        new_editor = ModuleEditor(self._source, self._project_id, self.id)
+        for node in added:
+            if node.mnt in INTERP_NODE_TYPES:
+                new_editor.create(node, apply=False)
 
         return ModuleChange(
             source_edits=source_edits,
-            interp_edits=editor.edits,
+            interp_edits=new_editor.edits + old_editor.edits,
             added=added,
             updated=updated,
             removed=removed,
@@ -2253,6 +2263,7 @@ class Module(ScopeNode):
         module._source = NodeTree(source)
         module._project_id = project_id
         old_nodes_by_ck = {**module._tree.nodes_by_ck}
+        old_source_nodes_by_ck = {**module._source.nodes_by_ck}
 
         for dependency in libs.DEFAULT_MODULES.values():
             module.add_dependency(dependency)
@@ -2260,7 +2271,7 @@ class Module(ScopeNode):
         module._interp_rec()
 
         # update source with interp edits (doesn't have them)
-        change = module._compute_change([], old_nodes_by_ck)
+        change = module._compute_change([], old_nodes_by_ck, old_source_nodes_by_ck)
         if change.interp_edits:
             module._apply_edits_to_source(change.interp_edits)
 

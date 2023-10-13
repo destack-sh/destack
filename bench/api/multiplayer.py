@@ -13,10 +13,10 @@ from strawberry.utils.str_converters import to_camel_case
 from bench import models
 from bench.api import sync
 from bench.api.auth import check_module_access
-from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
-from bench.api.utils import asafe_subscription, to_global_id, to_uuid
+from bench.api.utils import ModuleNode, asafe_subscription, to_global_id, to_uuid
 from bench.language import edit, wire
+from bench.language.edit import MEK, MNT
 from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload
@@ -54,7 +54,7 @@ class Edit:
     statement_id: Optional[GlobalID]
     revision: Optional[int]
     input: Optional[JSON]
-    data: Union[Issue, ResolvedField, None]
+    data: Union[ModuleNode, None]
     properties: Optional[list[str]]  # by API name
 
 
@@ -72,14 +72,18 @@ async def unpack_module_edits(
     for e in edits:
         # :RawMutations
         if isinstance(e.node, (wire.IssueData, wire.ResolvedFieldData)):
-            # unpack data (somewhat inefficiently)
-            if e.statement_id is not None:
-                parent = await project_v.statements.aget(id=e.statement_id)
-            elif e.file_id is not None:
-                parent = await project_v.files.aget(id=e.file_id)
-            else:
-                parent = project_v
-            data = packer.unpack_node_flat(e.node, parent)[0]
+            if e.kind == MEK.DELETE:
+                model_cls = models.Issue if e.mnt == MNT.ISSUE else models.ResolvedField
+                data = model_cls(id=e.node.id, ck=e.node.ck)
+            else:  # only need
+                # unpack data (somewhat inefficiently)
+                if e.statement_id is not None:
+                    parent = await project_v.statements.aget(id=e.statement_id)
+                elif e.file_id is not None:
+                    parent = await project_v.files.aget(id=e.file_id)
+                else:
+                    parent = project_v
+                data = packer.unpack_node_flat(e.node, parent)[0]
         else:  # ignore other data types
             data = None
 

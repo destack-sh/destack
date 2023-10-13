@@ -41,7 +41,7 @@ class HasTask(Node):
         randomize_tag = symbolx_lib.resolve(".builtins.randomize")
         self._randomize = randomize_tag in self.tags
 
-        if not any(f.flags & TypeFlag.IsOutput for f in self.resolved_fields):
+        if not any(f.flags & TypeFlag.IS_OUTPUT for f in self.resolved_fields):
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task feasibility
         #  - check if task is possible given the fields, models & available statements

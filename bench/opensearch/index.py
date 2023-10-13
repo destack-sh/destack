@@ -359,7 +359,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
         for node in lib._nodes:
             if HasRun in node._components:
                 for field in node.resolved_fields:
-                    if field.flags & TypeFlag.IsOutput:
+                    if field.flags & TypeFlag.IS_OUTPUT:
                         outputs_mappings[field._typed_key] = map_to_os_field(field)
                     else:
                         inputs_mappings[field._typed_key] = map_to_os_field(field)
@@ -387,7 +387,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
         elif node.type in RUNNABLE_STATEMENT_TYPES:
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in node.resolved_fields:
-                if field.flags & TypeFlag.IsOutput:
+                if field.flags & TypeFlag.IS_OUTPUT:
                     outputs_mappings[field._typed_key] = map_to_os_field(field)
                 else:
                     inputs_mappings[field._typed_key] = map_to_os_field(field)

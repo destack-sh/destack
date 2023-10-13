@@ -181,9 +181,9 @@ def _type_to_json_schema(
     fields = [
         f
         for f in type.resolved_fields
-        if is_output is None or bool(f.flags & TypeFlag.IsOutput) == is_output
+        if is_output is None or bool(f.flags & TypeFlag.IS_OUTPUT) == is_output
     ]
-    if type.flags & TypeFlag.IsArray and not ignore_array:
+    if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         element_type = _type_to_json_schema(type, ignore_array=True)
         element_type.name = None  # not needed for array element
         return JsonSchemaElement(
@@ -192,7 +192,7 @@ def _type_to_json_schema(
             text=type.text_plain,
             items=element_type,
         )
-    elif type.flags & TypeFlag.IsArrayable:
+    elif type.flags & TypeFlag.IS_ARRAYABLE:
         raise NotImplementedError(f"unsupported type {type}: arrayable not yet supported")
     elif type._effective_tag == TypeTag.FUNCTION:
         return JsonSchemaElement(
@@ -201,7 +201,7 @@ def _type_to_json_schema(
             text=type.text_plain,
             properties=[_type_to_json_schema(field) for field in fields],
             required=[
-                field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
+                field.py_ident for field in fields if not (field.flags & TypeFlag.IS_OPTIONAL)
             ],
         )
     elif type._effective_tag in TypeTag.STRUCT:
@@ -211,7 +211,7 @@ def _type_to_json_schema(
             text=type.text_plain,
             properties=[_type_to_json_schema(field) for field in fields],
             required=[
-                field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
+                field.py_ident for field in fields if not (field.flags & TypeFlag.IS_OPTIONAL)
             ],
         )
     elif type._effective_tag == TypeTag.ENUM:
@@ -258,7 +258,7 @@ class BaseTextTaskCompiler(TaskCompiler):
             seen_node_ids = {
                 n.id
                 for o in task.resolved_fields
-                if o.field.flags & TypeFlag.IsOutput
+                if o.field.flags & TypeFlag.IS_OUTPUT
                 for n in o._walk_rec()
             }
         else:

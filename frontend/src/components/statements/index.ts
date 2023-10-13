@@ -147,7 +147,7 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
     component: BaseTypeControl,
     enabled: (iface, statement) => iface.hasBases ?? false,
     exists: (iface, statement) =>
-      statement.fields?.find((b) => b.deletedAt == null && b.flags & TypeFlag.IsUnionWith) != null,
+      statement.fields?.find((b) => b.deletedAt == null && b.flags & TypeFlag.IS_UNION_WITH) != null,
   },
   {
     id: "tagging",

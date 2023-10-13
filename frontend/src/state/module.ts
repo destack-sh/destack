@@ -95,17 +95,17 @@ export function newDetachedNodeIdentity(type: ModuleObjectTypename): { id: strin
 }
 
 export enum TypeFlag { // :TypeFlags
-  Zero = 0,
-  IsOutput = 1 << 0,
-  IsArray = 1 << 1,
-  IsOptional = 1 << 2,
-  IsUnionWith = 1 << 3,
-  IsSecret = 1 << 4,
-  IsStoreOnly = 1 << 5,
-  IsArrayable = 1 << 6,
-  IsMeta = 1 << 7,
-  IsConfig = 1 << 8,
-  IsHidden = 1 << 9,
+  ZERO = 0,
+  IS_OUTPUT = 1 << 0,
+  IS_ARRAY = 1 << 1,
+  IS_OPTIONAL = 1 << 2,
+  IS_UNION_WITH = 1 << 3,
+  IS_SECRET = 1 << 4,
+  IS_STORE_ONLY = 1 << 5,
+  IS_ARRAYABLE = 1 << 6,
+  IS_META = 1 << 7,
+  IS_CONFIG = 1 << 8,
+  IS_HIDDEN = 1 << 9,
 }
 
 type GRecord<K extends keyof any, V> = globalThis.Record<K, V>;

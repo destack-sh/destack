@@ -26,7 +26,7 @@ defineExpose({
   },
   actions: computed(() => {
     const actions: StatementAction[] = [];
-    if (!props.statement.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IsOutput))) {
+    if (!props.statement.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IS_OUTPUT))) {
       // can only run inline if no inputs
       actions.push({
         label: currentRunActive.value ? "Stop" : "Run",

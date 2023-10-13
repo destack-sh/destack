@@ -34,9 +34,9 @@ const module = useCurrentModule();
 
 function getDefaultFlags(t: TypeHint | TypeTag): number {
   if (t == TypeHint.Secret) {
-    return TypeFlag.IsSecret | TypeFlag.IsOptional;
+    return TypeFlag.IS_SECRET | TypeFlag.IS_OPTIONAL;
   } else {
-    return TypeFlag.IsOptional;
+    return TypeFlag.IS_OPTIONAL;
   }
 }
 
@@ -143,7 +143,7 @@ const filteredTypes = computed(() => {
 });
 
 function writeValue(type: Field) {
-  let newFlags = TypeFlag.Zero;
+  let newFlags = TypeFlag.ZERO;
   if (props.modelValue == null) {
     newFlags = getDefaultFlags(type.hint ?? type.tag);
   } else {
@@ -184,14 +184,14 @@ type FlagButton = {
 };
 const flagButtons: FlagButton[] = [
   {
-    flag: TypeFlag.IsOptional,
+    flag: TypeFlag.IS_OPTIONAL,
     invert: true,
     label: "required",
     setIcon: ExclamationCircleIcon,
     unsetIcon: QuestionMarkCircleIcon,
   },
   {
-    flag: TypeFlag.IsArray,
+    flag: TypeFlag.IS_ARRAY,
     invert: false,
     label: "many",
     setIcon: ListBulletIcon,
@@ -214,11 +214,11 @@ const LISTABLE_HINTS = [
   TypeHint.Video,
 ];
 function isFlagSupported(type: Field, flag: TypeFlag) {
-  if (flag == TypeFlag.IsOptional) {
+  if (flag == TypeFlag.IS_OPTIONAL) {
     return !NONNULL_TAGS.includes(type.tag);
-  } else if (flag == TypeFlag.IsArray) {
+  } else if (flag == TypeFlag.IS_ARRAY) {
     return (
-      !isFlagSet(TypeFlag.IsSecret) &&
+      !isFlagSet(TypeFlag.IS_SECRET) &&
       ((type.hint != null && LISTABLE_HINTS.includes(type.hint)) || LISTABLE_TAGS.includes(type.tag))
     );
   } else {

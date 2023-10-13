@@ -209,7 +209,7 @@ class HasCode(Node):
         func_body, start_offset, end_offset = self._prep_func_body()
         func_name = f"{self.py_ident or '_anon'}_{self.id.hex[:6]}"
         func_params = ", ".join(
-            i.py_ident + "=None" for i in self.resolved_fields if not (i.flags & TypeFlag.IsOutput)
+            i.py_ident + "=None" for i in self.resolved_fields if not (i.flags & TypeFlag.IS_OUTPUT)
         )
         try:
             method_str = f"def {func_name}({func_params}):\n{textwrap.indent(func_body, ' ' * 4)}"

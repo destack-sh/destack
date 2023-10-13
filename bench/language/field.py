@@ -197,7 +197,7 @@ STORAGE_FORMAT_BY_TYPE_HINT = {
 
 def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeStorageFormat:
     # :TypeStorageFormat
-    if flags & TypeFlag.IsSecret:
+    if flags & TypeFlag.IS_SECRET:
         return TypeStorageFormat.OBJECT  # stored as secret object
     if hint in STORAGE_FORMAT_BY_TYPE_HINT:
         return STORAGE_FORMAT_BY_TYPE_HINT[hint]
@@ -233,33 +233,33 @@ class Type:
         return dataclasses.replace(self, **kwargs)
 
     def array(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IsArray)
+        return self.replace(_flags=self._flags | TypeFlag.IS_ARRAY)
 
     def scalar(self) -> "Type":
-        return self.replace(_flags=self._flags & ~TypeFlag.IsArray)
+        return self.replace(_flags=self._flags & ~TypeFlag.IS_ARRAY)
 
     def required(self) -> "Type":
-        return self.replace(_flags=self._flags & ~TypeFlag.IsOptional)
+        return self.replace(_flags=self._flags & ~TypeFlag.IS_OPTIONAL)
 
     def optional(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IsOptional)
+        return self.replace(_flags=self._flags | TypeFlag.IS_OPTIONAL)
 
     def input(self) -> "Type":
-        return self.replace(_flags=self._flags & ~TypeFlag.IsOutput)
+        return self.replace(_flags=self._flags & ~TypeFlag.IS_OUTPUT)
 
     def output(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IsOutput)
+        return self.replace(_flags=self._flags | TypeFlag.IS_OUTPUT)
 
     def config(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IsConfig)
+        return self.replace(_flags=self._flags | TypeFlag.IS_CONFIG)
 
     def hidden(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IsHidden)
+        return self.replace(_flags=self._flags | TypeFlag.IS_HIDDEN)
 
     @staticmethod
     def reference(reference: Union["Statement", StatementReference, None]) -> "Type":
         return Type(
-            _tag=TypeTag.TYPE_REFERENCE, _hint=None, _flags=TypeFlag.Zero, _reference=reference
+            _tag=TypeTag.TYPE_REFERENCE, _hint=None, _flags=TypeFlag.ZERO, _reference=reference
         )
 
     @staticmethod
@@ -273,11 +273,11 @@ class Type:
 
     @staticmethod
     def from_tag(tag: TypeTag) -> "Type":
-        return Type(_tag=tag, _hint=None, _flags=TypeFlag.Zero)
+        return Type(_tag=tag, _hint=None, _flags=TypeFlag.ZERO)
 
     @staticmethod
     def from_hint(hint: TypeHint) -> "Type":
-        return Type(_tag=TYPE_TAG_BY_TYPE_HINT[hint], _hint=hint, _flags=TypeFlag.Zero)
+        return Type(_tag=TYPE_TAG_BY_TYPE_HINT[hint], _hint=hint, _flags=TypeFlag.ZERO)
 
     @staticmethod
     def to_python(node: "Type") -> str:
@@ -292,18 +292,18 @@ class Type:
             node_str = f"Type.reference({reference_str})"
         else:
             node_str = f"Type.{node._hint.name if node._hint else node._tag.name}"
-        if node._flags != TypeFlag.Zero:
-            if node._flags & TypeFlag.IsArray:
+        if node._flags != TypeFlag.ZERO:
+            if node._flags & TypeFlag.IS_ARRAY:
                 node_str += ".array()"
-            if node._flags & TypeFlag.IsArrayable:
+            if node._flags & TypeFlag.IS_ARRAYABLE:
                 node_str += ".arrayable()"
-            if node._flags & ~TypeFlag.IsOptional:
+            if node._flags & ~TypeFlag.IS_OPTIONAL:
                 node_str += ".required()"
-            if node._flags & TypeFlag.IsOutput:
+            if node._flags & TypeFlag.IS_OUTPUT:
                 node_str += ".output()"
-            if node._flags & TypeFlag.IsConfig:
+            if node._flags & TypeFlag.IS_CONFIG:
                 node_str += ".config()"
-            if node._flags & TypeFlag.IsHidden:
+            if node._flags & TypeFlag.IS_HIDDEN:
                 node_str += ".hidden()"
         return node_str
 
@@ -311,10 +311,10 @@ class Type:
 for tag in TypeTag:
     if tag in RESERVED_TYPE_TAGS:
         continue
-    _type = Type(_tag=tag, _hint=None, _flags=TypeFlag.IsOptional)
+    _type = Type(_tag=tag, _hint=None, _flags=TypeFlag.IS_OPTIONAL)
     setattr(Type, tag.name, _type)
 for hint in TypeHint:
-    _type = Type(_tag=TYPE_TAG_BY_TYPE_HINT[hint], _hint=hint, _flags=TypeFlag.IsOptional)
+    _type = Type(_tag=TYPE_TAG_BY_TYPE_HINT[hint], _hint=hint, _flags=TypeFlag.IS_OPTIONAL)
     setattr(Type, hint.name, _type)
 
 
@@ -376,14 +376,14 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
     order_key: str | None = ninternal(default=None)
     tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
     hint: TypeHint | None = nproperty(default=None, validate=enum_validator(TypeHint))
-    flags: TypeFlag = nproperty(default=TypeFlag.Zero, validate=flag_validator(TypeFlag))
+    flags: TypeFlag = nproperty(default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
 
     @staticmethod
     def new(
         name: str = None,
         type: Union[TypeTag, TypeHint, "Statement", str, type] = None,
         text: str = None,
-        flags: TypeFlag = TypeFlag.Zero,
+        flags: TypeFlag = TypeFlag.ZERO,
         *args,
         for_parent: "Statement" = None,
         **kwargs,
@@ -399,7 +399,7 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
 
         # default to optional if parent is not a function
         if not (for_parent and for_parent.tag == TypeTag.FUNCTION):
-            flags |= TypeFlag.IsOptional
+            flags |= TypeFlag.IS_OPTIONAL
 
         # coerce type
         if isinstance(type, Type):
@@ -427,7 +427,7 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
         else:
             raise ValueError(f"unexpected type {type!r}")
         if kwargs.get("hint") == TypeHint.SECRET:
-            flags = flags | TypeFlag.IsSecret
+            flags = flags | TypeFlag.IS_SECRET
 
         return Field(name=name, text=text, flags=flags, *args, **kwargs)
 
@@ -441,7 +441,7 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
         *args,
         **kwargs,
     ) -> "Field":
-        return Field.new(name=name, type=type, flags=TypeFlag.IsOutput, text=text, *args, **kwargs)
+        return Field.new(name=name, type=type, flags=TypeFlag.IS_OUTPUT, text=text, *args, **kwargs)
 
     @staticmethod
     def literal(name: str, text: str = None, *args, **kwargs) -> "Field":
@@ -449,11 +449,11 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
 
     @staticmethod
     def union(type: Union["Statement", str], *args, **kwargs):
-        return Field.new(type=type, flags=TypeFlag.IsUnionWith, *args, **kwargs)
+        return Field.new(type=type, flags=TypeFlag.IS_UNION_WITH, *args, **kwargs)
 
     @staticmethod
     def config(name: str, *args, **kwargs) -> "Field":
-        return Field.new(name=name, flags=TypeFlag.IsConfig, *args, **kwargs)
+        return Field.new(name=name, flags=TypeFlag.IS_CONFIG, *args, **kwargs)
 
     @staticmethod
     def to_python(
@@ -461,14 +461,14 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
     ) -> tuple[str, dict, dict]:
         props = {**props}
         implicit_optional = (
-            node.flags == TypeFlag.IsOptional and for_parent and for_parent.tag != TypeTag.FUNCTION
+            node.flags == TypeFlag.IS_OPTIONAL and for_parent and for_parent.tag != TypeTag.FUNCTION
         )
         if "flags" in props and (node.flags == 0 or implicit_optional):
             del props["flags"]
         if node.tag == TypeTag.LITERAL:
             init_args = {"name": props["name"], "text": props.get("text")}
             init_name = "Field.literal"
-        elif node.flags & TypeFlag.IsUnionWith:
+        elif node.flags & TypeFlag.IS_UNION_WITH:
             init_args = {"type": node.reference}
             init_name = "Field.union"
         elif not node.flags and node.tag == TypeTag.TYPE_REFERENCE:
@@ -478,8 +478,8 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
             type = Type.from_field(node)
             init_args = {"name": props["name"], "type": type, "text": props.get("text")}
             if for_parent and for_parent.tag == TypeTag.FUNCTION:
-                init_name = "Field.output" if node.flags & TypeFlag.IsOutput else "Field.input"
-                type._flags &= ~TypeFlag.IsOutput  # ignore flag, already handled
+                init_name = "Field.output" if node.flags & TypeFlag.IS_OUTPUT else "Field.input"
+                type._flags &= ~TypeFlag.IS_OUTPUT  # ignore flag, already handled
             else:
                 init_name = "Field.new"
 
@@ -514,14 +514,14 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
             tag = TYPE_TAG_BY_TYPE_HINT[self.hint]
             if self.tag != tag:
                 on_issue(self, f"expected {tag} for {self.hint} ({self.tag})", ["tag", "hint"])
-        if self.flags & TypeFlag.IsUnionWith:
+        if self.flags & TypeFlag.IS_UNION_WITH:
             if self.tag != TypeTag.TYPE_REFERENCE:
                 on_issue(
                     self,
                     f"expected reference for IsUnionWith ({self.tag})",
                     ["tag", "reference", "flags"],
                 )
-        if self.flags & TypeFlag.IsSecret:
+        if self.flags & TypeFlag.IS_SECRET:
             if self.hint != TypeHint.SECRET:
                 on_issue(
                     self, f"expected secret hint for IsSecret ({self.hint})", ["hint", "flags"]
@@ -640,7 +640,7 @@ class HasFields(HasType):
                 if not isinstance(field.reference, Node):
                     continue  # interp error, ignore
 
-            if field.flags & TypeFlag.IsUnionWith:
+            if field.flags & TypeFlag.IS_UNION_WITH:
                 if not isinstance(field.reference, Node):
                     continue  # validation error, ignore
                 # inline fields from union-ed type to resolved fields
@@ -662,7 +662,7 @@ class HasFields(HasType):
 
     def _inputs_from_args(self, args, kwargs) -> dict:
         inputs = {**kwargs}
-        input_fields = [f for f in self.resolved_fields if not (f.flags & TypeFlag.IsOutput)]
+        input_fields = [f for f in self.resolved_fields if not (f.flags & TypeFlag.IS_OUTPUT)]
         for input_t, input in zip(input_fields, args):
             inputs[input_t.py_ident] = input
         return inputs
@@ -688,7 +688,7 @@ class TypedDict(dict):
             return dict.__getitem__(self, item)
         except KeyError:
             field = self._type.resolved_fields.get(item)
-            if self._is_output is None or bool(field.flags & TypeFlag.IsOutput) == self._is_output:
+            if self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output:
                 return None
         raise AttributeError(item)
 
@@ -697,7 +697,7 @@ class TypedDict(dict):
             return super().__setattr__(name, value)
 
         field = self._type.resolved_fields.get(name)
-        if self._is_output is None or bool(field.flags & TypeFlag.IsOutput) == self._is_output:
+        if self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output:
             return dict.__setitem__(self, name, value)
         raise AttributeError(name)
 

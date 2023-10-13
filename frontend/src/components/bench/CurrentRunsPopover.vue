@@ -43,7 +43,7 @@ const suggestedRunnables = computed(() => {
 });
 
 function hasInputs(statement: InterpStatement) {
-  return statement.fields.filter((f) => f.deletedAt == null && !(f.flags & TypeFlag.IsOutput)).length > 0;
+  return statement.fields.filter((f) => f.deletedAt == null && !(f.flags & TypeFlag.IS_OUTPUT)).length > 0;
 }
 
 function run(statement: InterpStatement) {

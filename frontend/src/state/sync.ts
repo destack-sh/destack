@@ -166,11 +166,9 @@ export function useModuleSync(projectId: Ref<string | null>, projectVersionId: R
             revision
             input
             data {
-              ... on Issue {
-                ...IssueContent
-              }
-              ... on ResolvedField {
-                ...ResolvedFieldContent
+              ... on ModuleNode {
+                id
+                ck
               }
             }
           }
@@ -296,7 +294,7 @@ function useSyncedOps() {
           resolvedFields(existingResolvedFields = []) {
             const resolvedField = edit.data as ResolvedField;
             return [
-              ...existingResolvedFields,
+              ...existingResolvedFields.filter((r: any) => r.id != resolvedField.id),
               {
                 __typename: "ResolvedField",
                 id: resolvedField.id,
@@ -354,7 +352,7 @@ function useSyncedOps() {
         id: `Statement:${edit.statementId}`,
         fields: {
           issues(existingIssues = []) {
-            return [...existingIssues, edit.data];
+            return [...existingIssues.filter((i: any) => i.id != edit.data?.id), edit.data];
           },
         },
       });
@@ -363,7 +361,7 @@ function useSyncedOps() {
         id: `File:${edit.fileId}`,
         fields: {
           issues(existingIssues = []) {
-            return [...existingIssues, edit.data];
+            return [...existingIssues.filter((i: any) => i.id != edit.data?.id), edit.data];
           },
         },
       });

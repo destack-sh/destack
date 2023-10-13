@@ -77,7 +77,7 @@ const showName = computed(() => (!icon.value || props.showTypeName) && props.typ
     </span>
     <!-- TODO @UX: show required type flag -->
     <!-- Flags -->
-    <div v-if="type.flags & TypeFlag.IsArray && !hideFlags" class="relative left-1 mr-1 inline-block h-4 w-4">
+    <div v-if="type.flags & TypeFlag.IS_ARRAY && !hideFlags" class="relative left-1 mr-1 inline-block h-4 w-4">
       <ListBulletIcon class="absolute left-0 top-0.5 h-4 w-4" />
     </div>
   </div>

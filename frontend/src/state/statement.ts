@@ -89,16 +89,16 @@ export function useFieldsState(statement: Ref<Statement>, enabled?: Ref<boolean>
     enabled
   );
   const selfFields = _computedEmptyIfDisabled(
-    () => fields.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)) ?? [],
+    () => fields.value?.filter((n) => !(n.flags & TypeFlag.IS_UNION_WITH)) ?? [],
     enabled
   );
   const baseTypes = computed(
-    () => fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as Field) ?? []
+    () => fields.value?.filter((n) => n.flags & TypeFlag.IS_UNION_WITH).map((n) => n as Field) ?? []
   );
   const inheritedFields = computed(() => {
     return (
       resolvedFields.value?.filter(
-        (n) => !selfFields.value.find((f) => f.key == n.key) && !(n.flags & TypeFlag.IsUnionWith)
+        (n) => !selfFields.value.find((f) => f.key == n.key) && !(n.flags & TypeFlag.IS_UNION_WITH)
       ) ?? []
     );
   });
@@ -130,10 +130,10 @@ export function useFields(statement: Ref<Statement>) {
     }
     return fieldsByName;
   });
-  const inputs = computed(() => allFields.value.filter((n) => !(n.flags & TypeFlag.IsOutput)));
-  const outputs = computed(() => allFields.value.filter((n) => n.flags & TypeFlag.IsOutput));
-  const selfInputs = computed(() => selfFields.value.filter((n) => !(n.flags & TypeFlag.IsOutput)));
-  const selfOutputs = computed(() => selfFields.value.filter((n) => n.flags & TypeFlag.IsOutput));
+  const inputs = computed(() => allFields.value.filter((n) => !(n.flags & TypeFlag.IS_OUTPUT)));
+  const outputs = computed(() => allFields.value.filter((n) => n.flags & TypeFlag.IS_OUTPUT));
+  const selfInputs = computed(() => selfFields.value.filter((n) => !(n.flags & TypeFlag.IS_OUTPUT)));
+  const selfOutputs = computed(() => selfFields.value.filter((n) => n.flags & TypeFlag.IS_OUTPUT));
 
   function _createField(field: Field) {
     ops.symbol.createField(null, statement.value.id, {
@@ -188,7 +188,7 @@ export function useFields(statement: Ref<Statement>) {
       name: "",
       tag: TypeTag.TypeReference,
       orderKey: nextOrderKey,
-      flags: TypeFlag.IsUnionWith,
+      flags: TypeFlag.IS_UNION_WITH,
       referenceCk: referenceCk ?? null,
     });
     _createField(field);

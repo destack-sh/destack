@@ -147,7 +147,7 @@ type Edit {
   statementId: GlobalID
   revision: Int
   input: JSON
-  data: IssueResolvedField
+  data: ModuleNode
   properties: [String!]
 }
 
@@ -408,8 +408,6 @@ enum IssueKind {
   Warning
   Notice
 }
-
-union IssueResolvedField = Issue | ResolvedField
 
 enum IssueType {
   INTERNAL

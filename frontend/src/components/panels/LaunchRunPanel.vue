@@ -39,10 +39,10 @@ const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const statement = computed(() => module.statementOf(props.panel.panel.value.statementCk));
 const inputFields = computed(
-  () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IsOutput)) ?? []
+  () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IS_OUTPUT)) ?? []
 );
 const outputFields = computed(
-  () => statement.value?.fields?.filter((t) => t.deletedAt == null && t.flags & TypeFlag.IsOutput) ?? []
+  () => statement.value?.fields?.filter((t) => t.deletedAt == null && t.flags & TypeFlag.IS_OUTPUT) ?? []
 );
 const actions = computed(() => {
   const actions: StatementAction[] = [
