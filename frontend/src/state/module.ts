@@ -26,8 +26,9 @@ import { getUUIDFromGlobalID, toValueRef } from "@/utils/functools";
 import { VERSION, WS_CONNECTED } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, isRef, ref, watch, type Ref } from "vue";
+import { computed, isRef, ref, watch, type Ref, nextTick } from "vue";
 import { STATEMENT_TYPE_TAGS } from "@/state/statement";
+import type EditFilePanelVue from "@/components/panels/EditFilePanel.vue";
 
 export type NodeBase = { __typename: string; id: string; ck: string; name?: string | null };
 // TODO @Cleanup @Robustness: type module objects more correctly

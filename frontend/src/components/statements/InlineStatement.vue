@@ -334,17 +334,6 @@ whenever(isActive, () => {
   }
 });
 
-// focus statement interface if editing in editor but not in container
-watch(
-  () => [isEditing.value, props.shown],
-  () => {
-    if (isEditing.value && props.shown && !inContainerFocused.value) {
-      focus();
-    }
-  },
-  { immediate: true }
-);
-
 // refocus if statement interface changed and we're editing
 watch(
   () => iface.value,
