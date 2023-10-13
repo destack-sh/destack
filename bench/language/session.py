@@ -768,7 +768,7 @@ def _pack_and_truncate_value(
 
     def _truncate_value(value: Any, type: "HasFields", *args, **kwargs) -> Any:
         if _is_type_truncated(type):
-            if type.flags & TypeFlag.IsArrayable or type.flags & TypeFlag.IsArray:
+            if type.flags & TypeFlag.IS_ARRAYABLE or type.flags & TypeFlag.IS_ARRAY:
                 return []
             return None
         return value

@@ -111,7 +111,7 @@ defineExpose({
       groupId: "edit",
       icon: BoltIcon,
       disabled:
-        props.readonly || props.statement.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IsOutput)),
+        props.readonly || props.statement.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IS_OUTPUT)),
       action: () => addNew(),
     },
   ] as StatementAction[],

@@ -44,7 +44,7 @@ watch(activeIndex, () => {
 });
 
 const module = useCurrentModule();
-const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
+const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IS_ARRAY));
 const runtimeType = computed(() => module.statementOf(props.type.referenceCk));
 
 const fields = computed(() => {

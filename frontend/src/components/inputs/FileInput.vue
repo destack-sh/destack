@@ -22,7 +22,7 @@ const emit = defineEmits<{
   (e: "dropFiles", p: "above" | "below", v: File[]): void;
 }>();
 
-const isArray = computed(() => props.type.flags & TypeFlag.IsArray);
+const isArray = computed(() => props.type.flags & TypeFlag.IS_ARRAY);
 const objects = useObjects();
 const bench = useBenchState();
 const ongoingUploads = ref(0);

@@ -227,7 +227,7 @@ class Statement(ScopeNode, HasTags):
 
         # IsTyped
         setattr(self, "tag", _STATEMENT_DESCRIPTORS[self.type].tag)
-        setattr(self, "flags", TypeFlag.Zero)
+        setattr(self, "flags", TypeFlag.ZERO)
         setattr(self, "hint", None)
 
     def morph(self, to_type: StatementType):

@@ -94,7 +94,7 @@ def map_value(
     if premap_v:
         value = premap_v(value, type, ignore_array)
 
-    if type.flags & TypeFlag.IsArray and not ignore_array:
+    if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
             # type error, ignore here
             return None if none_if_invalid else value
@@ -111,7 +111,7 @@ def map_value(
             )
             for item in value
         ]
-    elif type.flags & TypeFlag.IsArrayable and not ignore_array:
+    elif type.flags & TypeFlag.IS_ARRAYABLE and not ignore_array:
         if _is_arrayable_not_an_array(type, value):
             return map_value(
                 value,
@@ -149,8 +149,10 @@ def map_value(
     mapped = {}
     assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
     for subtype in type.resolved_fields:
-        assert not subtype.flags & TypeFlag.IsUnionWith, f"unexpected union with {type}->{subtype}"
-        if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
+        assert (
+            not subtype.flags & TypeFlag.IS_UNION_WITH
+        ), f"unexpected union with {type}->{subtype}"
+        if is_output is not None and bool(subtype.flags & TypeFlag.IS_OUTPUT) != is_output:
             continue
         source_k, target_k = map_k(subtype)
         if source_k not in value:
@@ -183,14 +185,14 @@ def walk_value(
     """Yields all flat values in the value recursively."""
     get_k = get_k or (lambda f: f.py_ident)
 
-    if type.flags & TypeFlag.IsArray and not ignore_array:
+    if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
             # type error, ignore here
             return
         for item in value:
             yield from walk_value(item, type, get_k=get_k, ignore_array=True)
         return
-    elif type.flags & TypeFlag.IsArrayable and not ignore_array:
+    elif type.flags & TypeFlag.IS_ARRAYABLE and not ignore_array:
         if _is_arrayable_not_an_array(type, value):
             yield from walk_value(value, type, get_k=get_k, ignore_array=True)
             return
@@ -210,8 +212,10 @@ def walk_value(
 
     assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
     for subtype in type.resolved_fields:
-        assert not subtype.flags & TypeFlag.IsUnionWith, f"unexpected union with {type}->{subtype}"
-        if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
+        assert (
+            not subtype.flags & TypeFlag.IS_UNION_WITH
+        ), f"unexpected union with {type}->{subtype}"
+        if is_output is not None and bool(subtype.flags & TypeFlag.IS_OUTPUT) != is_output:
             continue
         k = get_k(subtype)
         if k not in value:
@@ -249,15 +253,15 @@ def check_type(
         return valid
 
     # optional / list types
-    if type.flags & TypeFlag.IsOptional and value is None:
+    if type.flags & TypeFlag.IS_OPTIONAL and value is None:
         return
-    elif type.flags & TypeFlag.IsArray and not ignore_array:
+    elif type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         if _check(isinstance(value, Collection)):
             for item in value:
                 check_type(item, type, get_k=get_k, on_invalid=on_invalid, ignore_array=True)
         return
     elif (
-        type.flags & TypeFlag.IsArrayable
+        type.flags & TypeFlag.IS_ARRAYABLE
         and not ignore_array
         and not _is_arrayable_not_an_array(type, value)
     ):
@@ -276,7 +280,7 @@ def check_type(
             value = value or {}  # None is allowed for empty outputs
         is_dc = is_dataclass(value)
         for f in type.resolved_fields:
-            if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
+            if is_output is not None and bool(f.flags & TypeFlag.IS_OUTPUT) != is_output:
                 continue
             k = get_k(f)
             if is_dc:
@@ -345,7 +349,7 @@ def register_mapper(
 
     tags = tags or []
     hints = hints or []
-    flags = flags or TypeFlag.Zero
+    flags = flags or TypeFlag.ZERO
     for tag in tags:
         _register(TypeSignature(tag, None, flags))
     for hint in hints:
@@ -359,7 +363,7 @@ def get_type_mapper_by_type(type: HasType) -> TypeMapper:
     (flat because we ignore list and optional types).
     """
     # strip to only relevant flags for mapping
-    stripped_flags = type.flags & TypeFlag.IsSecret
+    stripped_flags = type.flags & TypeFlag.IS_SECRET
     exact_signature = TypeSignature(type._effective_tag, type._effective_hint, stripped_flags)
     mapping = type_mappers.get(exact_signature)
     if mapping is not None:
@@ -386,25 +390,25 @@ def get_type_mapper_by_instance_type(py_type: type) -> tuple[TypeMapper, type, T
 
 
 def _strip_py_type(py_type: type) -> tuple[type, TypeFlag]:
-    flags = TypeFlag.Zero
+    flags = TypeFlag.ZERO
     # strip optional
     if get_origin(py_type) is Union:
         args = get_args(py_type)
         if len(args) == 2 and args[1] == type(None):  # noqa: E721
             py_type = args[0]
-            flags |= TypeFlag.IsOptional
+            flags |= TypeFlag.IS_OPTIONAL
         # convert x | list[x] as isarrayable
         elif len(args) == 2 and get_origin(args[1]) is list:
             if args[0] != get_args(args[1])[0]:
                 raise ValueError(f"cannot map generic union types: {py_type}")
             py_type = args[0]
-            flags |= TypeFlag.IsArrayable
+            flags |= TypeFlag.IS_ARRAYABLE
         else:
             raise ValueError(f"cannot map generic union types: {py_type}")
     # strip list
     if get_origin(py_type) is list:
         py_type = get_args(py_type)[0]
-        flags |= TypeFlag.IsArray
+        flags |= TypeFlag.IS_ARRAY
     return py_type, flags
 
 
@@ -603,7 +607,7 @@ class SecretTypeMapper(TypeMapper):
         return py_type is Secret
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> HasType:
-        return Field(name=None, tag=TypeTag.STRING, hint=TypeHint.SECRET, flags=TypeFlag.IsSecret)
+        return Field(name=None, tag=TypeTag.STRING, hint=TypeHint.SECRET, flags=TypeFlag.IS_SECRET)
 
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, Secret)
@@ -695,7 +699,7 @@ class FunctionTypeMapper(TypeMapper):
             raise ValueError(f"function output must be a struct: {py_type}")
         for output_field in output.fields:
             output_field = output_field._copy_self()
-            output_field.flags |= TypeFlag.IsOutput
+            output_field.flags |= TypeFlag.IS_OUTPUT
             output_field.order_key = None  # reset order
             type.fields.append(output_field)
 
@@ -774,12 +778,12 @@ def unpack_value_flat(
     # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
     mapping = get_type_mapper_by_type(type)
     try:
-        if type.flags & TypeFlag.IsArrayable:  # keep as is
+        if type.flags & TypeFlag.IS_ARRAYABLE:  # keep as is
             if not isinstance(value, list):
                 return mapping.unpack_value(type, scope, value)
             else:
                 return [mapping.unpack_value(type, scope, v) for v in value]
-        elif type.flags & TypeFlag.IsArray and not ignore_array:  # promote to array
+        elif type.flags & TypeFlag.IS_ARRAY and not ignore_array:  # promote to array
             if not isinstance(value, list):
                 value = [value]
             else:
@@ -892,4 +896,4 @@ register_mapper(
     StaticPyTypeMapper(int, TypeTag.NUMBER, hint=TypeHint.INTEGER), hints=[TypeHint.INTEGER]
 )
 # other
-register_mapper(SecretTypeMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IsSecret)
+register_mapper(SecretTypeMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IS_SECRET)

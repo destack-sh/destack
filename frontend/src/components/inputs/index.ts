@@ -48,7 +48,7 @@ function fromArray(value: any) {
 
 function toArrayAsFlagged(type: Field, value: any) {
   if (Array.isArray(value)) {
-    if (!(type.flags & TypeFlag.IsArray)) {
+    if (!(type.flags & TypeFlag.IS_ARRAY)) {
       return value.slice(0, 1);
     } else {
       return value;
@@ -60,7 +60,7 @@ function toArrayAsFlagged(type: Field, value: any) {
 }
 
 function toArrayIfFlagged(type: Field, value: any) {
-  if (type.flags & TypeFlag.IsArray) {
+  if (type.flags & TypeFlag.IS_ARRAY) {
     if (Array.isArray(value)) {
       return value;
     } else {
@@ -202,10 +202,10 @@ export function getInterface(type: Field): ValueInterface | undefined {
   let filtered = Object.values(interfaces);
   // find most specific interface that supports the type
   filtered = filtered.filter((i) => {
-    if (type.flags & TypeFlag.IsArray && !i.supportsList) {
+    if (type.flags & TypeFlag.IS_ARRAY && !i.supportsList) {
       return false;
     }
-    if (Boolean(type.flags & TypeFlag.IsSecret) != Boolean(i.isSecret)) {
+    if (Boolean(type.flags & TypeFlag.IS_SECRET) != Boolean(i.isSecret)) {
       return false;
     }
     return true;

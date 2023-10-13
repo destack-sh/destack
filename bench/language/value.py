@@ -24,7 +24,7 @@ class HasValue(Node):
             from bench.language.typing import check_type
 
             try:
-                is_array = bool(self._type_of_value.flags & TypeFlag.IsArray)
+                is_array = bool(self._type_of_value.flags & TypeFlag.IS_ARRAY)
                 get_k = lambda f: f.py_ident if self._status == NS.Tracked else f._typed_key  # noqa
                 check_type(
                     self.value or {}, self._type_of_value, get_k=get_k, ignore_array=is_array
@@ -46,7 +46,7 @@ class HasValue(Node):
         def _onwrite_value(key: str) -> None:
             from bench.language.typing import check_type
 
-            is_array = bool(self._type_of_value.flags & TypeFlag.IsArray)
+            is_array = bool(self._type_of_value.flags & TypeFlag.IS_ARRAY)
             check_type(self.value, self._type_of_value, ignore_array=is_array)
             if self.attached:
                 self.session.tracer.node_update(self, ["value"])

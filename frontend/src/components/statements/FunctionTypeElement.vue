@@ -63,7 +63,7 @@ function writeColumn(kind: "input" | "output", fieldId: string, column: ColumnTy
   if (!field) {
     return;
   }
-  const flags = value.flags | (kind == "output" ? TypeFlag.IsOutput : 0);
+  const flags = value.flags | (kind == "output" ? TypeFlag.IS_OUTPUT : 0);
   if (column == "type") {
     fieldsX.updateField(field as Field, { ...value, flags } as Field);
   } else {
@@ -76,7 +76,7 @@ function insertBelow(
   template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "value">
 ) {
   // function fields are required by default
-  const flags = (kind == "output" ? TypeFlag.IsOutput : 0) | ((template.flags ?? 0) & ~TypeFlag.IsOptional);
+  const flags = (kind == "output" ? TypeFlag.IS_OUTPUT : 0) | ((template.flags ?? 0) & ~TypeFlag.IS_OPTIONAL);
   const newField = fieldsX.createNewField({ ...template, flags });
   nextTick(() => {
     const grid = kind == "input" ? inputGrid : outputGrid;
@@ -99,7 +99,7 @@ function dropField(droppedId: string, position: "left" | "right" | "above" | "be
   const dropped = selfFields.value.find((n) => n.id == droppedId);
   const field = selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
-  if ((dropped.flags & TypeFlag.IsOutput) != (field.flags & TypeFlag.IsOutput)) return; // ignore drops between input/output (requires transaction)
+  if ((dropped.flags & TypeFlag.IS_OUTPUT) != (field.flags & TypeFlag.IS_OUTPUT)) return; // ignore drops between input/output (requires transaction)
   moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
 }
 

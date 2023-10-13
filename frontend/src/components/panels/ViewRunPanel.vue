@@ -52,10 +52,10 @@ const run = computed(() => (remoteRun.value != null ? remoteRun.value : localRun
 const loading = computed(() => localRun.value == null && remoteLoading.value);
 const statement = computed(() => (run.value?.statementCk != null ? module.statementOf(run.value.statementCk) : null));
 const inputFields = computed(
-  () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IsOutput)) ?? []
+  () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IS_OUTPUT)) ?? []
 );
 const outputFields = computed(
-  () => statement.value?.fields?.filter((t) => t.deletedAt == null && t.flags & TypeFlag.IsOutput) ?? []
+  () => statement.value?.fields?.filter((t) => t.deletedAt == null && t.flags & TypeFlag.IS_OUTPUT) ?? []
 );
 const terminalActions = computed(() => []);
 
