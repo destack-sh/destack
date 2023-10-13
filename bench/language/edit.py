@@ -707,10 +707,10 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
     TODO @Broken: _render_prop recursively (see typing)
     """
     from bench.language.remote import RemoteObject, Secret
-    from bench.language.typing import pack_value
+    from bench.language.text import HasText
+    from bench.language.typing import render_value
     from bench.language.value import HasValue
 
-    prop = node.__properties__.get(name)
     if value is None:
         return "None"
     elif isinstance(value, UUID):
@@ -730,7 +730,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         # render text into simple form
         if isinstance(value, Text):
             value = render_text_simple(value.spans)
-        elif prop and prop.name == "text" and value and node._text_spans:
+        elif name == "text" and HasText in node._components and value and node._text_spans:
             value = render_text_simple(node._text_spans)
         # if it contains newlines transform into multiline string
         # and escape any multiline strings inside
@@ -740,15 +740,14 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         else:
             value = value.replace('"', '\\"')
             return repr(value)
-    elif prop and prop.name == "value" and HasValue in node._components:
-        value = pack_value(
+    elif name == "value" and HasValue in node._components and isinstance(value, dict):
+        value = render_value(
             value,
             node._type_of_value,
-            map_k=lambda f: (f.py_ident, f.py_ident),
+            get_k=lambda f: f.py_ident,
             filter_v=lambda v: not isinstance(v, (Secret, RemoteObject)),
             ignore_array=True,
-            ignore_outer_map=True,
-            none_if_invalid=True,
+            ignore_outer_map=False,
         )
         return omit_empty(value)
     elif hasattr(type(value), "to_python"):
@@ -870,18 +869,22 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         nodes_strs = []
         for node in nodes:
             n, init_name, init_args, init_kwargs = node
+            # inline record value (see Record.new)
+            if n.mnt == MNT.RECORD:
+                from bench.language.typing import render_value
+
+                kwargs_str = _sep(
+                    f"{k}={render_value(v, n._type_of_value.resolved_fields.get(k))}"
+                    for k, v in n.value.items()
+                    if v
+                )
+                nodes_strs.append(f"Record.new({_sep(kwargs_str)})")
+                continue
+
             if op == _OpType.CREATE and len(nodes) > 1:
                 # merge args into kwargs
                 init_kwargs = {**init_args, **init_kwargs}
                 init_args.clear()
-
-            # inline record value (see Record.new)
-            if n.mnt == MNT.RECORD:
-                kwargs_str = _sep(
-                    f"{k}={_render_prop(n._type_of_value, k, v)}" for k, v in n.value.items() if v
-                )
-                nodes_strs.append(f"Record.new({_sep(kwargs_str)})")
-                continue
 
             # render args strs in reverse as soon as a value is set
             args_strs = []

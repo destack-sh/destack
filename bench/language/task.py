@@ -69,10 +69,11 @@ class HasTask(Node):
         # do task
         _randomize = _randomize if _randomize is not None else self._randomize
         view = NodeView(self.module)
-        view.view_from_node(self, ancestors_to=MNT.FILE, max_distance=5)
-        await view.view_records(limit=10)
+        seen_from_node = view.view_from_node(self, ancestors_to=MNT.FILE, max_distance=5)
+        await view.view_records(seen_from_node.values(), limit=10)
         seen_from_value = view.view_from_value(inputs, self, is_output=False)
         view.view_from_node(seen_from_value.values(), ancestors_to=MNT.FILE, max_distance=2)
+        await view.view_records(seen_from_value.values(), limit=10)
 
         self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
         try:

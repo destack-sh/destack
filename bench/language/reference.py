@@ -121,11 +121,11 @@ class NodeView:
         self._nodes_by_ck.update(seen_by_ck)
         return seen_by_ck
 
-    async def view_records(self, limit: int) -> dict[UUID, Node]:
+    async def view_records(self, nodes: Collection[Node], limit: int) -> dict[UUID, Node]:
         from bench.language.database import HasDatabase
 
         databases = []
-        for node in self._nodes_by_ck.values():
+        for node in nodes:
             if node.mnt == MNT.STATEMENT and HasDatabase in node._components:
                 databases.append(node)
         seen_by_ck: dict[UUID, Node] = {}
