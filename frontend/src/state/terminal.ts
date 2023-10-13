@@ -2,6 +2,7 @@ import { QueryOp, SortOrder, type Run, RunStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session";
+import { getUUIDFromGlobalID } from "@/utils/functools";
 import { createSharedComposable } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, toRef } from "vue";
@@ -127,7 +128,9 @@ function _useTerminal() {
       run,
       result: result.then(({ run, logs }) => {
         if (run.status != RunStatus.Completed) {
-          throw new Error(`run failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`);
+          throw new Error(
+            `run ${getUUIDFromGlobalID(run.id)} failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`
+          );
         }
         return { run, logs };
       }),

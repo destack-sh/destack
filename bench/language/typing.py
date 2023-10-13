@@ -1,5 +1,6 @@
 import enum
 import inspect
+import json
 from dataclasses import dataclass, field, fields, is_dataclass
 from datetime import date, datetime, time
 from functools import partial
@@ -40,7 +41,7 @@ from bench.language.field import (
 )
 from bench.language.module import NS, Node, ScopeNode
 from bench.language.remote import RemoteObject, Secret
-from bench.language.text import Text, parse_text_multi, render_text_html
+from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
@@ -187,8 +188,7 @@ def walk_value(
 
     if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
-            # type error, ignore here
-            return
+            return  # type error, ignore here
         for item in value:
             yield from walk_value(item, type, get_k=get_k, ignore_array=True)
         return
@@ -207,8 +207,7 @@ def walk_value(
     elif type._effective_tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise RuntimeError(f"expected struct-like {type} at {value}")
     if not isinstance(value, Mapping) and not is_dataclass(value):
-        # type error, ignore here
-        return
+        return  # type error, ignore here
 
     assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
     for subtype in type.resolved_fields:
@@ -303,20 +302,23 @@ class TypeMapper:
     Values and types are flattened for mapping, so ignore lists/optionals/etc.
     """
 
+    def __str__(self):
+        return self.__class__.__name__
+
     def is_instance_type(self, py_type: type) -> bool:
         """Whether this mapper can represent the given Python instance type."""
-        raise NotImplementedError
+        raise NotImplementedError(f"{self!r} does not support this for {py_type!r}")
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
         """Converts a Python instance type into a Bench Type."""
-        raise NotImplementedError
+        raise NotImplementedError(f"{self!r} does not support this for {py_type!r}")
 
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         """
         Whether this mapper can represent the given Python instance value.
         For nested types (like structs) this only checks the top-level value (no walking).
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"{self!r} does not support this for {type!r}")
 
     def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
         """Converts and coerces a raw flat value of the type into an instance value."""
@@ -325,6 +327,10 @@ class TypeMapper:
     def pack_value(self, type: HasType, value: Any) -> Any:
         """Converts a value of the given instance type back into a flat value."""
         return value
+
+    def render_python(self, type: HasType, value: Any) -> str:
+        """Renders an unpacked Python value as a string to reconstruct that value."""
+        raise NotImplementedError(f"{self!r} does not support this for {type!r}")
 
 
 type_mappers: dict[TypeSignature, TypeMapper] = {}
@@ -441,6 +447,9 @@ class StaticPyTypeMapper(TypeMapper):
     def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
         return self.py_type(value)
 
+    def render_python(self, type: HasType, value: Any) -> str:
+        return repr(value)
+
 
 @dataclass
 class StringTypeMapper(StaticPyTypeMapper):
@@ -451,15 +460,40 @@ class StringTypeMapper(StaticPyTypeMapper):
         # sanitize null character
         return str(value).replace("\x00", "")
 
+    def render_python(self, type: HasType, value: Any) -> str:
+        # if it contains newlines transform into multiline string
+        # and escape any multiline strings inside
+        if "\n" in value:
+            value = value.replace('"""', '\\"\\"\\"')
+            return f'"""\\\n{value}"""'
+        else:
+            value = value.replace('"', '\\"')
+            return repr(value)
 
-@dataclass
-class VectorTypeMapper(StaticPyTypeMapper):
-    py_type: type = Vector
-    tag: TypeTag = TypeTag.VECTOR
+
+class RichTextMapper(TypeMapper):
+    def is_instance_type(self, py_type: type) -> bool:
+        return py_type is RichText
+
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
+        return Field(name=None, tag=TypeTag.STRING, hint=TypeHint.RICH_TEXT)
 
     def is_instance_value(self, type: HasType, value: Any) -> bool:
-        # not quite right but good enough for now
-        return isinstance(value, Collection) and len(value) > 0 and isinstance(value[0], float)
+        return isinstance(value, (str, Text))
+
+    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
+        spans = parse_text_multi(value)
+        text = Text(spans=spans, _raw_text=value)
+        text._resolve(scope)
+        return text
+
+    def pack_value(self, type: HasType, value: Any) -> Any:
+        if not isinstance(value, Text):
+            return value
+        return render_text_html(value.spans)
+
+    def render_python(self, type: HasType, value: Any) -> str:
+        return repr(render_text_simple(value.spans))
 
 
 @dataclass
@@ -473,7 +507,11 @@ class StringifyTypeMapping(StaticPyTypeMapper):
     def pack_value(self, type: HasType, value: Any) -> str:
         return str(value)
 
+    def render_python(self, type: HasType, value: Any) -> str:
+        return repr(value)
 
+
+@dataclass
 class IsoDtTypeMapping(StaticPyTypeMapper):
     HINT_BY_PY_TYPE = {
         date: TypeHint.DATE,
@@ -497,7 +535,11 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
     def pack_value(self, type: HasType, value: Any) -> str:
         return value.isoformat()
 
+    def render_python(self, type: HasType, value: Any) -> str:
+        return repr(value)
 
+
+@dataclass
 class EnumMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return inspect.isclass(py_type) and issubclass(py_type, enum.StrEnum)
@@ -530,29 +572,25 @@ class EnumMapper(TypeMapper):
         field_ = type.resolved_fields.get(value) if not isinstance(value, Field) else value
         return field_.key if field_ else value
 
+    def render_python(self, type: HasType, value: Any) -> str:
+        field_ = type.resolved_fields.get(value) if not isinstance(value, Field) else value
+        return f"{type._effective_type.py_ident}.{field_.py_ident}"
 
-class RichTextMapper(TypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return py_type is RichText
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
-        return Field(name=None, tag=TypeTag.STRING, hint=TypeHint.RICH_TEXT)
+@dataclass
+class VectorTypeMapper(StaticPyTypeMapper):
+    py_type: type = Vector
+    tag: TypeTag = TypeTag.VECTOR
 
     def is_instance_value(self, type: HasType, value: Any) -> bool:
-        return isinstance(value, (str, Text))
+        # not quite right but good enough for now
+        return isinstance(value, Collection) and len(value) > 0 and isinstance(value[0], float)
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
-        spans = parse_text_multi(value)
-        text = Text(spans=spans, _raw_text=value)
-        text._resolve(scope)
-        return text
-
-    def pack_value(self, type: HasType, value: Any) -> Any:
-        if not isinstance(value, Text):
-            return value
-        return render_text_html(value.spans)
+    def render_python(self, type: HasType, value: Any) -> str:
+        return "<vector>"  # not sure how to render this
 
 
+@dataclass
 class NodeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return issubclass(py_type, Node)
@@ -569,7 +607,11 @@ class NodeMapper(TypeMapper):
     def pack_value(self, type: HasType, value: Any) -> Any:
         raise NotImplementedError(":NodesAsValues not yet supported")
 
+    def render_python(self, type: HasType, value: Any) -> str:
+        return value.py_ident
 
+
+@dataclass
 class RemoteObjectMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is RemoteObject
@@ -602,6 +644,7 @@ class RemoteObjectMapper(TypeMapper):
         }
 
 
+@dataclass
 class SecretTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is Secret
@@ -623,6 +666,7 @@ class SecretTypeMapper(TypeMapper):
         }
 
 
+@dataclass
 class StructTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return is_dataclass(py_type) or is_typeddict(py_type)
@@ -655,7 +699,21 @@ class StructTypeMapper(TypeMapper):
     def pack_value(self, type: HasType, value: Any) -> Any:
         return {TYPENAME_SENTINEL: type.key, **value}
 
+    def render_python(self, type: HasType, value: Any) -> str:
+        # render parts as python
+        parts_strs = []
+        for field_ in type.resolved_fields:
+            if field_.flags & TypeFlag.IS_OUTPUT:
+                continue
+            field_value = value[field_.key]
+            if field_value is None:
+                continue
+            field_str = render_value(field_, field_value)
+            parts_strs.append(f"{field_.py_ident}={field_str}")
+        return f"{type.py_ident}({', '.join(parts_strs)})"
 
+
+@dataclass
 class JsonTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is Json or py_type is dict or get_origin(py_type) is dict
@@ -666,7 +724,11 @@ class JsonTypeMapper(TypeMapper):
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
         return Field(name=None, tag=TypeTag.JSON)
 
+    def render_python(self, type: HasType, value: Any) -> str:
+        return json.dumps(value, indent=2)
 
+
+@dataclass
 class FunctionTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return inspect.isfunction(py_type)
@@ -809,6 +871,12 @@ def pack_value_flat(value: Any, type: HasType, *args, **kwargs) -> Any:
     return mapping.pack_value(type, value)
 
 
+def render_value_flat(value: Any, type: HasType, *args, **kwargs) -> str:
+    """Renders the given value as a string."""
+    mapping = get_type_mapper_by_type(type)
+    return mapping.render_python(type, value)
+
+
 def unpack_value(
     value: Any,
     type: HasFields,
@@ -869,6 +937,96 @@ def pack_value(
         none_if_invalid=none_if_invalid,
         is_output=is_output,
     )
+
+
+def _render_array(elements: Collection[str]) -> str:
+    """Renders the given elements as a Python list."""
+    return f"[{', '.join(elements)}]" if elements else "[]"
+
+
+def _render_dict(elements: Mapping[str, str]) -> str:
+    """Renders the given elements as a Python dict."""
+    elements_str = ", ".join(f'"{k}": {v}' for k, v in elements.items())
+    return f"{{{elements_str}}}" if elements else "{}"
+
+
+def render_value(
+    value: Any,
+    type: HasFields,
+    get_k: Callable[[Field], str] = None,
+    filter_k: Callable[[Any, Field, bool], bool] = None,
+    ignore_array: bool = False,
+    ignore_empty: bool = True,
+    is_output: bool = None,
+) -> str:
+    """Renders the given value as a Python string."""
+    get_k = get_k or (lambda f: f.py_ident)
+
+    if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
+        if not isinstance(value, Collection) or isinstance(value, str):
+            return repr(value)
+        elements = [
+            render_value(
+                item,
+                type,
+                get_k=get_k,
+                filter_k=filter_k,
+                ignore_array=True,
+                ignore_empty=ignore_empty,
+            )
+            for item in value
+        ]
+        return _render_array(elements)
+    elif type.flags & TypeFlag.IS_ARRAYABLE and not ignore_array:
+        if _is_arrayable_not_an_array(type, value):
+            return render_value(
+                value,
+                type,
+                get_k=get_k,
+                filter_k=filter_k,
+                ignore_array=True,
+                ignore_empty=ignore_empty,
+            )
+        elements = [
+            render_value(
+                item,
+                type,
+                get_k=get_k,
+                filter_k=filter_k,
+                ignore_array=True,
+                ignore_empty=ignore_empty,
+            )
+            for item in value
+        ]
+        return _render_array(elements)
+    elif type._effective_tag != TypeTag.STRUCT:
+        return render_value_flat(value, type, filter_k=filter_k)
+
+    # map struct-like types into a dict
+    assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
+    elements = {}
+    for subtype in type.resolved_fields:
+        assert (
+            not subtype.flags & TypeFlag.IS_UNION_WITH
+        ), f"unexpected union with {type}->{subtype}"
+        if is_output is not None and bool(subtype.flags & TypeFlag.IS_OUTPUT) != is_output:
+            continue
+        if filter_k and not filter_k(value, subtype, ignore_array):
+            continue
+        k = get_k(subtype)
+        if k not in value:
+            if ignore_empty:
+                continue
+            elements[k] = "None"
+        else:
+            elements[k] = render_value(
+                value[k],
+                subtype,
+                get_k=get_k,
+                filter_k=filter_k,
+                ignore_empty=ignore_empty,
+            )
+    return _render_dict(elements)
 
 
 # type tags
