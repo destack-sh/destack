@@ -527,7 +527,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   // selection
 
-  const statement = computed(() => statementsById.value[bench.focusedStatementId as string]);
+  const statement = computed(() => statementsByCk.value[file.value?.panel.activeStatementCk as string]);
 
   function getSelectedRoots(): StatementHeader[] {
     // Gets the in-selection roots of selected statements (ordered by position)
@@ -711,10 +711,9 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     if (file.value == null) return null;
 
     // current
-    const activeStatement = statementsByCk.value[file.value.panel.activeStatementCk as string];
     const current = {
-      statement: activeStatement,
-      component: file.value.statementsComponents[activeStatement?.id],
+      statement: statement.value,
+      component: file.value.statementsComponents[statement.value?.id],
       orderKey: statement.value?.orderKey ?? INTEGER_ZERO,
       previousSibling: statement.value == null ? null : getPreviousSibling(statement.value),
       children: statementsByParentId.value[statement.value?.id ?? ""] ?? [],

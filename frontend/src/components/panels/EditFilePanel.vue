@@ -6,7 +6,6 @@ import StatementAddArea from "@/components/panels/StatementAddArea.vue";
 import TitleBanner from "@/components/panels/TitleBanner.vue";
 import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
-import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import {
   EditFilePanel,
@@ -31,14 +30,12 @@ import UserAvatar from "@/components/basic/UserAvatar.vue";
 import { useNotifications } from "@/state/notifications";
 import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 import TerminalPopover from "@/components/interfaces/TerminalPopover.vue";
-import type { State } from "monaco-languageclient/.";
 
 const props = defineProps<{ panel: PanelContext<EditFilePanel>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const bench = useBenchState();
 const module = useCurrentModule();
 const appearance = useAppearance();
-const actions = useActions();
 const panel = computed(() => props.panel.panel.value);
 const scroll = computed(() => props.panel.scroll.value);
 const ops = useOperations();
@@ -496,6 +493,10 @@ function getStatementBounding(statementId: string): { top: number; right: number
     top: Math.round((statement.bounding.top.value + scroll.value.y - panel.pos.value.top) * 100) / 100,
   };
 }
+
+defineExpose({
+  statementsComponents,
+});
 </script>
 
 <template>
@@ -584,6 +585,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
       >
         <InlineStatement
           :ref="(el: any) => registerStatementRef(positioned.statement.id, el)"
+          :key="positioned.statement.id"
           :file="(fileHeader as any)"
           :statement="(positioned.statement as any)"
           :readonly="isDeleted || isOtherVersion || bench.readonly"

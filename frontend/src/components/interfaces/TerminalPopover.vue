@@ -4,6 +4,7 @@ import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import { StatementType, type Run } from "@/gql/graphql";
 import { useBenchState, type StatementHeader, usePanelContext } from "@/state/bench";
+import { useNavigation, type NodeBase } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions } from "@/state/session";
 import { useTerminal } from "@/state/terminal";
 import { makeTextMention, makeTextPlain, renderTextHtml, type TextSpan } from "@/state/text";
@@ -21,10 +22,11 @@ const bench = useBenchState();
 const panel = usePanelContext();
 const terminal = useTerminal();
 const session = useCurrentSessions();
+const nav = useNavigation();
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const inputRef = ref<InstanceType<typeof AnnotatedText> | null>(null);
-const inputFrom = ref<string | null>(null);
+const inputFrom = ref<StatementHeader | null>(null);
 const inputText = ref("");
 const canRun = computed(
   // check if there is any meaningful text
@@ -89,7 +91,7 @@ async function apply() {
   if (generatedCode.value == null || generatedFrom.value == null) return;
   applyingCode.value = true;
   try {
-    const appendAfter = inputFrom.value ? `module.resolve(UUID("${getUUIDFromGlobalID(inputFrom.value)}"))` : "None";
+    const appendAfter = inputFrom.value ? `module.resolve(UUID("${getUUIDFromGlobalID(inputFrom.value.id)}"))` : "None";
     const appendLine = `file.extend(session.dangling_like(Statement), after=${appendAfter}) # auto-generated`;
     const code = generatedCode.value + "\n" + appendLine;
     const { result } = terminal.runCode(code, {
@@ -111,7 +113,7 @@ async function apply() {
 }
 
 function open(text: string, selection?: StatementHeader[], from?: StatementHeader) {
-  inputFrom.value = from?.id;
+  inputFrom.value = from ?? null;
   if (!text && !selection) {
     // default to current selection if nothing is provided
     selection = props.currentSelection;
@@ -129,6 +131,14 @@ function open(text: string, selection?: StatementHeader[], from?: StatementHeade
 
 function close() {
   active.value = false;
+}
+
+function escape() {
+  discardGenerated();
+  close();
+  if (inputFrom.value != null) {
+    nav.focusStatement(inputFrom.value as NodeBase);
+  }
 }
 
 function focus() {
@@ -155,7 +165,7 @@ defineExpose({
       ]"
       :style="expanded ? { width: fullWidth + 'px' } : {}"
       @click="active ? focus() : open(inputText)"
-      @keydown.escape.stop.prevent="discardGenerated(), close()"
+      @keydown.escape.stop.prevent="escape()"
     >
       <!-- Open/close button -->
       <button

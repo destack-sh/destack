@@ -46,8 +46,9 @@ import {
 } from "@heroicons/vue/24/solid";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
-import { computed, inject, onBeforeUnmount, provide, watch, type Ref } from "vue";
+import { computed, inject, onBeforeUnmount, provide, watch, type Ref, nextTick } from "vue";
 import { validate as isValidUUID } from "uuid";
+import type EditFilePanelVue from "@/components/panels/EditFilePanel.vue";
 
 export const PROJECT_ACCESS_LEVELS = [
   ModuleAccessLevel.Zero,
@@ -131,7 +132,7 @@ export function prettifySlug(path: string) {
 }
 
 // note that panel state should be JSON serializable (except below)
-const UNSERIALIZABLE_PANEL_PROPS = ["_bench", "_context"];
+const UNSERIALIZABLE_PANEL_PROPS = ["_bench", "_context", "_panel"];
 export abstract class Panel {
   type: PanelType;
   id: string;
@@ -143,9 +144,9 @@ export abstract class Panel {
   lastActiveAt: string | null = null;
   // refs assigned on creation/component instantiation
   _bench: ReturnType<typeof useBenchState> | undefined = undefined;
-  _context: any | undefined = undefined;
+  _context: any | PanelContext<any> = undefined;
 
-  constructor(type: PanelType, id: string, name: string, path: string, groupId: string | null = null) {
+  constructor(type: PT, id: string, name: string, path: string, groupId: string | null = null) {
     this.name = name;
     this.type = type;
     this.id = id;
@@ -256,6 +257,10 @@ export abstract class Panel {
       throw new Error(`panel ${this.id} has no context`);
     }
     return this._context;
+  }
+
+  get component(): InstanceType<any> {
+    return this._context.component;
   }
 
   blur() {
@@ -660,16 +665,8 @@ export const useBenchState = defineStore("bench", {
       return panel;
     },
 
-    focusStatement(statement: NodeBase, group?: PanelGroup): Panel {
-      const panel = this.openEditStatement(statement, { group });
-      this.focusPanel(panel);
-      return panel;
-    },
-
     focusNode(node: NodeBase, group?: PanelGroup): Panel {
-      if (node.__typename == "Statement") {
-        return this.focusStatement(node, group);
-      } else if (node.__typename == "File") {
+      if (node.__typename == "File") {
         return this.focusFile(node, group);
       } else {
         throw new Error(`cannot focus node ${node.__typename}`);
@@ -1108,6 +1105,13 @@ export class EditFilePanel extends NavigablePanel {
 
   resetId(): void {
     this.id = this.fileCk + "-" + randomHexString();
+  }
+
+  editElement(element: NavElement) {
+    super.editElement(element);
+    nextTick(() => {
+      (this.component as InstanceType<typeof EditFilePanelVue>)?.statementsComponents[element.id]?.focus();
+    });
   }
 
   isStatementContentFolded(statement: { ck: string }): boolean {
