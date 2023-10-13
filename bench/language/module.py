@@ -778,21 +778,19 @@ class NodeList(NodeListBase[NodeT]):
         """Gets the order key bounds after the given (default to last)."""
         assert self._flags & NRel.Ordered, f"cannot get order key for {self!r}"
         if after is not None:
-            last_ok = after.order_key
             next_ok = nextn(
                 n.order_key
                 for n in self._nodes
-                if n.order_key > last_ok and n.parent == after.parent
+                if n.order_key > after.order_key and n.parent == after.parent
             )
-            return last_ok, next_ok
+            return after.order_key, next_ok
         elif before is not None:
-            next_ok = before.order_key
             last_ok = nextn(
                 n.order_key
                 for n in reversed(self._nodes)
-                if n.order_key < next_ok and n.parent == before.parent
+                if n.order_key < before.order_key and n.parent == before.parent
             )
-            return last_ok, next_ok
+            return last_ok, before.order_key
         else:
             last_ok = nextn(
                 (n.order_key for n in reversed(self._nodes) if n.parent == self._parent)
@@ -800,7 +798,6 @@ class NodeList(NodeListBase[NodeT]):
             return last_ok, None
 
     def _update(self, scope: "ScopeNode"):
-        """Updates this computed NodeList."""
         # _children is effectively a computed property which is replaced wholesale,
         # we don't do diff updates to keep it simple with all the relation types.
         if self._flags & NRel.Cumulative:
@@ -833,7 +830,7 @@ class NodeList(NodeListBase[NodeT]):
         after: NodeT = None,
         before: NodeT = None,
         _trigger: _NC = _NC.Full,
-    ) -> None:
+    ) -> list[NodeT]:
         assert isinstance(_node, Node), f"cannot append {_node!r} to {self!r}"
         if _node.parent is not None:
             raise ValueError(f"cannot attach {_node!r} to {self!r}: attached to {_node.parent!r}")
@@ -880,6 +877,8 @@ class NodeList(NodeListBase[NodeT]):
         # 'create' node in session if it's attached
         if _node.attached and _create and self._parent._session:
             self._parent._session.tracer.node_create(*added)
+        # temporarily hoisted records may no longer be in tree, so return our added nodes
+        return added
 
     def extend(
         self,
@@ -902,13 +901,13 @@ class NodeList(NodeListBase[NodeT]):
         #  (can we merge them somehow to simplify)?
         change = _ChangeEffect._collect(None, self._parent, nodes, _trigger)
         change._effect(_trigger & ~_NC.Attach)
+        added = []
         for node in nodes:
-            self.append(node, _create=False, _trigger=_NC.Ignore)
+            added.extend(self.append(node, _create=False, _trigger=_NC.Ignore))
         change._effect(_trigger & ~_NC.Detach)
         if _trigger & _NC.UpdateLists:
             assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
         if self._parent.attached and _create and self._parent._session:
-            added = flatten_list(*(node._walk_rec() for node in nodes))
             self._parent._session.tracer.node_create(*added)
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
@@ -997,7 +996,68 @@ class NodeList(NodeListBase[NodeT]):
 NT = typing.TypeVar("NT")
 
 
-class NodeTree(typing.Generic[NT]):
+class NodeTreeBase(abc.ABC, typing.Generic[NT]):
+    @property
+    def nodes(self) -> Collection[NT]:
+        raise NotImplementedError
+
+    def get(self, node_id_or_ck: UUID) -> Optional[NT]:
+        """Gets a node by id or ck"""
+        raise NotImplementedError
+
+    def __getitem__(self, item):
+        raise NotImplementedError
+
+    def __contains__(self, item):
+        raise NotImplementedError
+
+    def clear(self):
+        """Clear the tree"""
+        raise NotImplementedError
+
+    def add(self, node: "Node"):
+        """Add a node to the tree (error if node already exists)"""
+        raise NotImplementedError
+
+    def add_many(self, *nodes: Collection[NT]):
+        nodes = flatten_list(*nodes)
+        for node in nodes:
+            self.add(node)
+
+    def update(self, node: "Node"):
+        """Updates the node in this tree (must exist)"""
+        raise NotImplementedError
+
+    def set(self, nodes: Collection[NT]):
+        """Replaces all nodes in the tree"""
+        self.clear()
+        for node in nodes:
+            self.add(node)
+
+    def add_tree(self, tree: "DetachedNodeTree"):
+        raise NotImplementedError
+
+    def remove(self, node: "Node"):
+        """Remove a node from the tree (incl. all descendants if recursive)"""
+        raise NotImplementedError
+
+    def get_descendants(
+        self,
+        node_id_or_ck: UUID,
+        mnt: MNT | None = None,
+        recursive: bool = False,
+        prefilter: bool = False,
+        include_self: bool = False,
+    ) -> list["NT"]:
+        """Gets all children descendants as filtered in BFS order"""
+        raise NotImplementedError
+
+    def get_ancestor(self, node_id_or_ck: UUID, mnt: MNT | None = None) -> Optional["NT"]:
+        """Finds the next ancestor of the given type (including self)"""
+        raise NotImplementedError
+
+
+class NodeTree(NodeTreeBase[NT]):
     """An indexed tree of module nodes. Can be either language or data nodes."""
 
     def __init__(self, nodes: list[NT] = None):
@@ -1057,12 +1117,6 @@ class NodeTree(typing.Generic[NT]):
                 self.node_id_by_parent_id[node.parent_id] = []
             self.node_id_by_parent_id[node.parent_id].append(node.id)
 
-    def set(self, nodes: Collection[NT]):
-        """Replaces all nodes in the tree"""
-        self.clear()
-        for node in nodes:
-            self.add(node)
-
     def replace(self, node: NT):
         """Upsert a node in the tree (replace if node already exists)"""
         old_node = self.nodes_by_id.get(node.id)
@@ -1107,7 +1161,8 @@ class NodeTree(typing.Generic[NT]):
     def add_tree(self, tree: Union["NodeTree", "DetachedNodeTree"]):
         if isinstance(tree, DetachedNodeTree):
             for node in tree.nodes_by_ck.values():
-                self.add(node)
+                if node.mnt != MNT.RECORD:  # :TempRecordTree
+                    self.add(node)
         else:
             self.nodes_by_id.update(tree.nodes_by_id)
             self.nodes_by_ck.update(tree.nodes_by_ck)
@@ -1268,7 +1323,7 @@ class NodeTree(typing.Generic[NT]):
         return ancestors
 
 
-class DetachedNodeTree:
+class DetachedNodeTree(NodeTreeBase[NT]):
     """
     A minimal NodeTree for working with instantiated nodes that may not have ids yet.
     We have a separate tree for this because wire nodes work with ids only (for parent),
@@ -1319,12 +1374,6 @@ class DetachedNodeTree:
         self.nodes_by_ck[node.ck] = node
         if node.parent is not None:
             self.node_ck_by_parent_ck[node.parent.ck].append(node)
-
-    def set(self, nodes: Collection[NT]):
-        """Replaces all nodes in the tree"""
-        self.clear()
-        for node in nodes:
-            self.add(node)
 
     def add_tree(self, tree: "DetachedNodeTree"):
         assert type(self) == type(tree), f"cannot add {tree!r} to {self!r}"

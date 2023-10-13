@@ -238,6 +238,7 @@ defineExpose({
           language="python"
           :focused="active"
           :wrap="generatedCodeCondensed"
+          @execute="apply"
         />
         <!-- Controls -->
         <!-- Apply/Discard should also tag the task run with feedback (as a demo and because it would be useful) -->

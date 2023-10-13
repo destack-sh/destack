@@ -21,7 +21,7 @@ const appearance = useAppearance();
 const isInTopHalfOfPanel = computed(() => props.bounding.y.value < panel.size.value.height / 2);
 
 const query: Ref<string> = ref("");
-const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+const inputRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const panel = usePanelContext();
 const ops = useOperations();
 
@@ -30,7 +30,7 @@ watch(query, (q) => {
   if (q == "") {
     commanding.value = false;
   } else if (q == " ") {
-    query.value = "";
+    inputRef.value?.clear();
     emit("launchAssist", "");
   } else if (q == "/") {
     openCommandSelection();
@@ -62,7 +62,7 @@ useActiveScroll(computed(() => commandOptionsRef.value?.$el));
 
 function morphToText() {
   query.value = "";
-  nextTick(() => spanRef.value?.focus());
+  nextTick(() => inputRef.value?.focus());
 }
 
 function openCommandSelection() {
@@ -73,7 +73,7 @@ function openCommandSelection() {
 function stopCommanding() {
   commanding.value = false;
   query.value = "";
-  nextTick(() => spanRef.value?.focus());
+  nextTick(() => inputRef.value?.focus());
 }
 
 function selectCommand(command: MorphCommand) {
@@ -87,11 +87,11 @@ const { filteredCommands, doMorph } = useStatementMorph(toRef(props, "statement"
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
-    spanRef.value?.focus();
+    inputRef.value?.focus();
     commanding.value = false;
   },
   blur: () => {
-    spanRef.value?.blur();
+    inputRef.value?.blur();
     commandInputRefFocused.value = false;
     commanding.value = false;
   },
@@ -99,9 +99,9 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex w-full flex-row items-center outline-none" @click="spanRef?.focus()">
+  <div class="flex w-full flex-row items-center outline-none" @click="inputRef?.focus()">
     <EditableSpan
-      ref="spanRef"
+      ref="inputRef"
       v-if="!commanding"
       v-model="query"
       :readonly="readonly"

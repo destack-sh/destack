@@ -661,7 +661,7 @@ def render(
                 tree = node.scope._local_root_tree
                 if recursive:
                     descendants = list(node._walk_rec())
-                    # add records to descendants for databases
+                    # add rec  ords to descendants for databases
                     # (this only works when called synchronously)
                     if HasDatabase in node._components:
                         descendants.extend(node.records.limit(record_limit))

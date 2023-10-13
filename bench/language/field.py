@@ -283,7 +283,13 @@ class Type:
     def to_python(node: "Type") -> str:
         """Reconstruct minimal Python code to create this type."""
         if node._tag == TypeTag.TYPE_REFERENCE:
-            node_str = f'Type.reference("{node._reference.py_ident}")'
+            if isinstance(node._reference, Node):
+                reference_str = node._reference.py_ident
+            elif isinstance(node._reference, UUID):
+                reference_str = f"UUID('{node._reference}')"
+            else:
+                reference_str = repr(node._reference)
+            node_str = f"Type.reference({reference_str})"
         else:
             node_str = f"Type.{node._hint.name if node._hint else node._tag.name}"
         if node._flags != TypeFlag.Zero:
@@ -465,6 +471,9 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
         elif node.flags & TypeFlag.IsUnionWith:
             init_args = {"type": node.reference}
             init_name = "Field.union"
+        elif not node.flags and node.tag == TypeTag.TYPE_REFERENCE:
+            init_args = {"type": node.reference}
+            init_name = "Field.new"
         else:
             type = Type.from_field(node)
             init_args = {"name": props["name"], "type": type, "text": props.get("text")}

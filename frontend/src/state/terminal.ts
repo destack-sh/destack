@@ -115,7 +115,7 @@ function _useTerminal() {
       scope: options.scope,
       rootValue: {
         name: "terminal",
-        code: code,
+        code: options.cleanCode ?? code,
         scope: options.scope,
         generated_from: options.generatedFrom,
         generated_in: options.generatedIn,

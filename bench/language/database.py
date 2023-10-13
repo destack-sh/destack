@@ -297,7 +297,7 @@ class RecordSearch(Search["RecordData", Record]):
 LOCAL_RECORD_CACHE_LIMIT = DATABASE_VERSIONED_RECORD_LIMIT
 
 
-class HybridRecordList(NodeListBase[Record], RecordSearch):
+class RecordList(NodeListBase[Record], RecordSearch):
     """
     Implements NodeList protocol for remote records with a local cache.
     TODO @UX @Performance: turn record list into proper hybrid list (:BE-352)
@@ -328,9 +328,13 @@ class HybridRecordList(NodeListBase[Record], RecordSearch):
         # activate in session
         if self._parent._status == NS.Tracked and node._status != NS.Tracked:
             node._activate_self(self._parent.session)
-        # create in session
+        # create in session or temporarily in main tree
         if _create and self._parent._session:
-            self._parent.session.tracer.node_create(node)
+            if self._parent.attached:
+                self._parent.session.tracer.node_create(node)
+            else:
+                # detached record nodes are temporarily hoisted into inline tree :TempRecordTree
+                self._parent._local_root_tree.add(node)
         # update cache
         if self._cached_records_by_ck is not None:
             self._cached_records_by_ck[node.ck] = node  # not quite right, see :BE-352
@@ -340,7 +344,10 @@ class HybridRecordList(NodeListBase[Record], RecordSearch):
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
         if _create and self._parent._session:
-            self._parent.session.tracer.node_create(*nodes)
+            if self._parent.attached:
+                self._parent.session.tracer.node_create(*nodes)
+            else:
+                self._parent._local_root_tree.add_many(nodes)  # :TempRecordTree
         if _trigger:
             _ChangeEffect._collect(None, self._parent, nodes, _trigger)._effect(_trigger)
 
@@ -407,7 +414,7 @@ class HasDatabase(Node):
     # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
     views: NodeList["DatabaseView"] = nchildren(MNT.DATABASE_VIEW, NRel.Named | NRel.Ordered)
-    records: NodeList["Record"] = nchildren(MNT.RECORD, NRel.Remote, custom_list=HybridRecordList)
+    records: NodeList["Record"] = nchildren(MNT.RECORD, NRel.Remote, custom_list=RecordList)
 
     def _init_inner(self):
         # this runs before HasFields because of the ordering in
