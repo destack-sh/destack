@@ -1530,7 +1530,7 @@ class Node(abc.ABC):
         if self.ck is None:
             self.ck = uuid4()
             self._new = True
-        if self._session and self._new:
+        if self._session and self._new and not self.parent:
             self._session._dangling_nodes_by_ck[self.ck] = self
         if self.id is None and self.attached:
             self._assign_id(self.module.id)

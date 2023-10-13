@@ -162,7 +162,7 @@ class Session:
 
     @property
     def dangling(self) -> list[Node]:
-        return list(self._dangling_nodes_by_ck.values())
+        return [n for n in self._dangling_nodes_by_ck.values() if not n.parent]
 
     def dangling_like(self, type: type[Node]) -> list[Node]:
         return [n for n in self.dangling if isinstance(n, type)]

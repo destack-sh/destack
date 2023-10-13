@@ -90,12 +90,11 @@ async function apply() {
   applyingCode.value = true;
   try {
     const appendAfter = inputFrom.value ? `module.resolve(UUID("${getUUIDFromGlobalID(inputFrom.value)}"))` : "None";
-    const appendLine = `file.extend(session.dangling_like(Statement), after=${appendAfter})`;
+    const appendLine = `file.extend(session.dangling_like(Statement), after=${appendAfter}) # auto-generated`;
     const code = generatedCode.value + "\n" + appendLine;
     const { result } = terminal.runCode(code, {
       scope: props.fileCk,
       accessLevel: SessionAccessLevel.Update,
-      cleanCode: generatedCode.value,
       tags: ["mend"],
       generatedFrom: generatedFrom.value,
       generatedIn: generatedRun.value != null ? getUUIDFromGlobalID(generatedRun.value.id) : undefined,
