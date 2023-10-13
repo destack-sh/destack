@@ -80,6 +80,13 @@ watch(
   }
 );
 
+function clear() {
+  // resetting modelValue to '' from props doesn't always work, so we provide clear
+  if (!spanRef.value) return;
+  spanRef.value.innerText = "";
+  emit("update:modelValue", "");
+}
+
 function focus(pos: "first" | "last" = "first") {
   spanRef.value?.focus();
   if (pos == "first") {
@@ -181,6 +188,7 @@ function fromNbsp(s: string) {
 }
 
 defineExpose({
+  clear,
   focus,
   blur,
   selectAll,

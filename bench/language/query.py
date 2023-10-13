@@ -358,9 +358,9 @@ class FieldQueryOps:
         return Q(QueryOp.EQUALS, self._source_key, value)
 
     def __eq__(self, other):
-        if isinstance(other, FieldQueryOps):
-            from bench.language.module import Node
+        from bench.language.module import Node
 
+        if isinstance(other, Node):
             return Node.__eq__(self, other)  # imitate Field equality
         return self.equals(other)
 
