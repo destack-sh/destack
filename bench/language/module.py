@@ -433,7 +433,7 @@ def node_component(
                         issubclass(component, c) for c in existing.ignore_conflicts_with
                     ):
                         continue
-                    raise ValueError(f"property conflict '{name}': {prop!r}, {existing !r}")
+                    raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
 
         # collect methods implemented in this class (specifically)
         for meth_type in NodeMethod:
@@ -445,14 +445,14 @@ def node_component(
 
         # create class (map to dataclass)
         for name, prop in properties.items():
-            if not hasattr(cls, name):  # may be inherited
+            if not prop.child_mnt and not hasattr(cls, name):  # may be inherited
                 continue
             if prop.ancestor_mnt:
                 setattr(cls, name, _node_ancestor_prop(prop))
                 if name in cls.__annotations__:  # computed property doesn't need a dataclass field
                     del cls.__annotations__[name]
             elif prop.child_mnt:
-                setattr(cls, name, dataclasses.field(init=False, default=None))
+                setattr(cls, name, dataclasses.field(default=None))
             elif prop.default is not UNSET:
                 setattr(cls, name, dataclasses.field(default=prop.default))
             elif prop.default_factory is not None:
@@ -1670,8 +1670,7 @@ class Node(abc.ABC):
 
     def _init_inner(self) -> None:
         """Initialize this node."""
-        for name, prop in self.__list_properties__.items():
-            setattr(self, name, prop.list_type(self, prop))
+        pass
 
     def _clear_inner(self) -> None:
         """Resets this node's index and interp state."""
@@ -1734,10 +1733,28 @@ class Node(abc.ABC):
     # final :ComponentMethods
 
     def _init_self(self):
+        # init lists
+        existing_lists: dict[str, typing.Any] | None = None
+        for name, prop in self.__list_properties__.items():
+            existing = getattr(self, name, None)
+            setattr(self, name, prop.list_type(self, prop))
+            if existing and not isinstance(existing, NodeList):
+                if existing_lists is None:
+                    existing_lists = {}
+                existing_lists[name] = existing
+
+        # run actual init methods
         for meth in _get_component_methods(
             self._components, NodeMethod.init, self._concrete_cache_key
         ):
             meth(self)
+
+        # keep manually set values if passed in
+        if existing_lists:
+            for name, existing in existing_lists.items():
+                if existing and not isinstance(existing, NodeList):
+                    getattr(self, name).extend(*existing, _trigger=_NC.UpdateLists)
+
         # validate if in session after all init are done
         if self._status >= NS.Interpreted and self._session is not None:
             self._validate_self(self.__tracked_properties__.keys(), on_issue=on_issue_raise)
