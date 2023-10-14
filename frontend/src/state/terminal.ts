@@ -77,13 +77,16 @@ function _useTerminal() {
     }))
   );
 
-  function runTextToCode(text: string): { result: Promise<{ code: string }>; run: Run } {
+  function runTextToCode(
+    text: string,
+    config?: { nonce?: string; mode?: "fast" | "deliberate" }
+  ): { result: Promise<{ code: string }>; run: Run } {
     /** Converts the given rich text (with mentions) to Bench code */
     if (textToCodeTask.value == null) {
       throw new Error("text to code task not found");
     }
-    const { run, result } = session.run(textToCodeTask.value, {
-      inputs: { text },
+    const { run, firstResult: result } = session.run(textToCodeTask.value, {
+      inputs: { text, ...config },
       globalValue: { bot: TERMINAL_BOT_LABEL },
       accessLevel: SessionAccessLevel.Read,
       keyed: false,
@@ -111,7 +114,7 @@ function _useTerminal() {
     }
   ) {
     /** Runs code inside the terminal, raising if the run fails to complete */
-    const { run, result } = session.run(code, {
+    const { run, finalResult } = session.run(code, {
       scope: options.scope,
       rootValue: {
         name: "terminal",
@@ -126,13 +129,13 @@ function _useTerminal() {
     });
     return {
       run,
-      result: result.then(({ run, logs }) => {
+      finalResult: finalResult.then(({ run }) => {
         if (run.status != RunStatus.Completed) {
           throw new Error(
             `run ${getUUIDFromGlobalID(run.id)} failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`
           );
         }
-        return { run, logs };
+        return { run };
       }),
     };
   }

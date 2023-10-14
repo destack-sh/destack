@@ -6,8 +6,10 @@ from typing import Optional
 from uuid import UUID, uuid5
 
 from bench.language.builtin import symbolx_lib
-from bench.language.const import BENCH_UUID_NAMESPACE, TypeTag
+from bench.language.const import BENCH_UUID_NAMESPACE, ModuleNodeType, StatementType, TypeTag
+from bench.language.field import Field, Type
 from bench.language.file import File
+from bench.language.statement import Statement
 from bench.language.typing import pack_value, type_from_instance_type, unpack_value
 
 
@@ -136,6 +138,10 @@ reflect_struct = typing.dataclass_transform()(reflect_struct)
 # defined here to avoid import cycles
 
 
+reflect_enum("NodeType", "Type of a Bench node")(ModuleNodeType)
+reflect_enum("StatementType", "Type of a Statement")(StatementType)
+
+
 @reflect_struct("FieldMetadata", "Default metadata for any field")
 class FieldMetadata:
     store_only: Optional[bool]
@@ -172,3 +178,16 @@ class RunMetadata:
     scope: Optional[UUID]
     generated_in: Optional[UUID]
     generated_from: Optional[str]
+
+
+# :TaskConfig
+TaskRunConfig = Statement.class_(
+    "TaskRunConfig",
+    text="Configuration for a task run",
+    fields=[
+        Field.new("cache", Type.BOOLEAN.optional().config()),
+        Field.new("nonce", Type.STRING.optional().config()),
+        Field.new("mode", Type.STRING.optional().config()),
+    ],
+)
+_symbolx_reflect.statements.extend(TaskRunConfig)

@@ -34,6 +34,7 @@ const emit = defineEmits<{
   (e: "enterLeft"): void;
   (e: "enter"): void;
   (e: "enterRight"): void;
+  (e: "execute"): void;
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "illegal", char: string): void;
@@ -427,7 +428,8 @@ defineExpose({
         @keydown.enter.exact.prevent="onEnter(span, i, $event as KeyboardEvent)"
         @keydown.backspace.exact="onDelete(span, i, $event as KeyboardEvent)"
         @input="onInput(span, i, $event as InputEvent)"
-        @keydown.meta.enter.prevent="emit('toggleLanguage')"
+        @keydown.ctrl.enter.prevent="emit('execute')"
+        @keydown.meta.enter.prevent="emit('execute')"
         @keydown.alt.enter.prevent="emit('toggleLanguage')"
       >
         {{ span.text }}
@@ -445,7 +447,8 @@ defineExpose({
         @keydown.right="onNavigateRight(span, i, $event)"
         @keydown.escape.prevent="emit('escape')"
         @keydown.backspace.prevent="onDelete(span, i, $event as KeyboardEvent)"
-        @keydown.meta.enter.prevent="emit('toggleLanguage')"
+        @keydown.ctrl.enter.prevent="emit('execute')"
+        @keydown.meta.enter.prevent="emit('execute')"
         @keydown.alt.enter.prevent="emit('toggleLanguage')"
         class="mousetrap-ignore relative inline rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 focus:border-0 focus:outline-none focus:ring-1"
         :class="[

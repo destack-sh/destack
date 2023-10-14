@@ -73,7 +73,7 @@ watchEffect(() => {
       kind: "success",
       icon: ArrowUpCircleIcon,
       message: "Upgrade your Bench",
-      description: `Bench ${systemInfo.value?.version} is now available.`,
+      description: `v${systemInfo.value?.version} is ready.`,
       actionText: "Refresh",
       action: () => {
         window.location.reload();
