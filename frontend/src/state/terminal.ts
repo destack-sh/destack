@@ -129,14 +129,7 @@ function _useTerminal() {
     });
     return {
       run,
-      finalResult: finalResult.then(({ run }) => {
-        if (run.status != RunStatus.Completed) {
-          throw new Error(
-            `run ${getUUIDFromGlobalID(run.id)} failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`
-          );
-        }
-        return { run };
-      }),
+      finalResult,
     };
   }
 

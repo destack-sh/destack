@@ -4,7 +4,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import Switch from "@/components/basic/Switch.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
-import { StatementType, type Run } from "@/gql/graphql";
+import { StatementType, type Run, RunStatus } from "@/gql/graphql";
 import { useBenchState, type StatementHeader, usePanelContext } from "@/state/bench";
 import { useNavigation, type NodeBase } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions } from "@/state/session";
@@ -45,13 +45,14 @@ const generatedCodeCondensed = computed(
   () => generatedCode.value != null && generatedCode.value.split("\n").length < 5
 );
 const applyingCode = ref(false);
+const appliedFailedRun = ref<Run | null>(null);
 
 const fullWidth = computed(() => Math.min(panel.size.value.width - 40, 600));
 
 onClickOutside(containerRef, () => {
   if (active.value) {
     inputText.value = "";
-    close();
+    close(false);
   }
 });
 
@@ -93,18 +94,23 @@ function discardGenerated() {
 async function apply() {
   if (generatedCode.value == null || generatedFrom.value == null) return;
   applyingCode.value = true;
+  appliedFailedRun.value = null;
   try {
     const appendAfter = inputFrom.value ? `module.resolve(UUID("${getUUIDFromGlobalID(inputFrom.value.id)}"))` : "None";
     const appendLine = `file.extend(session.dangling_like(Statement), after=${appendAfter}) # auto-generated`;
     const code = generatedCode.value + "\n" + appendLine;
-    const { finalResult: result } = terminal.runCode(code, {
+    const { finalResult } = terminal.runCode(code, {
       scope: props.fileCk,
       accessLevel: SessionAccessLevel.Update,
       tags: ["mend"],
       generatedFrom: generatedFrom.value,
       generatedIn: generatedRun.value != null ? getUUIDFromGlobalID(generatedRun.value.id) : undefined,
     });
-    await result;
+    const { run } = await finalResult;
+    if (run.status != RunStatus.Completed) {
+      appliedFailedRun.value = run;
+      throw new Error(`run ${getUUIDFromGlobalID(run.id)} failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`);
+    }
     discardGenerated();
     inputText.value = "";
     close();
@@ -132,16 +138,16 @@ function open(text: string, selection?: StatementHeader[], from?: StatementHeade
   nextTick(focus);
 }
 
-function close() {
+function close(refocus = true) {
   active.value = false;
+  if (refocus && inputFrom.value != null) {
+    nav.focusStatement(inputFrom.value as NodeBase);
+  }
 }
 
 function escape() {
   discardGenerated();
   close();
-  if (inputFrom.value != null) {
-    nav.focusStatement(inputFrom.value as NodeBase);
-  }
 }
 
 function focus() {
@@ -238,13 +244,6 @@ defineExpose({
         <div class="flex flex-row gap-1 px-1">
           <SparklesIcon class="h-4 w-4 text-orange-600" />
           <span class="max-w-full truncate font-semibold">{{ generatedFrom }}</span>
-          <!-- TODO @UX: jump to terminal from terminal popover generation -->
-          <!-- <span
-            class="ml-auto flex flex-row items-center gap-1 text-sm text-gray-400 underline-offset-2 hover:cursor-pointer hover:underline"
-            @click="bench.openTerminal({ group: panel.panel.value.group, focus: true, opposite: true })"
-          >
-            <CommandLineIcon class="h-4 w-4" /> To Terminal
-          </span> -->
           <span
             v-if="generatedRun != null"
             class="ml-auto text-gray-400 underline-offset-2 hover:cursor-pointer hover:underline"
@@ -262,6 +261,17 @@ defineExpose({
           :wrap="generatedCodeCondensed"
           @execute="apply"
         />
+        <!-- Error -->
+        <div v-if="appliedFailedRun != null" class="my-0.5 flex w-full flex-row bg-red-100 px-2 py-1">
+          <span class="font-mono text-red-600">
+            Failed to apply:
+            {{ appliedFailedRun.errorNice?.kind }}<template v-if="appliedFailedRun.errorNice?.message">:</template>
+            {{ appliedFailedRun.errorNice?.message }}
+          </span>
+          <div class="ml-auto inline-block">
+            <a class="text-gray-400">#{{ getUUIDFromGlobalID(appliedFailedRun.id).slice(-7, -1) }}</a>
+          </div>
+        </div>
         <!-- Controls -->
         <!-- Apply/Discard should also tag the task run with feedback (as a demo and because it would be useful) -->
         <div

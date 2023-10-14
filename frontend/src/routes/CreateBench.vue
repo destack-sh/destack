@@ -28,8 +28,8 @@ useRedirectIfWaitlisted();
 
 const auth = useAuth();
 const owner: Ref<{ id: string; name: string; slug: string } | null> = ref(null);
-const name: Ref<string> = ref("x");
-const slug: Ref<string> = ref("x");
+const name: Ref<string> = ref("bench");
+const slug: Ref<string> = ref("bench");
 const slugModified = ref(false);
 const visibility: Ref<ProjectVisibility> = ref(ProjectVisibility.Private);
 
