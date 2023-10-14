@@ -1509,6 +1509,7 @@ class Node(abc.ABC):
     __tracked_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __internal_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
+    __has_scope__: ClassVar[bool] = False
 
     id: UUID = ninternal(default=None)
     ck: UUID = ninternal(default=None)
@@ -1572,6 +1573,15 @@ class Node(abc.ABC):
         while parent.parent is not None:
             parent = parent.parent
         return parent
+
+    @property
+    def _local_root_scope(self) -> "ScopeNode":
+        assert self.scope is not None, f"{self!r} has no parent"
+        return self.scope._local_root_scope
+
+    @property
+    def _local_root_tree(self) -> "NodeTreeBase":
+        return self._local_root._local_tree
 
     def _assign_id(self, module_id: UUID):
         assert module_id, f"cannot assign id to {self} without a module id"
@@ -1863,6 +1873,7 @@ def _make_rec_method(method: NodeMethod, wraps, custom_kwargs: Callable[["Node"]
 class ScopeNode(Node):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
+    __has_scope__: ClassVar[bool] = True
     issues: NodeList["Issue"] = nchildren(MNT.ISSUE, NRel.Cumulative)
     _scopes_by_name: dict[str, "ScopeNode"] = nruntime(default_factory=dict)
     _names_by_ident: dict[str, str] = nruntime(default_factory=dict)
@@ -2255,6 +2266,10 @@ class Module(ScopeNode):
         old_editor = ModuleEditor(old_source, self._project_id, self.id)
         for node in removed:
             if node.mnt in INTERP_NODE_TYPES:
+                if node.ck not in old_source.nodes_by_ck:
+                    # need to investigate
+                    logger.warning(f"node {node!r} not found in old source for {self!r}")
+                    continue
                 # recover parent info from source
                 old_node = old_source.nodes_by_ck[node.ck]
                 old_editor.delete(old_node, apply=False)

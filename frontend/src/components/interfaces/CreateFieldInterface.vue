@@ -47,6 +47,7 @@ defineExpose({
       <SelectTypeInterface
         class="mt-2"
         hide-flags
+        allow-freeform
         :ref-only="refOnly"
         :ref-types="refTypes"
         @update:model-value="hide(), emit('select', $event)"

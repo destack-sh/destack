@@ -17,6 +17,7 @@ const inputRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
   (e: "close"): void;
+  (e: "enter"): void;
 }>();
 
 defineExpose({
@@ -43,7 +44,9 @@ defineExpose({
     :model-value="modelValue ?? ''"
     language="python"
     hide-line-numbers
+    enter-is-execute
     focused
+    @execute="emit('enter')"
     @update:model-value="emit('update:modelValue', $event)"
     @escape="emit('close')"
     spellcheck="false"

@@ -100,15 +100,13 @@ class NodeView:
                 parent = parent.parent
 
         # walk descendants and referents DFS
-        tree = origins[0].scope._local_root_tree
-
         def _walk_node_dfs(n: Node, depth: int):
             seen_by_ck[n.ck] = n
             if depth >= max_distance:
                 return
             visitor = NodeVisitor()
             n._visit_self(visitor)
-            children = tree.get_descendants(n.ck)
+            children = n._local_root_tree.get_descendants(n.ck) if n.__has_scope__ else []
             if children or visitor.references:
                 # reverse so we retain original in-node order when we reverse across all
                 for ref in reversed(children + list(visitor.references)):

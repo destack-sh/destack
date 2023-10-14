@@ -101,6 +101,15 @@ watch([name, description, tag, availableTag, tagLoading, () => props.isHead], ()
   }
 });
 
+function snapshot() {
+  emit("snapshot", {
+    projectVersionId: props.version.id,
+    name: name.value,
+    tag: tag.value,
+    description: description.value,
+  });
+}
+
 defineExpose({
   focus: () => {
     nameRef.value?.focus();
@@ -130,9 +139,7 @@ defineExpose({
         <!-- Commit name & tag -->
         <div class="mt-2 flex w-full flex-col">
           <span class="text-gray-700">Name & tag</span>
-          <div
-            class="flex w-full flex-row rounded-sm border border-orange-900/[12%] focus-within:border-orange-600"
-          >
+          <div class="flex w-full flex-row rounded-sm border border-orange-900/[12%] focus-within:border-orange-600">
             <input
               ref="nameRef"
               type="text"
@@ -143,6 +150,7 @@ defineExpose({
               :pattern="VALID_NAME_CHAR_REGEX"
               class="flex-1 rounded-l-sm border-0 py-1 text-sm placeholder:text-gray-400 focus:bg-orange-100 focus:outline-none focus:ring-0"
               spellcheck="false"
+              @keydown.ctrl.enter.exact.prevent="snapshot(), close()"
             />
             <div class="relative flex flex-row">
               <TagIcon
@@ -160,6 +168,7 @@ defineExpose({
                 class="w-28 rounded-r-sm border-0 py-1 pl-8 text-sm placeholder:text-gray-400 focus:bg-orange-100 focus:outline-none focus:ring-0"
                 :class="{ 'text-yellow-600': !validTag, 'text-red-600': !availableTag }"
                 spellcheck="false"
+                @keydown.ctrl.enter.exact.prevent="snapshot(), close()"
               />
             </div>
           </div>
@@ -174,6 +183,7 @@ defineExpose({
             spellcheck="false"
             rows="3"
             placeholder="Optional details for future you."
+            @keydown.ctrl.enter.exact.prevent="snapshot(), close()"
           />
         </div>
         <!-- Validation messages -->
