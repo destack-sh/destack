@@ -104,7 +104,7 @@ function navigateInputDown() {
 
 async function run() {
   if (!canRun.value) return;
-  const { run, result } = terminal.runCode(input.value, {
+  const { run, finalResult: result } = terminal.runCode(input.value, {
     scope: bench.lastActiveFileCk ?? undefined,
     accessLevel: panel.value.accessLevel,
     tags: ["test"],

@@ -257,18 +257,26 @@ function _useModule(projectVersionId: Ref<string | null>) {
       .map((v) => v as ModuleIndex)
   );
 
-  // run value fields are hardcoded for now
-  const runMetadataFields = computed(() => {
+  function _getFields(name: string): Field[] {
     return (
       Object.values(defaultLibs["symbolx.lib"]?.value?.statementsById ?? {})
-        .find((s) => s.name == "RunMetadata")
+        .find((s) => s.name == name)
         ?.fields.map((f) => f as Field) ?? []
     );
-  });
-  function runMetadataKey(name: string): string | null {
-    const field = runMetadataFields.value.find((f) => f.name == name);
+  }
+  function _getFieldKey(fields: Field[], name: string): string | null {
+    const field = fields.find((f) => f.name == name);
     if (field == null) return null;
     return getTypedKey(field);
+  }
+  // run value fields are hardcoded for now
+  const runMetadataFields = computed(() => _getFields("RunMetadata"));
+  function runMetadataKey(name: string): string | null {
+    return _getFieldKey(runMetadataFields.value, name);
+  }
+  const taskRunConfigFields = computed(() => _getFields("TaskRunConfig"));
+  function taskRunConfigKey(name: string): string | null {
+    return _getFieldKey(taskRunConfigFields.value, name);
   }
 
   // utils
@@ -509,10 +517,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     notices,
     idx,
     dependenciesIndex,
-    // utils
-    defaultLibs,
-    runMetadataFields,
-    runMetadataKey,
+    // module
     fileOf,
     pathOf,
     contextOf,
@@ -530,6 +535,12 @@ function _useModule(projectVersionId: Ref<string | null>) {
     tags,
     tagsByKey,
     getDescendantsOf: descendantsOf,
+    // utils
+    defaultLibs,
+    runMetadataFields,
+    runMetadataKey,
+    taskRunConfigFields,
+    taskRunConfigKey,
   };
 }
 

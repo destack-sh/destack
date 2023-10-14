@@ -19,9 +19,7 @@ const props = defineProps<{
         <slot name="sublabel" />
       </span>
     </div>
-    <div
-      class="flex h-full w-full flex-1 flex-col rounded-sm border border-orange-900/[12%] bg-white p-2 shadow-sm"
-    >
+    <div class="flex h-full w-full flex-1 flex-col rounded-sm border border-orange-900/[12%] bg-white p-2 shadow-sm">
       <!-- Content -->
       <slot />
     </div>

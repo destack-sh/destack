@@ -30,6 +30,7 @@ from bench.language.const import (
     MNT,
     ModuleReference,
     RunStatus,
+    TypeFlag,
     parse_absolute_node_reference,
 )
 from bench.language.edit import EditData, ModuleEditor
@@ -866,7 +867,13 @@ class RuntimeHost:
             for mnt in INTERP_NODE_TYPES:
                 interp_mut.truncate(module_data, mnt, apply=False)
             for node in self.module._nodes:
-                if node.mnt == MNT.ISSUE or isinstance(node, ResolvedField) and node._is_foreign:
+                if (
+                    node.mnt == MNT.ISSUE
+                    or isinstance(node, ResolvedField)
+                    and node._is_from_union
+                    # config fields are only used internally for now
+                    and not node.flags & TypeFlag.IS_CONFIG
+                ):
                     interp_mut.create(node, apply=False)
             interp_edits = interp_mut.edits
         else:

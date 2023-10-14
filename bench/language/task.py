@@ -3,7 +3,7 @@ import asyncio
 import enum
 import random
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Literal, Optional, Union
 
 import structlog
 
@@ -17,7 +17,7 @@ from bench.language.typing import check_type, unpack_value
 from ..utils.func import describe_type
 
 if TYPE_CHECKING:
-    from bench.language import Model, Run, Statement
+    from bench.language import Run, Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -49,25 +49,36 @@ class HasTask(Node):
     async def _call_inner_async(
         self,
         *args,
-        _retries: int = None,
-        _cache: bool = None,
-        _timeout: float = None,
-        _randomize: bool = None,
-        _nonce: str = None,
+        # :TaskConfig
+        cache: bool = None,
+        nonce: str = None,
+        mode: Literal["fast", "deliberate", "auto"] = "auto",
         **kwargs,
     ):
-        inputs = self._inputs_from_args(args, kwargs)
-
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
-            mono_model: Optional["Model"] = self.session.module.resolve("openai.lib.text.ada")
+            passthrough_model: "Statement" = self.session.module.resolve("openai.lib.text.ada")
         elif self.path == "symbolx.lib.builtins.transcribe":
             raise NotImplementedError
         else:
-            mono_model = None
+            passthrough_model = None
+            if mode == "auto":
+                mode = "fast"
+            if mode == "fast":
+                models = ["anthropic.lib.text.claude-instant-1", "openai.lib.chat.gpt3"]
+            else:
+                models = ["openai.lib.chat.gpt4", "anthropic.lib.text.claude-2"]
+            models = [self.session.module.resolve(m) for m in models]
+
+        # prepare inputs
+        nonce = nonce or (str(random.randint(0, 2**16)) if self._randomize else None)
+        if not passthrough_model:  # only inline task arguments if it's a real task
+            kwargs["cache"] = cache
+            kwargs["nonce"] = nonce
+            kwargs["mode"] = mode
+        inputs = self._inputs_from_args(args, kwargs)
 
         # do task
-        _randomize = _randomize if _randomize is not None else self._randomize
         view = NodeView(self.module)
         seen_from_node = view.view_from_node(self, ancestors_to=MNT.FILE, max_distance=5)
         await view.view_records(seen_from_node.values(), limit=10)
@@ -77,16 +88,16 @@ class HasTask(Node):
 
         self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
         try:
-            if mono_model:
-                outputs = await mono_model(**inputs)
+            if passthrough_model:
+                # passthrough model
+                outputs = await passthrough_model(**inputs)
                 # trim output to own outputs
                 if isinstance(outputs, dict):
                     outputs = {k: v for k, v in outputs.items() if k in self.fields}
                 if not isinstance(outputs, TypedDict):
                     outputs = TypedDict(outputs, self, is_output=True)
             else:
-                _nonce = _nonce or (str(random.randint(0, 2**16)) if _randomize else None)
-                outputs = await run_task(self, view, inputs, _nonce)
+                outputs = await run_task(self, view, inputs, nonce, models)
             if self.session._needs_flush_before_exit:
                 await self.session.aflush()
         except Exception as e:
@@ -107,7 +118,7 @@ class TaskErrorType(enum.StrEnum):
 
 
 UNRECOVERABLE_ERRORS = {TaskErrorType.Incapable, TaskErrorType.Unknown}
-TASK_STEP_ATTEMPTS = 5
+TASK_MODEL_ATTEMPTS = 3
 TASK_TOTAL_ATTEMPTS = 10
 
 
@@ -116,47 +127,39 @@ async def run_task(
     view: NodeView,
     inputs: dict,
     nonce: Optional[str],
+    models: list["Statement"] = None,
 ) -> dict:
     total_attempts = 0
-    step_attempts = 0
+    model_attempts = 0
     # in priority order
-    models = [
-        task.session.module.resolve(m)
-        for m in (
-            "anthropic.lib.text.claude-instant-1",
-            "openai.lib.chat.gpt3",
-            "openai.lib.chat.gpt4",
-            "anthropic.lib.text.claude-2",
-        )
-    ]
     model_idx = 0
     log = logger.bind(task=task, inputs=describe_type(inputs), nonce=nonce, models=models)
 
     previous_results = []
     last_error = None
     while (
-        step_attempts < TASK_STEP_ATTEMPTS
+        model_attempts < TASK_MODEL_ATTEMPTS
         and total_attempts < TASK_TOTAL_ATTEMPTS
         and model_idx < len(models)
     ):
-        task.current_run.value.retries = step_attempts
+        task.current_run.value.retries = model_attempts
         # run task step
         model = models[model_idx]
         compiler = model.compiler  # models may share a compiler
         compiled = await compiler.compile(task, view, inputs, previous_results, nonce)
         if not compiler.can_run(model, compiled):
             model_idx += 1
-            step_attempts = 0
+            model_attempts = 0
             continue  # try next model, not an error, just not capable
 
-        # try step
-        step_attempts += 1
+        # try model
+        model_attempts += 1
         total_attempts += 1
         run_capture = task.session.capture_runs()
         try:
-            log.debug("task.run", model=model, compiled=compiled, attempt=step_attempts)
-            run_name = f"{task.name} #{step_attempts}"
-            with task.session.bind_run_value(retry=step_attempts, nonce=nonce, name=run_name):
+            log.debug("task.run", model=model, compiled=compiled, attempt=model_attempts)
+            run_name = f"{task.name} #{model_attempts}"
+            with task.session.bind_run_value(retry=model_attempts, nonce=nonce, name=run_name):
                 outputs = await compiler.run(model, compiled)
 
             # done, terminate
@@ -172,6 +175,7 @@ async def run_task(
             logger.debug("task.error", error=e)
             if e.type in UNRECOVERABLE_ERRORS:
                 model_idx += 1
+                model_attempts = 0
             elif e.type == TaskErrorType.ExceededLimit:
                 await asyncio.sleep(0.1)
             else:
@@ -191,7 +195,7 @@ async def run_task(
         raise TaskError(
             TaskErrorType.ExceededLimit,
             task,
-            f"could not solve task in {TASK_STEP_ATTEMPTS} attempts across {len(models)} models:\n{last_error or '<no details>'}",
+            f"could not solve task in {TASK_MODEL_ATTEMPTS} attempts across {len(models)} models:\n{last_error or '<no details>'}",
         )
 
 
@@ -254,8 +258,8 @@ class TaskCompiler(abc.ABC):
     ) -> CompiledInput:
         raise NotImplementedError
 
-    def can_run(self, model: "Model", input: CompiledInput) -> bool:
+    def can_run(self, model: "Statement", input: CompiledInput) -> bool:
         raise NotImplementedError
 
-    async def run(self, model: "Model", input: CompiledInput) -> dict:
+    async def run(self, model: "Statement", input: CompiledInput) -> dict:
         raise NotImplementedError

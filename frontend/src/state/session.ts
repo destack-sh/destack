@@ -463,7 +463,7 @@ export function _useSessions(
       timeoutSeconds?: number;
       tags?: string[];
     }
-  ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
+  ): { run: Run; firstResult: Promise<{ run: Run; logs?: LogEntry[] }>; finalResult: Promise<{ run: Run }> } {
     const runId = options?.runId ?? newRunId();
     const sessionId = options?.sessionId ?? newSessionId();
     const code = typeof statementOrCode === "string" ? statementOrCode : undefined;
@@ -545,21 +545,39 @@ export function _useSessions(
         });
     }
 
-    return {
-      run,
-      result: withWorkers(doRunWithLogs).catch((e) => {
-        _discardRun();
-        if (e.message !== "run could not start") {
-          // damnit, some other error
-          notifications.show({
-            kind: "error",
-            type: "run.failed.internal",
-            message: "Run crashed",
-            description: "An internal error happened somewhere.",
+    const firstResult = withWorkers(doRunWithLogs).catch((e) => {
+      _discardRun();
+      if (e.message !== "run could not start") {
+        // damnit, some other error
+        notifications.show({
+          kind: "error",
+          type: "run.failed.internal",
+          message: "Run crashed",
+          description: "An internal error happened somewhere.",
+        });
+      }
+      throw e;
+    });
+    const finalResult = new Promise<{ run: Run }>((resolve, reject) => {
+      // if first result is terminal, return that, otherwise subscribe until termination
+      firstResult.then(({ run, logs }) => {
+        if (TERMINAL_RUN_STATUSES.includes(run.status)) {
+          resolve({ run });
+        } else {
+          const unsub = onRunChange((r) => {
+            if (r.id === run.id && TERMINAL_RUN_STATUSES.includes(r.status)) {
+              unsub();
+              resolve({ run: r });
+            }
           });
         }
-        throw e;
-      }),
+      });
+    });
+
+    return {
+      run,
+      firstResult,
+      finalResult,
     };
   }
 

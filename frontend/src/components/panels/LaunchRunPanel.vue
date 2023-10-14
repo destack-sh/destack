@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 import PanelHeader from "@/components/panels/PanelHeader.vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import RunsTile from "@/components/tiles/RunsTile.vue";
@@ -8,13 +7,13 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, StatementType, type Run } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, type StatementAction, type LaunchRunPanel } from "@/state/bench";
-import { newRunId, newSessionId, TypeFlag, useCurrentModule } from "@/state/module";
+import { TypeFlag, useCurrentModule } from "@/state/module";
 import { PlayIcon } from "@heroicons/vue/24/solid";
-import { computed, ref, watch, watchEffect } from "vue";
+import { computed, ref, watch, watchEffect, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, useCurrentSessions } from "@/state/session";
-import { StopIcon } from "@heroicons/vue/24/outline";
+import { BoltIcon, LightBulbIcon, StopIcon } from "@heroicons/vue/24/outline";
 import { useTiling } from "@/state/screen";
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
@@ -32,11 +31,20 @@ const appearance = useAppearance();
 const panel = computed(() => props.panel.panel.value);
 const panelSize = computed(() => props.panel.size.value);
 const now = useTimeFromNow();
+const module = useCurrentModule();
+const sessions = useCurrentSessions();
+const taskRunModeKey = computed(() => module.taskRunConfigKey("mode"));
+
+const taskRunMode: Ref<"fast" | "deliberate"> = computed({
+  get: () => panel.value?.inputs?.[taskRunModeKey.value ?? ""] ?? "fast",
+  set: (v) => {
+    if (panel.value == null || taskRunModeKey.value == null) return;
+    panel.value.inputs[taskRunModeKey.value] = v;
+  },
+});
 
 // state
 
-const module = useCurrentModule();
-const sessions = useCurrentSessions();
 const statement = computed(() => module.statementOf(props.panel.panel.value.statementCk));
 const inputFields = computed(
   () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IS_OUTPUT)) ?? []
@@ -121,7 +129,7 @@ function subscribeUntilTermination(run: Run) {
 async function run() {
   if (statement.value == null) return;
   subscribedToCurrentRun.value = false;
-  const { run, result: runTask } = await sessions.run(
+  const { run, firstResult: runTask } = await sessions.run(
     { id: statement.value.id, ck: statement.value.ck },
     {
       inputs: panel.value.inputs,
@@ -220,6 +228,17 @@ defineExpose({
       <template v-else>
         <!-- Input -->
         <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
+          <!-- TODO @UX: where to put task config in launch run panel? (panel needs a general cleanup anyway) -->
+          <template v-slot:sublabel>
+            <button
+              v-if="statement.type == StatementType.Task"
+              class="flex flex-row items-center gap-0.5 rounded-sm text-xs text-gray-400 transition-opacity duration-500 hover:bg-orange-100 hover:text-gray-700"
+              @click="taskRunMode = taskRunMode == 'fast' ? 'deliberate' : 'fast'"
+            >
+              <component :is="taskRunMode == 'fast' ? BoltIcon : LightBulbIcon" class="h-4 w-4" />
+              {{ taskRunMode == "fast" ? "Fast" : "Deliberate" }}
+            </button>
+          </template>
           <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>
           <StructInterface
             v-model="panel.inputs"

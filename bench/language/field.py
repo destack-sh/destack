@@ -8,11 +8,13 @@ from uuid import UUID
 
 import structlog
 
+from bench.language.builtin import symbolx_lib
 from bench.language.const import (
     MNT,
     RESERVED_TYPE_TAGS,
     IssueType,
     StatementReference,
+    StatementType,
     TypeFlag,
     TypeHint,
     TypeStorageFormat,
@@ -46,6 +48,7 @@ from bench.language.validation import (
     validate_name,
 )
 from bench.language.value import HasValue
+from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import dict_minus
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier
@@ -566,7 +569,7 @@ class ResolvedField(Field):
         return self.reference.resolved_fields if isinstance(self.reference, Node) else []
 
     @property
-    def _is_foreign(self) -> bool:
+    def _is_from_union(self) -> bool:
         return self.parent != self.field.parent
 
     @staticmethod
@@ -631,6 +634,7 @@ class HasFields(HasType):
             self._did_resolve_fields = True
             return
 
+        # resolve fields recursively (inlining any valid unions)
         path = path + [self]
         resolved_fields: list[ResolvedField] = []
         for field in self.fields:
@@ -646,6 +650,8 @@ class HasFields(HasType):
                 # inline fields from union-ed type to resolved fields
                 field.reference._resolve_fields(path)
                 for child in field.reference.resolved_fields:
+                    if child.flags & TypeFlag.IS_CONFIG:
+                        continue  # ignore config fields
                     existing = self.resolved_fields.get(child.py_ident)
                     # check if self is compatible if overlapping
                     if existing is not None and not existing.equals_type(child):
@@ -657,6 +663,15 @@ class HasFields(HasType):
             else:
                 # just a normal field
                 resolved_fields.append(ResolvedField.from_field(self, field))
+
+        # add any special inlined fields
+        if self.mnt == MNT.STATEMENT and self.type == StatementType.TASK:
+            run_config = symbolx_lib.resolve(".reflect.TaskRunConfig")
+            resolved_fields.extend(ResolvedField.from_field(self, f) for f in run_config.fields)
+
+        # maintain resolved field order
+        for i, ok in enumerate(generate_n_keys_between(None, None, len(resolved_fields))):
+            resolved_fields[i].order_key = ok
         self.resolved_fields.set(resolved_fields, _trigger=_NodeChange.UpdateLists)
         self._did_resolve_fields = True
 

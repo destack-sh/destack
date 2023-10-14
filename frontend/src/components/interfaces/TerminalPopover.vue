@@ -1,6 +1,8 @@
 <script lang="ts" setup>
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
+import Switch from "@/components/basic/Switch.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import { StatementType, type Run } from "@/gql/graphql";
 import { useBenchState, type StatementHeader, usePanelContext } from "@/state/bench";
@@ -9,10 +11,10 @@ import { SessionAccessLevel, useCurrentSessions } from "@/state/session";
 import { useTerminal } from "@/state/terminal";
 import { makeTextMention, makeTextPlain, renderTextHtml, type TextSpan } from "@/state/text";
 import { getUUIDFromGlobalID } from "@/utils/functools";
-import { CommandLineIcon, XMarkIcon } from "@heroicons/vue/24/outline";
-import { PlayIcon, SparklesIcon, StopIcon } from "@heroicons/vue/24/solid";
+import { BoltIcon, CommandLineIcon, LightBulbIcon, XMarkIcon } from "@heroicons/vue/24/outline";
+import { ArrowUturnLeftIcon, PlayIcon, SparklesIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside } from "@vueuse/core";
-import { ref, nextTick, computed } from "vue";
+import { ref, nextTick, computed, type Ref } from "vue";
 
 const props = defineProps<{
   fileCk: string;
@@ -28,6 +30,7 @@ const containerRef = ref<HTMLDivElement | null>(null);
 const inputRef = ref<InstanceType<typeof AnnotatedText> | null>(null);
 const inputFrom = ref<StatementHeader | null>(null);
 const inputText = ref("");
+const mode: Ref<"fast" | "deliberate"> = ref("fast");
 const canRun = computed(
   // check if there is any meaningful text
   () => inputRef.value?.spans.some((s) => s.type == "text" && s.text.trim() != "") ?? false
@@ -52,7 +55,7 @@ onClickOutside(containerRef, () => {
   }
 });
 
-async function run() {
+async function run(config?: { nonce?: string; mode?: "fast" | "deliberate" }) {
   if (!canRun.value) return;
   if (generatingRun.value) {
     cancel();
@@ -61,7 +64,7 @@ async function run() {
   try {
     // clear input text from span references (ignore content)
     generatedFrom.value = inputText.value.replace(/<span.*?>/g, "").replace(/<\/span>/g, "");
-    const { result, run } = terminal.runTextToCode(inputText.value);
+    const { result, run } = terminal.runTextToCode(inputText.value, { mode: mode.value, ...config });
     generatingRun.value = run;
     generatedRun.value = run;
     const { code } = await result;
@@ -94,7 +97,7 @@ async function apply() {
     const appendAfter = inputFrom.value ? `module.resolve(UUID("${getUUIDFromGlobalID(inputFrom.value.id)}"))` : "None";
     const appendLine = `file.extend(session.dangling_like(Statement), after=${appendAfter}) # auto-generated`;
     const code = generatedCode.value + "\n" + appendLine;
-    const { result } = terminal.runCode(code, {
+    const { finalResult: result } = terminal.runCode(code, {
       scope: props.fileCk,
       accessLevel: SessionAccessLevel.Update,
       tags: ["mend"],
@@ -185,6 +188,7 @@ defineExpose({
         @click.stop
         @enter="run"
         @enter-right="run"
+        @execute="apply"
       />
       <span v-if="inputText.length == 0">&nbsp;</span>
       <!-- Run -->
@@ -208,11 +212,20 @@ defineExpose({
       <!-- Show in terminal -->
       <span
         v-if="expanded"
-        class="absolute -bottom-5 right-0 flex animate-fadein-500 flex-row items-center gap-0.5 text-xs text-gray-400 underline-offset-2 transition-opacity duration-500 hover:cursor-pointer hover:underline"
+        class="absolute -bottom-5 left-0 flex animate-fadein-500 flex-row items-center gap-0.5 text-xs text-gray-400 underline-offset-2 transition-opacity duration-500 hover:cursor-pointer hover:underline"
         @click="bench.openTerminal({ group: panel.panel.value.group, focus: true, opposite: true })"
       >
         <CommandLineIcon class="h-4 w-4" /> Terminal
       </span>
+      <!-- Task mode -->
+      <button
+        v-if="expanded"
+        class="absolute -bottom-5 right-0 flex animate-fadein-500 flex-row items-center gap-0.5 rounded-sm text-xs text-gray-400 transition-opacity duration-500 hover:bg-orange-100 hover:text-gray-700"
+        @click="mode = mode == 'fast' ? 'deliberate' : 'fast'"
+      >
+        <component :is="mode == 'fast' ? BoltIcon : LightBulbIcon" class="h-4 w-4" />
+        {{ mode == "fast" ? "Fast" : "Deliberate" }}
+      </button>
     </div>
     <!-- Generated -->
     <FadeTransition>
@@ -260,12 +273,21 @@ defineExpose({
             class="flex flex-row items-center gap-1 rounded-sm bg-orange-600 px-1.5 py-1 text-white hover:bg-orange-500"
             @click="apply"
           >
-            <PlayIcon class="h-4 w-4" />
+            <PlayIcon v-if="!applyingCode" class="h-4 w-4" />
+            <BusySpinnerIcon v-else class="h-4 w-4 animate-spin" />
             <span>Apply</span>
+          </button>
+          <!-- Retry -->
+          <button
+            class="flex flex-row items-center gap-1 rounded-sm border border-gray-300 px-1.5 py-1 text-gray-700 hover:bg-orange-100"
+            @click="discardGenerated(), run({ mode: 'deliberate', nonce: Math.random().toString(36).slice(-8) })"
+          >
+            <ArrowUturnLeftIcon class="h-4 w-4" />
+            <span>Retry</span>
           </button>
           <!-- Reject -->
           <button
-            class="flex flex-row items-center gap-1 rounded-sm px-1.5 py-1 text-gray-700 hover:bg-orange-100"
+            class="flex flex-row items-center gap-1 rounded-sm border border-gray-300 px-1.5 py-1 text-gray-700 hover:bg-orange-100"
             @click="discardGenerated"
           >
             <XMarkIcon class="h-4 w-4" />
