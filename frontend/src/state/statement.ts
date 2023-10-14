@@ -1,4 +1,5 @@
-import ChoiceTypeIcon from "@/components/basic/ChoiceTypeIcon.vue";
+import ChoiceTypeIconSolid from "@/components/basic/ChoiceTypeIconSolid.vue";
+import ChoiceTypeIconOutline from "@/components/basic/ChoiceTypeIconOutline.vue";
 import { StatementType, TypeHint, TypeTag, type SearchSort, type SearchQuery } from "@/gql/graphql";
 import {
   TypeFlag,
@@ -341,7 +342,7 @@ export const STATEMENT_ICONS_OUTLINE: Record<StatementType, any> = {
   [StatementType.Tag]: TagIconOutline,
   [StatementType.Task]: SparklesIconOutline,
   [StatementType.Class]: RectangleGroupIconOutline,
-  [StatementType.Choice]: ChoiceTypeIcon,
+  [StatementType.Choice]: ChoiceTypeIconOutline,
   [StatementType.Variable]: VariableIcon,
   [StatementType.Database]: CircleStackIconOutline,
   [StatementType.Code]: CodeBracketSquareIconOutline,
@@ -354,7 +355,7 @@ export const STATEMENT_ICONS_SOLID: Record<StatementType, any> = {
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconSolid,
   [StatementType.Class]: RectangleGroupIconSolid,
-  [StatementType.Choice]: ChoiceTypeIcon,
+  [StatementType.Choice]: ChoiceTypeIconSolid,
   [StatementType.Task]: SparklesIconSolid,
   [StatementType.Variable]: VariableIcon,
   [StatementType.Database]: CircleStackIconSolid,

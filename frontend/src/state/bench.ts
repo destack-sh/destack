@@ -260,7 +260,7 @@ export abstract class Panel {
   }
 
   get component(): InstanceType<any> {
-    return this._context.component;
+    return this.context.component;
   }
 
   blur() {

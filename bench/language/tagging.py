@@ -45,7 +45,7 @@ class Tagging(HasValue, HasReference, Node):
                 raise TypeError(f"cannot use {reference!r} as a tag")
             key = reference.key
         elif isinstance(reference, str):
-            module = (for_parent.module if for_parent is not None else None) or symbolx_lib
+            module = (for_parent.module if for_parent else None) or symbolx_lib
             resolved = symbolx_lib.lookup(".builtins." + reference) or module.lookup(reference)
             if resolved is None:
                 raise ValueError(f"cannot find tag {reference!r}")
@@ -66,12 +66,10 @@ class Tagging(HasValue, HasReference, Node):
         else:
             reference = node.reference
         init_args = {"reference": reference}
-        return Tagging.__name__, init_args, dict_minus(props, "reference")
+        return "Tagging.new", init_args, dict_minus(props, "reference")
 
     @property
     def _type_of_value(self) -> "HasFields":
-        from bench.language.libs import symbolx_lib
-
         return symbolx_lib.resolve(".reflect.TaggingMetadata")
 
     def __str__(self):

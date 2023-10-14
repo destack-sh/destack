@@ -4,7 +4,7 @@ import { StatementType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { TypeFlag, useCurrentModule } from "@/state/module";
 import { ANY_FIELD, makeField } from "@/state/statement";
-import { renderBuiltinType, SUPPORTED_TYPEHINTS } from "@/state/type";
+import { ICONS_BY_TAG_OUTLINE, renderBuiltinType, SUPPORTED_TYPEHINTS } from "@/state/type";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { ExclamationCircleIcon, ListBulletIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
 import { computed, onMounted, ref, watch, type Ref } from "vue";
@@ -14,6 +14,7 @@ import { ufSort } from "@/utils/search";
 
 const props = defineProps<{
   modelValue?: Field;
+  allowFreeform?: boolean;
   inlined?: boolean;
   refOnly?: boolean;
   refTypes?: TypeTag[];
@@ -139,7 +140,8 @@ const filteredTypes = computed(() => {
       });
     idxs = order.map((i) => info.idx[i]);
   }
-  return idxs?.map((idx) => availableTypes.value[idx]) ?? [];
+  const filteredTypes = idxs?.map((idx) => availableTypes.value[idx]) ?? [];
+  return filteredTypes;
 });
 
 function writeValue(type: Field) {
@@ -255,6 +257,14 @@ function toComboId(type: Field) {
 }
 
 function findByComboId(id: string) {
+  if (id == "freeform") {
+    return makeField({
+      projectVersionId: module.id.value,
+      tag: TypeTag.String,
+      flags: getDefaultFlags(TypeHint.Name),
+      name: query.value,
+    });
+  }
   return availableTypes.value.find((t) => toComboId(t) == id);
 }
 
@@ -333,6 +343,23 @@ defineExpose({
             <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
               {{ ref.referenceCk == null ? "(builtin)" : module.pathOf(ref.referenceCk, { roffset: 1 }) }}
             </span>
+          </div>
+        </li>
+      </ComboboxOption>
+      <!-- Freeform -->
+      <ComboboxOption
+        v-if="props.allowFreeform && query.length > 0"
+        key="freeform"
+        value="freeform"
+        v-slot="{ active }"
+      >
+        <li
+          class="relative cursor-default select-none px-1 py-[3px] text-gray-900"
+          :class="['truncate', active ? 'bg-orange-100' : '']"
+        >
+          <div class="flex items-center">
+            <component :is="ICONS_BY_TAG_OUTLINE[TypeTag.String]" class="h-4 w-4" />
+            <span class="ml-1"> {{ query }} </span>
           </div>
         </li>
       </ComboboxOption>

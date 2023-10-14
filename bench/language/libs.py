@@ -253,19 +253,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         self, task: Statement, view: NodeView, *, exclude_output: bool
     ) -> str:
         """Model-friendly string describing the entire task context."""
-        # ignore output types, they're covered by function schemas
-        if exclude_output:
-            seen_node_ids = {
-                n.id
-                for o in task.resolved_fields
-                if o.field.flags & TypeFlag.IS_OUTPUT
-                for n in o._walk_rec()
-            }
-        else:
-            seen_node_ids = set()
-        seen_node_ids.add(task.id)
-        nodes_to_render = [n for n in view.nodes if n.id not in seen_node_ids]
-        rendered = render(*nodes_to_render, recursive=False)
+        rendered = render(*view.nodes, recursive=False)
         return rendered
 
     def _render_error(self, error: RunError | TaskError) -> str:

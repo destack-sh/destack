@@ -582,7 +582,12 @@ export function _useSessions(
       if (r?.data?.killRun.__typename != "KillRunPayload") {
         return false;
       } else {
-        currentRuns.value[run.id] = r?.data?.killRun?.run as Run;
+        const killed = r?.data?.killRun?.run as Run | null;
+        if (killed == null) {
+          delete currentRuns.value[run.id]; // why would this happen?
+        } else {
+          currentRuns.value[run.id] = killed;
+        }
         return true;
       }
     });

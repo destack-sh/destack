@@ -312,7 +312,6 @@ function useSyncedOps() {
         fields: {
           resolvedFields(existingResolvedFields = []) {
             const resolvedField = edit.data;
-            if (resolvedField?.__typename != "ResolvedField") return existingResolvedFields;
             return existingResolvedFields.filter(
               (r: any) => r.id != resolvedField?.id && r.__ref != `ResolvedField:${resolvedField?.id}`
             );
@@ -371,7 +370,6 @@ function useSyncedOps() {
         fields: {
           issues(existingIssues = []) {
             const issue = edit.data;
-            if (issue?.__typename != "Issue") return existingIssues;
             return existingIssues.filter((i: any) => i.id != issue?.id && i.__ref != `Issue:${issue?.id}`);
           },
         },
@@ -382,7 +380,6 @@ function useSyncedOps() {
         fields: {
           issues(existingIssues = []) {
             const issue = edit.data;
-            if (issue?.__typename != "Issue") return existingIssues;
             return existingIssues.filter((i: any) => i.id != issue?.id && i.__ref != `Issue:${issue?.id}`);
           },
         },
