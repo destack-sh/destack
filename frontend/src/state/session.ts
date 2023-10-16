@@ -725,6 +725,7 @@ export function useRuns(
     insertAt?: "start" | "end";
     // we don't parse & apply the query locally, therefore filters must be checked manually
     queryAsFilter?: (run: Run) => boolean;
+    neverUnsubscribe?: boolean;
   }
 ) {
   /**
@@ -827,7 +828,9 @@ export function useRuns(
         }
       );
     });
-    onBeforeUnmount(unsub);
+    if (!options.neverUnsubscribe) {
+      onBeforeUnmount(unsub);
+    }
   }
 
   return {
