@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Collection, Iterable, Union
+from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
 from uuid import UUID
 
 from bench.language import IssueType
@@ -16,11 +16,14 @@ class HasReference(Node):
 
     reference: Union["Statement", StatementReference, None] = nproperty(default=None, copy=identity)
 
-    def _clear_inner(self) -> None:
-        self._set_untracked(
-            "reference",
-            self.reference.ck if isinstance(self.reference, Node) else self.reference,
-        )
+    def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
+        if isinstance(self.reference, Node) and (
+            scope is None or self.reference.ck in scope._local_root_tree
+        ):
+            self._set_untracked(
+                "reference",
+                self.reference.ck if isinstance(self.reference, Node) else self.reference,
+            )
 
     def _interp_inner(self, scope: ScopeNode) -> None:
         if self.reference is None:

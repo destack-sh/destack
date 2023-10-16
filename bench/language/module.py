@@ -654,7 +654,7 @@ class _ChangeEffect:
                 if _node._session and _node._status == NS.Tracked:
                     _node._deactivate_self()
             for _node in self.affected:
-                _node._clear_self()
+                _node._clear_self(_node.scope)
 
         if level & _NC.Attach:
             for _node in self.affected:
@@ -1684,7 +1684,7 @@ class Node(abc.ABC):
         """Initialize this node."""
         pass
 
-    def _clear_inner(self) -> None:
+    def _clear_inner(self, scope: Optional["ScopeNode"]) -> None:
         """Resets this node's index and interp state."""
         pass
 
@@ -1900,7 +1900,9 @@ class ScopeNode(Node):
                 self._local_tree = NodeTree()
             self._local_tree.add(self)
 
-    _clear_rec = _make_rec_method(NodeMethod.clear, Node._clear_self)
+    _clear_rec = _make_rec_method(
+        NodeMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
+    )
     _index_rec = _make_rec_method(NodeMethod.index, Node._index_self)
     _interp_rec = _make_rec_method(
         NodeMethod.interp, Node._interp_self, custom_kwargs=lambda n: dict(scope=n.scope)
@@ -1939,7 +1941,7 @@ class ScopeNode(Node):
         for prop in self.__list_properties__.values():
             getattr(self, prop.name)._update(scope)
 
-    def _clear_inner(self):
+    def _clear_inner(self, scope: Optional["ScopeNode"]):
         self._scopes_by_name = {}
         self._names_by_ident = {}
 

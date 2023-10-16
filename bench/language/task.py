@@ -31,7 +31,7 @@ class HasTask(Node):
     def _is_async(self):
         return True
 
-    def _clear_inner(self) -> None:
+    def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         self._root_models = None
         self._randomize = False
 

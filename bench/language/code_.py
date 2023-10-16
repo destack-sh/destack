@@ -57,7 +57,7 @@ class HasCode(Node):
     _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = nruntime(default=None)
     _cached_exports: dict[str, Any] | None = nruntime(default=None)
 
-    def _clear_inner(self) -> None:
+    def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         self._parse = None
         self._transform = None
         self._statement_references = None

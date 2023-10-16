@@ -6,12 +6,10 @@ from uuid import UUID
 import pytz
 from croniter import croniter
 
-from bench.language import IssueType
 from bench.language.const import MNT, ScheduleType, TriggerType
 from bench.language.module import (
     Node,
     NodeList,
-    ScopeNode,
     nchildren,
     node,
     node_component,
@@ -102,27 +100,7 @@ class Trigger(Node):
     def __repr__(self):
         return f"<Trigger {self}>"
 
-    def _clear_inner(self) -> None:
-        self._set_untracked(
-            "statement", self.statement.id if isinstance(self.statement, Node) else self.statement
-        )
-        self._set_untracked("scope", self.scope.id if isinstance(self.scope, Node) else self.scope)
-
-    def _interp_inner(self, scope: "ScopeNode") -> None:
-        # resolve statement
-        if self.statement is not None and not isinstance(self.statement, Node):
-            resolved = scope.lookup(self.statement)
-            if resolved is None:
-                self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
-            else:
-                self._set_untracked("statement", resolved)
-        # resolve scope
-        if self.scope is not None and not isinstance(self.scope, Node):
-            resolved = scope.lookup(self.scope)
-            if resolved is None:
-                self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
-            else:
-                self._set_untracked("scope", resolved)
+    # ignore scope and statement for now
 
     def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
         if self.type == TriggerType.TIME:

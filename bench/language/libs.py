@@ -1205,8 +1205,8 @@ for name, module in DEFAULT_MODULES.items():
         for name, prop in node.__list_properties__.items():
             if prop.list_type == NodeList:
                 setattr(node, name, prop.list_type(node, prop))
-        node._clear_self()
-    module._clear_self()
+        node._clear_self(node.scope)
+    module._clear_self(module)
     module._local_tree.set(nodes)
     for node in nodes:
         # we re-init above to reset the key, so manually update lists
