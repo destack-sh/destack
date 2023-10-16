@@ -26,6 +26,7 @@ type Action = {
   id: ActionId;
   label: string;
   icon: any;
+  highlight?: boolean;
   active?: boolean;
   disabled: boolean;
   action: () => void;
@@ -36,6 +37,7 @@ const actions: Ref<Action[]> = computed(() => [
     id: "run",
     label: "Run",
     icon: PlayIcon,
+    highlight: true,
     active: runActive.value,
     disabled: !bench.canUse || runActive.value || props.statement == null,
     action: () => {
@@ -78,8 +80,14 @@ const actions: Ref<Action[]> = computed(() => [
     <button
       v-for="action in actions.filter((a) => !props.hide?.includes(a.id))"
       :key="action.label"
-      class="flex flex-row items-center rounded-sm border border-orange-900/[12%] bg-white px-2 py-1 shadow-sm"
-      :class="[action.disabled ? 'focus:border-opacity-40' : 'hover:bg-orange-100 focus:bg-orange-100']"
+      class="flex flex-row items-center rounded-sm border border-orange-900/[12%] px-2 py-1 shadow-sm"
+      :class="[
+        action.disabled
+          ? 'focus:border-opacity-40'
+          : action.highlight
+          ? 'bg-orange-600 hover:bg-orange-500 focus:bg-orange-500'
+          : 'bg-white hover:bg-orange-100 focus:bg-orange-100',
+      ]"
       :disabled="action.disabled"
       @click="action.action"
     >
@@ -88,9 +96,28 @@ const actions: Ref<Action[]> = computed(() => [
         v-else
         :is="action.icon"
         class="mr-1 h-5 w-5"
-        :class="[action.disabled ? 'text-gray-300' : 'text-gray-500']"
+        :class="[
+          action.disabled
+            ? action.highlight
+              ? 'text-gray-700'
+              : 'text-gray-300'
+            : action.highlight
+            ? 'text-white'
+            : 'text-gray-500',
+        ]"
       />
-      <span :class="[action.disabled ? 'text-gray-500' : 'text-gray-900']">{{ action.label }}</span>
+      <span
+        :class="[
+          action.disabled
+            ? action.highlight
+              ? 'text-gray-700'
+              : 'text-gray-500'
+            : action.highlight
+            ? 'text-white'
+            : 'text-gray-900',
+        ]"
+        >{{ action.label }}</span
+      >
     </button>
   </div>
 </template>

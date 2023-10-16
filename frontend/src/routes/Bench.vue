@@ -589,7 +589,11 @@ onBeforeUnmount(() => {
             <CurrentRunsPopover />
             <button
               class="rounded-sm p-1 hover:bg-orange-100"
-              @click="bench.openTerminal({ group: bench.focusedGroup, opposite: true, focus: true })"
+              @click="
+                bench.focusedPanel?.type == 'terminal'
+                  ? bench.closePanel(bench.focusedPanel)
+                  : bench.openTerminal({ group: bench.focusedGroup, focus: true })
+              "
             >
               <CommandLineIcon class="h-5 w-5 text-orange-600" />
             </button>
