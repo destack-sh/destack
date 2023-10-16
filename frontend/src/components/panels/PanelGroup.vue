@@ -31,6 +31,7 @@ const containerSize = useElementSize(containerRef);
 // keep panel refs to pass to editor interface for scroll context
 const panelRefs = useElementRefs<InstanceType<typeof TabPanel>>();
 const tabListRef: Ref<InstanceType<typeof TabList> | null> = ref(null);
+const tabRefs = useElementRefs<InstanceType<typeof Tab>>(computed(() => props.group.panels));
 const contextMenuPanel: Ref<Panel | null> = ref(null);
 const contextMenuOpen = ref(false);
 const contextMenuPosition: Ref<{ x: number; y: number } | null> = ref(null);
@@ -67,6 +68,14 @@ watch(
   },
   { immediate: true, deep: true }
 );
+
+// auto focus selected tab in horizontal scrolling
+watch(selectedTab, () => {
+  const tab = tabRefs.getRef(props.group.panels[selectedTab.value].id);
+  // this is wrong if the tab is the last in an overflowing row
+  //  (because our group actions popover is stickied floating to the right, overlapping with this)
+  tab.$el?.scrollIntoView();
+});
 
 // compute editor size absolutely
 const panelSize = computed(() => {
@@ -105,7 +114,13 @@ async function createFileInPanelGroup() {
         v-show="bench.showPanelTabs"
       >
         <!-- Editor tab -->
-        <Tab as="template" v-for="(p, i) in group.panels" :key="p.id" v-slot="{ selected }">
+        <Tab
+          as="template"
+          v-for="(p, i) in group.panels"
+          :key="p.id"
+          :ref="(ref: any) => tabRefs.registerRef(p.id, ref)"
+          v-slot="{ selected }"
+        >
           <button
             class="group relative flex max-w-[20rem] flex-shrink-0 select-none flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap py-[5px] pl-2 pr-1 outline-none transition duration-150"
             :class="{
