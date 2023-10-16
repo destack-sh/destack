@@ -18,6 +18,7 @@ from bench.language.builtin import _active_session, symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
+    NTL,
     RunStatus,
     SessionAccessLevel,
     TriggerType,
@@ -439,7 +440,8 @@ class SessionTracer:
     #
 
     def node_create(self, *nodes: Node):
-        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES]  # :InterpFilter
+        # :InterpFilter
+        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL]
         if nodes and self.session.access_level < SessionAccessLevel.Create:
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
         self.editor.create_many(*nodes, apply=False)
@@ -450,24 +452,23 @@ class SessionTracer:
                 self._new_statement_ids.add(n.id)
 
     def node_update(self, node: Node, properties: list[str]):
-        if node.mnt in INTERP_NODE_TYPES:  # :InterpFilter
-            return
-        if self.session.access_level < SessionAccessLevel.Update:
-            raise PermissionError(f"{self.session!r} may not update {node!r}")
-        self.editor.update(node, properties=properties, apply=False)
+        if node.mnt not in INTERP_NODE_TYPES and node._track & NTL.FULL:  # :InterpFilter
+            if self.session.access_level < SessionAccessLevel.Update:
+                raise PermissionError(f"{self.session!r} may not update {node!r}")
+            self.editor.update(node, properties=properties, apply=False)
 
     def node_delete(self, *nodes: Node):
-        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES]  # :InterpFilter
+        # :InterpFilter
+        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL]
         if nodes and self.session.access_level < SessionAccessLevel.Delete:
             raise PermissionError(f"{self.session!r} may not delete {nodes!r}")
         self.editor.delete_many(*nodes, apply=False)
 
     def node_truncate(self, node: Node, mnt: MNT):
-        if node.mnt in INTERP_NODE_TYPES:  # :InterpFilter
-            return
-        if self.session.access_level < SessionAccessLevel.Delete:
-            raise PermissionError(f"{self.session!r} may not truncate {node!r}")
-        self.editor.truncate(node, mnt, apply=False)
+        if node.mnt not in INTERP_NODE_TYPES and node._track & NTL.FULL:  # :InterpFilter
+            if self.session.access_level < SessionAccessLevel.Delete:
+                raise PermissionError(f"{self.session!r} may not truncate {node!r}")
+            self.editor.truncate(node, mnt, apply=False)
 
     #
     # Session

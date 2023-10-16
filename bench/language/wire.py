@@ -18,8 +18,8 @@ from bench.language.const import (
     BlobStatus,
     IssueKind,
     ModuleNodeType,
+    NodeTrackingLevel,
     RunStatus,
-    RunTrackingLevel,
     ScheduleType,
     SessionAccessLevel,
     StatementType,
@@ -1057,7 +1057,7 @@ class RunData:
 @data_packer(RunData, Run)
 class RunPacker(DataPacker[RunData, Run]):
     def pack(self, run: Run) -> RunData:
-        track_statement = run.statement._track >= RunTrackingLevel.FULL
+        track_statement = run.statement._track >= NodeTrackingLevel.FULL
         if run.error:
             error = RunErrorData(
                 kind=run.error.kind,

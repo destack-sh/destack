@@ -99,10 +99,13 @@ def new_dynamic_node_key(ck_or_id: UUID) -> str:
     return key
 
 
-class RunTrackingLevel(enum.IntEnum):
+class NodeTrackingLevel(enum.IntEnum):
     NONE = 0
     ANONYMOUS = 1
     FULL = 2
+
+
+NTL = NodeTrackingLevel
 
 
 class SessionAccessLevel(enum.IntEnum):  # SessionAccessLevel

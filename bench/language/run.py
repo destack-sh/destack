@@ -9,14 +9,8 @@ from uuid import UUID
 
 import msgpack
 
-from bench.language.const import (
-    TERMINAL_RUN_STATUSES,
-    RunStatus,
-    RunTrackingLevel,
-    SessionAccessLevel,
-    TriggerType,
-)
-from bench.language.module import NS, Module, Node, node_component, nruntime
+from bench.language.const import TERMINAL_RUN_STATUSES, RunStatus, SessionAccessLevel, TriggerType
+from bench.language.module import NS, Module, Node, node_component
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.proxy import proxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
@@ -29,8 +23,6 @@ if TYPE_CHECKING:
 @node_component
 class HasRun(Node):
     """A statement statement"""
-
-    _track: RunTrackingLevel = nruntime(default=RunTrackingLevel.FULL)
 
     @property
     def _is_async(self) -> Optional[bool]:  # set in supporting components e.g. HasCode
