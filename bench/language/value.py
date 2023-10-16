@@ -21,7 +21,7 @@ class HasValue(Node):
     def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
         # type may not be ready if not attached (e.g. Record in a Database)
         if "value" in properties and self._type_of_value is not None:
-            from bench.language.typing import check_type
+            from bench.language.packer import check_type
 
             try:
                 is_array = bool(self._type_of_value.flags & TypeFlag.IS_ARRAY)
@@ -38,13 +38,13 @@ class HasValue(Node):
     def _activate_inner(self, session: "Session") -> None:
         if self.value is None:
             return
-        from bench.language.typing import TypedDict, unpack_value
+        from bench.language.packer import TypedDict, unpack_value
 
         if not self._type_of_value and not self.attached:
             return  # ignore for e.g. new Records that don't have a parent type from DB yet
 
         def _onwrite_value(key: str) -> None:
-            from bench.language.typing import check_type
+            from bench.language.packer import check_type
 
             is_array = bool(self._type_of_value.flags & TypeFlag.IS_ARRAY)
             check_type(self.value, self._type_of_value, ignore_array=is_array)
@@ -64,7 +64,7 @@ class HasValue(Node):
 
     def _raw_value(self, _force: bool = False) -> dict | None:
         """The raw/stripped value with field keys."""
-        from bench.language.typing import pack_value
+        from bench.language.packer import pack_value
 
         if self.value is None or self._status != NS.Tracked and not _force:
             return self.value
@@ -79,7 +79,7 @@ class HasValue(Node):
 
     def _raw_named_value(self):
         """The raw/stripped value with field names."""
-        from bench.language.typing import map_value
+        from bench.language.packer import map_value
 
         assert self._type_of_value is not None, f"missing type for {self!r}"
         return map_value(

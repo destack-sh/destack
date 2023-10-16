@@ -11,8 +11,8 @@ from bench.language.const import MNT, IssueType, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.model import HasModel
 from bench.language.module import Node, ScopeNode, node_component, nruntime
+from bench.language.packer import check_type, unpack_value
 from bench.language.reference import NodeView
-from bench.language.typing import check_type, unpack_value
 
 from ..utils.func import describe_type
 

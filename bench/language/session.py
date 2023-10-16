@@ -25,11 +25,11 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.module import Module, Node
+from bench.language.packer import check_type, map_value, pack_value, pack_value_flat
 from bench.language.query import Query, Sort, SortOrder
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.search import Search
 from bench.language.statement import Statement
-from bench.language.typing import check_type, map_value, pack_value, pack_value_flat
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
@@ -409,7 +409,7 @@ class SessionTracer:
         self._root_run_id = root_run_id
         self._new_statement_ids: set[UUID] = set()
 
-        from bench.language.typing import unpack_value
+        from bench.language.packer import unpack_value
 
         RunMetadata = symbolx_lib.resolve(".reflect.RunMetadata")
         self._root_run_value = unpack_value(

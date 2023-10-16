@@ -104,12 +104,12 @@ function navigateInputDown() {
 
 async function run() {
   if (!canRun.value) return;
-  const { run, finalResult: result } = terminal.runCode(input.value, {
+  const { run, firstResult } = terminal.runCode(input.value, {
     scope: bench.lastActiveFileCk ?? undefined,
     accessLevel: panel.value.accessLevel,
     tags: ["test"],
   });
-  result.then((r) => logsTileRefs.value[run.id]?.addLogs(r.logs ?? []));
+  firstResult.then((r) => logsTileRefs.value[run.id]?.addLogs(r.logs ?? []));
   focusedRunId.value = null;
   expandedRunIds.value.push(run.id); // always show full run if it was made here
   panel.value.lastRunId = run.id;

@@ -419,9 +419,7 @@ defineExpose({
             :key="action.label"
             class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
             :class="[
-              i > 0 && actions[i - 1].groupId != action.groupId
-                ? 'mt-1 border-t border-orange-900/[12%] pt-2'
-                : '',
+              i > 0 && actions[i - 1].groupId != action.groupId ? 'mt-1 border-t border-orange-900/[12%] pt-2' : '',
               action.disabled ? 'cursor-not-allowed opacity-50' : '',
             ]"
             :disabled="action.disabled"
