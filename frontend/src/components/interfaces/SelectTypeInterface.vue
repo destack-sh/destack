@@ -257,10 +257,14 @@ function toComboId(type: Field) {
 }
 
 function findByComboId(id: string) {
-  if (id == "freeform") {
+  if (id.startsWith("freeform-")) {
+    const tag = Object.values(TypeTag).find((t) => t.toLowerCase() == id.slice("freeform-".length).toLowerCase());
+    if (!tag) {
+      throw new Error(`unknown freeform tag ${id}`);
+    }
     return makeField({
       projectVersionId: module.id.value,
-      tag: TypeTag.String,
+      tag,
       flags: getDefaultFlags(TypeHint.Name),
       name: query.value,
     });
@@ -347,22 +351,24 @@ defineExpose({
         </li>
       </ComboboxOption>
       <!-- Freeform -->
-      <ComboboxOption
-        v-if="props.allowFreeform && query.length > 0"
-        key="freeform"
-        value="freeform"
-        v-slot="{ active }"
-      >
-        <li
-          class="relative cursor-default select-none px-1 py-[3px] text-gray-900"
-          :class="['truncate', active ? 'bg-orange-100' : '']"
+      <template v-if="props.allowFreeform && query.length > 0">
+        <ComboboxOption
+          v-for="tag of [TypeTag.String, TypeTag.Number, TypeTag.Boolean, TypeTag.File]"
+          :key="'freeform-' + tag"
+          :value="'freeform-' + tag"
+          v-slot="{ active }"
         >
-          <div class="flex items-center">
-            <component :is="ICONS_BY_TAG_OUTLINE[TypeTag.String]" class="h-4 w-4" />
-            <span class="ml-1"> {{ query }} </span>
-          </div>
-        </li>
-      </ComboboxOption>
+          <li
+            class="relative cursor-default select-none px-1 py-[3px] text-gray-900"
+            :class="['truncate', active ? 'bg-orange-100' : '']"
+          >
+            <div class="flex items-center">
+              <component :is="ICONS_BY_TAG_OUTLINE[tag]" class="h-4 w-4" />
+              <span class="ml-1"> {{ query }} </span>
+            </div>
+          </li>
+        </ComboboxOption>
+      </template>
     </ComboboxOptions>
   </Combobox>
 </template>
