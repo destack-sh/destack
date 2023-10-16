@@ -65,6 +65,7 @@ function _useTerminal() {
       live: true,
       insertAt: "start",
       queryAsFilter: (run) => run.value?.[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL && run.statement == null,
+      neverUnsubscribe: true, // shared composable
     }
   );
   const terminalRuns = computed(() =>

@@ -186,67 +186,100 @@ function initMonaco(monaco: Monaco) {
     return openWidget != null;
   }
 
+  const registeredCommands = ref(false);
   function handleCommands() {
     if (editor.value == null) return;
 
     // handle key events (delete if empty, navigate up/down if top/bottom, etc.)
-    editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
-    editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
-    editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => emit("openActions"));
-    editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space, () => emit("toggleLanguage"));
-    editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Space, () => emit("toggleLanguage"));
+    editor.value.addAction({
+      id: "execute",
+      label: "Execute",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter],
+      run: () => emit("execute"),
+    });
+
+    editor.value.addAction({
+      id: "openActions",
+      label: "Open Actions",
+      keybindings: [monaco.KeyMod.Alt | monaco.KeyCode.Enter],
+      run: () => emit("openActions"),
+    });
+
+    editor.value.addAction({
+      id: "toggleLanguage",
+      label: "Toggle Language",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space, monaco.KeyMod.Alt | monaco.KeyCode.Space],
+      run: () => emit("toggleLanguage"),
+    });
+
     if (!props.enterIsExecute) {
-      editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => {
-        emit("enter");
+      editor.value.addAction({
+        id: "enter",
+        label: "Enter",
+        keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.Enter],
+        run: () => {
+          if (props.enterIsExecute) return;
+          emit("enter");
+        },
       });
     }
-    editor.value.onKeyDown((e) => {
-      if (e.keyCode === monaco.KeyCode.Backspace) {
-        if (editor.value?.getValue() === "") {
-          emit("deleteIfEmpty");
+
+    if (!registeredCommands.value) {
+      editor.value.onKeyDown((e) => {
+        // only if we're focused
+        if (!innerFocused.value) {
+          return;
         }
-      } else if (e.keyCode === monaco.KeyCode.UpArrow) {
-        if (!e.shiftKey && !e.altKey && editor.value?.getPosition()?.lineNumber === 1 && !hasInnerWindowOpen()) {
-          e.stopPropagation();
-          e.preventDefault();
-          emit("navigateUp");
+        if (e.keyCode === monaco.KeyCode.Backspace) {
+          if (editor.value?.getValue() === "") {
+            emit("deleteIfEmpty");
+          }
+        } else if (e.keyCode === monaco.KeyCode.UpArrow) {
+          if (!e.shiftKey && !e.altKey && editor.value?.getPosition()?.lineNumber === 1 && !hasInnerWindowOpen()) {
+            e.stopPropagation();
+            e.preventDefault();
+            emit("navigateUp");
+          }
+        } else if (e.keyCode === monaco.KeyCode.DownArrow) {
+          if (
+            !e.shiftKey &&
+            !e.altKey &&
+            editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount() &&
+            !hasInnerWindowOpen()
+          ) {
+            e.stopPropagation();
+            e.preventDefault();
+            emit("navigateDown");
+          }
+        } else if (e.keyCode == monaco.KeyCode.Escape) {
+          // trigger outer escape if no widget is open and visible
+          if (!hasInnerWindowOpen()) {
+            e.stopPropagation();
+            e.preventDefault();
+            emit("escape");
+            (document.activeElement as HTMLElement)?.blur?.();
+          }
+        } else if (e.keyCode == monaco.KeyCode.Enter && !e.shiftKey) {
+          if (props.enterIsExecute && !hasInnerWindowOpen()) {
+            e.stopPropagation();
+            e.preventDefault();
+            emit("execute");
+          }
         }
-      } else if (e.keyCode === monaco.KeyCode.DownArrow) {
-        if (
-          !e.shiftKey &&
-          !e.altKey &&
-          editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount() &&
-          !hasInnerWindowOpen()
-        ) {
-          e.stopPropagation();
-          e.preventDefault();
-          emit("navigateDown");
-        }
-      } else if (e.keyCode == monaco.KeyCode.Escape) {
-        // trigger outer escape if no widget is open and visible
-        if (!hasInnerWindowOpen()) {
-          e.stopPropagation();
-          e.preventDefault();
-          emit("escape");
-          (document.activeElement as HTMLElement)?.blur?.();
-        }
-      } else if (e.keyCode == monaco.KeyCode.Enter && !e.shiftKey) {
-        if (props.enterIsExecute && !hasInnerWindowOpen()) {
-          e.stopPropagation();
-          e.preventDefault();
-          emit("execute");
-        }
-      }
-    });
+      });
+    }
     editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       // suppress default save to file
     });
+
+    registeredCommands.value = true;
   }
 
   // update focused when editor is focused/defocused
   editor.value.onDidFocusEditorWidget(() => {
     handleCommands(); // always re-register to ensure this runs last
     // see https://github.com/microsoft/monaco-editor/issues/2947
+    // (not sure if this is still needed with addAction, but it's fiddly so let's keep it for now)
     innerFocused.value = true;
   });
   editor.value.onDidBlurEditorWidget(() => {
