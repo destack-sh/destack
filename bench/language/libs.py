@@ -35,9 +35,9 @@ from bench.language.const import (
     new_dynamic_node_key,
 )
 from bench.language.database import HasDatabase
-from bench.language.field import Field, Key, Type, Vector
+from bench.language.field import Field, HasFields, Key, Type, Vector
 from bench.language.model import HasModel, ModelError, ModelErrorType
-from bench.language.module import Node, ScopeNode, get_node_id
+from bench.language.module import Node, NodeList, ScopeNode, get_node_id
 from bench.language.packer import map_value, pack_value_flat
 from bench.language.reference import NodeView
 from bench.language.reflect import (
@@ -366,11 +366,12 @@ class BaseTextTaskCompiler(TaskCompiler):
                 field = task.resolved_fields.get(key)
                 if not field:
                     continue  # ignore
+                value = value.strip()
                 if value.startswith('"'):
                     value = value[1:]
                 if value.endswith('"'):
                     value = value[:-1]  # sometimes the model forgets to close the quote
-                value = value.strip()
+                value = value.strip()  # yes twice
                 if field._effective_tag in (TypeTag.STRUCT, TypeTag.BOOLEAN, TypeTag.NUMBER):
                     value = json.loads(value)
                 outputs[key] = value
@@ -1194,18 +1195,16 @@ for name, module in DEFAULT_MODULES.items():
         node.ck = new_ck
         node_by_path[path] = node
         node.id = get_node_id(module.id, node.ck)
-        if isinstance(node, Field):
+        if HasDatabase in node._components:  # takes precedence over HasFields
+            node.key = HasDatabase._derive_key(node)
+        elif isinstance(node, Field) or HasFields in node._components:
             node.key = new_dynamic_node_key(node.ck)
-        elif isinstance(node, Statement):
-            node.key = None
-            # 'remote' records are only stored locally in 'hybrid' list... :BE-352)
-            if HasDatabase in node._components:
-                records = list(node.records)
-            node._init_self()  # reset key (everything else is already set)
-            if HasDatabase in node._components:
-                node.records.extend(*records)
     # hard re-index everything (ids changed)
+    # reset all inline node lists
     for node in nodes:  # clear resets references to their ids, so run after assigning all ids
+        for name, prop in node.__list_properties__.items():
+            if prop.list_type == NodeList:
+                setattr(node, name, prop.list_type(node, prop))
         node._clear_self()
     module._clear_self()
     module._local_tree.set(nodes)
@@ -1220,6 +1219,8 @@ for name, module in DEFAULT_MODULES.items():
             # only patching text here is fine since we clear after all ids/cks are updated
             # and only in-text references are not automatically updated
             node.text = patch_text_html(node.text, target_cks)
+
+    # and check everything is ok
     module._index_rec()
     module._interp_rec()
     if module.issues:

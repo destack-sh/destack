@@ -586,6 +586,7 @@ class _ChangeEffect:
 
     prev_session: Optional["Session"]
     prev_status: Optional[NS]
+    level: _NC
     affected_mnts: set[MNT] | None
     ancestors: list["Node"] | None
     affected: list["Node"] | None
@@ -603,8 +604,8 @@ class _ChangeEffect:
 
         # collect ancestors to update their affected node lists
         affected_mnts = set([n.mnt for n in changed])
-        if level & _NC.UpdateLists:
-            ancestors = []
+        ancestors = []
+        if level >= _NC.UpdateLists:
             parent = from_parent
             while parent is not None:
                 ancestors.append(parent)
@@ -613,8 +614,6 @@ class _ChangeEffect:
             while parent is not None:
                 ancestors.append(parent)
                 parent = parent.parent
-        else:
-            ancestors = None
 
         # collect nodes to reinterp following attach/detach
         if level & (_NC.Detach | _NC.Attach):
@@ -638,9 +637,10 @@ class _ChangeEffect:
             affected_mnts=affected_mnts,
             ancestors=ancestors,
             affected=affected_nodes,
+            level=level,
         )
 
-    def _effect(self, level: _NC) -> None:
+    def _effect(self, level: _NC | None = None) -> None:
         """Applies the effect of a trigger to update the affected nodes."""
         if level & _NC.UpdateLists:
             for ancestor in self.ancestors:
@@ -657,9 +657,9 @@ class _ChangeEffect:
 
         if level & _NC.Attach:
             for _node in self.affected:
-                _node._index_self(_coerce=False)
+                _node._index_self()
             for _node in self.affected:
-                _node._interp_self(_node.scope, _coerce=False)
+                _node._interp_self(_node.scope)
                 if self.prev_session and self.prev_status == NS.Tracked:
                     _node._activate_self(self.prev_session)
 
@@ -1167,7 +1167,7 @@ class NodeTree(NodeTreeBase[NT]):
     def add_tree(self, tree: Union["NodeTree", "DetachedNodeTree"]):
         if isinstance(tree, DetachedNodeTree):
             for node in tree.nodes_by_ck.values():
-                if node.mnt != MNT.RECORD:  # :TempRecordTree
+                if node.mnt != MNT.RECORD:  # remove hoisted records :TempRecordTree
                     self.add(node)
         else:
             self.nodes_by_id.update(tree.nodes_by_id)
@@ -1759,11 +1759,17 @@ class Node(abc.ABC):
         ):
             meth(self)
 
-        # keep manually set values if passed in
+        # keep manually set node lists if passed in
         if existing_lists:
+            changed_nodes: list[NodeT] = []
+            was_interp = self._status >= NS.Interpreted
+            detach_trigger = _NC.UpdateLists | _NC.Detach if was_interp else _NC.UpdateLists
             for name, existing in existing_lists.items():
                 if existing and not isinstance(existing, NodeList):
-                    getattr(self, name).extend(*existing, _trigger=_NC.UpdateLists)
+                    getattr(self, name).extend(*existing, _trigger=detach_trigger)
+                    changed_nodes.extend(existing)
+            if changed_nodes and was_interp:
+                _ChangeEffect._collect(None, self, changed_nodes, _NC.Attach)._effect(_NC.Attach)
 
         # validate if in session after all init are done
         if self._status >= NS.Interpreted and self._session is not None:

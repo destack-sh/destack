@@ -119,7 +119,7 @@ class RecordBatchRestoreInput(RecordInput, BatchEditInput):
 
 
 @strawberry.type
-class DatabaseMutation:
+class RecordMutation:
     @db_edit(MET.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         record = models.Record(
