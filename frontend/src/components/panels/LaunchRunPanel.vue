@@ -228,17 +228,6 @@ defineExpose({
       <template v-else>
         <!-- Input -->
         <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
-          <!-- TODO @UX: where to put task config in launch run panel? (panel needs a general cleanup anyway) -->
-          <template v-slot:sublabel>
-            <button
-              v-if="statement.type == StatementType.Task"
-              class="flex flex-row items-center gap-0.5 rounded-sm text-xs text-gray-400 transition-opacity duration-500 hover:bg-orange-100 hover:text-gray-700"
-              @click="taskRunMode = taskRunMode == 'fast' ? 'deliberate' : 'fast'"
-            >
-              <component :is="taskRunMode == 'fast' ? BoltIcon : LightBulbIcon" class="h-4 w-4" />
-              {{ taskRunMode == "fast" ? "Fast" : "Deliberate" }}
-            </button>
-          </template>
           <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>
           <StructInterface
             v-model="panel.inputs"
@@ -247,6 +236,15 @@ defineExpose({
             readonly-type
             :appearance="{ minimalFields: true, hideFieldType: true }"
           />
+          <!-- TODO @UX: where to put task config in launch run panel? (panel needs a general cleanup anyway) -->
+          <button
+            v-if="statement.type == StatementType.Task"
+            class="ml-auto flex flex-row items-center gap-0.5 rounded-sm text-xs text-gray-400 transition-opacity duration-500 hover:bg-orange-100 hover:text-gray-700"
+            @click="taskRunMode = taskRunMode == 'fast' ? 'deliberate' : 'fast'"
+          >
+            <component :is="taskRunMode == 'fast' ? BoltIcon : LightBulbIcon" class="h-4 w-4" />
+            {{ taskRunMode == "fast" ? "Fast" : "Deliberate" }}
+          </button>
         </ContainerTile>
         <!-- Output -->
         <ContainerTile

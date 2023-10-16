@@ -12,7 +12,7 @@ import { usePanelContext } from "@/state/bench";
 import type { StatementProps } from "@/components/statements";
 import type { StatementEmit } from "@/components/statements";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
-import { useStatementMorph, type MorphCommand } from "@/state/statement";
+import { useStatementMorph, type MorphInput } from "@/state/statement";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "bounding" | "focused" | "editing">>();
 const emit = defineEmits<StatementEmit>();
@@ -25,15 +25,15 @@ const inputRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const panel = usePanelContext();
 const ops = useOperations();
 
-// open/close commanding and auto-convert to text on anything else
+// open/close inserting and auto-convert to text on anything else
 watch(query, (q) => {
   if (q == "") {
-    commanding.value = false;
+    inserting.value = false;
   } else if (q == " ") {
     inputRef.value?.clear();
     emit("launchAssist", "");
   } else if (q == "/") {
-    openCommandSelection();
+    openInputSelection();
   } else if (q.startsWith("#")) {
     const headingLevel = (q.match(/^#+ /)?.[0].length ?? 0) - 1;
     if (headingLevel > 0 && headingLevel < 4) {
@@ -42,7 +42,7 @@ watch(query, (q) => {
         headingLevel: headingLevel,
       });
     }
-  } else if (!commanding.value) {
+  } else if (!inserting.value) {
     const tx = openTransaction();
     ops.statement.morph(tx, props.statement.id, props.statement, { type: StatementType.Text });
     ops.symbol.updateStatementText(tx, props.statement.id, "", q);
@@ -50,50 +50,50 @@ watch(query, (q) => {
   }
 });
 
-// command selection dropdown
-const commanding: Ref<boolean> = ref(false);
-const commandQuery: Ref<string> = ref("");
-const commandInputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
-const commandButtonRef: Ref<InstanceType<typeof ComboboxButton> | null> = ref(null);
-const commandOptionsRef: Ref<InstanceType<typeof ComboboxOptions> | null> = ref(null);
-const { focused: commandInputRefFocused } = useFocus(commandInputRef as MaybeElementRef);
+// input selection dropdown
+const inserting: Ref<boolean> = ref(false);
+const inputQuery: Ref<string> = ref("");
+const inputInputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
+const inputButtonRef: Ref<InstanceType<typeof ComboboxButton> | null> = ref(null);
+const inputOptionsRef: Ref<InstanceType<typeof ComboboxOptions> | null> = ref(null);
+const { focused: inputInputRefFocused } = useFocus(inputInputRef as MaybeElementRef);
 
-useActiveScroll(computed(() => commandOptionsRef.value?.$el));
+useActiveScroll(computed(() => inputOptionsRef.value?.$el));
 
 function morphToText() {
   query.value = "";
   nextTick(() => inputRef.value?.focus());
 }
 
-function openCommandSelection() {
-  commanding.value = true;
-  nextTick(() => ((commandInputRefFocused.value = true), commandButtonRef.value?.$el.click()));
+function openInputSelection() {
+  inserting.value = true;
+  nextTick(() => ((inputInputRefFocused.value = true), inputButtonRef.value?.$el.click()));
 }
 
-function stopCommanding() {
-  commanding.value = false;
+function stopInserting() {
+  inserting.value = false;
   query.value = "";
   nextTick(() => inputRef.value?.focus());
 }
 
-function selectCommand(command: MorphCommand) {
-  commanding.value = false;
+function selectInput(input: MorphInput) {
+  inserting.value = false;
   query.value = "";
-  doMorph(props.statement, { ...command.identity, name: props.statement.name });
-  command.action?.();
+  doMorph(props.statement, { ...input.identity, name: props.statement.name });
+  input.action?.();
 }
 
-const { filteredCommands, doMorph } = useStatementMorph(toRef(props, "statement"), { query: commandQuery });
+const { filteredCommands, doMorph } = useStatementMorph(toRef(props, "statement"), { query: inputQuery });
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
     inputRef.value?.focus();
-    commanding.value = false;
+    inserting.value = false;
   },
   blur: () => {
     inputRef.value?.blur();
-    commandInputRefFocused.value = false;
-    commanding.value = false;
+    inputInputRefFocused.value = false;
+    inserting.value = false;
   },
   loading: ref(false),
 });
@@ -102,7 +102,7 @@ defineExpose({
   <div class="flex w-full flex-row items-center outline-none" @click="inputRef?.focus()">
     <EditableSpan
       ref="inputRef"
-      v-if="!commanding"
+      v-if="!inserting"
       v-model="query"
       :readonly="readonly"
       @navigate-up="emit('navigateUp')"
@@ -117,62 +117,73 @@ defineExpose({
     />
     <!-- Empty dots / prompt -->
     <div
-      v-if="focused && !commanding && query == ''"
+      v-if="focused && !inserting && query == ''"
       class="h-full w-full select-none items-center group-hover:opacity-100"
     >
       <span class="text-gray-400" v-if="!editing"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
-      <span class="text-gray-400" v-else>Press 'space' for assist, '/' for commands...</span>
+      <span class="text-gray-400" v-else
+        >Press
+        <button
+          class="rounded-sm px-1 font-semibold ring-1 ring-inset ring-gray-300 hover:bg-gray-100"
+          @click.stop="emit('launchAssist', '')"
+        >
+          space
+        </button>
+        for assist,
+        <button
+          class="rounded-sm px-1 font-semibold ring-1 ring-inset ring-gray-300 hover:bg-gray-100"
+          @click.stop="openInputSelection()"
+        >
+          /
+        </button>
+        for commands...
+      </span>
     </div>
-    <!-- Command selection -->
+    <!-- Input selection -->
     <Combobox
-      v-if="commanding"
+      v-if="inserting"
       as="div"
       class="relative flex w-full flex-col"
-      @update:model-value="selectCommand($event)"
+      @update:model-value="selectInput($event)"
       by="label"
     >
       <!-- Hidden button to manage focus programmatically -->
-      <ComboboxButton class="hidden" ref="commandButtonRef" />
+      <ComboboxButton class="hidden" ref="inputButtonRef" />
       <span class="flex flex-row items-baseline">
         /
         <ComboboxInput
           as="input"
-          ref="commandInputRef"
-          @change="commandQuery = $event.target.value"
+          ref="inputInputRef"
+          @change="inputQuery = $event.target.value"
           spellcheck="false"
           class="w-full min-w-0 border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
           :class="[appearance.textSmall ? 'text-sm' : 'text-md']"
-          @keydown.backspace.exact="commandQuery.length > 0 || stopCommanding()"
+          @keydown.backspace.exact="inputQuery.length > 0 || stopInserting()"
           @keydown.escape.prevent="morphToText(), emit('escape')"
         />
       </span>
       <!-- Prevent scroll and capture click outside -->
       <div
-        v-if="commanding"
+        v-if="inserting"
         class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
-        @click.stop="commanding = false"
+        @click.stop="inserting = false"
       />
-      <!-- Morph command popup options -->
+      <!-- Morph input popup options -->
       <FadeTransition>
         <ComboboxOptions
-          ref="commandOptionsRef"
+          ref="inputOptionsRef"
           class="absolute z-50 flex h-fit max-h-[360px] w-[340px] flex-col gap-1 overflow-y-auto rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
           :class="[isInTopHalfOfPanel ? 'top-7' : 'bottom-7']"
         >
           <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
             <span class="text-gray-700">No results</span>
           </div>
-          <ComboboxOption
-            v-for="(command, i) in filteredCommands"
-            :key="command.label"
-            :value="command"
-            v-slot="{ active }"
-          >
+          <ComboboxOption v-for="(input, i) in filteredCommands" :key="input.label" :value="input" v-slot="{ active }">
             <div
-              v-if="i == 0 || command.group != filteredCommands[i - 1]?.group"
+              v-if="i == 0 || input.group != filteredCommands[i - 1]?.group"
               class="select-none px-2 py-1 text-xs font-semibold tracking-wide text-gray-500"
             >
-              {{ command.group?.name }}
+              {{ input.group?.name }}
             </div>
             <li
               class="flex flex-row items-center justify-between gap-3"
@@ -183,14 +194,14 @@ defineExpose({
             >
               <div class="py-1">
                 <div class="relative h-8 w-8 rounded-md bg-orange-500">
-                  <component :is="command.iconSolid" class="absolute left-1.5 top-1.5 h-5 w-5 text-white" />
+                  <component :is="input.iconSolid" class="absolute left-1.5 top-1.5 h-5 w-5 text-white" />
                 </div>
               </div>
               <div class="flex flex-1 flex-col">
                 <span class="font-semibold text-orange-600">
-                  {{ command.label }}
+                  {{ input.label }}
                 </span>
-                <span class="text-xs text-gray-700"> {{ command.description }}. </span>
+                <span class="text-xs text-gray-700"> {{ input.description }}. </span>
               </div>
             </li>
           </ComboboxOption>

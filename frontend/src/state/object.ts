@@ -98,7 +98,7 @@ export function useObjects() {
       return; // already uploaded
     }
     if (blob.presignedPost == null) {
-      throw new Error("no presigned post on remote object");
+      throw new Error("no presigned post on blob");
     }
     // don't emit uploading state since that would cause an extra state change
     // (which is meaningless to undo but too far down the pipe to easily bind to a tx)
@@ -109,7 +109,7 @@ export function useObjects() {
   }
 
   async function getPresignedGet(objectId: string): Promise<string> {
-    /* Fetch the remote object by id (incl. presigned get field) */
+    /* Fetch the blob by id (incl. presigned get field) */
     const ret = await apollo.client.query({
       query: graphql(/* GraphQL */ `
         query blob($id: GlobalID!) {
@@ -124,10 +124,10 @@ export function useObjects() {
       variables: { id: toBlobId(objectId) },
     });
     if (ret.data.blob?.__typename != "Blob") {
-      throw new Error("could not GET remote object");
+      throw new Error("could not GET blob");
     }
     if (ret.data.blob.presignedGet == null) {
-      throw new Error("no presigned GET on remote object");
+      throw new Error("no presigned GET on blob");
     }
     return ret.data.blob.presignedGet;
   }
