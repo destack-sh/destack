@@ -26,7 +26,6 @@ import {
   TagIcon as TagIconOutline,
   PaperAirplaneIcon as PaperAirplaneIconOutline,
   Bars3BottomLeftIcon,
-  ViewColumnsIcon as ViewColumnsIconOutline,
   NoSymbolIcon,
 } from "@heroicons/vue/24/outline";
 import {
@@ -37,7 +36,6 @@ import {
   CpuChipIcon as CpuChipIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
   PaperAirplaneIcon as PaperAirplaneIconSolid,
-  ViewColumnsIcon as ViewColumnsIconSolid,
   VariableIcon as VariableIcon,
 } from "@heroicons/vue/24/solid";
 import { computed, type Ref } from "vue";

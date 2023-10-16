@@ -309,6 +309,7 @@ function focus(focus: "first" | "last" | StatementPartId = "first") {
     partsRefs.value[focus]?.focus("first");
     if (partsRefs.value[focus] == null) console.warn("part to focus not found", props.statement, focus, partsInOrder);
   }
+  scrollIntoViewIfNeeded();
 }
 
 function blur() {
@@ -323,7 +324,10 @@ watch(location, () => {
 // scroll into view when becoming active
 whenever(isActive, () => {
   if (isEditing.value) return; //  (but not editing, which would focus an actual HTML element)
-  // scroll into view if not visible
+  scrollIntoViewIfNeeded();
+});
+
+function scrollIntoViewIfNeeded() {
   const editorRect = panel.container.value?.getBoundingClientRect();
   const containerRect = containerRef.value?.getBoundingClientRect();
   if (editorRect != null && containerRect != null) {
@@ -332,7 +336,7 @@ whenever(isActive, () => {
       containerRef.value?.scrollIntoView(false);
     }
   }
-});
+}
 
 // refocus if statement interface changed and we're editing
 watch(

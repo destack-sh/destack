@@ -330,11 +330,11 @@ class RecordList(NodeListBase[Record], RecordSearch):
             node._activate_self(self._parent.session)
         # create in session or temporarily in main tree
         if _create and self._parent._session:
-            if self._parent.attached:
-                self._parent.session.tracer.node_create(node)
-            else:
+            if not self._parent.attached:
                 # detached record nodes are temporarily hoisted into inline tree :TempRecordTree
                 self._parent._local_root_tree.add(node)
+            elif self._parent.session:
+                self._parent.session.tracer.node_create(node)
         # update cache
         if self._cached_records_by_ck is not None:
             self._cached_records_by_ck[node.ck] = node  # not quite right, see :BE-352
@@ -343,11 +343,11 @@ class RecordList(NodeListBase[Record], RecordSearch):
         nodes = flatten_list(nodes)
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
-        if _create and self._parent._session:
-            if self._parent.attached:
-                self._parent.session.tracer.node_create(*nodes)
-            else:
+        if _create:
+            if not self._parent.attached:
                 self._parent._local_root_tree.add_many(nodes)  # :TempRecordTree
+            elif self._parent.session:
+                self._parent.session.tracer.node_create(*nodes)
         if _trigger:
             _ChangeEffect._collect(None, self._parent, nodes, _trigger)._effect(_trigger)
 
@@ -420,13 +420,17 @@ class HasDatabase(Node):
         # this runs before HasFields because of the ordering in
         #  (which is necessary because HasFields also sets key)
         if self.key is None:
-            if self.versioned:
-                if self.id is not None:
-                    self.key = new_dynamic_node_key(self.id)
-                else:
-                    self.key = None
+            self.key = self._derive_key()
+
+    @staticmethod
+    def _derive_key(instance: "HasDatabase") -> str | None:
+        if instance.versioned:
+            if instance.id is not None:
+                return new_dynamic_node_key(instance.id)
             else:
-                self.key = new_dynamic_node_key(self.ck)
+                return None
+        else:
+            return new_dynamic_node_key(instance.ck)
 
     # maybe these should also go into passthrough?
 

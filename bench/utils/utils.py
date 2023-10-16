@@ -4,6 +4,7 @@ import os
 import re
 import sys
 import textwrap
+import typing
 from dataclasses import field
 from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
 
@@ -181,9 +182,12 @@ def omit_empty(obj):
         return obj
 
 
-def flatten_list(*lists: list | tuple):
+T = typing.TypeVar("T")
+
+
+def flatten_list(*lists: list[T] | tuple[T]) -> list[T]:
     """Flatten a list, generator, element or mixed list of those."""
-    flattened = []
+    flattened: list[T] = []
     for item in lists:
         if isinstance(item, (list, tuple)):
             flattened.extend(item)
