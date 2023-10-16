@@ -295,19 +295,18 @@ class Type:
             node_str = f"Type.reference({reference_str})"
         else:
             node_str = f"Type.{node._hint.name if node._hint else node._tag.name}"
-        if node._flags != TypeFlag.ZERO:
-            if node._flags & TypeFlag.IS_ARRAY:
-                node_str += ".array()"
-            if node._flags & TypeFlag.IS_ARRAYABLE:
-                node_str += ".arrayable()"
-            if node._flags & ~TypeFlag.IS_OPTIONAL:
-                node_str += ".required()"
-            if node._flags & TypeFlag.IS_OUTPUT:
-                node_str += ".output()"
-            if node._flags & TypeFlag.IS_CONFIG:
-                node_str += ".config()"
-            if node._flags & TypeFlag.IS_HIDDEN:
-                node_str += ".hidden()"
+        if node._flags & TypeFlag.IS_ARRAY:
+            node_str += ".array()"
+        if node._flags & TypeFlag.IS_ARRAYABLE:
+            node_str += ".arrayable()"
+        if not (node._flags & TypeFlag.IS_OPTIONAL):
+            node_str += ".required()"
+        if node._flags & TypeFlag.IS_OUTPUT:
+            node_str += ".output()"
+        if node._flags & TypeFlag.IS_CONFIG:
+            node_str += ".config()"
+        if node._flags & TypeFlag.IS_HIDDEN:
+            node_str += ".hidden()"
         return node_str
 
 

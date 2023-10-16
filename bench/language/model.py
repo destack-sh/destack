@@ -15,7 +15,7 @@ import structlog
 from bench.language.cache import CacheAsync
 from bench.language.field import Field, HasFields, TypedDict, TypeTag
 from bench.language.module import Node, ScopeNode, node_component, nruntime
-from bench.language.typing import check_type, pack_value, unpack_value
+from bench.language.packer import check_type, pack_value, unpack_value
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env

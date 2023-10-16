@@ -38,6 +38,7 @@ from bench.language.database import HasDatabase
 from bench.language.field import Field, Key, Type, Vector
 from bench.language.model import HasModel, ModelError, ModelErrorType
 from bench.language.module import Node, ScopeNode, get_node_id
+from bench.language.packer import map_value, pack_value_flat
 from bench.language.reference import NodeView
 from bench.language.reflect import (
     _derive_constant_key,
@@ -59,7 +60,6 @@ from bench.language.task import (
     TaskErrorType,
 )
 from bench.language.text import Text, patch_text_html, render_text_simple
-from bench.language.typing import map_value, pack_value_flat
 from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
 
 #
@@ -346,7 +346,8 @@ class BaseTextTaskCompiler(TaskCompiler):
         prompt = "\n\n".join(messages)
         return prompt
 
-    def _parse_text_completion(self, model: Statement, task: Statement, completion: str) -> dict:
+    @staticmethod
+    def _parse_text_completion(model: Statement, task: Statement, completion: str) -> dict:
         try:
             header, body = completion.split("\n", maxsplit=1)
             action = header.strip()
@@ -357,14 +358,19 @@ class BaseTextTaskCompiler(TaskCompiler):
         outputs = {}
         try:
             completed_pairs = re.findall(
-                r"['\"](?P<key>.*?)['\"]:\n```([a-z]+)?\n?(?P<body>.*?)\n```", body, flags=re.DOTALL
+                r"['\"](?P<key>.*?)['\"]:\s*\n```([a-z]+)?\n?(?P<body>.*?)```",
+                body,
+                flags=re.DOTALL,
             )
             for key, _, value in completed_pairs:
                 field = task.resolved_fields.get(key)
                 if not field:
                     continue  # ignore
-                if value.startswith('"') and value.endswith('"'):
-                    value = value[1:-1]
+                if value.startswith('"'):
+                    value = value[1:]
+                if value.endswith('"'):
+                    value = value[:-1]  # sometimes the model forgets to close the quote
+                value = value.strip()
                 if field._effective_tag in (TypeTag.STRUCT, TypeTag.BOOLEAN, TypeTag.NUMBER):
                     value = json.loads(value)
                 outputs[key] = value
@@ -1133,6 +1139,9 @@ generate_bench_code = Statement.task(
 generate_bench_code.children.extend(
     Statement.text("Use the syntax from @sample_bench_code, but don't just copy"),
     Statement.text("See @bench_description and @idiomatic_bench"),
+    Statement.text(
+        "Keep it concise, minimal comments, minimal newlines, extrapolate the user's request if it's broad "
+    ),
     Statement.text("For complex code first draft an outline in a few text statements at the start"),
     Statement.text("If the @text refers to existing nodes, you should modify/extend them directly"),
     Statement.text("Always use Bench primitives for everything"),
@@ -1142,13 +1151,8 @@ generate_bench_code.children.extend(
     Statement.blank(),
 )
 generate_bench_code.fields.extend(
-    Field.input("text", Type.RICH_TEXT, "user input"),
-    Field.output("code", Type.CODE, "valid Python code to modify Bench"),
-)
-generate_bench_code.children.append(
-    Statement.text(
-        "Keep it concise, minimal comments, minimal newlines, extrapolate the user's request if it's broad "
-    )
+    Field.input("text", Type.RICH_TEXT.required(), "user input"),
+    Field.output("code", Type.CODE.required(), "valid Python code to modify Bench"),
 )
 _symbolx_bench = File.new("bench")
 _symbolx_bench.statements.extend(

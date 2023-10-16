@@ -51,7 +51,7 @@ class Record(HasValue, Node):
 
     @staticmethod
     def new(*args, for_parent: "Statement" = None, _status: NS = None, **kwargs) -> "Record":
-        from bench.language.typing import check_type, pack_value
+        from bench.language.packer import check_type, pack_value
 
         if not for_parent and args:
             raise TypeError(f"cannot create record with args {args} without for_parent")

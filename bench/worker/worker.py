@@ -19,9 +19,9 @@ from bench.language.const import (
 )
 from bench.language.edit import EditData
 from bench.language.module import _NodeChange
+from bench.language.packer import map_value, unpack_value_flat
 from bench.language.run import RunErrorKind
 from bench.language.session import ModuleWriter, Session
-from bench.language.typing import map_value, unpack_value_flat
 from bench.language.wire import RunData
 from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
 from bench.msg.messages import (

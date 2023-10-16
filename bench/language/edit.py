@@ -706,9 +706,9 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
     Render a non-relational prop (may be a reference, but not a parent/child relation).
     TODO @Broken: _render_prop recursively (see typing)
     """
+    from bench.language.packer import render_value
     from bench.language.remote import Blob, Secret
     from bench.language.text import HasText
-    from bench.language.typing import render_value
     from bench.language.value import HasValue
 
     if value is None:
@@ -871,7 +871,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
             n, init_name, init_args, init_kwargs = node
             # inline record value (see Record.new)
             if n.mnt == MNT.RECORD:
-                from bench.language.typing import render_value
+                from bench.language.packer import render_value
 
                 kwargs_str = _sep(
                     f"{k}={render_value(v, n._type_of_value.resolved_fields.get(k))}"

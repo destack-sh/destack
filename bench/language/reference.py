@@ -138,8 +138,8 @@ class NodeView:
     def view_from_value(
         self, value: dict, type: "IsTyped", is_output: bool = None
     ) -> dict[UUID, Node]:
+        from bench.language.packer import walk_value
         from bench.language.text import Text
-        from bench.language.typing import walk_value
 
         seen_by_ck: dict[UUID, Node] = {}
 

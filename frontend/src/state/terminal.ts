@@ -114,7 +114,7 @@ function _useTerminal() {
     }
   ) {
     /** Runs code inside the terminal, raising if the run fails to complete */
-    const { run, finalResult } = session.run(code, {
+    return session.run(code, {
       scope: options.scope,
       rootValue: {
         name: "terminal",
@@ -127,10 +127,6 @@ function _useTerminal() {
       accessLevel: options.accessLevel,
       tags: options.tags,
     });
-    return {
-      run,
-      finalResult,
-    };
   }
 
   return {
