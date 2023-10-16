@@ -612,7 +612,7 @@ class HasFields(HasType):
         if self.key is None:
             self.key = new_dynamic_node_key(self.ck)
 
-    def _clear_inner(self) -> None:
+    def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         self.resolved_fields.clear(_trigger=_NC.UpdateLists)
         self._did_resolve_fields = False
 

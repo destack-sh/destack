@@ -307,6 +307,7 @@ class RecordList(NodeListBase[Record], RecordSearch):
 
     def __init__(self, parent: "ScopeNode", property: NodeProperty):
         super().__init__(parent, property)
+        # TODO @Broken: init RecordList.super(RecordSearch) (need module for that.. where?)
         self._cached_records_by_ck: dict[UUID, Record] | None = None
         if parent._new:
             # right now we only use the cache for new databases to avoid cache complexity (see above)
@@ -338,11 +339,14 @@ class RecordList(NodeListBase[Record], RecordSearch):
         # update cache
         if self._cached_records_by_ck is not None:
             self._cached_records_by_ck[node.ck] = node  # not quite right, see :BE-352
+        if _trigger:
+            _ChangeEffect._collect(None, self._parent, [node], _trigger)._effect(_trigger)
 
     def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         nodes = flatten_list(nodes)
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
+        # create in session or temporarily in main tree
         if _create:
             if not self._parent.attached:
                 self._parent._local_root_tree.add_many(nodes)  # :TempRecordTree

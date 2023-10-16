@@ -32,7 +32,7 @@ class HasText(Node):
     def mentions(self) -> list["TextMention"]:
         return [span for span in self._text_spans if isinstance(span, TextMention)]
 
-    def _clear_inner(self) -> None:
+    def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         self._text_parsed = None
 
     def _interp_inner(self, scope: ScopeNode) -> None:
