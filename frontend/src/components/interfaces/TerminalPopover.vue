@@ -89,6 +89,7 @@ function discardGenerated() {
   generatedCode.value = null;
   generatedFrom.value = null;
   generatedRun.value = null;
+  appliedFailedRun.value = null;
 }
 
 async function apply() {
