@@ -13,8 +13,8 @@ from bench.language import LogEntry, Module, Run, RunError, Statement, wire
 from bench.language.const import (
     RUNNABLE_STATEMENT_TYPES,
     ModuleReference,
+    NodeTrackingLevel,
     RunStatus,
-    RunTrackingLevel,
     SessionAccessLevel,
 )
 from bench.language.edit import EditData
@@ -514,7 +514,7 @@ class ModuleWorkerProcess(ModuleWriter):
                 statement = Statement.code(code=code)
                 if job.tags:
                     statement.tags.create_many(*job.tags)
-                statement._track = RunTrackingLevel.ANONYMOUS
+                statement._track = NodeTrackingLevel.ANONYMOUS
                 scope.children.append(statement, _trigger=_NodeChange.UpdateLists)
                 statement._clear_rec()
                 statement._interp_rec()
@@ -551,7 +551,7 @@ class ModuleWorkerProcess(ModuleWriter):
 
             # run in active session
             self.module._activate_rec(job.session)
-            if statement._track == RunTrackingLevel.ANONYMOUS:
+            if statement._track == NodeTrackingLevel.ANONYMOUS:
                 statement._activate_self(job.session)
 
             # wait out remaining schedule delay if needed (should be very short)
@@ -581,7 +581,8 @@ class ModuleWorkerProcess(ModuleWriter):
 
             # deactivate session
             self.module._deactivate_rec()
-            if not job.run_data.statement_id and "statement" in locals():
+            # remove anonymous statement if needed
+            if not job.run_data.statement_id and "statement" in locals() and statement.parent:
                 statement.parent.children.remove(statement, _trigger=_NodeChange.UpdateLists)
 
             job.terminated.set()

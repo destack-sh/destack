@@ -25,6 +25,7 @@ from bench.language.const import (
     IssueType,
     ModuleReference,
     NodePath,
+    NodeTrackingLevel,
     StatementType,
     parse_absolute_node_reference,
     parse_node_path,
@@ -1525,6 +1526,7 @@ class Node(abc.ABC):
 
     _session: Optional["Session"] = nruntime(default=None)
     _status: NodeStatus = nruntime(default=None)
+    _track: NodeTrackingLevel = nruntime(default=NodeTrackingLevel.FULL)
     _new: bool = nruntime(default=True)
 
     def __post_init__(self):
