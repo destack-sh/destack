@@ -19,11 +19,11 @@ from bench.language.edit import EditData
 from bench.language.model import ModelErrorType
 from bench.language.query import Query, Sort
 from bench.language.wire import (
+    BlobData,
     EnvironmentData,
     LogEntryData,
     ModuleTreeData,
     RecordData,
-    RemoteObjectData,
     RunData,
     SecretData,
     SessionData,
@@ -423,7 +423,7 @@ class RepSearchLogPayload(RepSearch, Payload):
 
 @payload(NMessageType.READ_OBJECT)
 class ReqReadObjectPayload(Payload):
-    objects: list[RemoteObjectData]
+    objects: list[BlobData]
 
 
 @payload(NMessageType.READ_OBJECT_REP)
@@ -434,18 +434,18 @@ class RepReadObjectPayload(Payload):
 @payload(NMessageType.WRITE_OBJECT)
 class ReqWriteObjectPayload(Payload):
     module_id: UUID
-    objects: list[RemoteObjectData]
+    objects: list[BlobData]
 
 
 @payload(NMessageType.WRITE_OBJECT_REP)
 class RepWriteObjectPayload(Payload):
-    objects: list[RemoteObjectData]
+    objects: list[BlobData]
     post_urls: list[typing.Union[str, None]]
 
 
 @payload(NMessageType.MARK_UPLOADED_OBJECT)
 class ReqMarkUploadedObjectPayload(Payload):
-    objects: list[RemoteObjectData]
+    objects: list[BlobData]
 
 
 @payload(NMessageType.MARK_UPLOADED_OBJECT_REP)

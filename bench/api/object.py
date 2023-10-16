@@ -12,18 +12,18 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_module_access
 from bench.api.utils import safe_mutation
-from bench.language.remote import REMOTE_OBJECT_MAX_SIZE
+from bench.language.remote import BLOB_MAX_SIZE
 from bench.models import ModuleAccessLevel
 from bench.models.object import is_allowed_content_type
 
 logger = structlog.get_logger(__name__)
 
-RemoteObjectStatus = strawberry.enum(models.RemoteObjectStatus)
+BlobStatus = strawberry.enum(models.BlobStatus)
 
 
-@strawberry_django.type(models.RemoteObject)
-class RemoteObject(relay.Node):
-    status: RemoteObjectStatus
+@strawberry_django.type(models.Blob)
+class Blob(relay.Node):
+    status: BlobStatus
     sha512: str
     content_length: int
     content_type: str
@@ -56,39 +56,37 @@ class ObjectMutation:
     @safe_mutation
     def request_upload_object(
         self, info: Info, input: RequestUploadObjectInput
-    ) -> RemoteObject | OperationInfo:
+    ) -> Blob | OperationInfo:
         project = models.Project.objects.get(id=input.project_id.node_id)
         check_module_access(info, project, ModuleAccessLevel.Read)
-        if input.content_length >= REMOTE_OBJECT_MAX_SIZE:
-            raise ValidationError(
-                f"object too large: {input.content_length} >= {REMOTE_OBJECT_MAX_SIZE}"
-            )
+        if input.content_length >= BLOB_MAX_SIZE:
+            raise ValidationError(f"object too large: {input.content_length} >= {BLOB_MAX_SIZE}")
         if not is_allowed_content_type(input.content_type):
             raise ValidationError(f"invalid content type: {input.content_type}")
-        remote_object: RemoteObject = project.remote_objects.filter(sha512=input.sha512).first()
-        if remote_object is not None:
-            if remote_object.status == models.RemoteObjectStatus.AVAILABLE:
-                return remote_object
+        blob: Blob = project.blobs.filter(sha512=input.sha512).first()
+        if blob is not None:
+            if blob.status == models.BlobStatus.AVAILABLE:
+                return blob
             else:
-                remote_object.status = models.RemoteObjectStatus.UPLOADING
+                blob.status = models.BlobStatus.UPLOADING
         else:
-            remote_object = models.RemoteObject(
+            blob = models.Blob(
                 project=project,
                 sha512=input.sha512,
                 content_length=input.content_length,
                 content_type=input.content_type,
                 name=input.name,
-                status=models.RemoteObjectStatus.UPLOADING,
+                status=models.BlobStatus.UPLOADING,
             )
-        remote_object.save()
-        remote_object.generate_presigned_post()
-        return remote_object
+        blob.save()
+        blob.generate_presigned_post()
+        return blob
 
     @safe_mutation
     def notify_uploaded_object(
         self, info: Info, input: NotifyUploadedObjectInput
-    ) -> RemoteObject | OperationInfo:
-        object = models.RemoteObject.objects.get(id=input.id.node_id)
+    ) -> Blob | OperationInfo:
+        object = models.Blob.objects.get(id=input.id.node_id)
         check_module_access(info, object.project_id, ModuleAccessLevel.Read)
         # check that object exists in s3
         object.mark_available_if_exists_in_s3()
@@ -96,8 +94,8 @@ class ObjectMutation:
         return object
 
     @safe_mutation
-    def delete_object(self, info: Info, input: DeleteObjectInput) -> RemoteObject | OperationInfo:
-        object = models.RemoteObject.objects.get(input.id)
+    def delete_object(self, info: Info, input: DeleteObjectInput) -> Blob | OperationInfo:
+        object = models.Blob.objects.get(input.id)
         check_module_access(info, object.project_id, ModuleAccessLevel.Edit)
         object.delete()
         return object

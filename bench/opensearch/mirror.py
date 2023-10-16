@@ -31,7 +31,7 @@ DataT = TypeVar("DataT", bound=Any)
 
 
 class DocumentType(enum.StrEnum):
-    REMOTE_OBJECT = "remote_object"
+    BLOB = "blob"
     SECRET = "secret"
     USER = "user"
     ORGANIZATION = "organization"
@@ -166,9 +166,9 @@ class CrudThingPacker(Packer):
         )
 
 
-@document(DocumentType.REMOTE_OBJECT)
-class RemoteObject(os.Document):
-    #  :RemoteObjectType
+@document(DocumentType.BLOB)
+class Blob(os.Document):
+    #  :BlobType
     sha512: str = os.field(os.FT.KEYWORD)
     content_length: int = os.field(os.FT.LONG)
     content_type: str = os.field(os.FT.KEYWORD)
@@ -176,12 +176,10 @@ class RemoteObject(os.Document):
     status: str = os.field(os.FT.KEYWORD)
 
 
-@packer(models.RemoteObject, RemoteObject, wire.RemoteObjectData)
-class RemoteObjectPacker(Packer[models.RemoteObject, RemoteObject, wire.RemoteObjectData]):
-    def mirror(
-        self, project_v: models.ProjectVersion | None, node: models.RemoteObject
-    ) -> RemoteObject:
-        return RemoteObject(
+@packer(models.Blob, Blob, wire.BlobData)
+class BlobPacker(Packer[models.Blob, Blob, wire.BlobData]):
+    def mirror(self, project_v: models.ProjectVersion | None, node: models.Blob) -> Blob:
+        return Blob(
             id=node.id,
             sha512=node.sha512,
             content_length=node.content_length,

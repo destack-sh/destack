@@ -49,7 +49,7 @@ from bench.language.reflect import (
     x_tag,
     x_task,
 )
-from bench.language.remote import RemoteObject
+from bench.language.remote import Blob
 from bench.language.statement import Statement
 from bench.language.task import (
     CompiledInput,
@@ -106,7 +106,7 @@ class TranscriptionOutput:
 
 
 @x_task("transcribe", "Transcribe any audio to text", file=_symbolx_builtins)
-def transcribe(audio: RemoteObject) -> TranscriptionOutput:
+def transcribe(audio: Blob) -> TranscriptionOutput:
     raise UnreachableError()  # stub
 
 

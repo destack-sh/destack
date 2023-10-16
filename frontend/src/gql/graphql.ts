@@ -92,6 +92,27 @@ export enum AccessTokenStatus {
   Revoked = "REVOKED",
 }
 
+export type Blob = Node & {
+  __typename?: "Blob";
+  contentLength: Scalars["Int"]["output"];
+  contentType: Scalars["String"]["output"];
+  /** The Globally Unique ID of this object */
+  id: Scalars["GlobalID"]["output"];
+  name?: Maybe<Scalars["String"]["output"]>;
+  presignedGet?: Maybe<Scalars["String"]["output"]>;
+  presignedPost?: Maybe<Scalars["String"]["output"]>;
+  sha512: Scalars["String"]["output"];
+  status: BlobStatus;
+};
+
+export type BlobOperationInfo = Blob | OperationInfo;
+
+export enum BlobStatus {
+  Available = "AVAILABLE",
+  Prepared = "PREPARED",
+  Uploading = "UPLOADING",
+}
+
 export type Change = {
   clientId?: Maybe<Scalars["GlobalID"]["output"]>;
   id: Scalars["UUID"]["output"];
@@ -560,7 +581,7 @@ export type Mutation = {
   createTrigger: TriggerOperationInfo;
   deleteField: FieldOperationInfo;
   deleteFile: FileOperationInfo;
-  deleteObject: RemoteObjectOperationInfo;
+  deleteObject: BlobOperationInfo;
   deleteRecord: RecordOperationInfo;
   deleteSecret?: Maybe<OperationInfo>;
   deleteStatement: StatementOperationInfo;
@@ -573,13 +594,13 @@ export type Mutation = {
   moveField: FieldOperationInfo;
   moveFile: FileOperationInfo;
   moveStatement: StatementOperationInfo;
-  notifyUploadedObject: RemoteObjectOperationInfo;
+  notifyUploadedObject: BlobOperationInfo;
   pasteFile: FileOperationInfo;
   removeOrganizationMembership: OrganizationOperationInfo;
   removeProjectMembership: ProjectOperationInfo;
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
-  requestUploadObject: RemoteObjectOperationInfo;
+  requestUploadObject: BlobOperationInfo;
   restartWorkerSet: RestartWorkerSetPayloadOperationInfo;
   restore: SnapshotPayloadOperationInfo;
   restoreField: FieldOperationInfo;
@@ -1461,6 +1482,7 @@ export enum ProjectVisibility {
 
 export type Query = {
   __typename?: "Query";
+  blob?: Maybe<Blob>;
   clients: ClientConnection;
   currentRuns: SessionStateOperationInfo;
   environment: EnvironmentOperationInfo;
@@ -1475,7 +1497,6 @@ export type Query = {
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionBySlug?: Maybe<ProjectVersion>;
   projectVersionByTag?: Maybe<ProjectVersion>;
-  remoteObject?: Maybe<RemoteObject>;
   run?: Maybe<Run>;
   searchLogs: LogEntryConnection;
   searchRecords: RecordConnection;
@@ -1486,6 +1507,10 @@ export type Query = {
   systemInfo: SystemInfo;
   user?: Maybe<User>;
   users: UserConnection;
+};
+
+export type QueryBlobArgs = {
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryClientsArgs = {
@@ -1556,10 +1581,6 @@ export type QueryProjectVersionBySlugArgs = {
 export type QueryProjectVersionByTagArgs = {
   projectId: Scalars["GlobalID"]["input"];
   tag: Scalars["String"]["input"];
-};
-
-export type QueryRemoteObjectArgs = {
-  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryRunArgs = {
@@ -1726,27 +1747,6 @@ export type RecordUpdateInput = {
   statementId: Scalars["GlobalID"]["input"];
   value: Scalars["JSON"]["input"];
 };
-
-export type RemoteObject = Node & {
-  __typename?: "RemoteObject";
-  contentLength: Scalars["Int"]["output"];
-  contentType: Scalars["String"]["output"];
-  /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"]["output"];
-  name?: Maybe<Scalars["String"]["output"]>;
-  presignedGet?: Maybe<Scalars["String"]["output"]>;
-  presignedPost?: Maybe<Scalars["String"]["output"]>;
-  sha512: Scalars["String"]["output"];
-  status: RemoteObjectStatus;
-};
-
-export type RemoteObjectOperationInfo = OperationInfo | RemoteObject;
-
-export enum RemoteObjectStatus {
-  Available = "AVAILABLE",
-  Prepared = "PREPARED",
-  Uploading = "UPLOADING",
-}
 
 export type RequestUploadObjectInput = {
   contentLength: Scalars["Int"]["input"];
@@ -3823,13 +3823,13 @@ export type MarkNotificationMutation = {
       });
 };
 
-export type RemoteObjectQueryVariables = Exact<{
+export type BlobQueryVariables = Exact<{
   id: Scalars["GlobalID"]["input"];
 }>;
 
-export type RemoteObjectQuery = {
+export type BlobQuery = {
   __typename?: "Query";
-  remoteObject?: { __typename?: "RemoteObject"; id: any; presignedGet?: string | null } | null;
+  blob?: { __typename?: "Blob"; id: any; presignedGet?: string | null } | null;
 };
 
 export type UpsertClientMutationVariables = Exact<{
@@ -4052,20 +4052,20 @@ export type RequestUploadObjectMutationVariables = Exact<{
 export type RequestUploadObjectMutation = {
   __typename?: "Mutation";
   requestUploadObject:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
     | {
-        __typename?: "RemoteObject";
+        __typename?: "Blob";
         id: any;
-        status: RemoteObjectStatus;
+        status: BlobStatus;
         name?: string | null;
         contentType: string;
         contentLength: number;
         sha512: string;
         presignedPost?: string | null;
         presignedGet?: string | null;
-      };
+      }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
 };
 
 export type NotifyUploadedObjectMutationVariables = Exact<{
@@ -4075,19 +4075,19 @@ export type NotifyUploadedObjectMutationVariables = Exact<{
 export type NotifyUploadedObjectMutation = {
   __typename?: "Mutation";
   notifyUploadedObject:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
     | {
-        __typename?: "RemoteObject";
+        __typename?: "Blob";
         id: any;
-        status: RemoteObjectStatus;
+        status: BlobStatus;
         name?: string | null;
         contentType: string;
         contentLength: number;
         sha512: string;
         presignedGet?: string | null;
-      };
+      }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
 };
 
 export type CreateOrganizationMutationVariables = Exact<{
@@ -11228,13 +11228,13 @@ export const MarkNotificationDocument = {
     },
   ],
 } as unknown as DocumentNode<MarkNotificationMutation, MarkNotificationMutationVariables>;
-export const RemoteObjectDocument = {
+export const BlobDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "remoteObject" },
+      name: { kind: "Name", value: "blob" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -11247,7 +11247,7 @@ export const RemoteObjectDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "remoteObject" },
+            name: { kind: "Name", value: "blob" },
             arguments: [
               {
                 kind: "Argument",
@@ -11260,7 +11260,7 @@ export const RemoteObjectDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RemoteObject" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Blob" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -11276,7 +11276,7 @@ export const RemoteObjectDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<RemoteObjectQuery, RemoteObjectQueryVariables>;
+} as unknown as DocumentNode<BlobQuery, BlobQueryVariables>;
 export const UpsertClientDocument = {
   kind: "Document",
   definitions: [
@@ -13263,7 +13263,7 @@ export const RequestUploadObjectDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RemoteObject" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Blob" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -13359,7 +13359,7 @@ export const NotifyUploadedObjectDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RemoteObject" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Blob" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [

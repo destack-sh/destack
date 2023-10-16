@@ -20,9 +20,9 @@ from bench import models
 from bench.language import IssueType, StatementType, TypeHint, TypeTag, wire
 from bench.language.const import (
     INTERP_NODE_TYPES,
+    BlobStatus,
     IssueKind,
     ModuleNodeType,
-    RemoteObjectStatus,
     TriggerType,
 )
 from bench.language.edit import MEK, MET, EditBundle, EditData
@@ -689,20 +689,20 @@ def unpack_data(data: DataT) -> ModelT:
     return packer.unpack(data)
 
 
-@data_packer(wire.RemoteObjectData, models.RemoteObject)
-class RemoteObjectPacker(DataPacker[wire.RemoteObjectData, models.RemoteObject]):
-    def pack(self, data: models.RemoteObject) -> wire.RemoteObjectData:
-        return wire.RemoteObjectData(
+@data_packer(wire.BlobData, models.Blob)
+class BlobPacker(DataPacker[wire.BlobData, models.Blob]):
+    def pack(self, data: models.Blob) -> wire.BlobData:
+        return wire.BlobData(
             id=data.id,
             sha512=data.sha512,
             content_length=data.content_length,
             content_type=data.content_type,
             name=data.name,
-            status=RemoteObjectStatus(data.status),
+            status=BlobStatus(data.status),
         )
 
-    def unpack(self, data: wire.RemoteObjectData) -> models.RemoteObject:
-        return models.RemoteObject(
+    def unpack(self, data: wire.BlobData) -> models.Blob:
+        return models.Blob(
             id=data.id,
             sha512=data.sha512,
             content_length=data.content_length,

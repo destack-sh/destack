@@ -66,6 +66,26 @@ enum AccessTokenStatus {
   REVOKED
 }
 
+type Blob implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  status: BlobStatus!
+  sha512: String!
+  contentLength: Int!
+  contentType: String!
+  name: String
+  presignedPost: String
+  presignedGet: String
+}
+
+union BlobOperationInfo = Blob | OperationInfo
+
+enum BlobStatus {
+  PREPARED
+  UPLOADING
+  AVAILABLE
+}
+
 interface Change {
   id: UUID!
   clientId: GlobalID
@@ -586,9 +606,9 @@ type Mutation {
   restartWorkerSet(input: RestartWorkerSetInput!): RestartWorkerSetPayloadOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
   killRun(input: KillRunInput!): KillRunPayloadOperationInfo!
-  requestUploadObject(input: RequestUploadObjectInput!): RemoteObjectOperationInfo!
-  notifyUploadedObject(input: NotifyUploadedObjectInput!): RemoteObjectOperationInfo!
-  deleteObject(input: DeleteObjectInput!): RemoteObjectOperationInfo!
+  requestUploadObject(input: RequestUploadObjectInput!): BlobOperationInfo!
+  notifyUploadedObject(input: NotifyUploadedObjectInput!): BlobOperationInfo!
+  deleteObject(input: DeleteObjectInput!): BlobOperationInfo!
   createSecret(input: SecretCreateInput!): SecretOperationInfo!
   updateSecret(input: SecretUpdateInput!): SecretOperationInfo!
   deleteSecret(input: SecretDeleteInput!): OperationInfo
@@ -1187,10 +1207,10 @@ type Query {
   module(id: GlobalID!): ProjectVersion
   file(id: GlobalID!): File
   statement(id: GlobalID!): Statement
-  remoteObject(
+  blob(
     """The ID of the object."""
     id: GlobalID!
-  ): RemoteObject
+  ): Blob
   secret(
     """The ID of the object."""
     id: GlobalID!
@@ -1291,26 +1311,6 @@ input RecordUpdateInput {
   statementId: GlobalID!
   id: GlobalID!
   value: JSON!
-}
-
-type RemoteObject implements Node {
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
-  status: RemoteObjectStatus!
-  sha512: String!
-  contentLength: Int!
-  contentType: String!
-  name: String
-  presignedPost: String
-  presignedGet: String
-}
-
-union RemoteObjectOperationInfo = RemoteObject | OperationInfo
-
-enum RemoteObjectStatus {
-  PREPARED
-  UPLOADING
-  AVAILABLE
 }
 
 input RequestUploadObjectInput {
