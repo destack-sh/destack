@@ -359,7 +359,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         try:
             completed_pairs = re.findall(
                 r"['\"](?P<key>.*?)['\"]:\s*\n```([a-z]+)?\n?(?P<body>.*?)```",
-                body,
+                body.strip(),
                 flags=re.DOTALL,
             )
             for key, _, value in completed_pairs:

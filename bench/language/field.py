@@ -399,8 +399,8 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
             else:
                 type = TypeTag.STRING
 
-        # default to optional if parent is not a function
-        if not (for_parent and for_parent.tag == TypeTag.FUNCTION):
+        # default to optional if parent is not a function (and not set via Type)
+        if not (for_parent and for_parent.tag == TypeTag.FUNCTION) and not isinstance(type, Type):
             flags |= TypeFlag.IS_OPTIONAL
 
         # coerce type
