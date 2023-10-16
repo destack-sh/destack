@@ -9,12 +9,12 @@ import structlog
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from bench.language.remote import REMOTE_OBJECT_HASH_LENGTH
+from bench.language.remote import BLOB_HASH_LENGTH
 from bench.models.utils import UUIDModel
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 
-REMOTE_OBJECT_PRESIGNED_POST_EXPIRY = 60 * 60  # 1 hour
-REMOTE_OBJECT_PRESIGNED_GET_EXPIRY = 60 * 60 * 24  # 1 day
+BLOB_PRESIGNED_POST_EXPIRY = 60 * 60  # 1 hour
+BLOB_PRESIGNED_GET_EXPIRY = 60 * 60 * 24  # 1 day
 
 
 def is_allowed_content_type(content_type: str) -> bool:
@@ -25,14 +25,14 @@ def is_allowed_content_type(content_type: str) -> bool:
 logger = structlog.get_logger(__name__)
 
 
-# :RemoteObjectType
-class RemoteObjectStatus(models.TextChoices):
+# :BlobType
+class BlobStatus(models.TextChoices):
     PREPARED = "prepared"
     UPLOADING = "uploading"
     AVAILABLE = "available"
 
 
-class RemoteObject(UUIDModel):
+class Blob(UUIDModel):
     """
     A pointer to a remotely stored object.
     """
@@ -40,15 +40,15 @@ class RemoteObject(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     prepared_at = models.DateTimeField(null=True, blank=True)
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="remote_objects")
-    sha512 = models.CharField(max_length=REMOTE_OBJECT_HASH_LENGTH)
+    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="blobs")
+    sha512 = models.CharField(max_length=BLOB_HASH_LENGTH)
     content_length = models.IntegerField()
     content_type = models.CharField(max_length=255)
     name = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(
         max_length=32,
-        choices=RemoteObjectStatus.choices,
-        default=RemoteObjectStatus.PREPARED,
+        choices=BlobStatus.choices,
+        default=BlobStatus.PREPARED,
     )
 
     _presigned_post: Optional[str] = None  # set manually
@@ -58,7 +58,7 @@ class RemoteObject(UUIDModel):
         return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
 
     def __repr__(self):
-        return f"<RemoteObject {self}>"
+        return f"<Blob {self}>"
 
     @property
     def presigned_post(self) -> Optional[str]:
@@ -68,7 +68,7 @@ class RemoteObject(UUIDModel):
     def presigned_get(self) -> Optional[str]:
         if self._presigned_get is not None:
             return self._presigned_get
-        elif self.status == RemoteObjectStatus.AVAILABLE:
+        elif self.status == BlobStatus.AVAILABLE:
             self._presigned_get = self.generate_presigned_get()
             return self._presigned_get
         else:
@@ -82,12 +82,10 @@ class RemoteObject(UUIDModel):
                 Key=str(self.id),
             )
             if metadata["ContentLength"] != self.content_length:
-                logger.warning(
-                    "object_content_length_mismatch", remote_object=self, metadata=metadata
-                )
-            self.status = RemoteObjectStatus.AVAILABLE
+                logger.warning("object_content_length_mismatch", blob=self, metadata=metadata)
+            self.status = BlobStatus.AVAILABLE
         except botocore.exceptions.ClientError:
-            logger.warning("object_not_found", remote_object=self)
+            logger.warning("object_not_found", blob=self)
             raise ValidationError(f"{self} not found in s3")
 
     def generate_presigned_post(self) -> str:
@@ -97,7 +95,7 @@ class RemoteObject(UUIDModel):
         response = s3_client.generate_presigned_post(
             Bucket=GLOBAL_PROJECT_BUCKET_NAME,
             Key=str(self.id),
-            ExpiresIn=REMOTE_OBJECT_PRESIGNED_POST_EXPIRY,
+            ExpiresIn=BLOB_PRESIGNED_POST_EXPIRY,
             Fields={},
         )
         if "url" not in response:
@@ -110,7 +108,7 @@ class RemoteObject(UUIDModel):
 
     def generate_presigned_get(self) -> str:
         """Generate a presigned get url for this object."""
-        if self.status != RemoteObjectStatus.AVAILABLE:
+        if self.status != BlobStatus.AVAILABLE:
             raise ValueError(f"cannot generate presigned get for {self} with status {self.status}")
         s3_client = get_s3_client()
         response = s3_client.generate_presigned_url(
@@ -119,7 +117,7 @@ class RemoteObject(UUIDModel):
                 "Bucket": GLOBAL_PROJECT_BUCKET_NAME,
                 "Key": str(self.id),
             },
-            ExpiresIn=REMOTE_OBJECT_PRESIGNED_GET_EXPIRY,
+            ExpiresIn=BLOB_PRESIGNED_GET_EXPIRY,
         )
         return response
 

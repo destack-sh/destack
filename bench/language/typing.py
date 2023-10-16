@@ -25,7 +25,7 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
-from bench.language.const import RemoteObjectStatus, TypeFlag, TypeHint, TypeTag
+from bench.language.const import BlobStatus, TypeFlag, TypeHint, TypeTag
 from bench.language.field import (
     PRIMITIVE_TYPES,
     TYPE_TAG_BY_TYPE_HINT,
@@ -40,7 +40,7 @@ from bench.language.field import (
     Vector,
 )
 from bench.language.module import NS, Node, ScopeNode
-from bench.language.remote import RemoteObject, Secret
+from bench.language.remote import Blob, Secret
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
@@ -224,7 +224,7 @@ def walk_value(
 
 TYPENAME_SENTINEL = "__typename"  # :TypeSentinel
 OMITTED_SENTINEL = "__omitted"  # :OmittedSentinel
-REMOTE_OBJECT_TYPENAME = "RemoteObject"
+BLOB_TYPENAME = "Blob"
 SECRET_TYPENAME = "Secret"
 TypeSignature = NamedTuple(
     "TypeSignature", [("tag", TypeTag), ("hint", Optional[TypeHint]), ("flags", TypeFlag)]
@@ -612,29 +612,29 @@ class NodeMapper(TypeMapper):
 
 
 @dataclass
-class RemoteObjectMapper(TypeMapper):
+class BlobMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
-        return py_type is RemoteObject
+        return py_type is Blob
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> HasType:
         return Field(name=None, tag=TypeTag.FILE)
 
     def is_instance_value(self, type: HasType, value: Any) -> bool:
-        return isinstance(value, RemoteObject)
+        return isinstance(value, Blob)
 
     def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
-        return RemoteObject(
+        return Blob(
             id=UUID(value["id"]),
             name=value["name"],
             content_type=value["content_type"],
             content_length=value["content_length"],
             sha512=value["sha512"],
-            status=RemoteObjectStatus[value["status"]],
+            status=BlobStatus[value["status"]],
         )
 
     def pack_value(self, type: HasType, value: Any) -> Any:
         return {
-            TYPENAME_SENTINEL: REMOTE_OBJECT_TYPENAME,
+            TYPENAME_SENTINEL: BLOB_TYPENAME,
             "id": str(value.id),
             "name": value.name,
             "content_type": value.content_type,
@@ -1037,7 +1037,7 @@ register_mapper(
 )
 register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN])
 register_mapper(VectorTypeMapper(), tags=[TypeTag.VECTOR])
-register_mapper(RemoteObjectMapper(), tags=[TypeTag.FILE])
+register_mapper(BlobMapper(), tags=[TypeTag.FILE])
 register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
 register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])
 register_mapper(FunctionTypeMapper(), tags=[TypeTag.FUNCTION])

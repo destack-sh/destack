@@ -154,7 +154,7 @@ export type TypeIndexInfo = {
 
 export const TYPENAME_SENTINEL = "__typename"; // :TypeSentinel
 export const OMITTED_SENTINEL = "__omitted"; // :OmittedSentinel
-export const REMOTE_OBJECT_TYPENAME = "RemoteObject";
+export const BLOB_TYPENAME = "Blob";
 export const SECRET_TYPENAME = "Secret";
 
 export enum SubfieldType {

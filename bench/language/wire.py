@@ -15,9 +15,9 @@ from bench import language as lang
 from bench.language import File, IssueType, Module, NodeVisitor
 from bench.language.const import (
     MNT,
+    BlobStatus,
     IssueKind,
     ModuleNodeType,
-    RemoteObjectStatus,
     RunStatus,
     RunTrackingLevel,
     ScheduleType,
@@ -914,25 +914,25 @@ def unpack_data(data: DataT, module: Module) -> ObjectT:
 
 
 @dataclass
-class RemoteObjectData:
+class BlobData:
     id: UUID
     sha512: str
     content_length: int
     content_type: str
     name: Optional[str]
-    status: RemoteObjectStatus
+    status: BlobStatus
 
     def __str__(self):
         return f"{self.id} {self.name} ({self.content_type}, {self.content_length} bytes)"
 
     def __repr__(self):
-        return f"<RemoteObject {self}>"
+        return f"<Blob {self}>"
 
 
-@data_packer(RemoteObjectData, lang.RemoteObject)
-class RemoteObjectPacker(DataPacker[RemoteObjectData, lang.RemoteObject]):
-    def pack(self, object: lang.RemoteObject) -> RemoteObjectData:
-        return RemoteObjectData(
+@data_packer(BlobData, lang.Blob)
+class BlobPacker(DataPacker[BlobData, lang.Blob]):
+    def pack(self, object: lang.Blob) -> BlobData:
+        return BlobData(
             id=object.id,
             sha512=object.sha512,
             content_length=object.content_length,
@@ -941,8 +941,8 @@ class RemoteObjectPacker(DataPacker[RemoteObjectData, lang.RemoteObject]):
             status=object.status,
         )
 
-    def unpack(self, data: RemoteObjectData, module: Module) -> lang.RemoteObject:
-        return lang.RemoteObject(
+    def unpack(self, data: BlobData, module: Module) -> lang.Blob:
+        return lang.Blob(
             id=data.id,
             sha512=data.sha512,
             content_length=data.content_length,

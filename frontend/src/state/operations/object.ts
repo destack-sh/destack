@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { RemoteObjectStatus } from "@/gql/graphql";
+import { BlobStatus } from "@/gql/graphql";
 import type { ObjectRecord } from "@/state/object";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -25,7 +25,7 @@ export function useObjectOps() {
             sha512: $sha512
           }
         ) {
-          ... on RemoteObject {
+          ... on Blob {
             id
             status
             name
@@ -66,12 +66,12 @@ export function useObjectOps() {
   async function prepareUpload(projectId: string, file: File): Promise<Omit<ObjectRecord, "id">> {
     const sha512 = await computeSHA512(file);
     return {
-      __typename: "RemoteObject",
+      __typename: "Blob",
       name: file.name,
       content_type: file.type,
       content_length: file.size,
       sha512,
-      status: RemoteObjectStatus.Prepared,
+      status: BlobStatus.Prepared,
     };
   }
 
@@ -85,7 +85,7 @@ export function useObjectOps() {
     graphql(/* GraphQL */ `
       mutation notifyUploadedObject($id: GlobalID!) {
         notifyUploadedObject(input: { id: $id }) {
-          ... on RemoteObject {
+          ... on Blob {
             id
             status
             name

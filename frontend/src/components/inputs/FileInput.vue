@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
-import { RemoteObjectStatus, type Field } from "@/gql/graphql";
+import { BlobStatus, type Field } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/module";
@@ -79,7 +79,7 @@ async function doUpload(file: File | null) {
 }
 
 async function open(file: ObjectRecord) {
-  if (file.status != RemoteObjectStatus.Available) return;
+  if (file.status != BlobStatus.Available) return;
   // open file (in new tab)
   try {
     const presignedGet = await objects.getPresignedGet(file.id);
@@ -160,9 +160,9 @@ defineExpose({
     >
       <!-- File status & info -->
       <component
-        :is="file.status == RemoteObjectStatus.Uploading ? BusySpinnerIcon : DocumentArrowUpIcon"
+        :is="file.status == BlobStatus.Uploading ? BusySpinnerIcon : DocumentArrowUpIcon"
         class="h-4 w-4 flex-shrink-0 text-gray-700"
-        :class="file.status == RemoteObjectStatus.Uploading ? 'animate-spin' : ''"
+        :class="file.status == BlobStatus.Uploading ? 'animate-spin' : ''"
       />
       <span class="flex flex-row items-baseline gap-1.5">
         <span class="truncate text-gray-900 underline-offset-4 group-hover/file:underline">{{ file.name }}</span>

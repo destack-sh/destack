@@ -1,20 +1,20 @@
 import { graphql } from "@/gql";
-import { RemoteObjectStatus, TypeTag, type RemoteObject } from "@/gql/graphql";
+import { BlobStatus, TypeTag, type Blob } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
-import { REMOTE_OBJECT_TYPENAME } from "@/state/type";
+import { BLOB_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
 
 export const OBJECT_TYPETAGS = [TypeTag.File];
 
-// :RemoteObjectType
+// :BlobType
 export type ObjectRecord = {
-  __typename: typeof REMOTE_OBJECT_TYPENAME;
+  __typename: typeof BLOB_TYPENAME;
   id: string;
   name?: string | null;
   content_length: number;
   content_type: string;
   sha512: string;
-  status: RemoteObjectStatus;
+  status: BlobStatus;
 };
 
 const OBJECT_RECORD_FIELD_TYPES: Record<string, string> = {
@@ -25,24 +25,24 @@ const OBJECT_RECORD_FIELD_TYPES: Record<string, string> = {
 };
 
 export function toObjectDataId(id: string) {
-  /* From btoa encoded RemoteObject:uuid to uuid */
+  /* From btoa encoded Blob:uuid to uuid */
   return atob(id).split(":")[1];
 }
 
-export function toRemoteObjectId(id: string) {
-  /* From uuid to btoa encoded RemoteObject:uuid */
-  return btoa(`RemoteObject:${id}`);
+export function toBlobId(id: string) {
+  /* From uuid to btoa encoded Blob:uuid */
+  return btoa(`Blob:${id}`);
 }
 
-function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus): ObjectRecord {
+function makeBasicObject(blob: Blob, status?: BlobStatus): ObjectRecord {
   const record = {
-    __typename: REMOTE_OBJECT_TYPENAME,
-    id: toObjectDataId(remoteObject.id),
-    name: remoteObject.name ?? null,
-    content_length: remoteObject.contentLength,
-    content_type: remoteObject.contentType,
-    sha512: remoteObject.sha512,
-    status: status ?? remoteObject.status,
+    __typename: BLOB_TYPENAME,
+    id: toObjectDataId(blob.id),
+    name: blob.name ?? null,
+    content_length: blob.contentLength,
+    content_type: blob.contentType,
+    sha512: blob.sha512,
+    status: status ?? blob.status,
   } as ObjectRecord;
   if (!isValidObjectRecord(record)) {
     throw new Error("invalid object record");
@@ -51,7 +51,7 @@ function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus
 }
 
 export function isValidObjectRecord(obj: any): boolean {
-  if (obj?.__typename != REMOTE_OBJECT_TYPENAME) {
+  if (obj?.__typename != BLOB_TYPENAME) {
     return false;
   }
   // check required field types
@@ -89,47 +89,47 @@ export function useObjects() {
 
   async function upload(projectId: string, file: File, updateValue: (value: ObjectRecord | null) => void) {
     const ret = await ops.object.requestUpload(projectId, file);
-    if (ret?.data?.requestUploadObject.__typename != "RemoteObject") {
+    if (ret?.data?.requestUploadObject.__typename != "Blob") {
       return; // ops errors are auto-handled
     }
-    const remoteObject = ret.data.requestUploadObject;
-    if (remoteObject.status == RemoteObjectStatus.Available) {
-      updateValue(makeBasicObject(remoteObject));
+    const blob = ret.data.requestUploadObject;
+    if (blob.status == BlobStatus.Available) {
+      updateValue(makeBasicObject(blob));
       return; // already uploaded
     }
-    if (remoteObject.presignedPost == null) {
+    if (blob.presignedPost == null) {
       throw new Error("no presigned post on remote object");
     }
     // don't emit uploading state since that would cause an extra state change
     // (which is meaningless to undo but too far down the pipe to easily bind to a tx)
-    await ops.object.doUpload(remoteObject.id, remoteObject.presignedPost, file);
-    await ops.object.notifyUploaded(remoteObject.id);
+    await ops.object.doUpload(blob.id, blob.presignedPost, file);
+    await ops.object.notifyUploaded(blob.id);
     // emit uploaded state
-    updateValue(makeBasicObject(remoteObject, RemoteObjectStatus.Available));
+    updateValue(makeBasicObject(blob, BlobStatus.Available));
   }
 
   async function getPresignedGet(objectId: string): Promise<string> {
     /* Fetch the remote object by id (incl. presigned get field) */
     const ret = await apollo.client.query({
       query: graphql(/* GraphQL */ `
-        query remoteObject($id: GlobalID!) {
-          remoteObject(id: $id) {
-            ... on RemoteObject {
+        query blob($id: GlobalID!) {
+          blob(id: $id) {
+            ... on Blob {
               id
               presignedGet
             }
           }
         }
       `),
-      variables: { id: toRemoteObjectId(objectId) },
+      variables: { id: toBlobId(objectId) },
     });
-    if (ret.data.remoteObject?.__typename != "RemoteObject") {
+    if (ret.data.blob?.__typename != "Blob") {
       throw new Error("could not GET remote object");
     }
-    if (ret.data.remoteObject.presignedGet == null) {
+    if (ret.data.blob.presignedGet == null) {
       throw new Error("no presigned GET on remote object");
     }
-    return ret.data.remoteObject.presignedGet;
+    return ret.data.blob.presignedGet;
   }
 
   return {

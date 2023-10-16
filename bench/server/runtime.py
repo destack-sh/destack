@@ -414,10 +414,8 @@ class RuntimeServer(Monitored):
         logger.debug("object.read", msg=msg)
         # TODO @Security!: check if msg origin has read access to object
         get_urls: list[str | None] = []
-        async for model_obj in models.RemoteObject.objects.filter(
-            id__in=(obj.id for obj in msg.p.objects)
-        ):
-            model_obj: models.RemoteObject
+        async for model_obj in models.Blob.objects.filter(id__in=(obj.id for obj in msg.p.objects)):
+            model_obj: models.Blob
             obj_data = msg.p.objects[len(get_urls)]
             if obj_data.sha512 != model_obj.sha512:
                 logger.warning(
@@ -436,15 +434,15 @@ class RuntimeServer(Monitored):
         project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
         post_urls: list[str | None] = []
         for obj_data in msg.p.objects:
-            model_object: models.RemoteObject = packer.unpack_data(obj_data)
+            model_object: models.Blob = packer.unpack_data(obj_data)
             model_object.project_id = project_v.project_id
-            existing_object = await project_v.project.remote_objects.filter(
+            existing_object = await project_v.project.blobs.filter(
                 sha512=model_object.sha512
             ).afirst()
             if existing_object is not None:
                 obj_data.id = existing_object.id
-                if existing_object.status == models.RemoteObjectStatus.AVAILABLE:
-                    obj_data.status = models.RemoteObjectStatus.AVAILABLE
+                if existing_object.status == models.BlobStatus.AVAILABLE:
+                    obj_data.status = models.BlobStatus.AVAILABLE
                     post_urls.append(None)
                 else:
                     existing_object.generate_presigned_post()
@@ -461,11 +459,9 @@ class RuntimeServer(Monitored):
         logger.debug("object.mark_uploaded", msg=msg)
         try:
             for obj_data in msg.p.objects:
-                remote_object: models.RemoteObject = await models.RemoteObject.objects.aget(
-                    id=obj_data.id
-                )
-                remote_object.mark_available_if_exists_in_s3()
-                await remote_object.asave()
+                blob: models.Blob = await models.Blob.objects.aget(id=obj_data.id)
+                blob.mark_available_if_exists_in_s3()
+                await blob.asave()
             success = True
         except ValidationError:
             logger.error("object.mark_uploaded.failed", msg=msg, exc_info=True)

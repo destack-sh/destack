@@ -19,7 +19,7 @@ from bench.api.file import File, FileMutation
 from bench.api.module import read_module_node_by_id
 from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
-from bench.api.object import ObjectMutation, RemoteObject
+from bench.api.object import Blob, ObjectMutation
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
     Project,
@@ -153,7 +153,7 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
     statement: Optional[Annotated["Statement", lazy(".statement")]] = strawberry_django.field(
         resolver=read_module_node_by_id
     )
-    remote_object: Optional[RemoteObject] = strawberry_django.node(
+    blob: Optional[Blob] = strawberry_django.node(
         extensions=[HasModuleAccess(map=lambda obj: obj.project)]
     )
     secret: Optional[Secret] = strawberry_django.node(

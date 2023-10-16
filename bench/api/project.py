@@ -98,7 +98,7 @@ def get_project_usage(info: Info) -> ProjectUsage:
 
     # count total object bytes
     object_bytes_total = (
-        models.RemoteObject.objects.filter(project_id=project_id)
+        models.Blob.objects.filter(project_id=project_id)
         .values("content_length")
         .aggregate(Sum("content_length"))["content_length__sum"]
     )

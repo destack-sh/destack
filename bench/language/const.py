@@ -34,7 +34,7 @@ class ModuleNodeType(enum.StrEnum):
     COMMENT = "Comment"
     ACCESS = "Access"
     # remote
-    REMOTE_OBJECT = "RemoteObject"
+    BLOB = "Blob"
     SECRET = "Secret"
     # session
     RUN = "Run"
@@ -275,7 +275,7 @@ class FieldReferenceMask(enum.IntFlag):
     TO_OUTPUT = 2**3
 
 
-class RemoteObjectStatus(enum.StrEnum):
+class BlobStatus(enum.StrEnum):
     PREPARED = "prepared"
     UPLOADING = "uploading"
     AVAILABLE = "available"

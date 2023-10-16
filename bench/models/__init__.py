@@ -3,7 +3,7 @@ from django.db.models import Q
 from .database import Record
 from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
-from .object import RemoteObject, RemoteObjectStatus
+from .object import Blob, BlobStatus
 from .organization import Organization, OrganizationInvite, OrganizationMembership, OrganizationRole
 from .owner import OwnerSlug
 from .project import (
@@ -53,8 +53,8 @@ __all__ = [
     "ProjectVisibility",
     "Q",
     "Record",
-    "RemoteObject",
-    "RemoteObjectStatus",
+    "Blob",
+    "BlobStatus",
     "ResolvedField",
     "Run",
     "Secret",

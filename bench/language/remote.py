@@ -10,7 +10,7 @@ import requests
 import structlog
 from asgiref.sync import async_to_sync
 
-from bench.language.const import MNT, RemoteObjectStatus
+from bench.language.const import MNT, BlobStatus
 from bench.language.module import Module, Node, ninternal, node, nproperty, nruntime
 from bench.language.validation import ValidationHandler
 
@@ -19,22 +19,22 @@ if typing.TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-REMOTE_OBJECT_HASH_LENGTH = 128  # 512 bits
-REMOTE_OBJECT_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
+BLOB_HASH_LENGTH = 128  # 512 bits
+BLOB_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
 
 
-@node(MNT.REMOTE_OBJECT)
-class RemoteObject(Node):
+@node(MNT.BLOB)
+class Blob(Node):
     """
     A proxy to a remotely stored object behaving like a Python file on demand.
-    :RemoteObjectType
+    :BlobType
     """
 
     sha512: str = ninternal()
     content_length: int = ninternal()
     content_type: str = ninternal()
     name: str = ninternal()
-    status: RemoteObjectStatus = ninternal(default=RemoteObjectStatus.PREPARED)
+    status: BlobStatus = ninternal(default=BlobStatus.PREPARED)
 
     _cached_bytes: Optional[bytes] = nruntime(default=None)
 
@@ -42,16 +42,14 @@ class RemoteObject(Node):
         return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
 
     def __repr__(self):
-        return f"<RemoteObject {self}>"
+        return f"<Blob {self}>"
 
     def __getitem__(self, item):
         return self.__dict__[item]
 
     def _validate_inner(self, properties: set[str], on_issue: ValidationHandler) -> None:
-        if self.content_length > REMOTE_OBJECT_MAX_SIZE:
-            on_issue(
-                self, f"{self} is too big ({self.content_length} > {REMOTE_OBJECT_MAX_SIZE} bytes)"
-            )
+        if self.content_length > BLOB_MAX_SIZE:
+            on_issue(self, f"{self} is too big ({self.content_length} > {BLOB_MAX_SIZE} bytes)")
 
     async def aread(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
@@ -59,7 +57,7 @@ class RemoteObject(Node):
         from bench.msg.core import NMessage, request
         from bench.msg.messages import NMessageType, RepReadObjectPayload, ReqReadObjectPayload
 
-        if self.status != RemoteObjectStatus.AVAILABLE:
+        if self.status != BlobStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
         rep: NMessage[RepReadObjectPayload] = await request(
             NMessageType.READ_OBJECT,
@@ -125,15 +123,15 @@ class RemoteObject(Node):
             ReqWriteObjectPayload(module_id=self.session.module.id, objects=[wire.pack_data(self)]),
             reply_t=RepWriteObjectPayload,
         )
-        remote_obj = rep.p.objects[0]
-        self.id = remote_obj.id
-        if remote_obj.status == RemoteObjectStatus.AVAILABLE:
+        blob = rep.p.objects[0]
+        self.id = blob.id
+        if blob.status == BlobStatus.AVAILABLE:
             # already uploaded
-            self.status = RemoteObjectStatus.AVAILABLE
+            self.status = BlobStatus.AVAILABLE
             return None
         else:
             post_url = rep.p.post_urls[0]
-            self.status = RemoteObjectStatus.UPLOADING
+            self.status = BlobStatus.UPLOADING
             return post_url
 
     async def _mark_uploaded(self) -> None:
@@ -154,13 +152,13 @@ class RemoteObject(Node):
         )
         if not rep.p.success:
             raise ValueError(f"unable to mark uploaded {self}")
-        self.status = RemoteObjectStatus.AVAILABLE
+        self.status = BlobStatus.AVAILABLE
 
     def _do_upload(self, content: bytes) -> None:
         logger.debug("object.do_upload", object=self)
 
         # prepare upload (skip if already uploaded)
-        post_url = self.session.async_to_sync(RemoteObject._prep_upload)(self)
+        post_url = self.session.async_to_sync(Blob._prep_upload)(self)
         if post_url is None:
             logger.debug("object.do_upload.skip", object=self)
             return  # already uploaded
@@ -172,24 +170,20 @@ class RemoteObject(Node):
         # upload (and mark as uploaded in DB)
         response = requests.post(url_main, data=form_data, files={"file": content})
         response.raise_for_status()
-        self.session.async_to_sync(RemoteObject._mark_uploaded)(self)
+        self.session.async_to_sync(Blob._mark_uploaded)(self)
         logger.debug("object.do_upload.done", object=self)
 
     @staticmethod
-    def from_url(
-        url: str, session: "Session", name: str = None, timeout: int = None
-    ) -> "RemoteObject":
+    def from_url(url: str, session: "Session", name: str = None, timeout: int = None) -> "Blob":
         """Upload a file to object storage."""
         response = requests.get(url, timeout=timeout)
-        return RemoteObject.from_requests(response, session, name=name)
+        return Blob.from_requests(response, session, name=name)
 
     @staticmethod
-    def from_requests(
-        response: requests.Response, session: "Session", name: str = None
-    ) -> "RemoteObject":
+    def from_requests(response: requests.Response, session: "Session", name: str = None) -> "Blob":
         """Upload a file to object storage."""
         response.raise_for_status()
-        obj = RemoteObject(
+        obj = Blob(
             sha512=hashlib.sha512(response.content).hexdigest(),
             content_length=int(response.headers["Content-Length"]),
             content_type=response.headers["Content-Type"],
@@ -201,22 +195,18 @@ class RemoteObject(Node):
         return obj
 
     @staticmethod
-    def from_file(
-        file: typing.BinaryIO, name: str = None, content_type: str = None
-    ) -> "RemoteObject":
+    def from_file(file: typing.BinaryIO, name: str = None, content_type: str = None) -> "Blob":
         """Upload a file to object storage."""
         content = file.read()
         content_type = content_type or mimetypes.guess_type(file.name)[0]
-        return RemoteObject.from_content(name or file.name, content_type, content)
+        return Blob.from_content(name or file.name, content_type, content)
 
     @staticmethod
-    def from_content(
-        name: str, content_type: str, content: bytes | typing.BinaryIO
-    ) -> "RemoteObject":
+    def from_content(name: str, content_type: str, content: bytes | typing.BinaryIO) -> "Blob":
         """Upload a file to object storage."""
         if isinstance(content, typing.BinaryIO):
             content = content.read()
-        obj = RemoteObject(
+        obj = Blob(
             sha512=hashlib.sha512(content).hexdigest(),
             content_length=len(content),
             content_type=content_type,
@@ -240,19 +230,17 @@ class Storage:
     def __repr__(self):
         return f"<Storage {self}>"
 
-    def upload(
-        self, file: typing.BinaryIO, name: str = None, content_type: str = None
-    ) -> RemoteObject:
+    def upload(self, file: typing.BinaryIO, name: str = None, content_type: str = None) -> Blob:
         """Upload a file to object storage."""
-        return RemoteObject.from_file(file, name=name, content_type=content_type)
+        return Blob.from_file(file, name=name, content_type=content_type)
 
-    def upload_from_url(self, url: str, name: str = None, timeout: int = None) -> RemoteObject:
+    def upload_from_url(self, url: str, name: str = None, timeout: int = None) -> Blob:
         """Upload a file to object storage."""
-        return RemoteObject.from_url(url, self.module.session, name=name, timeout=timeout)
+        return Blob.from_url(url, self.module.session, name=name, timeout=timeout)
 
-    def upload_from_requests(self, response: requests.Response, name: str = None) -> RemoteObject:
+    def upload_from_requests(self, response: requests.Response, name: str = None) -> Blob:
         """Upload a file to object storage."""
-        return RemoteObject.from_requests(response, self.module.session, name=name)
+        return Blob.from_requests(response, self.module.session, name=name)
 
 
 SecretValueT = typing.TypeVar("SecretValueT")

@@ -17,7 +17,7 @@ from .issue import BenchError, Issue
 from .module import Module, Node, ScopeNode
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
 from .reference import NodeVisitor
-from .remote import RemoteObject, Secret
+from .remote import Blob, Secret
 from .run import HasRun, Run, RunError
 from .session import LogEntry, PermissionError, Session
 from .statement import Statement
@@ -52,7 +52,7 @@ __all__ = [
     "Query",
     "QueryOp",
     "Record",
-    "RemoteObject",
+    "Blob",
     "render",
     "render_as_python",
     "ResolvedField",

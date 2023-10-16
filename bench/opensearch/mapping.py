@@ -149,7 +149,7 @@ register_mapper(
     os.Field(
         os.FT.OBJECT,
         properties={
-            **mirror.RemoteObject.__fields__,
+            **mirror.Blob.__fields__,
             "id": os.Field(os.FT.KEYWORD),
             TYPENAME_SENTINEL: os.Field(os.FT.KEYWORD),
         },

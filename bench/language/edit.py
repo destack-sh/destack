@@ -706,7 +706,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
     Render a non-relational prop (may be a reference, but not a parent/child relation).
     TODO @Broken: _render_prop recursively (see typing)
     """
-    from bench.language.remote import RemoteObject, Secret
+    from bench.language.remote import Blob, Secret
     from bench.language.text import HasText
     from bench.language.typing import render_value
     from bench.language.value import HasValue
@@ -745,7 +745,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
             value,
             node._type_of_value,
             get_k=lambda f: f.py_ident,
-            filter_v=lambda v: not isinstance(v, (Secret, RemoteObject)),
+            filter_v=lambda v: not isinstance(v, (Secret, Blob)),
             ignore_array=True,
             ignore_outer_map=False,
         )

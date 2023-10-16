@@ -129,7 +129,7 @@ class Project(UUIDModel, CrudModel):
     head = models.ForeignKey(
         "ProjectVersion", on_delete=models.SET_NULL, null=True, related_name="project+"
     )
-    remote_objects: models.QuerySet["RemoteObject"]  # noqa via RemoteObject
+    blobs: models.QuerySet["Blob"]  # noqa via Blob
     worker_set = models.OneToOneField(  # only one worker set for now
         "WorkerSet", on_delete=models.SET_NULL, related_name="project+", null=True
     )
