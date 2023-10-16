@@ -23,6 +23,7 @@ import VectorInput from "@/components/inputs/VectorInput.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import CodeInput from "@/components/inputs/CodeInput.vue";
 import RichTextInput from "@/components/inputs/RichTextInput.vue";
+import DatetimeInput from "@/components/inputs/DatetimeInput.vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInput,
@@ -31,6 +32,7 @@ const INTERFACES: Record<string, any> = {
   string: StringInput,
   "string.code": CodeInput,
   "string.short": ShortStringInput,
+  "string.datetime": DatetimeInput,
   "string.rich": RichTextInput,
   number: NumberInput,
   "number.rating": RatingInput,
