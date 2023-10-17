@@ -174,7 +174,7 @@ class TypeTag(enum.StrEnum):
     NUMBER = "number"
     BOOLEAN = "boolean"
     VECTOR = "vector"
-    FILE = "file"
+    BLOB = "blob"
     STRUCT = "struct"
     JSON = "json"
     FUNCTION = "function"

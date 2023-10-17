@@ -2408,9 +2408,9 @@ export enum TypeHint {
 
 export enum TypeTag {
   Any = "ANY",
+  Blob = "BLOB",
   Boolean = "BOOLEAN",
   Enum = "ENUM",
-  File = "FILE",
   Function = "FUNCTION",
   Json = "JSON",
   Literal = "LITERAL",

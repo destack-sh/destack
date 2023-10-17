@@ -97,7 +97,7 @@ PRIMITIVE_TYPES = [
     TypeTag.BOOLEAN,
     TypeTag.NUMBER,
     TypeTag.STRING,
-    TypeTag.FILE,
+    TypeTag.BLOB,
     TypeTag.VECTOR,
 ]
 DEFAULT_EMBEDDING_DIMENSION = 1536  # currently only support :FixedEmbeddingDimension
@@ -163,9 +163,9 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.CHECKBOX: TypeTag.BOOLEAN,
     TypeHint.THUMBS: TypeTag.BOOLEAN,
     # file
-    TypeHint.IMAGE: TypeTag.FILE,
-    TypeHint.VIDEO: TypeTag.FILE,
-    TypeHint.AUDIO: TypeTag.FILE,
+    TypeHint.IMAGE: TypeTag.BLOB,
+    TypeHint.VIDEO: TypeTag.BLOB,
+    TypeHint.AUDIO: TypeTag.BLOB,
     # node
     TypeHint.STATEMENT: TypeTag.NODE,
     TypeHint.FIELD: TypeTag.NODE,
@@ -180,7 +180,7 @@ STORAGE_FORMAT_BY_TYPE_TAG = {
     TypeTag.NUMBER: TypeStorageFormat.DOUBLE,
     TypeTag.BOOLEAN: TypeStorageFormat.BOOLEAN,
     TypeTag.VECTOR: TypeStorageFormat.VECTOR,
-    TypeTag.FILE: TypeStorageFormat.OBJECT,
+    TypeTag.BLOB: TypeStorageFormat.OBJECT,
     TypeTag.STRUCT: TypeStorageFormat.OBJECT,
     TypeTag.ENUM: TypeStorageFormat.KEYWORD,
     TypeTag.LITERAL: TypeStorageFormat.KEYWORD,

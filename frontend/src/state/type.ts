@@ -7,7 +7,7 @@ export const TYPETAG_KEYWORD: Partial<Record<TypeTag, string>> = {
   [TypeTag.Boolean]: "boolean",
   [TypeTag.String]: "text",
   [TypeTag.Number]: "number",
-  [TypeTag.File]: "file",
+  [TypeTag.Blob]: "file",
   [TypeTag.Vector]: "vector",
   [TypeTag.Json]: "json",
   [TypeTag.Literal]: "literal",
@@ -215,7 +215,7 @@ export const ICONS_BY_TAG_OUTLINE: Partial<Record<TypeTag, any>> = {
   [TypeTag.Number]: HashtagIcon,
   [TypeTag.Boolean]: CheckIcon,
   [TypeTag.Vector]: SparklesIcon,
-  [TypeTag.File]: DocumentIcon,
+  [TypeTag.Blob]: DocumentIcon,
   [TypeTag.Struct]: getStatementIconOutline(StatementType.Class),
   [TypeTag.Enum]: getStatementIconOutline(StatementType.Choice),
 };

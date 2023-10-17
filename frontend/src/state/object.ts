@@ -4,7 +4,7 @@ import { useOperations } from "@/state/operations";
 import { BLOB_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
 
-export const OBJECT_TYPETAGS = [TypeTag.File];
+export const OBJECT_TYPETAGS = [TypeTag.Blob];
 
 // :BlobType
 export type ObjectRecord = {
