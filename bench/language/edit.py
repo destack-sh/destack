@@ -6,12 +6,21 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 import enum
 from dataclasses import dataclass
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Generator, Iterator, NamedTuple, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generator,
+    Iterator,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Union,
+)
 from uuid import UUID
 
 from more_itertools import first
 
-from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType
+from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType, TypeFlag, TypeTag
 from bench.language.module import UNSET, Module, Node, NodeTree, NRel
 from bench.language.text import Text, render_text_simple
 from bench.utils.serialize import from_dict
@@ -707,7 +716,6 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
     TODO @Broken: _render_prop recursively (see typing)
     """
     from bench.language.packer import render_value
-    from bench.language.remote import Blob, Secret
     from bench.language.text import HasText
     from bench.language.value import HasValue
 
@@ -740,14 +748,13 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         else:
             value = value.replace('"', '\\"')
             return repr(value)
-    elif name == "value" and HasValue in node._components and isinstance(value, dict):
+    elif name == "value" and HasValue in node._components and isinstance(value, Mapping):
         value = render_value(
             value,
             node._type_of_value,
             get_k=lambda f: f.py_ident,
-            filter_v=lambda v: not isinstance(v, (Secret, Blob)),
+            filter_v=lambda v, f: f.tag != TypeTag.FILE and not (f.flags & TypeFlag.IS_SECRET),
             ignore_array=True,
-            ignore_outer_map=False,
         )
         return omit_empty(value)
     elif hasattr(type(value), "to_python"):

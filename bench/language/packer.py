@@ -954,7 +954,7 @@ def render_value(
     value: Any,
     type: HasFields,
     get_k: Callable[[Field], str] = None,
-    filter_k: Callable[[Any, Field, bool], bool] = None,
+    filter_v: Callable[[Any, Field], bool] = None,
     ignore_array: bool = False,
     ignore_empty: bool = True,
     is_output: bool = None,
@@ -970,7 +970,7 @@ def render_value(
                 item,
                 type,
                 get_k=get_k,
-                filter_k=filter_k,
+                filter_v=filter_v,
                 ignore_array=True,
                 ignore_empty=ignore_empty,
             )
@@ -983,7 +983,7 @@ def render_value(
                 value,
                 type,
                 get_k=get_k,
-                filter_k=filter_k,
+                filter_v=filter_v,
                 ignore_array=True,
                 ignore_empty=ignore_empty,
             )
@@ -992,7 +992,7 @@ def render_value(
                 item,
                 type,
                 get_k=get_k,
-                filter_k=filter_k,
+                filter_v=filter_v,
                 ignore_array=True,
                 ignore_empty=ignore_empty,
             )
@@ -1000,7 +1000,7 @@ def render_value(
         ]
         return _render_array(elements)
     elif type._effective_tag != TypeTag.STRUCT:
-        return render_value_flat(value, type, filter_k=filter_k)
+        return render_value_flat(value, type, filter_k=filter_v)
 
     # map struct-like types into a dict
     assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
@@ -1011,7 +1011,7 @@ def render_value(
         ), f"unexpected union with {type}->{subtype}"
         if is_output is not None and bool(subtype.flags & TypeFlag.IS_OUTPUT) != is_output:
             continue
-        if filter_k and not filter_k(value, subtype, ignore_array):
+        if filter_v and not filter_v(value, subtype):
             continue
         k = get_k(subtype)
         if k not in value:
@@ -1023,7 +1023,7 @@ def render_value(
                 value[k],
                 subtype,
                 get_k=get_k,
-                filter_k=filter_k,
+                filter_v=filter_v,
                 ignore_empty=ignore_empty,
             )
     return _render_dict(elements)

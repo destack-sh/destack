@@ -38,7 +38,7 @@ function getEditorHeight(code: string) {
   let numLines = lines.length;
 
   if (props.wrap) {
-    const maxCharsPerLine = Math.floor((editorContainer.value.clientWidth - 35) / 8.45);
+    const maxCharsPerLine = Math.floor((editorContainer.value.clientWidth - 35) / 8.5);
     for (const line of lines) {
       const actualLines = Math.ceil(line.length / maxCharsPerLine);
       if (actualLines > 1) {

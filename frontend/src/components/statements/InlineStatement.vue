@@ -173,20 +173,6 @@ const activeElementParts = computed(() => elementParts.value.filter((p) => p.act
 const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
 
 function handleStatementPartEvents(kind: "control" | "element", partId: StatementPartId): StatementEmitDict {
-  const addTextOrInsertBelow = () => {
-    // if part is control, has text or can have text navigate to text
-    //  (i.e. jump from declaration to text on enter)
-    if (kind == "control" && canHaveText.value) {
-      if (isContentFolded.value) {
-        toggleContentFold(false);
-      }
-      partsForceShown.value.push("text");
-      nextTick(() => focus("text"));
-    } else {
-      magic.insertBelow(true);
-    }
-  };
-
   return {
     navigateUp: () => navigate("up", partId),
     navigateDown: () => navigate("down", partId),
@@ -199,8 +185,8 @@ function handleStatementPartEvents(kind: "control" | "element", partId: Statemen
         magic.insertAbove();
       }
     },
-    enter: addTextOrInsertBelow,
-    enterRight: addTextOrInsertBelow,
+    enter: () => magic.insertBelow(true),
+    enterRight: () => magic.insertBelow(true),
     paste: () => nav.value?.paste(),
     run,
     deleteLeft: () => {

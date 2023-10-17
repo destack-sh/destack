@@ -323,6 +323,7 @@ class RecordList(NodeListBase[Record], RecordSearch):
         pass  # nothing to do, not part of regular tree
 
     def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
+        assert isinstance(node, Record), f"cannot append {node!r} to {self!r}"
         node.parent = self._parent
         if node.id is None and self._parent.attached:
             node._assign_id(self._parent.module.id)
