@@ -49,7 +49,7 @@ from bench.language.validation import (
 )
 from bench.language.value import HasValue
 from bench.utils.fractional import generate_n_keys_between
-from bench.utils.func import dict_minus
+from bench.utils.func import dict_minus, nextn
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
@@ -651,14 +651,14 @@ class HasFields(HasType):
                 for child in field.reference.resolved_fields:
                     if child.flags & TypeFlag.IS_CONFIG:
                         continue  # ignore config fields
-                    existing = self.resolved_fields.get(child.py_ident)
+                    existing = nextn(f for f in resolved_fields if f.py_ident == child.py_ident)
                     # check if self is compatible if overlapping
-                    if existing is not None and not existing.equals_type(child):
+                    if existing is None:
+                        resolved_fields.append(ResolvedField.from_field(self, child))
+                    elif not existing.equals_type(child):
                         self._on_issue(
                             self=IssueType.MISMATCHED_UNION, subject=self, other=existing
                         )
-                        continue
-                    resolved_fields.append(ResolvedField.from_field(self, child))
             else:
                 # just a normal field
                 resolved_fields.append(ResolvedField.from_field(self, field))

@@ -1075,7 +1075,7 @@ class NodeTree(NodeTreeBase[NT]):
         return f"{len(self.nodes_by_id)} nodes"
 
     def __repr__(self):
-        return f"<ModuleTree {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     @property
     def nodes(self) -> Collection[NT]:
@@ -1345,7 +1345,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         return f"{len(self.nodes_by_ck)} nodes"
 
     def __repr__(self):
-        return f"<DetachedNodeTree {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     @property
     def nodes(self) -> Collection[NT]:
@@ -1450,20 +1450,19 @@ def _make_self_method(
     @functools.wraps(wraps)
     def self_method(self: "Node", *args, _coerce: bool = True, _ignore: bool = False, **kwargs):
         if from_status is not None and self._status != from_status:
-            # auto coerce the node into the desired to_status if allowed and feasible
-            if _coerce:
-                if self._status == NS.Source and to_status >= NS.Indexed:
-                    self._index_self()
-                if self._status == NS.Indexed and to_status > NS.Interpreted:
-                    self._interp_self(self)
-                if self._status >= to_status:
-                    return  # nothing to do
-                if self._status < from_status:
-                    raise RuntimeError(
-                        f"cannot coerce {method.name} {self!r} (status={self._status.name})"
-                    )
-            else:
+            if not _coerce:
                 raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
+            # auto coerce the node into the desired to_status if allowed and feasible
+            if self._status == NS.Source and to_status > NS.Indexed:
+                self._index_self()
+            if self._status == NS.Indexed and to_status > NS.Interpreted:
+                self._interp_self(self)
+            if from_status <= to_status <= self._status or from_status >= to_status >= self._status:
+                return  # nothing to do
+            if self._status < from_status:
+                raise RuntimeError(
+                    f"cannot coerce {method.name} {self!r} (status={self._status.name})"
+                )
 
         for meth in _get_component_methods(self._components, method, self._concrete_cache_key):
             meth(self, *args, **kwargs)
