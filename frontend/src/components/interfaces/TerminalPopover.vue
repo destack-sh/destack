@@ -270,14 +270,20 @@ defineExpose({
             {{ appliedFailedRun.errorNice?.message }}
           </span>
           <div class="ml-auto inline-block">
-            <a class="text-gray-400">#{{ getUUIDFromGlobalID(appliedFailedRun.id).slice(-7, -1) }}</a>
+            <a
+              class="text-gray-400 underline-offset-2 hover:underline"
+              @click="
+                bench.openViewRun(appliedFailedRun, { group: panel.panel.value.group, opposite: true, focus: true })
+              "
+              >#{{ getUUIDFromGlobalID(appliedFailedRun.id).slice(-7, -1) }}</a
+            >
           </div>
         </div>
         <!-- Controls -->
         <!-- Apply/Discard should also tag the task run with feedback (as a demo and because it would be useful) -->
         <div
           class="right-2 flex flex-row-reverse gap-3 rounded-sm"
-          :class="generatedCodeCondensed ? '' : '  absolute bottom-2 bg-white/80'"
+          :class="generatedCodeCondensed || appliedFailedRun ? '' : '  absolute bottom-2 bg-white/80'"
         >
           <!-- Apply -->
           <button
