@@ -591,7 +591,7 @@ class ResolvedField(Field):
             flags=field.flags,
             reference=field.reference,
             field=field,
-            _status=NS.Source,
+            _status=NS.SOURCE,
         )
         resolved_field._interp_self(for_parent)
         return resolved_field

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import CodeBlock from "@/components/basic/CodeBlock.vue";
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
@@ -176,14 +177,7 @@ defineExpose({
           </div>
           <!-- Body -->
           <div class="relative flex w-full max-w-full flex-col pl-4 pr-4">
-            <MonacoEditor
-              :model-value="code"
-              wrap
-              readonly
-              hide-line-numbers
-              language="python"
-              :focused="panel.focused"
-            />
+            <CodeBlock :model-value="code" wrap language="python" />
             <LogsTile
               v-if="expandedRunIds.includes(run.id)"
               :ref="(ref: any) => (logsTileRefs[run.id] = ref)"
