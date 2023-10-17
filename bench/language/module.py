@@ -737,7 +737,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
     def set(self, nodes: Collection[NodeT], _trigger: _NC = _NC.Full):
         """Replaces all child nodes of a parent."""
         self.clear(_trigger=_NC.Ignore)
-        self.extend(nodes, _trigger=_trigger)
+        self.extend(*nodes, _trigger=_trigger)
 
     def get(self, some_id: str) -> Optional[NodeT]:
         """Gets a node by some id (as determined by the logic of the list)."""
@@ -1671,7 +1671,7 @@ class Node(abc.ABC):
                 return attr
 
         # report lookup error with additional info
-        candidates = {**self.__properties__}
+        candidates = {k: v for k, v in self.__properties__.items() if not k.startswith("_")}
         if isinstance(self, ScopeNode):
             candidates.update(self._scopes_by_name)
         did_you_mean = did_you_mean_str(candidates, item)

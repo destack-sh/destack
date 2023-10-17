@@ -35,6 +35,7 @@ const panel = computed(() => props.panel.panel.value);
 const panelSize = computed(() => props.panel.size.value);
 const terminal = useTerminal();
 const now = useTimeFromNow(1000);
+const loading = computed(() => terminal.loading.value || module.loading.value);
 
 const input: Ref<string> = ref(panel.value.code ?? "");
 const inputSync = syncProperty({
@@ -126,15 +127,11 @@ defineExpose({
     <!-- History -->
     <div
       class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-x-hidden overflow-y-scroll text-sm"
-      :class="
-        terminal.loading.value || terminal.totalCount.value == 0
-          ? 'flex-col items-center justify-center'
-          : 'flex-col-reverse'
-      "
+      :class="loading || terminal.totalCount.value == 0 ? 'flex-col items-center justify-center' : 'flex-col-reverse'"
     >
       <!-- Loading / empty state -->
-      <div v-if="terminal.loading.value || terminal.totalCount.value == 0" class="self-center justify-self-center">
-        <BusySpinnerIcon v-if="terminal.loading.value" class="mx-auto h-5 w-5 animate-spin text-white" />
+      <div v-if="loading || terminal.totalCount.value == 0" class="self-center justify-self-center">
+        <BusySpinnerIcon v-if="loading" class="mx-auto h-5 w-5 animate-spin text-white" />
         <span v-else class="text-gray-500">No terminal history</span>
       </div>
       <!-- Previous runs -->
@@ -148,7 +145,7 @@ defineExpose({
           <!-- Header -->
           <div class="flex flex-row items-start justify-between pl-4 pr-4 font-mono text-gray-400">
             <!-- Scope -->
-            <span class="font-semibold"
+            <span class=""
               >{{ module.path.value }}<template v-if="scope">.{{ scopePaths[scope] }}</template>
             </span>
             <!-- Extra info & controls -->

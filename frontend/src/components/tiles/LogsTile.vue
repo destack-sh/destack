@@ -82,7 +82,7 @@ function toggleExpanded(log: LogEntry) {
 watchEffect(() => {
   lastScrollY.value = containerScroll.y.value;
 });
-function disableAutoscrollIfUser() {
+function disableAutoscrollIfFromUser() {
   // disable it only if the user actually scrolled up
   if (autoscroll.value && containerRef.value != null && containerRef.value.scrollTop < lastScrollY.value) {
     autoscroll.value = false;
@@ -110,7 +110,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div ref="containerRef" class="relative" @scroll="disableAutoscrollIfUser">
+  <div ref="containerRef" class="relative" @scroll="disableAutoscrollIfFromUser">
     <!-- Actual logs -->
     <!-- (pretty crude for now, missing pagination, detail views, highlights, ...) -->
     <div ref="logsRef" class="flex w-full flex-col" v-if="!loading">

@@ -55,7 +55,9 @@ class HasRun(Node):
         return self.module.session.current_run
 
     def _call_inner(self, *args, **kwargs):
-        assert self.attached and self._status == NS.Tracked, f"cannot call {self!r}"
+        assert (
+            self.attached and self._status == NS.Tracked
+        ), f"cannot call {self!r} (status={self._status!r})"
         is_outer_async = self.session.current_run is None or self.session.current_run._is_async
         inner_call = self._call_inner_async if self._is_async else self._call_inner_sync
 
