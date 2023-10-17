@@ -12,7 +12,7 @@ import { usePanelContext } from "@/state/bench";
 import type { StatementProps } from "@/components/statements";
 import type { StatementEmit } from "@/components/statements";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
-import { useStatementMorph, type MorphInput } from "@/state/statement";
+import { useStatementMorph, type MorphCommand } from "@/state/statement";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "bounding" | "focused" | "editing">>();
 const emit = defineEmits<StatementEmit>();
@@ -76,7 +76,7 @@ function stopInserting() {
   nextTick(() => inputRef.value?.focus());
 }
 
-function selectInput(input: MorphInput) {
+function selectInput(input: MorphCommand) {
   inserting.value = false;
   query.value = "";
   doMorph(props.statement, { ...input.identity, name: props.statement.name });
