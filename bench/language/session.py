@@ -451,6 +451,13 @@ class SessionTracer:
             if n.mnt == MNT.STATEMENT:
                 self._new_statement_ids.add(n.id)
 
+    def node_create_preflight(self, *nodes: Node):
+        # used to check permission before modifying state locally
+        # (only for create since this is the only edit fired 'after' making an irreversible change)
+        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL]
+        if nodes and self.session.access_level < SessionAccessLevel.Create:
+            raise PermissionError(f"{self.session!r} may not create {nodes!r}")
+
     def node_update(self, node: Node, properties: list[str]):
         if node.mnt not in INTERP_NODE_TYPES and node._track & NTL.FULL:  # :InterpFilter
             if self.session.access_level < SessionAccessLevel.Update:

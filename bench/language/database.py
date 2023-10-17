@@ -51,21 +51,21 @@ class Record(HasValue, Node):
 
     @staticmethod
     def new(*args, for_parent: "Statement" = None, _status: NS = None, **kwargs) -> "Record":
-        from bench.language.packer import check_type, pack_value
+        from bench.language.packer import check_type
 
         if not for_parent and args:
             raise TypeError(f"cannot create record with args {args} without for_parent")
 
         value = {**kwargs}
-        if for_parent:
+        if for_parent and for_parent.attached:
+            # inline args and check type for instant feedback
             for field, arg in zip(for_parent.resolved_fields, args):
                 value[field.name] = arg
-            check_type(value, for_parent, ignore_array=True)
-            value = pack_value(value, for_parent, ignore_array=True, ignore_outer_map=True)
+            check_type(value, for_parent)
         return Record(value=value, _status=_status)
 
     def __str__(self):
-        self_str = f"{self.id} {describe_type(self.value)}"
+        self_str = f"{self.id} {describe_type(self.value) or '<empty>'}"
         if self.parent is None:
             return f"<detached>:{self_str}"
         else:
@@ -327,45 +327,56 @@ class RecordList(NodeListBase[Record], RecordSearch):
         node.parent = self._parent
         if node.id is None and self._parent.attached:
             node._assign_id(self._parent.module.id)
-        # activate in session
-        if self._parent._status == NS.Tracked and node._status != NS.Tracked:
-            node._activate_self(self._parent.session)
-        # create in session or temporarily in main tree
-        if _create and self._parent._session:
-            if not self._parent.attached:
-                # detached record nodes are temporarily hoisted into inline tree :TempRecordTree
-                self._parent._local_root_tree.add(node)
-            elif self._parent.session:
-                self._parent.session.tracer.node_create(node)
         # update cache
         if self._cached_records_by_ck is not None:
             self._cached_records_by_ck[node.ck] = node  # not quite right, see :BE-352
+        # 'create' node
+        if _create:
+            if self._parent._session:
+                self._parent.session.tracer.node_create_preflight(node)
+            if not self._parent.attached:
+                # detached record nodes are temporarily hoisted into inline tree :TempRecordTree
+                self._parent._local_root_tree.add(node)
+        # update affected nodes
         if _trigger:
             _ChangeEffect._collect(None, self._parent, [node], _trigger)._effect(_trigger)
+        # 'create' node (for real)
+        if _create and self._parent._session and self._parent.attached:
+            self._parent.session.tracer.node_create(node)
 
     def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         nodes = flatten_list(nodes)
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
-        # create in session or temporarily in main tree
+        # 'create' nodes
         if _create:
+            if self._parent._session:
+                self._parent.session.tracer.node_create_preflight(*nodes)
             if not self._parent.attached:
                 self._parent._local_root_tree.add_many(nodes)  # :TempRecordTree
-            elif self._parent.session:
-                self._parent.session.tracer.node_create(*nodes)
+        # update affected nodes
         if _trigger:
             _ChangeEffect._collect(None, self._parent, nodes, _trigger)._effect(_trigger)
+        # 'create' nodes (for real)
+        if _create and self._parent._session and self._parent.attached:
+            self._parent.session.tracer.node_create(*nodes)
 
     def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
-        if _delete and self._parent._session:
-            self._parent.session.tracer.node_delete(self, node)
+        if _delete:
+            if self._parent._session:
+                self._parent._session.tracer.node_delete(self, node)
+            if not self._parent.attached:
+                self._parent._local_root_tree.remove(node)
         node.parent = None
         if self._cached_records_by_ck is not None and node.ck in self._cached_records_by_ck:
             del self._cached_records_by_ck[node.ck]
 
     def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
-        if _delete and self._parent.session:
-            self._parent.session.tracer.node_truncate(self._parent, MNT.RECORD)
+        if _delete:
+            if self._parent._session:
+                self._parent._session.tracer.node_truncate(self._parent, MNT.RECORD)
+            if not self._parent.attached:
+                self._parent._local_root_tree.truncate(self._parent, MNT.RECORD)
         if self._cached_records_by_ck is not None:
             self._cached_records_by_ck.clear()
 

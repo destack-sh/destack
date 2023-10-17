@@ -272,10 +272,10 @@ def nchildren(mnt: MNT, flags: NRel = NRel.Default, custom_list: type["NodeListB
 
 
 class NodeStatus(enum.IntEnum):
-    Source = 0
-    Indexed = 1
-    Interpreted = 2
-    Tracked = 3
+    SOURCE = 0
+    INDEX = 1
+    INTERP = 2
+    ACTIVE = 3
 
 
 NS = NodeStatus
@@ -290,6 +290,8 @@ class NodeMethod(enum.Enum):
     validate = "validate"
     activate = "activate"
     deactivate = "deactivate"
+    attached = "attached"
+    detached = "detached"
     call = "call"
     iter = "iter"
     aiter = "aiter"
@@ -651,8 +653,9 @@ class _ChangeEffect:
 
         if level & _NC.Detach:
             for _node in self.affected:
-                if _node._session and _node._status == NS.Tracked:
+                if _node._session and _node._status == NS.ACTIVE:
                     _node._deactivate_self()
+                    _node._detached_self()
             for _node in self.affected:
                 _node._clear_self(_node.scope)
 
@@ -661,7 +664,8 @@ class _ChangeEffect:
                 _node._index_self()
             for _node in self.affected:
                 _node._interp_self(_node.scope)
-                if self.prev_session and self.prev_status == NS.Tracked:
+                if self.prev_session and self.prev_status == NS.ACTIVE:
+                    _node._attached_self()
                     _node._activate_self(self.prev_session)
 
 
@@ -688,9 +692,9 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         node_cls = _NODE_CLASS_BY_MNT[self._property.child_mnt]
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
-            node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NS.Source)
+            node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NS.SOURCE)
         else:
-            node = node_cls(*args, **kwargs, _status=NS.Source)
+            node = node_cls(*args, **kwargs, _status=NS.SOURCE)
         if _append:
             self.append(node)
         return node
@@ -850,12 +854,17 @@ class NodeList(NodeListBase[NodeT]):
         if isinstance(_node, ScopeNode) and _node._local_tree is not None:
             # subsume if previously detached (ignores out of line nodes, see :NodeViews)
             added = _node._local_tree.get_descendants(_node.ck, recursive=True, include_self=True)
+            if _create and self._parent._session:
+                self._parent.session.tracer.node_create_preflight(*added)
             _node._local_tree.update(_node)  # parent changed
             self._parent._import_scope_tree(_node)
             _node._local_tree = None
         else:  # or just add
             added = [_node]
+            if _create and self._parent._session:
+                self._parent.session.tracer.node_create_preflight(*added)
             self._parent._local_root_tree.add(_node)
+
         # register node scope
         if (
             self._flags & NRel.Scoped
@@ -867,16 +876,14 @@ class NodeList(NodeListBase[NodeT]):
         # assign order key to ordered nodes
         if self._flags & NRel.Ordered and _node.order_key is None:
             _node.order_key = generate_key_between(*self._ok_bounds(after, before))
+        # update affected nodes
         if _trigger:
             # and update every affected node (to list/interp as needed)
             change._effect(_trigger)
             assert _node in self._nodes, f"node {_node!r} not in {self!r}"
 
-        # activate node in session if this parent has one
-        if self._parent._status == NS.Tracked and _node._status != NS.Tracked:
-            _node._activate_self(self._parent._session)
         # 'create' node in session if it's attached
-        if _node.attached and _create and self._parent._session:
+        if _create and self._parent._session and self._parent.attached:
             self._parent._session.tracer.node_create(*added)
         # temporarily hoisted records may no longer be in tree, so return our added nodes
         return added
@@ -892,14 +899,17 @@ class NodeList(NodeListBase[NodeT]):
         nodes = flatten_list(*nodes)
         if not nodes:
             return
+
         # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
         if self._flags & NRel.Ordered:
             oks = generate_n_keys_between(*self._ok_bounds(after, before), n=len(nodes))
             for node, ok in zip(nodes, oks):
                 node.order_key = ok
 
-        # as above in append but batched: append, trigger, create
+        # as in append but batched: append, trigger, create
         #  (can we merge them somehow to simplify)?
+        if _create and self._parent._session:
+            self._parent._session.tracer.node_create_preflight(*nodes)
         change = _ChangeEffect._collect(None, self._parent, nodes, _trigger)
         change._effect(_trigger & ~_NC.Attach)
         added = []
@@ -908,7 +918,7 @@ class NodeList(NodeListBase[NodeT]):
         change._effect(_trigger & ~_NC.Detach)
         if _trigger & _NC.UpdateLists:
             assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
-        if self._parent.attached and _create and self._parent._session:
+        if _create and self._parent._session and self._parent.attached:
             self._parent._session.tracer.node_create(*added)
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
@@ -1040,6 +1050,10 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
 
     def remove(self, node: "Node"):
         """Remove a node from the tree (incl. all descendants if recursive)"""
+        raise NotImplementedError
+
+    def truncate(self, node: NT, mnt: MNT):
+        """Remove all descendants of a node"""
         raise NotImplementedError
 
     def get_descendants(
@@ -1399,6 +1413,16 @@ class DetachedNodeTree(NodeTreeBase[NT]):
             if descendant.ck in self.nodes_by_ck:
                 self.nodes_by_ck.pop(descendant.ck)
 
+    def truncate(self, node: "Node", mnt: MNT):
+        """Remove all descendants of a node"""
+        descendants = self.get_descendants(node.ck, mnt, recursive=True)
+        for descendant in descendants:
+            if descendant.ck in self.node_ck_by_parent_ck:
+                self.node_ck_by_parent_ck.pop(descendant.ck)
+            if descendant.parent and descendant.parent.ck in self.node_ck_by_parent_ck:
+                self.node_ck_by_parent_ck[descendant.parent.ck].remove(descendant)
+            self.nodes_by_ck.pop(descendant.ck)
+
     def get_descendants(
         self,
         node_id_or_ck: UUID,
@@ -1453,9 +1477,9 @@ def _make_self_method(
             if not _coerce:
                 raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
             # auto coerce the node into the desired to_status if allowed and feasible
-            if self._status == NS.Source and to_status > NS.Indexed:
+            if self._status == NS.SOURCE and to_status > NS.INDEX:
                 self._index_self()
-            if self._status == NS.Indexed and to_status > NS.Interpreted:
+            if self._status == NS.INDEX and to_status > NS.INTERP:
                 self._interp_self(self)
             if from_status <= to_status <= self._status or from_status >= to_status >= self._status:
                 return  # nothing to do
@@ -1534,7 +1558,7 @@ class Node(abc.ABC):
 
             self._session = _active_session.get()
         if self._status is None:
-            self._status = NS.Interpreted if self._session is not None else NS.Source
+            self._status = NS.INTERP if self._session is not None else NS.SOURCE
         if self.ck is None:
             self.ck = uuid4()
             self._new = True
@@ -1543,7 +1567,7 @@ class Node(abc.ABC):
         if self.id is None and self.attached:
             self._assign_id(self.module.id)
         self._init_self()
-        if self._status == NS.Interpreted and self._session is not None:
+        if self._status == NS.INTERP and self._session is not None:
             self._activate_self(self._session)
 
     @property
@@ -1600,15 +1624,14 @@ class Node(abc.ABC):
         self.__dict__[key] = value
 
     def __setattr__(self, key, value):
-        if self._status != NS.Tracked:
+        if self._status != NS.ACTIVE:
             return super().__setattr__(key, value)
 
         # tracked set
-        if key in self.__internal_properties__:
-            if key in self.__list_properties__:
-                return getattr(self, key).set(value)
-            else:
-                return super().__setattr__(key, value)
+        if key in self.__list_properties__:
+            return getattr(self, key).set(value)
+        elif key in self.__internal_properties__:
+            return super().__setattr__(key, value)
         elif key in self.__tracked_properties__:
             prev = getattr(self, key)
             super().__setattr__(key, value)
@@ -1632,7 +1655,7 @@ class Node(abc.ABC):
 
         # report set error with additional info
         candidates = {
-            **(self.__tracked_properties__ if self._status == NS.Tracked else self.__properties__),
+            **(self.__tracked_properties__ if self._status == NS.ACTIVE else self.__properties__),
             **{s.name: s for s in self._scopes_by_name.values()},
         }
         did_you_mean = did_you_mean_str(candidates, key)
@@ -1722,11 +1745,19 @@ class Node(abc.ABC):
     def _activate_inner(self, session: "Session") -> None:
         """'Instantiate' this object in the given session."""
         self._session = session
-        self._status = NS.Tracked
+        self._status = NS.ACTIVE
 
     def _deactivate_inner(self) -> None:
         """'Deinstantiate' this object."""
         self._session = None
+
+    def _attached_inner(self) -> None:
+        """Called when this node is attached to a module."""
+        pass
+
+    def _detached_inner(self) -> None:
+        """Called when this node is detached from a module."""
+        pass
 
     _call_inner = _make_inner_dunder_method(NodeMethod.call)
     _iter_inner = _make_inner_dunder_method(NodeMethod.iter)
@@ -1763,7 +1794,7 @@ class Node(abc.ABC):
         # keep manually set node lists if passed in
         if existing_lists:
             changed_nodes: list[NodeT] = []
-            was_interp = self._status >= NS.Interpreted
+            was_interp = self._status >= NS.INTERP
             detach_trigger = _NC.UpdateLists | _NC.Detach if was_interp else _NC.UpdateLists
             for name, existing in existing_lists.items():
                 if existing and not isinstance(existing, NodeList):
@@ -1773,28 +1804,30 @@ class Node(abc.ABC):
                 _ChangeEffect._collect(None, self, changed_nodes, _NC.Attach)._effect(_NC.Attach)
 
         # validate if in session after all init are done
-        if self._status >= NS.Interpreted and self._session is not None:
+        if self._status >= NS.INTERP and self._session is not None:
             self._validate_self(self.__tracked_properties__.keys(), on_issue=on_issue_raise)
 
-    _clear_self = _make_self_method(NodeMethod.clear, _clear_inner, to_status=NS.Source)
+    _clear_self = _make_self_method(NodeMethod.clear, _clear_inner, to_status=NS.SOURCE)
     _index_self = _make_self_method(
-        NodeMethod.index, _index_inner, from_status=NS.Source, to_status=NS.Indexed
+        NodeMethod.index, _index_inner, from_status=NS.SOURCE, to_status=NS.INDEX
     )
     _interp_self = _make_self_method(
         NodeMethod.interp,
         _interp_inner,
-        from_status=NS.Indexed,
-        to_status=NS.Interpreted,
+        from_status=NS.INDEX,
+        to_status=NS.INTERP,
     )
 
     _visit_self = _make_self_method(NodeMethod.visit, _visit_inner)
     _validate_self = _make_self_method(NodeMethod.validate, _validate_inner)
     _activate_self = _make_self_method(
-        NodeMethod.activate, _activate_inner, from_status=NS.Interpreted, to_status=NS.Tracked
+        NodeMethod.activate, _activate_inner, from_status=NS.INTERP, to_status=NS.ACTIVE
     )
     _deactivate_self = _make_self_method(
-        NodeMethod.deactivate, _deactivate_inner, from_status=NS.Tracked, to_status=NS.Interpreted
+        NodeMethod.deactivate, _deactivate_inner, from_status=NS.ACTIVE, to_status=NS.INTERP
     )
+    _attached_self = _make_self_method(NodeMethod.attached, _attached_inner)
+    _detached_self = _make_self_method(NodeMethod.detached, _detached_inner)
 
     def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "Node":
         """
@@ -1982,7 +2015,7 @@ class ScopeNode(Node):
         return self.parent._local_root_scope
 
     @property
-    def _local_root_tree(self) -> Union["NodeTree", "DetachedNodeTree"]:
+    def _local_root_tree(self) -> Union["NodeTreeBase"]:
         """The 'local' node tree (see _local_root_scope)"""
         tree = self._local_root_scope._local_tree
         assert tree is not None, f"no local tree for {self!r} in {self._local_root_scope!r}"
@@ -2190,13 +2223,13 @@ class Module(ScopeNode):
 
     def _activate_inner(self, session: "Session"):
         for dependency in self.dependencies.values():
-            if dependency._status != NS.Tracked:
+            if dependency._status != NS.ACTIVE:
                 # multiple modules can depend on the same module, only activate once
                 dependency._activate_rec(session)
 
     def _deactivate_inner(self) -> None:
         for dependency in self.dependencies.values():
-            if dependency._status == NS.Tracked:  # see above
+            if dependency._status == NS.ACTIVE:  # see above
                 dependency._deactivate_rec()
 
     def _index_inner(self):

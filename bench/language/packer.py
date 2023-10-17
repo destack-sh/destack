@@ -148,7 +148,7 @@ def map_value(
 
     # map into a dict
     mapped = {}
-    assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
+    assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
     for subtype in type.resolved_fields:
         assert (
             not subtype.flags & TypeFlag.IS_UNION_WITH
@@ -209,7 +209,7 @@ def walk_value(
     if not isinstance(value, Mapping) and not is_dataclass(value):
         return  # type error, ignore here
 
-    assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
+    assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
     for subtype in type.resolved_fields:
         assert (
             not subtype.flags & TypeFlag.IS_UNION_WITH
@@ -1003,7 +1003,7 @@ def render_value(
         return render_value_flat(value, type, filter_k=filter_v)
 
     # map struct-like types into a dict
-    assert type._status >= NS.Interpreted, f"unexpected unresolved type {type}"
+    assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
     elements = {}
     for subtype in type.resolved_fields:
         assert (
