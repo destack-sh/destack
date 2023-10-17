@@ -13,8 +13,9 @@ from strawberry.utils.str_converters import to_camel_case
 from bench import models
 from bench.api import sync
 from bench.api.auth import check_module_access
+from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
-from bench.api.utils import ModuleNode, asafe_subscription, to_global_id, to_uuid
+from bench.api.utils import asafe_subscription, to_global_id, to_uuid
 from bench.language import edit, wire
 from bench.language.edit import MEK, MNT
 from bench.models import ModuleAccessLevel, packer
@@ -54,7 +55,7 @@ class Edit:
     statement_id: Optional[GlobalID]
     revision: Optional[int]
     input: Optional[JSON]
-    data: Union[ModuleNode, None]
+    data: Union[ResolvedField, Issue, None]
     properties: Optional[list[str]]  # by API name
 
 
@@ -75,6 +76,10 @@ async def unpack_module_edits(
             if e.kind == MEK.DELETE:
                 model_cls = models.Issue if e.mnt == MNT.ISSUE else models.ResolvedField
                 data = model_cls(id=e.node.id, ck=e.node.ck)
+                # fill non-id/ck fields with non-None defaults
+                #  (obviously hacky but we'll get edits 2.0 soon)
+                if e.mnt == MNT.RESOLVED_FIELD:
+                    data.field_ck = UUID("00000000-0000-0000-0000-000000000000")
             else:  # only need
                 # unpack data (somewhat inefficiently)
                 if e.statement_id is not None:

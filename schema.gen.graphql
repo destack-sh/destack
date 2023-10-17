@@ -167,7 +167,7 @@ type Edit {
   statementId: GlobalID
   revision: Int
   input: JSON
-  data: ModuleNode
+  data: ResolvedFieldIssue
   properties: [String!]
 }
 
@@ -1328,6 +1328,8 @@ type ResolvedField implements Node & ModuleNode {
   statement: Statement
   fieldCk: UUID!
 }
+
+union ResolvedFieldIssue = ResolvedField | Issue
 
 input RestartWorkerSetInput {
   projectId: GlobalID!

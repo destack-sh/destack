@@ -27,7 +27,6 @@ from bench.language import (
 from bench.language.cache import CacheAsync
 from bench.language.const import (
     INTERP_NODE_TYPES,
-    MNT,
     ModuleReference,
     RunStatus,
     TypeFlag,
@@ -863,12 +862,10 @@ class RuntimeHost:
             for mnt in INTERP_NODE_TYPES:
                 interp_mut.truncate(module_data, mnt, apply=False)
             for node in self.module._nodes:
-                if (
-                    node.mnt == MNT.ISSUE
-                    or isinstance(node, ResolvedField)
-                    and node._is_from_union
-                    # config fields are only used internally for now
-                    and not node.flags & TypeFlag.IS_CONFIG
+                # config fields are only used internally for now
+                # :InterpEditFilter
+                if node.mnt in INTERP_NODE_TYPES and not (
+                    isinstance(node, ResolvedField) and node.flags & TypeFlag.IS_CONFIG
                 ):
                     interp_mut.create(node, apply=False)
             interp_edits = interp_mut.edits

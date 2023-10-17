@@ -95,7 +95,7 @@ const documents = {
     types.StatementContentFragmentDoc,
   "\n  fragment IssueContent on Issue {\n    # :IssueContent\n    id\n    ck\n    kind\n    type\n    message\n    parent {\n      id\n    }\n  }\n":
     types.IssueContentFragmentDoc,
-  "\n  fragment ResolvedFieldContent on ResolvedField {\n    id\n    ck\n    statement {\n      id\n    }\n    fieldCk\n  }\n":
+  "\n  fragment ResolvedFieldContent on ResolvedField {\n    __typename\n    id\n    ck\n    statement {\n      id\n    }\n    fieldCk\n  }\n":
     types.ResolvedFieldContentFragmentDoc,
   "\n  fragment InterpFile on File {\n    # :InterpFile\n    id\n    ck\n    revision\n    name\n    parent {\n      id\n    }\n    issues {\n      ...IssueContent\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    lastEditedAt\n  }\n":
     types.InterpFileFragmentDoc,
@@ -273,7 +273,7 @@ const documents = {
     types.SearchLogsDocument,
   "\n        subscription logsChanged(\n          $projectId: GlobalID!\n          $projectVersionId: GlobalID!\n          $statementIds: [GlobalID!]\n          $statementCks: [UUID!]\n          $sessionId: GlobalID\n          $runId: GlobalID\n        ) {\n          logsChanged(\n            projectId: $projectId\n            projectVersionId: $projectVersionId\n            statementIds: $statementIds\n            statementCks: $statementCks\n            sessionId: $sessionId\n            runId: $runId\n          ) {\n            logs {\n              ...LogEntryContent\n            }\n          }\n        }\n      ":
     types.LogsChangedDocument,
-  "\n      subscription moduleChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        moduleChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n          id\n          clientId\n          edits {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on ModuleNode {\n                id\n                ck\n              }\n            }\n          }\n        }\n      }\n    ":
+  "\n      subscription moduleChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        moduleChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n          id\n          clientId\n          edits {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on ResolvedField {\n                id\n                ck\n                fieldCk\n              }\n              ... on Issue {\n                id\n              }\n            }\n          }\n        }\n      }\n    ":
     types.ModuleChangedDocument,
   "\n      subscription projectChanged($projectId: GlobalID!) {\n        projectChanged(projectId: $projectId) {\n          id\n          clientId\n        }\n      }\n    ":
     types.ProjectChangedDocument,
@@ -545,8 +545,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment ResolvedFieldContent on ResolvedField {\n    id\n    ck\n    statement {\n      id\n    }\n    fieldCk\n  }\n"
-): typeof documents["\n  fragment ResolvedFieldContent on ResolvedField {\n    id\n    ck\n    statement {\n      id\n    }\n    fieldCk\n  }\n"];
+  source: "\n  fragment ResolvedFieldContent on ResolvedField {\n    __typename\n    id\n    ck\n    statement {\n      id\n    }\n    fieldCk\n  }\n"
+): typeof documents["\n  fragment ResolvedFieldContent on ResolvedField {\n    __typename\n    id\n    ck\n    statement {\n      id\n    }\n    fieldCk\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -1079,8 +1079,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      subscription moduleChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        moduleChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n          id\n          clientId\n          edits {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on ModuleNode {\n                id\n                ck\n              }\n            }\n          }\n        }\n      }\n    "
-): typeof documents["\n      subscription moduleChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        moduleChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n          id\n          clientId\n          edits {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on ModuleNode {\n                id\n                ck\n              }\n            }\n          }\n        }\n      }\n    "];
+  source: "\n      subscription moduleChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        moduleChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n          id\n          clientId\n          edits {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on ResolvedField {\n                id\n                ck\n                fieldCk\n              }\n              ... on Issue {\n                id\n              }\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      subscription moduleChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        moduleChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n          id\n          clientId\n          edits {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on ResolvedField {\n                id\n                ck\n                fieldCk\n              }\n              ... on Issue {\n                id\n              }\n            }\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
