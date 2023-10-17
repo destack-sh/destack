@@ -146,7 +146,7 @@ export abstract class Panel {
   _bench: ReturnType<typeof useBenchState> | undefined = undefined;
   _context: any | PanelContext<any> = undefined;
 
-  constructor(type: PT, id: string, name: string, path: string, groupId: string | null = null) {
+  constructor(type: PanelType, id: string, name: string, path: string, groupId: string | null = null) {
     this.name = name;
     this.type = type;
     this.id = id;

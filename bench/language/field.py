@@ -76,11 +76,11 @@ class TypeError(TypeError):
 
         if isinstance(expected, Field) and not expected.resolved_fields:
             expected_str = (
-                f"field {expected.py_ident} ({expected._type_str}, from {expected.parent!r})"
+                f"field '{expected.py_ident}' ({expected._type_str}, from {expected.parent!r})"
             )
         else:
             expected_fields_str = ", ".join(
-                f"{f.py_ident} ({f._type_str})" for f in expected.resolved_fields
+                f"'{f.py_ident}' ({f._type_str})" for f in expected.resolved_fields
             )
             expected_str = f"fields {expected_fields_str or '<empty>'} from {expected!r}"
 
