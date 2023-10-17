@@ -15,6 +15,12 @@ const emit = defineEmits<{
 }>();
 
 const hasText = computed(() => (props.modelValue?.length ?? 0) > 0);
+// coerce into fully qualified url
+const url = computed(() => {
+  if (props.type.hint != TypeHint.Url || !hasText.value) return null;
+  if (props.modelValue?.startsWith("http://") || props.modelValue?.startsWith("https://")) return props.modelValue;
+  else return "https://" + props.modelValue;
+});
 
 defineExpose({
   focus: () => inputRef.value?.focus(),
@@ -26,7 +32,7 @@ defineExpose({
     v-if="preview && type.hint == TypeHint.Url"
     class="h-full w-full text-gray-500 decoration-gray-300 underline-offset-4"
     :class="[wrap ? 'whitespace-pre-wrap' : 'whitespace-nowrap', hasText ? 'underline' : '']"
-    :href="hasText ? modelValue : undefined"
+    :href="url ? url : undefined"
     target="_blank"
   >
     <span @click.stop>{{ modelValue }}</span>
