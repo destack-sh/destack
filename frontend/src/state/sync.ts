@@ -166,9 +166,13 @@ export function useModuleSync(projectId: Ref<string | null>, projectVersionId: R
             revision
             input
             data {
-              ... on ModuleNode {
+              ... on ResolvedField {
                 id
                 ck
+                fieldCk
+              }
+              ... on Issue {
+                id
               }
             }
           }

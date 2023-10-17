@@ -186,7 +186,7 @@ export type DeleteObjectInput = {
 
 export type Edit = {
   __typename?: "Edit";
-  data?: Maybe<ModuleNode>;
+  data?: Maybe<ResolvedFieldIssue>;
   fileId?: Maybe<Scalars["GlobalID"]["output"]>;
   input?: Maybe<Scalars["JSON"]["output"]>;
   projectVersionId: Scalars["GlobalID"]["output"];
@@ -1765,6 +1765,8 @@ export type ResolvedField = ModuleNode &
     parent?: Maybe<ModuleNode>;
     statement?: Maybe<Statement>;
   };
+
+export type ResolvedFieldIssue = Issue | ResolvedField;
 
 export type RestartWorkerSetInput = {
   projectId: Scalars["GlobalID"]["input"];
@@ -3678,7 +3680,7 @@ export type IssueContentFragment = {
 } & { " $fragmentName"?: "IssueContentFragment" };
 
 export type ResolvedFieldContentFragment = {
-  __typename?: "ResolvedField";
+  __typename: "ResolvedField";
   id: any;
   ck: any;
   fieldCk: any;
@@ -5542,14 +5544,8 @@ export type ModuleChangedSubscription = {
       revision?: number | null;
       input?: any | null;
       data?:
-        | { __typename?: "Field"; id: any; ck: any }
-        | { __typename?: "File"; id: any; ck: any }
-        | { __typename?: "Issue"; id: any; ck: any }
-        | { __typename?: "ProjectVersion"; id: any; ck: any }
-        | { __typename?: "ResolvedField"; id: any; ck: any }
-        | { __typename?: "Statement"; id: any; ck: any }
-        | { __typename?: "Tagging"; id: any; ck: any }
-        | { __typename?: "Trigger"; id: any; ck: any }
+        | { __typename?: "Issue"; id: any }
+        | { __typename?: "ResolvedField"; id: any; ck: any; fieldCk: any }
         | null;
     }>;
   };
@@ -6202,6 +6198,7 @@ export const ResolvedFieldContentFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
@@ -6534,6 +6531,7 @@ export const StatementContentFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
@@ -6843,6 +6841,7 @@ export const InterpStatementFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
@@ -7712,6 +7711,7 @@ export const FileContentByIdDocument = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
@@ -8149,6 +8149,7 @@ export const StatementContentByIdDocument = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
@@ -10830,6 +10831,7 @@ export const ModuleContentByIdDocument = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
@@ -11955,6 +11957,7 @@ export const CreateFileDocument = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
@@ -12943,6 +12946,7 @@ export const PasteFileDocument = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
@@ -17278,6 +17282,7 @@ export const BatchPasteStatementDocument = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
@@ -22812,13 +22817,22 @@ export const ModuleChangedDocument = {
                           selections: [
                             {
                               kind: "InlineFragment",
-                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ModuleNode" } },
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
                               selectionSet: {
                                 kind: "SelectionSet",
                                 selections: [
                                   { kind: "Field", name: { kind: "Name", value: "id" } },
                                   { kind: "Field", name: { kind: "Name", value: "ck" } },
+                                  { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
                                 ],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                               },
                             },
                           ],
