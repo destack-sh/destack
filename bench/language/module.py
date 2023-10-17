@@ -1526,7 +1526,7 @@ class Node(abc.ABC):
     _session: Optional["Session"] = nruntime(default=None)
     _status: NodeStatus = nruntime(default=None)
     _track: NodeTrackingLevel = nruntime(default=NodeTrackingLevel.FULL)
-    _new: bool = nruntime(default=True)
+    _new: bool = nruntime(default=False)
 
     def __post_init__(self):
         if self._session is None:

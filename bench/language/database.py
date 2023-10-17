@@ -401,7 +401,7 @@ class RecordList(NodeListBase[Record], RecordSearch):
         if self._cached_records_by_ck is not None:
             return len(self._cached_records_by_ck)
         else:
-            return self.search(count=True)
+            return self.search().count()
 
     def __iter__(self):
         if self._cached_records_by_ck is not None:
