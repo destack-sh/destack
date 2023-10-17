@@ -753,7 +753,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
             value,
             node._type_of_value,
             get_k=lambda f: f.py_ident,
-            filter_v=lambda v, f: f.tag != TypeTag.FILE and not (f.flags & TypeFlag.IS_SECRET),
+            filter_v=lambda v, f: f.tag != TypeTag.BLOB and not (f.flags & TypeFlag.IS_SECRET),
             ignore_array=True,
         )
         return omit_empty(value)

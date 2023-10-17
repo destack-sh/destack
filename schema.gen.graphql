@@ -1911,7 +1911,7 @@ enum TypeTag {
   NUMBER
   BOOLEAN
   VECTOR
-  FILE
+  BLOB
   STRUCT
   JSON
   FUNCTION

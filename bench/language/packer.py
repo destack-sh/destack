@@ -617,7 +617,7 @@ class BlobMapper(TypeMapper):
         return py_type is Blob
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> HasType:
-        return Field(name=None, tag=TypeTag.FILE)
+        return Field(name=None, tag=TypeTag.BLOB)
 
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, Blob)
@@ -1037,7 +1037,7 @@ register_mapper(
 )
 register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN])
 register_mapper(VectorTypeMapper(), tags=[TypeTag.VECTOR])
-register_mapper(BlobMapper(), tags=[TypeTag.FILE])
+register_mapper(BlobMapper(), tags=[TypeTag.BLOB])
 register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
 register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])
 register_mapper(FunctionTypeMapper(), tags=[TypeTag.FUNCTION])

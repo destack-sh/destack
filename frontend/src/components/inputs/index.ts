@@ -187,7 +187,7 @@ registerInterface("struct", {
 });
 // file
 registerInterface("file", {
-  tags: [TypeTag.File],
+  tags: [TypeTag.Blob],
   read: (t, v) => toArrayAsFlagged(t, v).filter(isValidObjectRecord),
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,

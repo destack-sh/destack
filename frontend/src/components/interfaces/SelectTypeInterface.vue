@@ -45,7 +45,7 @@ const BUILTIN_TYPES: (TypeHint | TypeTag)[] = [
   TypeTag.String,
   TypeTag.Boolean,
   TypeTag.Number,
-  TypeTag.File,
+  TypeTag.Blob,
   ...(Object.keys(SUPPORTED_TYPEHINTS) as TypeHint[]),
 ];
 const BUILTIN_TYPES_ALIASES: Partial<Record<TypeHint | TypeTag, string[]>> = {
@@ -204,7 +204,7 @@ const flagButtons: FlagButton[] = [
 // constraint list & secret flags to UX-sensible types
 // (internally we could support any permutation)
 const NONNULL_TAGS = [TypeTag.Boolean];
-const LISTABLE_TAGS = [TypeTag.File, TypeTag.TypeReference, TypeTag.Struct, TypeTag.Enum];
+const LISTABLE_TAGS = [TypeTag.Blob, TypeTag.TypeReference, TypeTag.Struct, TypeTag.Enum];
 const LISTABLE_HINTS = [
   TypeHint.Name,
   TypeHint.Email,
@@ -353,7 +353,7 @@ defineExpose({
       <!-- Freeform -->
       <template v-if="props.allowFreeform && query.length > 0">
         <ComboboxOption
-          v-for="tag of [TypeTag.String, TypeTag.Number, TypeTag.Boolean, TypeTag.File]"
+          v-for="tag of [TypeTag.String, TypeTag.Number, TypeTag.Boolean, TypeTag.Blob]"
           :key="'freeform-' + tag"
           :value="'freeform-' + tag"
           v-slot="{ active }"

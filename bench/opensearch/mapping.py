@@ -154,7 +154,7 @@ register_mapper(
             TYPENAME_SENTINEL: os.Field(os.FT.KEYWORD),
         },
     ),
-    tags=[TypeTag.FILE],
+    tags=[TypeTag.BLOB],
 )
 # secret
 register_mapper(
