@@ -411,8 +411,7 @@ function startDragSelectMaybe(e: MouseEvent) {
 function updateDragSelectMaybe(e: { clientX: number; clientY: number }) {
   if (dragSelectStart.value == null) return;
   // select all statements components intersecting with the drag select area
-  panel.value.selectedElementIds = [];
-  panel.value.selectedElementType = "Statement";
+  const selectedElementIds: string[] = [];
   for (const statement of context.value?.positionedStatements ?? []) {
     const bounding = statementsComponents.value[statement.statement.id]?.bounding;
     if (bounding == null) continue;
@@ -422,9 +421,18 @@ function updateDragSelectMaybe(e: { clientX: number; clientY: number }) {
       bounding.top.value < Math.max(e.clientY, dragSelectStart.value.y - scroll.value.y) &&
       bounding.bottom.value > Math.min(e.clientY, dragSelectStart.value.y - scroll.value.y)
     ) {
-      panel.value.selectedElementIds.push(statement.statement.id);
+      selectedElementIds.push(statement.statement.id);
     }
   }
+  // update selected if changed
+  if (
+    selectedElementIds.some((s, i) => panel.value.selectedElementIds[i] != s) ||
+    selectedElementIds.length != panel.value.selectedElementIds.length
+  ) {
+    panel.value.selectedElementIds = selectedElementIds;
+    panel.value.selectedElementType = "Statement";
+  }
+
   // smooth scroll up/down if near top/bottom
   const scrollMargin = 100;
   if (e.clientY - appearance.panelHeaderHeight < scrollMargin) {
