@@ -290,6 +290,8 @@ class Secret(Node, typing.Generic[SecretValueT]):
             reply_t=messages.RepReadSecretPayload,
             timeout=10,
         )
+        if not rep.p.secrets:
+            raise ValueError(f"could not reveal {self!r}")
         self.value = rep.p.secrets[0].value
         return self.value
 
