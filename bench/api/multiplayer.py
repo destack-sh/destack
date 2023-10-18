@@ -79,6 +79,7 @@ async def unpack_module_edits(
                 # fill non-id/ck fields with non-None defaults
                 #  (obviously hacky but we'll get edits 2.0 soon)
                 if e.mnt == MNT.RESOLVED_FIELD:
+                    data.order_key = "a0"
                     data.field_ck = UUID("00000000-0000-0000-0000-000000000000")
                 elif e.mnt == MNT.ISSUE:
                     data.kind = IssueKind.Notice

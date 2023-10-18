@@ -619,6 +619,7 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
             id=resolved_field.id,
             ck=resolved_field.ck,
             parent_id=resolved_field.statement_id,
+            order_key=resolved_field.order_key,
             field_ck=resolved_field.field_ck,
         )
 
@@ -630,6 +631,7 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
             ck=data.ck,
             project_version_id=parent.project_version_id,
             statement_id=parent.id,
+            order_key=data.order_key,
             field_ck=data.field_ck,
         )
 

@@ -702,18 +702,26 @@ class TypedDict(dict):
             return dict.__getitem__(self, item)
         except KeyError:
             field = self._type.resolved_fields.get(item)
-            if self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output:
+            if (
+                self._is_output is None
+                or field
+                and bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
+            ):
                 return None
-        raise AttributeError(item)
+        raise AttributeError(f"no attribute {item!r} on {self._type!r}")
 
     def __setattr__(self, name, value):
         if name in TypedDict._PROPS:
             return super().__setattr__(name, value)
 
         field = self._type.resolved_fields.get(name)
-        if self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output:
+        if (
+            self._is_output is None
+            or field
+            and bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
+        ):
             return dict.__setitem__(self, name, value)
-        raise AttributeError(name)
+        raise AttributeError(f"cannot set attribute {name!r} on {self._type!r}")
 
     def to_dict(self):  # :ToDict
         return self

@@ -95,7 +95,7 @@ const documents = {
     types.StatementContentFragmentDoc,
   "\n  fragment IssueContent on Issue {\n    # :IssueContent\n    id\n    ck\n    kind\n    type\n    message\n    parent {\n      id\n    }\n  }\n":
     types.IssueContentFragmentDoc,
-  "\n  fragment ResolvedFieldContent on ResolvedField {\n    __typename\n    id\n    ck\n    statement {\n      id\n    }\n    fieldCk\n  }\n":
+  "\n  fragment ResolvedFieldContent on ResolvedField {\n    __typename\n    id\n    ck\n    statement {\n      id\n    }\n    orderKey\n    fieldCk\n  }\n":
     types.ResolvedFieldContentFragmentDoc,
   "\n  fragment InterpFile on File {\n    # :InterpFile\n    id\n    ck\n    revision\n    name\n    parent {\n      id\n    }\n    issues {\n      ...IssueContent\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    lastEditedAt\n  }\n":
     types.InterpFileFragmentDoc,
@@ -545,8 +545,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment ResolvedFieldContent on ResolvedField {\n    __typename\n    id\n    ck\n    statement {\n      id\n    }\n    fieldCk\n  }\n"
-): typeof documents["\n  fragment ResolvedFieldContent on ResolvedField {\n    __typename\n    id\n    ck\n    statement {\n      id\n    }\n    fieldCk\n  }\n"];
+  source: "\n  fragment ResolvedFieldContent on ResolvedField {\n    __typename\n    id\n    ck\n    statement {\n      id\n    }\n    orderKey\n    fieldCk\n  }\n"
+): typeof documents["\n  fragment ResolvedFieldContent on ResolvedField {\n    __typename\n    id\n    ck\n    statement {\n      id\n    }\n    orderKey\n    fieldCk\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

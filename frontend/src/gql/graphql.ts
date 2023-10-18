@@ -1762,6 +1762,7 @@ export type ResolvedField = ModuleNode &
     ck: Scalars["UUID"]["output"];
     fieldCk: Scalars["UUID"]["output"];
     id: Scalars["GlobalID"]["output"];
+    orderKey: Scalars["String"]["output"];
     parent?: Maybe<ModuleNode>;
     statement?: Maybe<Statement>;
   };
@@ -3683,6 +3684,7 @@ export type ResolvedFieldContentFragment = {
   __typename: "ResolvedField";
   id: any;
   ck: any;
+  orderKey: string;
   fieldCk: any;
   statement?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "ResolvedFieldContentFragment" };
@@ -6209,6 +6211,7 @@ export const ResolvedFieldContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
@@ -6542,6 +6545,7 @@ export const StatementContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
@@ -6852,6 +6856,7 @@ export const InterpStatementFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
@@ -7722,6 +7727,7 @@ export const FileContentByIdDocument = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
@@ -8160,6 +8166,7 @@ export const StatementContentByIdDocument = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
@@ -10842,6 +10849,7 @@ export const ModuleContentByIdDocument = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
@@ -11968,6 +11976,7 @@ export const CreateFileDocument = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
@@ -12957,6 +12966,7 @@ export const PasteFileDocument = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
@@ -17293,6 +17303,7 @@ export const BatchPasteStatementDocument = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },

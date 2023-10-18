@@ -583,6 +583,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
 
 @dataclass
 class ResolvedFieldData(NodeData):
+    order_key: str
     field_ck: UUID
 
 
@@ -597,6 +598,7 @@ class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
             id=resolved_field.id,
             ck=resolved_field.ck,
             parent_id=resolved_field.parent_id,
+            order_key=resolved_field.order_key,
             field_ck=resolved_field.field_ck,
         )
 
