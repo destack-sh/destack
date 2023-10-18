@@ -50,7 +50,6 @@ from bench.language.reflect import (
     x_tag,
     x_task,
 )
-from bench.language.remote import Blob
 from bench.language.statement import Statement
 from bench.language.task import (
     CompiledInput,
@@ -103,11 +102,6 @@ def embed(text: typing.Union[str, list[str]]) -> EmbeddingOutput:
 @x_struct("TranscriptionOutput", "Transcription output", file=_symbolx_builtins)
 class TranscriptionOutput:
     text: str
-
-
-@x_task("transcribe", "Transcribe any audio to text", file=_symbolx_builtins)
-def transcribe(audio: Blob) -> TranscriptionOutput:
-    raise UnreachableError()  # stub
 
 
 @x_tag("export", "Make code outputs available for import", file=_symbolx_builtins)
