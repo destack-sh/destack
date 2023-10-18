@@ -118,14 +118,14 @@ registerInterface("string.short", {
   hints: [TypeHint.Name, TypeHint.Uuid, TypeHint.Email, TypeHint.Url, TypeHint.Key],
   map: coerceToString,
   debounceMs: 500,
-  minWidth: 100,
+  minWidth: 150,
   grow: 0.5,
 });
 registerInterface("string.datetime", {
   hints: [TypeHint.Date, TypeHint.Datetime, TypeHint.Time],
   map: coerceToString,
   debounceMs: 500,
-  minWidth: 100,
+  minWidth: 150,
   grow: 0.5,
 });
 registerInterface("secret", {

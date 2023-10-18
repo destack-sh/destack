@@ -177,6 +177,7 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
 const RUN_META: StatementControl = {
   id: "run.meta",
   component: CurrentRunControl,
+  notFocusable: true,
   // must click to enable
   enabled: (iface, statement) => false,
   exists: (iface, statement) => false,

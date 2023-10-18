@@ -22,7 +22,7 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 BLOB_HASH_LENGTH = 128  # 512 bits
-BLOB_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
+BLOB_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 
 
 @node(MNT.BLOB)
@@ -55,6 +55,19 @@ class Blob(Node):
 
     async def aread(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
+        get_url = await self.aget_url(timeout)
+        # download file from url
+        async with aiohttp.ClientSession() as session:
+            async with session.get(get_url) as response:
+                if response.status != 200:
+                    raise ValueError(
+                        f"unable to download {self}: {response.status} {response.reason}"
+                    )
+                content = await response.read()
+                self._cached_bytes = content
+                return content
+
+    async def aget_url(self, timeout):
         from bench.language import wire
         from bench.msg.core import NMessage, request
         from bench.msg.messages import NMessageType, RepReadObjectPayload, ReqReadObjectPayload
@@ -70,16 +83,7 @@ class Blob(Node):
         get_url = rep.p.get_urls[0]
         if get_url is None:
             raise ValueError(f"unable to GET {self}")
-        # download file from url
-        async with aiohttp.ClientSession() as session:
-            async with session.get(get_url) as response:
-                if response.status != 200:
-                    raise ValueError(
-                        f"unable to download {self}: {response.status} {response.reason}"
-                    )
-                content = await response.read()
-                self._cached_bytes = content
-                return content
+        return get_url
 
     async def areadtext(self) -> str:
         content = self._cached_bytes or await self.aread()
@@ -88,6 +92,9 @@ class Blob(Node):
     async def areadlines(self) -> list[str]:
         content = self._cached_bytes or await self.aread()
         return content.decode().splitlines()
+
+    def get_url(self, timeout: float = 1) -> str:
+        return async_to_sync(self.aread_url)(timeout=timeout)
 
     def read(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
