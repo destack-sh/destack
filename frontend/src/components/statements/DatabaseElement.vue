@@ -118,7 +118,6 @@ const {
   refetch,
   fetchMore,
 } = useQuery(RECORD_SEARCH_QUERY, toValueRef(searchQueryVariables), {
-  fetchPolicy: "network-only",
   enabled: computed(() => !module.loading.value && props.visible) as any, // the vue composable typing is all fucked up
 });
 const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
@@ -699,9 +698,7 @@ defineExpose({
           <div v-if="showPropertiesColumn">
             <div
               class="h-full overflow-hidden"
-              :class="[
-                verticalBorders && columnWidths.length > 1 ? 'border-l border-orange-900/[12%]' : '',
-              ]"
+              :class="[verticalBorders && columnWidths.length > 1 ? 'border-l border-orange-900/[12%]' : '']"
               :style="{
                 minHeight: minRowHeight + 'px',
                 width: columnWidths[columnWidths.length - 1] + 'px',

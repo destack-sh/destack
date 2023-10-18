@@ -17,7 +17,7 @@ import {
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref, watchEffect } from "vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import { EllipsisVerticalIcon } from "@heroicons/vue/24/solid";
 import { newNodeIdentity, type NodeBase } from "@/state/module";
@@ -90,10 +90,12 @@ watch(
       if (activeEditorIndex < 0) {
         console.error(`active editor ${props.group.activePanelId} not found in group ${props.group.id}`);
       }
-      // this used to work in the same tick, but headlessui now freaks
-      // and lets its internal selectedIndex come out of sync with our controlled selectedTab
-      // if we set it immediately. so we wait. 1 extra frame of latency..
-      nextTick(() => (selectedTab.value = activeEditorIndex));
+      if (selectedTab.value != activeEditorIndex) {
+        // this used to work in the same tick, but headlessui now freaks
+        // and lets its internal selectedIndex come out of sync with our controlled selectedTab
+        // if we set it immediately. so we wait. 1 extra frame of latency..
+        nextTick(() => (selectedTab.value = activeEditorIndex));
+      }
     }
   },
   { immediate: true, deep: true }
@@ -145,20 +147,19 @@ async function createFileInPanelGroup() {
       >
         <!-- Editor tab -->
         <Tab
-          as="template"
           v-for="(p, i) in group.panels"
+          as="template"
           :key="p.id"
           :ref="(ref: any) => tabRefs.registerRef(p.id, ref)"
-          v-slot="{ selected }"
         >
           <button
             class="group relative flex max-w-[20rem] flex-shrink-0 select-none flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap py-[5px] pl-2 pr-1 outline-none transition duration-150"
             :class="{
-              'bg-white text-gray-500 hover:bg-orange-100': !selected,
-              'bg-orange-100 text-orange-600': selected,
+              'bg-white text-gray-500 hover:bg-orange-100': i != selectedTab,
+              'bg-orange-100 text-orange-600': i == selectedTab,
             }"
-            @click.middle.prevent="bench.closePanel(p)"
-            @click.left.prevent="focus(p)"
+            @click.middle.stop.prevent="bench.closePanel(p)"
+            @click.left.stop.prevent="focus(p)"
             @contextmenu.prevent="
               (e) => {
                 contextMenuOpen = true;
@@ -184,10 +185,9 @@ async function createFileInPanelGroup() {
         </Tab>
         <!-- Little button tab to create new file -->
         <button
+          v-if="!bench.readonly"
           @click="createFileInPanelGroup"
-          class="group px-2 py-1 outline-none ring-0"
-          :class="[actions.file.create.value.enabled ? 'hover:bg-orange-100' : 'opacity-30']"
-          :disabled="!actions.file.create.value.enabled"
+          class="group px-2 py-1 outline-none ring-0 hover:bg-red-100"
         >
           <PlusIcon class="h-4 w-4 text-gray-400 group-hover:text-gray-700" aria-hidden="true" />
         </button>

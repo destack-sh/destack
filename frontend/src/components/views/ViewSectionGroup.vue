@@ -22,13 +22,13 @@ watch(inContainerFocused, () => {
 // handle explorer view focus and editor focus
 watch(
   () => props.focused,
-  () => {
-    if (props.focused) {
+  (focused, wasFocused) => {
+    if (!wasFocused && focused) {
       if (!inContainerFocused.value) {
         // start to focus focus section if nothing was directly focused
         api.focus(props.focusSection ?? 0);
       }
-    } else {
+    } else if (wasFocused) {
       api.blur();
     }
   },

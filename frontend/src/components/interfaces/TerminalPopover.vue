@@ -10,7 +10,7 @@ import { useNavigation, type NodeBase } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions } from "@/state/session";
 import { useTerminal } from "@/state/terminal";
 import { makeTextMention, makeTextPlain, renderTextHtml, type TextSpan } from "@/state/text";
-import { getUUIDFromGlobalID } from "@/utils/functools";
+import { getUUIDFromGlobalID, useDelayed } from "@/utils/functools";
 import { BoltIcon, CommandLineIcon, LightBulbIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { ArrowUturnLeftIcon, PlayIcon, SparklesIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside } from "@vueuse/core";
@@ -162,7 +162,7 @@ defineExpose({
 <template>
   <div
     ref="containerRef"
-    class="flex flex-col-reverse gap-2 text-sm text-gray-900 transition-all duration-150"
+    class="flex flex-col-reverse gap-2 text-sm text-gray-900 transition-colors duration-150"
     :class="[active ? '' : 'opacity-70 focus-within:opacity-100 hover:opacity-100']"
   >
     <!-- Header/input -->
