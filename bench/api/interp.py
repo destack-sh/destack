@@ -31,4 +31,5 @@ class Issue(relay.Node, ModuleNode):
 class ResolvedField(relay.Node, ModuleNode):
     # statement here is not actually optional but it needs to be to union with Issue
     statement: Optional[Annotated["Statement", lazy(".statement")]]
+    order_key: str
     field_ck: auto

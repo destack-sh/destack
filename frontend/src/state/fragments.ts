@@ -308,6 +308,7 @@ export const ResolvedFieldContentType = graphql(/* GraphQL */ `
     statement {
       id
     }
+    orderKey
     fieldCk
   }
 `);

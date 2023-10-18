@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from django.db import models
 
+from bench.language.validation import MAX_NAME_LENGTH
 from bench.models.utils import ModuleNode, UUIDModel
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ class ResolvedField(UUIDModel, ModuleNode):
     statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="resolved_fields"
     )
+    order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     field_ck = models.UUIDField()
 
     @property

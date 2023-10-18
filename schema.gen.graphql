@@ -1326,6 +1326,7 @@ type ResolvedField implements Node & ModuleNode {
   ck: UUID!
   parent: ModuleNode
   statement: Statement
+  orderKey: String!
   fieldCk: UUID!
 }
 

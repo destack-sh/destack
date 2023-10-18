@@ -136,7 +136,7 @@ defineExpose({
         >
           /
         </button>
-        for commands...
+        to insert...
       </span>
     </div>
     <!-- Input selection -->

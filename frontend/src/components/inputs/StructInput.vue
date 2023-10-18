@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
 import { TypeHint, TypeTag, type Field } from "@/gql/graphql";
-import { useCurrentModule, TypeFlag } from "@/state/module";
+import { useCurrentModule, TypeFlag, type ResolvedField } from "@/state/module";
 import { PlusIcon, RectangleGroupIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch, type Ref } from "vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
@@ -47,12 +47,15 @@ const module = useCurrentModule();
 const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IS_ARRAY));
 const runtimeType = computed(() => module.statementOf(props.type.referenceCk));
 
-const fields = computed(() => {
-  return (
-    runtimeType.value?.fields.filter((a) => a.deletedAt == null).sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ??
-    []
-  );
-});
+const fields = computed(
+  () =>
+    runtimeType.value?.resolvedFields
+      ?.map((n) => n as ResolvedField)
+      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
+      .map((n) => (n?.fieldCk == null ? null : module.fieldOf(n.fieldCk)))
+      .filter((n) => n != null && n.deletedAt == null)
+      .map((n) => n as Field) ?? []
+);
 const titleField: Ref<Field | undefined> = computed(() => {
   // get first name or string field
   const nameField = fields.value.find((f) => f.hint == TypeHint.Name);
