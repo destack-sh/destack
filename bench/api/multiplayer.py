@@ -13,7 +13,7 @@ from strawberry.utils.str_converters import to_camel_case
 from bench import models
 from bench.api import sync
 from bench.api.auth import check_module_access
-from bench.api.interp import Issue, ResolvedField
+from bench.api.interp import Issue, IssueKind, IssueType, ResolvedField
 from bench.api.type import ProjectMutationType
 from bench.api.utils import asafe_subscription, to_global_id, to_uuid
 from bench.language import edit, wire
@@ -80,6 +80,10 @@ async def unpack_module_edits(
                 #  (obviously hacky but we'll get edits 2.0 soon)
                 if e.mnt == MNT.RESOLVED_FIELD:
                     data.field_ck = UUID("00000000-0000-0000-0000-000000000000")
+                elif e.mnt == MNT.ISSUE:
+                    data.kind = IssueKind.Notice
+                    data.type = IssueType.INTERNAL
+                    data.message = ""
             else:  # only need
                 # unpack data (somewhat inefficiently)
                 if e.statement_id is not None:

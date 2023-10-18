@@ -5544,7 +5544,7 @@ export type ModuleChangedSubscription = {
       revision?: number | null;
       input?: any | null;
       data?:
-        | { __typename?: "Issue"; id: any }
+        | ({ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } })
         | { __typename?: "ResolvedField"; id: any; ck: any; fieldCk: any }
         | null;
     }>;
@@ -22832,7 +22832,7 @@ export const ModuleChangedDocument = {
                               typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
                               selectionSet: {
                                 kind: "SelectionSet",
-                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                                selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
                               },
                             },
                           ],
@@ -22842,6 +22842,29 @@ export const ModuleChangedDocument = {
                   },
                 },
               ],
+            },
+          },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "IssueContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
         ],
