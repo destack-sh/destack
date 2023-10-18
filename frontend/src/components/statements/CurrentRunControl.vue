@@ -3,7 +3,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import { useTimeFromNow } from "@/composables/useNow";
-import { RunStatus, WorkerSetStatus } from "@/gql/graphql";
+import type { WorkerSetStatus } from "@/gql/graphql";
 import { useBenchState, usePanelContext } from "@/state/bench";
 import { ACTIVE_RUN_STATUSES, WORKER_STATUS_TITLE, getRunStatusColor, useCurrentSessions } from "@/state/session";
 import { computed } from "vue";

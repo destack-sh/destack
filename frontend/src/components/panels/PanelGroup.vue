@@ -12,6 +12,7 @@ import {
   getPanelActions,
   getPanelGroupActions,
   type FileHeader,
+  type PanelType,
 } from "@/state/bench";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon, XMarkIcon } from "@heroicons/vue/24/outline";
@@ -21,6 +22,8 @@ import { useActiveScroll } from "@/composables/useScroll";
 import { EllipsisVerticalIcon } from "@heroicons/vue/24/solid";
 import { newNodeIdentity, type NodeBase } from "@/state/module";
 import { useOperations } from "@/state/operations";
+import { useNow } from "@/composables/useNow";
+import { DateTime } from "luxon";
 const props = defineProps<{ group: PanelGroup }>();
 
 const bench = useBenchState();
@@ -32,6 +35,33 @@ const containerSize = useElementSize(containerRef);
 const panelRefs = useElementRefs<InstanceType<typeof TabPanel>>();
 const tabListRef: Ref<InstanceType<typeof TabList> | null> = ref(null);
 const tabRefs = useElementRefs<InstanceType<typeof Tab>>(computed(() => props.group.panels));
+
+const KEEP_LOADED_RECENT_PANELS = 3;
+const KEEP_LOADED_PANEL_TYPES: PanelType[] = ["launch-run", "terminal", "view-logs", "view-run", "view-runs"];
+const KEEP_LOADED_COOLOFF_MS = 1000 * 60; // 1 minute
+const KEEP_LOADED_AFTER_MS = 1000 * 6; // 6 seconds
+const created = DateTime.now();
+
+const now = useNow(1000);
+const recentPanels = computed(() =>
+  props.group.panels
+    .slice()
+    .sort((a, b) => (b.lastFocusedAt ?? "").localeCompare(a.lastFocusedAt ?? ""))
+    .slice(0, KEEP_LOADED_RECENT_PANELS)
+);
+// wait to ensure active panel is loaded before loading the others
+const keepLoaded = computed(() => now.value.diff(created).milliseconds > KEEP_LOADED_AFTER_MS);
+function shouldKeepLoaded(panel: Panel): boolean {
+  return (
+    recentPanels.value.some((p) => p.id == panel.id) ||
+    KEEP_LOADED_PANEL_TYPES.includes(panel.type) ||
+    (panel.lastFocusedAt != null &&
+      now.value.diff(DateTime.fromISO(panel.lastFocusedAt)).seconds < KEEP_LOADED_COOLOFF_MS)
+  );
+}
+
+// context menu
+
 const contextMenuPanel: Ref<Panel | null> = ref(null);
 const contextMenuOpen = ref(false);
 const contextMenuPosition: Ref<{ x: number; y: number } | null> = ref(null);
@@ -97,7 +127,7 @@ async function createFileInPanelGroup() {
   const identity = newNodeIdentity(bench.projectVersionId as string, "File");
   const create = ops.file.create(null, identity.id, identity.ck, bench.projectVersionId as string, "", null);
   const optimisticFile = { __typename: "File", id: identity.id, ck: identity.ck, name };
-  const filePanel = bench.focusFile(optimisticFile as NodeBase, props.group);
+  const panel = bench.focusFile(optimisticFile as NodeBase, props.group);
 }
 </script>
 <template>
@@ -219,7 +249,7 @@ async function createFileInPanelGroup() {
           class="outline-none"
           :class="[e.hasWhiteBackground ? 'bg-white' : 'bg-gray-50', e.hasScrollY ? 'overflow-y-scroll ' : '']"
           :style="panelSize"
-          unmount
+          :unmount="!keepLoaded || !shouldKeepLoaded(e)"
         >
           <PanelInterface :panel="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />
         </TabPanel>
