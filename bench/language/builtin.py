@@ -24,6 +24,12 @@ if DEBUG:
     )
 
 
+def active_session() -> "Session":
+    session = _active_session.get()
+    assert session is not None, "no active session"
+    return session
+
+
 def _should_validate() -> bool:
     if DEBUG:
         return not _no_validation.get()

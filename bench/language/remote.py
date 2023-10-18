@@ -4,18 +4,20 @@ import mimetypes
 import typing
 from typing import Optional
 from urllib.parse import parse_qs, urlparse, urlunparse
+from uuid import UUID, uuid5
 
 import aiohttp
 import requests
 import structlog
 from asgiref.sync import async_to_sync
 
+from bench.language.builtin import active_session
 from bench.language.const import MNT, BlobStatus
 from bench.language.module import Module, Node, ninternal, node, nproperty, nruntime
-from bench.language.validation import ValidationHandler
+from bench.language.validation import ValidationHandler, on_issue_raise
 
 if typing.TYPE_CHECKING:
-    from bench.language.session import Session
+    pass
 
 logger = structlog.get_logger(__name__)
 
@@ -99,11 +101,11 @@ class Blob(Node):
         return self.read().decode().splitlines()
 
     def io(self) -> typing.BinaryIO:
-        """Get a file-like object for the object."""
+        """Get a file-like object for the blob."""
         return io.BytesIO(self.read())
 
     async def aio(self) -> typing.BinaryIO:
-        """Get a file-like object for the object."""
+        """Get a file-like object for the blob."""
         return io.BytesIO(await self.aread())
 
     async def _prep_upload(self) -> Optional[str]:
@@ -116,7 +118,7 @@ class Blob(Node):
         from bench.msg.core import NMessage, request
         from bench.msg.messages import NMessageType, RepWriteObjectPayload, ReqWriteObjectPayload
 
-        logger.debug("object.prepare_upload", object=self)
+        logger.debug("blob.prepare_upload", object=self)
         # first get POST url to upload the object
         rep: NMessage[RepWriteObjectPayload] = await request(
             NMessageType.WRITE_OBJECT,
@@ -124,7 +126,7 @@ class Blob(Node):
             reply_t=RepWriteObjectPayload,
         )
         blob = rep.p.objects[0]
-        self.id = blob.id
+        self._set_untracked("id", blob.id)
         if blob.status == BlobStatus.AVAILABLE:
             # already uploaded
             self.status = BlobStatus.AVAILABLE
@@ -144,7 +146,7 @@ class Blob(Node):
             ReqMarkUploadedObjectPayload,
         )
 
-        logger.debug("object.mark_uploaded", object=self)
+        logger.debug("blob.mark_uploaded", object=self)
         rep: NMessage[RepMarkUploadedObjectPayload] = await request(
             NMessageType.MARK_UPLOADED_OBJECT,
             ReqMarkUploadedObjectPayload(objects=[wire.pack_data(self)]),
@@ -154,13 +156,13 @@ class Blob(Node):
             raise ValueError(f"unable to mark uploaded {self}")
         self.status = BlobStatus.AVAILABLE
 
-    def _do_upload(self, content: bytes) -> None:
-        logger.debug("object.do_upload", object=self)
+    async def _do_upload(self, content: bytes) -> None:
+        logger.debug("blob.do_upload", object=self)
 
         # prepare upload (skip if already uploaded)
-        post_url = self.session.async_to_sync(Blob._prep_upload)(self)
+        post_url = await Blob._prep_upload(self)
         if post_url is None:
-            logger.debug("object.do_upload.skip", object=self)
+            logger.debug("blob.do_upload.skip", object=self)
             return  # already uploaded
         url_parts = urlparse(post_url)
         query_params = parse_qs(url_parts.query)
@@ -170,28 +172,34 @@ class Blob(Node):
         # upload (and mark as uploaded in DB)
         response = requests.post(url_main, data=form_data, files={"file": content})
         response.raise_for_status()
-        self.session.async_to_sync(Blob._mark_uploaded)(self)
-        logger.debug("object.do_upload.done", object=self)
+        await Blob._mark_uploaded(self)
+        logger.debug("blob.do_upload.done", object=self)
+
+    def _assign_id_and_ck(self, module_ck: UUID):
+        # derive ck from module ck and sha512 (and id==ck because detached)
+        self._set_untracked("ck", uuid5(module_ck, self.sha512))
+        self._set_untracked("id", self.id)
 
     @staticmethod
-    def from_url(url: str, session: "Session", name: str = None, timeout: int = None) -> "Blob":
+    def from_url(url: str, name: str = None, timeout: int = None) -> "Blob":
         """Upload a file to object storage."""
         response = requests.get(url, timeout=timeout)
-        return Blob.from_requests(response, session, name=name)
+        return Blob.from_requests(response, name=name)
 
     @staticmethod
-    def from_requests(response: requests.Response, session: "Session", name: str = None) -> "Blob":
+    def from_requests(response: requests.Response, name: str = None) -> "Blob":
         """Upload a file to object storage."""
+        session = active_session()
         response.raise_for_status()
         obj = Blob(
             sha512=hashlib.sha512(response.content).hexdigest(),
             content_length=int(response.headers["Content-Length"]),
             content_type=response.headers["Content-Type"],
-            name=name or response.url,
-            _session=session,
+            name=name or response.url.split("/")[-1],
         )
-        obj._validate()
-        obj._do_upload(response.content)
+        obj._assign_id_and_ck(session.module.ck)
+        obj._validate_self(["name", "content_type", "content_length"], on_issue=on_issue_raise)
+        session.async_to_sync(obj._do_upload)(response.content)
         return obj
 
     @staticmethod
@@ -204,6 +212,7 @@ class Blob(Node):
     @staticmethod
     def from_content(name: str, content_type: str, content: bytes | typing.BinaryIO) -> "Blob":
         """Upload a file to object storage."""
+        session = active_session()
         if isinstance(content, typing.BinaryIO):
             content = content.read()
         obj = Blob(
@@ -213,8 +222,9 @@ class Blob(Node):
             name=name,
             _session=None,
         )
-        obj._validate()
-        obj._do_upload(content)
+        obj._assign_id_and_ck(session.module.ck)
+        obj._validate_self(["name", "content_type", "content_length"], on_issue=on_issue_raise)
+        session.async_to_sync(obj._do_upload)(content)
         return obj
 
 
