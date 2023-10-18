@@ -959,8 +959,10 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         prompt = f"{anthropic.HUMAN_PROMPT}: {prompt}{anthropic.AI_PROMPT}"
 
         # settings
+        max_tokens_to_sample = 99 * 1000 - int(len(prompt) * 0.3)
+        assert max_tokens_to_sample > 0, f"prompt for {task!r} too long: {len(prompt)}"
         settings = AnthropicTextCompletionSettings(
-            temperature=0.8, top_p=0.7, top_k=5, max_tokens_to_sample=99 * 1024 - len(prompt) * 4
+            temperature=0.8, top_p=0.7, top_k=5, max_tokens_to_sample=max_tokens_to_sample
         )
 
         return AnthropicTextInput(task=task, settings=settings, prompt=prompt)
