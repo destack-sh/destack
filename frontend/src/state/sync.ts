@@ -172,7 +172,7 @@ export function useModuleSync(projectId: Ref<string | null>, projectVersionId: R
                 fieldCk
               }
               ... on Issue {
-                id
+                ...IssueContent
               }
             }
           }
