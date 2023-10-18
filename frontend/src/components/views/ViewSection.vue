@@ -4,6 +4,7 @@ import { useViewSectionGroup } from "@/components/views/sections";
 import { useActiveScroll } from "@/composables/useScroll";
 import { useAppearance } from "@/state/appearance";
 import type { Action } from "@/state/bench";
+import { toValueRef } from "@/utils/functools";
 import { useElementBounding } from "@vueuse/core";
 import { computed, ref } from "vue";
 const props = defineProps<{
@@ -23,15 +24,16 @@ const sectionSlotRef = ref<InstanceType<any> | undefined>(undefined);
 const sectionBodyBounding = useElementBounding(sectionBodyRef);
 
 useActiveScroll(sectionContainerRef);
-// nochechkin: navigate between view sections
 api.registerSection(props.index, {
   sectionRef,
   sectionBodyRef,
   sectionSlotRef,
-  sectionBodySize: computed(() => ({
-    width: sectionBodyBounding.width.value,
-    height: sectionBodyBounding.height.value,
-  })),
+  sectionBodySize: toValueRef(
+    computed(() => ({
+      width: sectionBodyBounding.width.value,
+      height: sectionBodyBounding.height.value,
+    }))
+  ),
   minHeight: props.minHeight,
 });
 

@@ -5,12 +5,9 @@ import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule } from "@/state/module";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import { useElementBounding, useFocusWithin } from "@vueuse/core";
 import { computed, ref, watch, type Component, type Ref } from "vue";
-import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useBenchState, type Action } from "@/state/bench";
 import PanelExplorer from "@/components/views/PanelExplorer.vue";
-import { useElementRefs } from "@/composables/useGrid";
 import ViewSectionGroup from "@/components/views/ViewSectionGroup.vue";
 import ViewSection from "@/components/views/ViewSection.vue";
 
@@ -18,7 +15,6 @@ const props = defineProps<{ active: boolean; focused: boolean }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 
 const actions = useActions();
-const appearance = useAppearance();
 const module = useCurrentModule();
 const bench = useBenchState();
 
@@ -45,7 +41,7 @@ const explorers: Ref<Explorer[]> = computed(() => {
         icon: PlusIcon,
         label: "File",
         action: () => actions.file.create.value.apply(),
-        disabled: !actions.file.create.value.enabled,
+        disabled: bench.readonly,
       },
     ],
   } as Explorer);

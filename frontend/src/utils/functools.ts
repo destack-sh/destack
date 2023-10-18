@@ -1,4 +1,4 @@
-import { customRef, watch, type Ref, isRef } from "vue";
+import { customRef, watch, type Ref, isRef, ref, onMounted } from "vue";
 
 export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(input: Partial<Record<T, U>>) {
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;
@@ -102,6 +102,16 @@ export function startStopIf(
     },
     options
   );
+}
+
+export function useDelayed(delay: number): Ref<boolean> {
+  const ret = ref(false);
+  onMounted(() => {
+    setTimeout(() => {
+      ret.value = true;
+    }, delay);
+  });
+  return ret;
 }
 
 export function randomHexString(length = 6): string {

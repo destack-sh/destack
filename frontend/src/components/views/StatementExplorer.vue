@@ -27,6 +27,7 @@ const orderedStatements = computed(() => {
     (o) => o.statement.type != StatementType.Blank || (statementsByParentId[o.id]?.length ?? 0) > 0
   );
 });
+const focusedStatementCk = computed(() => bench.focusedStatementCk);
 
 function getStatementName(
   statement: {
@@ -104,7 +105,7 @@ defineExpose({
       tabindex="-1"
       class="flex max-w-full flex-row border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="[
-        o.ck == bench.focusedStatementCk ? 'text-orange-600' : 'text-gray-700 hover:bg-orange-100',
+        o.ck == focusedStatementCk ? 'text-orange-600' : 'text-gray-700 hover:bg-orange-100',
         o.statement.headingLevel != null ? HEADING_TEXT_SIZE[o.statement.headingLevel] + ' -mb-0.5 font-semibold' : '',
         o.statement.headingLevel != null && i > 0 ? HEADING_MARGIN_TOP[o.statement.headingLevel] : '',
       ]"
@@ -126,7 +127,7 @@ defineExpose({
         class="mr-1.5 rounded-sm font-mono"
       >
         <component
-          :is="getStatementIconSolid(o.statement.type, o.statement.tag)"
+          :is="getStatementIconSolid(o.statement.type)"
           class="mt-0.5 h-4 w-4"
           :class="[o.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
         />
