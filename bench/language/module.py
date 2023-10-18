@@ -1732,12 +1732,12 @@ class Node(abc.ABC):
             value = getattr(self, name)
             if value is None:
                 if prop.is_required:
-                    on_issue(self, f"{prop.name}: is required")
+                    on_issue(self, f"{prop.name}: is required", [prop.name])
             elif prop.custom_validate is not None:
                 handler = PropertyValidationHandler(self, prop, on_issue)
                 valid = prop.validate(value, handler)
                 if valid is False:
-                    on_issue(self, f"{prop.name}: invalid value")
+                    on_issue(self, f"{prop.name}: invalid value", [prop.name])
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
         """Visit any non-descendant referenced nodes."""

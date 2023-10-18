@@ -1063,6 +1063,13 @@ code.triggers.append(Trigger.time('0 */2 * * *'))
 code.triggers.append(Trigger.time(60*60*2))""",
     ),
     Record.new(
+        text="upload transcript",
+        code="""\
+return {
+    'blob': Blob.from_url(...) # or Blob.from_file(...)
+}""",
+    ),
+    Record.new(
         text="sentiment classifier",
         code="""\
 Sentiment = Statement.choice(
@@ -1141,11 +1148,13 @@ generate_bench_code.children.extend(
     Statement.text("Use the syntax from @sample_bench_code, but don't just copy"),
     Statement.text("See @bench_description and @idiomatic_bench"),
     Statement.text(
-        "Keep it concise, minimal comments, minimal newlines, extrapolate the user's request if it's broad "
+        "Keep it concise, minimal comments, minimal newlines, extrapolate the user's request if it's broad"
     ),
-    Statement.text("For complex code first draft an outline in a few text statements at the start"),
-    Statement.text("If the @text refers to existing nodes, you should modify/extend them directly"),
-    Statement.text("Always use Bench primitives for everything"),
+    Statement.text("For complex requests first draft your steps in a few comments at the start"),
+    Statement.text(
+        "If the @text refers to existing nodes, you should modify/extend them directly (not add again)"
+    ),
+    Statement.text("Always use Bench primitives for everything (and with the right types/mapping)"),
     Statement.text(
         "Never use Python classes, methods, external models, imported AI libraries, or imports across statements"
     ),
