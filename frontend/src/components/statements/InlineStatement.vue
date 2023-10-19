@@ -298,6 +298,12 @@ function focus(focus: "first" | "last" | StatementPartId = "first") {
   scrollIntoViewIfNeeded();
 }
 
+function focusIfUnfocused(f: "first" | "last" | StatementPartId = "first") {
+  if (!inContainerFocused.value) {
+    focus(f);
+  }
+}
+
 function blur() {
   Object.values(partsRefs.value).forEach((e) => e?.blur?.());
 }
@@ -376,7 +382,7 @@ whenever(inStatementFocused, () => {
     return;
   }
   if (!isEditing.value && !bench.readonly) {
-    nav?.value?.panel.editElement(statement.value);
+    nav?.value?.panel.editElement(statement.value, false);
   }
 });
 
@@ -677,6 +683,7 @@ const hasWarnings = computed(() => issues.value?.find((i) => i.kind == IssueKind
 
 defineExpose({
   focus,
+  focusIfUnfocused,
   blur,
   bounding: containerBounding,
   loading: computed(() => elementParts.value.some((p) => p.active && partsRefs.value[p.part.id]?.loading === true)),

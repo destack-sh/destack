@@ -1107,11 +1107,13 @@ export class EditFilePanel extends NavigablePanel {
     this.id = this.fileCk + "-" + randomHexString();
   }
 
-  editElement(element: NavElement) {
+  editElement(element: NavElement, focus = true) {
     super.editElement(element);
-    nextTick(() => {
-      (this.component as InstanceType<typeof EditFilePanelVue>)?.statementsComponents[element.id]?.focus();
-    });
+    if (focus) {
+      nextTick(() => {
+        (this.component as InstanceType<typeof EditFilePanelVue>)?.statementsComponents[element.id]?.focus();
+      });
+    }
   }
 
   isStatementContentFolded(statement: { ck: string }): boolean {
