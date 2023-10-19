@@ -20,7 +20,7 @@ import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { SortOrder, TypeTag } from "@/gql/graphql";
 import { canSort } from "@/state/type";
-import type { Field } from "@/state/module";
+import { TypeFlag, type Field } from "@/state/module";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 

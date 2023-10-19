@@ -233,6 +233,7 @@ function isFlagSet(flag: TypeFlag): boolean {
 }
 
 function toggleFlag(flag: TypeFlag) {
+  if (!isFlagSupported(value.value, flag)) return;
   const newFlags = value.value.flags ^ flag;
   value.value = {
     ...value.value,
@@ -288,6 +289,9 @@ defineExpose({
     as="div"
     :model-value="toComboId(value)"
     @update:model-value="(id: any) => writeValue(findByComboId(id) ?? value)"
+    @keydown.ctrl.r.exact.prevent.stop="toggleFlag(TypeFlag.IS_OPTIONAL)"
+    @keydown.ctrl.a.exact.prevent.stop="toggleFlag(TypeFlag.IS_ARRAY)"
+    @keydown.ctrl.m.exact.prevent.stop="toggleFlag(TypeFlag.IS_ARRAY)"
   >
     <!-- Flags -->
     <div v-if="!props.hideFlags" class="mb-2 flex flex-row justify-around">
