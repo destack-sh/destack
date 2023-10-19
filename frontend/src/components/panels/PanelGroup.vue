@@ -38,8 +38,8 @@ const tabRefs = useElementRefs<InstanceType<typeof Tab>>(computed(() => props.gr
 
 const KEEP_LOADED_RECENT_PANELS = 3;
 const KEEP_LOADED_PANEL_TYPES: PanelType[] = ["launch-run", "terminal", "view-logs", "view-run", "view-runs"];
-const KEEP_LOADED_COOLOFF_MS = 1000 * 60; // 1 minute
-const KEEP_LOADED_AFTER_MS = 1000 * 6; // 6 seconds
+const KEEP_LOADED_COOLOFF_MS = 1000 * 30; // 30 seconds
+const WAIT_UNTIL_MOUNTED_FOR_MS = 1000 * 6; // 6 seconds
 const created = DateTime.now();
 
 const now = useNow(1000);
@@ -50,13 +50,13 @@ const recentPanels = computed(() =>
     .slice(0, KEEP_LOADED_RECENT_PANELS)
 );
 // wait to ensure active panel is loaded before loading the others
-const keepLoaded = computed(() => now.value.diff(created).milliseconds > KEEP_LOADED_AFTER_MS);
+const stickyMountActive = computed(() => now.value.diff(created).milliseconds > WAIT_UNTIL_MOUNTED_FOR_MS);
 function shouldKeepLoaded(panel: Panel): boolean {
   return (
     recentPanels.value.some((p) => p.id == panel.id) ||
     KEEP_LOADED_PANEL_TYPES.includes(panel.type) ||
     (panel.lastFocusedAt != null &&
-      now.value.diff(DateTime.fromISO(panel.lastFocusedAt)).seconds < KEEP_LOADED_COOLOFF_MS)
+      now.value.diff(DateTime.fromISO(panel.lastFocusedAt)).milliseconds < KEEP_LOADED_COOLOFF_MS)
   );
 }
 
@@ -181,6 +181,8 @@ async function createFileInPanelGroup() {
             </button>
             <!-- 'border' on bottom if tab is focused and active -->
             <div v-if="bench.focusedPanelId == p.id" class="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600" />
+            <!-- 'border' on top if loaded for debugging -->
+            <div v-if="bench.debug && shouldKeepLoaded(p)" class="absolute left-0 right-0 top-0 h-0.5 bg-green-600" />
           </button>
         </Tab>
         <!-- Little button tab to create new file -->
@@ -242,16 +244,16 @@ async function createFileInPanelGroup() {
       <TabPanels :style="panelSize">
         <!-- Only file panels have a white background :FileBackground -->
         <TabPanel
-          v-for="e in group.panels"
-          :key="e.id"
-          :ref="(el: any) => panelRefs.registerRef(e.id, el)"
+          v-for="p in group.panels"
+          :key="p.id"
+          :ref="(el: any) => panelRefs.registerRef(p.id, el)"
           as="div"
           class="outline-none"
-          :class="[e.hasWhiteBackground ? 'bg-white' : 'bg-gray-50', e.hasScrollY ? 'overflow-y-scroll ' : '']"
+          :class="[p.hasWhiteBackground ? 'bg-white' : 'bg-gray-50', p.hasScrollY ? 'overflow-y-scroll ' : '']"
           :style="panelSize"
-          :unmount="!keepLoaded || !shouldKeepLoaded(e)"
+          :unmount="!stickyMountActive || !shouldKeepLoaded(p)"
         >
-          <PanelInterface :panel="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />
+          <PanelInterface :panel="p" :container-el="panelRefs.getRef(p.id)?.$el ?? null" />
         </TabPanel>
         <BlankPanel
           v-if="bench.projectVersionId != null && group.activePanelId == null"

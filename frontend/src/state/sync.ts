@@ -79,16 +79,6 @@ export class EditRegistry {
   }
 
   // TODO! @Cleanup @Architecture: module edits have substantial, opaque redundancy :BE-114
-  //  For one, optimistic responses and even cache updates could be auto-generated with some relatively simple rules.
-  //  Also, because the underline edits are currently 'opaque' to the operations system ('ops.perform(...)'), we can't simply
-  //  collect and batch multiple edits without sending them off. This further prevents any reasonable offline support,
-  //  and, coincidentally, makes it hard to walk a module node (e.g. to bump up on change, delete down).
-  //
-  //  We probably want to keep GQL edits (many reasons; they're nicely typed, debuggable and optimistic, auto-multiplayer, etc.),
-  //  but we can simplify multiplayer module edits - some thoughts on a potential refactor:
-  //   1. useEdit passes in only the graphql edit/fragment (no optimistic response or cache update)
-  //   2. update operation store Operation to also accept a set of native GQL edit objects (somehow)
-  //   3. have a global way to collect edits instead of sending them immediately (for offline, also for client-side 'transactions')
   public defineEdit<TResult = any, TVariables extends OperationVariables = OperationVariables>(
     type: EditType,
     document: DocumentParameter<TResult, TVariables>,
