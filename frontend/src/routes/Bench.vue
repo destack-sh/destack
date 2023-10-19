@@ -470,7 +470,7 @@ onBeforeUnmount(() => {
           <!-- Show ids for debugging (if enabled) -->
           <div
             v-if="bench.debug && bench.projectId && bench.projectVersionId"
-            class="left-18 absolute top-7 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-xs"
+            class="left-18 absolute top-0 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-xs"
           >
             <span class="select-all">{{ getUUIDFromGlobalID(bench.projectId) }}</span> /
             <span class="select-all">{{ getUUIDFromGlobalID(bench.projectVersionId) }}</span>

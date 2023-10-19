@@ -695,6 +695,19 @@ class TypedDict(dict):
         self._type = type
         self._is_output = is_output
 
+    def __getitem__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            field = self._type.resolved_fields.get(item)
+            if (
+                self._is_output is None
+                or field
+                and bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
+            ):
+                return None
+        raise KeyError(f"no key {item!r} on {self._type!r}")
+
     def __getattr__(self, item):
         if item in TypedDict._PROPS:
             return super().__getattr__(item)
