@@ -57,7 +57,7 @@ defineExpose({
       @escape="emit('escape')"
       @enter="emit('enter')"
       @execute="emit('run')"
-      @toggle-actions="emit('openActions')"
+      @open-actions="emit('openActions')"
       language="python"
       wrap
       :focused="focused"
