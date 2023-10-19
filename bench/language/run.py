@@ -79,15 +79,17 @@ class HasRun(Node):
 class CachedRun:
     """A cached run of a node."""
 
+    generated_in: UUID
     generated_at: datetime
     duration: float
     inputs: dict[str, Any]
     outputs: dict[str, Any]
 
     @staticmethod
-    def bytes_from_run(inputs: dict, outputs: dict, started_at: datetime):
+    def bytes_from_run(generated_in: UUID, inputs: dict, outputs: dict, started_at: datetime):
         now = utcnow_with_tz()
         run = CachedRun(
+            generated_in=generated_in,
             generated_at=now,
             duration=(now - started_at).total_seconds(),
             inputs=inputs,
@@ -97,6 +99,7 @@ class CachedRun:
 
     def to_json_bytes(self) -> bytes:
         run_json = {
+            "generated_in": self.generated_in.hex,
             "generated_at": self.generated_at.isoformat(),
             "duration": self.duration,
             "inputs": self.inputs,
@@ -108,6 +111,7 @@ class CachedRun:
     def from_json_bytes(json_bytes: bytes) -> "CachedRun":
         run_json = msgpack.unpackb(json_bytes, raw=False)
         return CachedRun(
+            generated_in=UUID(run_json["generated_in"]),
             generated_at=datetime.fromisoformat(run_json["generated_at"]),
             duration=run_json["duration"],
             inputs=run_json["inputs"],

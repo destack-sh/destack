@@ -269,10 +269,15 @@ class HasCode(Node):
                 outputs = unpack_value(run.outputs, self, ignore_outer_map=True, is_output=True)
                 check_type(outputs, self, is_output=True)
                 self.session.tracer.run_cached(
-                    self, inputs, outputs, run.generated_at, run.duration
+                    statement=self,
+                    inputs=inputs,
+                    outputs=outputs,
+                    generated_at=run.generated_at,
+                    generated_in=run.generated_in,
+                    duration=run.duration,
                 )
                 return TypedDict(outputs, self)
-            except (ValueError, TypeError, JSONDecodeError) as e:
+            except (ValueError, KeyError, TypeError, JSONDecodeError) as e:
                 logger.exception("code.cache.error", e=e, excinfo=e)
                 # ignore, will be overwritten on success
                 return None
@@ -290,7 +295,8 @@ class HasCode(Node):
 
             result = callable(*args, **kwargs)
             outputs_raw = pack_value(result, self, is_output=True)
-            run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
+            run_id = self.session.current_run.id
+            run_bytes = CachedRun.bytes_from_run(run_id, inputs_raw, outputs_raw, started_at)
             self.cache.set(cache_subkey, run_bytes)
             return result
 
@@ -308,7 +314,8 @@ class HasCode(Node):
 
             result = await callable(*args, **kwargs)
             outputs_raw = pack_value(result, self, is_output=True)
-            run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
+            run_id = self.session.current_run.id
+            run_bytes = CachedRun.bytes_from_run(run_id, inputs_raw, outputs_raw, started_at)
             await self.cache.set(cache_subkey, run_bytes)
             return result
 
