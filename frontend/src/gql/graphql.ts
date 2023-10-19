@@ -5547,7 +5547,9 @@ export type ModuleChangedSubscription = {
       input?: any | null;
       data?:
         | ({ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } })
-        | { __typename?: "ResolvedField"; id: any; ck: any; fieldCk: any }
+        | ({ __typename?: "ResolvedField" } & {
+            " $fragmentRefs"?: { ResolvedFieldContentFragment: ResolvedFieldContentFragment };
+          })
         | null;
     }>;
   };
@@ -22832,9 +22834,7 @@ export const ModuleChangedDocument = {
                               selectionSet: {
                                 kind: "SelectionSet",
                                 selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "Field", name: { kind: "Name", value: "ck" } },
-                                  { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } },
                                 ],
                               },
                             },
@@ -22855,6 +22855,29 @@ export const ModuleChangedDocument = {
               ],
             },
           },
+        ],
+      },
+    },
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
     },

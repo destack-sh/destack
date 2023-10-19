@@ -167,9 +167,7 @@ export function useModuleSync(projectId: Ref<string | null>, projectVersionId: R
             input
             data {
               ... on ResolvedField {
-                id
-                ck
-                fieldCk
+                ...ResolvedFieldContent
               }
               ... on Issue {
                 ...IssueContent
@@ -301,10 +299,8 @@ function useSyncedOps() {
               ...existingResolvedFields.filter((r: any) => r.id != resolvedField.id),
               {
                 __typename: "ResolvedField",
-                id: resolvedField.id,
-                ck: resolvedField.ck,
                 statement: { __ref: `Statement:${edit.statementId}` },
-                fieldCk: resolvedField.fieldCk,
+                ...resolvedField,
               },
             ];
           },
