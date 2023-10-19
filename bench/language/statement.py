@@ -36,7 +36,7 @@ from bench.language.tagging import HasTags
 from bench.language.task import HasTask
 from bench.language.text import HasText
 from bench.language.trigger import HasTriggers
-from bench.language.validation import enum_validator, validate_name
+from bench.language.validation import enum_validator, validate_is_str, validate_name
 from bench.language.value import HasValue
 from bench.utils.func import dict_minus
 from bench.utils.utils import IdentifierType, IdentT, identity, to_pyidentifier
@@ -151,11 +151,11 @@ class Statement(ScopeNode, HasTags):
     heading_level: Optional["TextHeadingLevel"] = nproperty(
         default=None, validate=enum_validator(TextHeadingLevel)
     )
-    text: str | None = nproperty(default=None)
+    text: str | None = nproperty(default=None, validate=validate_is_str)
     key: str | None = ninternal(default=None)
-    code: str | None = nproperty(default=None)
+    code: str | None = nproperty(default=None, validate=validate_is_str)
     value: Any | None = nproperty(default_factory=dict, copy=deepcopy)
-    versioned: bool = nproperty(default=True)
+    versioned: bool = ninternal(default=True)
     external_name: str | None = ninternal(default=None)  # for model, to be moved into value
 
     @staticmethod
