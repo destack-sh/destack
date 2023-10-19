@@ -48,19 +48,13 @@ function _useTerminal() {
             key: "value." + botLabelKey.value,
             value: TERMINAL_BOT_LABEL,
           },
-          // past week
-          {
-            op: QueryOp.GreaterThan,
-            key: "created_at",
-            value: DateTime.local().minus({ days: 7 }).toISO(),
-          },
         ],
       })),
       sort: ref([{ key: "created_at", order: SortOrder.Descending }]),
       after: ref(null),
     },
     {
-      limit: 128,
+      limit: 64,
       count: true,
       live: true,
       insertAt: "start",
