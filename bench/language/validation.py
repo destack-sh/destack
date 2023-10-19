@@ -105,3 +105,18 @@ def flag_validator(t: type[enum.IntFlag]):
             on_issue(f"invalid {t.__name__} ({value} & ~{valid_mask})")
 
     return validate_flag
+
+
+@cachetools.cached({})
+def isinstance_validator(t: type):
+    def validate_isinstance(value: object, on_issue: PropertyValidationHandler):
+        if not isinstance(value, t):
+            on_issue(f"invalid type ({type(value)} != {t})")
+
+    return validate_isinstance
+
+
+validate_is_str = isinstance_validator(str)
+validate_is_int = isinstance_validator(int)
+validate_is_float = isinstance_validator(float)
+validate_is_bool = isinstance_validator(bool)

@@ -7,13 +7,14 @@ from uuid import UUID
 from bench.language.const import MNT, ModuleNodeType, NodeReference, TypedNodeReference
 from bench.language.module import Node, ScopeNode, node_component, nproperty, nruntime
 from bench.language.reference import NodeVisitor
+from bench.language.validation import validate_is_str
 
 
 @node_component
 class HasText(Node):
     """Some instruction text with optional references."""
 
-    text: str | None = nproperty(default=None)
+    text: str | None = nproperty(default=None, validate=validate_is_str)
     _text_parsed: Optional["Text"] = nruntime(default=None, copy=lambda v: deepcopy(v))
 
     @property

@@ -42,6 +42,7 @@ from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, genera
 from bench.utils.func import did_you_mean_str, nextn
 from bench.utils.utils import (
     DEBUG,
+    LOCAL,
     IdentifierType,
     flatten_list,
     frozendict,
@@ -1724,7 +1725,7 @@ class Node(abc.ABC):
         # since this is the root module, we also validate the properties directly
         from bench.language.builtin import _should_validate
 
-        if DEBUG and not _should_validate():
+        if LOCAL and not _should_validate():
             return  # escape hatch for testing
         for name in properties:
             prop = self.__properties__.get(name)
