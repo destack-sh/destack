@@ -17,9 +17,9 @@ import {
   ACTIVE_RUN_STATUSES,
 } from "@/state/session";
 import { useTerminal } from "@/state/terminal";
-import { IdentifierType, toPyIdentifier } from "@/utils/functools";
+import { IdentifierType, toGlobalId, toPyIdentifier } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
-import { SparklesIcon } from "@heroicons/vue/24/outline";
+import { ChevronDoubleDownIcon, SparklesIcon } from "@heroicons/vue/24/outline";
 import { PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { nextTick, computed, ref, type Ref, watch } from "vue";
 
@@ -128,16 +128,16 @@ defineExpose({
     <!-- History -->
     <div
       class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-x-hidden overflow-y-scroll text-sm"
-      :class="loading || terminal.totalCount.value == 0 ? 'flex-col items-center justify-center' : 'flex-col-reverse'"
+      :class="loading || terminal.runs.value?.length == 0 ? 'flex-col items-center justify-center' : 'flex-col-reverse'"
     >
       <!-- Loading / empty state -->
-      <div v-if="loading || terminal.totalCount.value == 0" class="self-center justify-self-center">
+      <div v-if="loading || terminal.runs.value?.length == 0" class="self-center justify-self-center">
         <BusySpinnerIcon v-if="loading" class="mx-auto h-5 w-5 animate-spin text-white" />
         <span v-else class="text-gray-500">No terminal history</span>
       </div>
       <!-- Previous runs -->
       <div
-        v-for="{ run, code, scope, generatedFrom } in terminal.runs.value"
+        v-for="{ run, code, scope, generatedFrom, generatedIn } in terminal.runs.value"
         :key="run.id"
         class="opacity-150 border-l-4 border-t border-orange-900/[15%] py-1.5 transition-colors"
         :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"
@@ -152,9 +152,15 @@ defineExpose({
             <!-- Extra info & controls -->
             <div class="flex select-none flex-row gap-2 text-gray-400">
               <!-- Generated from -->
-              <div v-if="generatedFrom" class="flex max-w-[200px] flex-row items-center font-normal">
-                <SparklesIcon class="h-4 w-4 text-gray-400" />
-                <span class="ml-1 truncate text-gray-400">{{ generatedFrom }}</span>
+              <div
+                v-if="generatedFrom"
+                class="group flex max-w-[200px] flex-row items-center font-normal hover:cursor-pointer"
+                @click="bench.openViewRun({ id: toGlobalId('Run', generatedIn) }, { focus: true })"
+              >
+                <SparklesIcon class="h-4 w-4 flex-shrink-0 text-gray-400" />
+                <span class="underline-offfset-2 ml-1 truncate text-gray-400 group-hover:underline">
+                  {{ generatedFrom }}
+                </span>
               </div>
               <!-- Run ID -->
               <button
@@ -172,6 +178,10 @@ defineExpose({
                 </span>
                 <!-- From -->
                 <span class="ml-1">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
+              </button>
+              <!-- Copy to current -->
+              <button class="flex-shrink-0 rounded-sm text-gray-400 hover:bg-orange-100" @click="input = code">
+                <ChevronDoubleDownIcon class="h-4 w-4" />
               </button>
             </div>
           </div>
