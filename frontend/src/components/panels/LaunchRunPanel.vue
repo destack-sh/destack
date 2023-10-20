@@ -7,7 +7,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, StatementType, type Run } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, type StatementAction, type LaunchRunPanel } from "@/state/bench";
-import { TypeFlag, useCurrentModule } from "@/state/module";
+import { TypeFlag, useCurrentModule, type Statement } from "@/state/module";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
@@ -231,7 +231,8 @@ defineExpose({
           <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>
           <StructInterface
             v-model="panel.inputs"
-            :fields="inputFields"
+            :type="(statement as Statement)"
+            :is-output="false"
             full-inputs
             readonly-type
             :appearance="{ minimalFields: true, hideFieldType: true }"
@@ -261,7 +262,9 @@ defineExpose({
           <span v-if="outputFields?.length == 0" class="w-full text-center text-gray-400">No outputs</span>
           <StructInterface
             :model-value="panel.lastOutput"
-            :fields="outputFields"
+            :type="(statement as Statement)"
+            :is-output="true"
+            show-controls
             readonly
             :appearance="{ minimalFields: true, hideFieldType: true }"
           />

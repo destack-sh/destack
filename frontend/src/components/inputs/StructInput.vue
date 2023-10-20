@@ -147,11 +147,12 @@ defineExpose({
         class="fixed z-20 mt-5 w-96 rounded-sm border bg-white p-1 shadow-md ring-1 ring-orange-900 ring-opacity-[12%]"
       >
         <StructInterface
-          :fields="fields"
+          :type="type"
           :model-value="modelValue[activeIndex ?? 0]"
           @update:modelValue="update(activeIndex ?? 0, $event)"
           @close="(activeIndex = null), (editingIndex = false)"
           debounced
+          show-controls
           :readonly="!editingIndex || true /* TODO @Broken: editing structs in struct input fails */"
           :appearance="{ minimalFields: true, hideFieldType: true }"
         />

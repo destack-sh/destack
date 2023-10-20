@@ -19,9 +19,10 @@ const { allFields, fields, createNewField, duplicateField, updateField, deleteFi
 );
 
 const structRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
+const wrapperRef = ref<HTMLDivElement | null>(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
-const position = useMouseInElement(computed(() => structRef.value?.$el));
+const position = useMouseInElement(computed(() => wrapperRef.value));
 
 function createNewFieldAndFocus(template: Field) {
   const field = createNewField(template);
@@ -94,12 +95,12 @@ defineExpose({
 });
 </script>
 <template>
-  <div>
+  <div ref="wrapperRef">
     <!-- Value -->
     <StructInterface
       ref="structRef"
       class="-mx-1 w-full rounded-sm border-y border-orange-900/[12%]"
-      :fields="allFields"
+      :type="allFields"
       :model-value="statement.value ?? {}"
       @update:model-value="writeValue($event)"
       @update:field="updateField($event, $event)"
