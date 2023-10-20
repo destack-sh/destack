@@ -3,7 +3,14 @@ import PanelHeader from "@/components/panels/PanelHeader.vue";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, ViewRunPanel } from "@/state/bench";
-import { TypeFlag, useCurrentModule, useNavigation, type NodeBase, type InterpStatement } from "@/state/module";
+import {
+  TypeFlag,
+  useCurrentModule,
+  useNavigation,
+  type NodeBase,
+  type InterpStatement,
+  Statement,
+} from "@/state/module";
 import { computed, ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { getRunStatusColor, getRunStatusIconSolid, useCurrentSessions, useRun } from "@/state/session";
@@ -239,8 +246,10 @@ defineExpose({
           <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>
           <StructInterface
             :model-value="run.inputs ?? {}"
-            :fields="inputFields"
+            :type="(statement as Statement)"
+            :is-output="false"
             full-inputs
+            show-controls
             readonly
             :appearance="{ minimalFields: true, hideFieldType: true }"
           />
@@ -254,8 +263,10 @@ defineExpose({
           <span v-if="outputFields?.length == 0" class="w-full text-center text-gray-400">No outputs</span>
           <StructInterface
             :model-value="run.outputs ?? {}"
-            :fields="outputFields"
+            :type="(statement as Statement)"
+            :is-output="true"
             full-inputs
+            show-controls
             readonly
             :appearance="{ minimalFields: true, hideFieldType: true }"
           />
