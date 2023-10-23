@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
 import { useCurrentModule, type Field } from "@/state/module";
-import TypeInterface from "@/components/interfaces/TypeInterface.vue";
+import type TypeInterface from "@/components/interfaces/TypeInterface.vue";
 import { TypeTag } from "@/gql/graphql";
 import { useFields } from "@/state/statement";
 import type { StatementEmit, StatementProps } from "@/components/statements";
