@@ -329,7 +329,7 @@ defineExpose({
           :type="node.field"
           active
           :wrap="node.children == null || !node.expanded"
-          class="scroll-hidden pointer-events-none ml-1.5 max-w-full self-start overflow-auto"
+          class="scroll-hidden ml-1.5 max-w-full self-start overflow-auto"
           :style="{ 'max-height': appearance.maxRowHeight + 'px' }"
         />
       </div>

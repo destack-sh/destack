@@ -351,15 +351,16 @@ class BaseTextTaskCompiler(TaskCompiler):
         # parse out all top level fields
         outputs = {}
         try:
-            completed_pairs = re.findall(
-                r"['\"](?P<key>.*?)['\"]:\s*\n```([a-z]+)?\n?(?P<body>.*?)```",
+            completed_pairs = re.finditer(
+                r"^\"(?P<key>[\w ]+?)\":\s*(?P<body>([^\n(```)]+$)|```(\w+)?\n?(?P<inner>.*?)\n?```)",
                 body.strip(),
                 flags=re.DOTALL | re.MULTILINE,
             )
-            for key, _, value in completed_pairs:
-                field = task.resolved_fields.get(key)
+            for match in completed_pairs:
+                field = task.resolved_fields.get(match.group("key"))
                 if not field:
                     continue  # ignore
+                value = match.group("inner") or match.group("body")
                 value = value.strip()
                 if value.startswith('"'):
                     value = value[1:]
@@ -368,7 +369,7 @@ class BaseTextTaskCompiler(TaskCompiler):
                 value = value.strip()  # yes twice
                 if field._effective_tag in (TypeTag.STRUCT, TypeTag.BOOLEAN, TypeTag.NUMBER):
                     value = json.loads(value)
-                outputs[key] = value
+                outputs[field.py_ident] = value
         except (TypeError, ValueError, JSONDecodeError) as e:
             raise TaskError(TaskErrorType.InvalidFormat, model, f"invalid JSON arguments: {str(e)}")
 
