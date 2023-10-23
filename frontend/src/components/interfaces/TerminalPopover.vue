@@ -248,7 +248,9 @@ defineExpose({
           <span
             v-if="generatedRun != null"
             class="ml-auto text-gray-400 underline-offset-2 hover:cursor-pointer hover:underline"
-            @click="bench.openViewRun(generatedRun, { group: panel.panel.value.group, opposite: true, focus: true })"
+            @click.stop="
+              bench.openViewRun(generatedRun, { group: panel.panel.value.group, opposite: true, focus: true })
+            "
           >
             #{{ getUUIDFromGlobalID(generatedRun.id).slice(-7, -1) }}
           </span>

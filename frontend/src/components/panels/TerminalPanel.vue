@@ -155,7 +155,7 @@ defineExpose({
               <div
                 v-if="generatedFrom"
                 class="group flex max-w-[200px] flex-row items-center font-normal hover:cursor-pointer"
-                @click="bench.openViewRun({ id: toGlobalId('Run', generatedIn) }, { focus: true })"
+                @click.stop="bench.openViewRun({ id: toGlobalId('Run', generatedIn) }, { focus: true })"
               >
                 <SparklesIcon class="h-4 w-4 flex-shrink-0 text-gray-400" />
                 <span class="underline-offfset-2 ml-1 truncate text-gray-400 group-hover:underline">
@@ -165,7 +165,7 @@ defineExpose({
               <!-- Run ID -->
               <button
                 class="flex-shrink-0 font-mono underline-offset-2 hover:underline"
-                @click="bench.openViewRun(run, { focus: true })"
+                @click.stop="bench.openViewRun(run, { focus: true })"
                 :class="[
                   !ACTIVE_RUN_STATUSES.includes(run.status) && run.status != RunStatus.Completed
                     ? getRunStatusColor(run.status)

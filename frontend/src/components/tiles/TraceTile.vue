@@ -143,7 +143,7 @@ function openRun(run: Run) {
         :style="{
           marginLeft: node.depth * 20 + 'px',
         }"
-        @click="openRun(node.run)"
+        @click.stop="openRun(node.run)"
       >
         <!-- Header -->
         <div class="flex flex-row items-center">
