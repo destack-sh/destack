@@ -49,7 +49,6 @@ const props = defineProps<{
   readonly: boolean;
   active: boolean;
   debounced?: boolean;
-  full?: boolean /* TODO @UX: support full inline rendering of value interface */;
   supportsDrop?: boolean;
   wrap?: boolean;
 }>();

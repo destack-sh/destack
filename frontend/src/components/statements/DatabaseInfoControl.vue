@@ -44,7 +44,7 @@ defineExpose({
 </script>
 <template>
   <div>
-    <!-- For now just info button -->
+    <!-- Info button -->
     <button
       ref="infoButtonRef"
       class="group flex flex-row rounded-sm focus:outline-none"

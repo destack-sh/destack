@@ -5,9 +5,16 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { onStartTyping } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { useCurrentModule } from "@/state/module";
+import { TypeFlag, useCurrentModule } from "@/state/module";
 import { TypeTag } from "@/gql/graphql";
-import { ChevronDoubleDownIcon, DocumentDuplicateIcon, QueueListIcon, TableCellsIcon } from "@heroicons/vue/24/outline";
+import {
+  ChevronDoubleDownIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  DocumentDuplicateIcon,
+  QueueListIcon,
+  TableCellsIcon,
+} from "@heroicons/vue/24/outline";
 import { IS_DEBUG } from "@/utils/globals";
 
 type StructAppearance = {
@@ -18,6 +25,7 @@ type StructAppearance = {
   hideFieldOutline?: boolean;
   hideFieldType?: boolean;
   minimalFields?: boolean;
+  view?: "tree" | "grid";
 };
 
 const DEFAULT_APPEARANCE = {
@@ -28,6 +36,7 @@ const DEFAULT_APPEARANCE = {
   hideFieldOutline: true,
   hideFieldType: true,
   minimalFields: false,
+  view: "grid",
 };
 
 const props = defineProps<{
@@ -55,20 +64,30 @@ const emit = defineEmits<{
 
 const appearance = computed(() => ({ ...DEFAULT_APPEARANCE, ...props.appearance }));
 const module = useCurrentModule();
-const fields = computed(() => {
-  if (Array.isArray(props.type)) {
-    return props.type;
-  }
-  const statement = props.type.__typename == "Statement" ? props.type : module.statementOf(props.type.referenceCk);
+
+function getFields(node: Field | Statement, isOutput?: boolean): Field[] {
+  const statement = node.__typename == "Statement" ? node : module.statementOf(node.referenceCk);
   return (
     statement?.resolvedFields
       ?.map((f) => f as ResolvedField)
       .map((f) => (f?.fieldCk == null ? null : module.fieldOf(f.fieldCk)))
-      .filter((f) => f != null && f.deletedAt == null)
+      .filter(
+        (f) =>
+          f != null &&
+          f.deletedAt == null &&
+          (isOutput === undefined || Boolean(f.flags & TypeFlag.IS_OUTPUT) === isOutput)
+      )
       .map((f) => f as Field) ?? []
   );
+}
+
+const fields = computed(() => {
+  if (Array.isArray(props.type)) {
+    return props.type;
+  }
+  return getFields(props.type, props.isOutput);
 });
-const display: Ref<"tree" | "grid"> = ref("grid");
+const display: Ref<"tree" | "grid"> = ref((appearance.value.view as "tree" | "grid") ?? "grid");
 
 function readField(field: Field) {
   return props.modelValue[module.getTypedKey(field) as string];
@@ -118,7 +137,83 @@ const rowHeights = computed(() =>
   )
 );
 
-// tree (inline)
+// tree (inline, linearized)
+type Node = {
+  id: string;
+  name?: string;
+  depth: number;
+  children?: Node[];
+  expanded?: boolean;
+  value: any;
+  field?: Field;
+  index?: number;
+};
+const expandedNodeIds: Ref<string[] | null> = ref(null);
+const nodes: Ref<Node[]> = computed(() => {
+  const nodes: Node[] = [];
+  if (display.value != "tree") {
+    return nodes;
+  }
+
+  function walk(value: any, field: Field, depth: number, options?: { index?: number; ignore?: boolean }): Node {
+    if (field.tag == TypeTag.TypeReference) {
+      field = module.effectiveTypeOf(field);
+    }
+    const isArray =
+      options?.index == undefined &&
+      (field.flags & TypeFlag.IS_ARRAY || (field.flags & TypeFlag.IS_ARRAYABLE && Array.isArray(value)));
+    const hasChildren = Boolean(isArray) || field.tag == TypeTag.Struct;
+    const id = options?.index != null ? `${field.id}:${options?.index}` : field.id;
+    const node: Node = {
+      id,
+      name: options?.index != null ? `${options?.index}` : field.name ?? undefined,
+      depth,
+      value,
+      field,
+      index: options?.index,
+      expanded: hasChildren && (expandedNodeIds.value == null || expandedNodeIds.value.includes(id)),
+    };
+    if (!options?.ignore) {
+      nodes.push(node);
+    }
+
+    // walk children (array elements or struct fields)
+    let children: Node[] | undefined = undefined;
+    if (isArray && Array.isArray(value)) {
+      // walk array
+      children = value.map((v, i) => walk(v, field, depth + 1, { index: i, ignore: !node.expanded }));
+      node.name = node.name + " (" + value.length + ")";
+    } else if (field.tag == TypeTag.Struct) {
+      // walk struct field
+      const childFields = getFields(field);
+      children = childFields.map((f) =>
+        walk(value[module.getTypedKey(f) ?? ""], f, depth + 1, { ignore: !node.expanded })
+      );
+    }
+
+    node.children = children;
+    return node;
+  }
+  // walk root fields
+  for (const field of fields.value) {
+    walk(props.modelValue[module.getTypedKey(field) ?? ""], field, 0);
+  }
+  // auto expand everything up to a certain depth on first tree render
+
+  return nodes;
+});
+function toggleExpanded(node: Node) {
+  if (node.children == null) return;
+  if (expandedNodeIds.value == null) {
+    // init to all expanded
+    expandedNodeIds.value = nodes.value.filter((n) => n.children != null).map((n) => n.id);
+  }
+  if (node.expanded) {
+    expandedNodeIds.value = expandedNodeIds.value.filter((id) => id != node.id);
+  } else {
+    expandedNodeIds.value = [...expandedNodeIds.value, node.id];
+  }
+}
 
 defineExpose({
   focus: (position: "first" | "last" | string = "first") => {
@@ -145,8 +240,8 @@ defineExpose({
     <table v-if="display == 'grid'" ref="gridRef" class="w-full table-fixed">
       <tr v-for="(field, y) in fields" :key="field.id">
         <td
-          class="w-1/3 self-start p-0"
           v-if="!appearance.minimalFields"
+          class="w-1/3 self-start p-0"
           :class="[appearance.verticalBorders && y > 0 ? 'border-t border-red-900/[12%]' : '']"
         >
           <FieldInterface
@@ -175,8 +270,8 @@ defineExpose({
         </td>
         <td class="w-full p-0" :class="[appearance.verticalBorders && y > 0 ? 'border-t border-orange-900/[12%]' : '']">
           <!-- should probably separate the 'minimal fields' out, but not sure what becomes of that yet -->
-          <div class="w-full px-1" v-if="appearance.minimalFields">
-            <span class="text-xs font-semibold text-gray-500">{{ field.name }}</span>
+          <div class="w-full select-none px-1" v-if="appearance.minimalFields">
+            <span class="font-semibold text-gray-500">{{ field.name }}</span>
           </div>
           <ValueInterface
             :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
@@ -202,24 +297,39 @@ defineExpose({
     </table>
     <!-- Tree view -->
     <div v-else class="flex flex-col">
-      {{ modelValue /* nocheckin tree */ }}
+      <div
+        v-for="node in nodes"
+        :key="node.id"
+        class="flex min-h-[24px] flex-row rounded-sm px-1 py-0.5 hover:bg-orange-100"
+        :class="[node.children != null ? 'hover:cursor-pointer' : '']"
+        :style="{ marginLeft: node.depth * 18 + 'px' }"
+        @click="toggleExpanded(node)"
+      >
+        <ChevronRightIcon
+          v-if="node.children"
+          class="mr-0.5 mt-0.5 h-4 w-4 text-gray-500 transition-transform duration-150"
+          :class="[node.expanded ? 'rotate-90' : '']"
+        />
+        <span class="select-none font-semibold text-gray-500">{{ node.name }}:</span>
+        <ValueInterface
+          v-if="node.field != null && !node.expanded"
+          :model-value="node.value"
+          readonly
+          :type="node.field"
+          active
+          class="scroll-hidden pointer-events-none ml-1.5 self-start overflow-auto"
+          :style="{ 'max-height': appearance.maxRowHeight + 'px' }"
+        />
+      </div>
     </div>
     <!-- Controls (featured flagged for debug) -->
     <div v-if="showControls && IS_DEBUG" class="absolute right-0.5 top-0.5 flex flex-row gap-1 bg-white p-0.5">
-      <!-- Expand/collapse all -->
-      <button v-if="display == 'tree'" class="rounded-sm p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700">
-        <component :is="ChevronDoubleDownIcon" class="h-4 w-4" />
-      </button>
       <!-- Toggle view -->
       <button
         @click="display = display == 'tree' ? 'grid' : 'tree'"
         class="rounded-sm p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
       >
         <component :is="display == 'grid' ? TableCellsIcon : QueueListIcon" class="h-4 w-4" />
-      </button>
-      <!-- Copy json -->
-      <button class="rounded-sm p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700">
-        <DocumentDuplicateIcon class="h-4 w-4" />
       </button>
     </div>
   </div>

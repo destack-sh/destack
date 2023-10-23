@@ -111,7 +111,7 @@ defineExpose({
       v-for="(struct, i) in modelValue"
       :ref="(el: any) => structInlineRefs.registerRef(i.toString(), el)"
       :key="i"
-      class="group/struct relative flex flex-row items-center gap-1.5 bg-gray-100 px-2 hover:cursor-pointer"
+      class="group/struct relative flex flex-row items-center gap-1 px-2 hover:cursor-pointer"
       @click.stop.prevent="readonly || open(i)"
       @keydown.enter.stop.prevent="readonly || open(i)"
       @focus="editingIndex || (activeIndex = i)"
@@ -138,8 +138,8 @@ defineExpose({
       </button>
     </div>
     <!-- Struct preview on hover -->
-    <!-- TODO @Broken: fix struct editability -->
-    <!-- The use of pin & fixed here is not incidental, value interfaces are usually clipped so we can't use absolute. -->
+    <!-- TODO @UX: fix struct editability -->
+    <!-- pin & fixed here is on purpose, value interfaces are usually clipped so we can't use absolute. -->
     <FadeTransition>
       <div
         v-if="activeIndex != null"
@@ -153,7 +153,7 @@ defineExpose({
           @close="(activeIndex = null), (editingIndex = false)"
           debounced
           show-controls
-          :readonly="!editingIndex || true /* TODO @Broken: editing structs in struct input fails */"
+          :readonly="!editingIndex || true /* TODO @UX: editing structs in struct input fails */"
           :appearance="{ minimalFields: true, hideFieldType: true }"
         />
       </div>
