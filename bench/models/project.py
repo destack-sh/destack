@@ -90,7 +90,7 @@ class ProjectManager(models.Manager["Project"]):
 RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
 
 
-class ModuleAccessLevel(models.IntegerChoices):
+class ModuleAccessLevel(models.IntegerChoices):  # :ModuleAccessLevel
     Zero = 0  # no access
     Read = 1  # can view and comment
     Use = 4  # can run
@@ -114,6 +114,7 @@ class Project(UUIDModel, CrudModel):
     visibility = models.CharField(
         max_length=32, choices=ProjectVisibility.choices, default=ProjectVisibility.PRIVATE
     )
+    base_level = models.IntegerField(default=ModuleAccessLevel.Read)
     sharing_enabled = models.BooleanField(default=True)
     sharing_token = models.UUIDField(default=uuid4)
     sharing_level = models.IntegerField(default=ModuleAccessLevel.Read)

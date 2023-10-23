@@ -9,7 +9,7 @@ import {
   useNavigation,
   type NodeBase,
   type InterpStatement,
-  Statement,
+  type Statement,
 } from "@/state/module";
 import { computed, ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";

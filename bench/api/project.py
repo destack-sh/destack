@@ -22,6 +22,7 @@ from bench.api.utils import (
 )
 from bench.language import const
 from bench.language.cache import _get_usage_key
+from bench.models import ModuleAccessLevel
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
 from bench.opensearch.query import prepare_search
@@ -112,9 +113,6 @@ def get_project_usage(info: Info) -> ProjectUsage:
     )
 
 
-ModuleAccessLevel = strawberry.enum(models.ModuleAccessLevel)
-
-
 @strawberry_django.type(models.Project)
 class Project(relay.Node):
     created_at: auto
@@ -126,9 +124,10 @@ class Project(relay.Node):
     description: auto
 
     owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
+    base_level: int
     sharing_enabled: bool
     sharing_token: Optional[UUID]
-    sharing_level: ModuleAccessLevel
+    sharing_level: int
 
     head: "ProjectVersion"
     versions: strawberry_django.relay.ListConnectionWithTotalCount[
@@ -140,7 +139,7 @@ class Project(relay.Node):
     usage: ProjectUsage = strawberry_django.field(resolver=get_project_usage)
 
     @strawberry_django.field
-    def access_level(self, info: OperationInfo) -> ModuleAccessLevel:
+    def access_level(self, info: OperationInfo) -> int:
         access = has_module_access(info, self, models.ModuleAccessLevel.Read)
         return access.level if access else models.ModuleAccessLevel.Zero
 
@@ -149,7 +148,7 @@ class Project(relay.Node):
 class ProjectMembership(relay.Node):
     project: Project
     user: Annotated["User", lazy(".user")]
-    level: ModuleAccessLevel
+    level: int
     created_at: auto
     updated_at: auto
 
@@ -159,7 +158,7 @@ class ProjectInvite(relay.Node):
     project: Project
     user: Optional[Annotated["User", lazy(".user")]]
     email: auto
-    level: ModuleAccessLevel
+    level: int
     created_at: auto
     updated_at: auto
     email_sent_at: auto
@@ -194,9 +193,10 @@ class ProjectUpdateVisibilityInput(strawberry_django.NodeInput):
 
 @strawberry.input
 class ProjectUpdateSharingInput(strawberry_django.NodeInput):
+    base_level: int
     sharing_enabled: bool
     sharing_token: UUID
-    sharing_level: ModuleAccessLevel
+    sharing_level: int
 
 
 @strawberry.input
@@ -207,14 +207,14 @@ class ProjectUpdateNameInput(strawberry_django.NodeInput):
 @strawberry.input
 class ProjectInviteInput(strawberry_django.NodeInput):
     emails: list[str]
-    level: ModuleAccessLevel
+    level: int
     message: Optional[str] = None
 
 
 @strawberry.input
 class ProjectUpdateMembershipInput(strawberry_django.NodeInput):
     user_id: GlobalID
-    level: ModuleAccessLevel
+    level: int
 
 
 @strawberry.input
@@ -256,6 +256,7 @@ class ProjectMutation:
     ) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
         check_module_access(info, project, ModuleAccessLevel.Manage)
+        project.base_level = input.base_level
         project.sharing_enabled = input.sharing_enabled
         project.sharing_token = input.sharing_token
         project.sharing_level = input.sharing_level

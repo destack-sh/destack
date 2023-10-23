@@ -2,8 +2,8 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import { formatDuration, useNow } from "@/composables/useNow";
-import { RunStatus, StatementType, type Run, type Statement } from "@/gql/graphql";
-import { useBenchState, type PanelGroup, usePanelContext } from "@/state/bench";
+import type { RunStatus, Run, Statement } from "@/gql/graphql";
+import { useBenchState, usePanelContext } from "@/state/bench";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { TERMINAL_RUN_STATUSES, getRunStatusColor, getRunStatusIconSolid, useRun } from "@/state/session";
 import { getUUIDFromGlobalID } from "@/utils/functools";
