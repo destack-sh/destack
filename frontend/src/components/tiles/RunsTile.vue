@@ -107,7 +107,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
           <button
             v-if="statementsByCk[run.statementCk] != null"
             class="flex flex-row items-center underline-offset-2 hover:underline"
-            @click="nav.focusStatement(run.statement as NodeBase)"
+            @click.stop.prevent="nav.focusStatement(run.statement as NodeBase)"
           >
             <component
               :is="getStatementIconSolid((statementsByCk[run.statementCk] as InterpStatement).type)"
