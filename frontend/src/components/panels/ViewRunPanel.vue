@@ -251,7 +251,7 @@ defineExpose({
             full-inputs
             show-controls
             readonly
-            :appearance="{ minimalFields: true, hideFieldType: true }"
+            :appearance="{ minimalFields: true, hideFieldType: true, view: 'tree' }"
           />
         </ContainerTile>
         <!-- Output -->
