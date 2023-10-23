@@ -153,7 +153,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
                 in
                 <button
                   class="underline-offset-2 hover:underline"
-                  @click="bench.openViewRun(run.parent, { focus: true })"
+                  @click.stop="bench.openViewRun(run.parent, { focus: true })"
                 >
                   #{{ getUUIDFromGlobalID(run.parent.id).slice(-7, -1) }}
                 </button>
