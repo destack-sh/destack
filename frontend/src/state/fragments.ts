@@ -78,6 +78,7 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
     }
     visibility
     accessLevel
+    baseLevel
     sharingEnabled
     sharingToken
     sharingLevel

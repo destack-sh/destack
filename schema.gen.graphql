@@ -500,15 +500,6 @@ type LogEntryEdge {
   node: LogEntry!
 }
 
-enum ModuleAccessLevel {
-  Zero
-  Read
-  Use
-  Edit
-  Manage
-  Admin
-}
-
 type ModuleChange implements Change {
   id: UUID!
   clientId: GlobalID
@@ -954,9 +945,10 @@ type Project implements Node {
   path: String!
   description: String
   owner: UserOrganization!
+  baseLevel: Int!
   sharingEnabled: Boolean!
   sharingToken: UUID
-  sharingLevel: ModuleAccessLevel!
+  sharingLevel: Int!
   head: ProjectVersion!
   versions(
     filters: ProjectVersionFilter
@@ -976,7 +968,7 @@ type Project implements Node {
   workerSet: WorkerSet!
   workerSets: [WorkerSet!]!
   usage: ProjectUsage!
-  accessLevel: ModuleAccessLevel!
+  accessLevel: Int!
 }
 
 type ProjectChange implements Change {
@@ -1018,7 +1010,7 @@ type ProjectInvite implements Node {
   project: Project!
   user: User
   email: String!
-  level: ModuleAccessLevel!
+  level: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
   emailSentAt: DateTime
@@ -1027,7 +1019,7 @@ type ProjectInvite implements Node {
 input ProjectInviteInput {
   id: GlobalID!
   emails: [String!]!
-  level: ModuleAccessLevel!
+  level: Int!
   message: String = null
 }
 
@@ -1045,9 +1037,10 @@ input ProjectUpdateNameInput {
 
 input ProjectUpdateSharingInput {
   id: GlobalID!
+  baseLevel: Int!
   sharingEnabled: Boolean!
   sharingToken: UUID!
-  sharingLevel: ModuleAccessLevel!
+  sharingLevel: Int!
 }
 
 input ProjectUpdateVisibilityInput {

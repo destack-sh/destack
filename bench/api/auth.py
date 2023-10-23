@@ -154,7 +154,7 @@ def get_sharing_token_access(info: Info, project: models.Project) -> Optional[Mo
 
 def get_default_project_access(project: models.Project) -> Optional[ModuleAccessInfo]:
     if project.visibility == models.ProjectVisibility.PUBLIC:
-        return ModuleAccessInfo(None, project, None, models.ModuleAccessLevel.Read)
+        return ModuleAccessInfo(None, project, None, project.base_level)
     return None
 
 

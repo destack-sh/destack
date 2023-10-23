@@ -194,7 +194,7 @@ const nodes: Ref<Node[]> = computed(() => {
         walk(v, field, depth + 1, { parentId: node.id, index: i, ignore: !node.expanded })
       );
       node.name = node.name + " (" + value.length + ")";
-    } else if (field.tag == TypeTag.Struct) {
+    } else if (field.tag == TypeTag.Struct && value != null) {
       // walk struct field
       const childFields = getFields(field);
       children = childFields.map((f) =>
@@ -328,7 +328,7 @@ defineExpose({
           readonly
           :type="node.field"
           active
-          :wrap="node.children != null && !node.expanded"
+          :wrap="node.children == null || !node.expanded"
           class="scroll-hidden pointer-events-none ml-1.5 max-w-full self-start overflow-auto"
           :style="{ 'max-height': appearance.maxRowHeight + 'px' }"
         />

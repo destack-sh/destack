@@ -96,28 +96,11 @@ const actions: Ref<Action[]> = computed(() => [
         v-else
         :is="action.icon"
         class="mr-1 h-5 w-5"
-        :class="[
-          action.disabled
-            ? action.highlight
-              ? 'text-gray-700'
-              : 'text-gray-300'
-            : action.highlight
-            ? 'text-white'
-            : 'text-gray-500',
-        ]"
+        :class="action.disabled ? 'text-gray-300' : action.highlight ? 'text-white' : 'text-gray-500'"
       />
-      <span
-        :class="[
-          action.disabled
-            ? action.highlight
-              ? 'text-gray-700'
-              : 'text-gray-500'
-            : action.highlight
-            ? 'text-white'
-            : 'text-gray-900',
-        ]"
-        >{{ action.label }}</span
-      >
+      <span :class="action.disabled ? 'text-gray-500' : action.highlight ? 'text-white' : 'text-gray-900'">
+        {{ action.label }}
+      </span>
     </button>
   </div>
 </template>

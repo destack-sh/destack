@@ -7,9 +7,17 @@ import { createSharedComposable } from "@vueuse/shared";
 import posthog from "posthog-js";
 import { computed, watchEffect } from "vue";
 import { useRouter } from "vue-router";
-import { parse as parseUuid, stringify as stringifyUuid } from "uuid";
 
 export const NON_SOCIAL_AUTH_ENABLED = import.meta.env.ENVIRONMENT === "development";
+
+export enum ModuleAccessLevel { // :ModuleAccessLevel
+  Zero = 0,
+  Read = 1,
+  Use = 4,
+  Edit = 8,
+  Manage = 12,
+  Admin = 16,
+}
 
 export function encodeSharingToken(uuid: string): string {
   /* Encode hex uuid into base64 */

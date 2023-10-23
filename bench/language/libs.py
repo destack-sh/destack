@@ -354,7 +354,7 @@ class BaseTextTaskCompiler(TaskCompiler):
             completed_pairs = re.findall(
                 r"['\"](?P<key>.*?)['\"]:\s*\n```([a-z]+)?\n?(?P<body>.*?)```",
                 body.strip(),
-                flags=re.DOTALL,
+                flags=re.DOTALL | re.MULTILINE,
             )
             for key, _, value in completed_pairs:
                 field = task.resolved_fields.get(key)

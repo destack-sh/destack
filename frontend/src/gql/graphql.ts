@@ -531,15 +531,6 @@ export type LogEntryEdge = {
   node: LogEntry;
 };
 
-export enum ModuleAccessLevel {
-  Admin = "Admin",
-  Edit = "Edit",
-  Manage = "Manage",
-  Read = "Read",
-  Use = "Use",
-  Zero = "Zero",
-}
-
 export type ModuleChange = Change & {
   __typename?: "ModuleChange";
   clientId?: Maybe<Scalars["GlobalID"]["output"]>;
@@ -1303,7 +1294,8 @@ export type PageInfo = {
 
 export type Project = Node & {
   __typename?: "Project";
-  accessLevel: ModuleAccessLevel;
+  accessLevel: Scalars["Int"]["output"];
+  baseLevel: Scalars["Int"]["output"];
   createdAt: Scalars["DateTime"]["output"];
   description?: Maybe<Scalars["String"]["output"]>;
   head: ProjectVersion;
@@ -1313,7 +1305,7 @@ export type Project = Node & {
   owner: UserOrganization;
   path: Scalars["String"]["output"];
   sharingEnabled: Scalars["Boolean"]["output"];
-  sharingLevel: ModuleAccessLevel;
+  sharingLevel: Scalars["Int"]["output"];
   sharingToken?: Maybe<Scalars["UUID"]["output"]>;
   slug: Scalars["String"]["output"];
   updatedAt: Scalars["DateTime"]["output"];
@@ -1372,7 +1364,7 @@ export type ProjectInvite = Node & {
   emailSentAt?: Maybe<Scalars["DateTime"]["output"]>;
   /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"]["output"];
-  level: ModuleAccessLevel;
+  level: Scalars["Int"]["output"];
   project: Project;
   updatedAt: Scalars["DateTime"]["output"];
   user?: Maybe<User>;
@@ -1381,7 +1373,7 @@ export type ProjectInvite = Node & {
 export type ProjectInviteInput = {
   emails: Array<Scalars["String"]["input"]>;
   id: Scalars["GlobalID"]["input"];
-  level: ModuleAccessLevel;
+  level: Scalars["Int"]["input"];
   message?: InputMaybe<Scalars["String"]["input"]>;
 };
 
@@ -1398,9 +1390,10 @@ export type ProjectUpdateNameInput = {
 };
 
 export type ProjectUpdateSharingInput = {
+  baseLevel: Scalars["Int"]["input"];
   id: Scalars["GlobalID"]["input"];
   sharingEnabled: Scalars["Boolean"]["input"];
-  sharingLevel: ModuleAccessLevel;
+  sharingLevel: Scalars["Int"]["input"];
   sharingToken: Scalars["UUID"]["input"];
 };
 
@@ -2665,7 +2658,7 @@ export type NotificationsQuery = {
           projectInvite: {
             __typename?: "ProjectInvite";
             id: any;
-            level: ModuleAccessLevel;
+            level: number;
             project: { __typename?: "Project"; id: any; slug: string; name: string };
           };
         };
@@ -3492,10 +3485,11 @@ export type ProjectHeaderFragment = {
   name: string;
   slug: string;
   visibility: ProjectVisibility;
-  accessLevel: ModuleAccessLevel;
+  accessLevel: number;
+  baseLevel: number;
   sharingEnabled: boolean;
   sharingToken?: any | null;
-  sharingLevel: ModuleAccessLevel;
+  sharingLevel: number;
   head: { __typename?: "ProjectVersion" } & {
     " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
   };
@@ -3804,7 +3798,7 @@ export type NewNotificationsQuery = {
           projectInvite: {
             __typename?: "ProjectInvite";
             id: any;
-            level: ModuleAccessLevel;
+            level: number;
             project: { __typename?: "Project"; id: any; slug: string; name: string };
           };
         };
@@ -4182,9 +4176,10 @@ export type UpdateProjectVisibilityMutation = {
 
 export type UpdateProjectSharingMutationVariables = Exact<{
   id: Scalars["GlobalID"]["input"];
+  baseLevel: Scalars["Int"]["input"];
   sharingEnabled: Scalars["Boolean"]["input"];
   sharingToken: Scalars["UUID"]["input"];
-  sharingLevel: ModuleAccessLevel;
+  sharingLevel: Scalars["Int"]["input"];
 }>;
 
 export type UpdateProjectSharingMutation = {
@@ -4196,9 +4191,10 @@ export type UpdateProjectSharingMutation = {
     | {
         __typename?: "Project";
         id: any;
+        baseLevel: number;
         sharingEnabled: boolean;
         sharingToken?: any | null;
-        sharingLevel: ModuleAccessLevel;
+        sharingLevel: number;
       };
 };
 
@@ -5815,6 +5811,7 @@ export const ProjectHeaderFragmentDoc = {
           },
           { kind: "Field", name: { kind: "Name", value: "visibility" } },
           { kind: "Field", name: { kind: "Name", value: "accessLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "baseLevel" } },
           { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
           { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
           { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },
@@ -9536,6 +9533,7 @@ export const ProjectBySlugDocument = {
           },
           { kind: "Field", name: { kind: "Name", value: "visibility" } },
           { kind: "Field", name: { kind: "Name", value: "accessLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "baseLevel" } },
           { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
           { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
           { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },
@@ -13913,6 +13911,7 @@ export const CreateProjectDocument = {
           },
           { kind: "Field", name: { kind: "Name", value: "visibility" } },
           { kind: "Field", name: { kind: "Name", value: "accessLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "baseLevel" } },
           { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
           { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
           { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },
@@ -14104,6 +14103,11 @@ export const UpdateProjectSharingDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "baseLevel" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "sharingEnabled" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
         },
@@ -14115,10 +14119,7 @@ export const UpdateProjectSharingDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "sharingLevel" } },
-          type: {
-            kind: "NonNullType",
-            type: { kind: "NamedType", name: { kind: "Name", value: "ModuleAccessLevel" } },
-          },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
         },
       ],
       selectionSet: {
@@ -14138,6 +14139,11 @@ export const UpdateProjectSharingDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "id" },
                       value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "baseLevel" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "baseLevel" } },
                     },
                     {
                       kind: "ObjectField",
@@ -14168,6 +14174,7 @@ export const UpdateProjectSharingDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "baseLevel" } },
                       { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
                       { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
                       { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },
@@ -21246,6 +21253,7 @@ export const SnapshotDocument = {
           },
           { kind: "Field", name: { kind: "Name", value: "visibility" } },
           { kind: "Field", name: { kind: "Name", value: "accessLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "baseLevel" } },
           { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
           { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
           { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },

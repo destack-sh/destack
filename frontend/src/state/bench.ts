@@ -9,7 +9,6 @@ import {
   type Scalars,
   type Statement,
   type SearchSort,
-  ModuleAccessLevel,
   type RunError,
 } from "@/gql/graphql";
 import {
@@ -49,6 +48,7 @@ import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, watch, type Ref, nextTick } from "vue";
 import { validate as isValidUUID } from "uuid";
 import type EditFilePanelVue from "@/components/panels/EditFilePanel.vue";
+import { ModuleAccessLevel } from "@/state/auth";
 
 export const PROJECT_ACCESS_LEVELS = [
   ModuleAccessLevel.Zero,
@@ -72,6 +72,10 @@ export function projectAccessGt(a: ModuleAccessLevel, b: ModuleAccessLevel): boo
   return PROJECT_ACCESS_LEVELS.indexOf(a) > PROJECT_ACCESS_LEVELS.indexOf(b);
 }
 
+export function projectAccessGte(a: ModuleAccessLevel, b: ModuleAccessLevel): boolean {
+  return PROJECT_ACCESS_LEVELS.indexOf(a) >= PROJECT_ACCESS_LEVELS.indexOf(b);
+}
+
 export function projectAccessLt(a: ModuleAccessLevel, b: ModuleAccessLevel): boolean {
   return PROJECT_ACCESS_LEVELS.indexOf(a) < PROJECT_ACCESS_LEVELS.indexOf(b);
 }
@@ -84,6 +88,7 @@ export type ProjectHeader = Pick<
   | "accessLevel"
   | "createdAt"
   | "updatedAt"
+  | "baseLevel"
   | "sharingEnabled"
   | "sharingToken"
   | "sharingLevel"
@@ -300,7 +305,7 @@ export const useBenchState = defineStore("bench", {
       // bench
       projectId: null as string | null,
       projectVersionId: null as string | null,
-      ModuleAccessLevel: null as ModuleAccessLevel | null,
+      accessLevel: null as ModuleAccessLevel | null,
       readonly: false,
       // views
       activeViewId: "explorer" as ViewId,
@@ -324,16 +329,16 @@ export const useBenchState = defineStore("bench", {
   getters: {
     // access
     canRead(): boolean {
-      return projectAccessGt(this.ModuleAccessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Read);
+      return projectAccessGte(this.accessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Read);
     },
     canUse(): boolean {
-      return projectAccessGt(this.ModuleAccessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Use);
+      return projectAccessGte(this.accessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Use);
     },
     canEdit(): boolean {
-      return projectAccessGt(this.ModuleAccessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Edit);
+      return projectAccessGt(this.accessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Edit);
     },
     canManage(): boolean {
-      return projectAccessGt(this.ModuleAccessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Manage);
+      return projectAccessGte(this.accessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Manage);
     },
     // bench
     groups(state) {

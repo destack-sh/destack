@@ -17,9 +17,9 @@ import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
 import ViewIssues from "@/components/views/ViewIssues.vue";
 import { graphql, useFragment } from "@/gql";
-import { ModuleAccessLevel, WorkerSetStatus } from "@/gql/graphql";
+import { WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
-import { decodeSharingToken, useAuth } from "@/state/auth";
+import { ModuleAccessLevel, decodeSharingToken, useAuth } from "@/state/auth";
 import {
   PANEL_INSTANCE_TYPES,
   prettifySlug,
@@ -401,7 +401,7 @@ watchEffect(() => {
     !versionLoaded.value ||
     versionToViewId.value != projectHead.value?.id ||
     ![ModuleAccessLevel.Admin, ModuleAccessLevel.Manage, ModuleAccessLevel.Edit].includes(
-      bench.ModuleAccessLevel as ModuleAccessLevel
+      bench.accessLevel as ModuleAccessLevel
     ) ||
     versionFetched.value?.committed == true;
 });
@@ -422,7 +422,7 @@ watch(
     if (versionToViewId.value != null && bench.projectVersionId != versionToViewId.value) {
       bench.projectVersionId = versionToViewId.value;
     }
-    bench.ModuleAccessLevel = projectFetched.value?.accessLevel ?? null;
+    bench.accessLevel = projectFetched.value?.accessLevel ?? null;
   },
   { immediate: true }
 );
@@ -474,6 +474,7 @@ onBeforeUnmount(() => {
           >
             <span class="select-all">{{ getUUIDFromGlobalID(bench.projectId) }}</span> /
             <span class="select-all">{{ getUUIDFromGlobalID(bench.projectVersionId) }}</span>
+            ({{ PROJECT_ACCESS_LEVEL_NAME[bench.accessLevel as ModuleAccessLevel] }})
           </div>
           <!-- Version info (if not at head) -->
           <FadeTransition>
@@ -510,12 +511,12 @@ onBeforeUnmount(() => {
           </FadeTransition>
           <!-- Read-only project notice -->
           <div
-            v-if="bench.ModuleAccessLevel != null && !bench.canEdit"
+            v-if="bench.accessLevel != null && !bench.canEdit"
             class="ml-1.5 flex flex-row gap-2 rounded-sm border border-orange-900/[12%] bg-orange-100 px-2 py-0.5 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
               <EyeIconSolid class="top-0.0 absolute h-5 w-5 text-gray-500" />
-              <span class="ml-6 select-none">{{ PROJECT_ACCESS_LEVEL_NAME[bench.ModuleAccessLevel] }} only</span>
+              <span class="ml-6 select-none">{{ PROJECT_ACCESS_LEVEL_NAME[bench.accessLevel] }} only</span>
             </span>
           </div>
         </div>

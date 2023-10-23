@@ -1,11 +1,11 @@
 import { graphql } from "@/gql";
 import type {
-  ModuleAccessLevel,
   ProjectVisibility,
   UpdateProjectNameMutation,
   UpdateProjectVisibilityMutation,
   UpdateProjectSharingMutation,
 } from "@/gql/graphql";
+import type { ModuleAccessLevel } from "@/state/auth";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
@@ -75,15 +75,23 @@ export function useProjectOps() {
     graphql(/* GraphQL */ `
       mutation updateProjectSharing(
         $id: GlobalID!
+        $baseLevel: Int!
         $sharingEnabled: Boolean!
         $sharingToken: UUID!
-        $sharingLevel: ModuleAccessLevel!
+        $sharingLevel: Int!
       ) {
         updateProjectSharing(
-          input: { id: $id, sharingEnabled: $sharingEnabled, sharingToken: $sharingToken, sharingLevel: $sharingLevel }
+          input: {
+            id: $id
+            baseLevel: $baseLevel
+            sharingEnabled: $sharingEnabled
+            sharingToken: $sharingToken
+            sharingLevel: $sharingLevel
+          }
         ) {
           ... on Project {
             id
+            baseLevel
             sharingEnabled
             sharingToken
             sharingLevel
@@ -95,6 +103,7 @@ export function useProjectOps() {
     {
       optimisticResponse: (vars: {
         id: string;
+        baseLevel: ModuleAccessLevel;
         sharingEnabled: boolean;
         sharingToken: string;
         sharingLevel: ModuleAccessLevel;
@@ -104,6 +113,7 @@ export function useProjectOps() {
           updateProjectSharing: {
             __typename: "Project",
             id: vars.id,
+            baseLevel: vars.baseLevel,
             sharingEnabled: vars.sharingEnabled,
             sharingToken: vars.sharingToken,
             sharingLevel: vars.sharingLevel,
@@ -114,14 +124,15 @@ export function useProjectOps() {
 
   async function updateSharing(
     id: string,
+    baseLevel: number,
     sharingEnabled: boolean,
     sharingToken: string,
-    sharingLevel: ModuleAccessLevel
+    sharingLevel: number
   ) {
     return await ops.perform({
       type: "project.updateSharing",
       do: async () => {
-        return await updateSharingMut({ id, sharingEnabled, sharingToken, sharingLevel });
+        return await updateSharingMut({ id, baseLevel, sharingEnabled, sharingToken, sharingLevel });
       },
     });
   }

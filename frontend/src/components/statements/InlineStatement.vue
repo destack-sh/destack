@@ -657,7 +657,7 @@ function run() {
     return;
   }
   if (!bench.canUse) {
-    console.warn(`can't run ${statement.value} with access level ${bench.ModuleAccessLevel}`);
+    console.warn(`can't run ${statement.value} with access level ${bench.accessLevel}`);
     return;
   }
   // force sync
