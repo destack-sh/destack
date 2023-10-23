@@ -155,7 +155,12 @@ const nodes: Ref<Node[]> = computed(() => {
     return nodes;
   }
 
-  function walk(value: any, field: Field, depth: number, options?: { index?: number; ignore?: boolean }): Node {
+  function walk(
+    value: any,
+    field: Field,
+    depth: number,
+    options?: { parentId?: string; index?: number; ignore?: boolean }
+  ): Node {
     if (field.tag == TypeTag.TypeReference) {
       field = module.effectiveTypeOf(field);
     }
@@ -163,7 +168,10 @@ const nodes: Ref<Node[]> = computed(() => {
       options?.index == undefined &&
       (field.flags & TypeFlag.IS_ARRAY || (field.flags & TypeFlag.IS_ARRAYABLE && Array.isArray(value)));
     const hasChildren = Boolean(isArray) || field.tag == TypeTag.Struct;
-    const id = options?.index != null ? `${field.id}:${options?.index}` : field.id;
+    let id = options?.index != null ? `${field.key}:${options?.index}` : field.key;
+    if (options?.parentId != null) {
+      id = `${options?.parentId}.${id}`;
+    }
     const node: Node = {
       id,
       name: options?.index != null ? `${options?.index}` : field.name ?? undefined,
@@ -173,21 +181,24 @@ const nodes: Ref<Node[]> = computed(() => {
       index: options?.index,
       expanded: hasChildren && (expandedNodeIds.value == null || expandedNodeIds.value.includes(id)),
     };
-    if (!options?.ignore) {
-      nodes.push(node);
+    if (options?.ignore) {
+      return node;
     }
 
+    nodes.push(node);
     // walk children (array elements or struct fields)
     let children: Node[] | undefined = undefined;
     if (isArray && Array.isArray(value)) {
       // walk array
-      children = value.map((v, i) => walk(v, field, depth + 1, { index: i, ignore: !node.expanded }));
+      children = value.map((v, i) =>
+        walk(v, field, depth + 1, { parentId: node.id, index: i, ignore: !node.expanded })
+      );
       node.name = node.name + " (" + value.length + ")";
     } else if (field.tag == TypeTag.Struct) {
       // walk struct field
       const childFields = getFields(field);
       children = childFields.map((f) =>
-        walk(value[module.getTypedKey(f) ?? ""], f, depth + 1, { ignore: !node.expanded })
+        walk(value[module.getTypedKey(f) ?? ""], f, depth + 1, { parentId: node.id, ignore: !node.expanded })
       );
     }
 
@@ -310,20 +321,21 @@ defineExpose({
           class="mr-0.5 mt-0.5 h-4 w-4 text-gray-500 transition-transform duration-150"
           :class="[node.expanded ? 'rotate-90' : '']"
         />
-        <span class="select-none font-semibold text-gray-500">{{ node.name }}:</span>
+        <span class="flex-shrink-0 select-none whitespace-nowrap font-semibold text-gray-500">{{ node.name }}:</span>
         <ValueInterface
           v-if="node.field != null && !node.expanded"
           :model-value="node.value"
           readonly
           :type="node.field"
           active
-          class="scroll-hidden pointer-events-none ml-1.5 self-start overflow-auto"
+          :wrap="node.children != null && !node.expanded"
+          class="scroll-hidden pointer-events-none ml-1.5 max-w-full self-start overflow-auto"
           :style="{ 'max-height': appearance.maxRowHeight + 'px' }"
         />
       </div>
     </div>
-    <!-- Controls (featured flagged for debug) -->
-    <div v-if="showControls && IS_DEBUG" class="absolute right-0.5 top-0.5 flex flex-row gap-1 bg-white p-0.5">
+    <!-- Controls -->
+    <div v-if="showControls" class="absolute right-0.5 top-0.5 flex flex-row gap-1 bg-white p-0.5">
       <!-- Toggle view -->
       <button
         @click="display = display == 'tree' ? 'grid' : 'tree'"
