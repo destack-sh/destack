@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useAppearance } from "@/state/appearance";
-import { useCurrentModule, TypeFlag, type Field } from "@/state/module";
+import { useCurrentModule, TypeFlag, type Field, useNavigation } from "@/state/module";
 import { computed, type Ref, ref } from "vue";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { getEnumColor } from "@/state/statement";
@@ -18,6 +18,7 @@ const emit = defineEmits<{
 }>();
 
 const module = useCurrentModule();
+const nav = useNavigation();
 const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IS_ARRAY));
 const runtimeType = computed(() => module.statementOf(props.type.referenceCk));
 
@@ -67,24 +68,26 @@ defineExpose({
     <span
       v-for="member in selectedMembers"
       :key="member.key"
-      class="inline-flex items-center gap-x-1.5 rounded-sm bg-amber-100 px-2 text-gray-900 ring-1 ring-inset ring-amber-600/[15%]"
+      class="inline-flex items-center gap-x-1 rounded-sm px-2 text-gray-900 hover:cursor-pointer hover:bg-amber-100"
     >
-      <svg class="h-[7px] w-[7px]" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
+      <svg class="h-[8px] w-[8px]" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
         <rect rx="2" ry="2" width="5" height="6" />
       </svg>
-      {{ member.name }}
+      <span class="underline decoration-gray-300 underline-offset-4">
+        {{ member.name }}
+      </span>
       <!-- Delete button -->
       <button
         v-if="!preview && !readonly"
         class="p-0.5 text-gray-300 hover:text-gray-700"
-        @click="removeValue(member.key)"
+        @click.stop="removeValue(member.key)"
       >
         x
       </button>
     </span>
     <!-- Ensure there's always something -->
     <template v-if="selectedMembers.length == 0 && preview">&nbsp;</template>
-    <!-- TODO @Feature @UX: add missing enum members inline -->
+    <!-- TODO @UX: add new enum members inline -->
     <Combobox
       v-if="!preview"
       as="div"
@@ -118,7 +121,7 @@ defineExpose({
       >
       </ComboboxInput>
       <ComboboxOptions
-        class="mt-1 flex max-h-80 w-full flex-col gap-1 overflow-auto border-t py-1 pt-1.5 focus:outline-none"
+        class="mt-1 flex max-h-80 w-full flex-col gap-y-0.5 overflow-auto border-t py-1 pt-1.5 focus:outline-none"
         static
       >
         <ComboboxOption
@@ -129,18 +132,18 @@ defineExpose({
         >
           <div
             :class="[
-              'relative  w-full cursor-default select-none py-0.5 ',
-              selected ? 'text-orange-600' : 'text-gray-900',
+              'relative w-full cursor-default select-none hover:cursor-pointer ',
+              selected ? 'text-amber-600' : 'text-gray-900',
             ]"
           >
             <li
-              class="mx-1 flex w-fit flex-row items-center gap-1.5 px-2 ring-1 ring-inset"
-              :class="[active ? 'bg-amber-200 ring-amber-600/[80%]' : 'bg-amber-100 ring-amber-600/[15%]']"
+              class="mx-1 flex w-fit flex-row items-center gap-1.5 px-2 py-0.5"
+              :class="[active ? 'bg-amber-100' : '']"
             >
-              <svg class="h-[7px] w-[7px]" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
+              <svg class="h-[8px] w-[8px]" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
                 <rect rx="2" ry="2" width="5" height="6" />
               </svg>
-              <span>
+              <span class="">
                 {{ member.name }}
               </span>
             </li>
