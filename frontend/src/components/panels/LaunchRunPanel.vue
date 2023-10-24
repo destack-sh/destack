@@ -59,14 +59,14 @@ const actions = computed(() => {
       icon: PlayIcon,
       action: () => run(),
       active: isCurrentRunActive.value,
-      disabled: statement.value == null,
+      disabled: statement.value == null || !bench.canUse,
       hideInline: true,
     },
     {
       label: "Cancel",
       icon: StopIcon,
       action: () => cancel(),
-      disabled: !isCurrentRunActive.value,
+      disabled: !isCurrentRunActive.value || !bench.canUse,
       hideInline: true,
     },
   ];

@@ -33,7 +33,10 @@ const preparingWorkers = computed(
       currentRun == null ? '' : 'hover:cursor-pointer hover:bg-orange-100',
       currentRun != null && sessions.isKilling(currentRun) ? 'animate-pulse' : '',
     ]"
-    @click="bench.openViewRun(currentRun, { group: panel.panel.value.group, focus: true, opposite: true })"
+    @click="
+      currentRun == null ||
+        bench.openViewRun(currentRun, { group: panel.panel.value.group, focus: true, opposite: true })
+    "
   >
     <BusySpinnerIcon
       v-if="currentRun != null && ACTIVE_RUN_STATUSES.includes(currentRun.status)"

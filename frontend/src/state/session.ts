@@ -192,6 +192,7 @@ export function _useSessions(
   filter = wrapValueRefs(filter);
 
   const { client } = useApolloClient();
+  const bench = useBenchState();
 
   const { loading: initialLoading, onResult: onInitialLoaded } = useQuery(
     graphql(/* GraphQL */ `
@@ -468,6 +469,9 @@ export function _useSessions(
     const sessionId = options?.sessionId ?? newSessionId();
     const code = typeof statementOrCode === "string" ? statementOrCode : undefined;
     const statement = typeof statementOrCode === "string" ? undefined : statementOrCode;
+    if (!bench.canUse) {
+      throw new Error("cannot run bench");
+    }
 
     const run = {
       __typename: "Run",
