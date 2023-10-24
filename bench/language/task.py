@@ -98,7 +98,7 @@ class HasTask(Node):
                 outputs = await run_task(self, view, inputs, nonce, models)
             if self.session._needs_flush_before_exit:
                 await self.session.aflush()
-        except Exception as e:
+        except BaseException as e:
             self.session.tracer.run_exception(self, e)
             raise
         self.session.tracer.run_exit(self, outputs)
