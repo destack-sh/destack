@@ -390,30 +390,32 @@ class HasCode(Node):
 
     async def _call_inner_async(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
-        self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
+        session = self.session
+        session.tracer.run_enter(self, is_async=True, inputs=inputs)
         try:
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
-            if self.session._needs_flush_before_exit:
+            if session._needs_flush_before_exit:
                 await self.session.aflush()
         except BaseException as exception:
-            self.session.tracer.run_exception(self, exception)
+            session.tracer.run_exception(self, exception)
             raise
-        self.session.tracer.run_exit(self, result if not self._export else None)
+        session.tracer.run_exit(self, result if not self._export else None)
         return _to_outputs_dict(self, result)
 
     def _call_inner_sync(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
-        self.session.tracer.run_enter(self, is_async=False, inputs=inputs)
+        session = self.session
+        session.tracer.run_enter(self, is_async=False, inputs=inputs)
         try:
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
-            if self.session._needs_flush_before_exit:
-                self.session.flush()
+            if session._needs_flush_before_exit:
+                session.flush()
         except BaseException as exception:
-            self.session.tracer.run_exception(self, exception)
+            session.tracer.run_exception(self, exception)
             raise
-        self.session.tracer.run_exit(self, result if not self._export else None)
+        session.tracer.run_exit(self, result if not self._export else None)
         return _to_outputs_dict(self, result)
 
 
