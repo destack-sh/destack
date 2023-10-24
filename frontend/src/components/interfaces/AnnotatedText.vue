@@ -9,10 +9,12 @@ import {
 } from "@/state/text";
 import { useElementRefs } from "@/composables/useGrid";
 import { nextTick, ref, watch, type Ref, toRef, computed } from "vue";
-import type { ModuleObjectTypename } from "@/state/module";
+import type { Field, ModuleObjectTypename } from "@/state/module";
 import { VALID_TEXT_REGEXP } from "@/utils/validation";
 import type { TextPlain } from "@/state/text";
 import { v4 as uuidv4 } from "uuid";
+import { TypeTag } from "@/gql/graphql";
+import { getEnumColor } from "@/state/statement";
 
 const props = defineProps<{
   modelValue: string;
@@ -466,12 +468,24 @@ defineExpose({
         ]"
         @click="() => resolvedMentions[i] == null || minimalMentions || focusMention(resolvedMentions[i].node)"
       >
-        <component
-          v-if="!minimalMentions && resolvedMentions[i] != null"
-          :is="resolvedMentions[i]?.icon"
-          class="absolute left-[1px] top-0.5 h-4 w-4"
-          :class="[resolvedMentions[i].node.__typename == 'Field' ? 'text-yellow-500' : 'text-orange-600']"
-        />
+        <!-- Icon (enum icon for enums, otherwise given mention icon) -->
+        <template v-if="!minimalMentions && resolvedMentions[i] != null">
+          <svg
+            v-if="resolvedMentions[i].node.__typename == 'Field' && (resolvedMentions[i].node as Field).tag == TypeTag.Literal"
+            class="absolute left-2 top-[7px] h-[8px] w-[8px]"
+            :style="{ fill: getEnumColor(resolvedMentions[i].node) }"
+            viewBox="0 0 6 6"
+            aria-hidden="true"
+          >
+            <rect rx="2" ry="2" width="5" height="6" />
+          </svg>
+          <component
+            v-else
+            :is="resolvedMentions[i].icon"
+            class="absolute left-[1px] top-0.5 h-4 w-4"
+            :class="[resolvedMentions[i].node.__typename == 'Field' ? 'text-yellow-500' : 'text-orange-600']"
+          />
+        </template>
         <span class="max-w-full truncate" :class="[!minimalMentions && resolvedMentions[i] != null ? 'ml-[21px]' : '']">
           {{ resolvedMentions[i]?.name ?? "???" }}
         </span>
@@ -521,7 +535,18 @@ defineExpose({
           :class="{ 'bg-orange-100': mention.node.id == activeMentionId }"
         >
           <span class="flex flex-shrink-0 flex-row items-center">
+            <!-- Icon (enum icon for enums, otherwise given mention icon) -->
+            <svg
+              v-if="mention.node.__typename == 'Field' && (mention.node as Field).tag == TypeTag.Literal"
+              class="ml-1 mr-3 h-[8px] w-[8px]"
+              :style="{ fill: getEnumColor(mention.node) }"
+              viewBox="0 0 6 6"
+              aria-hidden="true"
+            >
+              <rect rx="2" ry="2" width="5" height="6" />
+            </svg>
             <component
+              v-else
               :is="mention.icon"
               class="mr-2 h-4 w-4"
               :class="[mention.node.__typename == 'Field' ? 'text-yellow-500' : 'text-orange-600']"

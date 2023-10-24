@@ -2,7 +2,7 @@
 import { useElementRefs } from "@/composables/useGrid";
 import { TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { useCurrentModule, TypeFlag, type ResolvedField } from "@/state/module";
-import { PlusIcon, RectangleGroupIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon, RectangleGroupIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, type Ref } from "vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
@@ -119,7 +119,7 @@ defineExpose({
       @mouseover="editingIndex || (activeIndex = i)"
     >
       <!-- Struct icon -->
-      <RectangleGroupIcon class="h-4 w-4 text-gray-700" />
+      <RectangleGroupIcon class="h-4 w-4 text-orange-600" />
       <!-- Struct title -->
       <span
         v-if="titleField != null && struct[module.getTypedKey(titleField) ?? ''] != undefined"
@@ -154,7 +154,7 @@ defineExpose({
           debounced
           show-controls
           :readonly="!editingIndex || true /* TODO @UX: editing structs in struct input fails */"
-          :appearance="{ minimalFields: true, hideFieldType: true }"
+          :appearance="{ minimalFields: true, hideFieldType: true, view: 'tree' }"
         />
       </div>
     </FadeTransition>

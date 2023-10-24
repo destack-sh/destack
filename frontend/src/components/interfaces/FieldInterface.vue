@@ -285,7 +285,7 @@ defineExpose({
           <!-- :EnumStyle -->
           <svg
             v-if="isEnum"
-            class="absolute left-2.5 top-[9px] h-[7px] w-[7px]"
+            class="absolute left-2.5 top-[8px] h-[8px] w-[8px]"
             :style="{ fill: getEnumColor(value) }"
             viewBox="0 0 6 6"
             aria-hidden="true"

@@ -338,7 +338,7 @@ defineExpose({
     <div v-if="showControls" class="absolute right-0.5 top-0.5 flex flex-row gap-1 bg-white p-0.5">
       <!-- Toggle view -->
       <button
-        @click="display = display == 'tree' ? 'grid' : 'tree'"
+        @click.stop="display = display == 'tree' ? 'grid' : 'tree'"
         class="rounded-sm p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
       >
         <component :is="display == 'grid' ? TableCellsIcon : QueueListIcon" class="h-4 w-4" />
