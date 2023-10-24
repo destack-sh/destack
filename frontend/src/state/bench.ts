@@ -1202,7 +1202,7 @@ export class LaunchRunPanel extends Panel {
   statementCk: string;
   statementType?: StatementType.Task | StatementType.Code;
   inputs: Record<string, any> = {};
-  lastOutput?: Record<string, any> = {};
+  lastOutput?: Record<string, any> | null = null;
   lastError?: RunError | null = null;
   lastRunTerminatedAt?: string;
   lastRunId?: string;
