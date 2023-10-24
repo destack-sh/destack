@@ -73,7 +73,7 @@ defineExpose({
         focused && !highlightAssist ? ' text-orange-600 hover:bg-orange-100' : '',
         focused && highlightAssist ? ' bg-orange-600 text-white' : '',
       ]"
-      @click="emit('launchAssist', 'Write the code')"
+      @click="emit('launchAssist', 'Implement this')"
     >
       <component :is="focused ? SparklesIconSolid : SparklesIconOutline" class="mt-0.5 h-4 w-4" />
       <span v-if="focused && highlightAssist" class="ml-1 font-semibold">Assist</span>

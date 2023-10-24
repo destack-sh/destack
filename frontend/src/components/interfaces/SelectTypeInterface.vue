@@ -195,7 +195,7 @@ const flagButtons: FlagButton[] = [
   {
     flag: TypeFlag.IS_ARRAY,
     invert: false,
-    label: "many",
+    label: "list",
     setIcon: ListBulletIcon,
     unsetIcon: ListBulletIcon,
   },
