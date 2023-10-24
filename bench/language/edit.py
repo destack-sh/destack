@@ -710,6 +710,11 @@ def render(
         raise ValueError(f"cannot render to {target}")
 
 
+# ignore files and secrets (can't render them properly.. yet?)
+def DEFAULT_VALUE_FILTER(v, f):
+    return f.tag != TypeTag.BLOB and not f.flags & TypeFlag.IS_SECRET
+
+
 def _render_prop(node: Node, name: str, value: Any) -> str:
     """
     Render a non-relational prop (may be a reference, but not a parent/child relation).
@@ -753,7 +758,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
             value,
             node._type_of_value,
             get_k=lambda f: f.py_ident,
-            filter_v=lambda v, f: f.tag != TypeTag.BLOB and not (f.flags & TypeFlag.IS_SECRET),
+            filter_v=DEFAULT_VALUE_FILTER,
             ignore_array=True,
         )
         return omit_empty(value)
@@ -881,9 +886,9 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
                 from bench.language.packer import render_value
 
                 kwargs_str = _sep(
-                    f"{k}={render_value(v, n._type_of_value.resolved_fields.get(k))}"
+                    f"{k}={render_value(v, n._type_of_value.resolved_fields.get(k), filter_v=DEFAULT_VALUE_FILTER)}"
                     for k, v in n.value.items()
-                    if v
+                    if v and DEFAULT_VALUE_FILTER(v, n._type_of_value.resolved_fields.get(k))
                 )
                 nodes_strs.append(f"Record.new({_sep(kwargs_str)})")
                 continue

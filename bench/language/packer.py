@@ -964,7 +964,7 @@ def render_value(
 
     if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
-            return repr(value)
+            return repr(value)  # not sure what to do here?
         elements = [
             render_value(
                 item,
@@ -975,6 +975,7 @@ def render_value(
                 ignore_empty=ignore_empty,
             )
             for item in value
+            if filter_v is None or filter_v(item, type)
         ]
         return _render_array(elements)
     elif type.flags & TypeFlag.IS_ARRAYABLE and not ignore_array:
@@ -997,9 +998,11 @@ def render_value(
                 ignore_empty=ignore_empty,
             )
             for item in value
+            if filter_v is None or filter_v(item, type)
         ]
         return _render_array(elements)
     elif type._effective_tag != TypeTag.STRUCT:
+        assert filter_v is None or filter_v(value, type), f"unexpected filtered value {value}"
         return render_value_flat(value, type, filter_k=filter_v)
 
     # map struct-like types into a dict
