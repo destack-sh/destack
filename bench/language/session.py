@@ -424,7 +424,9 @@ class SessionTracer:
         self.stderr_collector = LogCollector(self._track_log, "stderr", session)
         self.session = session
         self.editor = editor
-        self.stacktrace = []
+        self._stacktrace: list[Run] = []
+        # used to prevent deleting ancestors of running statements
+        self._stacktrace_ancestors_cks: dict[UUID, Statement] = {}
         self.runs = {}
 
     def __str__(self):
@@ -432,6 +434,27 @@ class SessionTracer:
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
+
+    @property
+    def stacktrace(self):
+        return self._stacktrace
+
+    def _update_stacktrace_ancestors(self):
+        self._stacktrace_ancestors_cks.clear()
+        for run in self._stacktrace:
+            parent = run.statement
+            while parent is not None and parent.ck not in self._stacktrace_ancestors_cks:
+                self._stacktrace_ancestors_cks[parent.ck] = run.statement
+                parent = parent.parent
+
+    def _stacktrace_pop(self) -> Run:
+        run = self._stacktrace.pop()
+        self._update_stacktrace_ancestors()
+        return run
+
+    def _stacktrace_push(self, run: Run) -> None:
+        self._stacktrace.append(run)
+        self._update_stacktrace_ancestors()
 
     #
     # Module
@@ -469,6 +492,16 @@ class SessionTracer:
         nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL]
         if nodes and self.session.access_level < SessionAccessLevel.Delete:
             raise PermissionError(f"{self.session!r} may not delete {nodes!r}")
+        # ensure node is not ancestor of any running statements
+        if any(n.ck in self._stacktrace_ancestors_cks for n in nodes):
+            ancestor = next(n for n in nodes if n.ck in self._stacktrace_ancestors_cks)
+            statement = self._stacktrace_ancestors_cks[ancestor.ck]
+            if ancestor == statement:
+                raise RuntimeError(f"cannot delete running statement {statement!r}")
+            else:
+                raise RuntimeError(
+                    f"cannot delete ancestor {ancestor!r} of running statement: {statement!r}"
+                )
         self.editor.delete_many(*nodes, apply=False)
 
     def node_truncate(self, node: Node, mnt: MNT):
@@ -488,8 +521,8 @@ class SessionTracer:
 
     @property
     def current_run(self) -> Optional[Run]:
-        if self.stacktrace:
-            return self.stacktrace[-1]
+        if self._stacktrace:
+            return self._stacktrace[-1]
         return None
 
     @property
@@ -505,7 +538,7 @@ class SessionTracer:
         self._cached_logs.append(log)
 
     def pop_stacktrace(self) -> Run:
-        run = self.stacktrace.pop()
+        run = self._stacktrace_pop()
         # update cached info in parent(s)
         if run.value.cached_at is not None:
             self._update_cached_info()
@@ -519,7 +552,7 @@ class SessionTracer:
             inputs=pack_value(inputs, statement, is_output=False, none_if_invalid=True),
             _is_async=is_async,
         )
-        self.stacktrace.append(run)
+        self._stacktrace_push(run)
         _set_active_run(run)
         self._track_run(run)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.run.enter", run=run, stackdepth=len(self.stacktrace))
