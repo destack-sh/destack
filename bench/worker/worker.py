@@ -394,7 +394,7 @@ class ModuleWorkerProcess(ModuleWriter):
         try:
             self.module = await sync_to_async(Module.interp)(source.nodes, self.project_id)
             self.log = self.log.bind(module=self.module.name)
-        except Exception as e:
+        except BaseException as e:
             self.log.error("module.init.failed", exc_info=e)
             raise RuntimeError(f"failed to initialize module worker {self}")
         self.node.tasks.start(self._flush_dirty_runs_forever(interval=0.1))
@@ -420,7 +420,7 @@ class ModuleWorkerProcess(ModuleWriter):
                 await self._do_run_job(job, WORKER_RUN_TIMEOUT)
             except RunError as e:
                 self.log.debug("run.failed", job=job, exc_info=e)
-            except Exception as e:
+            except BaseException as e:
                 self.log.error("run.failed.internal", job=job, sentry=sentry_capture(e), exc_info=e)
             finally:
                 self.queue.task_done()

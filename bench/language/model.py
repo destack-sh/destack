@@ -142,10 +142,10 @@ class HasModel(HasFields, Node):
                 self.session.tracer.run_exit(self, outputs)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
                 return TypedDict(outputs, self, is_output=True)
-            except Exception as e:
+            except BaseException as e:
                 self.session.tracer.run_exception(self, e)
                 log.warning("inference.remote.error", e=e, exc_info=e)
-                if isinstance(e, ModelError):
+                if isinstance(e, (ModelError, asyncio.CancelledError)):
                     raise
                 else:
                     raise ModelError(ModelErrorType.Unavailable, self, f"remote {self} failed")
@@ -169,10 +169,10 @@ class HasModel(HasFields, Node):
                 self.session.tracer.run_exit(self, outputs)
                 log.debug("inference.exit", output=describe_type(outputs))
                 return TypedDict(outputs, self, is_output=True)
-            except Exception as e:
+            except BaseException as e:
                 self.session.tracer.run_exception(self, e)
                 log.warning("inference.error", e=e, exc_info=e)
-                if isinstance(e, ModelError):
+                if isinstance(e, (ModelError, asyncio.CancelledError)):
                     raise
                 elif isinstance(e, asyncio.TimeoutError):
                     raise ModelError(ModelErrorType.Timeout, self, f"timeout {self} failed") from e

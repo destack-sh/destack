@@ -158,7 +158,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
                   #{{ getUUIDFromGlobalID(run.parent.id).slice(-7, -1) }}
                 </button>
               </span>
-              <span v-else-if="run.trigger != null">by {{ run.trigger.type.toLowerCase() }} trigger</span>
+              <span v-else-if="run.trigger != null">by {{ run.trigger.type.toLowerCase() }}</span>
               <span v-else-if="IS_DEBUG" class="text-red-600">???</span>
             </span>
           </div>

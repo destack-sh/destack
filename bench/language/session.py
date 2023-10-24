@@ -560,7 +560,7 @@ class SessionTracer:
             run.status = RunStatus.Aborted
         else:
             run.status = RunStatus.Failed
-            run.error = RunError.from_exception(exception, statement)
+        run.error = RunError.from_exception(exception, statement)
         self._track_run(run)
         _clear_active_run(run)
         logger.debug("trace.run.exception", run=run, stackdepth=len(self.stacktrace))
