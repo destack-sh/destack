@@ -24,7 +24,7 @@ from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType, TypeFlag, Ty
 from bench.language.module import UNSET, Module, Node, NodeTree, NRel
 from bench.language.text import Text, render_text_simple
 from bench.utils.serialize import from_dict
-from bench.utils.utils import omit_empty
+from bench.utils.utils import format_python, omit_empty
 
 if TYPE_CHECKING:
     from bench.language import File, Run, Statement
@@ -922,11 +922,5 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
 
     # format with black
     code = "\n".join(lines)
-    try:
-        import black
-
-        code = black.format_str(code, mode=black.Mode(line_length=100))
-    except Exception as e:
-        raise ValueError(f"rendered bad code:\n{code}") from e
-
+    code = format_python(code)
     return code

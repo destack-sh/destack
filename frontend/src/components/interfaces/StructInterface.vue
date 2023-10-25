@@ -318,7 +318,7 @@ defineExpose({
       >
         <ChevronRightIcon
           v-if="node.children"
-          class="mr-0.5 mt-0.5 h-4 w-4 text-gray-500 transition-transform duration-150"
+          class="mr-0.5 mt-0.5 h-4 w-4 flex-shrink-0 text-gray-500 transition-transform duration-150"
           :class="[node.expanded ? 'rotate-90' : '']"
         />
         <span class="flex-shrink-0 select-none whitespace-nowrap font-semibold text-gray-500">{{ node.name }}:</span>

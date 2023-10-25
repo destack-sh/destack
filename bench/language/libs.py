@@ -38,7 +38,7 @@ from bench.language.database import HasDatabase
 from bench.language.field import Field, HasFields, Key, Type, Vector
 from bench.language.model import HasModel, ModelError, ModelErrorType
 from bench.language.module import Node, NodeList, ScopeNode, get_node_id
-from bench.language.packer import map_value, pack_value_flat
+from bench.language.packer import map_value, pack_value_flat, render_value
 from bench.language.reference import NodeView
 from bench.language.reflect import (
     _derive_constant_key,
@@ -59,7 +59,7 @@ from bench.language.task import (
     TaskErrorType,
 )
 from bench.language.text import Text, patch_text_html, render_text_simple
-from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
+from bench.utils.utils import DEBUG, LOCAL, UnreachableError, format_python, omit_empty
 
 #
 # symbolx.lib
@@ -288,6 +288,23 @@ class BaseTextTaskCompiler(TaskCompiler):
             f"Your main task is '{task.name}'.",
         ]
 
+        # inputs
+        inputs_strs = []
+        for field_ in task.resolved_fields:
+            if field_.flags & TypeFlag.IS_OUTPUT or field_.flags & TypeFlag.IS_CONFIG:
+                continue
+            field_value = inputs.get(field_.py_ident)
+            if field_value is None:
+                continue
+            field_str = render_value(field_value, field_)
+            inputs_strs.append(f"{field_.py_ident}: {field_str}")
+        inputs_str = ", ".join(inputs_strs)
+        inputs_str = format_python(f"{{{inputs_str}}}")
+        nonce_str = f"(nonce:{nonce}\n)" if nonce else ""
+        messages.append(
+            f"{nonce_str}The user's inputs for '{task.name}': \n{inputs_str}",
+        )
+
         # module context
         context_str = await self._render_context(task, view, exclude_output=True)
         if context_str:
@@ -295,19 +312,6 @@ class BaseTextTaskCompiler(TaskCompiler):
                 f"The definition of task '{task.name}':\n {context_str}"
                 f"\nFollow the above carefully."
             )
-
-        # inputs
-        inputs = map_value(
-            inputs,
-            task,
-            map_k=lambda f: (f.py_ident, f.py_ident),
-            map_v=self._render_value_flat,
-            is_output=False,
-        )
-        nonce_str = f"(nonce:{nonce}\n)" if nonce else ""
-        messages.append(
-            f"{nonce_str}The user's inputs for '{task.name}': \n{inputs}",
-        )
 
         # output schema
         output_fields = [f for f in task.resolved_fields if f.flags & TypeFlag.IS_OUTPUT]
@@ -650,16 +654,6 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             ),
         ]
 
-        # module context
-        context_str = await self._render_context(task, view, exclude_output=True)
-        messages.append(
-            OpenAIChatMessage(
-                role=OpenAIChatRole.system,
-                content=f"The definition of task '{task.name}':\n {context_str}"
-                f"\nFollow the above carefully.",
-            )
-        )
-
         # inputs
         inputs: dict = map_value(
             inputs,
@@ -673,6 +667,16 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
                 content=f"{nonce_str}The user's inputs for '{task.name}': \n\n{inputs}",
+            )
+        )
+
+        # module context
+        context_str = await self._render_context(task, view, exclude_output=True)
+        messages.append(
+            OpenAIChatMessage(
+                role=OpenAIChatRole.system,
+                content=f"The definition of task '{task.name}':\n {context_str}"
+                f"\nFollow the above carefully.",
             )
         )
 
