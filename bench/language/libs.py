@@ -288,6 +288,14 @@ class BaseTextTaskCompiler(TaskCompiler):
             f"Your main task is '{task.name}'.",
         ]
 
+        # module context
+        context_str = await self._render_context(task, view, exclude_output=True)
+        if context_str:
+            messages.append(
+                f"The definition of task '{task.name}':\n {context_str}"
+                f"\nFollow the above carefully."
+            )
+
         # inputs
         inputs_strs = []
         for field_ in task.resolved_fields:
@@ -304,14 +312,6 @@ class BaseTextTaskCompiler(TaskCompiler):
         messages.append(
             f"{nonce_str}The user's inputs for '{task.name}': \n{inputs_str}",
         )
-
-        # module context
-        context_str = await self._render_context(task, view, exclude_output=True)
-        if context_str:
-            messages.append(
-                f"The definition of task '{task.name}':\n {context_str}"
-                f"\nFollow the above carefully."
-            )
 
         # output schema
         output_fields = [f for f in task.resolved_fields if f.flags & TypeFlag.IS_OUTPUT]
@@ -654,6 +654,16 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             ),
         ]
 
+        # module context
+        context_str = await self._render_context(task, view, exclude_output=True)
+        messages.append(
+            OpenAIChatMessage(
+                role=OpenAIChatRole.system,
+                content=f"The definition of task '{task.name}':\n {context_str}"
+                f"\nFollow the above carefully.",
+            )
+        )
+
         # inputs
         inputs: dict = map_value(
             inputs,
@@ -667,16 +677,6 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
                 content=f"{nonce_str}The user's inputs for '{task.name}': \n\n{inputs}",
-            )
-        )
-
-        # module context
-        context_str = await self._render_context(task, view, exclude_output=True)
-        messages.append(
-            OpenAIChatMessage(
-                role=OpenAIChatRole.system,
-                content=f"The definition of task '{task.name}':\n {context_str}"
-                f"\nFollow the above carefully.",
             )
         )
 
