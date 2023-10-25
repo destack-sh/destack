@@ -310,6 +310,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         )
 
         # output schema
+        output_fields = [f for f in task.resolved_fields if f.flags & TypeFlag.IS_OUTPUT]
         output_schema = _type_to_json_schema(task, is_output=True).to_dict()
         output_schema = omit_empty(output_schema)
         output_schema_str = json.dumps(output_schema, indent=2)
@@ -318,13 +319,15 @@ class BaseTextTaskCompiler(TaskCompiler):
         )
 
         # final CTA
-        # TODO @Task: anthropic task functions :TaskFunctions
         messages.append(
             f"Now, complete the task '{task.name}' given the inputs."
             f" COMPLETE with a result, PANIC with a 'reason' field if completion is impossible."
             f" (Strongly prefer COMPLETE with error information)."
             f" Respond with COMPLETE|PANIC\\n\\n"
-            f' "<top-level-field name>":\\n```\n<json value>\n``` (repeat for top-level outputs).'
+            f' "<top-level-field name>":\\n```\n<json value>\n``` (repeat for top-level schema properties).\n'
+            f" \nFor example:\n"
+            f"COMPLETE\n"
+            f'"{output_fields[0].py_ident}":\n```\n<the value>\n```\n'
         )
 
         # context from previous runs
@@ -343,6 +346,8 @@ class BaseTextTaskCompiler(TaskCompiler):
     @staticmethod
     def _parse_text_completion(model: Statement, task: Statement, completion: str) -> dict:
         try:
+            # strip everything up to COMPLETE or PANIC
+            completion = re.sub(r"^.*?(COMPLETE|PANIC)", r"\1", completion, flags=re.DOTALL)
             header, body = completion.split("\n", maxsplit=1)
             action = header.strip()
         except (TypeError, ValueError) as e:
@@ -352,7 +357,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         outputs = {}
         try:
             completed_pairs = re.finditer(
-                r"^\"(?P<key>[\w ]+?)\":\s*(?P<body>([^\n(```)]+$)|```(\w+)?\n?(?P<inner>.*?)\n?```)",
+                r"^\"?(?P<key>[\w ]+?)\"?:\s*(?P<body>([^\n(```)]+$)|```(\w+)?\n?(?P<inner>.*?)\n?```)",
                 body.strip(),
                 flags=re.DOTALL | re.MULTILINE,
             )
