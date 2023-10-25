@@ -23,9 +23,9 @@ def proxy_value(
 def unproxy_value(value: Any) -> Any:
     """Recursively unproxy the given value."""
     if isinstance(value, ProxyDict):
-        return {key: unproxy_value(value) for key, value in value.items()}
+        return value._inner
     elif isinstance(value, ProxyList):
-        return [unproxy_value(value) for value in value]
+        return value._inner
     else:
         return value
 
@@ -97,9 +97,6 @@ class ProxyDict(Mapping):
     def __setattr__(self, item, value):
         if item in ("_inner", "_onread", "_onwrite", "_default_none"):
             return super().__setattr__(item, value)
-        value = proxy_value(
-            value, _curry_path(self._onread, item), _curry_path(self._onwrite, item)
-        )
         self._inner[item] = value
         self._onwrite(item)
 
@@ -147,18 +144,12 @@ class ProxyList(Collection):
         return iter(self._inner)
 
     def append(self, value: Any) -> None:
-        i = len(self._inner)
-        value = proxy_value(
-            value, _curry_path(self._onread, str(i)), _curry_path(self._onwrite, str(i))
-        )
+        len(self._inner)
         self._inner.append(value)
         self._onwrite("")
 
     def extend(self, value: Any) -> None:
         for v in value:
-            i = len(self._inner)
-            v = proxy_value(
-                v, _curry_path(self._onread, str(i)), _curry_path(self._onwrite, str(i))
-            )
+            len(self._inner)
             self._inner.append(v)
         self._onwrite("")
