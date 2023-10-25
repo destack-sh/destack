@@ -89,7 +89,7 @@ const actions: Ref<Action[]> = computed(() => [
           : 'bg-white hover:bg-orange-100 focus:bg-orange-100',
       ]"
       :disabled="action.disabled"
-      @click="action.action"
+      @click.stop="action.action"
     >
       <BusySpinnerIcon v-if="action.active" class="mr-1 h-5 w-5 animate-spin" />
       <component
