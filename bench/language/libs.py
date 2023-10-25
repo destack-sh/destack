@@ -377,6 +377,13 @@ class BaseTextTaskCompiler(TaskCompiler):
                     value = value[:-1]  # sometimes the model forgets to close the quote
                 value = value.strip()  # yes twice
                 if field._effective_tag in (TypeTag.STRUCT, TypeTag.BOOLEAN, TypeTag.NUMBER):
+                    # replace any """...""" with valid JSON string (with newlines escaped)
+                    value = re.sub(
+                        r'"""\\?\n?(.*?)"""',
+                        lambda m: '"' + m.group(1).replace("\n", "\\n") + '"',
+                        value,
+                        flags=re.DOTALL,
+                    )
                     value = json.loads(value)
                 outputs[field.py_ident] = value
         except (TypeError, ValueError, JSONDecodeError) as e:
