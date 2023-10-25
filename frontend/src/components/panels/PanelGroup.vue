@@ -20,13 +20,16 @@ import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref, watchEffect } from "vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import { EllipsisVerticalIcon } from "@heroicons/vue/24/solid";
-import { newNodeIdentity, type NodeBase } from "@/state/module";
+import { newNodeIdentity, useCurrentModule, type NodeBase } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useNow } from "@/composables/useNow";
 import { DateTime } from "luxon";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+
 const props = defineProps<{ group: PanelGroup }>();
 
 const bench = useBenchState();
+const module = useCurrentModule();
 const appearance = useAppearance();
 const selectedTab = ref(-1);
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
@@ -255,11 +258,17 @@ async function createFileInPanelGroup() {
         >
           <PanelInterface :panel="p" :container-el="panelRefs.getRef(p.id)?.$el ?? null" />
         </TabPanel>
-        <BlankPanel
-          v-if="bench.projectVersionId != null && group.activePanelId == null"
-          class="relative h-full w-full"
-          :group="group"
-        />
+        <!-- Empty state -->
+        <template v-if="bench.projectVersionId != null && group.activePanelId == null">
+          <BlankPanel
+            v-if="!module.loading.value"
+            class="flex h-full w-full flex-col items-center justify-center"
+            :group="group"
+          />
+          <div v-else class="relative h-full w-full">
+            <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
+          </div>
+        </template>
       </TabPanels>
     </TabGroup>
   </div>

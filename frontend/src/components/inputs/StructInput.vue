@@ -111,7 +111,7 @@ defineExpose({
       v-for="(struct, i) in modelValue"
       :ref="(el: any) => structInlineRefs.registerRef(i.toString(), el)"
       :key="i"
-      class="group/struct relative flex flex-row items-center gap-1 px-2 hover:cursor-pointer"
+      class="group/struct relative flex flex-row items-center gap-1 px-1 hover:cursor-pointer"
       @click.stop.prevent="readonly || open(i)"
       @keydown.enter.stop.prevent="readonly || open(i)"
       @focus="editingIndex || (activeIndex = i)"
