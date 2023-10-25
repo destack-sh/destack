@@ -12,7 +12,6 @@ import { usePanelContext, useElementPanelSettings, type RecordAction, type State
 import { useCurrentModule, type Field, newNodeIdentity, type Statement, type Record } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useFields, type DatabaseStatementProperties } from "@/state/statement";
-import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { IS_DEBUG, IS_LOCALHOST } from "@/utils/globals";
 import {
   ArrowDownIcon,
@@ -512,9 +511,11 @@ defineExpose({
       <span
         v-for="sort in properties.sorts ?? []"
         :key="sort.key"
-        class="flex w-fit flex-row items-center rounded-xl border border-amber-900/[15%] bg-amber-100 px-1.5 text-gray-900"
+        class="flex w-fit flex-row items-center rounded-xl border border-amber-900/[15%] px-1.5 py-0.5 text-gray-900"
       >
-        <span class="">{{ allFields.find((f) => sort.key.includes(f.key))?.name }}</span>
+        <span class="underline decoration-gray-300 underline-offset-4">
+          {{ allFields.find((f) => sort.key.includes(f.key))?.name }}
+        </span>
         <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span>
         <!-- Clear button -->
         <button @click="removeSort(sort)">
