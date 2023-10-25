@@ -214,6 +214,17 @@ def identity(a: Any) -> Any:
     return a
 
 
+def format_python(code: str):
+    try:
+        import black
+
+        return black.format_str(code, mode=black.Mode(line_length=100))
+    except ImportError:
+        raise RuntimeError("black is required to format code") from None
+    except Exception as e:
+        raise ValueError(f"got bad code:\n{code}") from e
+
+
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
 DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
 TEST: bool = (

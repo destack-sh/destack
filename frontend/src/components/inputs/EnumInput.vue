@@ -68,7 +68,7 @@ defineExpose({
     <span
       v-for="member in selectedMembers"
       :key="member.key"
-      class="inline-flex items-center gap-x-1 rounded-sm px-2 text-gray-900 hover:cursor-pointer hover:bg-amber-100"
+      class="inline-flex items-center gap-x-1 rounded-sm px-1.5 text-gray-900 hover:cursor-pointer hover:bg-amber-100"
     >
       <svg class="h-[8px] w-[8px]" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
         <rect rx="2" ry="2" width="5" height="6" />
@@ -111,7 +111,7 @@ defineExpose({
         :default-value="query"
         @change="query = $event.target.value"
         spellcheck="false"
-        class="mt-1 w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 placeholder:text-gray-400 focus:ring-0"
+        class="mx-1.5 mt-1 w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 placeholder:text-gray-400 focus:ring-0"
         :class="[appearance.textSmall ? 'text-sm' : '', isArray ? 'mt-1' : '']"
         :display-value="(val: any) => ''"
         :placeholder="(isArray ? 'Add ' : 'Select ') + runtimeType?.name"
@@ -137,7 +137,7 @@ defineExpose({
             ]"
           >
             <li
-              class="mx-1 flex w-fit flex-row items-center gap-1.5 px-2 py-0.5"
+              class="mx-1 flex w-fit flex-row items-center gap-1.5 px-1.5 py-0.5"
               :class="[active ? 'bg-amber-100' : '']"
             >
               <svg class="h-[8px] w-[8px]" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
