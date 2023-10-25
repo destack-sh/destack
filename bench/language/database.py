@@ -44,6 +44,8 @@ if typing.TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
+_ID_ARGS = ("id", "ck")
+
 
 @node(mnt=MNT.RECORD, passthrough=(("value", _Passthrough.Full),))
 class Record(HasValue, Node):
@@ -56,13 +58,14 @@ class Record(HasValue, Node):
         if not for_parent and args:
             raise TypeError(f"cannot create record with args {args} without for_parent")
 
-        value = {**kwargs}
+        value = {k: v for k, v in kwargs.items() if k not in _ID_ARGS}
+        id_kwargs = {k: v for k, v in kwargs.items() if k in _ID_ARGS}
         if for_parent and for_parent.attached:
             # inline args and check type for instant feedback
             for field, arg in zip(for_parent.resolved_fields, args):
                 value[field.name] = arg
             check_type(value, for_parent)
-        return Record(value=value, _status=_status)
+        return Record(value=value, _status=_status, **id_kwargs)
 
     def __str__(self):
         self_str = f"{self.id} {describe_type(self.value) or '<empty>'}"
