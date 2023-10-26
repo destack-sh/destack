@@ -35,6 +35,10 @@ const session = useCurrentSessions();
 const panel = computed(() => props.panel.panel.value);
 const panelSize = computed(() => props.panel.size.value);
 const terminal = useTerminal();
+const visibleHistory = computed(() => {
+  if (panel.value.clearedAt == null) return terminal.runs.value;
+  else return terminal.runs.value?.filter((r) => r.run.createdAt > (panel.value.clearedAt ?? ""));
+});
 const now = useTimeFromNow(1000);
 const loading = computed(() => terminal.loading.value || module.loading.value);
 
@@ -48,7 +52,7 @@ const inputRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
 const logsTileRefs = ref<Record<string, InstanceType<typeof LogsTile> | null>>({});
 const scope = computed(() => bench.lastActiveFileCk);
 const scopePaths = computed(() => {
-  const scopes = [scope.value, ...(terminal.runs.value?.map((r) => r.scope) ?? [])];
+  const scopes = [scope.value, ...(visibleHistory.value?.map((r) => r.scope) ?? [])];
   const scopePaths: Record<string, string> = {};
   for (const scope of scopes) {
     if (scope == null || scopePaths[scope] != null) continue;
@@ -79,10 +83,10 @@ function onInputWrite() {
 
 function navigateInputUp() {
   // scroll backwards to last input
-  if (!terminal.runs.value) return;
-  const currentRunIndex = terminal.runs.value.findIndex((r) => r.run.id == focusedRunId.value);
-  if (currentRunIndex < terminal.runs.value.length - 1) {
-    const nextRun = terminal.runs.value[currentRunIndex + 1];
+  if (!visibleHistory.value) return;
+  const currentRunIndex = visibleHistory.value.findIndex((r) => r.run.id == focusedRunId.value);
+  if (currentRunIndex < visibleHistory.value.length - 1) {
+    const nextRun = visibleHistory.value[currentRunIndex + 1];
     focusedRunId.value = nextRun.run.id;
     input.value = nextRun.code;
   }
@@ -91,10 +95,10 @@ function navigateInputUp() {
 
 function navigateInputDown() {
   // scroll forwards to next input / clear
-  if (!terminal.runs.value) return;
-  const currentRunIndex = terminal.runs.value.findIndex((r) => r.run.id == focusedRunId.value);
+  if (!visibleHistory.value) return;
+  const currentRunIndex = visibleHistory.value.findIndex((r) => r.run.id == focusedRunId.value);
   if (currentRunIndex > 0) {
-    const nextRun = terminal.runs.value[currentRunIndex - 1];
+    const nextRun = visibleHistory.value[currentRunIndex - 1];
     focusedRunId.value = nextRun.run.id;
     input.value = nextRun.code;
   } else {
@@ -105,7 +109,19 @@ function navigateInputDown() {
 }
 
 async function run() {
+  // handle special commands to clear / restore history
+  if (input.value == "cls" || input.value == "clear") {
+    input.value = "";
+    panel.value.clearHistory();
+    return;
+  } else if (input.value == "restore" || input.value == "history") {
+    input.value = "";
+    panel.value.restoreHistory();
+    return;
+  }
+
   if (!canRun.value) return;
+  // actually run
   const { run, firstResult } = terminal.runCode(input.value, {
     scope: bench.lastActiveFileCk ?? undefined,
     accessLevel: panel.value.accessLevel,
@@ -128,16 +144,16 @@ defineExpose({
     <!-- History -->
     <div
       class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-x-hidden overflow-y-scroll text-sm"
-      :class="loading || terminal.runs.value?.length == 0 ? 'flex-col items-center justify-center' : 'flex-col-reverse'"
+      :class="loading || visibleHistory?.length == 0 ? 'flex-col items-center justify-center' : 'flex-col-reverse'"
     >
       <!-- Loading / empty state -->
-      <div v-if="loading || terminal.runs.value?.length == 0" class="self-center justify-self-center">
+      <div v-if="loading || visibleHistory?.length == 0" class="self-center justify-self-center">
         <BusySpinnerIcon v-if="loading" class="mx-auto h-5 w-5 animate-spin text-white" />
         <span v-else class="text-gray-500">No terminal history</span>
       </div>
       <!-- Previous runs -->
       <div
-        v-for="{ run, code, scope, generatedFrom, generatedIn } in terminal.runs.value"
+        v-for="{ run, code, scope, generatedFrom, generatedIn } in visibleHistory"
         :key="run.id"
         class="opacity-150 border-l-4 border-t border-orange-900/[15%] py-1.5 transition-colors"
         :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"
