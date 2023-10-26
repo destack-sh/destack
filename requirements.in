@@ -2,6 +2,7 @@
 
 aiohttp==3.8.5
 aiostream==0.4.5
+alembic==1.12.0
 anthropic==0.3.11
 betterproto==1.2.5
 boto3==1.26.125
@@ -34,8 +35,8 @@ drf-spectacular==0.24.2
 gunicorn==21.2.0
 janus==1.0.0
 json-stream==2.2.1
-kubernetes==27.2.0
 kubernetes-asyncio==24.2.3
+kubernetes==27.2.0
 more-itertools==9.0.0
 msgpack==1.0.7
 nats-py==2.4.0
@@ -52,6 +53,7 @@ pytz==2022.1
 redis[hiredis]==4.5.4
 sentry-sdk[django]==1.31.0
 social-auth-app-django==5.0.0
+sqlalchemy[asyncio]==2.0.22
 strawberry-graphql-django==0.16.0
 strawberry-graphql[channels,debug-server,opentelemetry]==0.204
 uvicorn==0.23.2
