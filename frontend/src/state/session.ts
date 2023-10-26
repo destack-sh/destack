@@ -270,7 +270,9 @@ export function _useSessions(
         for (const run of result.data.sessionsChanged.runs.map((r) => useFragment(RunContentType, r))) {
           console.debug("run.change", run);
           currentRuns.value[run.id] = run as Run;
-          _notifyRunChange(run as Run);
+          for (const subscriber of onRunChangeSubscribers.value) {
+            subscriber(run as Run);
+          }
         }
       }
       if (result.data?.sessionsChanged?.__typename == "WorkerChange") {
@@ -286,14 +288,8 @@ export function _useSessions(
     // TODO @Performance @Robustness: periodically purge stale runs (that are inactive and not the latest for any statement in the module)
   }
 
-  function _notifyRunChange(run: Run) {
-    for (const subscriber of onRunChangeSubscribers.value) {
-      subscriber(run as Run);
-    }
-  }
-
   function onRunChange(subscriber: (run: Run) => void): () => void {
-    if (!options.live) throw new Error("onRunChange only makes sense when live");
+    if (!options.live) throw new Error("onRunChange only works when live");
     onRunChangeSubscribers.value.push(subscriber);
     return () => {
       const index = onRunChangeSubscribers.value.indexOf(subscriber);
@@ -306,15 +302,17 @@ export function _useSessions(
   function subscribeToRun(run: { id: string }, subscriber: (run: Run) => void): void {
     // register on run change subscriber until the given run has terminated
     const unsub = onRunChange((r) => {
-      subscriber(r);
-      if (r.id === run.id && TERMINAL_RUN_STATUSES.includes(r.status)) {
-        unsub();
+      if (r.id == run.id) {
+        subscriber(r);
+        if (TERMINAL_RUN_STATUSES.includes(r.status)) {
+          unsub();
+        }
       }
     });
   }
 
   function onWorkerSetChange(subscriber: (workerSet: WorkerSet) => void): () => void {
-    if (!options.live) throw new Error("onWorkerSetChange only makes sense when live");
+    if (!options.live) throw new Error("onWorkerSetChange only works when live");
     onWorkerSetChangeSubscribers.value.push(subscriber);
     return () => {
       const index = onWorkerSetChangeSubscribers.value.indexOf(subscriber);

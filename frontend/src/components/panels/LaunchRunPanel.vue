@@ -139,15 +139,7 @@ async function run() {
     }
   );
   const result = await runTask;
-  onRun(run);
-
-  if (TERMINAL_RUN_STATUSES.includes(result?.run.status)) {
-    panel.value.lastRunTerminatedAt = result?.run.terminatedAt;
-    panel.value.lastOutput = result?.run.outputs;
-    panel.value.lastError = result?.run.errorNice;
-  } else {
-    subscribeUntilTermination(run);
-  }
+  onRun(result.run ?? run);
 }
 
 async function cancel() {
@@ -155,14 +147,21 @@ async function cancel() {
   await sessions.kill(currentRun.value);
 }
 
-async function onRun(newRun: Run) {
-  panel.value.inputs = newRun.inputs;
-  panel.value.lastRunId = newRun.id;
-  panel.value.lastSessionId = newRun.session?.id;
+async function onRun(run: Run) {
+  panel.value.inputs = run.inputs;
+  panel.value.lastRunId = run.id;
+  panel.value.lastSessionId = run.session?.id;
   panel.value.lastRunTerminatedAt = undefined;
   panel.value.lastOutput = undefined;
   panel.value.lastError = undefined;
-  subscribeUntilTermination(newRun);
+
+  if (TERMINAL_RUN_STATUSES.includes(run.status)) {
+    panel.value.lastRunTerminatedAt = run.terminatedAt;
+    panel.value.lastOutput = run.outputs;
+    panel.value.lastError = run.errorNice;
+  } else {
+    subscribeUntilTermination(run);
+  }
 }
 
 const runsTileRef = ref<InstanceType<typeof RunsTile> | null>(null);
