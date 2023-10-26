@@ -3,9 +3,10 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.const import TypeFlag, TypeHint, TypeStorageFormat, TypeTag
+from bench.utils.utils import required_field
 
 if TYPE_CHECKING:
     from bench.language import Field
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 #
 # Database access ORM *and* wireable data representation.
 # We abstract the database backend here to fit seamlessly with Bench,
-#  but obviously this is still somewhat tied to DB capabilities.
+#  but obviously this is still somewhat tied to DB & index capabilities.
 #
 
 
@@ -52,6 +53,27 @@ class QueryOp(enum.StrEnum):
     # vector
     NEAR = "NEAR"
 
+    @property
+    def sign(self) -> str | None:
+        return _QUERY_OP_SIGN.get(self)
+
+
+_QUERY_OP_SIGN: dict[QueryOp, str] = {
+    QueryOp.NOT: "~",
+    QueryOp.AND: "&",
+    QueryOp.OR: "|",
+    QueryOp.EQUALS: "==",
+    QueryOp.NOT_EQUALS: "!=",
+    QueryOp.GREATER_THAN: ">",
+    QueryOp.GREATER_THAN_OR_EQUALS: ">=",
+    QueryOp.LESS_THAN: "<",
+    QueryOp.LESS_THAN_OR_EQUALS: "<=",
+    QueryOp.MATCHES: "~=",
+    QueryOp.STARTS_WITH: "^=",
+    QueryOp.EXISTS: "?",
+    QueryOp.DOES_NOT_EXIST: "?!",
+}
+
 
 class QueryOps:
     LOGICAL = {QueryOp.NOT, QueryOp.AND, QueryOp.OR}
@@ -76,7 +98,7 @@ def query(*ops: QueryOp):
     """Register a query class for the given ops."""
 
     def decorator(cls: type[Query]):
-        cls = dataclass(cls)
+        cls = dataclass(cls, repr=False)
         cls._PROPERTIES = {f.name: f for f in cls.__dataclass_fields__.values()}
         for op in ops:
             if op in _QUERIES:
@@ -90,6 +112,12 @@ def query(*ops: QueryOp):
 @query()
 class Query:
     op: QueryOp
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self})"
+
+    def __bool__(self):
+        raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
     def __invert__(self):
         return Q(QueryOp.NOT, queries=[self])
@@ -134,6 +162,9 @@ class Query:
 class CompoundQuery(Query):
     queries: list[Query]
 
+    def __str__(self):
+        return f" {self.op.sign} ".join(str(q) for q in self.queries)
+
     @property
     def is_scored(self) -> bool:
         return any(q.is_scored for q in self.queries)
@@ -167,6 +198,21 @@ class CompoundQuery(Query):
             return super().__or__(other)
 
 
+@dataclass(repr=False)
+class FieldQuery(Query):
+    field: Union["Field", str]
+    subkey: str = None
+
+    @property
+    def _field_str(self):
+        return self.field if isinstance(self.field, str) else self.field.path
+
+    @property
+    def key(self):
+        key = self.field if isinstance(self.field, str) else self.field._source_key
+        return key if not self.subkey else f"{key}.{self.subkey}"
+
+
 @query(
     QueryOp.EQUALS,
     QueryOp.NOT_EQUALS,
@@ -177,27 +223,32 @@ class CompoundQuery(Query):
     QueryOp.MATCHES,
     QueryOp.STARTS_WITH,
 )
-class ComparisonQuery(Query):
-    key: str
-    value: Any
+class ComparisonQuery(FieldQuery):
+    value: Any = required_field()
+
+    def __str__(self):
+        return f"{self._field_str} {self.op.sign} {self.value!r}"
 
 
 @query(QueryOp.EXISTS, QueryOp.DOES_NOT_EXIST)
-class ExistenceQuery(Query):
-    key: str
+class ExistenceQuery(FieldQuery):
+    def __str__(self):
+        return f"{self._field_str}.{self.op.name.lower()}"
 
     def __invert__(self):
         if self.op == QueryOp.EXISTS:
-            return Q(QueryOp.DOES_NOT_EXIST, key=self.key)
+            return Q(QueryOp.DOES_NOT_EXIST, field=self.field, subkey=self.subkey)
         else:
-            return Q(QueryOp.EXISTS, key=self.key)
+            return Q(QueryOp.EXISTS, field=self.field, subkey=self.subkey)
 
 
 @query(QueryOp.NEAR)
-class VectorQuery(Query):
-    key: str
-    value: list[float]
+class VectorQuery(FieldQuery):
+    value: list[float] = required_field()
     approximate: bool = True
+
+    def __str__(self):
+        return f"{self._field_str}.{self.op.name.lower()}({self.value[:10]}...)"
 
 
 def Q(op: QueryOp, *args, **kwargs) -> Query:
@@ -223,11 +274,6 @@ class Aggregation:
     name: Optional[str]
 
 
-@dataclass
-class MetricAggregation(Aggregation):
-    key: str
-
-
 class SortOrder(enum.StrEnum):
     ASCENDING = "ASCENDING"
     DESCENDING = "DESCENDING"
@@ -243,9 +289,15 @@ class SortMode(enum.StrEnum):
 
 @dataclass
 class Sort:
-    key: str
+    field: Union["Field", str]
     order: SortOrder = SortOrder.ASCENDING
     mode: Optional[SortMode] = None
+    subkey: str = None
+
+    @property
+    def key(self) -> str:
+        key = self.field if isinstance(self.field, str) else self.field._source_key
+        return key if not self.subkey else f"{key}.{self.subkey}"
 
 
 def get_default_sort(query: "Query") -> list["Sort"]:
@@ -269,7 +321,7 @@ class UnsupportedSearchError(Exception):
 
 
 def _check_supports_query(field: "Field", op: QueryOp):
-    if op not in field.supported_query_ops:
+    if op not in field._supported_query_ops:
         raise UnsupportedSearchError(field, op)
 
 
@@ -279,7 +331,7 @@ def _check_supports_sort(field: "Field"):
 
 
 def _check_supports_subfield(field: "Field", subfield: SubfieldType):
-    if subfield not in field.supported_subfields:
+    if subfield not in field._supported_subfields:
         raise UnsupportedSearchError(field, subfield)
 
 
@@ -307,10 +359,15 @@ def _check_support(op: QueryOp = None, sort: bool = False, subfield: SubfieldTyp
 
 class FieldQueryOps:
     name: Optional[str]
-    source_key: Optional[str]
-    effective_tag: TypeTag
     hint: Optional[TypeHint]
-    storage_format: TypeStorageFormat
+    _effective_tag: TypeTag
+    _source_key: Optional[str]
+    _subkey: Optional[str]
+    _storage_format: TypeStorageFormat
+
+    @property
+    def _field(self) -> "Field":
+        return self
 
     # basic support checks
 
@@ -324,13 +381,13 @@ class FieldQueryOps:
         )
 
     @property
-    def supported_subfields(self) -> set[SubfieldType]:
+    def _supported_subfields(self) -> set[SubfieldType]:
         hint_ops = _SUPPORTED_SUBFIELDS_BY_TYPE.get(self.hint, _EMPTY_SET)
         tag_ops = _SUPPORTED_SUBFIELDS_BY_TYPE.get(self._effective_tag, _EMPTY_SET)
         return hint_ops | tag_ops
 
     @property
-    def supported_query_ops(self) -> set[QueryOp]:
+    def _supported_query_ops(self) -> set[QueryOp]:
         format_ops = _SUPPORTED_QUERY_OPS_BY_TYPE.get(self._storage_format, _EMPTY_SET)
         hint_ops = _SUPPORTED_QUERY_OPS_BY_TYPE.get(self.hint, _EMPTY_SET)
         tag_ops = _SUPPORTED_QUERY_OPS_BY_TYPE.get(self._effective_tag, _EMPTY_SET)
@@ -358,7 +415,7 @@ class FieldQueryOps:
         value = self._strip_value(value)
         if value is None:
             return self.not_exists()
-        return Q(QueryOp.EQUALS, self._source_key, value)
+        return Q(QueryOp.EQUALS, self._field, self._subkey, value)
 
     def __eq__(self, other):
         from bench.language.module import Node
@@ -370,7 +427,7 @@ class FieldQueryOps:
     @_check_support(op=QueryOp.NOT_EQUALS)
     def not_equal(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.NOT_EQUALS, self._source_key, value)
+        return Q(QueryOp.NOT_EQUALS, self._field, self._subkey, value)
 
     def __ne__(self, other):
         return self.not_equal(other)
@@ -378,12 +435,12 @@ class FieldQueryOps:
     @_check_support(op=QueryOp.EQUALS)
     def in_(self, *values: list[Any]) -> Query:
         values = [self._strip_value(value) for value in values]
-        return Q(QueryOp.EQUALS, self._source_key, values)
+        return Q(QueryOp.EQUALS, self._field, self._subkey, values)
 
     @_check_support(op=QueryOp.GREATER_THAN)
     def greater_than(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.GREATER_THAN, self._source_key, value)
+        return Q(QueryOp.GREATER_THAN, self._field, self._subkey, value)
 
     def __gt__(self, other):
         return self.greater_than(other)
@@ -391,7 +448,7 @@ class FieldQueryOps:
     @_check_support(op=QueryOp.GREATER_THAN_OR_EQUALS)
     def greater_than_or_equals(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.GREATER_THAN_OR_EQUALS, self._source_key, value)
+        return Q(QueryOp.GREATER_THAN_OR_EQUALS, self._field, self._subkey, value)
 
     def __ge__(self, other):
         return self.greater_than_or_equals(other)
@@ -399,7 +456,7 @@ class FieldQueryOps:
     @_check_support(op=QueryOp.LESS_THAN)
     def less_than(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.LESS_THAN, self._source_key, value)
+        return Q(QueryOp.LESS_THAN, self._field, self._subkey, value)
 
     def __lt__(self, other):
         return self.less_than(other)
@@ -407,7 +464,7 @@ class FieldQueryOps:
     @_check_support(op=QueryOp.LESS_THAN_OR_EQUALS)
     def less_than_or_equals(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.LESS_THAN_OR_EQUALS, self._source_key, value)
+        return Q(QueryOp.LESS_THAN_OR_EQUALS, self._field, self._subkey, value)
 
     def __le__(self, other):
         return self.less_than_or_equals(other)
@@ -416,20 +473,20 @@ class FieldQueryOps:
 
     @_check_support(op=QueryOp.MATCHES)
     def matches(self, value: str) -> Query:
-        return Q(QueryOp.MATCHES, self._source_key, value)
+        return Q(QueryOp.MATCHES, self._field, self._subkey, value)
 
     contains = matches
 
     @_check_support(op=QueryOp.STARTS_WITH)
     def starts_with(self, value: str) -> Query:
         # :StartsWithHack
-        return Q(QueryOp.STARTS_WITH, self._source_key, value.lower())
+        return Q(QueryOp.STARTS_WITH, self._field, self._subkey, value.lower())
 
     @_check_support(op=QueryOp.STARTS_WITH)
     def like(self, value: str) -> Query:
         # combines matches and starts_with
-        return Q(QueryOp.STARTS_WITH, self._source_key, value) | Q(
-            QueryOp.MATCHES, self._source_key, value
+        return Q(QueryOp.STARTS_WITH, self._field, self._subkey, value) | Q(
+            QueryOp.MATCHES, self._field, self._subkey, value
         )
 
     # existence
@@ -450,19 +507,19 @@ class FieldQueryOps:
 
     @_check_support(op=QueryOp.NEAR)
     def near(self, value: list[float], approximate: bool = True) -> Query:
-        return Q(QueryOp.NEAR, self._source_key, value, approximate=approximate)
+        return Q(QueryOp.NEAR, self._field, self._subkey, value, approximate=approximate)
 
     # sort
 
     @_check_support(sort=True)
     def asc(self) -> Sort:
-        return Sort(self._source_key, SortOrder.ASCENDING)
+        return Sort(self._field, SortOrder.ASCENDING, subkey=self._subkey)
 
     ascending = asc
 
     @_check_support(sort=True)
     def desc(self) -> Sort:
-        return Sort(self._source_key, SortOrder.DESCENDING)
+        return Sort(self._field, SortOrder.DESCENDING, subkey=self._subkey)
 
     descending = desc
 
@@ -479,6 +536,7 @@ class FieldQueryOps:
             hint=hint,
             _effective_tag=tag,
             _source_key=self._source_key + "." + name,
+            _subkey=name,
             _storage_format=storage_format,
         )
 
@@ -486,26 +544,6 @@ class FieldQueryOps:
     def raw(self):
         _check_has_type_tag(self, TypeTag.STRING)
         return self._subfield(SubfieldType.key.name, TypeTag.STRING, TypeHint.KEY)
-
-    @property
-    def file_name(self) -> Subfield:
-        _check_has_type_tag(self, TypeTag.BLOB)
-        return self._subfield("name", TypeTag.STRING, TypeHint.NAME)
-
-    @property
-    def content_length(self) -> Subfield:
-        _check_has_type_tag(self, TypeTag.BLOB)
-        return self._subfield("content_length", TypeTag.NUMBER, TypeHint.INTEGER)
-
-    @property
-    def content_type(self) -> Subfield:
-        _check_has_type_tag(self, TypeTag.BLOB)
-        return self._subfield("content_type", TypeTag.STRING, TypeHint.KEY)
-
-    @property
-    def status(self) -> Subfield:
-        _check_has_type_tag(self, TypeTag.BLOB)
-        return self._subfield("status", TypeTag.STRING, TypeHint.KEY)
 
     @property
     def token_count(self) -> Subfield:
@@ -527,9 +565,14 @@ class Subfield(FieldQueryOps):
     parent: Optional[FieldQueryOps]
     name: str
     hint: Optional[TypeHint]
+    _subkey: str
     _source_key: str
     _storage_format: TypeStorageFormat
     _effective_tag: TypeTag
+
+    @property
+    def _field(self):
+        return self.parent
 
 
 # :QuerySubfields

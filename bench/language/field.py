@@ -553,6 +553,10 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
     def _source_key(self) -> str:
         return "value." + self._typed_key
 
+    @property
+    def _subkey(self) -> str | None:
+        return None  # for FieldQueryOps
+
 
 @node(mnt=MNT.RESOLVED_FIELD)
 class ResolvedField(Field):

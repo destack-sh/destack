@@ -195,7 +195,7 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
         check_module_node_access(info, statement, ModuleAccessLevel.Read)
 
         query = query.to_dsl() if query else None
-        query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_key", statement.key), query)
+        query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_key", value=statement.key), query)
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.RECORD,  # already limited by database

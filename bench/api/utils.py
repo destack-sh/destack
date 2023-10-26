@@ -240,7 +240,7 @@ class SearchQuery:
 
     def to_dsl(self) -> query.Query:
         queries = [q.to_dsl() for q in self.queries] if self.queries else None
-        return Q(self.op, queries=queries, key=self.key, value=self.value)
+        return Q(self.op, queries=queries, field=self.key, value=self.value)
 
 
 @strawberry.input
