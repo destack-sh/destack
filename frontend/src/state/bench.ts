@@ -1333,6 +1333,7 @@ export class TerminalPanel extends Panel {
   runMode: "approve" | "immediate" = "approve";
   lastRunId?: string;
   accessLevel: SessionAccessLevel = SessionAccessLevel.Update;
+  clearedAt?: string;
 
   constructor() {
     super("terminal", "terminal-" + randomHexString(), "Terminal", "Terminal");
@@ -1340,6 +1341,14 @@ export class TerminalPanel extends Panel {
 
   resetId(): void {
     this.id = "terminal-" + randomHexString();
+  }
+
+  clearHistory() {
+    this.clearedAt = new Date().toISOString();
+  }
+
+  restoreHistory() {
+    this.clearedAt = undefined;
   }
 
   static parsePath(path: string, module: ModuleIndex): Panel | null {
