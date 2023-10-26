@@ -218,6 +218,7 @@ defineExpose({
       @keydown.up.exact="editing || emitPrevent($event, 'navigateUp')"
       @keydown.down.exact="editing || emitPrevent($event, 'navigateDown')"
       @keydown.delete.exact.prevent.stop="editing || emit('deleteSelf')"
+      v-bind="appearanceAttrs"
     >
       <component
         v-if="valueInterface"
@@ -230,7 +231,6 @@ defineExpose({
         :active="active"
         :wrap="props.wrap"
         preview
-        v-bind="appearanceAttrs"
       />
       <!-- Not found -->
       <div v-else-if="IS_DEBUG" class="h-full w-full bg-red-100 text-center font-mono text-xs text-red-600">
@@ -261,13 +261,13 @@ defineExpose({
         :active="active"
         :preview-width="previewSize.width.value"
         :preview-height="previewSize.height.value"
-        v-bind="appearanceAttrs"
         @keydown.escape.exact.prevent.stop="close"
         @keydown.enter.exact.prevent.stop="enter"
         @keydown.tab.exact.prevent.stop="close(), $nextTick(() => emit('navigateRight'))"
         @keydown.shift.tab.exact.prevent.stop="close(), $nextTick(() => emit('navigateLeft'))"
         @close="close"
         @enter="enter"
+        v-bind="appearanceAttrs"
       />
       <!-- pending indicator -->
       <span v-if="editableRef?.pending" class="absolute -right-6 top-1.5 mr-1 mt-1">
