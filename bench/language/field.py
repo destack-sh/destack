@@ -604,7 +604,7 @@ class HasFields(HasType):
     fields: NodeList["Field"] = nchildren(MNT.FIELD, NRel.Named | NRel.Scoped | NRel.Ordered)
 
     resolved_fields: NodeList["ResolvedField"] = nchildren(
-        MNT.RESOLVED_FIELD, NRel.Named | NRel.Keyed | NRel.Ordered
+        MNT.RESOLVED_FIELD, NRel.Named | NRel.Keyed | NRel.Ordered, alias="f"
     )
     _did_resolve_fields: bool = nruntime(default=False)
 
