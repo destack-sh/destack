@@ -106,6 +106,7 @@ class NodeProperty:
     component: type["Node"] | None = None  # source component class
     annotation: typing.Any = None  # type annotation on LHS of assignment
     # config
+    alias: str | None = None  # for relations
     is_required: bool = False
     is_internal: bool = False
     is_runtime: bool = False
@@ -262,7 +263,12 @@ def nancestor(mnt: MNT):
     return NodeProperty(ancestor_mnt=mnt, default=None, is_internal=True)
 
 
-def nchildren(mnt: MNT, flags: NRel = NRel.Default, custom_list: type["NodeListBase"] = None):
+def nchildren(
+    mnt: MNT,
+    flags: NRel = NRel.Default,
+    custom_list: type["NodeListBase"] = None,
+    alias: str = None,
+):
     """Computed read/write children or descendants of the given type."""
     return NodeProperty(
         child_mnt=mnt,
@@ -270,6 +276,7 @@ def nchildren(mnt: MNT, flags: NRel = NRel.Default, custom_list: type["NodeListB
         is_internal=True,
         is_required=True,
         list_type=custom_list or NodeList,
+        alias=alias,
     )
 
 
@@ -1781,7 +1788,10 @@ class Node(abc.ABC):
         existing_lists: dict[str, typing.Any] | None = None
         for name, prop in self.__list_properties__.items():
             existing = getattr(self, name, None)
-            setattr(self, name, prop.list_type(self, prop))
+            node_list = prop.list_type(self, prop)
+            setattr(self, name, node_list)
+            if prop.alias:
+                setattr(self, prop.alias, node_list)
             if existing and not isinstance(existing, NodeList):
                 if existing_lists is None:
                     existing_lists = {}
