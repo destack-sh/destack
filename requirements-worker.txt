@@ -54,6 +54,12 @@ beautifulsoup4==4.11.1
     # via -r requirements-worker.in
 betterproto==1.2.5
     # via -r requirements-worker.in
+bio==1.6.0
+    # via -r requirements-worker.in
+biopython==1.81
+    # via bio
+biothings-client==0.3.0
+    # via mygene
 black==22.10.0
     # via -r requirements-worker.in
 boto3==1.26.125
@@ -164,6 +170,8 @@ googleapis-common-protos==1.60.0
     # via google-api-core
 googlemaps==4.6.0
     # via -r requirements-worker.in
+gprofiler-official==1.0.0
+    # via bio
 greenlet==2.0.2
     # via
     #   playwright
@@ -291,6 +299,8 @@ multidict==6.0.2
     #   yarl
 munch==2.5.0
     # via -r requirements-worker.in
+mygene==3.2.2
+    # via bio
 mypy==0.990
     # via -r requirements-worker.in
 mypy-extensions==1.0.0
@@ -312,6 +322,7 @@ numpy==1.23.5
     # via
     #   -r requirements-worker.in
     #   argilla
+    #   biopython
     #   jax
     #   langchain
     #   numexpr
@@ -346,6 +357,7 @@ packaging==23.1
     #   argilla
     #   huggingface-hub
     #   marshmallow
+    #   pooch
     #   pytesseract
     #   pytest
     #   unstructured-pytesseract
@@ -353,6 +365,7 @@ pandas==1.5.3
     # via
     #   -r requirements-worker.in
     #   argilla
+    #   bio
     #   unstructured
 parso==0.7.1
     # via jedi
@@ -370,13 +383,17 @@ pillow==9.5.0
     #   unstructured
     #   unstructured-pytesseract
 platformdirs==3.10.0
-    # via black
+    # via
+    #   black
+    #   pooch
 playwright==1.35.0
     # via -r requirements-worker.in
 pluggy==1.3.0
     # via pytest
 ply==3.11
     # via stone
+pooch==1.8.0
+    # via bio
 protobuf==4.24.3
     # via
     #   -r requirements-worker.in
@@ -479,16 +496,20 @@ requests==2.31.0
     # via
     #   -r requirements-worker.in
     #   atlassian-python-api
+    #   bio
+    #   biothings-client
     #   dropbox
     #   google-api-core
     #   google-search-results
     #   googlemaps
+    #   gprofiler-official
     #   huggingface-hub
     #   langchain
     #   langsmith
     #   linkedin-scraper
     #   openai
     #   opensearch-py
+    #   pooch
     #   pyairtable
     #   pygithub
     #   python-twitter-v2
@@ -569,6 +590,7 @@ tqdm==4.64.1
     # via
     #   -r requirements-worker.in
     #   argilla
+    #   bio
     #   huggingface-hub
     #   nltk
     #   openai
