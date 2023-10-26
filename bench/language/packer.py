@@ -566,7 +566,7 @@ class EnumMapper(TypeMapper):
 
     def unpack_value(self, type: HasFields, scope: ScopeNode, value: Any) -> Any:
         field_ = type.resolved_fields.get(value)
-        return field_.name if field_ else value
+        return field_ if field_ else value
 
     def pack_value(self, type: HasFields, value: Any) -> Any:
         field_ = type.resolved_fields.get(value) if not isinstance(value, Field) else value

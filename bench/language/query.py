@@ -198,10 +198,20 @@ class CompoundQuery(Query):
             return super().__or__(other)
 
 
+if TYPE_CHECKING:
+    FieldOrStr = Union[Field, str]
+else:
+    FieldOrStr = str
+
+
 @dataclass(repr=False)
 class FieldQuery(Query):
-    field: Union["Field", str]
+    field: FieldOrStr
     subkey: str = None
+
+    def encode_some_attrs(self):  # :WireFormat
+        # always inline field key
+        return {"field": self.field if isinstance(self.field, str) else self.field._source_key}
 
     @property
     def _field_str(self):
@@ -289,10 +299,14 @@ class SortMode(enum.StrEnum):
 
 @dataclass
 class Sort:
-    field: Union["Field", str]
+    field: FieldOrStr
     order: SortOrder = SortOrder.ASCENDING
     mode: Optional[SortMode] = None
     subkey: str = None
+
+    def encode_some_attrs(self):
+        # always inline field key
+        return {"field": self.field if isinstance(self.field, str) else self.field._source_key}
 
     @property
     def key(self) -> str:
@@ -430,6 +444,10 @@ class FieldQueryOps:
         return Q(QueryOp.NOT_EQUALS, self._field, self._subkey, value)
 
     def __ne__(self, other):
+        from bench.language.module import Node
+
+        if isinstance(self, Node) and isinstance(other, Node):
+            return Node.__ne__(self, other)
         return self.not_equal(other)
 
     @_check_support(op=QueryOp.EQUALS)

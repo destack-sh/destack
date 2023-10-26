@@ -44,22 +44,35 @@ if typing.TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-_ID_ARGS = ("id", "ck")
-
 
 @node(mnt=MNT.RECORD, passthrough=(("value", _Passthrough.Full),))
 class Record(HasValue, Node):
     parent: "Statement" = nparent(MNT.STATEMENT)
 
     @staticmethod
-    def new(*args, for_parent: "Statement" = None, _status: NS = None, **kwargs) -> "Record":
+    def new(
+        *args,
+        for_parent: "Statement" = None,
+        _status: NS = None,
+        _id: UUID = None,
+        _ck: UUID = None,
+        **kwargs,
+    ) -> "Record":
         from bench.language.packer import check_type
 
         if not for_parent and args:
             raise TypeError(f"cannot create record with args {args} without for_parent")
 
-        value = {k: v for k, v in kwargs.items() if k not in _ID_ARGS}
-        id_kwargs = {k: v for k, v in kwargs.items() if k in _ID_ARGS}
+        value = kwargs
+        id_kwargs = {}
+        if _id is not None:
+            if not isinstance(_id, UUID):
+                raise TypeError(f"invalid id {_id} ({type(_id)})")
+            id_kwargs["id"] = _id
+        if _ck is not None:
+            if not isinstance(_ck, UUID):
+                raise TypeError(f"invalid ck {_ck} ({type(_ck)})")
+            id_kwargs["ck"] = _ck
         if for_parent and for_parent.attached:
             # inline args and check type for instant feedback
             for field, arg in zip(for_parent.resolved_fields, args):
