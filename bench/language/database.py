@@ -202,14 +202,17 @@ class RecordSearch(Search["RecordData", Record]):
         return record
 
     def filter(self, query: Query) -> "RecordSearch":
+        assert isinstance(query, Query), f"cannot filter by {query!r} ({type(query)})"
         combined_query = Query.and_if_set(self._query, query)
         return RecordSearch(self.module, self.databases, combined_query, self._sort, self._limit)
 
     def sort(self, sort: list[Sort] | Sort) -> "RecordSearch":
         sort = [sort] if isinstance(sort, Sort) else sort
+        assert all(isinstance(s, Sort) for s in sort), f"cannot sort by {sort!r} ({type(sort)})"
         return RecordSearch(self.module, self.databases, self._query, sort, self._limit)
 
     def limit(self, limit: int) -> "RecordSearch":
+        assert isinstance(limit, int), f"cannot limit by {limit!r} ({type(limit)})"
         return RecordSearch(self.module, self.databases, self._query, self._sort, limit)
 
     async def avalues(self, field: str) -> list[Any]:
