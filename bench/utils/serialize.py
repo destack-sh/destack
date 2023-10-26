@@ -95,11 +95,11 @@ def from_dict(
             if key in deserialized:
                 continue
             is_primitive = field.type in (int, float, str, bool, datetime, UUID)
-            has_default = (
-                field.default is not dataclasses.MISSING
-                or field.default_factory is not dataclasses.MISSING
+            has_default = (field.default is not dataclasses.MISSING) or (
+                field.default_factory is not dataclasses.MISSING
             )
-            if has_default and not is_primitive:
+            is_required = (field.metadata or {}).get("required")
+            if has_default and not is_primitive and not is_required:
                 continue
             if key in data:
                 deserialized[key] = from_dict(

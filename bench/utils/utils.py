@@ -58,7 +58,7 @@ def required_field(**kwargs):
     def _raise_must_set():
         raise ValueError(f"field '{_field.name}' must be set")
 
-    _field = field(default_factory=_raise_must_set, **kwargs)
+    _field = field(default_factory=_raise_must_set, **kwargs, metadata={"required": True})
     return _field
 
 
