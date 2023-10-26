@@ -498,6 +498,7 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
     def __eq__(self, other):
         if self.tag == TypeTag.LITERAL and isinstance(other, str):
             return self.name == other or self.py_ident == other
+
         return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
 
     @property
