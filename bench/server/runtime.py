@@ -352,7 +352,7 @@ class RuntimeServer(Monitored):
         logger.debug("search.record", msg=msg)
         extra_queries = []
         if msg.p.statement_keys:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_key", msg.p.statement_keys))
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_key", value=msg.p.statement_keys))
         # TODO @Security!: check if msg origin has read access to database
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
@@ -372,9 +372,9 @@ class RuntimeServer(Monitored):
         # TODO @Security!: check if msg origin has read access to database
         extra_queries = []
         if msg.p.statements_ids:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", msg.p.statements_ids))
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", value=msg.p.statements_ids))
         if msg.p.statements_cks:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", msg.p.statements_cks))
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", value=msg.p.statements_cks))
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
@@ -392,9 +392,9 @@ class RuntimeServer(Monitored):
         logger.debug("search.log", msg=msg)
         extra_queries = []
         if msg.p.statements_ids:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", msg.p.statements_ids))
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", value=msg.p.statements_ids))
         if msg.p.statements_cks:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", msg.p.statements_cks))
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", value=msg.p.statements_cks))
         # TODO @Security!: check if msg origin has read access to database
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
