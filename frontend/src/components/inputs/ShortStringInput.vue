@@ -38,7 +38,14 @@ defineExpose({
     <span @click.stop>{{ modelValue }}</span>
     <template v-if="!hasText">&nbsp;</template></a
   >
-  <div v-else-if="preview" class="h-full w-full" :class="wrap ? 'whitespace-pre-wrap' : 'whitespace-nowrap'">
+  <div
+    v-else-if="preview"
+    class="h-full w-full"
+    :class="[
+      wrap ? 'whitespace-pre-wrap' : 'whitespace-nowrap',
+      type.hint == TypeHint.Uuid || type.hint == TypeHint.Key ? 'select-all font-mono text-gray-500' : '',
+    ]"
+  >
     {{ modelValue }}&nbsp;
   </div>
   <input

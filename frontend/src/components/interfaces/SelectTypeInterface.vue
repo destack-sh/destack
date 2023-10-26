@@ -111,10 +111,22 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
         flags: getDefaultFlags(TypeTag.TypeReference),
       })
     );
+    if (props.hideFlags) {
+      // list :SelectListShortcut
+      types.push(
+        makeField({
+          projectVersionId: module.id.value,
+          tag: TypeTag.TypeReference,
+          referenceCk: statement.ck,
+          flags: getDefaultFlags(TypeTag.TypeReference) | TypeFlag.IS_ARRAY,
+        })
+      );
+    }
   }
   return types;
 });
 
+const TRIMMED_PLURAL_FORMS = ["ies", "ie", "i", "es", "e", "s"];
 const uf = new uFuzzy({ intraMode: 0 });
 const filteredTypes = computed(() => {
   if (query.value.trim() == "") return availableTypes.value;
@@ -124,10 +136,18 @@ const filteredTypes = computed(() => {
     }
     return renderField(t) ?? "";
   });
-  let idxs = uf.filter(haystack, query.value);
+  let q = query.value;
+  if (props.hideFlags) {
+    // trim plural form for :SelectListShortcut
+    const form = TRIMMED_PLURAL_FORMS.find((f) => q.length > f.length && q.endsWith(f));
+    if (form != null) {
+      q = q.slice(0, -form.length);
+    }
+  }
+  let idxs = uf.filter(haystack, q);
   if (idxs != null && idxs.length > 0) {
-    const info = uf.info(idxs, haystack, query.value);
-    const sort = ufSort(info, haystack, query.value);
+    const info = uf.info(idxs, haystack, q);
+    const sort = ufSort(info, haystack, q);
     const order = info.idx
       .map((v, i) => i)
       .sort((ia, ib) => {
@@ -146,6 +166,7 @@ const filteredTypes = computed(() => {
 
 function writeValue(type: Field) {
   let newFlags = TypeFlag.ZERO;
+  const wasArray = Boolean(type.flags & TypeFlag.IS_ARRAY);
   if (props.modelValue == null) {
     newFlags = getDefaultFlags(type.hint ?? type.tag);
   } else {
@@ -161,6 +182,9 @@ function writeValue(type: Field) {
     ...type,
     flags: newFlags,
   };
+  if (wasArray) {
+    type.flags |= TypeFlag.IS_ARRAY; // restore since it was lost in getDefaultFlags
+  }
   value.value = type;
   emit("update:modelValue", type);
   emit("escape");
@@ -254,7 +278,7 @@ function renderField(node: Field): string | undefined | null {
 // use 'combobox id' as a stable id
 
 function toComboId(type: Field) {
-  return `${type.tag}.${type.hint ?? ""}.${type.referenceCk ?? ""}`;
+  return `${type.tag}.${type.hint ?? ""}.${type.referenceCk ?? ""}.${type.flags}`;
 }
 
 function findByComboId(id: string) {

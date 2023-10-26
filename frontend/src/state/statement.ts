@@ -147,10 +147,19 @@ export function useFields(statement: Ref<Statement>) {
       null
     );
     const reference = module.statementOf(template.referenceCk ?? "");
-    const nameFromReference =
+    let nameFromReference =
       reference?.name != null && template.tag != TypeTag.Literal
         ? getFieldNameFromTypeName(reference?.name)
         : undefined;
+    if (template.flags & TypeFlag.IS_ARRAY) {
+      // pluralize
+      if (nameFromReference?.endsWith("y")) {
+        nameFromReference = nameFromReference.slice(0, -1) + "ies";
+      } else {
+        nameFromReference = nameFromReference + "s";
+      }
+    }
+
     const name: string =
       template.name ??
       TYPEHINT_KEYWORD[template.hint as TypeHint] ??
