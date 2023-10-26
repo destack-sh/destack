@@ -339,13 +339,16 @@ class FieldQueryOps:
     def _strip_value(self, value: Any) -> Any:
         from bench.language.field import Field
 
+        # coerce to field to get its key
+        if self._effective_tag == TypeTag.ENUM and not isinstance(value, Field):
+            value = self.resolved_fields.get(value)
+
+        # coerce field to key
         if isinstance(value, Field):
-            if value._effective_tag == TypeTag.LITERAL:  # for enum members
-                value = value.key
-            else:
+            if value._effective_tag != TypeTag.LITERAL:
                 # prevent confusion since this doesn't translate to a valid query
-                # we could make it evaluate to actual comparison but that's even more confusing
                 raise TypeError(f"cannot compare a field to a non-literal field: {self} == {value}")
+            value = value.key
         return value
 
     # comparison
@@ -360,7 +363,7 @@ class FieldQueryOps:
     def __eq__(self, other):
         from bench.language.module import Node
 
-        if isinstance(other, Node):
+        if isinstance(self, Node) and isinstance(other, Node):
             return Node.__eq__(self, other)  # imitate Field equality
         return self.equals(other)
 
@@ -473,10 +476,10 @@ class FieldQueryOps:
         return Subfield(
             parent=self,
             name=name,
-            effective_tag=tag,
             hint=hint,
-            source_key=self._source_key + "." + name,
-            storage_format=storage_format,
+            _effective_tag=tag,
+            _source_key=self._source_key + "." + name,
+            _storage_format=storage_format,
         )
 
     @property
@@ -519,14 +522,14 @@ class FieldQueryOps:
     length = char_count  # for convenience
 
 
-@dataclass
+@dataclass(eq=False, frozen=True)
 class Subfield(FieldQueryOps):
     parent: Optional[FieldQueryOps]
     name: str
-    source_key: str
-    storage_format: TypeStorageFormat
-    effective_tag: TypeTag
     hint: Optional[TypeHint]
+    _source_key: str
+    _storage_format: TypeStorageFormat
+    _effective_tag: TypeTag
 
 
 # :QuerySubfields

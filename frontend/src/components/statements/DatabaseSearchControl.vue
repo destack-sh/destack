@@ -61,8 +61,8 @@ defineExpose({
       <MagnifyingGlassIcon class="h-4 w-4" />
     </button>
     <div
-      v-if="(focused && properties.inlineQuery != null) || (properties.inlineQuery ?? '').length > 0"
-      class="relative h-full w-40 transition-transform duration-150"
+      class="relative h-full transform overflow-hidden whitespace-nowrap transition-transform duration-150"
+      :class="(focused && properties.inlineQuery != null) || (properties.inlineQuery ?? '').length > 0 ? 'w-40' : 'w-0'"
       @click="searchRef?.focus()"
     >
       <EditableSpan
