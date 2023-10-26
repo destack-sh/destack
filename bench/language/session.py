@@ -2,6 +2,7 @@ import abc
 import asyncio
 import contextlib
 import sys
+import threading
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
@@ -427,6 +428,7 @@ class SessionTracer:
         self._stacktrace: list[Run] = []
         # used to prevent deleting ancestors of running statements
         self._stacktrace_ancestors_cks: dict[UUID, Statement] = {}
+        self._tracing_lock = threading.Lock()
         self.runs = {}
 
     def __str__(self):
@@ -552,9 +554,10 @@ class SessionTracer:
             inputs=pack_value(inputs, statement, is_output=False, none_if_invalid=True),
             _is_async=is_async,
         )
-        self._stacktrace_push(run)
-        _set_active_run(run)
-        self._track_run(run)  # tracker may mutate/do other things, so log after it's run
+        with self._tracing_lock:
+            self._stacktrace_push(run)
+            _set_active_run(run)
+            self._track_run(run)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.run.enter", run=run, stackdepth=len(self.stacktrace))
 
         # pre-run validation
@@ -574,28 +577,30 @@ class SessionTracer:
             self.run_exception(statement, e)
             raise e
 
-        run = self.pop_stacktrace()
-        assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
-        run.terminated_at = utcnow_with_tz()
-        run.outputs = _pack_and_truncate_value(
-            outputs, statement, is_output=True, none_if_invalid=True
-        )
-        run.status = RunStatus.Completed
-        self._track_run(run)
-        _clear_active_run(run)
+        with self._tracing_lock:
+            run = self.pop_stacktrace()
+            assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
+            run.terminated_at = utcnow_with_tz()
+            run.outputs = _pack_and_truncate_value(
+                outputs, statement, is_output=True, none_if_invalid=True
+            )
+            run.status = RunStatus.Completed
+            self._track_run(run)
+            _clear_active_run(run)
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
 
     def run_exception(self, statement: "Statement", exception: BaseException):
-        run = self.pop_stacktrace()
-        assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
-        run.terminated_at = utcnow_with_tz()
-        if isinstance(exception, asyncio.CancelledError):
-            run.status = RunStatus.Aborted
-        else:
-            run.status = RunStatus.Failed
-        run.error = RunError.from_exception(exception, statement)
-        self._track_run(run)
-        _clear_active_run(run)
+        with self._tracing_lock:
+            run = self.pop_stacktrace()
+            assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
+            run.terminated_at = utcnow_with_tz()
+            run.error = RunError.from_exception(exception, statement)
+            if isinstance(exception, asyncio.CancelledError):
+                run.status = RunStatus.Aborted
+            else:
+                run.status = RunStatus.Failed
+            self._track_run(run)
+            _clear_active_run(run)
         logger.debug("trace.run.exception", run=run, stackdepth=len(self.stacktrace))
 
     def run_cached(
@@ -622,8 +627,9 @@ class SessionTracer:
         custom_value = _custom_value.get()
         for k, v in (custom_value or {}).items():
             run.value[k] = v
-        self._track_run(run)
-        self._update_cached_info()
+        with self._tracing_lock:
+            self._track_run(run)
+            self._update_cached_info()
         logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
 
     def _update_cached_info(self):
@@ -722,15 +728,16 @@ class SessionTracer:
         if not force and not self._pending_logs and not self._pending_runs:
             return  # skip if nothing to flush
 
-        logs = self._pending_logs[:]
-        runs = list(self._pending_runs.values())
-        self._pending_logs.clear()
-        self._pending_runs.clear()
+        with self._tracing_lock:
+            logs = self._pending_logs[:]
+            self._pending_logs.clear()
+            runs = list(self._pending_runs.values())
+            self._pending_runs.clear()
 
-        if kill_pending:
-            # abort any remaining active runs
-            for run in chain(runs, self.runs.values()):
-                run._mark_dead_if_active()
+            if kill_pending:
+                # abort any remaining active runs
+                for run in chain(runs, self.runs.values()):
+                    run._mark_dead_if_active()
 
         # force flush module as well if a new statement was run
         #  (since we need those field mappings, lest OS errors)

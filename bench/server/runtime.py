@@ -911,7 +911,7 @@ class RuntimeHost:
         refresh_index: bool = False,
     ):
         self.log.debug(
-            "write_module",
+            "module.write",
             edits=edits[:5],
             total=len(edits),
             origins=origins,
@@ -965,7 +965,7 @@ class RuntimeHost:
         origins: tuple[ClientOrigin] = None,
     ) -> None:
         """Write a session to the database, and publish it to the client"""
-        logger.debug("write_session", session=session, runs=len(runs), logs=len(logs))
+        self.log.debug("session.write", session=session, runs=len(runs), logs=len(logs))
         await sync_to_async(write_session)(self.project_version, session, runs, logs)
 
         await publish(
