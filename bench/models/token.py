@@ -4,6 +4,7 @@ import secrets
 from datetime import datetime
 from hashlib import sha256
 from typing import TYPE_CHECKING, Union
+from uuid import UUID
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
@@ -51,6 +52,13 @@ class AccessTokenManager(models.Manager["AccessToken"]):
             value=raw_token,
         )
         return access_token, raw_token
+
+    def get_by_raw_token(self, raw_token: str) -> AccessToken | None:
+        """Returns the access token with the given raw token, or None if not found."""
+        if not raw_token.startswith(ACCESS_TOKEN_PREFIX):
+            return None
+        digest = digest_raw_token(raw_token)
+        return self.filter(digest=digest).first()
 
 
 class AccessTokenScope(models.TextChoices):
@@ -116,6 +124,10 @@ class AccessToken(UUIDModel):
     @property
     def owner(self) -> Organization | User:
         return self.organization or self.user
+
+    @property
+    def owner_id(self) -> UUID:
+        return self.organization_id or self.user_id
 
     objects = AccessTokenManager()
 
