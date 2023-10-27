@@ -8,6 +8,7 @@ import { StatementType } from "@/gql/graphql";
 import { useBenchState, type StatementAction, usePanelContext } from "@/state/bench";
 import { TypeFlag, useCurrentModule } from "@/state/module";
 import { useCurrentSessions } from "@/state/session";
+import { IdentifierType, toPyIdentifier } from "@/utils/functools";
 import { LinkIcon, PlayIcon, StopIcon, WindowIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 
@@ -27,7 +28,8 @@ const popoverPin = pinAbsoluteElement(integrationPopoverRef, { pos: true, keepIn
 const integrationCode = computed(() => {
   if (!showingIntegration.value) return "";
   const language = "python";
-  const path = module.pathOf(props.statement.id);
+  const nodePath = module.nodePathOf(props.statement.ck);
+  const path = nodePath?.map((n) => toPyIdentifier(n.name ?? "", IdentifierType.PATH)).join(".");
   const token = "BENCH_ACCESS_TOKEN";
   const url = `api.bench.is/${module.path.value?.replace(".", "/")}/run`;
 
