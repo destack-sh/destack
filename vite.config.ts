@@ -37,7 +37,8 @@ export default defineConfig(({ command, mode }) => {
     },
     plugins: [
       vue(),
-      codegen(),
+      // (annoying for hotreload in developemt because it always reloads when any file containing a query has changed)
+      // codegen(),
       monacoEditorPlugin({ languageWorkers: ["editorWorkerService", "json"] }),
       reloadOnVersionChange(),
     ],

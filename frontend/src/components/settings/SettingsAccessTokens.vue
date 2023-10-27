@@ -7,10 +7,10 @@ import { AccessTokenScope, AccessTokenStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
 import { PopoverButton } from "@headlessui/vue";
-import { PlusIcon, TrashIcon } from "@heroicons/vue/24/outline";
-import { useMutation, useQuery } from "@vue/apollo-composable";
+import { DocumentDuplicateIcon, EyeIcon, EyeSlashIcon, PlusIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { useApolloClient, useMutation, useQuery } from "@vue/apollo-composable";
 import { useClipboard } from "@vueuse/core";
-import { computed, ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<{ slug: string }>();
 
@@ -102,6 +102,31 @@ const { mutate: createAccessTokenMut, loading: creating } = useMutation(
 const ops = useOperationsStore();
 const notifications = useNotifications();
 const clipboard = useClipboard();
+const client = useApolloClient();
+const { getTimeFromNowLongString } = useTimeFromNow();
+const revealedAccessTokens: Ref<Record<string, string>> = ref({});
+
+function toggleRevealed(token: { id: string }) {
+  if (revealedAccessTokens.value[token.id] == null) {
+    revealAccessToken(token);
+  } else {
+    delete revealedAccessTokens.value[token.id];
+  }
+}
+
+async function copy(token: { id: string }) {
+  if (revealedAccessTokens.value[token.id] == null) {
+    await revealAccessToken(token);
+  }
+  clipboard.copy(revealedAccessTokens.value[token.id]);
+  notifications.show({
+    type: "auth.copyAccessToken",
+    kind: "success",
+    message: "Access token copied",
+    description: `You can always view it again.`,
+    showTimeMs: 7000,
+  });
+}
 
 async function createAccessToken() {
   const result = await ops.perform({
@@ -114,14 +139,16 @@ async function createAccessToken() {
     },
   });
   if (result?.data?.createAccessToken?.__typename == "AccessTokenCreatePayload") {
-    clipboard.copy(result.data.createAccessToken.token);
+    const created = result.data.createAccessToken;
+    clipboard.copy(created.token);
     notifications.show({
       type: "auth.createAccessToken",
       kind: "success",
       message: "New access token copied",
-      description: "Your new access token is in your clipboard. This is your one and only chance to save it somewhere.",
+      description: "You can always view it again.",
       showTimeMs: 20000,
     });
+    revealedAccessTokens.value[created.accessToken.id] = created.token;
   }
 }
 
@@ -159,12 +186,31 @@ async function revokeAccessToken(token: { id: string }) {
     });
   }
 }
-const { getTimeFromNowLongString } = useTimeFromNow();
+
+async function revealAccessToken(token: { id: string }) {
+  const ret = await client.client.query({
+    query: graphql(/* GraphQL */ `
+      query revealAccessToken($id: GlobalID!) {
+        accessToken(id: $id) {
+          ... on AccessToken {
+            id
+            valueRevealed
+          }
+        }
+      }
+    `),
+    variables: { id: token.id },
+    fetchPolicy: "no-cache",
+  });
+  if (ret.data.accessToken?.valueRevealed != null) {
+    revealedAccessTokens.value[token.id] = ret.data.accessToken.valueRevealed;
+  }
+}
 </script>
 <template>
   <div class="h-full w-full">
     <div class="flex flex-row items-baseline justify-between">
-      <p class="text-gray-900">Access tokens let you connect to Bench from other applications.</p>
+      <p class="text-gray-900">Access tokens let you connect to Bench with code.</p>
       <span class="text-gray-500">
         Show inactive
         <Switch class="ml-1" v-model="showInactive" />
@@ -178,11 +224,10 @@ const { getTimeFromNowLongString } = useTimeFromNow();
         <tr>
           <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Secret key</th>
           <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Status</th>
-          <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Scopes</th>
           <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Created</th>
           <th scope="col" class="py-2 pr-1 text-left text-sm font-semibold text-gray-900">
             <button
-              class="focuus:bg-gray-100 mt-1 text-orange-600 hover:bg-orange-100 focus:outline-none"
+              class="mt-1 text-orange-600 hover:bg-orange-100 focus:bg-gray-100 focus:outline-none"
               @click="createAccessToken"
               :disabled="creating"
             >
@@ -197,11 +242,25 @@ const { getTimeFromNowLongString } = useTimeFromNow();
           :key="token.id"
           class="group text-sm"
         >
-          <td class="whitespace-nowrap px-3 py-3 font-mono text-gray-700">
-            <div class="flex flex-col">
-              <span>x-...{{ token.tokenKey }}</span>
+          <!-- Token -->
+          <td class="w-1/2 whitespace-nowrap px-3 py-3 font-mono text-gray-700">
+            <div class="flex w-full flex-row rounded-sm bg-gray-100 px-0.5">
+              <span class="">
+                <template v-if="revealedAccessTokens[token.id] == null"> x-...{{ token.tokenKey }}</template>
+                <template v-else>{{ revealedAccessTokens[token.id] }}</template>
+              </span>
+              <!-- Reveal/copy -->
+              <div class="ml-auto">
+                <button class="p-0.5 text-gray-400 hover:bg-orange-100" @click="toggleRevealed(token)">
+                  <component :is="revealedAccessTokens[token.id] == null ? EyeSlashIcon : EyeIcon" class="h-4 w-4" />
+                </button>
+                <button class="ml-0.5 p-0.5 text-gray-400 hover:bg-orange-100" @click="copy(token)">
+                  <DocumentDuplicateIcon class="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </td>
+          <!-- Status -->
           <td class="px-3">
             <span v-if="token.revokedAt != null" class="rounded-sm bg-red-50 p-1 text-red-900">revoked</span>
             <span v-else-if="token.expiresAt == null" class="rounded-sm bg-green-50 p-1 text-green-900">active</span>
@@ -209,12 +268,8 @@ const { getTimeFromNowLongString } = useTimeFromNow();
               {{ getTimeFromNowLongString(token.expiresAt) }}
             </span>
           </td>
-          <td class="px-3">
-            <span v-for="scope in token.scopes" :key="scope" class="rounded-sm bg-orange-100 p-1 text-orange-900">
-              {{ scope.toLowerCase() }}
-            </span>
-          </td>
           <td class="px-3 text-gray-900">{{ getTimeFromNowLongString(token.createdAt) }}</td>
+          <!-- Action (revoke) -->
           <td>
             <ConfirmPopover
               title="Revoke token"
@@ -231,6 +286,10 @@ const { getTimeFromNowLongString } = useTimeFromNow();
               </PopoverButton>
             </ConfirmPopover>
           </td>
+        </tr>
+        <!-- Empty state -->
+        <tr v-if="accessTokensResult?.ownerBySlug?.accessTokens?.edges.length == 0">
+          <td colspan="4" class="px-3 py-3 text-sm text-gray-400">No access tokens</td>
         </tr>
       </tbody>
     </table>

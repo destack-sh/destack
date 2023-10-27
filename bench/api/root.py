@@ -13,7 +13,7 @@ from strawberry.types import ExecutionContext, Info
 from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api.auth import HasModuleAccess
+from bench.api.auth import HasModuleAccess, IsOwner
 from bench.api.database import RecordMutation, RecordQuery
 from bench.api.file import File, FileMutation
 from bench.api.module import read_module_node_by_id
@@ -32,7 +32,7 @@ from bench.api.secret import Secret, SecretMutation
 from bench.api.sentry import SentryPerformanceExtension
 from bench.api.session import SessionMutation, SessionQuery, SessionSubscription
 from bench.api.statement import StatementMutation, SymbolMutation
-from bench.api.token import AccessTokenMutation
+from bench.api.token import AccessToken, AccessTokenMutation
 from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
 from bench.api.utils import HasCrud, get_user_from_info
 from bench.models import ModuleAccessLevel, OwnerSlug
@@ -129,6 +129,9 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
     organization: Optional[Organization] = strawberry_django.node()
     owner_by_slug: Optional[Union[User, Organization]] = strawberry_django.field(
         resolver=get_user_or_organization_by_slug
+    )
+    access_token: Optional[AccessToken] = strawberry_django.node(
+        extensions=[IsOwner(map=lambda t: t.owner)]
     )
 
     # project

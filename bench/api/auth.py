@@ -427,3 +427,17 @@ def IsUser(
         return requesting_user.is_staff or requesting_user.id == user.id
 
     return SimplePermissionExtension(target=target, check=_check_is_user)
+
+
+# Path: bench/api/record.py
+def IsOwner(
+    target: CheckTarget = CheckTarget.RETVAL,
+    map: Optional[Callable[[_OtherT], models.Record]] = None,
+):
+    def _check_is_owner(info: Info, owner: models.User | models.Organization):
+        requesting_user = get_user_from_info(info)
+        if map is not None:
+            owner = map(owner)
+        return is_owner_or_member(requesting_user, owner, level=OrganizationRole.Member)
+
+    return SimplePermissionExtension(target=target, check=_check_is_owner)

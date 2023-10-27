@@ -34,9 +34,9 @@ export type AccessToken = Node & {
   revokedAt?: Maybe<Scalars["DateTime"]["output"]>;
   scopes: Array<AccessTokenScope>;
   status: AccessTokenStatus;
-  token?: Maybe<Scalars["String"]["output"]>;
   tokenKey: Scalars["String"]["output"];
   updatedAt: Scalars["DateTime"]["output"];
+  valueRevealed: Scalars["String"]["output"];
 };
 
 /** A connection to a list of items. */
@@ -1475,6 +1475,7 @@ export enum ProjectVisibility {
 
 export type Query = {
   __typename?: "Query";
+  accessToken?: Maybe<AccessToken>;
   blob?: Maybe<Blob>;
   clients: ClientConnection;
   currentRuns: SessionStateOperationInfo;
@@ -1500,6 +1501,10 @@ export type Query = {
   systemInfo: SystemInfo;
   user?: Maybe<User>;
   users: UserConnection;
+};
+
+export type QueryAccessTokenArgs = {
+  id: Scalars["GlobalID"]["input"];
 };
 
 export type QueryBlobArgs = {
@@ -2832,6 +2837,15 @@ export type RevokeAccessTokenMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
+};
+
+export type RevealAccessTokenQueryVariables = Exact<{
+  id: Scalars["GlobalID"]["input"];
+}>;
+
+export type RevealAccessTokenQuery = {
+  __typename?: "Query";
+  accessToken?: { __typename?: "AccessToken"; id: any; valueRevealed: string } | null;
 };
 
 export type OrganizationMembersQueryVariables = Exact<{
@@ -8708,6 +8722,55 @@ export const RevokeAccessTokenDocument = {
     },
   ],
 } as unknown as DocumentNode<RevokeAccessTokenMutation, RevokeAccessTokenMutationVariables>;
+export const RevealAccessTokenDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "revealAccessToken" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "accessToken" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "AccessToken" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "valueRevealed" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<RevealAccessTokenQuery, RevealAccessTokenQueryVariables>;
 export const OrganizationMembersDocument = {
   kind: "Document",
   definitions: [
