@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
-import { usePanelContext, type Action, type ActionGroup } from "@/state/bench";
+import { usePanelContext, type Action } from "@/state/bench";
 import {
   Combobox,
   ComboboxInput,
@@ -16,7 +16,6 @@ import { computed, nextTick, ref, watch, type Ref, shallowRef } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActiveScroll } from "@/composables/useScroll";
-import { levenshteinDistance } from "@/utils/functools";
 
 const props = defineProps<{
   actions: Action<any>[];
@@ -134,6 +133,7 @@ defineExpose({
 });
 </script>
 <template>
+  <!-- TODO @Performance: don't use Popover component in ActionPopover -->
   <Popover as="div" class="relative" v-slot="{ close, open }">
     <!-- Button proxy so we can handle drag events -->
     <button
