@@ -143,6 +143,10 @@ class Project(UUIDModel, CrudModel):
     def owner(self) -> Organization | User:
         return self.organization or self.user
 
+    @property
+    def owner_id(self) -> UUID:
+        return self.organization_id or self.user_id
+
     @model_property(only=["user", "organization", "slug"], select_related=["user", "organization"])
     def path(self) -> str:
         return f"{self.owner.slug}.{self.slug}"

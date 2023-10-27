@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
-import { computed, ref, type Ref } from "vue";
+import { computed, ref, watchEffect, type Ref } from "vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
@@ -14,13 +14,15 @@ const emit = defineEmits<StatementEmit>();
 
 const ops = useOperations();
 const now = useNow(10000);
-const highlightAssist = computed(
-  () =>
-    // highlight if statement just created or code is very short
-    now.value.diff(DateTime.fromISO(props.statement.createdAt)).as("minutes") < 10 || code.value.length < 100
-);
-
+const highlightAssist = ref(true);
 const code: Ref<string> = ref(props.statement.code ?? "");
+watchEffect(() => {
+  // highlight if statement just created or code is very short
+  if (now.value.diff(DateTime.fromISO(props.statement.createdAt)).as("minutes") > 10 || code.value.length >= 30) {
+    highlightAssist.value = false;
+  }
+});
+
 const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
 const codeSync = syncProperty({
   read: () => (code.value = props.statement.code ?? ""),

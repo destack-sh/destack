@@ -218,6 +218,7 @@ async def request(
     timeout: float = 10,
     retry: int = 0,
     retry_delay: float = 5,
+    retry_except: tuple[Type[Exception], ...] = (),
 ) -> NMessage[PayloadT]:
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
@@ -241,7 +242,7 @@ async def request(
                 retry=retry,
             )
             retry -= 1
-            if retry < 0:
+            if retry < 0 or not isinstance(e, retry_except):
                 raise MessagingError(
                     f"request {type.name} failed (retries={num_retries}, timeout={timeout})"
                 ) from e
