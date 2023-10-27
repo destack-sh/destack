@@ -82,7 +82,7 @@ export function useFieldsState(statement: Ref<Statement>, enabled?: Ref<boolean>
       statement.value.resolvedFields
         ?.map((n) => n as ResolvedField)
         .map((n) => (n?.fieldCk == null ? null : module.fieldOf(n.fieldCk)))
-        .filter((n) => n != null && n.deletedAt == null)
+        .filter((n) => n != null && n.deletedAt == null && !(n.flags & TypeFlag.IS_CONFIG))
         .map((n) => n as Field)
         .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? [],
     enabled

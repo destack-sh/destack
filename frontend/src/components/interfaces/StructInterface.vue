@@ -7,15 +7,7 @@ import { onStartTyping } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { TypeFlag, useCurrentModule } from "@/state/module";
 import { TypeTag } from "@/gql/graphql";
-import {
-  ChevronDoubleDownIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  DocumentDuplicateIcon,
-  QueueListIcon,
-  TableCellsIcon,
-} from "@heroicons/vue/24/outline";
-import { IS_DEBUG } from "@/utils/globals";
+import { ChevronRightIcon, QueueListIcon, TableCellsIcon } from "@heroicons/vue/24/outline";
 
 type StructAppearance = {
   verticalBorders?: boolean;
@@ -75,6 +67,7 @@ function getFields(node: Field | Statement, isOutput?: boolean): Field[] {
         (f) =>
           f != null &&
           f.deletedAt == null &&
+          !(f.flags & TypeFlag.IS_CONFIG) &&
           (isOutput === undefined || Boolean(f.flags & TypeFlag.IS_OUTPUT) === isOutput)
       )
       .map((f) => f as Field) ?? []
