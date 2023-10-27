@@ -254,21 +254,22 @@ class ModuleInternalChangedPayload(ModuleScoped, HasOrigin, Payload):
 
 @payload(NMessageType.START_RUN)
 class ReqStartRunPayload(ModuleScoped, Payload):
-    run_id: Optional[UUID]
-    session_id: Optional[UUID]
-    statement: Optional[UUID | str]
-    scope: Optional[UUID | str]
-    code: Optional[str]
-    scheduled_at: Optional[datetime]
     trigger_type: TriggerType
-    trigger_id: Optional[UUID]
-    inputs: dict[str, typing.Any]
-    block: Optional[float]
-    keyed: bool
-    tags: Optional[list[str]]
-    root_value: Optional[dict[str, typing.Any]]
-    global_value: Optional[dict[str, typing.Any]]
-    access_level: Optional[SessionAccessLevel]
+    trigger_id: Optional[UUID] = None
+    run_id: Optional[UUID] = None
+    session_id: Optional[UUID] = None
+    statement: Optional[UUID | str] = None
+    scope: Optional[UUID | str] = None
+    code: Optional[str] = None
+    scheduled_at: Optional[datetime] = None
+    inputs: dict[str, typing.Any] = None
+    block: Optional[float] = None
+    keyed: bool = True
+    keyed_return: bool = True
+    tags: Optional[list[str]] = None
+    root_value: Optional[dict[str, typing.Any]] = None
+    global_value: Optional[dict[str, typing.Any]] = None
+    access_level: Optional[SessionAccessLevel] = None
 
 
 class StartRunErrorType(enum.StrEnum):

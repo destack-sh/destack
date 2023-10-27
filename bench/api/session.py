@@ -668,7 +668,6 @@ class SessionMutation:
             scope=input.scope_ck,
             code=input.code,
             inputs=input.inputs,
-            scheduled_at=None,
             block=input.block,
             trigger_type=TriggerType.USER,
             trigger_id=user.id,
