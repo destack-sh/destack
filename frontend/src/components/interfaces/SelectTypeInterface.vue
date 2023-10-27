@@ -111,17 +111,6 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
         flags: getDefaultFlags(TypeTag.TypeReference),
       })
     );
-    if (props.hideFlags) {
-      // list :SelectListShortcut
-      types.push(
-        makeField({
-          projectVersionId: module.id.value,
-          tag: TypeTag.TypeReference,
-          referenceCk: statement.ck,
-          flags: getDefaultFlags(TypeTag.TypeReference) | TypeFlag.IS_ARRAY,
-        })
-      );
-    }
   }
   return types;
 });
@@ -137,12 +126,10 @@ const filteredTypes = computed(() => {
     return renderField(t) ?? "";
   });
   let q = query.value;
-  if (props.hideFlags) {
-    // trim plural form for :SelectListShortcut
-    const form = TRIMMED_PLURAL_FORMS.find((f) => q.length > f.length && q.endsWith(f));
-    if (form != null) {
-      q = q.slice(0, -form.length);
-    }
+  // trim plural form for search
+  const form = TRIMMED_PLURAL_FORMS.find((f) => q.length > f.length && q.endsWith(f));
+  if (form != null) {
+    q = q.slice(0, -form.length);
   }
   let idxs = uf.filter(haystack, q);
   if (idxs != null && idxs.length > 0) {

@@ -702,6 +702,13 @@ class TypedDict(dict):
         self._type = type
         self._is_output = is_output
 
+    def __str__(self):
+        return super().__str__()
+
+    def __repr__(self):
+        kwargs_str = ", ".join(f"{k}={v!r}" for k, v in self.items())
+        return f"{self._type.py_ident}({kwargs_str})"
+
     def __getitem__(self, item):
         try:
             return dict.__getitem__(self, item)

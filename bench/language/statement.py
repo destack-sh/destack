@@ -47,9 +47,36 @@ if TYPE_CHECKING:
 
 @node_component
 class InstantiableType(Node):
+    def prune(self, *args, **kwargs) -> Any:
+        from bench.language.packer import check_type
+
+        assert self.type == StatementType.CLASS, f"{self!r} is not a class"
+        combined = {}
+        for field, arg in zip(self.resolved_fields, args):
+            combined[field.py_ident] = arg
+        for field in self.resolved_fields:
+            if field.name in kwargs:
+                combined[field.py_ident] = kwargs[field.name]
+            elif field.py_ident in kwargs:
+                combined[field.py_ident] = kwargs[field.py_ident]
+        check_type(combined, self)
+        return TypedDict(combined, self)
+
     def _call_inner(self, *args, **kwargs) -> Any:
-        inputs = self._inputs_from_args(args, kwargs)
-        return TypedDict(inputs, self)
+        if self.type == StatementType.CLASS:
+            from bench.language.packer import check_type
+
+            inputs = self._inputs_from_args(args, kwargs)
+            check_type(inputs, self)
+            return TypedDict(inputs, self)
+        elif self.type == StatementType.CHOICE:
+            assert len(args) == 1, f"{self!r} must be called with a single argument"
+            resolved = self.resolved_fields.get(args[0])
+            if resolved is None:
+                raise ValueError(f"{self!r} has no field {args[0]}")
+            return resolved.field
+        else:
+            raise RuntimeError(f"cannot call instantiate on {self!r}")
 
 
 _STATEMENT_DESCRIPTORS: dict[StatementType, "_StatementDescriptor"] = {}
@@ -83,7 +110,7 @@ _s(
 )
 _s(
     StatementType.CHOICE,
-    (HasFields, HasText),
+    (InstantiableType, HasFields, HasText),
     IdentT.TYPE,
     tag=TypeTag.ENUM,
     passthrough=(("fields", _Passthrough.Full),),
