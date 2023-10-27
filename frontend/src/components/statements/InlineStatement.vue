@@ -624,7 +624,7 @@ const actions: Ref<StatementAction[]> = computed(() => {
 function orderActions(actions: StatementAction[], order: string[]) {
   return actions.slice().sort((a, b) => order.indexOf(a.groupId ?? "other") - order.indexOf(b.groupId ?? "other"));
 }
-const actionsInlineOrder = computed(() => orderActions(actions.value, ["edit", "nav", "other", "edit-core"]));
+const actionsInlineOrder = computed(() => orderActions(actions.value, ["edit", "nav", "other", "edit-core", "misc"]));
 const actionsPopoverOrder = computed(() => {
   if (isInSelection.value) {
     // add assist to selection actions
@@ -640,7 +640,7 @@ const actionsPopoverOrder = computed(() => {
       ...(nav?.value?.selectionActions ?? []),
     ];
   } else {
-    return orderActions(actions.value, ["run", "edit", "edit-core", "nav", "other"]);
+    return orderActions(actions.value, ["run", "edit", "edit-core", "nav", "other", "misc"]);
   }
 });
 
