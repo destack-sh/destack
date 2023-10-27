@@ -152,7 +152,7 @@ class JsonSchemaElement:
         items = JsonSchemaElement.to_dict(items) if items else None
         return dict(
             name=self.name,
-            type=self.type,
+            type=self.type.name,
             text=self.text,
             properties=properties,
             items=items,
@@ -464,7 +464,7 @@ class OpenAIChatMessage:
             OpenAIFunctionCall.to_dict(self.function_call) if self.function_call else None
         )
         # can't use omit_empty like usual here because content is always required, but name isn't?
-        d = dict(role=self.role, content=self.content)
+        d = dict(role=self.role.name, content=self.content)
         if self.name is not None:
             d["name"] = self.name
         if function_call is not None:
