@@ -10,6 +10,7 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench.language import LogEntry, Module, Run, RunError, Statement, wire
+from bench.language.builtin import symbolx_lib
 from bench.language.const import (
     RUNNABLE_STATEMENT_TYPES,
     ModuleReference,
@@ -19,7 +20,7 @@ from bench.language.const import (
 )
 from bench.language.edit import EditData
 from bench.language.module import _NodeChange
-from bench.language.packer import map_value, unpack_value_flat
+from bench.language.packer import map_value, unkey_value, unpack_value_flat
 from bench.language.run import RunErrorKind
 from bench.language.session import ModuleWriter, Session
 from bench.language.wire import RunData
@@ -274,9 +275,15 @@ class WorkerNode(Monitored):
             last_logs = None
 
         logs = [wire.pack_data(log) for log in last_logs] if last_logs else None
-        rep = RepStartRunPayload(
-            error=error, run=job.run_data if job else None, run_id=run_id, logs=logs
-        )
+        run_data = job.run_data if job else None
+        if not msg.p.keyed_return:
+            # unkey inputs/outputs/value
+            run_data.inputs = unkey_value(run_data.inputs, statement, is_output=False)
+            run_data.outputs = unkey_value(run_data.outputs, statement, is_output=True)
+            run_data.value = unkey_value(
+                run_data.value, symbolx_lib.resolve(".reflect.RunMetadata")
+            )
+        rep = RepStartRunPayload(error=error, run=run_data, run_id=run_id, logs=logs)
         await msg.reply(rep)
 
     @message_handler

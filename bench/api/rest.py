@@ -128,21 +128,13 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
     start_req = ReqStartRunPayload(
         project_id=project.id,
         module_id=project.head_id,
-        run_id=None,
-        session_id=None,
         statement=statement,
-        scope=None,
-        code=None,
-        scheduled_at=None,
         trigger_type=TriggerType.API,
         trigger_id=access_token.id,
         inputs=req.inputs,
         block=req.block,
         keyed=req.keyed,
-        tags=None,
-        root_value=None,
-        global_value=None,
-        access_level=None,
+        keyed_return=req.keyed,
     )
     retries = 3
     retry_delay = 5
@@ -154,16 +146,16 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
                 reply_t=RepStartRunPayload,
                 timeout=30,
             )
-            if not rep.p.run_id:
+            if not rep.p.run:
                 # unknown statement
                 return HttpResponse(status=404)
 
             response = RunResponse(
                 id=rep.p.run_id,
-                inputs=rep.p.inputs,
-                outputs=rep.p.outputs,
-                error=rep.p.error,
-                value=rep.p.value,
+                inputs=rep.p.run.inputs,
+                outputs=rep.p.run.outputs,
+                error=rep.p.run.error,
+                value=rep.p.run.value,
             )
             logger.info("rest.run.done", response=response)
             return JsonResponse(RunResponseSerializer(response).data, safe=False)

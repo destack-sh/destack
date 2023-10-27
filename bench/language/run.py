@@ -189,7 +189,8 @@ class Run:
         self._value_unpacked = True
 
         for key, value in kwargs.items():
-            self.value[key] = value
+            if value:
+                self.value[key] = value
 
     def _raw_value(self) -> dict:
         from bench.language.libs import symbolx_lib

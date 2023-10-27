@@ -176,6 +176,14 @@ def map_value(
     return mapped
 
 
+def key_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
+    return map_value(value, type, map_k=lambda f: (f.py_ident, f._typed_key), is_output=is_output)
+
+
+def unkey_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
+    return map_value(value, type, map_k=lambda f: (f._typed_key, f.py_ident), is_output=is_output)
+
+
 def walk_value(
     value: Any,
     type: "Statement",
