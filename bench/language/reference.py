@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
 from uuid import UUID
 
-from bench.language import IssueType
-from bench.language.const import INTERP_NODE_TYPES, MNT, StatementReference
+from bench.language.const import INTERP_NODE_TYPES, MNT, IssueType, StatementReference
 from bench.language.module import Node, ScopeNode, node_component, nproperty
+from bench.language.query import Sort
 from bench.utils.utils import identity
 
 if TYPE_CHECKING:
@@ -80,12 +80,12 @@ class NodeView:
 
     @property
     def nodes(self) -> Iterable[Node]:
-        return reversed(self._nodes_by_ck.values())  # see reverse below
+        return self._nodes_by_ck.values()
 
-    def view_from_node(
+    def view_node(
         self,
         origin: Node | Collection[Node],
-        ancestors_to: MNT,
+        ancestors_up_to: MNT,
         max_distance: int,
         exclude: set[MNT] = INTERP_NODE_TYPES,
     ) -> dict[UUID, Node]:
@@ -98,26 +98,32 @@ class NodeView:
         seen_by_ck: dict[UUID, Node] = {}
         for origin in origins:
             parent = origin
-            while parent is not None and parent.mnt != ancestors_to:
+            while parent is not None and parent.mnt != ancestors_up_to:
                 seen_by_ck[parent.ck] = parent
                 parent = parent.parent
 
-        # walk descendants and referents DFS
-        def _walk_node_dfs(n: Node, depth: int):
+        visitor = NodeVisitor()
+
+        def _walk_node_descendants_dfs(n: Node, depth: int) -> None:
             seen_by_ck[n.ck] = n
             if depth >= max_distance:
                 return
-            visitor = NodeVisitor()
             n._visit_self(visitor)
             children = n._local_root_tree.get_descendants(n.ck) if n.__has_scope__ else []
-            if children or visitor.references:
-                # reverse so we retain original in-node order when we reverse across all
-                for ref in reversed(children + list(visitor.references)):
-                    if ref.ck not in seen_by_ck and ref.mnt not in exclude:
-                        _walk_node_dfs(ref, depth + 1)
+            for child in children:
+                _walk_node_descendants_dfs(child, depth + 1)
 
+        # walk descendants
         for origin in origins:
-            _walk_node_dfs(origin, 0)
+            _walk_node_descendants_dfs(origin, 0)
+        # walk references
+        for i in range(max_distance):
+            new_references = [ref for ref in visitor.references if ref.ck not in seen_by_ck]
+            if not new_references:
+                break
+            for ref in new_references:
+                seen_by_ck[ref.ck] = ref
+                _walk_node_descendants_dfs(ref, i + 1)
 
         self._nodes_by_ck.update(seen_by_ck)
         return seen_by_ck
@@ -131,16 +137,15 @@ class NodeView:
                 databases.append(node)
         seen_by_ck: dict[UUID, Node] = {}
         for database in databases:
-            records = await database.records.limit(limit).atolist()
+            # sort by ck for consistency
+            records = await database.records.sort(Sort("ck")).limit(limit).atolist()
             for record in records:
                 seen_by_ck[record.ck] = record
 
         self._nodes_by_ck.update(seen_by_ck)
         return seen_by_ck
 
-    def view_from_value(
-        self, value: dict, type: "IsTyped", is_output: bool = None
-    ) -> dict[UUID, Node]:
+    def view_value(self, value: dict, type: "IsTyped", is_output: bool = None) -> dict[UUID, Node]:
         from bench.language.packer import walk_value
         from bench.language.text import Text
 

@@ -293,7 +293,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         if context_str:
             messages.append(
                 f"The definition of task '{task.name}':\n {context_str}"
-                f"\nFollow the above carefully."
+                f"\nFollow the above context carefully w.r.t. to the following inputs."
             )
 
         # inputs
@@ -308,9 +308,9 @@ class BaseTextTaskCompiler(TaskCompiler):
             inputs_strs.append(f"{field_.py_ident}: {field_str}")
         inputs_str = ", ".join(inputs_strs)
         inputs_str = format_python(f"{{{inputs_str}}}")
-        nonce_str = f"(nonce:{nonce}\n)" if nonce else ""
+        nonce_str = f"(nonce:{nonce})" if nonce else ""
         messages.append(
-            f"{nonce_str}The user's inputs for '{task.name}': \n{inputs_str}",
+            f"{nonce_str}\n\nThe user's inputs for '{task.name}': \n{inputs_str}",
         )
 
         # output schema
@@ -324,7 +324,7 @@ class BaseTextTaskCompiler(TaskCompiler):
 
         # final CTA
         messages.append(
-            f"Now, complete the task '{task.name}' given the inputs."
+            f"Now, complete the task '{task.name}' given the inputs. The result should reflect the user inputs.\n"
             f" COMPLETE with a result, PANIC with a 'reason' field if completion is impossible."
             f" (Strongly prefer COMPLETE with error information)."
             f" Respond with COMPLETE|PANIC\\n\\n"
@@ -679,7 +679,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             map_v=self._render_value_flat,
             is_output=False,
         )
-        nonce_str = f"(nonce:{nonce})\n" if nonce else ""
+        nonce_str = f"(nonce:{nonce})" if nonce else ""
         messages.append(
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,

@@ -127,7 +127,7 @@ class TextMention:
     reference_path: Optional[str] = None
 
     def __str__(self):
-        return f"@{self.reference}"
+        return f"@{self.reference.py_ident}"
 
     def __repr__(self):
         return f"<TextMention {self}>"
