@@ -165,20 +165,20 @@ export enum IdentifierType {
 }
 
 export function toPyIdentifier(name: string, type: IdentifierType): string {
-  const stripAlphaNum = (name: string): string => {
-    return name
-      .replace(/^_+|_+$|[^a-zA-Z0-9]+/g, "")
-      .replace(/__+/g, "_")
-      .replace(/^[0-9]+/, "");
-  };
-
   if ([IdentifierType.METHOD, IdentifierType.VARIABLE, IdentifierType.FIELD, IdentifierType.PATH].includes(type)) {
     name = name.replace(/[^a-zA-Z0-9_]/g, "_");
     return stripAlphaNum(name).toLowerCase();
-  } else if (type === IdentifierType.TYPE || type === IdentifierType.CONSTANT) {
+  } else if (type === IdentifierType.TYPE) {
     if (/^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+/.test(name)) return name;
     name = name.replace(/[^a-zA-Z0-9]/g, " ").replace(/([a-z])([A-Z0-9])/g, "$1 $2");
-    return stripAlphaNum(name).replace(/\s+/g, " ").trim().replace(/\s/g, "");
+    name = name
+      .split(" ")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join("");
+    return stripAlphaNum(name);
+  } else if (type === IdentifierType.CONSTANT) {
+    name = name.replace(/[^a-zA-Z0-9]/g, " ").replace(/([a-z])([A-Z0-9])/g, "$1 $2");
+    return stripAlphaNum(name).replace(/\s+/g, "_").toUpperCase();
   } else {
     throw new Error(`unexpected identifier type: ${type}`);
   }
@@ -189,8 +189,27 @@ function toAllCaps(name: string): string {
   return stripAlphaNum(name).replace(/\s+/g, " ").trim().replace(/\s/g, "_").toUpperCase();
 }
 
+// def _strip_alpha_num(name: str) -> str:
+//     # remove leading underscores
+//     name = re.sub(r"^_+", "", name)
+//     # remove trailing underscores
+//     name = re.sub(r"_+$", "", name)
+//     # remove double underscores
+//     name = re.sub(r"__+", "_", name)
+//     # remove leading digits
+//     name = re.sub(r"^[0-9]+", "", name)
+//     return name
+
 function stripAlphaNum(name: string): string {
-  return name.replace(/^_+|_+$|__+/g, "").replace(/^[0-9]+/, "");
+  // remove leading underscores
+  name = name.replace(/^_+/, "");
+  // remove trailing underscores
+  name = name.replace(/_+$/, "");
+  // remove double underscores
+  name = name.replace(/__+/g, "_");
+  // remove leading digits
+  name = name.replace(/^[0-9]+/, "");
+  return name;
 }
 
 export function levenshteinDistance(a: string, b: string): number {
