@@ -14,22 +14,12 @@ from django.db import transaction
 from more_itertools import first
 
 from bench import models
-from bench.language import (
-    Module,
-    Q,
-    Query,
-    QueryOp,
-    ResolvedField,
-    Trigger,
-    TriggerType,
-    wire,
-)
+from bench.language import Module, Q, Query, QueryOp, Trigger, TriggerType, wire
 from bench.language.cache import CacheAsync
 from bench.language.const import (
     INTERP_NODE_TYPES,
     ModuleReference,
     RunStatus,
-    TypeFlag,
     parse_absolute_node_reference,
 )
 from bench.language.edit import EditData, ModuleEditor
@@ -864,9 +854,7 @@ class RuntimeHost:
             for node in self.module._nodes:
                 # config fields are only used internally for now
                 # :InterpEditFilter
-                if node.mnt in INTERP_NODE_TYPES and not (
-                    isinstance(node, ResolvedField) and node.flags & TypeFlag.IS_CONFIG
-                ):
+                if node.mnt in INTERP_NODE_TYPES:
                     interp_mut.create(node, apply=False)
             interp_edits = interp_mut.edits
         else:

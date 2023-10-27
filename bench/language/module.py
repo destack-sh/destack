@@ -27,7 +27,6 @@ from bench.language.const import (
     NodePath,
     NodeTrackingLevel,
     StatementType,
-    TypeFlag,
     parse_absolute_node_reference,
     parse_node_path,
 )
@@ -2304,7 +2303,6 @@ class Module(ScopeNode):
     ) -> ModuleChange:
         """Computes the change between the old and new module state."""
         from bench.language.edit import ModuleEditor
-        from bench.language.field import ResolvedField
 
         new_nodes: dict[UUID, Node] = self.module._tree.nodes_by_ck
         added = []
@@ -2321,9 +2319,7 @@ class Module(ScopeNode):
         old_editor = ModuleEditor(old_source, self._project_id, self.id)
         for node in removed:
             # :InterpEditFilter
-            if node.mnt in INTERP_NODE_TYPES and not (
-                isinstance(node, ResolvedField) and node.flags & TypeFlag.IS_CONFIG
-            ):
+            if node.mnt in INTERP_NODE_TYPES:
                 if node.ck not in old_source.nodes_by_ck:
                     # need to investigate
                     logger.warning(f"node {node!r} not found in old source for {self!r}")
