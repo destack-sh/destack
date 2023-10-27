@@ -182,7 +182,7 @@ watchEffect(() => {
       </template>
     </FatHeader>
     <main
-      class="mx-auto mt-8 flex w-full max-w-[1000px] flex-grow flex-col px-8 md:gap-8 md:py-4 lg:flex-row lg:items-baseline"
+      class="mx-auto mt-8 flex w-full max-w-[1100px] flex-grow flex-col px-8 md:gap-8 md:py-4 lg:flex-row lg:items-baseline"
       v-if="profile != null"
     >
       <TabGroup :selected-index="selectedIndex" @change="selectTab" as="template">

@@ -31,6 +31,8 @@ const documents = {
     types.CreateAccessTokenDocument,
   "\n    mutation revokeAccessToken($id: GlobalID!) {\n      revokeAccessToken(id: $id) {\n        ... on AccessToken {\n          id\n          revokedAt\n          status\n        }\n        ...OperationInfoContent\n      }\n    }\n  ":
     types.RevokeAccessTokenDocument,
+  "\n      query revealAccessToken($id: GlobalID!) {\n        accessToken(id: $id) {\n          ... on AccessToken {\n            id\n            valueRevealed\n          }\n        }\n      }\n    ":
+    types.RevealAccessTokenDocument,
   "\n    query organizationMembers($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on Organization {\n          id\n          canWrite\n          memberships {\n            totalCount\n            edges {\n              node {\n                id\n                createdAt\n                level\n                user {\n                  id\n                  slug\n                  email\n                  name\n                  username\n                }\n              }\n            }\n          }\n          invites {\n            totalCount\n            edges {\n              node {\n                id\n                createdAt\n                level\n                email\n                emailSentAt\n                user {\n                  id\n                  slug\n                  email\n                  name\n                  username\n                }\n              }\n            }\n          }\n        }\n      }\n    }\n  ":
     types.OrganizationMembersDocument,
   "\n    query profileSettings($slug: String!) {\n      ownerBySlug(slug: $slug) {\n        ... on User {\n          id\n          slug\n          name\n          username\n          description\n          canWrite\n        }\n        ... on Organization {\n          id\n          slug\n          name\n          description\n          canWrite\n        }\n      }\n    }\n  ":
@@ -349,6 +351,12 @@ export function graphql(
 export function graphql(
   source: "\n    mutation revokeAccessToken($id: GlobalID!) {\n      revokeAccessToken(id: $id) {\n        ... on AccessToken {\n          id\n          revokedAt\n          status\n        }\n        ...OperationInfoContent\n      }\n    }\n  "
 ): typeof documents["\n    mutation revokeAccessToken($id: GlobalID!) {\n      revokeAccessToken(id: $id) {\n        ... on AccessToken {\n          id\n          revokedAt\n          status\n        }\n        ...OperationInfoContent\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      query revealAccessToken($id: GlobalID!) {\n        accessToken(id: $id) {\n          ... on AccessToken {\n            id\n            valueRevealed\n          }\n        }\n      }\n    "
+): typeof documents["\n      query revealAccessToken($id: GlobalID!) {\n        accessToken(id: $id) {\n          ... on AccessToken {\n            id\n            valueRevealed\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

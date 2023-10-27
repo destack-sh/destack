@@ -1,7 +1,6 @@
 type AccessToken implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
-  token: String
   name: String
   tokenKey: String!
   createdAt: DateTime!
@@ -11,6 +10,7 @@ type AccessToken implements Node {
   status: AccessTokenStatus!
   scopes: [AccessTokenScope!]!
   owner: UserOrganization!
+  valueRevealed: String!
 }
 
 """A connection to a list of items."""
@@ -1173,6 +1173,10 @@ type Query {
     id: GlobalID!
   ): Organization
   ownerBySlug(slug: String!): UserOrganization
+  accessToken(
+    """The ID of the object."""
+    id: GlobalID!
+  ): AccessToken
   project(
     """The ID of the object."""
     id: GlobalID!
