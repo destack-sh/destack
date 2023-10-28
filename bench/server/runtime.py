@@ -633,7 +633,14 @@ class RuntimeHost:
                 # should we ignore backfill here if just edited (updated_at > processed_up_to)?
                 triggers_to_fire.add(trigger.trigger.id)
 
-        # TODO @Broken: backfill previously scheduled runs into runs_to_start
+        prescheduled_runs = [
+            r
+            async for r in models.Run.objects.filter(status=RunStatus.Scheduled).order_by(
+                "scheduled_at"
+            )
+        ]
+        for run in prescheduled_runs:
+            runs_to_start.append(packer.pack_data(run))
 
         self.log.debug("time_triggers.process_forever", initial_triggers_to_fire=triggers_to_fire)
 
@@ -778,6 +785,7 @@ class RuntimeHost:
                 statement_id=statement.id,
                 statement_type=statement.type,
                 statement_ck=statement.ck,
+                statement_path=None,
                 session_id=None,
                 trigger_type=fired_trigger.trigger.type,
                 trigger_id=fired_trigger.trigger.id,
@@ -789,6 +797,7 @@ class RuntimeHost:
                 started_at=None,
                 terminated_at=None,
                 status=RunStatus.Scheduled,
+                access_level=None,
                 inputs={},
                 outputs=None,
                 error=None,

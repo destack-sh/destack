@@ -8,7 +8,7 @@ from asgiref.sync import sync_to_async
 from django.db.models import Q
 
 from bench import models
-from bench.language.const import PENDING_RUN_STATUSES, WorkerSetStatus
+from bench.language.const import ACTIVE_RUN_STATUSES, PENDING_RUN_STATUSES, WorkerSetStatus
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.msg import nc_init
@@ -191,7 +191,7 @@ class OrchestrationServer(Monitored):
             # extend worker_node_ids by any worker nodes that have an active run but aren't in k8
             worker_set = self.worker_sets_by_project_id.get(project_id)
             active_runs = models.Run.objects.filter(
-                worker_node_id__isnull=False, status__in=PENDING_RUN_STATUSES
+                worker_node_id__isnull=False, status__in=ACTIVE_RUN_STATUSES
             ).values_list("worker_node_id", flat=True)
             also_dead_worker_node_ids = {
                 i async for i in active_runs if i not in worker_set.active_replicas_ids
@@ -200,9 +200,11 @@ class OrchestrationServer(Monitored):
 
         # collect presumed dead runs
         dead_runs = models.Run.objects.filter(
-            Q(worker_node_id__in=worker_node_ids, status__in=PENDING_RUN_STATUSES)
+            Q(worker_node_id__in=worker_node_ids, status__in=ACTIVE_RUN_STATUSES)
             | Q(id__in=run_ids or [])
-        ).filter(project_id=project_id)
+        )
+        if project_id:
+            dead_runs = dead_runs.filter(project_id=project_id)
         dead_runs = [r async for r in dead_runs]
 
         # mark dead and send out updates

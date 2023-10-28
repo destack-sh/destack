@@ -59,7 +59,7 @@ from bench.worker.environment import WORKER_ENVIRONMENT_DATA
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 3000, type_cast=int)
 WORKER_ACTIVE_TIMEOUT = timedelta(seconds=30)
 WORKER_ACTIVE_PUBLISH_INTERVAL = 10
-WORKER_SCHEDULE_BLOCK_AHEAD = 0.5
+WORKER_SCHEDULE_BLOCK_AHEAD = 1
 
 logger = structlog.get_logger(__name__)
 
