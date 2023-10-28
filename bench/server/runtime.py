@@ -620,7 +620,7 @@ class RuntimeHost:
             self.active_trigger_process_wait.set()
 
         triggers_to_fire: set[UUID] = set()
-        runs_to_start: list[wire.RunData] = []
+        runs_to_start: dict[UUID, wire.RunData] = {}
         timed_wait_task: Optional[asyncio.Task] = None
 
         # backfill time triggers on first go (coalescing to at most one per trigger)
@@ -640,7 +640,7 @@ class RuntimeHost:
             )
         ]
         for run in prescheduled_runs:
-            runs_to_start.append(packer.pack_data(run))
+            runs_to_start[run.id] = packer.pack_data(run)
 
         self.log.debug("time_triggers.process_forever", initial_triggers_to_fire=triggers_to_fire)
 
@@ -671,7 +671,8 @@ class RuntimeHost:
                 triggers_to_fire=triggers_to_fire,
                 processed_up_to=process_up_to,
             )
-            runs_to_start.extend(next_runs_to_start)
+            for run in next_runs_to_start:
+                runs_to_start[run.id] = run
 
             # publish scheduled runs (should be project scoped later, but we don't have a session)
             await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_to_start))
@@ -690,7 +691,7 @@ class RuntimeHost:
                 )
 
             # send out run requests (could do this in parallel but doesn't matter for now)
-            for run in runs_to_start:
+            for run in runs_to_start.values():
                 req = ReqStartRunPayload(
                     project_id=run.project_id,
                     module_id=run.module_id,
@@ -711,11 +712,14 @@ class RuntimeHost:
                         NMessageType.START_RUN, req, reply_t=RepStartRunPayload, retry=3
                     )
                     if rep.p.error:
-                        logger.error("time_triggers.start_run.error", run=run, error=rep.p.error)
-                        continue
+                        raise RuntimeError(rep.p.error)
                 except Exception as e:
                     logger.error("time_triggers.start_run.error", run=run, exc_info=e)
-                    continue
+                    # mark run as cancelled
+                    run = await models.Run.objects.aget(id=run.id)
+                    run.mark_dead()
+                    await run.asave()
+                    await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=[run]))
 
             # reset next occurrence for all triggers that fired
             for trigger_id in triggers_to_fire:

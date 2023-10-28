@@ -144,7 +144,7 @@ defineExpose({
       @keydown.enter.stop.prevent="writeSecretValue(), emit('enter')"
     />
     <!-- Controls -->
-    <div class="flex flex-row gap-0.5" v-if="bench.canUse && (modelValue != null || !preview)">
+    <div class="flex flex-row gap-0.5" v-if="bench.canEdit && (modelValue != null || !preview)">
       <button
         v-for="action in inlineActions"
         :key="action.label"
