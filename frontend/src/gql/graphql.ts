@@ -593,7 +593,6 @@ export type Mutation = {
   renameStatement: StatementOperationInfo;
   requestUploadObject: BlobOperationInfo;
   restartWorkerSet: RestartWorkerSetPayloadOperationInfo;
-  restore: SnapshotPayloadOperationInfo;
   restoreField: FieldOperationInfo;
   restoreFile: FileOperationInfo;
   restoreRecord: RecordOperationInfo;
@@ -816,10 +815,6 @@ export type MutationRequestUploadObjectArgs = {
 
 export type MutationRestartWorkerSetArgs = {
   input: RestartWorkerSetInput;
-};
-
-export type MutationRestoreArgs = {
-  input: RestoreInput;
 };
 
 export type MutationRestoreFieldArgs = {
@@ -1778,10 +1773,6 @@ export type RestartWorkerSetPayload = {
 };
 
 export type RestartWorkerSetPayloadOperationInfo = OperationInfo | RestartWorkerSetPayload;
-
-export type RestoreInput = {
-  projectVersionId: Scalars["GlobalID"]["input"];
-};
 
 export type Run = HasTriggeredBy &
   Node & {

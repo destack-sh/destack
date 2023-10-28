@@ -317,11 +317,6 @@ class SnapshotInput:
     description: Optional[str] = None
 
 
-@strawberry.input
-class RestoreInput:
-    project_version_id: GlobalID
-
-
 @strawberry.type
 class SnapshotPayload:
     project: Project
@@ -377,8 +372,3 @@ class ProjectVersionMutation:
             ProjectChangedPayload(project_id=project.id, origins=[origin]),
         )
         return SnapshotPayload(project=project, snapshot=snapshot)
-
-    @safe_mutation(atomic=True)
-    def restore(self, info: Info, input: RestoreInput) -> SnapshotPayload | OperationInfo:
-        # TODO @Broken: update restore to keep current ids properly (use module node identity?)
-        raise NotImplementedError("restore is temporarily disabled")

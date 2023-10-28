@@ -361,7 +361,14 @@ TERMINAL_RUN_STATUSES = {
     RunStatus.Failed,
     RunStatus.Completed,
 }
-PENDING_RUN_STATUSES = set(RunStatus) - TERMINAL_RUN_STATUSES
+PENDING_RUN_STATUSES = {
+    RunStatus.Scheduled,
+    RunStatus.Queued,
+    RunStatus.Running,
+    RunStatus.Suspended,
+    RunStatus.Aborting,
+}
+ACTIVE_RUN_STATUSES = {RunStatus.Queued, RunStatus.Running, RunStatus.Suspended, RunStatus.Aborting}
 
 
 class WorkerProfile(enum.StrEnum):

@@ -540,7 +540,6 @@ type Mutation {
   removeProjectMembership(input: ProjectRemoveMembershipInput!): ProjectOperationInfo!
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
   snapshot(input: SnapshotInput!): SnapshotPayloadOperationInfo!
-  restore(input: RestoreInput!): SnapshotPayloadOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   updateStatement(input: StatementUpdateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
@@ -1339,10 +1338,6 @@ type RestartWorkerSetPayload {
 }
 
 union RestartWorkerSetPayloadOperationInfo = RestartWorkerSetPayload | OperationInfo
-
-input RestoreInput {
-  projectVersionId: GlobalID!
-}
 
 type Run implements HasTriggeredBy & Node {
   triggerType: TriggerType
