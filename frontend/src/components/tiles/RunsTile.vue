@@ -98,7 +98,10 @@ defineExpose({ runs, loading, totalCount, pageInfo });
       <tr v-for="run in runs" :key="run.id" class="group/run divide-orange-900 divide-opacity-[12%]">
         <!-- ID (to copy) -->
         <td class="whitespace-nowrap px-2.5 py-1.5">
-          <button class="flex flex-row items-center hover:underline" @click="bench.openViewRun(run, { focus: true })">
+          <button
+            class="flex flex-row items-center hover:underline"
+            @click.stop="bench.openViewRun(run, { focus: true })"
+          >
             <span class="font-mono underline-offset-2">#{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}</span>
           </button>
         </td>

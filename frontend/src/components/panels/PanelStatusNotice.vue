@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
-import { useBenchState, usePanelContext } from "@/state/bench";
+import { useBenchState, useBenchVersioning, usePanelContext } from "@/state/bench";
 import { IS_DEBUG } from "@/utils/globals";
 import { computed } from "vue";
 
@@ -16,6 +16,7 @@ const emit = defineEmits<{
 
 const now = useTimeFromNow();
 const bench = useBenchState();
+const versioning = useBenchVersioning();
 const panel = usePanelContext();
 
 const isDeleted = computed(() => props.thing?.deletedAt != null);
@@ -57,11 +58,32 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
     >
       <div class="text-sm font-semibold text-white">This {{ name }} is from another version.</div>
       <router-link
-        class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
+        class="text-sm text-white underline decoration-dashed underline-offset-2 hover:decoration-solid"
         :to="{ query: { version: thing?.projectVersion?.id } }"
       >
         Go there
       </router-link>
+    </div>
+  </div>
+  <!-- Restore thing -->
+  <div
+    v-else-if="!loading && !isDeleted && !bench.isAtHead && false /* TODO @Feature: restore nodes :BE-399 */"
+    class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-0.5"
+  >
+    <div
+      class="mx-auto flex flex-row items-center justify-center gap-2"
+      :style="panel.panel.value.contentWidthAsMaxWidth"
+    >
+      <div class="text-sm font-semibold text-white">
+        This {{ name }} is from version {{ versioning.currentVersionName.value }}.
+      </div>
+      <button
+        v-if="bench.canEdit && thing != null"
+        class="text-sm text-white underline decoration-dashed underline-offset-2 hover:text-gray-200 hover:decoration-solid"
+        @click="versioning.restoreNode(thing.id)"
+      >
+        Restore {{ name }}
+      </button>
     </div>
   </div>
   <!-- Thing failed to load -->

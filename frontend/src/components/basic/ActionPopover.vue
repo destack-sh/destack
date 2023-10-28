@@ -34,12 +34,11 @@ const emit = defineEmits<{
   (e: "freeform", v: string): void;
 }>();
 
-const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
-const popoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
-const popoverOpenRef: Ref<HTMLElement | null> = ref(null);
+const popoverPanelRef: Ref<HTMLDivElement | null> = ref(null);
+const open: Ref<boolean> = ref(false);
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 const { pinned: popoverPinned, fixed: popoverFixed } = pinAbsoluteElement(
-  computed(() => popoverPanelRef.value?.$el),
+  computed(() => popoverPanelRef.value),
   { pos: true, width: true, keepInView: true }
 );
 const panel = usePanelContext();
@@ -48,7 +47,7 @@ const isInRightThirdOfPanel = computed(() => {
   return popoverFixed.value.x + popoverFixed.value.width > panel.size.value.width * 0.66;
 });
 
-useActiveScroll(computed(() => popoverPanelRef.value?.$el));
+useActiveScroll(computed(() => popoverPanelRef.value));
 
 const query = ref("");
 const uf = new uFuzzy({ intraMode: 0 });
@@ -69,16 +68,22 @@ const closed = ref(false);
 const nestedComponent = shallowRef<{ component: InstanceType<any> | null; props: any } | null>(null);
 const nestedActionIndex = ref<number | null>(null);
 
-// focus input when popover opens
-watch(popoverOpenRef, () => {
-  emit("open");
-  nextTick(focus);
+watch(open, () => {
+  if (open.value) {
+    // focus input when popover opens
+    emit("open");
+    nextTick(focus);
+  } else {
+    // clear input and closed when popover opens/closes
+    emit("close");
+    nextTick(blur);
+  }
 });
-// clear input and closed when popover opens/closes
-watch(popoverOpenRef, () => {
-  emit("close");
-  nextTick(blur);
-});
+
+function close() {
+  open.value = false;
+  closed.value = true;
+}
 
 function focus() {
   inputRef.value?.$el.focus();
@@ -128,39 +133,31 @@ const appearance = useAppearance();
 defineExpose({
   focus,
   blur,
-  show: () => popoverButtonRef.value?.$el.click(),
-  open: computed(() => popoverOpenRef.value != null),
+  show: () => (open.value = true),
+  open,
 });
 </script>
 <template>
-  <!-- TODO @Performance: don't use Popover component in ActionPopover -->
-  <Popover as="div" class="relative" v-slot="{ close, open }">
-    <!-- Button proxy so we can handle drag events -->
+  <div class="relative">
     <button
       class="z-20 block rounded-sm text-gray-900 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
       :class="[open ? 'bg-orange-100' : '']"
-      @click="
-        emit('click', $event), popoverButtonRef?.$el.click(), (closed = false), $nextTick(() => inputRef?.$el.focus())
-      "
+      @click="emit('click', $event), (open = true), (closed = false), $nextTick(() => inputRef?.$el.focus())"
       @mousedown.stop.prevent="emit('mousedown', $event)"
       @mouseup="emit('mouseup', $event)"
     >
       <slot :close="close" :open="open"><EllipsisVerticalIcon class="h-4 w-4" /></slot>
     </button>
-    <PopoverButton ref="popoverButtonRef" class="hidden" />
     <!-- Prevent scroll and capture click outside -->
-    <div
-      v-if="popoverOpenRef != null"
-      class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
-      @click.stop="close"
-    />
+    <div v-if="open" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close" />
     <FadeTransition>
-      <PopoverPanel
+      <div
+        v-if="open"
         ref="popoverPanelRef"
         as="div"
         class="z-50 flex flex-col gap-2 rounded-sm bg-white shadow-md ring-1 ring-orange-900 ring-opacity-40"
         :class="[popoverPinned ? '' : 'absolute ' + anchor, small ? 'w-40 p-1' : 'w-72 p-2 ']"
-        unmount
+        @keydown.escape.exact.prevent.stop="close"
       >
         <span ref="popoverOpenRef" class="hidden" />
         <!-- Input & actions -->
@@ -263,7 +260,7 @@ defineExpose({
             <component :is="nestedComponent.component" v-bind="nestedComponent.props" @close="close" />
           </div>
         </FadeTransition>
-      </PopoverPanel>
+      </div>
     </FadeTransition>
-  </Popover>
+  </div>
 </template>

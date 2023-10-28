@@ -121,6 +121,7 @@ const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(prop
           live
           :after="runsAfter"
           :limit="panel.limit"
+          root-only
         />
       </ContainerTile>
     </div>

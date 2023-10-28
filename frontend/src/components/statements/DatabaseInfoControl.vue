@@ -4,7 +4,6 @@ import { useOperations } from "@/state/operations";
 import { ClockIcon as ClockIconOutline, GlobeAltIcon as GlobeAltIconOutline } from "@heroicons/vue/24/outline";
 import { GlobeAltIcon as GlobeAltIconSolid } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
-import { DATABASE_VERSIONED_RECORD_LIMIT } from "@/state/module";
 
 const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
@@ -53,7 +52,7 @@ defineExpose({
         statement.versioned && !focused ? 'text-gray-300' : '',
         statement.versioned
           ? 'group-hover:statement/text-gray-400 transition duration-150 hover:bg-orange-100 focus:bg-orange-100 focus:text-gray-700'
-          : 'rounded-xl bg-emerald-100 px-1.5 text-emerald-900 ring-1 ring-inset ring-emerald-600/20 focus:bg-emerald-200 focus:ring-emerald-600/80',
+          : 'text-emerald-900  hover:bg-emerald-100 focus:bg-emerald-100',
       ]"
       @click="emit('openActions')"
       @keydown.left.exact.prevent="emit('navigateLeft')"
@@ -62,7 +61,6 @@ defineExpose({
       @keydown.down.exact.prevent="emit('navigateDown')"
     >
       <component :is="statement.versioned ? ClockIconOutline : GlobeAltIconSolid" class="mr-0.5 mt-0.5 h-4 w-4" />
-      <span v-if="!statement.versioned">global</span>
       <!-- Label popover -->
       <span
         v-if="!readonly"

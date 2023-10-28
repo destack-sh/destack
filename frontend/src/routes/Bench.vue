@@ -26,9 +26,12 @@ import {
   PROJECT_ACCESS_LEVEL_NAME,
   projectAccessGt,
   projectAccessLt,
+  provideBenchVersioning,
   useBenchPersistence,
   useBenchState,
+  type ProjectHeader,
   type ViewId,
+  type ProjectVersionHeader,
 } from "@/state/bench";
 import { ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useCurrentModule, type ModuleIndex } from "@/state/module";
@@ -74,12 +77,13 @@ import {
   CubeIcon as CubeIconSolid,
   InformationCircleIcon,
   CommandLineIcon,
+  ClockIcon,
 } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
 import { WORKER_STATUS_COLOR, WORKER_STATUS_TITLE, useCurrentSessions } from "@/state/session";
 import SharingPopover from "@/components/bench/SharingPopover.vue";
-import type { Project } from "@/gql/graphql";
+import type { Project, ProjectVersion } from "@/gql/graphql";
 import { useElementRefs } from "@/composables/useGrid";
 
 const props = defineProps<{
@@ -418,6 +422,7 @@ watch(
         console.log(`no local bench state available, reset bench ${projectFetched.value.slug}`);
       }
       bench.projectId = projectFetched.value.id;
+      bench.projectHeadId = (projectFetched.value.head as ProjectVersion)?.id;
     }
     if (versionToViewId.value != null && bench.projectVersionId != versionToViewId.value) {
       bench.projectVersionId = versionToViewId.value;
@@ -426,6 +431,8 @@ watch(
   },
   { immediate: true }
 );
+
+provideBenchVersioning(projectFetched as Ref<ProjectHeader | null>, versionFetched as Ref<ProjectVersionHeader | null>);
 
 // clear bench state when exiting view
 onBeforeUnmount(() => {
@@ -480,19 +487,19 @@ onBeforeUnmount(() => {
           <FadeTransition>
             <div
               v-if="versionToViewId != projectHead?.id && versionFetched != null"
-              class="ml-1.5 flex flex-row rounded-sm border border-orange-900/[12%] bg-orange-100 px-2 py-0.5 text-sm text-gray-900"
+              class="ml-1.5 flex flex-row rounded-sm border border-orange-900/[12%] bg-yellow-600 px-2 py-0.5 text-sm text-white"
             >
               <span class="relative">
-                <ClockIconOutline class="absolute top-0 h-5 w-5 text-gray-900" />
+                <ClockIcon class="absolute top-0 h-5 w-5 text-white hover:text-yellow-200" />
                 <span class="ml-6 font-bold">{{ versionFetched?.tag ?? versionFetched?.name ?? "Autosave" }}</span>
               </span>
               <router-link :to="{ hash: router.currentRoute.value.hash }" class="ml-2.5 flex items-center">
-                <HomeIconSolid class="mr-0.5 h-4 w-4 text-orange-600 hover:text-orange-700" />
+                <HomeIconSolid class="mr-0.5 h-4 w-4 text-white hover:text-gray-200" />
               </router-link>
               <router-link
                 :to="{ hash: router.currentRoute.value.hash, query: { version: versionFetched.parents[0]?.id } }"
                 class="ml-1 flex items-center"
-                :class="versionFetched.parents.length == 0 ? 'text-gray-400' : ' text-orange-600 hover:text-orange-700'"
+                :class="versionFetched.parents.length == 0 ? 'text-gray-700' : 'text-white hover:text-gray-200'"
                 :disabled="versionFetched.parents.length == 0"
               >
                 <ArrowLeftIcon class="mr-0.5 h-4 w-4" />
@@ -500,13 +507,18 @@ onBeforeUnmount(() => {
               <router-link
                 :to="{ hash: router.currentRoute.value.hash, query: { version: versionFetched.children[0]?.id } }"
                 class="ml-0 flex items-center"
-                :class="
-                  versionFetched.children.length == 0 ? 'text-gray-400' : ' text-orange-600 hover:text-orange-700'
-                "
+                :class="versionFetched.children.length == 0 ? 'text-gray-700' : ' text-white hover:text-gray-200'"
                 :disabled="versionFetched.children.length == 0"
               >
                 <ArrowRightIcon class="mr-0.5 h-4 w-4" />
               </router-link>
+              <!-- Full Bench restore not implemented yet -->
+              <!-- <button
+                v-if="bench.canEdit"
+                class="ml-1 text-white underline decoration-dashed underline-offset-2 hover:text-gray-200 hover:decoration-solid"
+              >
+                Restore version
+              </button> -->
             </div>
           </FadeTransition>
           <!-- Read-only project notice -->
