@@ -19,6 +19,7 @@ from bench.language import TriggerType
 from bench.msg import NMessageType
 from bench.msg.core import MessagingError, NMessage, request
 from bench.msg.messages import RepStartRunPayload, ReqStartRunPayload, ReqWakeWorkerSetPayload
+from bench.utils.utils import sentry_capture
 
 logger = structlog.get_logger(__name__)
 
@@ -62,6 +63,9 @@ def async_api_view(methods: list[str] = None):
                 return HttpResponse(status=403)
             except ObjectDoesNotExist:
                 return HttpResponse(status=404)
+            except BaseException as e:
+                logger.error("rest.internal_error", exc_info=e, sentry=sentry_capture(e))
+                return HttpResponse(status=500)
 
         wrapped_view.methods = methods
         return wraps(view_func)(wrapped_view)
