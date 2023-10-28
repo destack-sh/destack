@@ -737,7 +737,7 @@ defineExpose({
               :allow-freeform="bench.canEdit"
               @freeform="emit('launchAssist', $event, nav?.getSelectedRoots() ?? [statement])"
               @click.stop
-              @close="nav?.panel?.focusElement(statement)"
+              @close="$nextTick(() => focus('first'))"
               @mouseup="containerRef?.setAttribute('draggable', 'false')"
             >
               <!-- For some reason I had to put the mousedown back into the inner element for dragging to work -- previously,
@@ -867,7 +867,7 @@ defineExpose({
               :allow-freeform="bench.canEdit"
               @freeform="emit('launchAssist', $event, nav?.getSelectedRoots() ?? [statement])"
               @click.stop
-              @close="nav?.panel?.focusElement(statement)"
+              @close="$nextTick(() => focus('first'))"
             >
               <div class="group p-0.5 text-gray-400 hover:text-gray-700">
                 <EllipsisVerticalIcon class="h-4 w-4" />

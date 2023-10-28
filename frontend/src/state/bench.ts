@@ -45,10 +45,11 @@ import {
 } from "@heroicons/vue/24/solid";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
-import { computed, inject, onBeforeUnmount, provide, watch, type Ref, nextTick } from "vue";
+import { computed, inject, onBeforeUnmount, provide, watch, type Ref, nextTick, toRef } from "vue";
 import { validate as isValidUUID } from "uuid";
 import type EditFilePanelVue from "@/components/panels/EditFilePanel.vue";
 import { ModuleAccessLevel } from "@/state/auth";
+import { useNotifications } from "@/state/notifications";
 
 export const PROJECT_ACCESS_LEVELS = [
   ModuleAccessLevel.Zero,
@@ -96,7 +97,7 @@ export type ProjectHeader = Pick<
 >;
 export type ProjectVersionHeader = Pick<
   ProjectVersion,
-  "id" | "ck" | "name" | "description" | "createdAt" | "committed" | "committedAt"
+  "id" | "ck" | "name" | "tag" | "description" | "createdAt" | "committed" | "committedAt"
 >;
 export type FileHeader = Pick<
   File,
@@ -305,6 +306,7 @@ export const useBenchState = defineStore("bench", {
       // bench
       projectId: null as string | null,
       projectVersionId: null as string | null,
+      projectHeadId: null as string | null,
       accessLevel: null as ModuleAccessLevel | null,
       readonly: false,
       // views
@@ -327,6 +329,10 @@ export const useBenchState = defineStore("bench", {
     };
   },
   getters: {
+    // versioning
+    isAtHead(): boolean {
+      return this.projectVersionId == this.projectHeadId;
+    },
     // access
     canRead(): boolean {
       return projectAccessGte(this.accessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Read);
@@ -754,6 +760,7 @@ export function useBenchPersistence(minIntervalMs = 1000) {
     if (bench.projectId != projectId) {
       bench.projectId = projectId;
       bench.projectVersionId = null;
+      bench.projectHeadId = null;
     }
     const state = localStorage.getItem(`bench-state-${projectId}`);
     if (state) {
@@ -1434,4 +1441,34 @@ export function useElementPanelSettings<T>(element: Ref<{ id: string }>, default
     }
   );
   return proxy as T;
+}
+
+type BenchVersioning = {
+  project: Ref<ProjectHeader | null>;
+  currentVersion: Ref<ProjectVersionHeader | null>;
+};
+
+export function provideBenchVersioning(project: Ref<ProjectHeader | null>, currentVersion: Ref<ProjectVersionHeader>) {
+  provide<BenchVersioning>("bench-versioning", { project, currentVersion });
+}
+
+export function useBenchVersioning() {
+  const versioning = inject<BenchVersioning>("bench-versioning");
+  if (versioning == null) {
+    throw new Error("bench versioning not provided");
+  }
+  const bench = useBenchState();
+  const notifications = useNotifications();
+
+  async function restoreNode(ck: string) {
+    // TODO @Feature: restore nodes (see :BE-399)
+  }
+
+  return {
+    isAtHead: toRef(bench, "isAtHead"),
+    currentVersionName: computed(
+      () => versioning.currentVersion.value?.name ?? versioning.currentVersion.value?.name ?? "???"
+    ),
+    restoreNode,
+  };
 }
