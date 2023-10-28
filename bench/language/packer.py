@@ -176,14 +176,6 @@ def map_value(
     return mapped
 
 
-def key_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
-    return map_value(value, type, map_k=lambda f: (f.py_ident, f._typed_key), is_output=is_output)
-
-
-def unkey_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
-    return map_value(value, type, map_k=lambda f: (f._typed_key, f.py_ident), is_output=is_output)
-
-
 def walk_value(
     value: Any,
     type: "Statement",
@@ -827,13 +819,7 @@ def field_from_instance_type(
             name=name_nice, key=None, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags
         )
     else:
-        return Field(
-            name=name_nice,
-            key=None,
-            tag=type.tag,
-            hint=type.hint,
-            flags=flags,
-        )
+        return Field(name=name_nice, key=None, tag=type.tag, hint=type.hint, flags=flags)
 
 
 def unpack_value_flat(
@@ -944,6 +930,30 @@ def pack_value(
         ignore_empty=ignore_empty,
         none_if_invalid=none_if_invalid,
         is_output=is_output,
+    )
+
+
+def key_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
+    def map_v(value: Any, type: HasType, *args, **kwargs) -> Any:
+        if type._effective_tag == TypeTag.ENUM:
+            return value.key
+        else:
+            return value
+
+    return map_value(
+        value, type, map_k=lambda f: (f.py_ident, f._typed_key), map_v=map_v, is_output=is_output
+    )
+
+
+def unkey_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
+    def map_v(value: Any, type: HasType, *args, **kwargs) -> Any:
+        if type._effective_tag == TypeTag.ENUM:
+            return type.resolved_fields.get(value).py_ident
+        else:
+            return value
+
+    return map_value(
+        value, type, map_k=lambda f: (f._typed_key, f.py_ident), map_v=map_v, is_output=is_output
     )
 
 

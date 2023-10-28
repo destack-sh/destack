@@ -3,7 +3,7 @@ import json
 import threading
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any
+from typing import Any, Optional
 from uuid import UUID
 
 import structlog
@@ -94,6 +94,10 @@ class RunRequestSerializer(DataclassSerializer):
 @dataclass
 class RunResponse:
     id: UUID
+    status: str
+    created_at: Optional[str]
+    started_at: Optional[str]
+    terminated_at: Optional[str]
     inputs: dict[str, Any]
     outputs: dict[str, Any]
     error: dict[str, Any]
@@ -139,7 +143,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         trigger_type=TriggerType.API,
         trigger_id=access_token.id,
         inputs=req.inputs,
-        block=req.block,
+        block=120 if req.block else 1,
         keyed=req.keyed,
         keyed_return=req.keyed,
     )
@@ -159,6 +163,12 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
 
             response = RunResponse(
                 id=rep.p.run_id,
+                started_at=rep.p.run.started_at.isoformat() if rep.p.run.started_at else None,
+                created_at=rep.p.run.created_at.isoformat() if rep.p.run.created_at else None,
+                terminated_at=rep.p.run.terminated_at.isoformat()
+                if rep.p.run.terminated_at
+                else None,
+                status=rep.p.run.status,
                 inputs=rep.p.run.inputs,
                 outputs=rep.p.run.outputs,
                 error=rep.p.run.error,
