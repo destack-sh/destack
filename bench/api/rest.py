@@ -34,7 +34,10 @@ def async_csrf_exempt(view_func):
 
 def async_check_is_main_thread(view_func):
     async def wrapped_view(request, *args, **kwargs):
-        if threading.current_thread().name != "django-main-thread":
+        if (
+            threading.current_thread().ident != threading.main_thread().ident
+            and threading.current_thread().name != "django-main-thread"
+        ):
             # someone fucked up
             logger.error(
                 "rest.not_main",
