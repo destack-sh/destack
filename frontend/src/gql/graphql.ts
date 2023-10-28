@@ -1997,7 +1997,7 @@ export enum SortOrder {
 }
 
 export enum StartRunErrorType {
-  AlreadyScheduled = "ALREADY_SCHEDULED",
+  AlreadyQueued = "ALREADY_QUEUED",
   InternalError = "INTERNAL_ERROR",
   InvalidRun = "INVALID_RUN",
   RuntimeError = "RUNTIME_ERROR",

@@ -304,7 +304,7 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
   {
     label: "Copy",
     icon: DocumentDuplicateIcon,
-    hideInline: true,
+    hideInline: !effectiveReadonly.value,
     action: async () => {
       if (fileHeader.value == null) return;
       notifications.show({

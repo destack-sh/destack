@@ -1557,7 +1557,7 @@ enum StartRunErrorType {
   INTERNAL_ERROR
   TIMEOUT
   RUNTIME_ERROR
-  ALREADY_SCHEDULED
+  ALREADY_QUEUED
 }
 
 type Statement implements HasCrud & ModuleNode & Node {

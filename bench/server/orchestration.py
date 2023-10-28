@@ -200,7 +200,10 @@ class OrchestrationServer(Monitored):
 
         # collect presumed dead runs
         dead_runs = models.Run.objects.filter(
-            Q(worker_node_id__in=worker_node_ids, status__in=ACTIVE_RUN_STATUSES)
+            Q(
+                Q(worker_node_id__in=worker_node_ids) | Q(worker_node_id=None),
+                status__in=ACTIVE_RUN_STATUSES,
+            )
             | Q(id__in=run_ids or [])
         )
         if project_id:
