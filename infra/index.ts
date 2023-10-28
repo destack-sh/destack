@@ -547,15 +547,13 @@ const apiDeployment = new k8s.apps.v1.Deployment(
   { provider: eksCluster.provider }
 );
 // master server for language and orchestration
-const serverStatefulSet = new k8s.apps.v1.StatefulSet(
+const serverDeployment = new k8s.apps.v1.Deployment(
   serverName,
   {
     metadata: { namespace: "default", labels: { app: serverName } },
     spec: {
       replicas: 1,
       selector: { matchLabels: { app: serverName } },
-      serviceName: serverName,
-      podManagementPolicy: "Parallel",
       template: {
         metadata: { labels: { app: serverName }, annotations: { "prometheus.io/scrape": "true" } },
         spec: {
