@@ -18,7 +18,12 @@ from bench import models
 from bench.language import TriggerType
 from bench.msg import NMessageType
 from bench.msg.core import MessagingError, NMessage, request
-from bench.msg.messages import RepStartRunPayload, ReqStartRunPayload, ReqWakeWorkerSetPayload
+from bench.msg.messages import (
+    RepStartRunPayload,
+    RepWakeWorkerSetPayload,
+    ReqStartRunPayload,
+    ReqWakeWorkerSetPayload,
+)
 from bench.utils.utils import sentry_capture
 
 logger = structlog.get_logger(__name__)
@@ -149,6 +154,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
     )
     retries = 3
     retry_delay = 5
+    wake_delay = 15
     while retries >= 0:
         try:
             rep: NMessage[RepStartRunPayload] = await request(
@@ -181,8 +187,13 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
             # retry on error (start workers if necessary)
             if isinstance(e.__cause__, NoRespondersError):
                 _ = await request(
-                    NMessageType.WAKE_WORKER_SET, ReqWakeWorkerSetPayload(project_id=project.id)
+                    NMessageType.WAKE_WORKER_SET,
+                    ReqWakeWorkerSetPayload(project_id=project.id),
+                    reply_t=RepWakeWorkerSetPayload,
+                    retry=2,
+                    retry_delay=10,
                 )
+                await asyncio.sleep(wake_delay)
             await asyncio.sleep(retry_delay)
             retries -= 1
             continue
