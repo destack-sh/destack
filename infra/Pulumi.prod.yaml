@@ -27,7 +27,7 @@ config:
   bench:betterstackValuesPath: .betterstack.prod.yaml
   bench:dbPassword:
     secure: AAABAHNMg0BRcTWRgoeTiH5W+ydM7jkjxqbgEgPjA3+mFYzaVEA7FMD3YCTD9TqkO7B24rypa3jTTWtnnabxegRsyYMIznF5EiAprlKyVmCcEUOK2KLmekCUWu8QI6w=
-  bench:desiredClusterSize: "2"
+  bench:desiredClusterSize: "3"
   bench:eksNodeInstanceType: t3.medium
   bench:env: prod
   bench:ghcrToken:
