@@ -603,6 +603,7 @@ class RuntimeHost:
 
     async def run(self) -> None:
         # fetch and interp module
+        assert not self.ready.is_set(), "runtime already started"
         source, project = await read_module(self.module_ref)
         self.module = await sync_to_async(Module.interp)(source.nodes, project.id)
         await self._on_module_changed(change=None)
@@ -633,18 +634,36 @@ class RuntimeHost:
                 # should we ignore backfill here if just edited (updated_at > processed_up_to)?
                 triggers_to_fire.add(trigger.trigger.id)
 
+        # backfill previously 'scheduled' runs that failed to start (also coalescing)
         prescheduled_runs = [
             r
-            async for r in models.Run.objects.filter(status=RunStatus.Scheduled).order_by(
-                "scheduled_at"
-            )
+            async for r in models.Run.objects.filter(
+                status=RunStatus.Scheduled, project_id=self.project_id
+            ).order_by("scheduled_at")
         ]
+        latest_prescheduled_run_by_trigger: dict[UUID, UUID] = {
+            r.trigger_id: r.id for r in prescheduled_runs
+        }
+        coalesced_runs: list[models.Run] = []
         for run in prescheduled_runs:
-            runs_to_start[run.id] = packer.pack_data(run)
+            if (
+                run.trigger_id not in triggers_to_fire
+                and run.id == latest_prescheduled_run_by_trigger[run.trigger_id]
+            ):
+                runs_to_start[run.id] = packer.pack_data(run)
+            else:
+                run.mark_dead()
+                coalesced_runs.append(run)
+        await models.Run.objects.abulk_update(coalesced_runs, fields=("status", "terminated_at"))
+        coalesced_runs = [packer.pack_data(r) for r in coalesced_runs]
+        await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=coalesced_runs))
+        logger.debug(
+            "time_triggers.backfill", runs_to_start=runs_to_start, coalesced_runs=coalesced_runs
+        )
 
         self.log.debug("time_triggers.process_forever", initial_triggers_to_fire=triggers_to_fire)
 
-        # enter forever loop
+        # enter process triggers forever loop
         while True:
             if timed_wait_task is not None:
                 timed_wait_task.cancel()
@@ -660,7 +679,10 @@ class RuntimeHost:
 
             # collect triggers that are due to fire within the send window
             for trigger in self.active_triggers.values():
-                if trigger.next_occurrence is None:
+                while (
+                    trigger.next_occurrence is None
+                    or trigger.next_occurrence <= trigger.processed_up_to
+                ):
                     trigger.next_occurrence = trigger.iter.next()
                 if trigger.next_occurrence <= process_up_to:
                     triggers_to_fire.add(trigger.trigger.id)
@@ -675,14 +697,16 @@ class RuntimeHost:
                 runs_to_start[run.id] = run
 
             # publish scheduled runs (should be project scoped later, but we don't have a session)
-            await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_to_start))
+            await publish(
+                NMessageType.RUNS_CHANGED,
+                RunsChangedGlobalPayload(runs=list(runs_to_start.values())),
+            )
 
             if runs_to_start:
                 # start worker set if not already started
                 if not self.workers.is_healthy(self.project_id):
                     # not sure what to do after timeout here... retry? panic?
                     await self.workers.wake_until_healthy(self.project_id, timeout=300)
-
                 logger.debug(
                     "time_triggers.fire",
                     runs_to_start=runs_to_start,
@@ -730,18 +754,15 @@ class RuntimeHost:
 
             # wait for earliest next trigger occurrence (or trigger change)
             if self.active_triggers:
-                earliest_next_occurrence = min(
-                    t.next_occurrence for t in self.active_triggers.values()
-                )
-                new_now = utcnow_with_tz()
-                timeout_till_next = (
-                    earliest_next_occurrence - new_now
+                first_occurrence = min(t.next_occurrence for t in self.active_triggers.values())
+                timeout = (
+                    first_occurrence - utcnow_with_tz()
                 ).total_seconds() - TIME_TRIGGER_PRE_SEND_WINDOW
-                if timeout_till_next < 0:
-                    logger.warning("time_triggers.wait.overdue", timeout=timeout_till_next)
+                if timeout < 0:
+                    logger.warning("time_triggers.wait.overdue", timeout=timeout)
                     continue  # immediately go to next iteration
-                timed_wait_task = asyncio.create_task(set_wait(timeout_till_next))
-                self.log.debug("time_triggers.wait", timeout=timeout_till_next)
+                asyncio.create_task(set_wait(timeout))
+                self.log.debug("time_triggers.wait", timeout=timeout)
             else:
                 # no triggers, wait forever until next change
                 self.log.debug("time_triggers.wait", timeout=None)
@@ -812,7 +833,7 @@ class RuntimeHost:
 
         return runs
 
-    def _update_local_triggers(self):
+    async def _update_local_triggers(self):
         """Update active time triggers when the module changes."""
 
         # collect new (i.e. current) module's triggers
@@ -830,11 +851,16 @@ class RuntimeHost:
             if not existing_trigger or not is_time_trigger_equal(
                 existing_trigger.trigger, new_trigger
             ):
+                processed_up_to = await (
+                    models.Trigger.objects.filter(id=new_trigger.id)
+                    .values_list("processed_up_to", flat=True)
+                    .afirst()
+                )
                 self.active_triggers[new_trigger.id] = ActiveTrigger(
                     trigger=new_trigger,
                     iter=TriggerScheduleIterator(new_trigger, new_now),
                     next_occurrence=None,
-                    processed_up_to=None,
+                    processed_up_to=processed_up_to,
                 )
                 logger.debug("time_triggers.upsert", trigger=new_trigger)
             elif existing_trigger:
@@ -891,7 +917,7 @@ class RuntimeHost:
 
         # triggers
         if change is None or any(isinstance(n, Trigger) for n in change.touched):
-            self._update_local_triggers()
+            await self._update_local_triggers()
 
     async def apply_edits(self, edits: list[EditData]) -> None:
         """Apply external edits to the module."""
