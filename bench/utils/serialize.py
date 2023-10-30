@@ -179,7 +179,7 @@ def from_dict(
     elif isinstance(data, dict):
         args = typing.get_args(cls)
         if len(args) != 2:
-            raise TypeError(f"expected dict, got {type(data)} in {data}")
+            raise TypeError(f"expected dict, got {type(data)} ({args}) in {data}")
         key_type = args[0] if args else None
         value_type = args[1] if args else None
         return {

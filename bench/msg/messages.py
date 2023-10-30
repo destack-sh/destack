@@ -278,7 +278,7 @@ class StartRunErrorType(enum.StrEnum):
     INTERNAL_ERROR = "internal_error"
     TIMEOUT = "timeout"
     RUNTIME_ERROR = "runtime_error"
-    ALREADY_QUEUED = "already_scheduled"
+    ALREADY_PREPARED = "already_scheduled"
 
 
 @payload(NMessageType.START_RUN_REP)

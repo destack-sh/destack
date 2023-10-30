@@ -384,7 +384,7 @@ class ModuleWorkerProcess(ModuleWriter):
         )
 
         self._active_runs: dict[UUID, RunJob] = {}
-        self._queued_runs: dict[UUID, RunJob] = {}
+        self._prepared_runs: dict[UUID, RunJob] = {}
         self._last_run_job: Optional[RunJob] = None
         self._dirty_dangling_runs: dict[UUID, wire.RunData] = {}
 
@@ -446,20 +446,20 @@ class ModuleWorkerProcess(ModuleWriter):
         If scheduled, the run will be queued after the delay.
         """
 
-        if run_data.id in self._queued_runs:
-            raise RunStartError(StartRunErrorType.ALREADY_QUEUED)
+        if run_data.id in self._prepared_runs:
+            raise RunStartError(StartRunErrorType.ALREADY_PREPARED)
 
         job = RunJob(run_data=run_data, session_id=session_id, global_value=global_value, tags=tags)
 
         def _enqueue(priority: int):
-            self._queued_runs[run_data.id] = job
+            self._prepared_runs[run_data.id] = job
             job.priority = priority
             run_data.status = RunStatus.Queued
             self.queue.put_nowait(job)
             self._dirty_dangling_runs[run_data.id] = run_data
             self.log.debug("worker.queue", job=job)
-            if job.run_data.id in self._queued_runs:
-                del self._queued_runs[job.run_data.id]
+            if job.run_data.id in self._prepared_runs:
+                del self._prepared_runs[job.run_data.id]
 
         # add to queue (now or later if scheduled)
         if run_data.scheduled_at:
@@ -467,6 +467,7 @@ class ModuleWorkerProcess(ModuleWriter):
             now = utcnow_with_tz()
             delay = (run_data.scheduled_at - now).total_seconds() - WORKER_SCHEDULE_BLOCK_AHEAD
             if delay > 0:
+                self._prepared_runs[run_data.id] = job
                 self._dirty_dangling_runs[run_data.id] = run_data
                 asyncio.get_running_loop().call_later(delay, _enqueue, 0)  # high priority
             else:
@@ -496,8 +497,8 @@ class ModuleWorkerProcess(ModuleWriter):
 
             # instantiate arguments
             if job.run_data.statement_id:
-                statement = self.module.resolve(job.run_data.statement_id)
-                if statement.type not in RUNNABLE_STATEMENT_TYPES:
+                statement = self.module.lookup(job.run_data.statement_id)
+                if statement is None or statement.type not in RUNNABLE_STATEMENT_TYPES:
                     raise RunError(
                         kind=RunErrorKind.Runtime,
                         type=StartRunErrorType.INVALID_RUN,
