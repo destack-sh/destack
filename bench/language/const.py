@@ -59,6 +59,7 @@ class StatementType(enum.StrEnum):
     VARIABLE = "variable"
     DATABASE = "database"
     REFERENCE = "reference"
+    GROUP = "group"
 
     @property
     def camel_name(self):

@@ -27,6 +27,7 @@ import {
   PaperAirplaneIcon as PaperAirplaneIconOutline,
   Bars3BottomLeftIcon,
   NoSymbolIcon,
+  PuzzlePieceIcon as PuzzlePieceIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -37,6 +38,7 @@ import {
   RectangleGroupIcon as RectangleGroupIconSolid,
   PaperAirplaneIcon as PaperAirplaneIconSolid,
   VariableIcon as VariableIcon,
+  PuzzlePieceIcon as PuzzlePieceIconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, type Ref } from "vue";
 
@@ -356,6 +358,7 @@ export const STATEMENT_ICONS_OUTLINE: Record<StatementType, any> = {
   [StatementType.Flow]: PaperAirplaneIconOutline,
   [StatementType.Model]: CpuChipIconOutline,
   [StatementType.Reference]: ArrowUpRightIcon,
+  [StatementType.Group]: PuzzlePieceIconOutline,
 };
 export const STATEMENT_ICONS_SOLID: Record<StatementType, any> = {
   [StatementType.Blank]: NoSymbolIcon,
@@ -370,6 +373,7 @@ export const STATEMENT_ICONS_SOLID: Record<StatementType, any> = {
   [StatementType.Flow]: PaperAirplaneIconSolid,
   [StatementType.Model]: CpuChipIconSolid,
   [StatementType.Reference]: ArrowUpRightIcon,
+  [StatementType.Group]: PuzzlePieceIconSolid,
 };
 
 export function getStatementIconOutline(type: StatementType, tag?: TypeTag | null) {
@@ -405,6 +409,7 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
   [StatementType.Model]: "Model",
   [StatementType.Flow]: "Flow",
   [StatementType.Reference]: "Reference",
+  [StatementType.Group]: "Group",
 };
 
 export function getStatementLabel(type: StatementType) {
@@ -424,6 +429,7 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Blank]: "Empty statement",
   [StatementType.Model]: "An AI model of any kind",
   [StatementType.Tag]: "Organize and transform statements",
+  [StatementType.Group]: "Group statements as a unit",
 };
 
 export function getStatementDescription(type: StatementType) {
@@ -550,6 +556,7 @@ export function useStatementMorph(
         aliases: ["const", "config", "secret", "let"],
       }),
       simpleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
+      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Group),
       simpleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
     ];
 

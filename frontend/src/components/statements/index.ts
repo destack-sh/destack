@@ -307,3 +307,9 @@ register(StatementType.Tag, {
   hasBases: true,
   elements: [TEXT],
 });
+register(StatementType.Group, {
+  primaryPart: "declaration",
+  needsDeclaration: true,
+  hasTags: true,
+  elements: [TEXT],
+});
