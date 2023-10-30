@@ -681,7 +681,8 @@ class RuntimeHost:
             for trigger in self.active_triggers.values():
                 while (
                     trigger.next_occurrence is None
-                    or trigger.next_occurrence <= trigger.processed_up_to
+                    or trigger.processed_up_to is not None
+                    and trigger.next_occurrence <= trigger.processed_up_to
                 ):
                     trigger.next_occurrence = trigger.iter.next()
                 if trigger.next_occurrence <= process_up_to:
