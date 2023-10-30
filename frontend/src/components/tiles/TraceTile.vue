@@ -102,7 +102,7 @@ const orderedNodes: Ref<OrderedNode[]> = computed(() => {
 
     // walk children
     const children = childrenByParentId.value[run.id]?.slice() ?? [];
-    children.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    children.sort((a, b) => (a.startedAt ?? a.createdAt).localeCompare(b.startedAt ?? b.createdAt));
     ancestors = [...ancestors, node];
     for (const child of children) {
       const childNode = _walk(child, ancestors);
