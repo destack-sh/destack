@@ -2147,6 +2147,7 @@ export enum StatementType {
   Code = "CODE",
   Database = "DATABASE",
   Flow = "FLOW",
+  Group = "GROUP",
   Model = "MODEL",
   Reference = "REFERENCE",
   Tag = "TAG",

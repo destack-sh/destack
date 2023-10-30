@@ -139,6 +139,7 @@ _s(
     passthrough=(("records", _Passthrough.Full),),
 )
 _s(StatementType.REFERENCE, (HasReference, HasText), IdentT.VARIABLE)
+_s(StatementType.GROUP, (HasText,), IdentT.VARIABLE, passthrough=(("children", _Passthrough.Full),))
 assert len(_STATEMENT_DESCRIPTORS) == len(StatementType), "missing statement descriptors"
 del _s
 

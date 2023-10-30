@@ -1692,6 +1692,7 @@ enum StatementType {
   VARIABLE
   DATABASE
   REFERENCE
+  GROUP
 }
 
 input StatementUpdateHeadingLevelInput {
