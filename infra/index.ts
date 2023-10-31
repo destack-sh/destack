@@ -102,7 +102,7 @@ const db = new aws.rds.Cluster("db", {
 });
 const dbInstance = new aws.rds.ClusterInstance("db", {
   clusterIdentifier: db.clusterIdentifier,
-  instanceClass: "db.t4g.large",
+  instanceClass: "db.t4g.medium",
   engine: "aurora-postgresql",
   engineVersion: "14.6",
   publiclyAccessible: true,
@@ -161,9 +161,9 @@ const opensearchSecurityGroup = new aws.ec2.SecurityGroup("opensearch", {
 });
 const opensearchDomain = new aws.opensearch.Domain(opensearchDomainName, {
   domainName: opensearchDomainName,
-  engineVersion: "OpenSearch_2.7",
+  engineVersion: "OpenSearch_2.9",
   clusterConfig: {
-    instanceType: "m5.large.search",
+    instanceType: "t3.medium.search",
     instanceCount: 1,
   },
   domainEndpointOptions: {
