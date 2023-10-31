@@ -715,9 +715,9 @@ class TypedDict(dict):
         except KeyError:
             field = self._type.resolved_fields.get(item)
             if (
-                self._is_output is None
-                or field
-                and bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
+                field
+                and self._is_output is None
+                or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
             ):
                 return None
         raise KeyError(f"no key {item!r} on {self._type!r}")
@@ -730,9 +730,9 @@ class TypedDict(dict):
         except KeyError:
             field = self._type.resolved_fields.get(item)
             if (
-                self._is_output is None
-                or field
-                and bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
+                field
+                and self._is_output is None
+                or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
             ):
                 return None
         raise AttributeError(f"no attribute {item!r} on {self._type!r}")
@@ -743,9 +743,9 @@ class TypedDict(dict):
 
         field = self._type.resolved_fields.get(name)
         if (
-            self._is_output is None
-            or field
-            and bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
+            field
+            and self._is_output is None
+            or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
         ):
             return dict.__setitem__(self, name, value)
         raise AttributeError(f"cannot set attribute {name!r} on {self._type!r}")
