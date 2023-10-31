@@ -67,7 +67,7 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
   </div>
   <!-- Restore thing -->
   <div
-    v-else-if="!loading && !isDeleted && !bench.isAtHead && false /* TODO @Feature: restore nodes :BE-399 */"
+    v-else-if="!loading && !isDeleted && !bench.isAtHead"
     class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-0.5"
   >
     <div
@@ -78,9 +78,9 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
         This {{ name }} is from version {{ versioning.currentVersionName.value }}.
       </div>
       <button
-        v-if="bench.canEdit && thing != null"
+        v-if="bench.canEdit && thing != null && false /* TODO @Feature: restore nodes :BE-399 */"
         class="text-sm text-white underline decoration-dashed underline-offset-2 hover:text-gray-200 hover:decoration-solid"
-        @click="versioning.restoreNode(thing.id)"
+        @click="versioning.restoreNode(thing?.id as string)"
       >
         Restore {{ name }}
       </button>
