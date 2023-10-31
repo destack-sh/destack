@@ -342,6 +342,10 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     return getDescendants(ancestor).find((s) => s.id == statement.id) != null;
   }
 
+  function getDepth(statement: StatementHeader): number {
+    return depths.value[statementPositions.value[statement.id]];
+  }
+
   // indentation
 
   async function indent(statement: StatementHeader, tx?: Transaction) {
@@ -421,6 +425,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     // insert between above and above prev sibling (if any)
     const above = getAboveInOrder(statement);
     if (above == null) return;
+    if (getDepth(above) > getDepth(statement)) return await indent(statement);
     const aboveSiblings = statementsByParentId.value[above.parent?.id ?? ""];
     const abovePrevSibling = aboveSiblings
       .slice()
@@ -441,6 +446,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     // insert between the next group below and its next sibling (if any)
     const belowSiblings = statementsByParentId.value[belowGroup.parent?.id ?? ""];
     const belowNextSibling = belowSiblings.find((s) => s.orderKey > (belowGroup as StatementHeader).orderKey);
+    if (getDepth(belowGroup) < getDepth(statement)) return await unindent(statement);
     const orderKey = generateKeyBetween(belowGroup.orderKey ?? null, belowNextSibling?.orderKey ?? null);
     const targetLocation = {
       fileId: file.value?.file.id,
@@ -456,6 +462,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     const roots = getLocalRoots(statements);
     const above = file.value?.statements[statementPositions.value[roots[0].id] - 1];
     if (above == null) return;
+    if (getDepth(above) > getDepth(roots[0])) return await indentBatch(statements);
     const aboveSiblings = statementsByParentId.value[above.parent?.id ?? ""];
     const abovePrevSibling = aboveSiblings
       .slice()
@@ -478,6 +485,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     const roots = getLocalRoots(statements);
     const belowCurGroup = getBelowGroup(roots[roots.length - 1]);
     if (belowCurGroup == null) return;
+    if (getDepth(belowCurGroup) < getDepth(roots[0])) return await unindentBatch(statements);
     const belowSiblings = statementsByParentId.value[belowCurGroup.parent?.id ?? ""];
     const belowNextSibling = belowSiblings.find((s) => s.orderKey > belowCurGroup.orderKey);
     const ids = roots.map((r) => r.id);
