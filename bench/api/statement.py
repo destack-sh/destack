@@ -405,7 +405,10 @@ class StatementMutation:
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:
         source_ids = [UUID(i.node_id) for i in input.source_ids]
-        source_statements = models.Statement._base_manager.filter(id__in=source_ids)
+        source_statements_by_id = {
+            s.id: s for s in models.Statement._base_manager.filter(id__in=source_ids)
+        }
+        source_statements = [source_statements_by_id[s] for s in source_ids]
         source_cks = [s.ck for s in source_statements]
         if source_statements.count() != len(input.source_ids):
             raise ValidationError("statements not found")

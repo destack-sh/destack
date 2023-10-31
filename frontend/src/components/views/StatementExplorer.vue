@@ -129,7 +129,7 @@ defineExpose({
         <component
           :is="getStatementIconSolid(o.statement.type)"
           class="mt-0.5 h-4 w-4"
-          :class="[o.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
+          :class="[o.ck == bench?.focusedStatementCk ? 'text-orange-600' : 'text-gray-400']"
         />
       </span>
       <!-- 'Name' -->
@@ -143,7 +143,7 @@ defineExpose({
         minimal-mentions
         class="max-w-full truncate"
         :class="[
-          o.id == bench?.focusedStatementId
+          o.ck == bench?.focusedStatementCk
             ? 'text-orange-600'
             : o.statement.headingLevel != null
             ? 'text-gray-700'
