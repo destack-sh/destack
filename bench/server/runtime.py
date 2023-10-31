@@ -71,6 +71,7 @@ from bench.msg.messages import (
     ReqWriteSessionPayload,
     RunsChangedGlobalPayload,
     SessionChangedPayload,
+    StartRunErrorType,
 )
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -736,14 +737,15 @@ class RuntimeHost:
                     rep: NMessage[RepStartRunPayload] = await request(
                         NMessageType.START_RUN, req, reply_t=RepStartRunPayload, retry=3
                     )
-                    if rep.p.error:
+                    if rep.p.error and rep.p.error != StartRunErrorType.ALREADY_PREPARED:
+                        # already prepared is okay
                         raise RuntimeError(rep.p.error)
                 except Exception as e:
                     logger.error("time_triggers.start_run.error", run=run, exc_info=e)
                     # mark run as cancelled
-                    run = await models.Run.objects.aget(id=run.id)
-                    run.mark_dead()
-                    await run.asave()
+                    run_model = await models.Run.objects.aget(id=run.id)
+                    run_model.mark_dead()
+                    await run_model.asave()
                     await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=[run]))
 
             # reset next occurrence for all triggers that fired
