@@ -29,7 +29,9 @@ const { result: suggestedFiles } = useQuery(
   { enabled: computed(() => !!bench.projectVersionId) as any }
 );
 const files = computed(() =>
-  suggestedFiles.value?.module?.files.filter((file) => file.deletedAt == null && file.name.trim() !== "")
+  suggestedFiles.value?.module?.files
+    .filter((file) => file.deletedAt == null && file.name.trim() !== "")
+    .sort((a, b) => a.name.localeCompare(b.name))
 );
 const totalCount = computed(() => suggestedFiles.value?.module?.files.length);
 
