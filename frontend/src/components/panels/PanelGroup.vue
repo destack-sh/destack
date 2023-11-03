@@ -265,7 +265,7 @@ async function createFileInPanelGroup() {
             class="flex h-full w-full flex-col items-center justify-center"
             :group="group"
           />
-          <div v-else class="relative h-full w-full">
+          <div v-else class="relative flex h-full w-full flex-col justify-center">
             <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
           </div>
         </template>
