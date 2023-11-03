@@ -110,7 +110,7 @@ defineExpose({
         o.statement.headingLevel != null && i > 0 ? HEADING_MARGIN_TOP[o.statement.headingLevel] : '',
       ]"
       :style="{
-        marginLeft: o.depth * 8 + 'px',
+        marginLeft: o.renderedDepth * 8 + 'px',
       }"
       @click.prevent="focusStatement(o.statement)"
       @mousedown.prevent="focusStatement(o.statement)"
@@ -122,7 +122,8 @@ defineExpose({
       <span
         v-if="
           !(o.statement.type == StatementType.Text && (o.statement.headingLevel ?? 0) > 0) &&
-          o.statement.type != StatementType.Blank
+          o.statement.type != StatementType.Blank &&
+          o.statement.type != StatementType.Group
         "
         class="mr-1.5 rounded-sm font-mono"
       >
