@@ -2,7 +2,7 @@
 import { useElementRefs } from "@/composables/useGrid";
 import { BlobStatus, type Field } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
-import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
+import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/blob";
 import { TypeFlag } from "@/state/module";
 import { useRelativeDropZone } from "@/utils/drop";
 import { ArrowUpTrayIcon, DocumentArrowUpIcon } from "@heroicons/vue/24/outline";

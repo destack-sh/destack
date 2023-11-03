@@ -61,6 +61,10 @@ class Blob(UUIDModel):
         return f"<Blob {self}>"
 
     @property
+    def key(self) -> str:
+        return f"{self.id}/{self.name}"
+
+    @property
     def presigned_post(self) -> Optional[str]:
         return self._presigned_post  # must be set manually
 
@@ -79,7 +83,7 @@ class Blob(UUIDModel):
         try:
             metadata = s3_client.head_object(
                 Bucket=GLOBAL_PROJECT_BUCKET_NAME,
-                Key=str(self.id),
+                Key=self.key,
             )
             if metadata["ContentLength"] != self.content_length:
                 logger.warning("object_content_length_mismatch", blob=self, metadata=metadata)
@@ -94,7 +98,7 @@ class Blob(UUIDModel):
         s3_client = get_s3_client()
         response = s3_client.generate_presigned_post(
             Bucket=GLOBAL_PROJECT_BUCKET_NAME,
-            Key=str(self.id),
+            Key=self.key,
             ExpiresIn=BLOB_PRESIGNED_POST_EXPIRY,
             Fields={},
         )
@@ -113,10 +117,7 @@ class Blob(UUIDModel):
         s3_client = get_s3_client()
         response = s3_client.generate_presigned_url(
             ClientMethod="get_object",
-            Params={
-                "Bucket": GLOBAL_PROJECT_BUCKET_NAME,
-                "Key": str(self.id),
-            },
+            Params={"Bucket": GLOBAL_PROJECT_BUCKET_NAME, "Key": self.key},
             ExpiresIn=BLOB_PRESIGNED_GET_EXPIRY,
         )
         return response

@@ -3258,6 +3258,15 @@ export type MeQuery = {
   } | null;
 };
 
+export type BlobQueryVariables = Exact<{
+  id: Scalars["GlobalID"]["input"];
+}>;
+
+export type BlobQuery = {
+  __typename?: "Query";
+  blob?: { __typename?: "Blob"; id: any; presignedGet?: string | null } | null;
+};
+
 export type ClientContentTypeFragment = {
   __typename?: "Client";
   id: any;
@@ -3825,15 +3834,6 @@ export type MarkNotificationMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
-};
-
-export type BlobQueryVariables = Exact<{
-  id: Scalars["GlobalID"]["input"];
-}>;
-
-export type BlobQuery = {
-  __typename?: "Query";
-  blob?: { __typename?: "Blob"; id: any; presignedGet?: string | null } | null;
 };
 
 export type UpsertClientMutationVariables = Exact<{
@@ -10286,6 +10286,55 @@ export const MeDocument = {
     },
   ],
 } as unknown as DocumentNode<MeQuery, MeQueryVariables>;
+export const BlobDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "blob" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "blob" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Blob" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "presignedGet" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<BlobQuery, BlobQueryVariables>;
 export const ConnectedClientsDocument = {
   kind: "Document",
   definitions: [
@@ -11293,55 +11342,6 @@ export const MarkNotificationDocument = {
     },
   ],
 } as unknown as DocumentNode<MarkNotificationMutation, MarkNotificationMutationVariables>;
-export const BlobDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "blob" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "blob" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Blob" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "presignedGet" } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<BlobQuery, BlobQueryVariables>;
 export const UpsertClientDocument = {
   kind: "Document",
   definitions: [

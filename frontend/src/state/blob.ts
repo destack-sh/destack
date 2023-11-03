@@ -7,7 +7,7 @@ import { useApolloClient } from "@vue/apollo-composable";
 export const OBJECT_TYPETAGS = [TypeTag.Blob];
 
 // :BlobType
-export type ObjectRecord = {
+export type BlobRecord = {
   __typename: typeof BLOB_TYPENAME;
   id: string;
   name?: string | null;
@@ -34,7 +34,7 @@ export function toBlobId(id: string) {
   return btoa(`Blob:${id}`);
 }
 
-function makeBasicObject(blob: Blob, status?: BlobStatus): ObjectRecord {
+function makeBlob(blob: Blob, status?: BlobStatus): BlobRecord {
   const record = {
     __typename: BLOB_TYPENAME,
     id: toObjectDataId(blob.id),
@@ -43,7 +43,7 @@ function makeBasicObject(blob: Blob, status?: BlobStatus): ObjectRecord {
     content_type: blob.contentType,
     sha512: blob.sha512,
     status: status ?? blob.status,
-  } as ObjectRecord;
+  } as BlobRecord;
   if (!isValidObjectRecord(record)) {
     throw new Error("invalid object record");
   }
@@ -87,14 +87,14 @@ export function useObjects() {
   const ops = useOperations();
   const apollo = useApolloClient();
 
-  async function upload(projectId: string, file: File, updateValue: (value: ObjectRecord | null) => void) {
+  async function upload(projectId: string, file: File, updateValue: (value: BlobRecord | null) => void) {
     const ret = await ops.object.requestUpload(projectId, file);
     if (ret?.data?.requestUploadObject.__typename != "Blob") {
       return; // ops errors are auto-handled
     }
     const blob = ret.data.requestUploadObject;
     if (blob.status == BlobStatus.Available) {
-      updateValue(makeBasicObject(blob));
+      updateValue(makeBlob(blob));
       return; // already uploaded
     }
     if (blob.presignedPost == null) {
@@ -105,7 +105,7 @@ export function useObjects() {
     await ops.object.doUpload(blob.id, blob.presignedPost, file);
     await ops.object.notifyUploaded(blob.id);
     // emit uploaded state
-    updateValue(makeBasicObject(blob, BlobStatus.Available));
+    updateValue(makeBlob(blob, BlobStatus.Available));
   }
 
   async function getPresignedGet(objectId: string): Promise<string> {

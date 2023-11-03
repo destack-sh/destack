@@ -9,7 +9,7 @@ import {
   type Statement,
   newNodeIdentity,
 } from "@/state/module";
-import { useObjects } from "@/state/object";
+import { useObjects } from "@/state/blob";
 import { useOperations, type Transaction } from "@/state/operations";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
