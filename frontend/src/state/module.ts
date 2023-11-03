@@ -553,21 +553,30 @@ export function useCurrentModule(projectVersionId?: Ref<string | null>) {
   return useModule(activeVersionId);
 }
 
-type OrderableStatement = Pick<InterpStatement, "id" | "ck" | "orderKey" | "parent">;
+type OrderableStatement = Pick<InterpStatement, "id" | "ck" | "orderKey" | "type" | "parent">;
 export type OrderedStatement<T extends OrderableStatement> = {
   id: string;
   ck: string;
   depth: number;
+  renderedDepth: number;
   ancestors: string[];
   statement: T;
+  // TODO @UX @Architecture: statement grouping/nesting should happen on component level
+  //  but that would require somehow managing component instances manually (because of the tree nesting).
+  //  This is also why nested grouping is currently broken. :NestedStatementRendering
+  isGroupStart?: boolean;
+  isGroupMiddle?: boolean;
+  isGroupEnd?: boolean;
 };
 
 export function orderStatements<T extends OrderableStatement>(statements: T[]) {
   if (statements.length == 0) return { ordered: [], statementsByParentId: {} };
   const ordered: OrderedStatement<T>[] = [];
+  const statementsById: GRecord<string, T> = {};
   const statementsByParentId: GRecord<string, T[]> = {};
   // group by parent
   statements.forEach((statement) => {
+    statementsById[statement.id] = statement;
     if (statementsByParentId[statement.parent?.id] != null) {
       statementsByParentId[statement.parent?.id].push(statement);
     } else {
@@ -575,24 +584,34 @@ export function orderStatements<T extends OrderableStatement>(statements: T[]) {
     }
   });
   // walk from root
-  function walkDfs(parentId: string, depth: number, ancestors: string[]) {
+  function walkDfs(parentId: string, depth: number, renderedDepth: number, ancestors: string[]) {
+    const isParentGroup = statementsById[parentId]?.type == StatementType.Group;
     const children = statementsByParentId[parentId];
     if (children) {
+      if (isParentGroup) {
+        ordered[ordered.length - 1].isGroupStart = true;
+      }
       children.sort((a, b) => (a.orderKey > b.orderKey ? 1 : -1));
       for (const child of children) {
         ordered.push({
           id: child.id,
           ck: child.ck,
           depth: depth,
+          renderedDepth: renderedDepth,
           ancestors: ancestors,
           statement: child,
+          isGroupMiddle: renderedDepth < depth,
         });
-        walkDfs(child.id, depth + 1, [...ancestors, child.id]);
+        const isChildGroup = statementsById[child.id]?.type == StatementType.Group;
+        walkDfs(child.id, depth + 1, renderedDepth + (isChildGroup ? 0 : 1), [...ancestors, child.id]);
+      }
+      if (isParentGroup) {
+        ordered[ordered.length - 1].isGroupEnd = true;
       }
     }
   }
   const fileId = statements.find((s) => s.parent?.__typename == "File")?.parent?.id; // assumes all statements are from the same file
-  walkDfs(fileId, 0, []);
+  walkDfs(fileId, 0, 0, []);
   return { ordered, statementsByParentId };
 }
 

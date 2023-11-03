@@ -410,7 +410,7 @@ class StatementMutation:
         }
         source_statements = [source_statements_by_id[s] for s in source_ids]
         source_cks = [s.ck for s in source_statements]
-        if source_statements.count() != len(input.source_ids):
+        if len(source_statements) != len(input.source_ids):
             raise ValidationError("statements not found")
 
         # check user access

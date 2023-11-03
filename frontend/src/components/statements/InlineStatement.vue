@@ -59,9 +59,13 @@ const props = defineProps<{
   file: FileHeader;
   statement: Statement;
   depth: number;
+  renderedDepth: number;
   ancestors: Statement[];
   readonly: boolean;
   shown?: boolean;
+  isGroupStart?: boolean;
+  isGroupMiddle?: boolean;
+  isGroupEnd?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "launchAssist", text: string, selection?: StatementHeader[]): void;
@@ -84,6 +88,14 @@ const isEditing = computed(() => isFocused.value && (nav?.value?.panel.editing ?
 const isSelected = computed(() => nav?.value?.panel.isSelected(statement.value));
 const isInSelection = computed(() => isSelected.value && (nav?.value?.panel.selectedElementIds?.length ?? 0) > 1);
 const isAnySelection = computed(() => nav?.value?.panel.hasSelection);
+const isHighlighted = computed(
+  () =>
+    (isFocused.value && !isEditing.value && !isAnySelection.value) ||
+    isSelected.value ||
+    isAncestorHighlight.value ||
+    dragOver.value ||
+    actionPopoverRef.value?.open
+);
 const canContentFold = computed(
   () =>
     statement.value.type != StatementType.Blank &&
@@ -116,13 +128,22 @@ function toggleContentFold(descendants?: boolean) {
 // highlighting
 const INDENT_OFFSET_X = 28;
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
-const ancestorHighlightDepth = computed(() =>
-  ancestors.value.findIndex(
+// (this is a bit ugly but will also disappear with :NestedStatementRendering)
+const ancestorHighlightDepth = computed(() => {
+  const highlightedAncestorIdx = ancestors.value.findIndex(
     (s) => nav?.value?.panel.activeStatementCk == s.ck || nav?.value?.panel.selectedElementIds.includes(s.id)
-  )
-);
+  );
+  if (highlightedAncestorIdx > -1) {
+    // subtract any group ancestors
+    return (
+      highlightedAncestorIdx -
+      ancestors.value.slice(0, highlightedAncestorIdx).filter((s) => s.type == StatementType.Group).length
+    );
+  }
+  return -1;
+});
 const isAncestorHighlight = computed(() => !nav?.value?.panel.editing && ancestorHighlightDepth.value > -1);
-const contentOffsetX = computed(() => props.depth * INDENT_OFFSET_X);
+const contentOffsetX = computed(() => props.renderedDepth * INDENT_OFFSET_X);
 const highlightOffsetX = computed(() =>
   isAncestorHighlight.value ? ancestorHighlightDepth.value * INDENT_OFFSET_X : contentOffsetX.value
 );
@@ -701,283 +722,291 @@ defineExpose({
     @click="onClickContainer"
     @contextmenu.prevent="showActionsPopover"
   >
-    <!-- Statement main -->
+    <!-- Group border wrapper (too many wrappers... see :NestedStatementRendering) -->
+    <!--  (can't put this in outer wrapper because of padding, same with main inner wrapper right below) -->
     <div
-      ref="containerRef"
-      @dragstart.stop="onDragStart"
-      class="relative min-h-[30px] w-full rounded-sm outline-none transition duration-150 focus:outline-none"
       :class="{
-        'focus:bg-orange-100': true,
-        'bg-orange-100':
-          (isFocused && !isEditing && !isAnySelection) ||
-          isSelected ||
-          isAncestorHighlight ||
-          dragOver ||
-          actionPopoverRef?.open,
-        ...appearance.baseClass,
-      }"
-      :style="{
-        marginLeft: highlightOffsetX + 'px',
-        paddingLeft: contentOffsetX - highlightOffsetX + 'px',
-        width: `calc(100% - ${highlightOffsetX}px)`,
+        'border-x': isGroupMiddle || isGroupStart || isGroupEnd,
+        'border-orange-900/[12%]': !isHighlighted,
+        'border-orange-300': isHighlighted,
+        'rounded-t-sm border-t': isGroupStart,
+        'rounded-b-sm border-b': isGroupEnd,
       }"
     >
-      <!-- Left gutter -->
-      <div class="absolute top-1">
-        <!-- Small positioning hack to get content right-aligned on absolute left offset -->
-        <div class="relative">
-          <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
-            <!-- Actions / drag handle -->
-            <ActionPopover
-              ref="actionPopoverRef"
-              anchor="right"
-              :thing="isInSelection ? null : statement"
-              :actions="actionsPopoverOrder"
-              v-slot="{ open }"
-              :allow-freeform="bench.canEdit"
-              @freeform="emit('launchAssist', $event, nav?.getSelectedRoots() ?? [statement])"
-              @click.stop
-              @close="$nextTick(() => focus('first'))"
-              @mouseup="containerRef?.setAttribute('draggable', 'false')"
-            >
-              <!-- For some reason I had to put the mousedown back into the inner element for dragging to work -- previously,
+      <!-- Statement main -->
+      <div
+        ref="containerRef"
+        @dragstart.stop="onDragStart"
+        class="relative min-h-[30px] w-full rounded-sm outline-none transition duration-150 focus:outline-none"
+        :class="{
+          'focus:bg-orange-100': true,
+          'bg-orange-100': isHighlighted,
+
+          ...appearance.baseClass,
+        }"
+        :style="{
+          marginLeft: highlightOffsetX + 'px',
+          paddingLeft: contentOffsetX - highlightOffsetX + 'px',
+          width: `calc(100% - ${highlightOffsetX}px)`,
+        }"
+      >
+        <!-- Left gutter -->
+        <div class="absolute top-1">
+          <!-- Small positioning hack to get content right-aligned on absolute left offset -->
+          <div class="relative">
+            <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
+              <!-- Actions / drag handle -->
+              <ActionPopover
+                ref="actionPopoverRef"
+                anchor="right"
+                :thing="isInSelection ? null : statement"
+                :actions="actionsPopoverOrder"
+                v-slot="{ open }"
+                :allow-freeform="bench.canEdit"
+                @freeform="emit('launchAssist', $event, nav?.getSelectedRoots() ?? [statement])"
+                @click.stop
+                @close="$nextTick(() => focus('first'))"
+                @mouseup="containerRef?.setAttribute('draggable', 'false')"
+              >
+                <!-- For some reason I had to put the mousedown back into the inner element for dragging to work -- previously,
             there was *some* reason not to do this (maybe old styling/padding), but it seems to work fine now. -->
-              <div
-                @mousedown.stop="
-                  {
-                    nav?.panel?.addToSelection(statement);
-                    containerRef?.setAttribute('draggable', 'true');
-                  }
-                "
-                class="group cursor-grab p-0.5 transition duration-150"
-                :class="{
-                  'opacity-0 group-hover/statement:opacity-100': !isActive && !open,
-                  'opacity-100': isActive,
-                  'text-gray-400 hover:bg-orange-100 hover:text-gray-700': true,
-                  ...appearance.baseClass,
-                }"
-              >
-                <EllipsisVerticalIcon class="h-4 w-4" />
-                <!-- Label -->
-                <span
-                  class="pointer-events-none absolute left-0 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100 group-hover:delay-in-500"
+                <div
+                  @mousedown.stop="
+                    {
+                      nav?.panel?.addToSelection(statement);
+                      containerRef?.setAttribute('draggable', 'true');
+                    }
+                  "
+                  class="group cursor-grab p-0.5 transition duration-150"
+                  :class="{
+                    'opacity-0 group-hover/statement:opacity-100': !isActive && !open,
+                    'opacity-100': isActive,
+                    'text-gray-400 hover:bg-orange-100 hover:text-gray-700': true,
+                    ...appearance.baseClass,
+                  }"
                 >
-                  <strong>Click</strong> for actions
-                  <br />
-                  <strong>Drag</strong> to move
-                </span>
-              </div>
-            </ActionPopover>
+                  <EllipsisVerticalIcon class="h-4 w-4" />
+                  <!-- Label -->
+                  <span
+                    class="pointer-events-none absolute left-0 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100 group-hover:delay-in-500"
+                  >
+                    <strong>Click</strong> for actions
+                    <br />
+                    <strong>Drag</strong> to move
+                  </span>
+                </div>
+              </ActionPopover>
+            </div>
           </div>
         </div>
-      </div>
-      <!-- Statement drag & drop indicator (top/bottom) :DragStyle -->
-      <div
-        v-if="!readonly"
-        class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
-        :class="dragOver && dragInTopHalf ? 'opacity-100' : 'opacity-0'"
-      />
-      <div
-        v-if="!readonly"
-        class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
-        :class="dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
-      />
-      <!-- Statement interface -->
-      <!-- :StatementPadding -->
-      <div
-        ref="innerWrapperRef"
-        class="relative flex max-w-full flex-col gap-y-0.5 px-2 py-1"
-        :class="{
-          'text-sm': bench.textSmall,
-          'text-md': !bench.textSmall,
-        }"
-      >
-        <!-- Header -->
+        <!-- Statement drag & drop indicator (top/bottom) :DragStyle -->
         <div
-          v-if="iface?.needsDeclaration || activeControlParts.length > 0 || statement.name != null"
-          class="flex w-full flex-row justify-between"
-        >
-          <!-- Declaration or title (if text with heading) -->
-          <div class="flex flex-row flex-wrap gap-y-1">
-            <DeclarationControl
-              v-if="iface?.needsDeclaration || (statement.type == StatementType.Text && statement.name != null)"
-              :ref="(ref: any) => (partsRefs['declaration'] = ref)"
-              :statement="statement"
-              :readonly="readonly"
-              v-on="handleStatementPartEvents('control', 'declaration')"
-              class="mr-1.5"
-            />
-            <!-- Controls inline -->
-            <component
-              v-for="{ part: control, active } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
-              :ref="(ref: any) => (partsRefs[control.id] = ref)"
-              :key="control.id"
-              :is="control.component"
-              :statement="statement"
-              :focused="isFocused"
-              :selected="isSelected"
-              :editing="isEditing"
-              :readonly="readonly"
-              v-on="handleStatementPartEvents('control', control.id)"
-              :class="[active ? 'mr-1.5' : '']"
-            />
-          </div>
-          <!-- Actions -->
-          <div
-            class="relative flex flex-shrink-0 gap-x-0.5 self-start transition-opacity duration-150"
-            :class="[isFocused ? 'opacity-100' : 'opacity-0 group-hover/statement:opacity-100']"
-          >
-            <!-- Extra controls -->
-            <component
-              v-for="{ id, component } in iface?.extraControls ?? []"
-              :ref="(ref: any) => (partsRefs[id] = ref)"
-              :key="id"
-              :is="component"
-              :statement="statement"
-              :focused="isFocused"
-              :selected="isSelected"
-              :editing="isEditing"
-              :readonly="readonly"
-            />
-            <!-- Extra space between extra controls and actions -->
-            <span />
-            <!-- Actions -->
-            <button
-              v-for="action in actionsInlineOrder.filter((action) => !action.hideInline && !action.disabled)"
-              :key="action.label"
-              class="group relative p-0.5 text-gray-400 hover:text-gray-700"
-              :class="action.active ? 'animate-spin cursor-not-allowed' : 'hover:bg-orange-100'"
-              @click.prevent.stop="action.action(statement)"
-              :disabled="action.disabled || action.active"
-            >
-              <component :is="action.active ? BusySpinnerIcon : action.icon" class="h-4 w-4" />
-              <!-- Label popover -->
-              <span
-                v-if="!action.active"
-                class="pointer-events-none absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition delay-in-500 duration-150 group-hover:opacity-100"
-              >
-                {{ action.label }}
-              </span>
-            </button>
-            <!-- All actions popover (same as on other side for convenience) -->
-            <ActionPopover
-              anchor="right"
-              :thing="isInSelection ? null : statement"
-              :actions="actionsPopoverOrder"
-              :allow-freeform="bench.canEdit"
-              @freeform="emit('launchAssist', $event, nav?.getSelectedRoots() ?? [statement])"
-              @click.stop
-              @close="$nextTick(() => focus('first'))"
-            >
-              <div class="group p-0.5 text-gray-400 hover:text-gray-700">
-                <EllipsisVerticalIcon class="h-4 w-4" />
-                <span
-                  class="pointer-events-none absolute -right-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition delay-in-500 duration-150 group-hover:opacity-100"
-                >
-                  More actions
-                </span>
-              </div>
-            </ActionPopover>
-          </div>
-        </div>
-        <!-- Body -->
-        <!-- Folded -->
-        <template v-if="isContentFolded && iface?.foldable != null">
-          <button
-            class="flex min-h-[20px] max-w-full flex-row gap-1.5 truncate rounded-sm hover:bg-gray-100"
-            @click="toggleContentFold()"
-          >
-            <span v-for="field in foldedFields" class="text-gray-400" :key="field.id">
-              {{ field.name }}
-            </span>
-            <template v-if="canHaveText && statement.text != null && statement.text.length > 0">
-              <span class="text-gray-400" v-if="foldedFields.length > 0">•</span>
-              <AnnotatedText :model-value="statement.text" minimal-mentions readonly class="truncate text-gray-400" />
-            </template>
-            <EllipsisHorizontalIcon class="h-4 w-4 self-center text-gray-400" />
-          </button>
-        </template>
-        <!-- Actual body -->
-        <!-- Missing statement interface -->
-        <div v-if="iface == null" class="w-full font-bold text-red-600">
-          {{ statement.type }}
-        </div>
-        <!-- Body elements -->
-        <component
-          v-for="{ part: element, active } in elementParts"
-          v-show="active"
-          :ref="(ref: any) => (partsRefs[element.id] = ref)"
-          :key="element.id"
-          :is="element.component"
-          :statement="statement"
-          :focused="isFocused"
-          :selected="isSelected"
-          :editing="isEditing"
-          :readonly="readonly"
-          :visible="active"
-          :bounding="containerBounding"
-          :xoffset="contentOffsetX"
-          :class="[
-            // push run element up so it's directly below code, push database/value down else it looks cramped
-            element.id == 'run' ? '-mt-0.5' : '',
-            element.id == 'database' || element.id == 'value' ? 'mt-0.5' : '',
-          ]"
-          v-on="handleStatementPartEvents('element', element.id)"
+          v-if="!readonly"
+          class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
+          :class="dragOver && dragInTopHalf ? 'opacity-100' : 'opacity-0'"
         />
-        <!-- Fold / unfold elements -->
-        <button
-          v-if="canContentFold"
-          class="group absolute -left-5 top-7 rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
-          :class="isActive ? 'opacity-100' : 'opacity-0'"
-          @click="(e) => toggleContentFold(e.altKey)"
-        >
-          <ChevronRightIcon
-            class="h-4 w-4 transition-transform duration-150"
-            :class="[isContentFolded ? '' : 'rotate-90']"
-          />
-          <!-- Label (yeah these should be refactored) -->
-          <span
-            class="pointer-events-none absolute -left-1 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
-          >
-            <strong>Click</strong> to {{ isContentFolded ? "expand" : "fold" }}
-            <br />
-            <strong>Option-click</strong> for all
-          </span>
-        </button>
-      </div>
-      <!-- Issues in right gutter -->
-      <div
-        v-if="hasIssues"
-        class="group/issues absolute left-full top-[3px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
-        :class="{
-          'text-md': !bench.textSmall,
-          'text-sm': bench.textSmall,
-        }"
-      >
-        <button
-          class="flex rounded-sm p-1 font-bold underline-offset-4 transition duration-75 hover:bg-orange-100"
-          @click="bench.openActiveView('issues')"
-        >
-          <XCircleIcon v-if="hasErrors" class="h-4 w-4 text-red-600" />
-          <ExclamationTriangleIcon v-else-if="hasWarnings" class="h-4 w-4 text-yellow-600" />
-          <InformationCircleIcon v-else class="h-4 w-4 text-cyan-600" />
-        </button>
-        <!-- Preview on hover -->
         <div
-          class="invisible absolute right-0 top-5 z-10 flex w-fit min-w-[200px] max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900/[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
+          v-if="!readonly"
+          class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
+          :class="dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
+        />
+        <!-- Statement interface -->
+        <!-- :StatementPadding -->
+        <div
+          ref="innerWrapperRef"
+          class="relative flex max-w-full flex-col gap-y-0.5 px-2 py-1"
+          :class="{
+            'text-sm': bench.textSmall,
+            'text-md': !bench.textSmall,
+          }"
         >
-          <span
-            v-for="issue in issues"
-            :key="issue.id"
-            class="text-xs"
-            :class="{
-              'text-red-600': issue.kind == IssueKind.Error,
-              'text-yellow-600': issue.kind == IssueKind.Warning,
-              'text-cyan-600': issue.kind == IssueKind.Notice,
-            }"
+          <!-- Header -->
+          <div
+            v-if="iface?.needsDeclaration || activeControlParts.length > 0 || statement.name != null"
+            class="flex w-full flex-row justify-between"
           >
-            {{ issue.message }}
-          </span>
+            <!-- Declaration or title (if text with heading) -->
+            <div class="flex flex-row flex-wrap gap-y-1">
+              <DeclarationControl
+                v-if="iface?.needsDeclaration || (statement.type == StatementType.Text && statement.name != null)"
+                :ref="(ref: any) => (partsRefs['declaration'] = ref)"
+                :statement="statement"
+                :readonly="readonly"
+                v-on="handleStatementPartEvents('control', 'declaration')"
+                class="mr-1.5"
+              />
+              <!-- Controls inline -->
+              <component
+                v-for="{ part: control, active } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
+                :ref="(ref: any) => (partsRefs[control.id] = ref)"
+                :key="control.id"
+                :is="control.component"
+                :statement="statement"
+                :focused="isFocused"
+                :selected="isSelected"
+                :editing="isEditing"
+                :readonly="readonly"
+                v-on="handleStatementPartEvents('control', control.id)"
+                :class="[active ? 'mr-1.5' : '']"
+              />
+            </div>
+            <!-- Actions -->
+            <div
+              class="relative flex flex-shrink-0 gap-x-0.5 self-start transition-opacity duration-150"
+              :class="[isFocused ? 'opacity-100' : 'opacity-0 group-hover/statement:opacity-100']"
+            >
+              <!-- Extra controls -->
+              <component
+                v-for="{ id, component } in iface?.extraControls ?? []"
+                :ref="(ref: any) => (partsRefs[id] = ref)"
+                :key="id"
+                :is="component"
+                :statement="statement"
+                :focused="isFocused"
+                :selected="isSelected"
+                :editing="isEditing"
+                :readonly="readonly"
+              />
+              <!-- Extra space between extra controls and actions -->
+              <span />
+              <!-- Actions -->
+              <button
+                v-for="action in actionsInlineOrder.filter((action) => !action.hideInline && !action.disabled)"
+                :key="action.label"
+                class="group relative p-0.5 text-gray-400 hover:text-gray-700"
+                :class="action.active ? 'animate-spin cursor-not-allowed' : 'hover:bg-orange-100'"
+                @click.prevent.stop="action.action(statement)"
+                :disabled="action.disabled || action.active"
+              >
+                <component :is="action.active ? BusySpinnerIcon : action.icon" class="h-4 w-4" />
+                <!-- Label popover -->
+                <span
+                  v-if="!action.active"
+                  class="pointer-events-none absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition delay-in-500 duration-150 group-hover:opacity-100"
+                >
+                  {{ action.label }}
+                </span>
+              </button>
+              <!-- All actions popover (same as on other side for convenience) -->
+              <ActionPopover
+                anchor="right"
+                :thing="isInSelection ? null : statement"
+                :actions="actionsPopoverOrder"
+                :allow-freeform="bench.canEdit"
+                @freeform="emit('launchAssist', $event, nav?.getSelectedRoots() ?? [statement])"
+                @click.stop
+                @close="$nextTick(() => focus('first'))"
+              >
+                <div class="group p-0.5 text-gray-400 hover:text-gray-700">
+                  <EllipsisVerticalIcon class="h-4 w-4" />
+                  <span
+                    class="pointer-events-none absolute -right-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition delay-in-500 duration-150 group-hover:opacity-100"
+                  >
+                    More actions
+                  </span>
+                </div>
+              </ActionPopover>
+            </div>
+          </div>
+          <!-- Body -->
+          <!-- Folded -->
+          <template v-if="isContentFolded && iface?.foldable != null">
+            <button
+              class="flex min-h-[20px] max-w-full flex-row gap-1.5 truncate rounded-sm hover:bg-gray-100"
+              @click="toggleContentFold()"
+            >
+              <span v-for="field in foldedFields" class="text-gray-400" :key="field.id">
+                {{ field.name }}
+              </span>
+              <template v-if="canHaveText && statement.text != null && statement.text.length > 0">
+                <span class="text-gray-400" v-if="foldedFields.length > 0">•</span>
+                <AnnotatedText :model-value="statement.text" minimal-mentions readonly class="truncate text-gray-400" />
+              </template>
+              <EllipsisHorizontalIcon class="h-4 w-4 self-center text-gray-400" />
+            </button>
+          </template>
+          <!-- Actual body -->
+          <!-- Missing statement interface -->
+          <div v-if="iface == null" class="w-full font-bold text-red-600">
+            {{ statement.type }}
+          </div>
+          <!-- Body elements -->
+          <component
+            v-for="{ part: element, active } in elementParts"
+            v-show="active"
+            :ref="(ref: any) => (partsRefs[element.id] = ref)"
+            :key="element.id"
+            :is="element.component"
+            :statement="statement"
+            :focused="isFocused"
+            :selected="isSelected"
+            :editing="isEditing"
+            :readonly="readonly"
+            :visible="active"
+            :bounding="containerBounding"
+            :xoffset="contentOffsetX"
+            :class="[
+              // push run element up so it's directly below code, push database/value down else it looks cramped
+              element.id == 'run' ? '-mt-0.5' : '',
+              element.id == 'database' || element.id == 'value' ? 'mt-0.5' : '',
+            ]"
+            v-on="handleStatementPartEvents('element', element.id)"
+          />
+          <!-- Fold / unfold elements -->
+          <button
+            v-if="canContentFold"
+            class="group absolute -left-5 top-7 rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
+            :class="isActive ? 'opacity-100' : 'opacity-0'"
+            @click="(e) => toggleContentFold(e.altKey)"
+          >
+            <ChevronRightIcon
+              class="h-4 w-4 transition-transform duration-150"
+              :class="[isContentFolded ? '' : 'rotate-90']"
+            />
+            <!-- Label (yeah these should be refactored) -->
+            <span
+              class="pointer-events-none absolute -left-1 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
+            >
+              <strong>Click</strong> to {{ isContentFolded ? "expand" : "fold" }}
+              <br />
+              <strong>Option-click</strong> for all
+            </span>
+          </button>
+        </div>
+        <!-- Issues in right gutter -->
+        <div
+          v-if="hasIssues"
+          class="group/issues absolute left-full top-[3px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
+          :class="{
+            'text-md': !bench.textSmall,
+            'text-sm': bench.textSmall,
+          }"
+        >
+          <button
+            class="flex rounded-sm p-1 font-bold underline-offset-4 transition duration-75 hover:bg-orange-100"
+            @click="bench.openActiveView('issues')"
+          >
+            <XCircleIcon v-if="hasErrors" class="h-4 w-4 text-red-600" />
+            <ExclamationTriangleIcon v-else-if="hasWarnings" class="h-4 w-4 text-yellow-600" />
+            <InformationCircleIcon v-else class="h-4 w-4 text-cyan-600" />
+          </button>
+          <!-- Preview on hover -->
+          <div
+            class="invisible absolute right-0 top-5 z-10 flex w-fit min-w-[200px] max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900/[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
+          >
+            <span
+              v-for="issue in issues"
+              :key="issue.id"
+              class="text-xs"
+              :class="{
+                'text-red-600': issue.kind == IssueKind.Error,
+                'text-yellow-600': issue.kind == IssueKind.Warning,
+                'text-cyan-600': issue.kind == IssueKind.Notice,
+              }"
+            >
+              {{ issue.message }}
+            </span>
+          </div>
         </div>
       </div>
     </div>

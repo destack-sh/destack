@@ -598,9 +598,13 @@ defineExpose({
           :statement="(positioned.statement as any)"
           :readonly="isDeleted || isOtherVersion || bench.readonly"
           :depth="positioned.depth"
+          :rendered-depth="positioned.renderedDepth"
           :ancestors="positioned.ancestors.map((ancestorId) => (context?.statementsById[ancestorId] as Statement))"
           :standalone="false"
           :shown="statementsLoaded"
+          :is-group-start="positioned.isGroupStart"
+          :is-group-middle="positioned.isGroupMiddle"
+          :is-group-end="positioned.isGroupEnd"
           @launch-assist="(text, selection) => launchAssist(text, selection, positioned.statement as Statement)"
           class="w-full"
         />

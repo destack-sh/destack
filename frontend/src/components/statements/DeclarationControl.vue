@@ -67,7 +67,7 @@ defineExpose({
 <template>
   <div class="relative flex w-fit flex-row whitespace-nowrap text-orange-600">
     <!-- Icon -->
-    <span class="group/icon relative mr-[18px]">
+    <span class="group/icon relative mr-[18px]" v-if="statement.type != StatementType.Group">
       <component :is="icon" class="absolute top-0.5 h-4 w-4" />
       <!-- Statement explanation on hover -->
       <span

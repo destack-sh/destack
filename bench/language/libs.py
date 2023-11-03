@@ -89,6 +89,11 @@ class Test:
     pass
 
 
+@x_tag("template", "A template", file=_symbolx_builtins)
+class Template:
+    pass
+
+
 @x_struct("EmbeddingOutput", "Embedding output", file=_symbolx_builtins)
 class EmbeddingOutput:
     vector: typing.Union[Vector, list[Vector]]
