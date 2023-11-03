@@ -1,5 +1,5 @@
 import { TypeHint, TypeTag } from "@/gql/graphql";
-import { isValidObjectRecord } from "@/state/object";
+import { isValidObjectRecord } from "@/state/blob";
 import { TypeFlag, type Field } from "@/state/module";
 import { isValidSecretRecord } from "@/state/secret";
 

@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import { BlobStatus } from "@/gql/graphql";
-import type { ObjectRecord } from "@/state/object";
+import type { ObjectRecord } from "@/state/blob";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 

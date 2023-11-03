@@ -63,6 +63,8 @@ const documents = {
     types.SettingsDocument,
   "\n      query me {\n        me {\n          id\n          username\n          slug\n          email\n          name\n          createdAt\n          updatedAt\n          status\n          organizationMemberships {\n            totalCount\n            edges {\n              node {\n                id\n                createdAt\n                level\n                organization {\n                  id\n                  name\n                  slug\n                }\n              }\n            }\n          }\n        }\n      }\n    ":
     types.MeDocument,
+  "\n        query blob($id: GlobalID!) {\n          blob(id: $id) {\n            ... on Blob {\n              id\n              presignedGet\n            }\n          }\n        }\n      ":
+    types.BlobDocument,
   "\n  fragment ClientContentType on Client {\n    id\n    type\n    deviceName\n    browserName\n    user {\n      id\n      name\n      username\n      email\n    }\n    project {\n      id\n      name\n    }\n    fileId\n    statementId\n    lastSeenAt\n    closedAt\n    active\n    present\n  }\n":
     types.ClientContentTypeFragmentDoc,
   "\n      query connectedClients(\n        $projectId: GlobalID\n        $projectVersionId: GlobalID\n        $userId: GlobalID\n        $inSameOrganizations: Boolean!\n        $first: Int\n        $active: Boolean\n      ) {\n        clients(\n          projectId: $projectId\n          projectVersionId: $projectVersionId\n          userId: $userId\n          inSameOrganizations: $inSameOrganizations\n          first: $first\n          active: $active\n        ) {\n          totalCount\n          pageInfo {\n            hasNextPage\n            hasPreviousPage\n            startCursor\n            endCursor\n          }\n          edges {\n            node {\n              ...ClientContentType\n            }\n          }\n        }\n      }\n    ":
@@ -109,8 +111,6 @@ const documents = {
     types.NewNotificationsDocument,
   "\n      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {\n        markNotification(input: { id: $id, status: $status }) {\n          ... on Notification {\n            id\n            status\n            readAt\n            archivedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.MarkNotificationDocument,
-  "\n        query blob($id: GlobalID!) {\n          blob(id: $id) {\n            ... on Blob {\n              id\n              presignedGet\n            }\n          }\n        }\n      ":
-    types.BlobDocument,
   "\n      mutation upsertClient(\n        $id: GlobalID!\n        $type: ClientType!\n        $deviceName: String\n        $browserName: String\n        $projectId: GlobalID\n        $projectVersionId: GlobalID\n        $fileId: GlobalID\n        $statementId: GlobalID\n        $fieldId: GlobalID\n        $recordId: GlobalID\n        $path: String\n      ) {\n        upsertClient(\n          input: {\n            id: $id\n            type: $type\n            deviceName: $deviceName\n            browserName: $browserName\n            projectId: $projectId\n            projectVersionId: $projectVersionId\n            fileId: $fileId\n            statementId: $statementId\n            fieldId: $fieldId\n            recordId: $recordId\n            path: $path\n          }\n        ) {\n          ... on Client {\n            id\n            type\n            deviceName\n            browserName\n            projectVersion {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpsertClientDocument,
   "\n      mutation closeClient {\n        closeClient {\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -451,6 +451,12 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
+  source: "\n        query blob($id: GlobalID!) {\n          blob(id: $id) {\n            ... on Blob {\n              id\n              presignedGet\n            }\n          }\n        }\n      "
+): typeof documents["\n        query blob($id: GlobalID!) {\n          blob(id: $id) {\n            ... on Blob {\n              id\n              presignedGet\n            }\n          }\n        }\n      "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
   source: "\n  fragment ClientContentType on Client {\n    id\n    type\n    deviceName\n    browserName\n    user {\n      id\n      name\n      username\n      email\n    }\n    project {\n      id\n      name\n    }\n    fileId\n    statementId\n    lastSeenAt\n    closedAt\n    active\n    present\n  }\n"
 ): typeof documents["\n  fragment ClientContentType on Client {\n    id\n    type\n    deviceName\n    browserName\n    user {\n      id\n      name\n      username\n      email\n    }\n    project {\n      id\n      name\n    }\n    fileId\n    statementId\n    lastSeenAt\n    closedAt\n    active\n    present\n  }\n"];
 /**
@@ -585,12 +591,6 @@ export function graphql(
 export function graphql(
   source: "\n      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {\n        markNotification(input: { id: $id, status: $status }) {\n          ... on Notification {\n            id\n            status\n            readAt\n            archivedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {\n        markNotification(input: { id: $id, status: $status }) {\n          ... on Notification {\n            id\n            status\n            readAt\n            archivedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-  source: "\n        query blob($id: GlobalID!) {\n          blob(id: $id) {\n            ... on Blob {\n              id\n              presignedGet\n            }\n          }\n        }\n      "
-): typeof documents["\n        query blob($id: GlobalID!) {\n          blob(id: $id) {\n            ... on Blob {\n              id\n              presignedGet\n            }\n          }\n        }\n      "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

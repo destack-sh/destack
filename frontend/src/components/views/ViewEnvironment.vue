@@ -8,7 +8,7 @@ import { graphql } from "@/gql";
 import { WorkerSetStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
-import { humanizeBytes } from "@/state/object";
+import { humanizeBytes } from "@/state/blob";
 import {
   useCurrentSessions,
   WORKER_RESOURCES_BY_PROFILE,
