@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import secrets
 from asyncio import CancelledError
 from collections import OrderedDict
 from typing import (
@@ -210,3 +211,7 @@ def cyrb53a(s: str, seed: int = 0) -> int:
     h2 ^= h1 >> 16
 
     return ((h2 & ((1 << 32) - 1)) << 21) + (h1 >> 11)
+
+
+def generate_secret_password(length: int = 32) -> str:
+    return secrets.token_urlsafe(length)[:length]
