@@ -171,7 +171,7 @@ const effectiveWorkerStatus = computed(() => {
                 session.restarting.value ? 'animate-pulse' : ' hover:bg-orange-100 hover:text-gray-700',
                 !bench.canUse ? 'cursor-not-allowed opacity-50' : '',
               ]"
-              :disabled="session.restarting.value || !bench.canUse"
+              :disabled="(session.restarting.value && !bench.debug) || !bench.canUse"
             >
               <PowerIcon class="mr-1 h-4 w-4" />
               {{ session.restarting.value ? "Restarting..." : "Restart" }}
@@ -184,7 +184,7 @@ const effectiveWorkerStatus = computed(() => {
                 session.waking.value ? 'animate-pulse' : 'hover:bg-orange-100 hover:text-gray-700',
                 !bench.canUse ? 'cursor-not-allowed opacity-50' : '',
               ]"
-              :disabled="session.waking.value || !bench.canUse"
+              :disabled="(session.waking.value && !bench.debug) || !bench.canUse"
             >
               <PowerIcon class="mr-1 h-4 w-4" />
               {{ session.waking.value ? "Waking..." : "Wake" }}
