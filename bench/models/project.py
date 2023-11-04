@@ -23,6 +23,7 @@ from bench.models.statement import Statement
 from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.func import generate_secret_password
 from bench.utils.utils import DEBUG
 
 if TYPE_CHECKING:
@@ -136,8 +137,8 @@ class Project(UUIDModel, CrudModel):
         "WorkerSet", on_delete=models.SET_NULL, related_name="project+", null=True
     )
     worker_sets: models.QuerySet["WorkerSet"]  # noqa via WorkerSet
-    storage_password = TextPGPSymmetricKeyField(null=True, blank=True)
-    search_password = TextPGPSymmetricKeyField(null=True, blank=True)
+    db_password = TextPGPSymmetricKeyField(default=generate_secret_password)
+    os_password = TextPGPSymmetricKeyField(default=generate_secret_password)
 
     def __str__(self):
         return f"{self.owner.slug}/{self.slug}"
