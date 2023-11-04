@@ -33,6 +33,7 @@ from bench.msg.messages import (
     RepGetModuleHeadPayload,
     RepKillRunPayload,
     RepPingWorkerSetPayload,
+    RepPullWorkerRunsPayload,
     RepReadModulePayload,
     RepStartRunPayload,
     RepWriteModulePayload,
@@ -41,6 +42,7 @@ from bench.msg.messages import (
     ReqGetModuleHeadPayload,
     ReqKillRunPayload,
     ReqPingWorkerSetPayload,
+    ReqPullWorkerRunsPayload,
     ReqReadModulePayload,
     ReqStartRunPayload,
     ReqWriteModulePayload,
@@ -397,6 +399,7 @@ class ModuleWorkerProcess(ModuleWriter):
         return last_run_recent or not self.queue.empty()
 
     async def start(self):
+        # get & interp module
         source, self.project_id = await self.node.get_module(self.module_id)
         try:
             self.module = await sync_to_async(Module.interp)(source.nodes, self.project_id)
@@ -406,6 +409,27 @@ class ModuleWorkerProcess(ModuleWriter):
             raise RuntimeError(f"failed to initialize module worker {self}")
         self.node.tasks.start(self._flush_dirty_runs_forever(interval=0.1))
         self.ready.set()
+
+        # recover any prescheduled runs for this process
+        try:
+            rep: NMessage[RepPullWorkerRunsPayload] = await request(
+                NMessageType.PULL_WORKER_RUNS,
+                ReqPullWorkerRunsPayload(
+                    project_id=self.node.project_id,
+                    module_id=self.module_id,
+                    worker_set_id=self.node.worker_set_id,
+                    worker_node_id=self.node.worker_node_id,
+                    worker_process_id=None,
+                ),
+                RepPullWorkerRunsPayload,
+                retry=3,
+                timeout=20,
+            )
+            logger.debug("worker.recover", runs=rep.p.runs)
+            for run in rep.p.runs:
+                self.add_run(run)
+        except Exception as e:
+            logger.error("worker.recover.failed", exc_info=e)
 
     async def run(self):
         """Runs the module worker main processing loop"""
@@ -439,7 +463,11 @@ class ModuleWorkerProcess(ModuleWriter):
         self.log.info("worker.interp", edits=len(edits), duration=duration.total_seconds())
 
     def add_run(
-        self, run_data: RunData, session_id: UUID, global_value: dict | None, tags: list[str] | None
+        self,
+        run_data: RunData,
+        session_id: Optional[UUID] = None,
+        global_value: dict | None = None,
+        tags: list[str] | None = None,
     ) -> RunJob:
         """
         Registers a run to be processed by this worker process.
@@ -546,7 +574,7 @@ class ModuleWorkerProcess(ModuleWriter):
             job.session = Session(
                 module=self.module,
                 writer=self,
-                access=job.run_data.access_level,
+                access=job.run_data.access_level or SessionAccessLevel.Read,
                 worker_node_id=self.node.worker_node_id,
                 worker_process_id=None,
                 trigger_type=job.run_data.trigger_type,
