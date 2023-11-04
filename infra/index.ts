@@ -88,7 +88,7 @@ const dbSecurityGroup = new aws.ec2.SecurityGroup("db", {
     },
   ],
 });
-const db = new aws.rds.Cluster("db", {
+const globalDb = new aws.rds.Cluster("db", {
   engine: "aurora-postgresql",
   clusterIdentifier: "db",
   engineVersion: "14.6",
@@ -100,15 +100,15 @@ const db = new aws.rds.Cluster("db", {
   preferredBackupWindow: "04:00-06:00",
   vpcSecurityGroupIds: [dbSecurityGroup.id],
 });
-const dbInstance = new aws.rds.ClusterInstance("db", {
-  clusterIdentifier: db.clusterIdentifier,
+const globalDBInstance = new aws.rds.ClusterInstance("db", {
+  clusterIdentifier: globalDb.clusterIdentifier,
   instanceClass: "db.t4g.medium",
   engine: "aurora-postgresql",
   engineVersion: "14.6",
   publiclyAccessible: true,
   performanceInsightsEnabled: true,
 });
-const dbSecret = new k8s.core.v1.Secret(
+const globalDbSecret = new k8s.core.v1.Secret(
   "db",
   {
     metadata: { namespace: "default" },
@@ -120,7 +120,7 @@ const dbSecret = new k8s.core.v1.Secret(
   { provider: eksCluster.provider }
 );
 // db env vars
-const DB_ENV_VARS = [
+const GLOBAL_DB_ENV_VARS = [
   {
     name: "BENCH_DB_NAME",
     value: "postgres",
@@ -133,18 +133,18 @@ const DB_ENV_VARS = [
     name: "BENCH_DB_PASSWORD",
     valueFrom: {
       secretKeyRef: {
-        name: dbSecret.metadata.name,
+        name: globalDbSecret.metadata.name,
         key: "password",
       },
     },
   },
   {
     name: "BENCH_POSTGRES_HOST",
-    value: db.endpoint,
+    value: globalDb.endpoint,
   },
   {
     name: "BENCH_POSTGRES_PORT",
-    value: db.port.apply((port) => port.toString()),
+    value: globalDb.port.apply((port) => port.toString()),
   },
   {
     name: "PGCRYPTO_KEY",
@@ -152,7 +152,7 @@ const DB_ENV_VARS = [
   },
 ];
 
-// Opensearch: OpenSearch cluster
+// Search: OpenSearch cluster
 const opensearchDomainName = `bench-${config.require("env")}`;
 const opensearchSecurityGroup = new aws.ec2.SecurityGroup("opensearch", {
   ingress: [{ fromPort: 443, toPort: 443, protocol: "tcp", cidrBlocks: ["0.0.0.0/0"] }],
@@ -528,7 +528,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               ports: [{ containerPort: 80, name: "http" }],
               env: [
                 ...PUBLIC_BACKEND_VARS,
-                ...DB_ENV_VARS,
+                ...GLOBAL_DB_ENV_VARS,
                 ...OPENSEARCH_ENV_VARS,
                 ...AWS_BACKEND_ENV_VARS,
                 ...BASE_PRIVATE_BACKEND_ENV_VARS,
@@ -565,7 +565,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
               env: [
                 ...PUBLIC_BACKEND_VARS,
                 ...OPENSEARCH_ENV_VARS,
-                ...DB_ENV_VARS,
+                ...GLOBAL_DB_ENV_VARS,
                 ...AWS_BACKEND_ENV_VARS,
                 ...BASE_PRIVATE_BACKEND_ENV_VARS,
                 { name: "SEND_API_PUB_MSG", value: "" },
@@ -581,7 +581,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
               ports: [{ containerPort: 80, name: "http" }],
               env: [
                 ...PUBLIC_BACKEND_VARS,
-                ...DB_ENV_VARS,
+                ...GLOBAL_DB_ENV_VARS,
                 ...OPENSEARCH_ENV_VARS,
                 ...MODEL_PROVIDER_VARS,
                 ...AWS_BACKEND_ENV_VARS,
