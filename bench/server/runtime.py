@@ -20,6 +20,7 @@ from bench.language.const import (
     INTERP_NODE_TYPES,
     ModuleReference,
     RunStatus,
+    SessionAccessLevel,
     parse_absolute_node_reference,
 )
 from bench.language.edit import EditData, ModuleEditor
@@ -41,6 +42,7 @@ from bench.msg.messages import (
     NMessageType,
     RepGetModuleHeadPayload,
     RepMarkUploadedObjectPayload,
+    RepPullWorkerRunsPayload,
     RepReadModulePayload,
     RepReadObjectPayload,
     RepReadSecretPayload,
@@ -56,6 +58,7 @@ from bench.msg.messages import (
     RepWriteSessionPayload,
     ReqGetModuleHeadPayload,
     ReqMarkUploadedObjectPayload,
+    ReqPullWorkerRunsPayload,
     ReqReadModulePayload,
     ReqReadObjectPayload,
     ReqReadSecretPayload,
@@ -185,6 +188,7 @@ class RuntimeServer(Monitored):
             await handle_reply(NMessageType.READ_MODULE, self.read_module),
             await handle_reply(NMessageType.WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
+            await handle_reply(NMessageType.PULL_WORKER_RUNS, self.pull_runs),
             await handle_reply(NMessageType.WAKE_RUNTIME, self.request_runtime),
             await handle_reply(NMessageType.SEARCH_RECORDS, self.search_records),
             await handle_reply(NMessageType.SEARCH_RUNS, self.search_runs),
@@ -281,6 +285,25 @@ class RuntimeServer(Monitored):
             )
             success = False
         await msg.reply(RepWriteSessionPayload(success=success))
+
+    @message_handler
+    async def pull_runs(self, msg: NMessage[ReqPullWorkerRunsPayload]) -> None:
+        logger.debug("run.pull", msg=msg)
+        runtime = await self._prepare_runtime(msg.p.module_id)
+        try:
+            runs = await runtime.pull_runs(
+                worker_set_id=msg.p.worker_set_id,
+                worker_node_id=msg.p.worker_node_id,
+                worker_process_id=msg.p.worker_process_id,
+            )
+            logger.debug("run.pull.done", msg=msg, runs=runs)
+            success = True
+        except Exception as e:
+            sentry_capture(e)
+            logger.error("run.pull.failed", msg=msg, exc_info=True)
+            success = False
+            runs = []
+        await msg.reply(RepPullWorkerRunsPayload(runs=runs, success=success))
 
     def _do_search(
         self,
@@ -611,6 +634,18 @@ class RuntimeHost:
         self.tasks.start(self.process_time_triggers_forever())
         self.ready.set()
 
+    async def pull_runs(
+        self, worker_set_id: UUID, worker_node_id: Optional[str], worker_process_id: Optional[str]
+    ) -> list[wire.RunData]:
+        prescheduled_runs = [
+            r
+            async for r in models.Run.objects.filter(
+                status=RunStatus.Scheduled, project_id=self.project_id
+            ).order_by("scheduled_at")
+        ]
+        prescheduled_runs = [packer.pack_data(r) for r in prescheduled_runs]
+        return prescheduled_runs
+
     async def process_time_triggers_forever(self) -> None:
         """
         Process all time triggers for this module forever.
@@ -825,7 +860,7 @@ class RuntimeHost:
                 started_at=None,
                 terminated_at=None,
                 status=RunStatus.Scheduled,
-                access_level=None,
+                access_level=SessionAccessLevel.Full,
                 inputs={},
                 outputs=None,
                 error=None,

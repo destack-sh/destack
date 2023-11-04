@@ -111,6 +111,8 @@ class NMessageType(StrEnum):
     GET_ENVIRONMENT_REP = "worker_set.get_environment.rep"
     PING_WORKER_SET = "worker_set.ping"
     PING_WORKER_SET_REP = "worker_set.ping.rep"
+    PULL_WORKER_RUNS = "worker_set.pull_scheduled_runs"
+    PULL_WORKER_RUNS_REP = "worker_set.pull_scheduled_runs.rep"
     # running (routed via project id, maybe later worker set/node/process as well)
     START_RUN = "run.start"
     START_RUN_REP = "run.start.rep"
@@ -146,6 +148,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.WAKE_RUNTIME: NMessageType.WAKE_RUNTIME_REP,
     NMessageType.GET_ENVIRONMENT: NMessageType.GET_ENVIRONMENT_REP,
     NMessageType.PING_WORKER_SET: NMessageType.PING_WORKER_SET_REP,
+    NMessageType.PULL_WORKER_RUNS: NMessageType.PULL_WORKER_RUNS_REP,
 }
 REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 
@@ -158,7 +161,7 @@ assert not _missing_request_types, f"missing reply types for {_missing_request_t
 # All messages are just Python dataclasses.
 # They are serialized and deserialized in serialize.py with some custom logic
 #  to support all the nested Python typing we need (e.g. NamedTuples).
-# In the future we should want to use a more formal serialization format,
+# In the future we should want to use a more formal serialization format (and RPC - proto?),
 # but for the time being this is both fast enough and flexible.
 #  :WireFormat
 #
@@ -562,6 +565,21 @@ class ReqPingWorkerSetPayload(ProjectScoped, Payload):
 
 @payload(NMessageType.PING_WORKER_SET_REP)
 class RepPingWorkerSetPayload(Payload):
+    success: bool
+
+
+@payload(NMessageType.PULL_WORKER_RUNS)
+class ReqPullWorkerRunsPayload(Payload):
+    project_id: UUID
+    module_id: UUID
+    worker_set_id: UUID
+    worker_node_id: Optional[str]
+    worker_process_id: Optional[str]
+
+
+@payload(NMessageType.PULL_WORKER_RUNS_REP)
+class RepPullWorkerRunsPayload(Payload):
+    runs: list[RunData]
     success: bool
 
 

@@ -383,7 +383,7 @@ class OrchestrationServer(Monitored):
         dead_replicas_ids = worker_set.active_replicas_ids[:]  # may change during restart
         if worker_set.target_replicas > 0:
             try:
-                # TODO @Robustness: do restart worker node only works with 1 worker node
+                # TODO @Robustness: do restart worker node only works with :1WorkerNode
                 rep: NMessage[RepDoRestartWorkerNodePayload] = await request(
                     NMessageType.DO_RESTART_WORKER_NODE,
                     ReqDoRestartWorkerNodePayload(
