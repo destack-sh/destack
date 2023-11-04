@@ -337,8 +337,8 @@ const nats = new k8s.helm.v3.Release("nats", {
       enabled: false,
     },
     limits: {
-      // 32MB max message size
-      maxPayload: 32 * 1024 * 1024,
+      // 256MB max message size
+      maxPayload: 256 * 1024 * 1024,
     },
   },
 });
