@@ -27,7 +27,7 @@ from bench.language.const import (
 )
 from bench.language.edit import MEK, MET, EditBundle, EditData
 from bench.language.module import NodeTree
-from bench.opensearch.index import write_session_to_os
+from bench.search.crud import write_session_to_os
 from bench.utils.dt import utcnow_with_tz
 
 MNT = ModuleNodeType
@@ -890,7 +890,7 @@ def write_edits(
     Writes a series of module edits to the database.
     If apply, also mutates a COPY of the module tree. Yeah, this seems a bit inefficient...
     """
-    from bench.opensearch.index import write_edits_to_os
+    from bench.search.crud import write_edits_to_os
 
     edits = EditBundle(edits)
 

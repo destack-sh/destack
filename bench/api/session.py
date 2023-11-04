@@ -56,11 +56,11 @@ from bench.msg.messages import (
     StartRunErrorType,
     WorkersChangedPayload,
 )
-from bench.opensearch import mirror
-from bench.opensearch.client import os_client
-from bench.opensearch.core import IndexType
-from bench.opensearch.index import write_runs_to_os
-from bench.opensearch.query import encode_cursor, prepare_search
+from bench.search import mirror
+from bench.search.client import os_client
+from bench.search.core import IndexType
+from bench.search.crud import write_runs_to_os
+from bench.search.mapping import encode_cursor, prepare_search
 
 if TYPE_CHECKING:
     from bench.api.project import Project, ProjectVersion

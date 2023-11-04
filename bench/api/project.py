@@ -25,7 +25,7 @@ from bench.language.cache import _get_usage_key
 from bench.models import ModuleAccessLevel
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
-from bench.opensearch.query import prepare_search
+from bench.search.mapping import prepare_search
 from bench.utils.cache import redis_sync
 from bench.utils.dt import utcnow_with_tz
 
@@ -82,9 +82,9 @@ class ProjectUsage:
 
 
 def get_project_usage(info: Info) -> ProjectUsage:
-    from bench.opensearch import mirror
-    from bench.opensearch.client import os_client
-    from bench.opensearch.core import IndexType
+    from bench.search import mirror
+    from bench.search.client import os_client
+    from bench.search.core import IndexType
 
     project_id = UUID(info.variable_values.get("projectId").node_id)
     project_head_id = models.Project.objects.only("head_id").get(id=project_id).head_id

@@ -23,10 +23,10 @@ from bench.api.utils import (
 )
 from bench.language import Q, Query, QueryOp
 from bench.models import ModuleAccessLevel
-from bench.opensearch import mirror
-from bench.opensearch.client import os_client
-from bench.opensearch.core import IndexType
-from bench.opensearch.query import encode_cursor, prepare_search
+from bench.search import mirror
+from bench.search.client import os_client
+from bench.search.core import IndexType
+from bench.search.mapping import encode_cursor, prepare_search
 from bench.utils.dt import utcnow_with_tz
 
 
