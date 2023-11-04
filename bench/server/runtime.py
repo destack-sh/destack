@@ -73,10 +73,10 @@ from bench.msg.messages import (
     SessionChangedPayload,
     StartRunErrorType,
 )
-from bench.opensearch import mirror
-from bench.opensearch.client import os_client
-from bench.opensearch.core import IndexType
-from bench.opensearch.query import encode_cursor, prepare_search
+from bench.search import mirror
+from bench.search.client import os_client
+from bench.search.core import IndexType
+from bench.search.mapping import encode_cursor, prepare_search
 from bench.server.observer import WorkerObserver
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.monitoring import Monitored

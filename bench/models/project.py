@@ -12,6 +12,7 @@ from django.core.validators import validate_slug
 from django.db import models, transaction
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
+from pgcrypto.fields import TextPGPSymmetricKeyField
 from strawberry_django.descriptors import model_property
 
 from bench.language import wire
@@ -135,6 +136,8 @@ class Project(UUIDModel, CrudModel):
         "WorkerSet", on_delete=models.SET_NULL, related_name="project+", null=True
     )
     worker_sets: models.QuerySet["WorkerSet"]  # noqa via WorkerSet
+    storage_password = TextPGPSymmetricKeyField(null=True, blank=True)
+    search_password = TextPGPSymmetricKeyField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.owner.slug}/{self.slug}"
@@ -479,7 +482,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         """Copies the given files from a source version to a target version (by default everything)"""
 
         from bench.models import packer
-        from bench.opensearch.index import write_module_to_os
+        from bench.search.crud import write_module_to_os
 
         # pack relevant nodes
         filter = packer.DEFAULT_PACK_FILTER.extend()
@@ -621,7 +624,7 @@ class FileManager(models.Manager):
     ) -> "File":
         """Copies a file from one module to another (may be the same)."""
         from bench.models import packer
-        from bench.opensearch.index import write_module_to_os
+        from bench.search.crud import write_module_to_os
 
         target_id = target_id or uuid.uuid4()
         # pack relevant nodes
@@ -791,9 +794,9 @@ def create_global_project_s3_bucket(ignore_exists: bool):
 
 def create_per_project_os_index(project: Project):
     """Creates OpenSearch indices for the project."""
-    from bench.opensearch.index import create_bench_index
+    from bench.search.crud import create_bench_search_index
 
-    create_bench_index(project.id, upsert=True)
+    create_bench_search_index(project.id, upsert=True)
 
 
 def create_default_worker_set(project: Project):

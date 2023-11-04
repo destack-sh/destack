@@ -268,7 +268,6 @@ class TypeStorageFormat(enum.StrEnum):
     DATE = "date"
     KEYWORD = "key"
     OBJECT = "obj"
-    RELATION = "rel"
 
 
 class FieldReferenceMask(enum.IntFlag):

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from uuid import UUID
 
-import bench.opensearch.core as os
+import bench.search.core as os
 from bench import models
 from bench.language import StatementType, wire
 from bench.language.const import RunStatus

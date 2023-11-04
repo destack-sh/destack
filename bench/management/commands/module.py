@@ -8,7 +8,7 @@ from bench import models
 from bench.language import wire
 from bench.models import packer
 from bench.models.utils import create_models_bfs
-from bench.opensearch.index import update_dynamic_field_mappings, write_module_to_os
+from bench.search.crud import update_dynamic_field_mappings, write_module_to_os
 from bench.utils.utils import DEBUG, LOCAL
 
 logger = structlog.get_logger(__name__)

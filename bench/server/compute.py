@@ -26,7 +26,7 @@ from bench.msg.messages import (
     RunsChangedGlobalPayload,
     WorkersChangedPayload,
 )
-from bench.opensearch.index import write_runs_to_os
+from bench.search.crud import write_runs_to_os
 from bench.server import k8
 from bench.settings import KUBERNETES_ENABLED
 from bench.utils.cache import redis

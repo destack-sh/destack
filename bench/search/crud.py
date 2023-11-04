@@ -3,7 +3,7 @@ from uuid import UUID
 
 import structlog
 
-import bench.opensearch.core as os
+import bench.search.core as os
 from bench import language as lang
 from bench import models
 from bench.language import wire
@@ -11,10 +11,10 @@ from bench.language.const import INTERP_NODE_TYPES, RUNNABLE_STATEMENT_TYPES, Ty
 from bench.language.edit import MEK, MET, MNT, EditData
 from bench.language.module import NodeTree
 from bench.language.run import HasRun
-from bench.opensearch import mirror
-from bench.opensearch.client import os_client
-from bench.opensearch.core import IndexType
-from bench.opensearch.mapping import map_to_os_field
+from bench.search import mirror
+from bench.search.client import os_client
+from bench.search.core import IndexType
+from bench.search.mapping import map_to_os_field
 
 logger = structlog.get_logger(__name__)
 
@@ -36,9 +36,9 @@ DOCUMENTS_BY_INDEX = {
         mirror.Comment,
     ],
     IndexType.BENCH: [
-        mirror.Record,  # only the static parts
+        mirror.Record,
         mirror.Session,
-        mirror.Run,  # only the static parts
+        mirror.Run,
         mirror.LogEntry,
     ],
 }
@@ -123,7 +123,7 @@ def _create_index(
         os_client.indices.open(index=index_name)
 
 
-def create_global_index(name: str = None, upsert: bool = False) -> None:
+def create_global_search_index(name: str = None, upsert: bool = False) -> None:
     _create_index(
         name or IndexType.GLOBAL.get_index_name(),
         shards=GLOBAL_INDEX_SHARDS,
@@ -133,7 +133,7 @@ def create_global_index(name: str = None, upsert: bool = False) -> None:
     )
 
 
-def create_bench_index(project_id: UUID, name: str = None, upsert: bool = False) -> None:
+def create_bench_search_index(project_id: UUID, name: str = None, upsert: bool = False) -> None:
     _create_index(
         name or IndexType.BENCH.get_index_name(project_id),
         shards=BENCH_INDEX_SHARDS,

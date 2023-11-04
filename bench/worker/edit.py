@@ -13,7 +13,7 @@ from bench.language.edit import MET, MNT, EditData, ModuleEditor
 from bench.language.module import NodeTree
 from bench.models import packer
 from bench.models.packer import INTERP_MODEL_TYPES
-from bench.opensearch import mirror
+from bench.search import mirror
 
 MutableThing = Union[
     models.File,

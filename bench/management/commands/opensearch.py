@@ -4,9 +4,9 @@ from django.db import transaction
 
 from bench import models
 from bench.models import Project
-from bench.opensearch.client import os_client
-from bench.opensearch.core import IndexType
-from bench.opensearch.index import create_bench_index
+from bench.search.client import os_client
+from bench.search.core import IndexType
+from bench.search.crud import create_bench_search_index
 
 logger = structlog.get_logger(__name__)
 
@@ -29,10 +29,10 @@ class Command(BaseCommand):
         if action == "create":
             if slug == "all":
                 for project in models.Project.objects.all():
-                    create_bench_index(project.id, upsert=True)
+                    create_bench_search_index(project.id, upsert=True)
             else:
                 project = self.get_project(slug)
-                create_bench_index(project.id, upsert=True)
+                create_bench_search_index(project.id, upsert=True)
         elif action == "delete":
             if slug == "all":
                 for project in models.Project.objects.all():
