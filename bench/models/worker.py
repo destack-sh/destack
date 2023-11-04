@@ -27,7 +27,8 @@ class WorkerSet(UUIDModel):
     active_replicas_ids = ArrayField(models.CharField(max_length=64), default=list)
 
     def __str__(self):
-        return f"{self.project} ({self.region}, {self.profile}, {self.status}, x{self.desired_replicas})"
+        desired_status = "sleeping" if self.sleeping else "active"
+        return f"{self.project} ({self.region}, {self.profile}, {desired_status}->{self.status}, x{self.desired_replicas}->{self.target_replicas}->{self.available_replicas})"
 
     def __repr__(self):
         return f"<WorkerSet {self}>"

@@ -232,7 +232,6 @@ class OrchestrationServer(Monitored):
             if isinstance(object, k8.Deployment):
                 # deployment / worker set changed
                 partial_worker_set = object.to_model()
-                worker_set.target_replicas = partial_worker_set.target_replicas
                 worker_set.status = partial_worker_set.status
                 if not worker_set.sleeping:
                     worker_set.last_bumped_at = utcnow_with_tz()
