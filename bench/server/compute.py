@@ -84,6 +84,9 @@ class OrchestrationServer(Monitored):
         for worker_set in worker_sets:
             self.worker_sets_by_project_id[worker_set.project_id] = worker_set
             self.worker_sets_by_id[worker_set.id] = worker_set
+            # scale active worker sets target to desired
+            if not worker_set.sleeping:
+                worker_set.target_replicas = worker_set.desired_replicas
         logger.debug("workers.loaded_from_db", worker_sets=self.worker_sets)
 
         # initial sync
@@ -292,10 +295,11 @@ class OrchestrationServer(Monitored):
 
     async def _mark_tired_worker_sets(self) -> list[models.WorkerSet]:
         """Marks worker sets as sleeping if they are idle for too long WITHOUT writing to DB."""
-        logger.debug("workers.mark_tired")
         tired_worker_sets = []
         idle_cutoff = utcnow_with_tz() - timedelta(seconds=WORKER_SET_IDLE_SLEEP_TIME)
         for worker_set in self.worker_sets:
+            if worker_set.sleeping:
+                continue
             # put to sleep if idle for too long
             if (
                 worker_set.last_active_at is None or worker_set.last_active_at < idle_cutoff
@@ -303,7 +307,7 @@ class OrchestrationServer(Monitored):
                 worker_set.sleeping = True
                 worker_set.target_replicas = 0
                 tired_worker_sets.append(worker_set)
-        logger.debug("workers.mark_tired.done", worker_sets=tired_worker_sets)
+        logger.debug("workers.mark_tired", worker_sets=tired_worker_sets)
         return tired_worker_sets
 
     async def _get_project_worker_set(self, project_id: UUID):
