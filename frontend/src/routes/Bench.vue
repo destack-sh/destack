@@ -85,6 +85,7 @@ import { WORKER_STATUS_COLOR, WORKER_STATUS_TITLE, useCurrentSessions } from "@/
 import SharingPopover from "@/components/bench/SharingPopover.vue";
 import type { Project, ProjectVersion } from "@/gql/graphql";
 import { useElementRefs } from "@/composables/useGrid";
+import { DateTime } from "luxon";
 
 const props = defineProps<{
   owner: string;
@@ -285,14 +286,19 @@ const hasInflightOps = computed(() => operationsStore.hasInflightLike({ stateles
 const connectionHealthy = computed(() => WS_CONNECTED.value && !hasStaleInflightOps.value);
 const workerSetHealthy = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
 
+const lastWakeAttemptAt = ref<DateTime | null>(null);
 const windowFocus = useWindowFocus();
 // automatically wake workers on load and when focused (if not already awake)
 watch(
   () => [bench.canUse, windowFocus.value, workerSet.value?.status],
   () => {
     if (bench.canUse && windowFocus.value && workerSet.value?.status == WorkerSetStatus.Sleeping) {
-      console.log("auto wake workers");
-      sessions.wakeWorkerSet();
+      const secondsSinceLastAttempt = lastWakeAttemptAt.value?.diffNow("seconds").seconds ?? Infinity;
+      if (secondsSinceLastAttempt >= 20) {
+        console.log("auto wake workers");
+        sessions.wakeWorkerSet();
+        lastWakeAttemptAt.value = DateTime.now();
+      }
     }
   },
   { immediate: true }
