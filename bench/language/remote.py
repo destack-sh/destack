@@ -59,6 +59,7 @@ class Blob(Node):
         # download file from url
         async with aiohttp.ClientSession() as session:
             async with session.get(get_url) as response:
+                logger.debug("blob.read", object=self, status=response.status, url=get_url)
                 if response.status != 200:
                     raise ValueError(
                         f"unable to download {self}: {response.status} {response.reason}"
@@ -70,14 +71,14 @@ class Blob(Node):
     async def aget_url(self, timeout):
         from bench.language import wire
         from bench.msg.core import NMessage, request
-        from bench.msg.messages import NMessageType, RepReadObjectPayload, ReqReadBlobPayload
+        from bench.msg.messages import NMessageType, RepReadBlobPayload, ReqReadBlobPayload
 
         if self.status != BlobStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
-        rep: NMessage[RepReadObjectPayload] = await request(
+        rep: NMessage[RepReadBlobPayload] = await request(
             NMessageType.READ_BLOB,
-            ReqReadBlobPayload(objects=[wire.pack_data(self)]),
-            reply_t=RepReadObjectPayload,
+            ReqReadBlobPayload(blobs=[wire.pack_data(self)]),
+            reply_t=RepReadBlobPayload,
             timeout=timeout,
         )
         get_url = rep.p.get_urls[0]
@@ -125,11 +126,14 @@ class Blob(Node):
         from bench.msg.core import NMessage, request
         from bench.msg.messages import NMessageType, RepWriteObjectPayload, ReqWriteBlobPayload
 
+        if not self.id:
+            self._assign_id_and_ck(self.session.module.ck)
+
         logger.debug("blob.prepare_upload", object=self)
         # first get POST url to upload the object
         rep: NMessage[RepWriteObjectPayload] = await request(
             NMessageType.WRITE_BLOB,
-            ReqWriteBlobPayload(module_id=self.session.module.id, objects=[wire.pack_data(self)]),
+            ReqWriteBlobPayload(module_id=self.session.module.id, blobs=[wire.pack_data(self)]),
             reply_t=RepWriteObjectPayload,
         )
         blob = rep.p.blobs[0]
@@ -156,7 +160,7 @@ class Blob(Node):
         logger.debug("blob.mark_uploaded", object=self)
         rep: NMessage[RepMarkUploadedBlobPayload] = await request(
             NMessageType.MARK_UPLOADED_BLOB,
-            ReqMarkUploadedBlobPayload(objects=[wire.pack_data(self)]),
+            ReqMarkUploadedBlobPayload(blobs=[wire.pack_data(self)]),
             reply_t=RepMarkUploadedBlobPayload,
         )
         if not rep.p.success:
@@ -185,7 +189,7 @@ class Blob(Node):
     def _assign_id_and_ck(self, module_ck: UUID):
         # derive ck from module ck and sha512 (and id==ck because detached)
         self._set_untracked("ck", uuid5(module_ck, self.sha512))
-        self._set_untracked("id", self.id)
+        self._set_untracked("id", self.ck)
 
     @staticmethod
     def from_url(url: str, name: str = None, timeout: int = None) -> "Blob":

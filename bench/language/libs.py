@@ -15,6 +15,7 @@ import anthropic
 import openai
 
 from bench.language import (
+    Blob,
     File,
     HasRun,
     HasText,
@@ -107,6 +108,11 @@ def embed(text: typing.Union[str, list[str]]) -> EmbeddingOutput:
 @x_struct("TranscriptionOutput", "Transcription output", file=_symbolx_builtins)
 class TranscriptionOutput:
     text: str
+
+
+@x_task("transcribe", "Transcribe any audio into text", file=_symbolx_builtins)
+def transcribe(url: Optional[str] = None, file: Optional[Blob] = None) -> TranscriptionOutput:
+    raise UnreachableError()  # stub
 
 
 @x_tag("export", "Make code outputs available for import", file=_symbolx_builtins)

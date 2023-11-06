@@ -8,10 +8,9 @@ import structlog
 from bench.language.const import (
     DATABASE_VERSIONED_RECORD_LIMIT,
     MNT,
-    DatabaseViewLayout,
+    ViewLayout,
     new_dynamic_node_key,
 )
-from bench.language.field import Field
 from bench.language.module import (
     _NC,
     NS,
@@ -25,7 +24,6 @@ from bench.language.module import (
     _ChangeEffect,
     _Passthrough,
     nchildren,
-    ninternal,
     node,
     node_component,
     nparent,
@@ -113,12 +111,9 @@ class Record(HasValue, Node):
 class View(ScopeNode):
     parent: typing.Union["Statement", "File"] = nparent(MNT.STATEMENT, MNT.FILE)
     name: str | None = nproperty(default=None)
-    layout: DatabaseViewLayout = nproperty(
-        default=DatabaseViewLayout.TABLE, validate=enum_validator(DatabaseViewLayout)
-    )
+    layout: ViewLayout = nproperty(default=ViewLayout.TABLE, validate=enum_validator(ViewLayout))
     query: Optional[Query] = nproperty(default=None)
     sort: Optional[list[Sort]] = nproperty(default=None)
-    fields: Optional[list["ViewField"]] = nchildren(MNT.VIEW_FIELD)
 
     def __str__(self):
         return f"{self.parent.path}:{self.name} ({self.layout})"
@@ -129,12 +124,6 @@ class View(ScopeNode):
     @property
     def path(self) -> str:
         return f"{self.parent.path}.{self.name}"
-
-
-@node(mnt=MNT.VIEW_FIELD)
-class ViewField(Node):
-    field: UUID | Field = nproperty()
-    order_key: str | None = ninternal(default=None)
 
 
 MapFunction = typing.Callable[[Record], typing.Union[Record, dict]]

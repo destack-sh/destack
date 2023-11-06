@@ -14,6 +14,7 @@ const emit = defineEmits<{
 const open = ref(false);
 const popoverRef = ref<HTMLDivElement | null>(null);
 const popoverPin = pinAbsoluteElement(popoverRef, { pos: true, keepInView: true });
+const selectTypeRef = ref<InstanceType<typeof SelectTypeInterface> | null>(null);
 
 function show() {
   open.value = true;
@@ -23,9 +24,14 @@ function hide() {
   open.value = false;
 }
 
+function focus() {
+  selectTypeRef.value?.focus();
+}
+
 defineExpose({
   show,
   hide,
+  focus,
 });
 </script>
 <template>
@@ -45,6 +51,7 @@ defineExpose({
     >
       <h5 class="px-1 text-left text-xs font-semibold text-gray-500">{{ title }}</h5>
       <SelectTypeInterface
+        ref="selectTypeRef"
         class="mt-2"
         hide-flags
         allow-freeform

@@ -717,18 +717,10 @@ class BlobPacker(DataPacker[wire.BlobData, models.Blob]):
 @data_packer(wire.SecretData, models.Secret)
 class SecretPacker(DataPacker[wire.SecretData, models.Secret]):
     def pack(self, data: models.Secret) -> wire.SecretData:
-        return wire.SecretData(
-            id=data.id,
-            sha512=data.sha512,
-            value=data.value,
-        )
+        return wire.SecretData(id=data.id, sha512=data.sha512, value=data.value)
 
     def unpack(self, data: wire.SecretData) -> models.Secret:
-        return models.Secret(
-            id=data.id,
-            sha512=data.sha512,
-            value=data.value,
-        )
+        return models.Secret(id=data.id, sha512=data.sha512, value=data.value)
 
 
 @data_packer(wire.SessionData, models.Session)

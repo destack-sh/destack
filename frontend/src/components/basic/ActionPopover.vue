@@ -2,15 +2,7 @@
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
 import { usePanelContext, type Action } from "@/state/bench";
-import {
-  Combobox,
-  ComboboxInput,
-  ComboboxOption,
-  ComboboxOptions,
-  Popover,
-  PopoverButton,
-  PopoverPanel,
-} from "@headlessui/vue";
+import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { ChevronRightIcon, EllipsisVerticalIcon, SparklesIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref, shallowRef } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";

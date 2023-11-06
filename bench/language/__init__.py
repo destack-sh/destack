@@ -1,5 +1,4 @@
 from .const import (
-    DatabaseViewLayout,
     IssueType,
     ScheduleType,
     SessionAccessLevel,
@@ -8,6 +7,7 @@ from .const import (
     TypeFlag,
     TypeHint,
     TypeTag,
+    ViewLayout,
 )
 from .database import Record, View
 from .edit import render, render_as_python
@@ -32,7 +32,7 @@ __all__ = [
     "Aggregation",
     "BenchError",
     "View",
-    "DatabaseViewLayout",
+    "ViewLayout",
     "Field",
     "File",
     "HasFields",
