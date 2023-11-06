@@ -217,7 +217,7 @@ defineExpose({
           :inputs="panel.inputs"
           @rerun="onRun"
           @run="onRun"
-          :hide="['rerun']"
+          :hide="['rerun', 'launch']"
         />
       </div>
       <!-- Body -->
