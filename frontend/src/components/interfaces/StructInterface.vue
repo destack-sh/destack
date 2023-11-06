@@ -328,7 +328,7 @@ defineExpose({
       </div>
     </div>
     <!-- Controls -->
-    <div v-if="showControls" class="absolute right-0.5 top-0.5 flex flex-row gap-1 bg-white p-0.5">
+    <div v-if="showControls && fields.length > 0" class="absolute right-0.5 top-0.5 flex flex-row gap-1 bg-white p-0.5">
       <!-- Toggle view -->
       <button
         @click.stop="display = display == 'tree' ? 'grid' : 'tree'"

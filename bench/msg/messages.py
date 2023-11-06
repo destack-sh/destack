@@ -85,12 +85,12 @@ class NMessageType(StrEnum):
     SEARCH_RUNS_REP = "module.search.runs.rep"
     SEARCH_LOGS = "module.search.logs"
     SEARCH_LOGS_REP = "module.search.logs.rep"
-    READ_OBJECT = "object.read"
-    READ_OBJECT_REP = "object.read.rep"
-    WRITE_OBJECT = "object.write"
-    WRITE_OBJECT_REP = "object.write.rep"
-    MARK_UPLOADED_OBJECT = "object.mark_uploaded"
-    MARK_UPLOADED_OBJECT_REP = "object.mark_uploaded.rep"
+    READ_BLOB = "object.read"
+    READ_BLOB_REP = "object.read.rep"
+    WRITE_BLOB = "object.write"
+    WRITE_BLOB_REP = "object.write.rep"
+    MARK_UPLOADED_BLOB = "object.mark_uploaded"
+    MARK_UPLOADED_BLOB_REP = "object.mark_uploaded.rep"
     READ_SECRET = "secret.read"
     READ_SECRET_REP = "secret.read.rep"
     RUN_PROXY_INFERENCE = "model.proxy_inference"
@@ -133,9 +133,9 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.READ_MODULE: NMessageType.READ_MODULE_REP,
     NMessageType.WRITE_MODULE: NMessageType.WRITE_MODULE_REP,
     NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
-    NMessageType.READ_OBJECT: NMessageType.READ_OBJECT_REP,
-    NMessageType.WRITE_OBJECT: NMessageType.WRITE_OBJECT_REP,
-    NMessageType.MARK_UPLOADED_OBJECT: NMessageType.MARK_UPLOADED_OBJECT_REP,
+    NMessageType.READ_BLOB: NMessageType.READ_BLOB_REP,
+    NMessageType.WRITE_BLOB: NMessageType.WRITE_BLOB_REP,
+    NMessageType.MARK_UPLOADED_BLOB: NMessageType.MARK_UPLOADED_BLOB_REP,
     NMessageType.SEARCH_RECORDS: NMessageType.SEARCH_RECORDS_REP,
     NMessageType.SEARCH_RUNS: NMessageType.SEARCH_RUNS_REP,
     NMessageType.SEARCH_LOGS: NMessageType.SEARCH_LOGS_REP,
@@ -425,35 +425,35 @@ class RepSearchLogPayload(RepSearch, Payload):
     elements: Optional[list[LogEntryData]] = None
 
 
-@payload(NMessageType.READ_OBJECT)
-class ReqReadObjectPayload(Payload):
+@payload(NMessageType.READ_BLOB)
+class ReqReadBlobPayload(Payload):
     objects: list[BlobData]
 
 
-@payload(NMessageType.READ_OBJECT_REP)
+@payload(NMessageType.READ_BLOB_REP)
 class RepReadObjectPayload(Payload):
     get_urls: list[typing.Union[str, None]]
 
 
-@payload(NMessageType.WRITE_OBJECT)
-class ReqWriteObjectPayload(Payload):
+@payload(NMessageType.WRITE_BLOB)
+class ReqWriteBlobPayload(Payload):
     module_id: UUID
     objects: list[BlobData]
 
 
-@payload(NMessageType.WRITE_OBJECT_REP)
+@payload(NMessageType.WRITE_BLOB_REP)
 class RepWriteObjectPayload(Payload):
     objects: list[BlobData]
     post_urls: list[typing.Union[str, None]]
 
 
-@payload(NMessageType.MARK_UPLOADED_OBJECT)
-class ReqMarkUploadedObjectPayload(Payload):
-    objects: list[BlobData]
+@payload(NMessageType.MARK_UPLOADED_BLOB)
+class ReqMarkUploadedBlobPayload(Payload):
+    blobs: list[BlobData]
 
 
-@payload(NMessageType.MARK_UPLOADED_OBJECT_REP)
-class RepMarkUploadedObjectPayload(Payload):
+@payload(NMessageType.MARK_UPLOADED_BLOB_REP)
+class RepMarkUploadedBlobPayload(Payload):
     success: bool
 
 

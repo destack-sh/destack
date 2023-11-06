@@ -742,7 +742,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
 
 @dataclass
 class DatabaseViewData(NodeData, HasOrder, HasCrud):
-    mnt: ClassVar[MNT] = MNT.DATABASE_VIEW
+    mnt: ClassVar[MNT] = MNT.VIEW
     PARENTS: ClassVar[ParentsT] = {MNT.FILE, MNT.STATEMENT}
 
     id: UUID
@@ -751,12 +751,12 @@ class DatabaseViewData(NodeData, HasOrder, HasCrud):
     sort: Optional[list[Sort]] = None
 
 
-@node_packer(MNT.DATABASE_VIEW, DatabaseViewData, lang.DatabaseView)
-class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.DatabaseView]):
+@node_packer(MNT.VIEW, DatabaseViewData, lang.View)
+class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.View]):
     PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
     REMAP: ClassVar[dict[str, str]] = {}
 
-    def pack(self, view: lang.DatabaseView) -> "DatabaseViewData":
+    def pack(self, view: lang.View) -> "DatabaseViewData":
         return DatabaseViewData(
             id=view.id,
             ck=view.ck,
@@ -773,8 +773,8 @@ class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.DatabaseView]):
 
     def unpack(
         self, view: DatabaseViewData, parent: lang.Statement, session: Optional[Session]
-    ) -> lang.DatabaseView:
-        return lang.DatabaseView(
+    ) -> lang.View:
+        return lang.View(
             id=view.id,
             ck=view.ck,
             name=view.name,
