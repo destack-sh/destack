@@ -111,7 +111,12 @@ const actions = computed(() => {
     icon: SquaresPlusIcon,
     disabled: props.readonly,
     action: () => {
-      isEnum.value ? createOption() : createFieldRef.value?.show();
+      if (isEnum.value) {
+        createOption();
+      } else {
+        createFieldRef.value?.show();
+        nextTick(() => createFieldRef.value?.focus());
+      }
     },
   });
   return actions;

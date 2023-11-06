@@ -1691,6 +1691,7 @@ enum StatementType {
   MODEL
   VARIABLE
   DATABASE
+  VIEW
   REFERENCE
   GROUP
 }

@@ -765,7 +765,10 @@ defineExpose({
                 :allow-freeform="bench.canEdit"
                 @freeform="emit('launchAssist', $event, nav?.getSelectedRoots() ?? [statement])"
                 @click.stop
-                @close="$nextTick(() => focus('first'))"
+                @close="
+                  /* TODO @UX: this doesn't always work, also see other ActionPopover */
+                  $nextTick(() => focusIfUnfocused('first'))
+                "
                 @mouseup="containerRef?.setAttribute('draggable', 'false')"
               >
                 <!-- For some reason I had to put the mousedown back into the inner element for dragging to work -- previously,

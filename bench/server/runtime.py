@@ -43,8 +43,8 @@ from bench.msg.messages import (
     RepGetModuleHeadPayload,
     RepMarkUploadedBlobPayload,
     RepPullWorkerRunsPayload,
+    RepReadBlobPayload,
     RepReadModulePayload,
-    RepReadObjectPayload,
     RepReadSecretPayload,
     RepRunInferencePayload,
     RepSearch,
@@ -424,7 +424,7 @@ class RuntimeServer(Monitored):
 
     @message_handler
     async def read_blob(self, msg: NMessage[ReqReadBlobPayload]) -> None:
-        logger.debug("object.read", msg=msg)
+        logger.debug("blob.read", msg=msg)
         # TODO @Security!: check if msg origin has read access to object
         get_urls: list[str | None] = []
         async for model_obj in models.Blob.objects.filter(id__in=(obj.id for obj in msg.p.blobs)):
@@ -432,44 +432,42 @@ class RuntimeServer(Monitored):
             obj_data = msg.p.blobs[len(get_urls)]
             if obj_data.sha512 != model_obj.sha512:
                 logger.warning(
-                    "object.read.sha512_mismatch", msg=msg, obj=model_obj, obj_data=obj_data
+                    "blob.read.sha512_mismatch", msg=msg, obj=model_obj, obj_data=obj_data
                 )
                 get_urls.append(None)
             else:
                 get_urls.append(model_obj.presigned_get)
-        logger.debug("object.read.rep", msg=msg, get_urls=[url is not None for url in get_urls])
-        await msg.reply(RepReadObjectPayload(get_urls=get_urls))
+        logger.debug("blob.read.rep", msg=msg, get_urls=[url is not None for url in get_urls])
+        await msg.reply(RepReadBlobPayload(get_urls=get_urls))
 
     @message_handler
     async def write_blob(self, msg: NMessage[ReqWriteBlobPayload]) -> None:
-        logger.debug("object.write", msg=msg)
+        logger.debug("blob.write", msg=msg)
         # TODO @Security!: check if msg origin has write access to object
         project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
         post_urls: list[str | None] = []
         for obj_data in msg.p.blobs:
-            model_object: models.Blob = packer.unpack_data(obj_data)
-            model_object.project_id = project_v.project_id
-            existing_object = await project_v.project.blobs.filter(
-                sha512=model_object.sha512
-            ).afirst()
-            if existing_object is not None:
-                obj_data.id = existing_object.id
-                if existing_object.status == models.BlobStatus.AVAILABLE:
+            model_blob: models.Blob = packer.unpack_data(obj_data)
+            model_blob.project_id = project_v.project_id
+            existing_blob = await project_v.project.blobs.filter(sha512=model_blob.sha512).afirst()
+            if existing_blob is not None:
+                obj_data.id = existing_blob.id
+                if existing_blob.status == models.BlobStatus.AVAILABLE:
                     obj_data.status = models.BlobStatus.AVAILABLE
                     post_urls.append(None)
                 else:
-                    existing_object.generate_presigned_post()
-                    post_urls.append(existing_object.presigned_post)
+                    existing_blob.generate_presigned_post()
+                    post_urls.append(existing_blob.presigned_post)
             else:
-                model_object.generate_presigned_post()
-                post_urls.append(model_object.presigned_post)
-                await model_object.asave()  # create
-        logger.debug("object.write.rep", msg=msg, post_urls=[url is not None for url in post_urls])
-        await msg.reply(RepWriteObjectPayload(objects=msg.p.blobs, post_urls=post_urls))
+                model_blob.generate_presigned_post()
+                post_urls.append(model_blob.presigned_post)
+                await model_blob.asave()  # create
+        logger.debug("blob.write.rep", msg=msg, post_urls=[url is not None for url in post_urls])
+        await msg.reply(RepWriteObjectPayload(blobs=msg.p.blobs, post_urls=post_urls))
 
     @message_handler
     async def mark_uploaded_blob(self, msg: NMessage[ReqMarkUploadedBlobPayload]) -> None:
-        logger.debug("object.mark_uploaded", msg=msg)
+        logger.debug("blob.mark_uploaded", msg=msg)
         try:
             for obj_data in msg.p.blobs:
                 blob: models.Blob = await models.Blob.objects.aget(id=obj_data.id)
@@ -477,7 +475,7 @@ class RuntimeServer(Monitored):
                 await blob.asave()
             success = True
         except ValidationError:
-            logger.error("object.mark_uploaded.failed", msg=msg, exc_info=True)
+            logger.error("blob.mark_uploaded.failed", msg=msg, exc_info=True)
             success = False
         await msg.reply(RepMarkUploadedBlobPayload(success=success))
 

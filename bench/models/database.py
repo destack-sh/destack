@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 
 from django.db import models
 
-from bench.language.const import DatabaseViewLayout
+from bench.language.const import ViewLayout
 from bench.models.utils import CrudModel, CrudNode, DetachedModuleNode, Revisioned, get_choices
 from bench.utils.dt import utcnow_with_tz
 
@@ -22,7 +22,7 @@ class DatabaseView(CrudNode):
     """A view of a database."""
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="views")
-    layout = models.CharField(max_length=64, choices=get_choices(DatabaseViewLayout))
+    layout = models.CharField(max_length=64, choices=get_choices(ViewLayout))
     query = models.JSONField()
     sort = models.JSONField()
     fields: models.QuerySet[DatabaseViewField]  # noqa via DatabaseViewField.view

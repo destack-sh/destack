@@ -26,7 +26,6 @@ class ModuleNodeType(enum.StrEnum):
     FIELD = "Field"
     RECORD = "Record"
     VIEW = "View"
-    VIEW_FIELD = "ViewField"
     # interp
     ISSUE = "Issue"
     RESOLVED_FIELD = "ResolvedField"
@@ -58,6 +57,7 @@ class StatementType(enum.StrEnum):
     MODEL = "model"
     VARIABLE = "variable"
     DATABASE = "database"
+    VIEW = "view"
     REFERENCE = "reference"
     GROUP = "group"
 
@@ -162,7 +162,7 @@ class TextHeadingLevel(enum.IntEnum):
     H3 = 3
 
 
-class DatabaseViewLayout(enum.StrEnum):
+class ViewLayout(enum.StrEnum):
     """The layout of a database view."""
 
     TABLE = "table"

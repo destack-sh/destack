@@ -427,23 +427,23 @@ class RepSearchLogPayload(RepSearch, Payload):
 
 @payload(NMessageType.READ_BLOB)
 class ReqReadBlobPayload(Payload):
-    objects: list[BlobData]
+    blobs: list[BlobData]
 
 
 @payload(NMessageType.READ_BLOB_REP)
-class RepReadObjectPayload(Payload):
+class RepReadBlobPayload(Payload):
     get_urls: list[typing.Union[str, None]]
 
 
 @payload(NMessageType.WRITE_BLOB)
 class ReqWriteBlobPayload(Payload):
     module_id: UUID
-    objects: list[BlobData]
+    blobs: list[BlobData]
 
 
 @payload(NMessageType.WRITE_BLOB_REP)
 class RepWriteObjectPayload(Payload):
-    objects: list[BlobData]
+    blobs: list[BlobData]
     post_urls: list[typing.Union[str, None]]
 
 

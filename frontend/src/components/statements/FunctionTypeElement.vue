@@ -172,6 +172,7 @@ defineExpose({
       disabled: props.readonly,
       action: () => {
         createInputRef.value?.show();
+        nextTick(() => createInputRef.value?.focus());
       },
     },
     {
@@ -182,6 +183,7 @@ defineExpose({
       hideInline: true,
       action: () => {
         createOutputRef.value?.show();
+        nextTick(() => createOutputRef.value?.focus());
       },
     },
   ],

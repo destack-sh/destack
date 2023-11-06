@@ -292,7 +292,9 @@ onMounted(() => {
 const appearance = useAppearance();
 
 defineExpose({
-  focus: () => inputRef.value?.$el.focus(),
+  focus: () => {
+    inputRef.value?.$el.focus();
+  },
 });
 </script>
 <template>

@@ -143,9 +143,10 @@ async function createFileInPanelGroup() {
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
        because we want to trigger re-focus even if it's already selected
       (happens if there are multiple active editor groups)  -->
+      <!-- mr-8 to accommodate right-hand side context menu popup -->
       <TabList
         ref="tabListRef"
-        class="scroll-hidden flex w-full max-w-full flex-shrink-0 divide-x divide-orange-900 divide-opacity-[12%] overflow-x-scroll border-b border-orange-900/[12%] bg-gray-50"
+        class="scroll-hidden mr-8 flex w-full max-w-full flex-shrink-0 divide-x divide-orange-900 divide-opacity-[12%] overflow-x-scroll border-b border-orange-900/[12%] bg-gray-50"
         v-show="bench.showPanelTabs"
       >
         <!-- Editor tab -->

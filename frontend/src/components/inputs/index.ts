@@ -84,6 +84,17 @@ function coerceToString(type: Field, value: any) {
   return typeof value == "string" ? value : "";
 }
 
+function coerceToDatetime(type: Field, value: any) {
+  value = fromArray(value);
+  if (typeof value == "number") {
+    value = new Date(value);
+  }
+  // strip timezone
+  if (typeof value == "string" && value.endsWith("+00:00")) {
+    value = value.slice(0, -6);
+  }
+  return typeof value == "string" ? value : null;
+}
 function coerceToNumber(type: Field, value: any) {
   value = fromArray(value);
   if (typeof value == "string") {
@@ -123,7 +134,7 @@ registerInterface("string.short", {
 });
 registerInterface("string.datetime", {
   hints: [TypeHint.Date, TypeHint.Datetime, TypeHint.Time],
-  map: coerceToString,
+  map: coerceToDatetime,
   debounceMs: 500,
   minWidth: 150,
   grow: 0.5,
