@@ -9,7 +9,7 @@ from .const import (
     TypeHint,
     TypeTag,
 )
-from .database import DatabaseView, Record
+from .database import Record, View
 from .edit import render, render_as_python
 from .field import Field, HasFields, ResolvedField, Type, TypeStorageFormat
 from .file import File
@@ -31,7 +31,7 @@ from .value import HasValue
 __all__ = [
     "Aggregation",
     "BenchError",
-    "DatabaseView",
+    "View",
     "DatabaseViewLayout",
     "Field",
     "File",

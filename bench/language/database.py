@@ -39,7 +39,7 @@ from bench.utils.func import describe_type
 from bench.utils.utils import DotList, flatten_list
 
 if typing.TYPE_CHECKING:
-    from bench.language import Statement
+    from bench.language import File, Statement
     from bench.language.wire import RecordData
 
 logger = structlog.get_logger(__name__)
@@ -109,16 +109,16 @@ class Record(HasValue, Node):
         self.value[key] = value
 
 
-@node(mnt=MNT.DATABASE_VIEW)
-class DatabaseView(ScopeNode):
-    parent: "Statement" = nparent(MNT.STATEMENT)
+@node(mnt=MNT.VIEW)
+class View(ScopeNode):
+    parent: typing.Union["Statement", "File"] = nparent(MNT.STATEMENT, MNT.FILE)
     name: str | None = nproperty(default=None)
     layout: DatabaseViewLayout = nproperty(
         default=DatabaseViewLayout.TABLE, validate=enum_validator(DatabaseViewLayout)
     )
     query: Optional[Query] = nproperty(default=None)
     sort: Optional[list[Sort]] = nproperty(default=None)
-    fields: Optional[list["DatabaseViewField"]] = nchildren(MNT.DATABASE_VIEW_FIELD)
+    fields: Optional[list["ViewField"]] = nchildren(MNT.VIEW_FIELD)
 
     def __str__(self):
         return f"{self.parent.path}:{self.name} ({self.layout})"
@@ -131,8 +131,8 @@ class DatabaseView(ScopeNode):
         return f"{self.parent.path}.{self.name}"
 
 
-@node(mnt=MNT.DATABASE_VIEW_FIELD)
-class DatabaseViewField(Node):
+@node(mnt=MNT.VIEW_FIELD)
+class ViewField(Node):
     field: UUID | Field = nproperty()
     order_key: str | None = ninternal(default=None)
 
@@ -448,7 +448,7 @@ class RecordList(NodeListBase[Record], RecordSearch):
 class HasDatabase(Node):
     # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
-    views: NodeList["DatabaseView"] = nchildren(MNT.DATABASE_VIEW, NRel.Named | NRel.Ordered)
+    views: NodeList["View"] = nchildren(MNT.VIEW, NRel.Named | NRel.Ordered)
     records: NodeList["Record"] = nchildren(MNT.RECORD, NRel.Remote, custom_list=RecordList)
 
     def _init_inner(self):

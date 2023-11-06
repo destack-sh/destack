@@ -41,7 +41,7 @@ from bench.msg.messages import (
     ModuleInternalChangedPayload,
     NMessageType,
     RepGetModuleHeadPayload,
-    RepMarkUploadedObjectPayload,
+    RepMarkUploadedBlobPayload,
     RepPullWorkerRunsPayload,
     RepReadModulePayload,
     RepReadObjectPayload,
@@ -57,10 +57,10 @@ from bench.msg.messages import (
     RepWriteObjectPayload,
     RepWriteSessionPayload,
     ReqGetModuleHeadPayload,
-    ReqMarkUploadedObjectPayload,
+    ReqMarkUploadedBlobPayload,
     ReqPullWorkerRunsPayload,
+    ReqReadBlobPayload,
     ReqReadModulePayload,
-    ReqReadObjectPayload,
     ReqReadSecretPayload,
     ReqRunInferencePayload,
     ReqSearch,
@@ -69,8 +69,8 @@ from bench.msg.messages import (
     ReqSearchRunsPayload,
     ReqStartRunPayload,
     ReqWakeRuntimePayload,
+    ReqWriteBlobPayload,
     ReqWriteModulePayload,
-    ReqWriteObjectPayload,
     ReqWriteSessionPayload,
     RunsChangedGlobalPayload,
     SessionChangedPayload,
@@ -193,9 +193,9 @@ class RuntimeServer(Monitored):
             await handle_reply(NMessageType.SEARCH_RECORDS, self.search_records),
             await handle_reply(NMessageType.SEARCH_RUNS, self.search_runs),
             await handle_reply(NMessageType.SEARCH_LOGS, self.search_log),
-            await handle_reply(NMessageType.READ_OBJECT, self.read_object),
-            await handle_reply(NMessageType.WRITE_OBJECT, self.write_object),
-            await handle_reply(NMessageType.MARK_UPLOADED_OBJECT, self.mark_uploaded_object),
+            await handle_reply(NMessageType.READ_BLOB, self.read_blob),
+            await handle_reply(NMessageType.WRITE_BLOB, self.write_blob),
+            await handle_reply(NMessageType.MARK_UPLOADED_BLOB, self.mark_uploaded_blob),
             await handle_reply(NMessageType.READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.>", cb=self.module_changed),
@@ -382,7 +382,7 @@ class RuntimeServer(Monitored):
 
     @message_handler
     async def search_runs(self, msg: NMessage[ReqSearchRunsPayload]) -> None:
-        logger.debug("search.database", msg=msg)
+        logger.debug("search.run", msg=msg)
         # TODO @Security!: check if msg origin has read access to database
         extra_queries = []
         if msg.p.statements_ids:
@@ -423,13 +423,13 @@ class RuntimeServer(Monitored):
         await msg.reply(rep)
 
     @message_handler
-    async def read_object(self, msg: NMessage[ReqReadObjectPayload]) -> None:
+    async def read_blob(self, msg: NMessage[ReqReadBlobPayload]) -> None:
         logger.debug("object.read", msg=msg)
         # TODO @Security!: check if msg origin has read access to object
         get_urls: list[str | None] = []
-        async for model_obj in models.Blob.objects.filter(id__in=(obj.id for obj in msg.p.objects)):
+        async for model_obj in models.Blob.objects.filter(id__in=(obj.id for obj in msg.p.blobs)):
             model_obj: models.Blob
-            obj_data = msg.p.objects[len(get_urls)]
+            obj_data = msg.p.blobs[len(get_urls)]
             if obj_data.sha512 != model_obj.sha512:
                 logger.warning(
                     "object.read.sha512_mismatch", msg=msg, obj=model_obj, obj_data=obj_data
@@ -441,12 +441,12 @@ class RuntimeServer(Monitored):
         await msg.reply(RepReadObjectPayload(get_urls=get_urls))
 
     @message_handler
-    async def write_object(self, msg: NMessage[ReqWriteObjectPayload]) -> None:
+    async def write_blob(self, msg: NMessage[ReqWriteBlobPayload]) -> None:
         logger.debug("object.write", msg=msg)
         # TODO @Security!: check if msg origin has write access to object
         project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
         post_urls: list[str | None] = []
-        for obj_data in msg.p.objects:
+        for obj_data in msg.p.blobs:
             model_object: models.Blob = packer.unpack_data(obj_data)
             model_object.project_id = project_v.project_id
             existing_object = await project_v.project.blobs.filter(
@@ -465,13 +465,13 @@ class RuntimeServer(Monitored):
                 post_urls.append(model_object.presigned_post)
                 await model_object.asave()  # create
         logger.debug("object.write.rep", msg=msg, post_urls=[url is not None for url in post_urls])
-        await msg.reply(RepWriteObjectPayload(objects=msg.p.objects, post_urls=post_urls))
+        await msg.reply(RepWriteObjectPayload(objects=msg.p.blobs, post_urls=post_urls))
 
     @message_handler
-    async def mark_uploaded_object(self, msg: NMessage[ReqMarkUploadedObjectPayload]) -> None:
+    async def mark_uploaded_blob(self, msg: NMessage[ReqMarkUploadedBlobPayload]) -> None:
         logger.debug("object.mark_uploaded", msg=msg)
         try:
-            for obj_data in msg.p.objects:
+            for obj_data in msg.p.blobs:
                 blob: models.Blob = await models.Blob.objects.aget(id=obj_data.id)
                 blob.mark_available_if_exists_in_s3()
                 await blob.asave()
@@ -479,7 +479,7 @@ class RuntimeServer(Monitored):
         except ValidationError:
             logger.error("object.mark_uploaded.failed", msg=msg, exc_info=True)
             success = False
-        await msg.reply(RepMarkUploadedObjectPayload(success=success))
+        await msg.reply(RepMarkUploadedBlobPayload(success=success))
 
     @message_handler
     async def read_secret(self, msg: NMessage[ReqReadSecretPayload]) -> None:

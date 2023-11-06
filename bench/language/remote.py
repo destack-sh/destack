@@ -70,13 +70,13 @@ class Blob(Node):
     async def aget_url(self, timeout):
         from bench.language import wire
         from bench.msg.core import NMessage, request
-        from bench.msg.messages import NMessageType, RepReadObjectPayload, ReqReadObjectPayload
+        from bench.msg.messages import NMessageType, RepReadObjectPayload, ReqReadBlobPayload
 
         if self.status != BlobStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
         rep: NMessage[RepReadObjectPayload] = await request(
-            NMessageType.READ_OBJECT,
-            ReqReadObjectPayload(objects=[wire.pack_data(self)]),
+            NMessageType.READ_BLOB,
+            ReqReadBlobPayload(objects=[wire.pack_data(self)]),
             reply_t=RepReadObjectPayload,
             timeout=timeout,
         )
@@ -123,16 +123,16 @@ class Blob(Node):
         """
         from bench.language import wire
         from bench.msg.core import NMessage, request
-        from bench.msg.messages import NMessageType, RepWriteObjectPayload, ReqWriteObjectPayload
+        from bench.msg.messages import NMessageType, RepWriteObjectPayload, ReqWriteBlobPayload
 
         logger.debug("blob.prepare_upload", object=self)
         # first get POST url to upload the object
         rep: NMessage[RepWriteObjectPayload] = await request(
-            NMessageType.WRITE_OBJECT,
-            ReqWriteObjectPayload(module_id=self.session.module.id, objects=[wire.pack_data(self)]),
+            NMessageType.WRITE_BLOB,
+            ReqWriteBlobPayload(module_id=self.session.module.id, objects=[wire.pack_data(self)]),
             reply_t=RepWriteObjectPayload,
         )
-        blob = rep.p.objects[0]
+        blob = rep.p.blobs[0]
         self._set_untracked("id", blob.id)
         if blob.status == BlobStatus.AVAILABLE:
             # already uploaded
@@ -149,15 +149,15 @@ class Blob(Node):
         from bench.msg.core import NMessage, request
         from bench.msg.messages import (
             NMessageType,
-            RepMarkUploadedObjectPayload,
-            ReqMarkUploadedObjectPayload,
+            RepMarkUploadedBlobPayload,
+            ReqMarkUploadedBlobPayload,
         )
 
         logger.debug("blob.mark_uploaded", object=self)
-        rep: NMessage[RepMarkUploadedObjectPayload] = await request(
-            NMessageType.MARK_UPLOADED_OBJECT,
-            ReqMarkUploadedObjectPayload(objects=[wire.pack_data(self)]),
-            reply_t=RepMarkUploadedObjectPayload,
+        rep: NMessage[RepMarkUploadedBlobPayload] = await request(
+            NMessageType.MARK_UPLOADED_BLOB,
+            ReqMarkUploadedBlobPayload(objects=[wire.pack_data(self)]),
+            reply_t=RepMarkUploadedBlobPayload,
         )
         if not rep.p.success:
             raise ValueError(f"unable to mark uploaded {self}")

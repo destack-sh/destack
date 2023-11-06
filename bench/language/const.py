@@ -25,8 +25,8 @@ class ModuleNodeType(enum.StrEnum):
     TAGGING = "Tagging"
     FIELD = "Field"
     RECORD = "Record"
-    DATABASE_VIEW = "DatabaseView"
-    DATABASE_VIEW_FIELD = "DatabaseViewField"
+    VIEW = "View"
+    VIEW_FIELD = "ViewField"
     # interp
     ISSUE = "Issue"
     RESOLVED_FIELD = "ResolvedField"
