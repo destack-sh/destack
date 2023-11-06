@@ -1,4 +1,5 @@
 import functools
+import inspect
 import typing
 from dataclasses import dataclass
 from datetime import datetime
@@ -85,6 +86,21 @@ def x_task(
         task_type = type_from_instance_type(fn, name=None)
         task.fields.extend(f._copy_self(reset_id=False) for f in task_type.fields)
         return task
+
+    return decorator
+
+
+def x_code(
+    name: str, text: str, *, file: File
+) -> typing.Callable[[typing.Callable], typing.Callable]:
+    def decorator(fn):
+        from bench.language.statement import Statement
+
+        code = Statement.code(name=name, text=text, code=inspect.getsource(fn))
+        file.statements.append(code)
+        code_type = type_from_instance_type(fn, name=None)
+        code.fields.extend(f._copy_self(reset_id=False) for f in code_type.fields)
+        return code
 
     return decorator
 

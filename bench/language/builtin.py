@@ -59,3 +59,4 @@ def _make_builtin_lib_module(name: str) -> Module:
 symbolx_lib = _make_builtin_lib_module("symbolx.lib")
 openai_lib = _make_builtin_lib_module("openai.lib")
 anthropic_lib = _make_builtin_lib_module("anthropic.lib")
+deepgram_lib = _make_builtin_lib_module("deepgram.lib")
