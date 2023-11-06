@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import type { Run } from "@/gql/graphql";
-import { useBenchState } from "@/state/bench";
+import { LaunchRunPanel, useBenchState } from "@/state/bench";
 import { ACTIVE_RUN_STATUSES, useCurrentSessions } from "@/state/session";
-import { ForwardIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
+import { ForwardIcon, PlayIcon, StopIcon, WindowIcon } from "@heroicons/vue/24/solid";
 import { computed, type Ref } from "vue";
 
 const props = defineProps<{
@@ -21,7 +21,7 @@ const emit = defineEmits<{
 const bench = useBenchState();
 const sessions = useCurrentSessions();
 
-type ActionId = "run" | "stop" | "rerun";
+type ActionId = "run" | "stop" | "rerun" | "launch";
 type Action = {
   id: ActionId;
   label: string;
@@ -44,6 +44,17 @@ const actions: Ref<Action[]> = computed(() => [
       if (props.statement == null) throw new Error("statement not set");
       const { run } = sessions.run(props.statement, { inputs: props.inputs ?? {}, keyed: true });
       emit("run", run);
+    },
+  },
+  {
+    id: "launch",
+    label: "Launch",
+    icon: WindowIcon,
+    disabled: !bench.canUse || props.run == null || props.statement == null,
+    action: () => {
+      if (props.run == null || props.statement == null) throw new Error("run not set");
+      const panel = bench.openLaunchRun(props.statement, { focus: true }) as LaunchRunPanel;
+      panel.inputs = props.run.inputs;
     },
   },
   {
