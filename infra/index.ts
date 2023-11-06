@@ -407,10 +407,12 @@ const PUBLIC_BACKEND_VARS = [
   },
 ];
 
-const MODEL_PROVIDER_VARS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"].map((name) => ({
-  name,
-  value: config.requireSecret(name),
-}));
+const PRIVATE_BACKEND_VARS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPGRAM_API_KEY", "BROWSERLESS_API_KEY"].map(
+  (name) => ({
+    name,
+    value: config.requireSecret(name),
+  })
+);
 
 // public load-balanced API service (also runs internal server)
 const apiName = "api";
@@ -583,7 +585,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
                 ...PUBLIC_BACKEND_VARS,
                 ...GLOBAL_DB_ENV_VARS,
                 ...OPENSEARCH_ENV_VARS,
-                ...MODEL_PROVIDER_VARS,
+                ...PRIVATE_BACKEND_VARS,
                 ...AWS_BACKEND_ENV_VARS,
                 ...BASE_PRIVATE_BACKEND_ENV_VARS,
                 ...KUBERNETES_ENV_VARS,

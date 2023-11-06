@@ -95,6 +95,8 @@ class NMessageType(StrEnum):
     READ_SECRET_REP = "secret.read.rep"
     RUN_PROXY_INFERENCE = "model.proxy_inference"
     RUN_PROXY_INFERENCE_REP = "model.proxy_inference.rep"
+    RUN_PROXY_STATEMENT = "statement.proxy_run"
+    RUN_PROXY_STATEMENT_REP = "statement.proxy_run.rep"
     WAKE_RUNTIME = "runtime.wake"
     WAKE_RUNTIME_REP = "runtime.wake.rep"
 
@@ -141,6 +143,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.SEARCH_LOGS: NMessageType.SEARCH_LOGS_REP,
     NMessageType.READ_SECRET: NMessageType.READ_SECRET_REP,
     NMessageType.RUN_PROXY_INFERENCE: NMessageType.RUN_PROXY_INFERENCE_REP,
+    NMessageType.RUN_PROXY_STATEMENT: NMessageType.RUN_PROXY_STATEMENT_REP,
     NMessageType.START_RUN: NMessageType.START_RUN_REP,
     NMessageType.KILL_RUN: NMessageType.KILL_RUN_REP,
     NMessageType.PAUSE_RUN: NMessageType.PAUSE_RUN_REP,

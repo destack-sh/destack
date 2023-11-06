@@ -8,6 +8,7 @@ aiohttp==3.8.5
     # via
     #   -c requirements.txt
     #   -r requirements.in
+    #   deepgram-sdk
     #   kubernetes-asyncio
     #   openai
     #   opensearch-py
@@ -154,6 +155,10 @@ daphne==4.0.0
     #   -c requirements.txt
     #   -r requirements.in
 dataclasses-json==0.5.7
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
+deepgram-sdk==2.11.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -834,6 +839,10 @@ websocket-client==1.6.2
     # via
     #   -c requirements.txt
     #   kubernetes
+websockets==12.0
+    # via
+    #   -c requirements.txt
+    #   deepgram-sdk
 wheel==0.41.2
     # via pip-tools
 wrapt==1.15.0

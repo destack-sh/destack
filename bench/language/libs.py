@@ -12,6 +12,7 @@ from typing import Any, Optional, Union
 from uuid import UUID
 
 import anthropic
+import deepgram
 import openai
 
 from bench.language import (
@@ -25,7 +26,7 @@ from bench.language import (
     RunError,
     render,
 )
-from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
+from bench.language.builtin import anthropic_lib, deepgram_lib, openai_lib, symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
@@ -45,6 +46,7 @@ from bench.language.reflect import (
     _derive_constant_key,
     _model_compilers,
     _model_impls,
+    x_code,
     x_enum,
     x_model,
     x_struct,
@@ -95,6 +97,11 @@ class Template:
     pass
 
 
+@x_tag("export", "Make code outputs available for import", file=_symbolx_builtins)
+class Export:
+    pass
+
+
 @x_struct("EmbeddingOutput", "Embedding output", file=_symbolx_builtins)
 class EmbeddingOutput:
     vector: typing.Union[Vector, list[Vector]]
@@ -115,9 +122,28 @@ def transcribe(url: Optional[str] = None, file: Optional[Blob] = None) -> Transc
     raise UnreachableError()  # stub
 
 
-@x_tag("export", "Make code outputs available for import", file=_symbolx_builtins)
-class Export:
+@x_struct("GetWebsiteHtmlOutput", "Extracted website content", file=_symbolx_builtins)
+class GetWebsiteHtmlOutput:
+    html: str
+
+
+@x_code("get website html", "Reads website HTML from a URL", file=_symbolx_builtins)
+def get_website_html(url: str) -> GetWebsiteHtmlOutput:
+    raise NotImplementedError("not implemented yet")
+
+
+@x_struct("SendEmailOutput", "Email sent", file=_symbolx_builtins)
+class SendEmailOutput:
     pass
+
+
+@x_code("send email", "Sends an email to a registered Bench user", file=_symbolx_builtins)
+def send_email(
+    to: str,
+    subject: str,
+    body: str,
+) -> SendEmailOutput:
+    pass  # nocheckin
 
 
 @x_enum("JsonSchemaElementType", "The type of a JSON Schema element", file=_symbolx_utils)
@@ -423,7 +449,6 @@ class BaseTextTaskCompiler(TaskCompiler):
 openai_lib.add_dependency(symbolx_lib)
 _openai_chat = openai_lib.files.create("chat")
 _openai_text = openai_lib.files.create("text")
-_openai_audio = openai_lib.files.create("audio")
 _openai_utils = openai_lib.files.create("utils")
 
 
@@ -511,21 +536,15 @@ class OpenAIChatCompletion:
 
 
 @x_model(
-    "gpt3",
+    "gpt3-turbo",
     "OpenAI's instruct-tuned 16k context GPT3.5 based chat model",
-    external_name="gpt-3.5-turbo-16k-0613",
+    external_name="gpt-3.5-turbo-1106",
     file=_openai_chat,
 )
 @x_model(
-    "gpt4",
+    "gpt4-turbo",
     "OpenAI's latest and largest 8k context GPT4 based chat model",
-    external_name="gpt-4-0613",
-    file=_openai_chat,
-)
-@x_model(
-    "gpt4-32k",
-    "OpenAI's latest and largest 32k context GPT4 based chat model",
-    external_name="gpt-4-32k-0613",
+    external_name="gpt-4-1106-preview",
     file=_openai_chat,
 )
 class OpenAIChatCompletionModel(HasModel):
@@ -1006,6 +1025,39 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         rep: AnthropicTextCompletion = await model(prompt=input.prompt, settings=input.settings)
         completion = rep.completion.strip()
         return self._parse_text_completion(model, input.task, completion)
+
+
+#
+# deepgram.lib
+#
+
+deepgram_lib.add_dependency(symbolx_lib)
+_deepgram_audio = deepgram_lib.files.create("audio")
+
+
+@x_struct(
+    "DeepgramAudioTranscription", "Transcription from Deepgram audio models", file=_deepgram_audio
+)
+class DeepgramAudioTranscription:
+    text: str
+
+
+@x_model(
+    "nova-2",
+    "Deepgram's latest audio transcription model",
+    external_name="nova-2.0",
+    file=_deepgram_audio,
+)
+class DeepgramAudioTranscriptionModel(HasModel):
+    async def _endpoint(self, url: str) -> DeepgramAudioTranscription:
+        dg_client = deepgram.Deepgram(self._api_key)
+        source = {"url": url}
+        options = {"model": "nova", "language": "en-US"}
+        response = dg_client.transcription.sync_prerecorded(source, options)
+        results = response["results"]
+        alternatives = results["channels"][0]["alternatives"]
+        transcript = alternatives[0]["transcript"]
+        return dict(text=transcript)
 
 
 """

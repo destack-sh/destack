@@ -55,26 +55,32 @@ class HasTask(Node):
         mode: Literal["fast", "deliberate", "auto"] = "auto",
         **kwargs,
     ):
+        # prepare inputs
+        nonce = nonce or (str(random.randint(0, 2**16)) if self._randomize else None)
+        kwargs["cache"] = cache
+        kwargs["nonce"] = nonce
+        kwargs["mode"] = mode
+        inputs = self._inputs_from_args(args, kwargs)
+
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
             passthrough_model: "Statement" = self.session.module.resolve("openai.lib.text.ada")
+        elif self.path == "symbolx.lib.builtins.transcribe":
+            passthrough_model: "Statement" = self.session.module.resolve(
+                "deepgram.lib.audio.nova-2"
+            )
+            if inputs.get("file"):  # replace file with url to blob
+                inputs["url"] = await inputs["file"].aget_url()
+                del inputs["file"]
         else:
             passthrough_model = None
             if mode == "auto":
                 mode = "fast"
             if mode == "fast":
-                models = ["anthropic.lib.text.claude-instant-1", "openai.lib.chat.gpt3"]
+                models = ["anthropic.lib.text.claude-instant-1", "openai.lib.chat.gpt3-turbo"]
             else:
-                models = ["openai.lib.chat.gpt4", "anthropic.lib.text.claude-2"]
+                models = ["openai.lib.chat.gpt4-turbo", "anthropic.lib.text.claude-2"]
             models = [self.session.module.resolve(m) for m in models]
-
-        # prepare inputs
-        nonce = nonce or (str(random.randint(0, 2**16)) if self._randomize else None)
-        if not passthrough_model:  # only inline task arguments if it's a real task
-            kwargs["cache"] = cache
-            kwargs["nonce"] = nonce
-            kwargs["mode"] = mode
-        inputs = self._inputs_from_args(args, kwargs)
 
         # do task
         view = NodeView(self.module)
@@ -88,6 +94,7 @@ class HasTask(Node):
         try:
             if passthrough_model:
                 # passthrough model
+                inputs = {k: v for k, v in inputs.items() if k not in ("cache", "nonce", "mode")}
                 outputs = await passthrough_model(**inputs)
                 # trim output to own outputs
                 if isinstance(outputs, dict):

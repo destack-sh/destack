@@ -7,6 +7,7 @@
 aiohttp==3.8.5
     # via
     #   -r requirements.in
+    #   deepgram-sdk
     #   kubernetes-asyncio
     #   openai
     #   opensearch-py
@@ -102,6 +103,8 @@ dacite==1.7.0
 daphne==4.0.0
     # via -r requirements.in
 dataclasses-json==0.5.7
+    # via -r requirements.in
+deepgram-sdk==2.11.0
     # via -r requirements.in
 defusedxml==0.7.1
     # via
@@ -478,6 +481,8 @@ uvicorn==0.23.2
     #   strawberry-graphql
 websocket-client==1.6.2
     # via kubernetes
+websockets==12.0
+    # via deepgram-sdk
 wrapt==1.15.0
     # via deprecated
 yarl==1.9.2

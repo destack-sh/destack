@@ -68,7 +68,7 @@ class Blob(Node):
                 self._cached_bytes = content
                 return content
 
-    async def aget_url(self, timeout):
+    async def aget_url(self, timeout: float = 10):
         from bench.language import wire
         from bench.msg.core import NMessage, request
         from bench.msg.messages import NMessageType, RepReadBlobPayload, ReqReadBlobPayload
