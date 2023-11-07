@@ -133,7 +133,7 @@ async function createProject() {
       </div>
       <h1 class="-mx-4 mt-4 text-5xl font-bold">Create your Bench</h1>
       <p class="mx-4 mt-4 text-lg text-orange-700">Home to many awesome bots. Think big.</p>
-      <p class="mx-4 mt-0 text-xs text-gray-700">Hint: 1 Bench is like 1 monorepo or workspace.</p>
+      <p class="mx-4 mt-0 text-xs text-gray-700">Hint: 1 Bench is like 1 workspace or monorepo.</p>
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
         <!-- Full name & visibility -->

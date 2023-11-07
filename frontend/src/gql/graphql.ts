@@ -2154,6 +2154,7 @@ export enum StatementType {
   Task = "TASK",
   Text = "TEXT",
   Variable = "VARIABLE",
+  View = "VIEW",
 }
 
 export type StatementUpdateHeadingLevelInput = {
@@ -3759,7 +3760,7 @@ export type InterpStatementFragment = {
 } & { " $fragmentName"?: "InterpStatementFragment" };
 
 export type ModuleContentByIdQueryVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"]["input"];
+  moduleOrProjectId: Scalars["GlobalID"]["input"];
 }>;
 
 export type ModuleContentByIdQuery = {
@@ -10729,7 +10730,7 @@ export const ModuleContentByIdDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "moduleOrProjectId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
       ],
@@ -10743,7 +10744,7 @@ export const ModuleContentByIdDocument = {
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                value: { kind: "Variable", name: { kind: "Name", value: "moduleOrProjectId" } },
               },
             ],
             selectionSet: {
