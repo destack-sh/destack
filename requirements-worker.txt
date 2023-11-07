@@ -109,6 +109,8 @@ dataclasses-json==0.5.14
     # via
     #   langchain
     #   python-twitter-v2
+dateparser==1.1.8
+    # via -r requirements-worker.in
 deepgram-sdk==2.11.0
     # via -r requirements-worker.in
 deprecated==1.2.14
@@ -462,6 +464,7 @@ python-dateutil==2.8.2
     # via
     #   botocore
     #   croniter
+    #   dateparser
     #   opensearch-py
     #   pandas
 python-docx==1.0.1
@@ -483,6 +486,7 @@ python-twitter-v2==0.8.1
 pytz==2022.2.1
     # via
     #   -r requirements-worker.in
+    #   dateparser
     #   pandas
 pyyaml==6.0.1
     # via
@@ -491,7 +495,9 @@ pyyaml==6.0.1
 redis[hiredis]==4.5.4
     # via -r requirements-worker.in
 regex==2023.8.8
-    # via nltk
+    # via
+    #   dateparser
+    #   nltk
 requests==2.31.0
     # via
     #   -r requirements-worker.in
@@ -619,6 +625,8 @@ typing-extensions==4.7.1
     #   typing-inspect
 typing-inspect==0.9.0
     # via dataclasses-json
+tzlocal==5.2
+    # via dateparser
 unstructured==0.6.6
     # via -r requirements-worker.in
 unstructured-pytesseract==0.3.12
