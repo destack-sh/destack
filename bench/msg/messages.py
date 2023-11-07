@@ -488,6 +488,7 @@ class RepRunInferencePayload(Payload):
 @payload(NMessageType.RUN_PROXY_STATEMENT)
 class ReqRunStatementPayload(Payload):
     project_id: UUID
+    module_name: str
     statement: str
     inputs: typing.Any
 

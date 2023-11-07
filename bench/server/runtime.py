@@ -35,7 +35,15 @@ from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_edits, write_session
 from bench.models.user import loops_request
 from bench.msg import NMessage
-from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
+from bench.msg.core import (
+    VERSION,
+    handle_reply,
+    message_handler,
+    nc_init,
+    publish,
+    request,
+    subscribe,
+)
 from bench.msg.messages import (
     ClientOrigin,
     LogsChangedPayload,
@@ -541,6 +549,8 @@ class RuntimeServer(Monitored):
             if statement.name == "send email":
                 if not await models.User.objects.filter(email=inputs["to"]).aexists():
                     raise RuntimeError(f"{inputs['to']} is not a Bench user")
+                byline = f"<br><br><i>Sent via Bench {VERSION} {msg.p.module_name}</i>"
+                inputs["body"] = inputs["body"] + byline
                 if not settings.LOCAL:
                     loops_request(
                         "POST",
