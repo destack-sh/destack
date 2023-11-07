@@ -236,8 +236,8 @@ const BENCH_UUID_NAMESPACE = "d822dab7-41ad-4706-a9c8-4379e15b2ed0"; // :BenchUu
 const DEFAULT_LIBRARIES: GRecord<string, string> = {
   // default libs
   "symbolx.lib": _defaultLibId("symbolx.lib"),
-  "openai.lib": _defaultLibId("symbolx.lib"),
-  "anthropic.lib": _defaultLibId("symbolx.lib"),
+  "openai.lib": _defaultLibId("openai.lib"),
+  "anthropic.lib": _defaultLibId("anthropic.lib"),
   // templates
   "symbolx.templates": "4dbe0f37-05d0-4e88-a02e-d8ee8e5392ed", // hard-coded since it's not deterministic
 };
