@@ -48,6 +48,21 @@ class CodeParse:
     x_imports: dict[int, dict[str, NodePath]] = field(default_factory=dict)
 
 
+def _install_package(name: str, timeout: int = 300) -> None:
+    """Helper to install a package in the current worker. Not in lib because it feels wrong."""
+    import subprocess
+    import sys
+
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", name],
+        check=True,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=timeout,
+    )
+
+
 @node_component
 class HasCode(Node):
     _is_async: Optional[bool] = nruntime(default=None)
@@ -160,6 +175,7 @@ class HasCode(Node):
             "storage": self.session.storage,
             "random": Random(self.id.hex.encode()),
             "ximport": self._import_sync if not self._is_async else self._import_async,
+            "install": _install_package,
             **self._statement_references,
             **{s.py_ident: s for s in symbolx_lib.files.builtins.statements},
         }
