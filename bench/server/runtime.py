@@ -774,6 +774,7 @@ class RuntimeHost:
                         # already prepared is okay
                         raise RuntimeError(rep.p.error)
                 except Exception as e:
+                    sentry_capture(e)
                     logger.error("time_triggers.start_run.error", run=run, exc_info=e)
                     # mark run as cancelled
                     run_model = await models.Run.objects.aget(id=run.id)
