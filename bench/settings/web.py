@@ -65,6 +65,9 @@ WEBAPP_URL = get_from_env("WEBAPP_URL", type_cast=str, optional=SOME_TYPE_CHECKI
 
 # Emails
 LOOPS_API_KEY = get_from_env("LOOPS_API_KEY", type_cast=str, optional=True)
+LOOPS_USER_TRANSACTIONAL_ID = get_from_env(
+    "LOOPS_USER_TRANSACTIONAL_ID", type_cast=str, optional=True
+)
 
 # Strawberry
 

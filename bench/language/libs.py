@@ -129,7 +129,7 @@ class GetWebsiteHtmlOutput:
 
 @x_code("get website html", "Reads website HTML from a URL", file=_symbolx_builtins)
 def get_website_html(url: str) -> GetWebsiteHtmlOutput:
-    raise NotImplementedError("not implemented yet")
+    raise UnreachableError()
 
 
 @x_struct("SendEmailOutput", "Email sent", file=_symbolx_builtins)
@@ -143,7 +143,7 @@ def send_email(
     subject: str,
     body: str,
 ) -> SendEmailOutput:
-    pass  # nocheckin
+    raise UnreachableError()
 
 
 @x_enum("JsonSchemaElementType", "The type of a JSON Schema element", file=_symbolx_utils)
