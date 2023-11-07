@@ -4,7 +4,7 @@ import collections
 import os
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, TypedDict, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID, uuid4
 
 import structlog
@@ -21,9 +21,10 @@ from bench.language.validation import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
+from bench.search.core import IndexType
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import generate_secret_password
+from bench.utils.func import generate_random_name, generate_secret_password
 from bench.utils.utils import DEBUG
 
 if TYPE_CHECKING:
@@ -40,9 +41,21 @@ class ProjectVisibility(models.TextChoices):
     PRIVATE = "private", "Private"
 
 
+class ModuleAccessLevel(models.IntegerChoices):  # :ModuleAccessLevel
+    Zero = 0  # no access
+    Read = 1  # can view and comment
+    Use = 4  # can run
+    Edit = 8  # can edit, view secrets
+    Manage = 12  # can manage members
+    Admin = 16  # deletion-protection, destructive actions, manage admins
+
+
+_PROJECT_AUTH_COLUMNS = ("db_username", "db_password", "os_username", "os_password")
+
+
 class ProjectManager(models.Manager["Project"]):
     def get_queryset(self):
-        return super().get_queryset().defer("db_password", "os_password")
+        return super().get_queryset().defer(*_PROJECT_AUTH_COLUMNS)
 
     @transaction.atomic
     def create_project(
@@ -63,13 +76,15 @@ class ProjectManager(models.Manager["Project"]):
         else:
             user = owner
             organization = None
+        id = id or uuid4()
         project = super().create(
-            id=id or uuid4(),
+            id=id,
             organization=organization,
             user=user,
             name=name,
             slug=slug,
             visibility=visibility,
+            os_name=f"bench-user-{id}-{IndexType.BENCH}",
         )
         project.head = ProjectVersion.objects.create(
             id=head_version_id or uuid4(), ck=project.id, project=project
@@ -90,18 +105,6 @@ class ProjectManager(models.Manager["Project"]):
             .filter(Q(organization__owner_slug_id=owner) | Q(user__owner_slug_id=owner))
             .get()
         )
-
-
-RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
-
-
-class ModuleAccessLevel(models.IntegerChoices):  # :ModuleAccessLevel
-    Zero = 0  # no access
-    Read = 1  # can view and comment
-    Use = 4  # can run
-    Edit = 8  # can edit, view secrets
-    Manage = 12  # can manage members
-    Admin = 16  # deletion-protection, destructive actions, manage admins
 
 
 class Project(UUIDModel, CrudModel):
@@ -140,7 +143,11 @@ class Project(UUIDModel, CrudModel):
         "WorkerSet", on_delete=models.SET_NULL, related_name="project+", null=True
     )
     worker_sets: models.QuerySet["WorkerSet"]  # noqa via WorkerSet
+    db_name = models.CharField(max_length=64, default=generate_random_name)
+    db_username = models.CharField(max_length=64, default=generate_random_name)
     db_password = TextPGPSymmetricKeyField(default=generate_secret_password)
+    os_name = models.CharField(max_length=64)
+    os_username = models.CharField(max_length=64, default=generate_random_name)
     os_password = TextPGPSymmetricKeyField(default=generate_secret_password)
 
     def __str__(self):

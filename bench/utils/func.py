@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import secrets
+import string
 from asyncio import CancelledError
 from collections import OrderedDict
 from typing import (
@@ -213,5 +215,14 @@ def cyrb53a(s: str, seed: int = 0) -> int:
     return ((h2 & ((1 << 32) - 1)) << 21) + (h1 >> 11)
 
 
+def generate_random_name(length: int = 32) -> str:
+    """Random alphanumeric name starting with alphabetic character."""
+    pool = string.ascii_letters + string.digits
+    name = random.choice(string.ascii_letters)
+    name += "".join(random.choice(pool) for _ in range(length - 1))
+    return name
+
+
 def generate_secret_password(length: int = 32) -> str:
+    """URL-safe secret password."""
     return secrets.token_urlsafe(length)[:length]
