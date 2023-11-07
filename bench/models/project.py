@@ -41,6 +41,9 @@ class ProjectVisibility(models.TextChoices):
 
 
 class ProjectManager(models.Manager["Project"]):
+    def get_queryset(self):
+        return super().get_queryset().defer("db_password", "os_password")
+
     @transaction.atomic
     def create_project(
         self,
@@ -233,6 +236,7 @@ class Project(UUIDModel, CrudModel):
     objects: ProjectManager = ProjectManager()
 
     class Meta:
+        base_manager_name = "objects"
         default_related_name = "projects"
         constraints = [
             # unique slug per owner
