@@ -13,6 +13,7 @@ import { useBenchState } from "@/state/bench";
 import { getStatementIconSolid } from "@/state/statement";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import { PlayIcon } from "@heroicons/vue/24/solid";
+import { DateTime } from "luxon";
 
 const props = defineProps<{
   projectId: string;
@@ -143,7 +144,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
         </td>
         <!-- Trigger -->
         <td class="whitespace-nowrap px-2.5 py-1.5">
-          <div class="flex flex-row items-center gap-1">
+          <div class="group relative flex flex-row items-center gap-1">
             <!-- Type -->
             <component :is="TRIGGER_ICONS_SOLID[run.triggerType ?? TriggerType.Time]" class="h-4 w-4 text-gray-400" />
             <!-- From -->
@@ -163,6 +164,13 @@ defineExpose({ runs, loading, totalCount, pageInfo });
               </span>
               <span v-else-if="run.trigger != null">by {{ run.trigger.type.toLowerCase() }}</span>
               <span v-else-if="IS_DEBUG" class="text-red-600">???</span>
+            </span>
+            <!-- Trigger time popover -->
+            <!-- Label (yeah these should be refactored) -->
+            <span
+              class="pointer-events-none absolute right-5 top-5 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
+            >
+              {{ DateTime.fromISO(run.startedAt ?? run.createdAt).toFormat("yyyy-MM-dd HH:mm:ss.SSS") }}
             </span>
           </div>
         </td>
