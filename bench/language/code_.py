@@ -299,6 +299,7 @@ class HasCode(Node):
                 logger.debug("code.proxy", code=self, inputs=inputs_raw)
                 req = ReqRunStatementPayload(
                     project_id=self.session.module.project_id,
+                    module_name=self.session.module.path,
                     statement=self.path,
                     inputs=inputs_raw,
                 )
