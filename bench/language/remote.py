@@ -81,7 +81,7 @@ class Blob(Node):
             reply_t=RepReadBlobPayload,
             timeout=timeout,
         )
-        get_url = rep.p.get_urls[0]
+        get_url = rep.p.get_urls[0] if rep.p.get_urls else None
         if get_url is None:
             raise ValueError(f"unable to GET {self}")
         return get_url
