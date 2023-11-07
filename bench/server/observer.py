@@ -66,7 +66,7 @@ class WorkerObserver:
                     continue
                 setattr(ws, field.name, getattr(updated_ws, field.name))
 
-            # trigger 'until healthy' wait events
+            # fire 'until healthy' wait events
             if (
                 ws.status == bench.language.const.WorkerSetStatus.HEALTHY
                 and ws.project_id in self._until_healthy_waiters
@@ -111,7 +111,7 @@ class WorkerObserver:
             await asyncio.wait_for(self._until_healthy_waiters[project_id].wait(), timeout)
         else:
             await self._until_healthy_waiters[project_id].wait()
-            del self._until_healthy_waiters[project_id]
+        del self._until_healthy_waiters[project_id]
         log.info("worker_observer.wait_until_healthy.done")
 
     async def stop(self):

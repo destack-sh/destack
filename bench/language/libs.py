@@ -1057,7 +1057,7 @@ class DeepgramAudioTranscriptionModel(HasModel):
         results = response["results"]
         alternatives = results["channels"][0]["alternatives"]
         transcript = alternatives[0]["transcript"]
-        return dict(text=transcript)
+        return DeepgramAudioTranscription(text=transcript)
 
 
 """
