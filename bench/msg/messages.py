@@ -485,6 +485,19 @@ class RepRunInferencePayload(Payload):
     error: Optional[ModelErrorType] = None
 
 
+@payload(NMessageType.RUN_PROXY_STATEMENT)
+class ReqRunStatementPayload(Payload):
+    project_id: UUID
+    statement: str
+    inputs: typing.Any
+
+
+@payload(NMessageType.RUN_PROXY_STATEMENT_REP)
+class RepRunStatementPayload(Payload):
+    outputs: Optional[typing.Any] = None
+    error: Optional[typing.Any] = None
+
+
 @payload(NMessageType.WAKE_RUNTIME)
 class ReqWakeRuntimePayload(Payload):
     module_id: UUID

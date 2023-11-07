@@ -13,8 +13,9 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from more_itertools import first
 
-from bench import models
+from bench import models, settings
 from bench.language import Module, Q, Query, QueryOp, Trigger, TriggerType, wire
+from bench.language.builtin import symbolx_lib
 from bench.language.cache import CacheAsync
 from bench.language.const import (
     INTERP_NODE_TYPES,
@@ -32,6 +33,7 @@ from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_edits, write_session
+from bench.models.user import loops_request
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
@@ -47,6 +49,7 @@ from bench.msg.messages import (
     RepReadModulePayload,
     RepReadSecretPayload,
     RepRunInferencePayload,
+    RepRunStatementPayload,
     RepSearch,
     RepSearchLogPayload,
     RepSearchRecordsPayload,
@@ -63,6 +66,7 @@ from bench.msg.messages import (
     ReqReadModulePayload,
     ReqReadSecretPayload,
     ReqRunInferencePayload,
+    ReqRunStatementPayload,
     ReqSearch,
     ReqSearchLogPayload,
     ReqSearchRecordsPayload,
@@ -198,6 +202,7 @@ class RuntimeServer(Monitored):
             await handle_reply(NMessageType.MARK_UPLOADED_BLOB, self.mark_uploaded_blob),
             await handle_reply(NMessageType.READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
+            await handle_reply(NMessageType.RUN_PROXY_STATEMENT, self.run_statement),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.>", cb=self.module_changed),
         ]
 
@@ -494,8 +499,8 @@ class RuntimeServer(Monitored):
     async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
         module_name, localized_path = parse_absolute_node_reference(msg.p.model_path)
         log = logger.bind(model=msg.p.model_path, msg=msg)
-        log.debug("inference.run")
         try:
+            log.debug("inference.run")
             # remotely proxied inference if the worker doesn't have the required model api key
             # we call the underlying model implementation directly (the worker does the tracing)
             # :LibImplementation
@@ -525,6 +530,41 @@ class RuntimeServer(Monitored):
             else:
                 error = ModelErrorType.Unknown
         await msg.reply(RepRunInferencePayload(outputs=outputs, error=error))
+
+    @message_handler
+    async def run_statement(self, msg: NMessage[ReqRunStatementPayload]) -> None:
+        statement = symbolx_lib.resolve(msg.p.statement)
+        log = logger.bind(statement=msg.p.statement, msg=msg)
+        try:
+            log.debug("statement.run")
+            inputs = unpack_value(msg.p.inputs, statement, is_output=False)
+            if statement.name == "send email":
+                if not await models.User.objects.filter(email=inputs["to"]).aexists():
+                    raise RuntimeError(f"{inputs['to']} is not a Bench user")
+                if not settings.LOCAL:
+                    loops_request(
+                        "POST",
+                        "transactional",
+                        {
+                            "email": inputs["to"],
+                            "transactionalId": settings.LOOPS_USER_TRANSACTIONAL_ID,
+                            "dataVariables": {
+                                "subject": inputs["subject"],
+                                "body": inputs["body"],
+                            },
+                        },
+                    )
+                else:
+                    log.warning("statement.run.local", inputs=inputs)
+                outputs = {}
+            else:
+                raise RuntimeError(f"unknown proxy statement {statement}")
+            error = None
+        except Exception as e:
+            log.error("statement.exception", exc_info=True, sentry=sentry_capture(e))
+            outputs = None
+            error = f"{e.__class__.__name__}: {e}"
+        await msg.reply(RepRunStatementPayload(outputs=outputs, error=error))
 
     @message_handler
     async def request_runtime(self, msg: NMessage[ReqWakeRuntimePayload]):

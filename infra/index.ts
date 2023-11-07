@@ -480,7 +480,7 @@ const serverClusterRoleBinding = new k8s.rbac.v1.ClusterRoleBinding("server-depl
   },
 });
 
-const SOCIAL_AUTH_ENV_VARS = [
+const SOCIAL_AUTH_VARS = [
   "SOCIAL_AUTH_GITHUB_KEY",
   "SOCIAL_AUTH_GITHUB_SECRET",
   "SOCIAL_AUTH_GOOGLE_OAUTH2_KEY",
@@ -490,8 +490,9 @@ const SOCIAL_AUTH_ENV_VARS = [
   value: config.requireSecret(name),
 }));
 
-const BASE_PRIVATE_BACKEND_ENV_VARS = [
+const BASE_PRIVATE_BACKEND_VARS = [
   { name: "LOOPS_API_KEY", value: config.requireSecret("LOOPS_API_KEY") },
+  { name: "LOOPS_USER_TRANSACTIONAL_ID", value: config.require("LOOPS_USER_TRANSACTIONAL_ID") },
   { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
   { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
   { name: "WEBAPP_URL", value: config.require("webappUrl") },
@@ -533,8 +534,8 @@ const apiDeployment = new k8s.apps.v1.Deployment(
                 ...GLOBAL_DB_ENV_VARS,
                 ...OPENSEARCH_ENV_VARS,
                 ...AWS_BACKEND_ENV_VARS,
-                ...BASE_PRIVATE_BACKEND_ENV_VARS,
-                ...SOCIAL_AUTH_ENV_VARS,
+                ...BASE_PRIVATE_BACKEND_VARS,
+                ...SOCIAL_AUTH_VARS,
               ],
               command: ["sh", "-c"],
               args: ["daphne -b 0.0.0.0 -p 80 bench.asgi:application"],
@@ -569,7 +570,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
                 ...OPENSEARCH_ENV_VARS,
                 ...GLOBAL_DB_ENV_VARS,
                 ...AWS_BACKEND_ENV_VARS,
-                ...BASE_PRIVATE_BACKEND_ENV_VARS,
+                ...BASE_PRIVATE_BACKEND_VARS,
                 { name: "SEND_API_PUB_MSG", value: "" },
               ],
               command: ["/bin/sh", "-c"],
@@ -587,7 +588,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
                 ...OPENSEARCH_ENV_VARS,
                 ...PRIVATE_BACKEND_VARS,
                 ...AWS_BACKEND_ENV_VARS,
-                ...BASE_PRIVATE_BACKEND_ENV_VARS,
+                ...BASE_PRIVATE_BACKEND_VARS,
                 ...KUBERNETES_ENV_VARS,
               ],
               command: ["python", "manageserver.py", "all"],

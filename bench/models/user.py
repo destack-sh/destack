@@ -129,20 +129,20 @@ class User(AbstractUser, UUIDModel):
         Creates the user in loops.so for email marketing/tx emails.
         Intended for production use only.
         """
-        _loops_request("POST", "contacts/create", body=self._to_loops_contact())
+        loops_request("POST", "contacts/create", body=self._to_loops_contact())
 
     def _update_in_loops(self):
         """
         Updates the user in loops.so for email marketing/tx emails.
         Intended for production use only.
         """
-        _loops_request("POST", "contacts/update", body=self._to_loops_contact())
+        loops_request("POST", "contacts/update", body=self._to_loops_contact())
 
     class Meta:
         default_manager_name = "objects"
 
 
-def _loops_request(
+def loops_request(
     method: str,
     path: str,
     body: Optional[dict] = None,

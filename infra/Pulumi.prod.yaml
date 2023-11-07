@@ -10,6 +10,7 @@ config:
     secure: AAABAMaS98BXKRt0ujUxm5961DJVyKU5hE8qHfk0rVO8nZ1XpIE54gYqI6+qdYU3CqKTZyvYpR60hz4rKwJqbIlWf/vsSOBe
   bench:LOOPS_API_KEY:
     secure: AAABALugbjvj+BJBfVwXcSB2vq9oCmiWncVZ5V6k1xNKaIkCCLIJa/+VmPsidbPSTLYJpnROIzaSD6MGabTWDA==
+  bench:LOOPS_USER_TRANSACTIONAL_ID: cloo304uv01ebjq0olzfb0dfu
   bench:OPENAI_API_KEY:
     secure: AAABAPNZUmkJnMERio8jl0beB7jZJktjMP7yxPSKZNNDygwnkIS2hcc1h/oXFZK/oHgduMzD0Hs8HBkkIgo9DUzqtJOUONv/qb0rXhw8Bxk22Vo=
   bench:PGCRYPTO_KEY:

@@ -66,7 +66,11 @@ class HasCode(Node):
 
     def _interp_inner(self, scope: ScopeNode) -> None:
         self._parse = _parse_code(self.code)
-        self._is_async = self._parse.is_async
+        self._proxied = self.path in (
+            "symbolx.lib.builtins.send_email",
+            "symbolx.lib.builtins.get_website_html",
+        )
+        self._is_async = self._parse.is_async or self._proxied
         self._statement_references = {}
         self._code_export_references = {}
         for key, reference in self._parse.references.items():
@@ -246,8 +250,10 @@ class HasCode(Node):
         else:
             callable = _do_exec_get_globals(code_str, locals)[func_name]
 
-        # wrap for tests (this will probably be generalized later)
-        if self._export:
+        # wrap callable as needed (wrapping and proxying will be generalized later - tags?)
+        if self._proxied:
+            callable = self._wrap_proxied(callable)
+        elif self._export:
             callable = self._wrap_exported(callable)
         elif self._cache:
             callable = self._wrap_cached(callable)
@@ -256,6 +262,46 @@ class HasCode(Node):
         if self._mend:
             callable = self._wrap_mend(callable)
         return callable
+
+    def _wrap_proxied(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        """
+        Wraps a callable to be executed remotely in the runtime server.
+        Used if the code needs some built-in special credentials. Obviously not great.
+        """
+
+        async def _proxied_async(*args, **kwargs):
+            from bench.msg.core import NMessage, request
+            from bench.msg.messages import (
+                NMessageType,
+                RepRunStatementPayload,
+                ReqRunStatementPayload,
+            )
+
+            inputs = self._inputs_from_args(args, kwargs)
+            inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer_map=True)
+            try:
+                logger.debug("code.proxy", code=self, inputs=inputs_raw)
+                req = ReqRunStatementPayload(
+                    project_id=self.session.module.project_id,
+                    statement=self.path,
+                    inputs=inputs_raw,
+                )
+                rep: NMessage[RepRunStatementPayload] = await request(
+                    NMessageType.RUN_PROXY_STATEMENT,
+                    req,
+                    RepRunStatementPayload,
+                    retry=3,
+                    retry_delay=10,
+                )
+                if rep.p.error:
+                    raise RuntimeError(rep.p.error)
+                outputs = unpack_value(rep.p.outputs, self, is_output=True)
+                return TypedDict(outputs, self, is_output=True)
+            except BaseException as e:
+                logger.exception("code.proxy.error", code=self, e=e, excinfo=e)
+                raise
+
+        return _proxied_async  # is auto wrapped for sync because of _is_async
 
     def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
         """Wraps a callable with caching for #cache tag."""
@@ -365,7 +411,6 @@ class HasCode(Node):
         """
         Automatically mend this code on error (not implemented yet)
         """
-        symbolx_lib.resolve(".bench.generate_bench_code")
 
         if not self._parse.is_async:
 
