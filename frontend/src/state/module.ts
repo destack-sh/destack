@@ -120,15 +120,15 @@ export type ModuleIndex = {
   idByCk: GRecord<string, string>;
 };
 
-function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?: boolean; required?: string }) {
+function _useModuleFlat(moduleOrProjectId: Ref<string | null>, options?: { cache?: boolean; required?: string }) {
   const {
     result: module,
     loading,
     onResult,
   } = useQuery(
     graphql(/* GraphQL */ `
-      query moduleContentById($projectVersionId: GlobalID!) {
-        module(id: $projectVersionId) {
+      query moduleContentById($moduleOrProjectId: GlobalID!) {
+        module(id: $moduleOrProjectId) {
           id
           committed
           project {
@@ -144,9 +144,9 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
         }
       }
     `),
-    () => ({ projectVersionId: projectVersionId.value }),
+    () => ({ moduleOrProjectId: moduleOrProjectId.value }),
     () => ({
-      enabled: !!projectVersionId.value,
+      enabled: !!moduleOrProjectId.value,
       fetchPolicy: !(options?.cache ?? false) ? "cache-and-network" : "network-only",
     })
   );
@@ -154,7 +154,7 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
   // check result if module is required
   onResult((result) => {
     if (options?.required && result.data.module == null) {
-      throw new Error(`required module ${options?.required} (id=${projectVersionId.value}) does not exist`);
+      throw new Error(`required module ${options?.required} (id=${moduleOrProjectId.value}) does not exist`);
     }
   });
 
@@ -220,20 +220,32 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
   });
 
   return {
-    loading: computed(() => loading.value || projectVersionId.value == null),
+    loading: computed(() => loading.value || moduleOrProjectId.value == null),
     module,
     idx,
     issues,
   };
 }
 
+function _defaultLibId(name: string): string {
+  /* Derive the id of a default library project */
+  return uuidv5(`builtin:${name}`, BENCH_UUID_NAMESPACE);
+}
+
 const BENCH_UUID_NAMESPACE = "d822dab7-41ad-4706-a9c8-4379e15b2ed0"; // :BenchUuidNamespace
-const DEFAULT_LIBRARIES = ["symbolx.lib", "openai.lib", "anthropic.lib"];
+const DEFAULT_LIBRARIES: GRecord<string, string> = {
+  // default libs
+  "symbolx.lib": _defaultLibId("symbolx.lib"),
+  "openai.lib": _defaultLibId("symbolx.lib"),
+  "anthropic.lib": _defaultLibId("symbolx.lib"),
+  // templates
+  "symbolx.templates": "4dbe0f37-05d0-4e88-a02e-d8ee8e5392ed", // hard-coded since it's not deterministic
+};
 
-function _useModule(projectVersionId: Ref<string | null>) {
-  projectVersionId = toValueRef(projectVersionId);
+function _useModule(moduleOrProjectId: Ref<string | null>) {
+  moduleOrProjectId = toValueRef(moduleOrProjectId);
 
-  const { loading, module, idx, issues } = _useModuleFlat(projectVersionId);
+  const { loading, module, idx, issues } = _useModuleFlat(moduleOrProjectId);
 
   const errors = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Error));
   const warnings = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Warning));
@@ -242,10 +254,8 @@ function _useModule(projectVersionId: Ref<string | null>) {
   // TODO @Performance: cache default libs (and any other static module dependencies)
   // load default libraries, derive their ids deterministically from their names and current version :BuiltinLibs
   const defaultLibs: GRecord<string, Ref<ModuleIndex | null>> = {};
-  for (const name of DEFAULT_LIBRARIES) {
-    const ck = uuidv5(`builtin:${name}`, BENCH_UUID_NAMESPACE);
-    const id = uuidv5(VERSION, ck);
-    const gid = btoa(`ProjectVersion:${id}`);
+  for (const name of Object.keys(DEFAULT_LIBRARIES)) {
+    const gid = btoa(`Project:${DEFAULT_LIBRARIES[name]}`);
     defaultLibs[name] = _useModuleFlat(ref(gid), { cache: true, required: `${name}@${VERSION}` }).idx;
   }
 
@@ -494,18 +504,18 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (
       WS_CONNECTED.value &&
       !wokeRuntime.value &&
-      projectVersionId.value != null &&
+      moduleOrProjectId.value != null &&
       module.value != null &&
       !module.value?.module?.committed &&
       auth.loggedIn.value
     ) {
       wokeRuntime.value = true;
-      await ops.session.wakeRuntime(projectVersionId.value);
+      await ops.session.wakeRuntime(moduleOrProjectId.value);
     }
   });
 
   return {
-    loading: computed(() => loading.value || projectVersionId.value == null),
+    loading: computed(() => loading.value || moduleOrProjectId.value == null),
     module,
     id: computed(() => module.value?.module?.id),
     name: computed(() => module.value?.module?.project.name),

@@ -12,7 +12,6 @@ import { IS_DEBUG } from "@/utils/globals";
 import { useBenchState } from "@/state/bench";
 import { getStatementIconSolid } from "@/state/statement";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
-import { PlayIcon } from "@heroicons/vue/24/solid";
 import { DateTime } from "luxon";
 
 const props = defineProps<{
