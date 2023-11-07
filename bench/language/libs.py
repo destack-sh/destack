@@ -543,7 +543,7 @@ class OpenAIChatCompletion:
 )
 @x_model(
     "gpt4-turbo",
-    "OpenAI's latest and largest 8k context GPT4 based chat model",
+    "OpenAI's latest and largest 128k context GPT4 based chat model",
     external_name="gpt-4-1106-preview",
     file=_openai_chat,
 )
@@ -773,9 +773,8 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
 
     def can_run(self, model: "Statement", input: OpenAIChatInput) -> bool:
         context_window: int = {
-            "gpt3": 16 * 1024,
-            "gpt4": 8 * 1024,
-            "gpt4-32k": 32 * 1024,
+            "gpt3-turbo": 16 * 1024,
+            "gpt4-turbo": 128 * 1024,
         }[model.name]
         return input.tokens <= context_window
 
@@ -848,9 +847,8 @@ class OpenAITextCompiler(BaseTextTaskCompiler):
 
     def can_run(self, model: "Statement", input: OpenAIChatInput) -> bool:
         context_window: int = {
-            "gpt3": 16 * 1024,
-            "gpt4": 8 * 1024,
-            "gpt4-32k": 32 * 1024,
+            "gpt3-turbo": 16 * 1024,
+            "gpt4-turbo": 128 * 1024,
         }[model.name]
         return input.tokens <= context_window
 
