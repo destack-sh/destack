@@ -128,9 +128,9 @@ def read_module_node_by_id(info: Info, id: GlobalID) -> Optional[ModuleNode] | O
     node = qs.filter(id=id.node_id).first()
     if not node:
         return None
-    check_module_node_access(info, node, ModuleAccessLevel.Read)
     if isinstance(node, models.Project):
         node = node.head
+    check_module_node_access(info, node, ModuleAccessLevel.Read)
     return read_module_node(info, node)
 
 
