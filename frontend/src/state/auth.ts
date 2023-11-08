@@ -19,7 +19,7 @@ export enum ModuleAccessLevel { // :ModuleAccessLevel
   Admin = 16,
 }
 
-export function encodeSharingToken(uuid: string): string {
+export function uuidToBase64(uuid: string): string {
   /* Encode hex uuid into base64 */
   const hex = uuid.replace(/-/g, "");
   const rawBytes = new Uint8Array(hex.length / 2);
@@ -30,7 +30,7 @@ export function encodeSharingToken(uuid: string): string {
   return base64.replace("+", "-").replace("/", "_").replace(/=+$/, "");
 }
 
-export function decodeSharingToken(base64: string): string {
+export function base64ToUuid(base64: string): string {
   /* Decode base64 into hex uuid */
   base64 = base64.replace("-", "+").replace("_", "/");
   const raw = atob(base64);
@@ -39,6 +39,10 @@ export function decodeSharingToken(base64: string): string {
     const byte = raw.charCodeAt(i);
     hex += ("0" + byte.toString(16)).slice(-2);
   }
+  return dashifyUuid(hex);
+}
+
+export function dashifyUuid(hex: string): string {
   return (
     hex.substring(0, 8) +
     "-" +

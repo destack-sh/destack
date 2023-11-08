@@ -19,7 +19,7 @@ import ViewIssues from "@/components/views/ViewIssues.vue";
 import { graphql, useFragment } from "@/gql";
 import { WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
-import { ModuleAccessLevel, decodeSharingToken, useAuth } from "@/state/auth";
+import { ModuleAccessLevel, base64ToUuid, useAuth } from "@/state/auth";
 import {
   PANEL_INSTANCE_TYPES,
   prettifySlug,
@@ -99,7 +99,7 @@ watch(
   () => router.currentRoute.value.query,
   () => {
     if (router.currentRoute.value.query.s != null) {
-      ACTIVE_SHARING_TOKEN.value = decodeSharingToken(router.currentRoute.value.query.s as string);
+      ACTIVE_SHARING_TOKEN.value = base64ToUuid(router.currentRoute.value.query.s as string);
       console.debug("using sharing token from url", ACTIVE_SHARING_TOKEN.value);
     } else {
       ACTIVE_SHARING_TOKEN.value = null;

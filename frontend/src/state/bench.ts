@@ -48,7 +48,7 @@ import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, watch, type Ref, nextTick, toRef } from "vue";
 import { validate as isValidUUID } from "uuid";
 import type EditFilePanelVue from "@/components/panels/EditFilePanel.vue";
-import { ModuleAccessLevel } from "@/state/auth";
+import { ModuleAccessLevel, base64ToUuid, dashifyUuid, uuidToBase64 } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 
 export const PROJECT_ACCESS_LEVELS = [
@@ -121,16 +121,9 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "environment" | "tests" | "comments";
 
-export type PanelType =
-  | "edit-file"
-  | "edit-statement"
-  | "launch-run"
-  | "view-run"
-  | "view-runs"
-  | "view-logs"
-  | "terminal";
+export type PanelType = "edit-file" | "launch-run" | "view-run" | "view-runs" | "view-logs" | "terminal";
 
-const BENCH_STATE_VERSION = 9;
+const BENCH_STATE_VERSION = 10;
 
 export function prettifySlug(path: string) {
   // replace non-URL friendly characters with dashes
@@ -599,11 +592,7 @@ export const useBenchState = defineStore("bench", {
     },
 
     openEditStatement(statement: { ck: string; name?: string | null }, options?: PanelOpenOptions): Panel {
-      return this._openMaybeCreate(
-        (p) => p.type == "edit-statement" && (p as EditStatementPanel).statementCk == statement.ck,
-        () => new EditStatementPanel(statement),
-        options
-      );
+      throw new Error("not implemented");
     },
 
     openLaunchRun(statement: { ck: string; name?: string | null }, options?: PanelOpenOptions): Panel {
@@ -1111,7 +1100,13 @@ export class EditFilePanel extends NavigablePanel {
   foldedStatementContentCks?: string[] = [];
 
   constructor(file: NodeBase) {
-    super("edit-file", file.ck + "-" + randomHexString(), file.name ?? "(Unnamed)", file.name ?? "(Unnamed)", null);
+    super(
+      "edit-file",
+      file.ck + "-" + randomHexString(),
+      file.name ?? "(Unnamed)",
+      (file.name ?? "(Unnamed)") + "-" + file.ck.replace(/-/g, ""),
+      null
+    );
     this.fileCk = file.ck;
   }
 
@@ -1151,56 +1146,25 @@ export class EditFilePanel extends NavigablePanel {
     }
   }
 
-  updatePath(fileHeader: { id: string; name?: string | null }, module: ModuleIndex) {
+  updatePath(fileHeader: { id: string; ck: string; name?: string | null }, module: ModuleIndex) {
     const file = module.filesById[fileHeader.id];
     if (file == null) return;
     this.name = fileHeader.name ?? file.name;
-    this.path = file.name;
+    this.path = (file.name ?? "(Unnamed)") + "-" + file.ck.replace(/-/g, "");
   }
 
   static parsePath(path: string, module: ModuleIndex): Panel | null {
-    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == path);
+    let matchingFile = null;
+    try {
+      const ck = dashifyUuid(path.split("-").slice(-1)[0]);
+      matchingFile = module.filesById[module.idByCk[ck]];
+    } catch (e) {
+      // ignore
+    }
+    // try to match by name
+    matchingFile = matchingFile ?? Object.values(module.filesById).find((f) => path.startsWith(prettifySlug(f.name)));
     if (matchingFile == null) return null;
     return new EditFilePanel(matchingFile as NodeBase);
-  }
-}
-
-export class EditStatementPanel extends NavigablePanel {
-  type = "edit-statement" as const;
-  statementCk: string;
-
-  constructor(statement: { ck: string; name?: string | null }) {
-    super("edit-statement", statement.ck + "-" + randomHexString(), statement.name ?? "", statement.name ?? "", null);
-    this.statementCk = statement.ck;
-    this.appearance.wide = true; // default to wide
-  }
-
-  get contentMarginX() {
-    // always full width
-    return 0;
-  }
-
-  resetId(): void {
-    this.id = this.statementCk + "-" + randomHexString();
-  }
-
-  updatePath(statementHeader: { id: string; name?: string | null }, module: ModuleIndex) {
-    const statement = module.statementsById[statementHeader.id];
-    const file = module.filesById[statement?.file.id ?? ""];
-    if (statement == null || file == null) return;
-    this.name = statementHeader.name ?? statement.name ?? "";
-    this.path = `${file.name}:${statement.name ?? ""}`;
-  }
-
-  static parsePath(path: string, module: ModuleIndex): Panel | null {
-    const [filePath, statementName] = path.split(":");
-    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == filePath);
-    if (matchingFile == null) return null;
-    const matchingStatement = module.statementsByFileId[matchingFile.id].find(
-      (s) => prettifySlug(s.name ?? "") == statementName
-    );
-    if (matchingStatement == null) return null;
-    return new EditStatementPanel(matchingStatement);
   }
 }
 
@@ -1216,7 +1180,12 @@ export class LaunchRunPanel extends Panel {
   lastSessionId?: string;
 
   constructor(statement: { ck: string; name?: string | null; __typename?: string }) {
-    super("launch-run", statement.ck + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
+    super(
+      "launch-run",
+      statement.ck + "-" + randomHexString(),
+      statement.name ?? "(Unnamed)",
+      (statement.name ?? "(Unnamed)") + "-" + statement.ck.replace(/-/g, "") + "@launch-run"
+    );
     this.statementCk = statement.ck;
     if (statement.__typename == "Task") {
       this.statementType = StatementType.Task;
@@ -1234,16 +1203,21 @@ export class LaunchRunPanel extends Panel {
     const file = module.filesById[statement?.file?.id ?? ""];
     if (statement == null || file == null) return;
     this.name = statementHeader.name ?? statement.name ?? "";
-    this.path = `${file.name}:${statement.name ?? ""}@${this.type}`;
+    this.path = `${statement.name ?? "(Unnamed)"}-${statement.ck.replace(/-/g, "")}@${this.type}`;
   }
 
   static parsePath(path: string, module: ModuleIndex): Panel | null {
-    const [filePath, statementName] = path.split(":");
-    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == filePath);
-    if (matchingFile == null) return null;
-    const matchingStatement = module.statementsByFileId[matchingFile.id].find(
-      (s) => prettifySlug(s.name ?? "") == statementName
-    );
+    let matchingStatement = null;
+    try {
+      const ck = dashifyUuid(path.split("-").slice(-1)[0]);
+      matchingStatement = module.statementsById[module.idByCk[ck]];
+    } catch (e) {
+      // ignore
+    }
+    // try to match by name
+    matchingStatement =
+      matchingStatement ??
+      Object.values(module.statementsById).find((s) => path.startsWith(prettifySlug(s.name ?? "(Unnamed)")));
     if (matchingStatement == null) return null;
     return new LaunchRunPanel(matchingStatement);
   }
@@ -1373,7 +1347,6 @@ export class TerminalPanel extends Panel {
 
 export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
   "edit-file": EditFilePanel as any,
-  "edit-statement": EditStatementPanel as any,
   "launch-run": LaunchRunPanel as any, // don't care about constructor type
   "view-runs": ViewRunsPanel as any,
   "view-run": ViewRunPanel as any,
@@ -1383,7 +1356,6 @@ export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
 
 export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
   "edit-file": CodeBracketIconOutline,
-  "edit-statement": CodeBracketIconOutline,
   "launch-run": WindowIconOutline,
   "view-runs": PlayIconOutline,
   "view-run": PlayIconOutline,
@@ -1393,7 +1365,6 @@ export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
 
 export const PANEL_ICONS_SOLID: Record<PanelType, any> = {
   "edit-file": CodeBracketIconSolid,
-  "edit-statement": CodeBracketIconSolid,
   "launch-run": WindowIconSolid,
   "view-runs": PlayIconSolid,
   "view-run": PlayIconSolid,
