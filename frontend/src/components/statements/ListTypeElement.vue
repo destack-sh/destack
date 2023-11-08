@@ -6,7 +6,7 @@ import { StatementType, TypeTag } from "@/gql/graphql";
 import { useFields } from "@/state/statement";
 import { Bars3Icon, PlusIcon, SquaresPlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
-import { useCurrentModule, type Field } from "@/state/module";
+import type { Field } from "@/state/module";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import type { StatementAction } from "@/state/bench";

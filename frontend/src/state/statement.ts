@@ -10,6 +10,7 @@ import {
   type ResolvedField,
   newNodeIdentity,
   type Statement,
+  type InterpStatement,
 } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { newDynamicNodeKey } from "@/state/operations/statement";
@@ -28,6 +29,7 @@ import {
   Bars3BottomLeftIcon,
   NoSymbolIcon,
   PuzzlePieceIcon as PuzzlePieceIconOutline,
+  EyeIcon as EyeIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -39,8 +41,10 @@ import {
   PaperAirplaneIcon as PaperAirplaneIconSolid,
   VariableIcon as VariableIcon,
   PuzzlePieceIcon as PuzzlePieceIconSolid,
+  EyeIcon as EyeIconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, type Ref } from "vue";
+import { useNavigationContext } from "@/state/file";
 
 function _computedEmptyIfDisabled<T>(func: () => T, enabled?: Ref<boolean>) {
   return computed(() => (enabled?.value !== false ? func() : []));
@@ -359,6 +363,7 @@ export const STATEMENT_ICONS_OUTLINE: Record<StatementType, any> = {
   [StatementType.Model]: CpuChipIconOutline,
   [StatementType.Reference]: ArrowUpRightIcon,
   [StatementType.Group]: PuzzlePieceIconOutline,
+  [StatementType.View]: EyeIconOutline,
 };
 export const STATEMENT_ICONS_SOLID: Record<StatementType, any> = {
   [StatementType.Blank]: NoSymbolIcon,
@@ -374,6 +379,7 @@ export const STATEMENT_ICONS_SOLID: Record<StatementType, any> = {
   [StatementType.Model]: CpuChipIconSolid,
   [StatementType.Reference]: ArrowUpRightIcon,
   [StatementType.Group]: PuzzlePieceIconSolid,
+  [StatementType.View]: EyeIconSolid,
 };
 
 export function getStatementIconOutline(type: StatementType, tag?: TypeTag | null) {
@@ -410,6 +416,7 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
   [StatementType.Flow]: "Flow",
   [StatementType.Reference]: "Reference",
   [StatementType.Group]: "Group",
+  [StatementType.View]: "View",
 };
 
 export function getStatementLabel(type: StatementType) {
@@ -424,12 +431,13 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Code]: "Python function or procedure.",
   [StatementType.Task]: "AI model function.",
   [StatementType.Variable]: "Common values for configuration or secrets",
-  [StatementType.Reference]: "Reuse another statement",
+  [StatementType.Reference]: "Reuse a specific statement",
   [StatementType.Flow]: "Connect code and tasks with triggers",
   [StatementType.Blank]: "Empty statement",
   [StatementType.Model]: "An AI model of any kind",
   [StatementType.Tag]: "Organize and transform statements",
   [StatementType.Group]: "Group statements as a unit",
+  [StatementType.View]: "Search and view nodes (like records)",
 };
 
 export function getStatementDescription(type: StatementType) {
@@ -475,16 +483,23 @@ export function canMorphTo(statement: Statement, to: MorphIdentity) {
   return true; // no restrictions yet?
 }
 
+const MORPH_GROUPS = {
+  BASIC: { name: "Basic statements" },
+  LAYOUT: { name: "Layout statements" },
+  ADVANCED: { name: "Advanced statements" },
+  TEMPLATES: { name: "Templates" },
+};
+
 export function useStatementMorph(
   statement: Ref<Statement>,
-  options?: { query?: Ref<string>; onMorph?: (id: MorphIdentity) => void }
+  active: Ref<boolean>,
+  options?: {
+    query?: Ref<string>;
+    onMorph?: (id: MorphIdentity) => void;
+    includeTemplates?: boolean;
+    below?: InterpStatement;
+  }
 ) {
-  const GROUPS = {
-    BASIC: { name: "Basic statements" },
-    LAYOUT: { name: "Layout statements" },
-    ADVANCED: { name: "Advanced statements" },
-  };
-
   function simpleStatementCommand(
     group: MorphCommandGroup,
     type: StatementType,
@@ -510,22 +525,35 @@ export function useStatementMorph(
   const ops = useOperations();
   function doMorph(
     statement: { id: string; ck: string } & MorphIdentity,
-    identity: MorphIdentity & { name?: string | null }
+    identity: MorphIdentity & { name?: string | null },
+    group: MorphCommandGroup
   ) {
-    let key = null;
-    if (
-      [StatementType.Class, StatementType.Choice, StatementType.Tag, StatementType.Database].includes(identity.type)
-    ) {
-      key = newDynamicNodeKey(statement.ck);
+    if (group.name == MORPH_GROUPS.TEMPLATES.name) {
+      if (!options?.below) {
+        throw new Error("must provide below statement for template morph");
+      }
+      // paste (nocheckin do this)
+      nav?.value.paste();
+    } else {
+      // create as usual
+      let key = null;
+      if (
+        [StatementType.Class, StatementType.Choice, StatementType.Tag, StatementType.Database].includes(identity.type)
+      ) {
+        key = newDynamicNodeKey(statement.ck);
+      }
+      ops.statement.morph(null, statement.id, statement, { ...identity, key });
     }
-    ops.statement.morph(null, statement.id, statement, { ...identity, key });
   }
 
+  const module = useCurrentModule();
+  const nav = useNavigationContext();
   const commands = computed(() => {
+    if (!active.value) return [];
     const commands: MorphCommand[] = [
       // basic statements
       {
-        group: GROUPS.BASIC,
+        group: MORPH_GROUPS.BASIC,
         label: "Text",
         aliases: ["comment", "markdown", "title", "header"],
         iconOutline: getStatementIconOutline(StatementType.Text),
@@ -533,17 +561,17 @@ export function useStatementMorph(
         description: "Just type for a plain comment",
         identity: { type: StatementType.Text, headingLevel: null },
       },
-      simpleStatementCommand(GROUPS.BASIC, StatementType.Class, { aliases: ["type", "struct"] }),
-      simpleStatementCommand(GROUPS.BASIC, StatementType.Choice, { aliases: ["type", "enum"] }),
-      simpleStatementCommand(GROUPS.BASIC, StatementType.Database, {
+      simpleStatementCommand(MORPH_GROUPS.BASIC, StatementType.Class, { aliases: ["type", "struct"] }),
+      simpleStatementCommand(MORPH_GROUPS.BASIC, StatementType.Choice, { aliases: ["type", "enum"] }),
+      simpleStatementCommand(MORPH_GROUPS.BASIC, StatementType.Database, {
         aliases: ["table", "retrieval", "rag", "samples", "context"],
       }),
-      simpleStatementCommand(GROUPS.BASIC, StatementType.Code),
-      simpleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
+      simpleStatementCommand(MORPH_GROUPS.BASIC, StatementType.Code),
+      simpleStatementCommand(MORPH_GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
 
       // layout statements
       ...[1, 2, 3].map((level) =>
-        simpleStatementCommand(GROUPS.LAYOUT, StatementType.Text, {
+        simpleStatementCommand(MORPH_GROUPS.LAYOUT, StatementType.Text, {
           headingLevel: level,
           label: `Heading ${level}`,
           description: `Text with heading ${level}`,
@@ -552,13 +580,35 @@ export function useStatementMorph(
       ),
 
       // advanced statements
-      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Variable, {
+      simpleStatementCommand(MORPH_GROUPS.ADVANCED, StatementType.Variable, {
         aliases: ["const", "config", "secret", "let"],
       }),
-      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
-      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Group),
-      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
+      simpleStatementCommand(MORPH_GROUPS.ADVANCED, StatementType.Tag),
+      simpleStatementCommand(MORPH_GROUPS.ADVANCED, StatementType.Group),
+      simpleStatementCommand(MORPH_GROUPS.ADVANCED, StatementType.Reference),
     ];
+
+    if (options?.includeTemplates) {
+      const templateTag = module.tags.value?.find((t) => t.name == "template");
+      const templateStatements = module.allStatements.value.filter((s) =>
+        s.tags.find((t) => t.key == templateTag?.key)
+      );
+      templateStatements.forEach((s) => {
+        let description = s.text ?? "";
+        if (description.endsWith(".")) {
+          description = description.slice(0, -1);
+        }
+        commands.push({
+          group: MORPH_GROUPS.TEMPLATES,
+          label: s.name as string,
+          aliases: [s.type], // so it appears when searching for the statement type
+          iconOutline: getStatementIconOutline(s.type),
+          iconSolid: getStatementIconSolid(s.type),
+          description,
+          identity: { type: s.type, headingLevel: s.headingLevel },
+        });
+      });
+    }
 
     return commands;
   });
