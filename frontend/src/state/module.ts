@@ -239,7 +239,7 @@ const DEFAULT_LIBRARIES: GRecord<string, string> = {
   "openai.lib": _defaultLibId("openai.lib"),
   "anthropic.lib": _defaultLibId("anthropic.lib"),
   // templates
-  "symbolx.templates": "4dbe0f37-05d0-4e88-a02e-d8ee8e5392ed", // hard-coded since it's not deterministic
+  "symbolx.templates": "bba83b4f-04c2-40e1-8597-8263aa4c5fb6", // hard-coded since it's not deterministic
 };
 
 function _useModule(moduleOrProjectId: Ref<string | null>) {
@@ -410,19 +410,24 @@ function _useModule(moduleOrProjectId: Ref<string | null>) {
     );
   }
 
+  const allStatements = computed(() => {
+    const allStatements = Object.values(idx.value?.statementsById ?? {});
+    for (const dependencyIndex of dependenciesIndex.value) {
+      allStatements.push(...Object.values(dependencyIndex.statementsById));
+    }
+    return allStatements;
+  });
+
   function statementsLike(filter: Ref<StatementFilter> | StatementFilter) {
     const filterRef = isRef(filter) ? filter : ref(filter);
     const statements = computed(() => {
       if (!idx.value) {
         return [];
       }
-      const allStatements = Object.values(idx.value.statementsById);
-      if (filterRef.value.includeDependencies) {
-        for (const dependencyIndex of dependenciesIndex.value) {
-          allStatements.push(...Object.values(dependencyIndex.statementsById));
-        }
-      }
-      return allStatements.filter((s) => {
+      const statements = filterRef.value?.includeDependencies
+        ? allStatements.value
+        : Object.values(idx.value.statementsById);
+      return statements.filter((s) => {
         if (filterRef.value.includeAnonymous || (s.name?.length ?? 0) == 0) {
           return false;
         }
@@ -541,6 +546,7 @@ function _useModule(moduleOrProjectId: Ref<string | null>) {
     issuesOf,
     issuesIn,
     statementsLike,
+    allStatements,
     tags,
     tagsByKey,
     getDescendantsOf: descendantsOf,

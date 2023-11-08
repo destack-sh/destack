@@ -10,11 +10,11 @@ const emit = defineEmits<{
 }>();
 
 const morphIdentity = computed(() => getMorphIdentity(props.statement));
-const { filteredCommands: commands, doMorph } = useStatementMorph(toRef(props, "statement"));
+const { filteredCommands: commands, doMorph } = useStatementMorph(toRef(props, "statement"), ref(true));
 const commandOptionsRef = ref<InstanceType<typeof ComboboxOptions> | null>(null);
 
 function selectCommand(command: MorphCommand) {
-  doMorph(props.statement, { ...command.identity, name: props.statement.name });
+  doMorph(props.statement, { ...command.identity, name: props.statement.name }, command.group);
   command.action?.();
   emit("close");
 }

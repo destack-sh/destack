@@ -34,7 +34,7 @@ const routes = [
   { path: "/settings/:owner", name: "Settings", component: Settings, props: forwardQueryAndParams },
   { path: "/:owner", name: "Profile", component: Profile, props: forwardQueryAndParams },
   // redirect /symbolx/examples to /symbolx/templates (keep query params)
-  { path: "/symbolx/examples", redirect: (to) => ({ path: to.path.replace("/examples", "/templates") }) },
+  { path: "/symbolx/examples", redirect: (to: any) => ({ path: to.path.replace("/examples", "/templates") }) },
   { path: "/:owner/:project", component: Bench, props: forwardQueryAndParams },
   // catch all
   { path: "/:pathMatch(.*)*", name: "NotFound", component: NotFound },

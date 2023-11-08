@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import { BlobStatus } from "@/gql/graphql";
-import type { ObjectRecord } from "@/state/blob";
+import type { BlobRecord } from "@/state/blob";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
@@ -63,7 +63,7 @@ export function useObjectOps() {
     });
   }
 
-  async function prepareUpload(projectId: string, file: File): Promise<Omit<ObjectRecord, "id">> {
+  async function prepareUpload(projectId: string, file: File): Promise<Omit<BlobRecord, "id">> {
     const sha512 = await computeSHA512(file);
     return {
       __typename: "Blob",

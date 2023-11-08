@@ -79,11 +79,14 @@ function stopInserting() {
 function selectInput(input: MorphCommand) {
   inserting.value = false;
   query.value = "";
-  doMorph(props.statement, { ...input.identity, name: props.statement.name });
+  doMorph(props.statement, { ...input.identity, name: props.statement.name }, input.group);
   input.action?.();
 }
 
-const { filteredCommands, doMorph } = useStatementMorph(toRef(props, "statement"), { query: inputQuery });
+const { filteredCommands, doMorph } = useStatementMorph(toRef(props, "statement"), inserting, {
+  query: inputQuery,
+  includeTemplates: true,
+});
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
@@ -172,7 +175,7 @@ defineExpose({
       <FadeTransition>
         <ComboboxOptions
           ref="inputOptionsRef"
-          class="absolute z-50 flex h-fit max-h-[360px] w-[340px] flex-col gap-1 overflow-y-auto rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
+          class="absolute z-50 flex h-fit max-h-[360px] w-[340px] flex-col gap-1 overflow-y-auto overflow-x-hidden rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
           :class="[isInTopHalfOfPanel ? 'top-7' : 'bottom-7']"
         >
           <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
@@ -201,7 +204,9 @@ defineExpose({
                 <span class="font-semibold text-orange-600">
                   {{ input.label }}
                 </span>
-                <span class="text-xs text-gray-700"> {{ input.description }}. </span>
+                <span class="max-w-full truncate whitespace-nowrap text-xs text-gray-700">
+                  {{ input.description }}
+                </span>
               </div>
             </li>
           </ComboboxOption>
