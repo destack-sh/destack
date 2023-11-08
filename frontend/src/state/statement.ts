@@ -44,7 +44,8 @@ import {
   EyeIcon as EyeIconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, type Ref } from "vue";
-import { useNavigationContext } from "@/state/file";
+import { useNavigationContext, type CopiedStatement } from "@/state/file";
+import type { StatementHeader } from "@/state/bench";
 
 function _computedEmptyIfDisabled<T>(func: () => T, enabled?: Ref<boolean>) {
   return computed(() => (enabled?.value !== false ? func() : []));
@@ -465,6 +466,7 @@ export type MorphCommand = {
   description: string;
   aliases?: string[];
   action?: () => void;
+  template?: InterpStatement;
 };
 
 export type MorphIdentity = {
@@ -497,13 +499,12 @@ export function useStatementMorph(
     query?: Ref<string>;
     onMorph?: (id: MorphIdentity) => void;
     includeTemplates?: boolean;
-    below?: InterpStatement;
   }
 ) {
   function simpleStatementCommand(
     group: MorphCommandGroup,
     type: StatementType,
-    options?: Omit<MorphIdentity, "type"> & {
+    options?: Omit<MorphIdentity, "type" | "moduleId"> & {
       icon?: any;
       label?: string;
       description?: string;
@@ -524,25 +525,43 @@ export function useStatementMorph(
 
   const ops = useOperations();
   function doMorph(
-    statement: { id: string; ck: string } & MorphIdentity,
+    target: { id: string; ck: string } & MorphIdentity,
     identity: MorphIdentity & { name?: string | null },
-    group: MorphCommandGroup
+    command: MorphCommand
   ) {
-    if (group.name == MORPH_GROUPS.TEMPLATES.name) {
-      if (!options?.below) {
-        throw new Error("must provide below statement for template morph");
-      }
-      // paste (nocheckin do this)
-      nav?.value.paste();
+    if (command.template != null) {
+      // copy descendant statements from source module into current module
+      const sourceModule = module.modules.value.find((m) => m?.statementsById[command.template?.id] != null);
+      if (sourceModule == null) throw new Error("source template module not found");
+      const descendants: InterpStatement[] = [command.template];
+      const walkDescendants = (statement: InterpStatement) => {
+        sourceModule.statementsByParentId[statement.id]?.forEach((s) => {
+          descendants.push(s);
+          walkDescendants(s);
+        });
+      };
+      walkDescendants(command.template);
+
+      const copied = descendants.map(
+        (s) =>
+          ({
+            id: s.id,
+            ck: s.ck,
+            orderKey: s.orderKey,
+            parentId: s.parent?.id,
+            parentInCopy: descendants.find((d) => d.id == s.parent?.id),
+          } as CopiedStatement)
+      );
+      nav?.value.paste(copied, statement.value);
     } else {
-      // create as usual
+      // create blank statement of that type as usual
       let key = null;
       if (
         [StatementType.Class, StatementType.Choice, StatementType.Tag, StatementType.Database].includes(identity.type)
       ) {
-        key = newDynamicNodeKey(statement.ck);
+        key = newDynamicNodeKey(target.ck);
       }
-      ops.statement.morph(null, statement.id, statement, { ...identity, key });
+      ops.statement.morph(null, target.id, target, { ...identity, key });
     }
   }
 
@@ -593,6 +612,14 @@ export function useStatementMorph(
       const templateStatements = module.allStatements.value.filter((s) =>
         s.tags.find((t) => t.key == templateTag?.key)
       );
+      // sort templates in same order of types, then by name
+      const statementTypeIndex: Partial<Record<StatementType, number>> = {};
+      commands.forEach((c, i) => (statementTypeIndex[c.identity.type] = i));
+      templateStatements.sort(
+        (a, b) =>
+          (statementTypeIndex[a.type] as number) - (statementTypeIndex[b.type] as number) ??
+          (a.name ?? "").localeCompare(b.name ?? "")
+      );
       templateStatements.forEach((s) => {
         let description = s.text ?? "";
         if (description.endsWith(".")) {
@@ -606,6 +633,7 @@ export function useStatementMorph(
           iconSolid: getStatementIconSolid(s.type),
           description,
           identity: { type: s.type, headingLevel: s.headingLevel },
+          template: s,
         });
       });
     }

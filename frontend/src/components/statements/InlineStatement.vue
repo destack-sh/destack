@@ -104,6 +104,7 @@ const canContentFold = computed(
 );
 const isContentFolded = computed(() => (panel.panel.value as EditFilePanel).isStatementContentFolded(statement.value));
 
+const pasting = ref(false);
 const location = computed(() => nav?.value?.getLocation(statement.value));
 const fields = useFieldsState(statement, isContentFolded);
 
@@ -711,6 +712,7 @@ defineExpose({
   actions,
   showActionsPopover,
   run,
+  pasting,
 });
 </script>
 <template>
@@ -740,8 +742,8 @@ defineExpose({
         class="relative min-h-[30px] w-full rounded-sm outline-none transition duration-150 focus:outline-none"
         :class="{
           'focus:bg-orange-100': true,
-          'bg-orange-100': isHighlighted,
-
+          'bg-orange-100': isHighlighted || pasting,
+          'animate-pulse': pasting,
           ...appearance.baseClass,
         }"
         :style="{

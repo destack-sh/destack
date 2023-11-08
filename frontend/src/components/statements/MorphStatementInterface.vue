@@ -14,7 +14,7 @@ const { filteredCommands: commands, doMorph } = useStatementMorph(toRef(props, "
 const commandOptionsRef = ref<InstanceType<typeof ComboboxOptions> | null>(null);
 
 function selectCommand(command: MorphCommand) {
-  doMorph(props.statement, { ...command.identity, name: props.statement.name }, command.group);
+  doMorph(props.statement, { ...command.identity, name: props.statement.name }, command);
   command.action?.();
   emit("close");
 }

@@ -11,6 +11,7 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
 from bench.language import StatementType, TypeHint, TypeTag, wire
+from bench.language.builtin import symbolx_lib
 from bench.language.const import ScheduleType, TriggerType, TypeFlag
 from bench.language.validation import MAX_NAME_LENGTH
 from bench.models.utils import NAME_VALIDATOR, CrudNode, create_models_bfs, get_choices
@@ -205,11 +206,12 @@ class StatementManager(models.Manager["Statement"]):
         target: ProjectVersion,
         keep_cks: bool,
         include_interp: bool = True,
+        copy_revisions: bool = True,
+        strip_template_tags: bool = False,
         target_ids: dict[UUID, UUID] | None = None,
         target_cks: dict[UUID, UUID] | None = None,
         target_parent_ids: dict[UUID, UUID] | None = None,
         target_order_keys: dict[UUID, str] | None = None,
-        copy_revisions: bool = True,
     ) -> None:
         """Copies the given source statements into the target version in given new files"""
 
@@ -217,6 +219,13 @@ class StatementManager(models.Manager["Statement"]):
         from bench.search.crud import write_module_to_os
 
         # pack relevant nodes
+        if strip_template_tags:
+            template_key = symbolx_lib.resolve(".builtins.template").key
+            filter = packer.DEFAULT_PACK_FILTER.filter(
+                Tagging, lambda qs: qs.exclude(key=template_key)
+            )
+        else:
+            filter = packer.DEFAULT_PACK_FILTER
         copy = ProjectVersion.objects.pack_copy(
             source=source,
             target=target,
@@ -226,6 +235,7 @@ class StatementManager(models.Manager["Statement"]):
             target_ids=target_ids,
             target_cks=target_cks,
             copy_revisions=copy_revisions,
+            filter=filter,
         )
         for node in copy.nodes_by_id.values():  # patch parent and order keys
             if node.id in target_parent_ids:
