@@ -56,6 +56,7 @@ const DEFAULT_INTERVAL_BY_UNIT: Record<INTERVAL_UNIT, number> = {
   day: 1,
   week: 1,
 };
+const ABS_MIN_INTERVAL = 60;
 const intervalDisplayUnit = ref<INTERVAL_UNIT>(getTriggerIntervalUnit(props.modelValue.interval ?? 60 * 60));
 const intervalLimits = computed(() => VALID_INTERVAL_VALUES_BY_UNIT[intervalDisplayUnit.value]);
 const lastIntervalByUnit: Partial<Record<INTERVAL_UNIT, number>> = {};
@@ -77,9 +78,17 @@ function setIntervalDisplayUnit(unit: INTERVAL_UNIT) {
   intervalDisplayUnit.value = unit;
 }
 
+function setInterval(intervalInUnit: number) {
+  const interval = Math.max(intervalInUnit * INTERVAL_UNITS[intervalDisplayUnit.value], ABS_MIN_INTERVAL);
+  update({ interval });
+}
+
 function toggleScheduleType() {
   if (scheduleType.value == ScheduleType.Cron) {
-    update({ scheduleType: ScheduleType.Interval });
+    update({
+      scheduleType: ScheduleType.Interval,
+      interval: Math.max(ABS_MIN_INTERVAL, props.modelValue.interval ?? 60 * 60),
+    });
   } else if (scheduleType.value == ScheduleType.Interval) {
     update({ scheduleType: ScheduleType.Cron });
   } else {
@@ -131,7 +140,7 @@ function update(properties: Partial<Trigger>) {
             max="60"
             class="w-full max-w-full flex-grow scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900/[12%] p-1 px-1 text-right text-sm font-bold text-gray-900 focus:border-orange-200 focus:bg-orange-100 focus:outline-none focus:ring-0"
             :value="(props.modelValue.interval ?? 0) / INTERVAL_UNITS[intervalDisplayUnit]"
-            @input="update({ interval: ($event.target as any)?.value * INTERVAL_UNITS[intervalDisplayUnit] })"
+            @input="setInterval(Number.parseInt(($event.target as HTMLInputElement)?.value))"
           />
           <!-- Interval unit -->
           <Listbox

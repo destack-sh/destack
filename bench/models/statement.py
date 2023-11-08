@@ -125,6 +125,15 @@ class Trigger(CrudNode):
     def restore(self):
         self.deleted_at = None
 
+    class Meta:
+        # interval must be >60 if set
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(interval__isnull=True) | models.Q(interval__gte=60),
+                name="bench_trigger_interval_gt_60_ck",
+            ),
+        ]
+
 
 class TaggingManager(models.Manager["Tagging"]):
     def get_queryset(self) -> models.QuerySet[Tagging]:
