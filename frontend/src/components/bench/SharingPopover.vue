@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import AccessLevelSelect from "@/components/basic/AccessLevelSelect.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { ModuleAccessLevel, encodeSharingToken } from "@/state/auth";
+import { ModuleAccessLevel, uuidToBase64 } from "@/state/auth";
 import { PROJECT_ACCESS_LEVEL_NAME, useBenchState, type ProjectHeader } from "@/state/bench";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -18,7 +18,7 @@ const notifications = useNotifications();
 const ops = useOperations();
 
 const projectSharingUrl = computed(() => {
-  return `${document.location.origin}/${props.project.owner.slug}/${props.project.slug}?s=${encodeSharingToken(
+  return `${document.location.origin}/${props.project.owner.slug}/${props.project.slug}?s=${uuidToBase64(
     props.project.sharingToken
   )}`;
 });
