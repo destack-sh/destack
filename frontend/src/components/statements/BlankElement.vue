@@ -79,7 +79,7 @@ function stopInserting() {
 function selectInput(input: MorphCommand) {
   inserting.value = false;
   query.value = "";
-  doMorph(props.statement, { ...input.identity, name: props.statement.name }, input.group);
+  doMorph(props.statement, { ...input.identity, name: props.statement.name }, input);
   input.action?.();
 }
 

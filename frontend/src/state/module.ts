@@ -522,6 +522,7 @@ function _useModule(moduleOrProjectId: Ref<string | null>) {
   return {
     loading: computed(() => loading.value || moduleOrProjectId.value == null),
     module,
+    modules: computed(() => [idx.value, ...dependenciesIndex.value]),
     id: computed(() => module.value?.module?.id),
     name: computed(() => module.value?.module?.project.name),
     path: computed(() => module.value?.module?.project.path),

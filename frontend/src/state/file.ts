@@ -649,6 +649,10 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
         return orderKeys[childIndex];
       });
 
+      // add pasting indicator to bottom
+      const component = file.value?.statementsComponents[bottom?.id] as InstanceType<typeof StatementComponent>;
+      component.pasting = true;
+
       // do the paste
       await ops.statement.batchPaste(
         sourceIds,
@@ -658,6 +662,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
         targetParentIds,
         targetOrderKeys
       );
+      component.pasting = false;
       console.log("pasted " + sourceStatements.length + " statements");
 
       // select the pasted stuff
