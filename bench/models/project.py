@@ -172,6 +172,12 @@ class Project(UUIDModel, CrudModel):
         return self.head
 
     @transaction.atomic(savepoint=False)
+    def rename(self, name: str, slug: str):
+        self.name = name
+        self.slug = slug
+        self.save()
+
+    @transaction.atomic(savepoint=False)
     def create_new_blank_head(
         self,
         name: Optional[str] = None,
