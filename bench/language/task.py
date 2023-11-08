@@ -163,7 +163,7 @@ async def run_task(
         run_capture = task.session.capture_runs()
         try:
             log.debug("task.run", model=model, compiled=compiled, attempt=model_attempts)
-            run_name = f"{task.name} #{model_attempts}"
+            run_name = f"{task.name} #{total_attempts}"
             with task.session.bind_run_value(retry=model_attempts, nonce=nonce, name=run_name):
                 outputs = await compiler.run(model, compiled)
 
