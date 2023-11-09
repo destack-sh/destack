@@ -58,7 +58,6 @@ from bench.msg.messages import (
 )
 from bench.search import mirror
 from bench.search.client import os_client
-from bench.search.core import IndexType
 from bench.search.crud import write_runs_to_os
 from bench.search.mapping import encode_cursor, prepare_search
 
@@ -487,9 +486,7 @@ class SessionQuery:
             fields=[],
             source=False,
         )
-        os_results = os_client.search(
-            index=IndexType.BENCH.get_index_name(project_id=project.id), body=search
-        )
+        os_results = os_client.search(index=project.os_name, body=search)
 
         hits = os_results["hits"]["hits"]
         logger.debug("runs.search.db", project_id=project_id, hits=len(hits))
@@ -575,9 +572,7 @@ class SessionQuery:
             query=query,
         )
 
-        results = os_client.search(
-            index=IndexType.BENCH.get_index_name(project_id=project.id), body=search
-        )
+        results = os_client.search(index=project.os_name, body=search)
 
         hits = results["hits"]["hits"]
         edges = []

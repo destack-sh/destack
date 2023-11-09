@@ -11,11 +11,11 @@ from .const import (
 )
 from .database import Record, View
 from .edit import render, render_as_python
+from .expression import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from .field import Field, HasFields, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
 from .module import Module, Node, ScopeNode
-from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
 from .reference import NodeVisitor
 from .remote import Blob, Secret
 from .run import HasRun, Run, RunError
@@ -29,7 +29,6 @@ from .value import HasValue
 # Note that all these imports are auto-imported as prelude in user code.
 #  (maybe we should factor that out...)
 __all__ = [
-    "Aggregation",
     "BenchError",
     "View",
     "ViewLayout",

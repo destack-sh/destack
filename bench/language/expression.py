@@ -13,9 +13,8 @@ if TYPE_CHECKING:
 
 
 #
-# Database access ORM *and* wireable data representation.
-# We abstract the database backend here to fit seamlessly with Bench,
-#  but obviously this is still somewhat tied to DB & index capabilities.
+# Expression language for search and storage (database) access.
+# Currently serves as both the in-memory representation and the wire format.
 #
 
 
@@ -265,23 +264,6 @@ def Q(op: QueryOp, *args, **kwargs) -> Query:
     cls = _QUERIES[op]
     kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls._PROPERTIES}
     return cls(op, *args, **kwargs)
-
-
-class AggregationOp(enum.StrEnum):
-    COUNT = "count"
-    SUM = "sum"
-    AVG = "avg"
-    MIN = "min"
-    MAX = "max"
-    STATS = "stats"
-    PERCENTILES = "percentiles"
-    HISTOGRAM = "histogram"
-
-
-@dataclass
-class Aggregation:
-    op: AggregationOp
-    name: Optional[str]
 
 
 class SortOrder(enum.StrEnum):

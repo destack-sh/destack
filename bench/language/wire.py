@@ -33,8 +33,8 @@ from bench.language.const import (
     WorkerSetStatus,
 )
 from bench.language.database import HasDatabase
+from bench.language.expression import Query, Sort
 from bench.language.module import Node, NodeStatus, NodeTree, ScopeNode
-from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
 from bench.language.text import patch_text_html

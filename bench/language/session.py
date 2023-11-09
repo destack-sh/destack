@@ -26,9 +26,9 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
+from bench.language.expression import Query, Sort, SortOrder
 from bench.language.module import Module, Node
 from bench.language.packer import check_type, map_value, pack_value, pack_value_flat
-from bench.language.query import Query, Sort, SortOrder
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.search import Search
 from bench.language.statement import Statement

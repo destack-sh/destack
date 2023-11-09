@@ -21,6 +21,7 @@ from bench.language.const import (
     TypeTag,
     new_dynamic_node_key,
 )
+from bench.language.expression import FieldQueryOps
 from bench.language.module import (
     _NC,
     NS,
@@ -38,7 +39,6 @@ from bench.language.module import (
     nproperty,
     nruntime,
 )
-from bench.language.query import FieldQueryOps
 from bench.language.reference import HasReference, NodeVisitor
 from bench.language.text import HasText
 from bench.language.validation import (

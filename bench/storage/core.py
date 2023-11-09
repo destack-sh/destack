@@ -85,5 +85,6 @@ POSTGRES_TYPE_BY_GENERIC_TYPE = {
     ColumnType.DATETIME: PostgresColumnType.TIMESTAMP,
     ColumnType.JSON: PostgresColumnType.JSONB,
     ColumnType.BINARY: PostgresColumnType.BYTEA,
+    ColumnType.VECTOR: PostgresColumnType.VECTOR,
     ColumnType.UUID: PostgresColumnType.UUID,
 }

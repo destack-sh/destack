@@ -11,6 +11,7 @@ from bench.language.const import (
     ViewLayout,
     new_dynamic_node_key,
 )
+from bench.language.expression import Query, Sort
 from bench.language.module import (
     _NC,
     NS,
@@ -29,7 +30,6 @@ from bench.language.module import (
     nparent,
     nproperty,
 )
-from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
 from bench.language.validation import enum_validator
 from bench.language.value import HasValue

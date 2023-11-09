@@ -16,8 +16,8 @@ from bench.language.const import (
     WorkerProfile,
 )
 from bench.language.edit import EditData
+from bench.language.expression import Query, Sort
 from bench.language.model import ModelErrorType
-from bench.language.query import Query, Sort
 from bench.language.wire import (
     BlobData,
     EnvironmentData,

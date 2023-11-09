@@ -84,7 +84,7 @@ class ProjectManager(models.Manager["Project"]):
             name=name,
             slug=slug,
             visibility=visibility,
-            os_name=f"bench-user-{id}-{IndexType.BENCH}",
+            os_name=f"bench-user-{id}-{IndexType.LOCAL}",
         )
         project.head = ProjectVersion.objects.create(
             id=head_version_id or uuid4(), ck=project.id, project=project

@@ -90,7 +90,6 @@ from bench.msg.messages import (
 )
 from bench.search import mirror
 from bench.search.client import os_client
-from bench.search.core import IndexType
 from bench.search.mapping import encode_cursor, prepare_search
 from bench.server.observer import WorkerObserver
 from bench.utils.dt import utcnow_with_tz
@@ -339,10 +338,7 @@ class RuntimeServer(Monitored):
                 sort=req.sort,
                 query=Query.and_if_set(req.query, extra_query),
             )
-            results = os_client.search(
-                index=IndexType.BENCH.get_index_name(project_id=project_v.project_id),
-                body=search,
-            )
+            results = os_client.search(index=project_v.project.os_name, body=search)
             elements: list[typing.Any] = []
             for r in results["hits"]["hits"]:
                 elements.append(unpack(r))
