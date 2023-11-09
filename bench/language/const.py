@@ -327,8 +327,8 @@ class IssueType(enum.StrEnum):
     TASK_IS_STATIC = "TASK_IS_STATIC"
 
 
-class WorkerRegion(enum.StrEnum):
-    US_CENTRAL = "US_CENTRAL"
+class ProjectRegion(enum.StrEnum):
+    US_WEST = "US_WEST"
     EU_CENTRAL = "EU_CENTRAL"
 
 

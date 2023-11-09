@@ -19,6 +19,7 @@ from bench.language.const import (
     IssueKind,
     ModuleNodeType,
     NodeTrackingLevel,
+    ProjectRegion,
     RunStatus,
     ScheduleType,
     SessionAccessLevel,
@@ -29,7 +30,6 @@ from bench.language.const import (
     TypeHint,
     TypeTag,
     WorkerProfile,
-    WorkerRegion,
     WorkerSetStatus,
 )
 from bench.language.database import HasDatabase
@@ -1195,7 +1195,7 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
 class WorkerSetData:
     id: UUID
     project_id: UUID
-    region: WorkerRegion
+    region: ProjectRegion
     profile: WorkerProfile
     sleeping: bool
     status: WorkerSetStatus

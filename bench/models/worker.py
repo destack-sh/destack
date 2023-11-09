@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from bench.language.const import WorkerProfile, WorkerRegion, WorkerSetStatus
+from bench.language.const import ProjectRegion, WorkerProfile, WorkerSetStatus
 from bench.models.utils import UUIDModel, get_choices
 
 
@@ -11,7 +11,7 @@ class WorkerSet(UUIDModel):
     """A desired-state set of homogenous workers for a project. Maps to/from k8 deployments."""
 
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="worker_sets")
-    region = models.CharField(max_length=32, choices=get_choices(WorkerRegion))
+    region = models.CharField(max_length=32, choices=get_choices(ProjectRegion))
     profile = models.CharField(max_length=32, choices=get_choices(WorkerProfile))
     sleeping = models.BooleanField(default=False)
     desired_replicas = models.IntegerField(default=0)

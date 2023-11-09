@@ -1374,6 +1374,11 @@ export type ProjectInviteInput = {
 
 export type ProjectOperationInfo = OperationInfo | Project;
 
+export enum ProjectRegion {
+  EuCentral = "EU_CENTRAL",
+  UsWest = "US_WEST",
+}
+
 export type ProjectRemoveMembershipInput = {
   id: Scalars["GlobalID"]["input"];
   userId: Scalars["GlobalID"]["input"];
@@ -2571,11 +2576,6 @@ export enum WorkerProfile {
   XlargeMem = "XLARGE_MEM",
 }
 
-export enum WorkerRegion {
-  EuCentral = "EU_CENTRAL",
-  UsCentral = "US_CENTRAL",
-}
-
 export type WorkerSet = Node & {
   __typename?: "WorkerSet";
   availableReplicas: Scalars["Int"]["output"];
@@ -2588,7 +2588,7 @@ export type WorkerSet = Node & {
   profile: WorkerProfile;
   project: Project;
   readyReplicas: Scalars["Int"]["output"];
-  region: WorkerRegion;
+  region: ProjectRegion;
   sleeping: Scalars["Boolean"]["output"];
   status: WorkerSetStatus;
   targetReplicas: Scalars["Int"]["output"];
@@ -5284,7 +5284,7 @@ export type RevealSecretQuery = {
 export type WorkerSetContentFragment = {
   __typename?: "WorkerSet";
   id: any;
-  region: WorkerRegion;
+  region: ProjectRegion;
   profile: WorkerProfile;
   sleeping: boolean;
   status: WorkerSetStatus;

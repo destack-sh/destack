@@ -259,7 +259,7 @@ defineExpose({
           </div>
           <!-- TODO @UX: assist code completion in terminal -->
           <MonacoEditor
-            class="min-h-[22px] w-full"
+            class="h-full min-h-[22px] w-full"
             ref="inputRef"
             v-model="input"
             @update:model-value="onInputWrite"

@@ -1024,6 +1024,11 @@ input ProjectInviteInput {
 
 union ProjectOperationInfo = Project | OperationInfo
 
+enum ProjectRegion {
+  US_WEST
+  EU_CENTRAL
+}
+
 input ProjectRemoveMembershipInput {
   id: GlobalID!
   userId: GlobalID!
@@ -2099,11 +2104,6 @@ enum WorkerProfile {
   XLARGE_MEM
 }
 
-enum WorkerRegion {
-  US_CENTRAL
-  EU_CENTRAL
-}
-
 type WorkerSet implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -2111,7 +2111,7 @@ type WorkerSet implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   profile: WorkerProfile!
-  region: WorkerRegion!
+  region: ProjectRegion!
   sleeping: Boolean!
   status: WorkerSetStatus!
   desiredReplicas: Int!
