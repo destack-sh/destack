@@ -239,7 +239,7 @@ def write_module_to_os(
         return
     ret = os_client.bulk(ops, refresh="wait_for" if wait else False)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write module to OpenSearch: {ret['errors']}")
+        raise RuntimeError(f"failed to write module to OpenSearch: {ret['errors'][:5]}")
 
 
 def write_module_to_os_from_db(project_v: models.ProjectVersion, *, wipe: bool) -> None:
@@ -272,7 +272,7 @@ def write_session_to_os(
     )
     ret = os_client.bulk(ops)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write session to OpenSearch: {ret['errors']}")
+        raise RuntimeError(f"failed to write session to OpenSearch: {ret['errors'][:5]}")
 
 
 def write_sessions_to_os(project_v: models.ProjectVersion) -> None:
@@ -291,7 +291,7 @@ def write_sessions_to_os(project_v: models.ProjectVersion) -> None:
     )
     ret = os_client.bulk(ops)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write sessions to OpenSearch: {ret['errors']}")
+        raise RuntimeError(f"failed to write sessions to OpenSearch: {ret['errors'][:5]}")
 
 
 def delete_module_in_os(project_v: models.ProjectVersion):
