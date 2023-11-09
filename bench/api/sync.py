@@ -24,7 +24,7 @@ from bench.msg.messages import (
     ModuleInternalChangedPayload,
     NMessageType,
 )
-from bench.search.crud import write_edits_to_os
+from bench.server.search import write_edits_to_os
 from bench.worker.edit import MutableThing, input_to_gql_jsonable, map_edit_from_api
 
 logger = structlog.get_logger(__name__)

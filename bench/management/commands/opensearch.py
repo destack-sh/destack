@@ -5,7 +5,7 @@ from django.db import transaction
 from bench import models
 from bench.models import Project
 from bench.search.client import os_client
-from bench.search.crud import create_bench_search_index
+from bench.server.search import create_bench_search_index
 
 logger = structlog.get_logger(__name__)
 
