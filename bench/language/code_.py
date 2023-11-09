@@ -18,10 +18,10 @@ from more_itertools import first, last
 from bench.language import IssueType
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodePath, TypeFlag
+from bench.language.expression import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.field import TypedDict
 from bench.language.module import LookupBy, Node, ScopeNode, node_component, nruntime
 from bench.language.packer import check_type, pack_value, unpack_value
-from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import Blob, BlobStatus
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env

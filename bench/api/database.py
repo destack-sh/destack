@@ -25,7 +25,6 @@ from bench.language import Q, Query, QueryOp
 from bench.models import ModuleAccessLevel
 from bench.search import mirror
 from bench.search.client import os_client
-from bench.search.core import IndexType
 from bench.search.mapping import encode_cursor, prepare_search
 from bench.utils.dt import utcnow_with_tz
 
@@ -192,7 +191,7 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
         count: Optional[bool] = None,
     ) -> ListConnectionWithTotalCount[Record]:
         statement = models.Statement.objects.get(id=statement_id.node_id)
-        check_module_node_access(info, statement, ModuleAccessLevel.Read)
+        access = check_module_node_access(info, statement, ModuleAccessLevel.Read)
 
         query = query.to_dsl() if query else None
         query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_key", value=statement.key), query)
@@ -207,10 +206,7 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
             query=query,
         )
 
-        results = os_client.search(
-            index=IndexType.BENCH.get_index_name(statement.project_version.project_id),
-            body=search,
-        )
+        results = os_client.search(index=access.project.os_name, body=search)
 
         edges = []
         for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):

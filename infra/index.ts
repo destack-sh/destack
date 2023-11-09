@@ -3,7 +3,7 @@ import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { getBenchUserS3AccessKey, makeALBController, makeEbsCsiDriver } from "./aws";
+import { getBenchUserS3AccessKey, makeALBController, makeEbsCsiDriver, makeOpensearch, makeRds } from "./aws";
 import * as random from "@pulumi/random";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
@@ -68,69 +68,29 @@ const imagePullSecret = new k8s.core.v1.Secret(
 const albIngressController = makeALBController(eksVpc, eksCluster);
 const ebsCsiDriver = makeEbsCsiDriver(eksVpc, eksCluster);
 
-// DB: RDS Aurora Postgres cluster/database
-const dbSecurityGroup = new aws.ec2.SecurityGroup("db", {
-  // TODO @Cleanup: pods should connect directly to DB instance (not via publicly accessible)
-  ingress: [
-    {
-      fromPort: 5432,
-      toPort: 5432,
-      protocol: "tcp",
-      cidrBlocks: ["0.0.0.0/0"],
-    },
-  ],
-  egress: [
-    {
-      fromPort: 0,
-      toPort: 0,
-      protocol: "-1",
-      cidrBlocks: ["0.0.0.0/0"],
-    },
-  ],
-});
-const globalDb = new aws.rds.Cluster("db", {
-  engine: "aurora-postgresql",
-  clusterIdentifier: "db",
-  engineVersion: "14.6",
-  databaseName: "postgres",
-  deletionProtection: true,
-  masterUsername: "postgres",
-  masterPassword: config.requireSecret("dbPassword"),
-  backupRetentionPeriod: 7,
-  preferredBackupWindow: "04:00-06:00",
-  vpcSecurityGroupIds: [dbSecurityGroup.id],
-});
-const globalDBInstance = new aws.rds.ClusterInstance("db", {
-  clusterIdentifier: globalDb.clusterIdentifier,
-  instanceClass: "db.t4g.medium",
-  engine: "aurora-postgresql",
-  engineVersion: "14.6",
-  publiclyAccessible: true,
-  performanceInsightsEnabled: true,
+// DB: RDS Aurora Postgres cluster/database (global and user)
+const { dbInstance: globalDbInstance } = makeRds("global-db", "db.t3.medium", {
+  password: config.requireSecret("globalDbPassword"),
+  aliases: ["db"], // used to be just "db"
 });
 const globalDbSecret = new k8s.core.v1.Secret(
-  "db",
+  "global-db",
   {
     metadata: { namespace: "default" },
     type: "Opaque",
     data: {
-      password: config.requireSecret("dbPassword").apply((password) => Buffer.from(password).toString("base64")),
+      password: config.requireSecret("globalDbPassword").apply((password) => Buffer.from(password).toString("base64")),
     },
   },
   { provider: eksCluster.provider }
 );
 // db env vars
-const GLOBAL_DB_ENV_VARS = [
+const GLOBAL_PG_VARS = [
+  { name: "GLOBAL_PG_HOST", value: globalDbInstance.endpoint },
+  { name: "GLOBAL_PG_NAME", value: "postgres" },
+  { name: "GLOBAL_PG_USERNAME", value: "postgres" },
   {
-    name: "BENCH_DB_NAME",
-    value: "postgres",
-  },
-  {
-    name: "BENCH_DB_USER",
-    value: "postgres",
-  },
-  {
-    name: "BENCH_DB_PASSWORD",
+    name: "GLOBAL_PG_PASSWORD",
     valueFrom: {
       secretKeyRef: {
         name: globalDbSecret.metadata.name,
@@ -138,114 +98,37 @@ const GLOBAL_DB_ENV_VARS = [
       },
     },
   },
-  {
-    name: "BENCH_POSTGRES_HOST",
-    value: globalDb.endpoint,
-  },
-  {
-    name: "BENCH_POSTGRES_PORT",
-    value: globalDb.port.apply((port) => port.toString()),
-  },
-  {
-    name: "PGCRYPTO_KEY",
-    value: config.requireSecret("PGCRYPTO_KEY"),
-  },
+  { name: "GLOBAL_PG_PORT", value: globalDbInstance.port.apply((port) => port.toString()) },
+  { name: "PGCRYPTO_KEY", value: config.requireSecret("PGCRYPTO_KEY") },
 ];
 
-// Search: OpenSearch cluster
-const opensearchDomainName = `bench-${config.require("env")}`;
-const opensearchSecurityGroup = new aws.ec2.SecurityGroup("opensearch", {
-  ingress: [{ fromPort: 443, toPort: 443, protocol: "tcp", cidrBlocks: ["0.0.0.0/0"] }],
-  egress: [{ fromPort: 0, toPort: 0, protocol: "-1", cidrBlocks: ["0.0.0.0/0"] }],
-  vpcId: eksVpc.vpcId,
+// Search: OpenSearch cluster (shared between global and user for now)
+const { osDomain: sharedOsDomain } = makeOpensearch("shared-os", 1, "t3.medium.search", {
+  password: config.requireSecret("sharedOsPassword"),
+  aliases: ["opensearch"], // used to be just "opensearch"
+  vpc: eksVpc,
+  region: config.require("awsRegion"),
 });
-const opensearchDomain = new aws.opensearch.Domain(opensearchDomainName, {
-  domainName: opensearchDomainName,
-  engineVersion: "OpenSearch_2.9",
-  clusterConfig: {
-    instanceType: "t3.medium.search",
-    instanceCount: 1,
-  },
-  domainEndpointOptions: {
-    enforceHttps: true,
-    tlsSecurityPolicy: "Policy-Min-TLS-1-2-2019-07",
-  },
-  ebsOptions: {
-    ebsEnabled: true,
-    volumeSize: 50,
-    volumeType: "gp3",
-  },
-  encryptAtRest: {
-    enabled: true,
-  },
-  nodeToNodeEncryption: {
-    enabled: true,
-  },
-  vpcOptions: {
-    subnetIds: eksVpc.privateSubnetIds.apply((ids) => ids.slice(0, 1)),
-    securityGroupIds: [opensearchSecurityGroup.id],
-  },
-  // public access with fine grained access control
-  accessPolicies: JSON.stringify({
-    Version: "2012-10-17",
-    Statement: [
-      {
-        Effect: "Allow",
-        Principal: {
-          AWS: "*",
-        },
-        Action: "es:*",
-        Resource: `arn:aws:es:${config.require("awsRegion")}:*:domain/${opensearchDomainName}/*`,
-      },
-    ],
-  }),
-  advancedOptions: {
-    "rest.action.multi.allow_explicit_index": "true",
-  },
-  advancedSecurityOptions: {
-    enabled: true,
-    internalUserDatabaseEnabled: true,
-    masterUserOptions: {
-      masterUserName: "opensearch",
-      masterUserPassword: config.requireSecret("opensearchPassword"),
-    },
-  },
-});
-const opensearchSecret = new k8s.core.v1.Secret(
-  "opensearch",
+const sharedOsSecret = new k8s.core.v1.Secret(
+  "shared-os",
   {
     metadata: { namespace: "default" },
     type: "Opaque",
     data: {
-      password: config
-        .requireSecret("opensearchPassword")
-        .apply((password) => Buffer.from(password).toString("base64")),
+      password: config.requireSecret("sharedOsPassword").apply((password) => Buffer.from(password).toString("base64")),
     },
   },
   { provider: eksCluster.provider }
 );
-const OPENSEARCH_ENV_VARS = [
+const GLOBAL_OS_VARS = [
+  { name: "GLOBAL_OS_HOST", value: sharedOsDomain.endpoint },
+  { name: "GLOBAL_OS_PORT", value: "443" },
+  { name: "GLOBAL_OS_USERNAME", value: "opensearch" },
   {
-    name: "OPENSEARCH_DOMAIN",
-    value: opensearchDomainName,
-  },
-  {
-    name: "OPENSEARCH_URL",
-    value: opensearchDomain.endpoint,
-  },
-  {
-    name: "OPENSEARCH_PORT",
-    value: "443",
-  },
-  {
-    name: "OPENSEARCH_USERNAME",
-    value: "opensearch",
-  },
-  {
-    name: "OPENSEARCH_PASSWORD",
+    name: "GLOBAL_OS_PASSWORD",
     valueFrom: {
       secretKeyRef: {
-        name: opensearchSecret.metadata.name,
+        name: sharedOsSecret.metadata.name,
         key: "password",
       },
     },
@@ -358,11 +241,8 @@ const s3AccessKeySecret = new k8s.core.v1.Secret("s3AccessKeySecret", {
 });
 
 // S3 backend env vars
-const AWS_BACKEND_ENV_VARS = [
-  {
-    name: "AWS_REGION",
-    value: config.require("awsRegion"),
-  },
+const AWS_BACKEND_VARS = [
+  { name: "AWS_REGION", value: config.require("awsRegion") },
   {
     name: "AWS_ACCESS_KEY_ID",
     valueFrom: {
@@ -507,7 +387,7 @@ const WORKER_ENV_VARS = [
 const WORKER_ENV_VARS_ENCODED = pulumi
   .all(WORKER_ENV_VARS.map((env) => pulumi.interpolate`${env.name}=${env.value}`))
   .apply((vars) => Buffer.from(vars.join(";")).toString("base64"));
-const KUBERNETES_ENV_VARS = [
+const KUBERNETES_VARS = [
   { name: "KUBERNETES_WORKER_IMAGE", value: `ghcr.io/symbolx/bench-worker:${imageVersion}` },
   { name: "KUBERNETES_WORKER_ENV_VARS", value: WORKER_ENV_VARS_ENCODED },
   { name: "KUBERNETES_WORKER_IMAGE_PULL_SECRET_NAME", value: imagePullSecret.metadata.name },
@@ -531,9 +411,9 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               ports: [{ containerPort: 80, name: "http" }],
               env: [
                 ...PUBLIC_BACKEND_VARS,
-                ...GLOBAL_DB_ENV_VARS,
-                ...OPENSEARCH_ENV_VARS,
-                ...AWS_BACKEND_ENV_VARS,
+                ...GLOBAL_PG_VARS,
+                ...GLOBAL_OS_VARS,
+                ...AWS_BACKEND_VARS,
                 ...BASE_PRIVATE_BACKEND_VARS,
                 ...SOCIAL_AUTH_VARS,
               ],
@@ -567,9 +447,9 @@ const serverDeployment = new k8s.apps.v1.Deployment(
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               env: [
                 ...PUBLIC_BACKEND_VARS,
-                ...OPENSEARCH_ENV_VARS,
-                ...GLOBAL_DB_ENV_VARS,
-                ...AWS_BACKEND_ENV_VARS,
+                ...GLOBAL_OS_VARS,
+                ...GLOBAL_PG_VARS,
+                ...AWS_BACKEND_VARS,
                 ...BASE_PRIVATE_BACKEND_VARS,
                 { name: "SEND_API_PUB_MSG", value: "" },
               ],
@@ -584,12 +464,12 @@ const serverDeployment = new k8s.apps.v1.Deployment(
               ports: [{ containerPort: 80, name: "http" }],
               env: [
                 ...PUBLIC_BACKEND_VARS,
-                ...GLOBAL_DB_ENV_VARS,
-                ...OPENSEARCH_ENV_VARS,
+                ...GLOBAL_PG_VARS,
+                ...GLOBAL_OS_VARS,
                 ...PRIVATE_BACKEND_VARS,
-                ...AWS_BACKEND_ENV_VARS,
+                ...AWS_BACKEND_VARS,
                 ...BASE_PRIVATE_BACKEND_VARS,
-                ...KUBERNETES_ENV_VARS,
+                ...KUBERNETES_VARS,
               ],
               command: ["python", "manageserver.py", "all"],
               resources: { requests: { cpu: "1000m", memory: "2000Mi" } },

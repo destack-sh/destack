@@ -17,9 +17,7 @@ from bench.language import (
     TypeTag,
 )
 from bench.language.const import TypeFlag
-from bench.language.field import TYPE_TAG_BY_TYPE_HINT
-from bench.language.packer import TYPENAME_SENTINEL
-from bench.language.query import (
+from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     ComparisonQuery,
     CompoundQuery,
@@ -28,6 +26,8 @@ from bench.language.query import (
     VectorQuery,
     get_default_sort,
 )
+from bench.language.field import TYPE_TAG_BY_TYPE_HINT
+from bench.language.packer import TYPENAME_SENTINEL
 from bench.search import mirror
 from bench.search.mirror import DocumentType
 

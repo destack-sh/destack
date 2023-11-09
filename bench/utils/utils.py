@@ -25,10 +25,13 @@ def get_from_env(
     key: str,
     default: Optional[Any] = None,
     *,
+    alt: Optional[str] = None,
     optional: bool = False,
     type_cast: Optional[Callable] = None,
 ) -> Any:
     value = os.getenv(key)
+    if alt and not value:
+        value = os.getenv(alt)
     if value is None or value == "":
         if optional:
             return None

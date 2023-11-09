@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 from uuid import UUID
 
-from bench.language.query import TYPE_DISCRIMINATOR_KEY, SubfieldType
+from bench.language.expression import TYPE_DISCRIMINATOR_KEY, SubfieldType
 
 
 class FieldType(enum.StrEnum):
@@ -421,16 +421,18 @@ CUSTOM_ANALYZERS = {
     },
 }
 
+GLOBAL_INDEX_NAME = "bench-global"
+
 
 class IndexType(enum.StrEnum):
     """The index type within Bench."""
 
     GLOBAL = "global"
-    BENCH = "project"
+    LOCAL = "project"
 
     @property
     def is_project_scoped(self) -> bool:
-        return self in (IndexType.BENCH,)
+        return self in (IndexType.LOCAL,)
 
     def get_index_name(self, project_id: UUID = None):
         if self.is_project_scoped != (project_id is not None):

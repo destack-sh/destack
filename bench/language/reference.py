@@ -2,8 +2,8 @@ from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
 from uuid import UUID
 
 from bench.language.const import INTERP_NODE_TYPES, MNT, IssueType, StatementReference
+from bench.language.expression import Sort
 from bench.language.module import Node, ScopeNode, node_component, nproperty
-from bench.language.query import Sort
 from bench.utils.utils import identity
 
 if TYPE_CHECKING:

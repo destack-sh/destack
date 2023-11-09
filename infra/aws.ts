@@ -418,3 +418,134 @@ export function getBenchUserS3AccessKey() {
     secretAccessKey: s3UserAccessKey.secret,
   });
 }
+
+export function makeRds(name: string, instanceClass: string, config: { password: any; aliases?: string[] }) {
+  const extra = { aliases: config.aliases?.map((name) => ({ name })) };
+  const dbSecurityGroup = new aws.ec2.SecurityGroup(
+    name,
+    {
+      ingress: [
+        {
+          fromPort: 5432,
+          toPort: 5432,
+          protocol: "tcp",
+          cidrBlocks: ["0.0.0.0/0"],
+        },
+      ],
+      egress: [
+        {
+          fromPort: 0,
+          toPort: 0,
+          protocol: "-1",
+          cidrBlocks: ["0.0.0.0/0"],
+        },
+      ],
+    },
+    { ...extra }
+  );
+  const dbCluster = new aws.rds.Cluster(
+    name,
+    {
+      engine: "aurora-postgresql",
+      clusterIdentifier: name,
+      engineVersion: "14.6",
+      databaseName: "postgres",
+      deletionProtection: true,
+      masterUsername: "postgres",
+      masterPassword: config.password,
+      backupRetentionPeriod: 7,
+      preferredBackupWindow: "04:00-06:00",
+      vpcSecurityGroupIds: [dbSecurityGroup.id],
+    },
+    { ...extra }
+  );
+  const dbInstance = new aws.rds.ClusterInstance(
+    name,
+    {
+      clusterIdentifier: dbCluster.clusterIdentifier,
+      instanceClass,
+      engine: "aurora-postgresql",
+      engineVersion: "14.6",
+      publiclyAccessible: true,
+      performanceInsightsEnabled: true,
+    },
+    { ...extra }
+  );
+
+  return { dbCluster, dbInstance, dbSecurityGroup };
+}
+
+export function makeOpensearch(
+  name: string,
+  instanceCount: number,
+  instanceType: string,
+  config: { password: any; aliases?: string[]; vpc: awsx.ec2.Vpc; region: string }
+) {
+  const extra = { aliases: config.aliases?.map((name) => ({ name })) };
+  const osSecurityGroup = new aws.ec2.SecurityGroup(
+    name,
+    {
+      ingress: [{ fromPort: 443, toPort: 443, protocol: "tcp", cidrBlocks: ["0.0.0.0/0"] }],
+      egress: [{ fromPort: 0, toPort: 0, protocol: "-1", cidrBlocks: ["0.0.0.0/0"] }],
+      vpcId: config.vpc.vpcId,
+    },
+    { ...extra }
+  );
+  const osDomain = new aws.opensearch.Domain(
+    name,
+    {
+      domainName: name,
+      engineVersion: "OpenSearch_2.9",
+      clusterConfig: {
+        instanceType,
+        instanceCount,
+      },
+      domainEndpointOptions: {
+        enforceHttps: true,
+        tlsSecurityPolicy: "Policy-Min-TLS-1-2-2019-07",
+      },
+      ebsOptions: {
+        ebsEnabled: true,
+        volumeSize: 50,
+        volumeType: "gp3",
+      },
+      encryptAtRest: {
+        enabled: true,
+      },
+      nodeToNodeEncryption: {
+        enabled: true,
+      },
+      vpcOptions: {
+        subnetIds: config.vpc.privateSubnetIds.apply((ids) => ids.slice(0, 1)),
+        securityGroupIds: [osSecurityGroup.id],
+      },
+      // public access with fine grained access control
+      accessPolicies: JSON.stringify({
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Principal: {
+              AWS: "*",
+            },
+            Action: "es:*",
+            Resource: `arn:aws:es:${config.region}:*:domain/${name}/*`,
+          },
+        ],
+      }),
+      advancedOptions: {
+        "rest.action.multi.allow_explicit_index": "true",
+      },
+      advancedSecurityOptions: {
+        enabled: true,
+        internalUserDatabaseEnabled: true,
+        masterUserOptions: {
+          masterUserName: "opensearch",
+          masterUserPassword: config.password,
+        },
+      },
+    },
+    { ...extra }
+  );
+  return { osDomain, osSecurityGroup };
+}

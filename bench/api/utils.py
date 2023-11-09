@@ -19,7 +19,8 @@ from strawberry_django.fields.types import OperationInfo
 from strawberry_django.mutations.fields import _handle_exception
 
 from bench import models
-from bench.language import Q, query
+from bench.language import Q
+from bench.language import expression as expr
 from bench.msg.messages import ClientOrigin
 from bench.utils.utils import DEBUG, LOCAL, sentry_capture
 
@@ -225,10 +226,9 @@ class ThingBatch(Iterable):
         return iter(self.things)
 
 
-SortOrder = strawberry.enum(query.SortOrder)
-SortMode = strawberry.enum(query.SortMode)
-QueryOp = strawberry.enum(query.QueryOp)
-AggregationOp = strawberry.enum(query.AggregationOp)
+SortOrder = strawberry.enum(expr.SortOrder)
+SortMode = strawberry.enum(expr.SortMode)
+QueryOp = strawberry.enum(expr.QueryOp)
 
 
 @strawberry.input
@@ -238,7 +238,7 @@ class SearchQuery:
     value: Optional[JSON] = None
     queries: Optional[list["SearchQuery"]] = None
 
-    def to_dsl(self) -> query.Query:
+    def to_dsl(self) -> expr.Query:
         queries = [q.to_dsl() for q in self.queries] if self.queries else None
         return Q(self.op, queries=queries, field=self.key, value=self.value)
 
@@ -249,5 +249,5 @@ class SearchSort:
     order: SortOrder = SortOrder.ASCENDING
     mode: Optional[SortMode] = None
 
-    def to_dsl(self) -> query.Sort:
-        return query.Sort(self.key, self.order, self.mode)
+    def to_dsl(self) -> expr.Sort:
+        return expr.Sort(self.key, self.order, self.mode)

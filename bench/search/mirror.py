@@ -8,7 +8,7 @@ import bench.search.core as os
 from bench import models
 from bench.language import StatementType, wire
 from bench.language.const import RunStatus
-from bench.language.query import SubfieldType
+from bench.language.expression import SubfieldType
 
 if TYPE_CHECKING:
     from django.db.models import Model

@@ -35,7 +35,7 @@ DOCUMENTS_BY_INDEX = {
         mirror.Tile,
         mirror.Comment,
     ],
-    IndexType.BENCH: [
+    IndexType.LOCAL: [
         mirror.Record,
         mirror.Session,
         mirror.Run,
@@ -125,7 +125,7 @@ def _create_index(
 
 def create_global_search_index(name: str = None, upsert: bool = False) -> None:
     _create_index(
-        name or IndexType.GLOBAL.get_index_name(),
+        name or os.GLOBAL_INDEX_NAME,
         shards=GLOBAL_INDEX_SHARDS,
         replicas=GLOBAL_INDEX_REPLICAS,
         documents=DOCUMENTS_BY_INDEX[IndexType.GLOBAL],
@@ -135,10 +135,10 @@ def create_global_search_index(name: str = None, upsert: bool = False) -> None:
 
 def create_bench_search_index(project_id: UUID, name: str = None, upsert: bool = False) -> None:
     _create_index(
-        name or IndexType.BENCH.get_index_name(project_id),
+        name or IndexType.LOCAL.get_index_name(project_id),
         shards=BENCH_INDEX_SHARDS,
         replicas=BENCH_INDEX_REPLICAS,
-        documents=DOCUMENTS_BY_INDEX[IndexType.BENCH],
+        documents=DOCUMENTS_BY_INDEX[IndexType.LOCAL],
         upsert=upsert,
     )
 
@@ -152,13 +152,13 @@ OS_SEMANTIC_FIELD_EDIT = {
     MET.CREATE_RESOLVED_FIELD,
 }
 
-BENCH_INDEXED_MNTS = (MNT.RECORD,)
-BENCH_INDEXED_MODELS = (models.Record,)
+BENCH_LOCAL_MNTS = (MNT.RECORD,)
+BENCH_LOCAL_MODELS = (models.Record,)
 
 
 def get_index_for_mnt(mnt: MNT, project_id: UUID) -> str:
-    if mnt in BENCH_INDEXED_MNTS:
-        return IndexType.BENCH.get_index_name(project_id)
+    if mnt in BENCH_LOCAL_MNTS:
+        return IndexType.LOCAL.get_index_name(project_id)
     else:
         return IndexType.GLOBAL.get_index_name()
 
@@ -170,13 +170,11 @@ def write_edits_to_os(
     Writes/mirrors any relevant edit to OpenSearch.
     All regular DB edit come this way.
     """
-    global_index = IndexType.GLOBAL.get_index_name()
-    bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
-
+    project: models.Project = project_v.project
     if not edit:
         if refresh:
             # just refresh the index
-            os_client.indices.refresh(index=bench_index)
+            os_client.indices.refresh(index=project.os_name)
         return  # nothing to do
 
     # mut state
@@ -185,13 +183,13 @@ def write_edits_to_os(
 
     def _flush():
         if field_mappings_dirty[0]:  # if needed, must happen before any other edit
-            update_dynamic_field_mappings(project_v)
+            update_field_mappings(project_v)
 
         if ops:
             logger.debug(
                 "os.write_edits",
                 project_version=project_v,
-                index=bench_index,
+                index=project.os_name,
                 edit=len(edit),
                 operations=len(ops),
             )
@@ -209,7 +207,7 @@ def write_edits_to_os(
         if e.type in OS_SEMANTIC_FIELD_EDIT:
             field_mappings_dirty[0] = True
 
-        index = bench_index if e.type.mnt in BENCH_INDEXED_MNTS else global_index
+        index = project.os_name if e.type.mnt in BENCH_LOCAL_MNTS else os.GLOBAL_INDEX_NAME
         if e.type.kind == MEK.TRUNCATE and e.mnt == MNT.RECORD:
             _flush()  # unfortunately can't be batched with the other operations
             os_client.delete_by_query(
@@ -237,25 +235,23 @@ def write_module_to_os(
     Writes all nodes in the module to OpenSearch.
     If wipe, first delete all module data for that version.
     """
-    global_index = IndexType.GLOBAL.get_index_name()
-    bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
-
     ops: list[dict] = []
 
     if wipe:
         delete_module_in_os(project_v)
 
-    update_dynamic_field_mappings(project_v)  # can we only do this sometimes? when?
+    update_field_mappings(project_v)  # can we only do this sometimes? when?
 
+    project: models.Project = project_v.project
     for node in model_tree.walk_bfs():
         if not mirror.has_mirror(node):
             continue
-        index = bench_index if isinstance(node, BENCH_INDEXED_MODELS) else global_index
+        index = project.os_name if isinstance(node, BENCH_LOCAL_MODELS) else os.GLOBAL_INDEX_NAME
         ops.append({"index": {"_index": index, "_id": str(node.id)}})
         ops.append(mirror.mirror_node(project_v, node).to_dict())
 
     logger.debug(
-        "os.write_module", project_version=project_v, index=bench_index, operations=len(ops)
+        "os.write_module", project_version=project_v, index=project.os_name, operations=len(ops)
     )
     if not ops:
         return
@@ -267,11 +263,11 @@ def write_module_to_os(
 def delete_module_in_os(project_v: models.ProjectVersion):
     logger.debug("os.delete", project_version=project_v)
     os_client.delete_by_query(
-        index=IndexType.GLOBAL.get_index_name(),
+        index=os.GLOBAL_INDEX_NAME,
         body={"query": {"term": {"project_version_id": project_v.id}}},
     )
     os_client.delete_by_query(
-        index=IndexType.BENCH.get_index_name(project_v.project_id),
+        index=project_v.project.os_name,
         body={
             "query": {
                 "bool": {
@@ -293,7 +289,7 @@ def write_session_to_os(
 ) -> None:
     """Writes/mirrors a session to OpenSearch."""
 
-    bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
+    bench_index = IndexType.LOCAL.get_index_name(project_v.project_id)
     ops: list[dict] = []
     if session:
         ops.append({"index": {"_index": bench_index, "_id": str(session.id)}})
@@ -321,7 +317,7 @@ def write_runs_to_os(runs: list[wire.RunData]) -> None:
     ops: list[dict] = []
 
     for run in runs:
-        index_name = IndexType.BENCH.get_index_name(run.project_id)
+        index_name = IndexType.LOCAL.get_index_name(run.project_id)
         ops.append({"index": {"_index": index_name, "_id": str(run.id)}})
         ops.append(mirror.unpack_node_flat(None, run, None).to_dict())
 
@@ -331,9 +327,9 @@ def write_runs_to_os(runs: list[wire.RunData]) -> None:
         raise RuntimeError(f"failed to write runs to OpenSearch: {ret['items'][:5]}")
 
 
-def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
+def update_field_mappings(project_v: models.ProjectVersion) -> None:
     """
-    Updates *all* dynamic OpenSearch field mappings for a module
+    Updates *all* OpenSearch field mappings for a module
     TODO @Performance: update OS field mappings more efficiently on field edit
       (especially for library/dependency mappings)
     """
@@ -408,44 +404,4 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
         sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items()}
         mappings[key] = {"type": "object", "dynamic": "strict", "properties": sub_mappings}
 
-    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
-    os_client.indices.put_mapping(index=index_name, body={"properties": mappings})
-
-
-def create_record(project_v: models.ProjectVersion, record: mirror.Record):
-    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
-    os_record = os_client.create(index=index_name, id=record.id, body=record.to_dict())
-    record.revision = os_record["_version"]
-    return record
-
-
-def update_record(
-    project_v: models.ProjectVersion, record: mirror.Record.Partial
-) -> mirror.Record.Partial:
-    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
-    os_record = os_client.update(
-        index=index_name,
-        id=record.id,
-        body={"doc": record.to_dict()},
-    )
-    record.revision = os_record["_version"]
-    return record
-
-
-def delete_record(project_v: models.ProjectVersion, record_id: UUID) -> None:
-    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
-    os_client.delete(index=index_name, id=record_id)
-
-
-def batch_update_records(
-    project_v: models.ProjectVersion, records: list[mirror.Record.Partial]
-) -> list[mirror.Record.Partial]:
-    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
-    os_operations = []
-    for record in records:
-        os_operations.append({"update": {"_index": index_name, "_id": str(record.id)}})
-        os_operations.append({"doc": record.to_dict()})
-    os_records = os_client.bulk(os_operations)
-    for i, os_record in enumerate(os_records["items"]):
-        records[i].revision = os_record["update"]["_version"]
-    return records
+    os_client.indices.put_mapping(index=project_v.project.os_name, body={"properties": mappings})

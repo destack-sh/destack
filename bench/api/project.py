@@ -84,18 +84,16 @@ class ProjectUsage:
 def get_project_usage(info: Info) -> ProjectUsage:
     from bench.search import mirror
     from bench.search.client import os_client
-    from bench.search.core import IndexType
 
     project_id = UUID(info.variable_values.get("projectId").node_id)
     project_head_id = models.Project.objects.only("head_id").get(id=project_id).head_id
 
     # count total active records
+    project = models.Project.objects.get(id=project_id)
     records_total_search = prepare_search(
         type=mirror.DocumentType.RECORD, project_version_id=project_head_id, limit=0, count=True
     )
-    records_total_results = os_client.search(
-        index=IndexType.BENCH.get_index_name(project_id), body=records_total_search
-    )
+    records_total_results = os_client.search(index=project.os_name, body=records_total_search)
 
     # count total object bytes
     object_bytes_total = (
