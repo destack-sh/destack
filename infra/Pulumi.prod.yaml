@@ -1,24 +1,5 @@
 config:
-  pulumi:template: kubernetes-aws-typescript
   aws:region: "eu-central-1"
-  bench:awsRegion: eu-central-1
-  bench:env: prod
-  bench:desiredClusterSize: "3"
-  bench:eksNodeInstanceType: t3.medium
-  bench:maxClusterSize: "4"
-  bench:minClusterSize: "2"
-  bench:apiAllowedHosts: "*"
-  bench:apiAllowedOrigins: https://api.bench.is,https://bench.is
-  bench:webappUrl: https://bench.is
-  bench:ghcrToken:
-    secure: AAABAEEyRBP91rRUbjQJZ/l3IjF6qVVIPMXxk8yMov7HkCt5ziuHbjqnoFF4OY8HpI9aG6TXmG+bu5NjKViUoeIko4oFM98d5wIWezpMpDGKf8vDZiwBRcl9PeV4RMgvbRD5PQ1Qpok=
-  bench:globalDbPassword:
-    secure: AAABAPAK6vinbym9SIGWu6dSO53w7Xk4SnlxxaH7ESjTr8Av9i0vjzk3YzdexRa3epM+hivMoYR0++6IwhM6KnVrCWO/9clEROm1ejQXlz3wTx1DHOk5psxWZ5Wj+Us=
-  bench:sharedOsPassword:
-    secure: AAABANnU/ujGstYwg+Tcyfyug64gPvG32UxB2LufnN5bulDtOL63kwWQ5Uwz16Wagq5AJWJJ7YPBfrTyHfdHJh9UCZIZHEHh7rlhyM8r7T18jQ==
-  bench:version: "current"
-  bench:vpcNetworkCidr: 10.0.0.0/16
-  bench:betterstackValuesPath: .betterstack.prod.yaml
   bench:ANTHROPIC_API_KEY:
     secure: AAABAHyFILHkCEywro2kS7igSsknM+6GFPZ19UFUzGJtdTkO5pja1sGWJdTSo72bbH+Y/xy2wXFGECZ4BJWhuOq+l+i3N5FWPzlCMaZcCAO40aS2tqHTJttfro6EXyef1GXO9CLPjPLG9kFa5ZOns2/XQ0DLNAgthw==
   bench:BETTERSTACK_SECRET:
@@ -44,3 +25,24 @@ config:
     secure: AAABAKGJYWYdzK1qSL0JL7dmzsmR55HcceQTZCTm/mtwHJj7bmPxfF1GI+06wXsY7uSISumEejggQqGZv71HrniCm/rMHRLm4/Lola1UsAHdcRrt9OIF+QNvDjLo5+FGQJzic2STT70=
   bench:SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET:
     secure: AAABAFDcESm6OkHD9XtpeEsTK7tNRSrIb5zQfb9zIuB83lLcu0vZ7dg+R5RNo5RWud1dwLaGccaBs9UtgTy8PzvKiw==
+  bench:apiAllowedHosts: "*"
+  bench:apiAllowedOrigins: https://api.bench.is,https://bench.is
+  bench:awsRegion: eu-central-1
+  bench:betterstackValuesPath: .betterstack.prod.yaml
+  bench:desiredClusterSize: "3"
+  bench:eksNodeInstanceType: t3.medium
+  bench:env: prod
+  bench:ghcrToken:
+    secure: AAABAEEyRBP91rRUbjQJZ/l3IjF6qVVIPMXxk8yMov7HkCt5ziuHbjqnoFF4OY8HpI9aG6TXmG+bu5NjKViUoeIko4oFM98d5wIWezpMpDGKf8vDZiwBRcl9PeV4RMgvbRD5PQ1Qpok=
+  bench:globalDbPassword:
+    secure: AAABAPAK6vinbym9SIGWu6dSO53w7Xk4SnlxxaH7ESjTr8Av9i0vjzk3YzdexRa3epM+hivMoYR0++6IwhM6KnVrCWO/9clEROm1ejQXlz3wTx1DHOk5psxWZ5Wj+Us=
+  bench:maxClusterSize: "4"
+  bench:minClusterSize: "2"
+  bench:sharedOsPassword:
+    secure: AAABANnU/ujGstYwg+Tcyfyug64gPvG32UxB2LufnN5bulDtOL63kwWQ5Uwz16Wagq5AJWJJ7YPBfrTyHfdHJh9UCZIZHEHh7rlhyM8r7T18jQ==
+  bench:userDbPassword:
+    secure: AAABAAMpH4OXy1Mtxv3pwraWcU4SszDrNSimjs2q0HIPSH+FnJ8TUJSfVlyMiXYKH6pnjNeMZLbd8CGmW2GSxO+RvppjRUA+PqHMCHJbQ/9+CkWQaq5shP+EJvaKIFYb
+  bench:version: "current"
+  bench:vpcNetworkCidr: 10.0.0.0/16
+  bench:webappUrl: https://bench.is
+  pulumi:template: kubernetes-aws-typescript

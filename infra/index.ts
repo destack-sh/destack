@@ -3,7 +3,14 @@ import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { getBenchUserS3AccessKey, makeALBController, makeEbsCsiDriver, makeOpensearch, makeRds } from "./aws";
+import {
+  getBenchUserS3AccessKey,
+  makeALBController,
+  makeEbsCsiDriver,
+  makeOpensearch,
+  makeRds,
+  secretFrom as secretFrom,
+} from "./aws";
 import * as random from "@pulumi/random";
 import * as fs from "fs";
 import * as yaml from "js-yaml";
@@ -71,20 +78,12 @@ const ebsCsiDriver = makeEbsCsiDriver(eksVpc, eksCluster);
 // DB: RDS Aurora Postgres cluster/database (global and user)
 const { dbInstance: globalDbInstance } = makeRds("global-db", "db.t3.medium", {
   password: config.requireSecret("globalDbPassword"),
-  aliases: ["db"], // used to be just "db"
+  aliases: ["db"], // previous names
 });
-const globalDbSecret = new k8s.core.v1.Secret(
-  "global-db",
-  {
-    metadata: { namespace: "default" },
-    type: "Opaque",
-    data: {
-      password: config.requireSecret("globalDbPassword").apply((password) => Buffer.from(password).toString("base64")),
-    },
-  },
-  { provider: eksCluster.provider }
-);
-// db env vars
+const globalDbSecret = secretFrom("global-db", config.requireSecret("globalDbPassword"), {
+  key: "password",
+  provider: eksCluster.provider,
+});
 const GLOBAL_PG_VARS = [
   { name: "GLOBAL_PG_HOST", value: globalDbInstance.endpoint },
   { name: "GLOBAL_PG_NAME", value: "postgres" },
@@ -101,25 +100,39 @@ const GLOBAL_PG_VARS = [
   { name: "GLOBAL_PG_PORT", value: globalDbInstance.port.apply((port) => port.toString()) },
   { name: "PGCRYPTO_KEY", value: config.requireSecret("PGCRYPTO_KEY") },
 ];
+const { dbInstance: userDbInstance } = makeRds("user-db", "db.t3.medium", {
+  password: config.requireSecret("userDbPassword"),
+});
+const userDbSecret = secretFrom("user-db", config.requireSecret("userDbPassword"), {
+  key: "password",
+  provider: eksCluster.provider,
+});
+const USER_PG_VARS = [
+  { name: "USER_PG_HOST", value: userDbInstance.endpoint },
+  { name: "USER_PG_NAME", value: "postgres" },
+  { name: "USER_PG_USERNAME", value: "postgres" },
+  {
+    name: "USER_PG_PASSWORD",
+    valueFrom: {
+      secretKeyRef: {
+        name: userDbSecret.metadata.name,
+        key: "password",
+      },
+    },
+  },
+  { name: "USER_PG_PORT", value: userDbInstance.port.apply((port) => port.toString()) },
+];
 
 // Search: OpenSearch cluster (shared between global and user for now)
 const { osDomain: sharedOsDomain } = makeOpensearch("shared-os", 1, "t3.medium.search", {
   password: config.requireSecret("sharedOsPassword"),
-  aliases: ["opensearch"], // used to be just "opensearch"
   vpc: eksVpc,
   region: config.require("awsRegion"),
 });
-const sharedOsSecret = new k8s.core.v1.Secret(
-  "shared-os",
-  {
-    metadata: { namespace: "default" },
-    type: "Opaque",
-    data: {
-      password: config.requireSecret("sharedOsPassword").apply((password) => Buffer.from(password).toString("base64")),
-    },
-  },
-  { provider: eksCluster.provider }
-);
+const sharedOsSecret = secretFrom("shared-os", config.requireSecret("sharedOsPassword"), {
+  key: "password",
+  provider: eksCluster.provider,
+});
 const GLOBAL_OS_VARS = [
   { name: "GLOBAL_OS_HOST", value: sharedOsDomain.endpoint },
   { name: "GLOBAL_OS_PORT", value: "443" },
@@ -447,8 +460,9 @@ const serverDeployment = new k8s.apps.v1.Deployment(
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               env: [
                 ...PUBLIC_BACKEND_VARS,
-                ...GLOBAL_OS_VARS,
                 ...GLOBAL_PG_VARS,
+                ...USER_PG_VARS,
+                ...GLOBAL_OS_VARS,
                 ...AWS_BACKEND_VARS,
                 ...BASE_PRIVATE_BACKEND_VARS,
                 { name: "SEND_API_PUB_MSG", value: "" },
@@ -465,6 +479,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
               env: [
                 ...PUBLIC_BACKEND_VARS,
                 ...GLOBAL_PG_VARS,
+                ...USER_PG_VARS,
                 ...GLOBAL_OS_VARS,
                 ...PRIVATE_BACKEND_VARS,
                 ...AWS_BACKEND_VARS,

@@ -2,7 +2,7 @@ import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
-import { output } from "@pulumi/pulumi";
+import { Output, output } from "@pulumi/pulumi";
 
 // see https://www.pulumi.com/blog/kubernetes-ingress-with-aws-alb-ingress-controller-and-pulumi-crosswalk/
 
@@ -506,7 +506,7 @@ export function makeOpensearch(
       },
       ebsOptions: {
         ebsEnabled: true,
-        volumeSize: 50,
+        volumeSize: 100, // does this even matter?
         volumeType: "gp3",
       },
       encryptAtRest: {
@@ -548,4 +548,18 @@ export function makeOpensearch(
     { ...extra }
   );
   return { osDomain, osSecurityGroup };
+}
+
+export function secretFrom(name: string, password: Output<string>, config: { key: string; provider: any }) {
+  return new k8s.core.v1.Secret(
+    name,
+    {
+      metadata: { namespace: "default" },
+      type: "Opaque",
+      data: {
+        [config.key]: password.apply((password) => Buffer.from(password).toString("base64")),
+      },
+    },
+    { provider: config.provider }
+  );
 }
