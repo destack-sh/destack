@@ -8,8 +8,7 @@ from bench import models
 from bench.language import wire
 from bench.models import packer
 from bench.models.utils import create_models_bfs
-from bench.search.crud import write_module_to_os
-from bench.server.search import update_field_mappings_from_db
+from bench.server.search import update_field_mappings_from_db, write_module_to_os
 from bench.utils.utils import DEBUG, LOCAL
 
 logger = structlog.get_logger(__name__)
@@ -148,7 +147,7 @@ class Command(BaseCommand):
                 )
                 create_models_bfs(unpacked.walk_bfs_batched(), exclude=[project_v.id])
                 update_field_mappings_from_db(project_v)
-                write_module_to_os(project_v, unpacked, wipe=True)
+                write_module_to_os(project_v, unpacked.walk_bfs(), wipe=True)
 
             # set parents to previous version
             for version in project.versions.exclude(tag=None).order_by("-tag"):

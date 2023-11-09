@@ -568,7 +568,7 @@ const monitoringNamespace = new k8s.core.v1.Namespace(
 const monitoringServiceAccount = new k8s.core.v1.ServiceAccount("monitoringServiceAccount", {
   metadata: {
     namespace: monitoringNamespace.metadata.name,
-    name: "vector-service-account", // required by betterstack
+    name: "vector-service-account", // required by betterstack / Vector
   },
 });
 const monitoringServiceAccountSecret = new k8s.core.v1.Secret(

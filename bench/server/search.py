@@ -7,7 +7,8 @@ from bench import models
 from bench.language import libs, wire
 from bench.language.const import INTERP_NODE_TYPES
 from bench.language.edit import MEK, MNT, EditData
-from bench.language.module import NodeTree
+from bench.models import packer
+from bench.models.packer import collect_node
 from bench.search import core as os
 from bench.search import mirror
 from bench.search.client import os_client
@@ -206,7 +207,11 @@ def update_field_mappings_from_db(project_v: models.ProjectVersion) -> None:
 
 
 def write_module_to_os(
-    project_v: models.ProjectVersion, model_tree: NodeTree, *, wipe: bool, wait: bool = False
+    project_v: models.ProjectVersion,
+    nodes: typing.Iterable[models.ModuleNode] | typing.Generator[models.ModuleNode, None, None],
+    *,
+    wipe: bool,
+    wait: bool = False,
 ):
     """
     Writes all nodes in the module to OpenSearch.
@@ -220,7 +225,7 @@ def write_module_to_os(
     update_field_mappings_from_db(project_v)  # can we only do this sometimes? when?
 
     project: models.Project = project_v.project
-    for node in model_tree.walk_bfs():
+    for node in nodes:
         if not mirror.has_mirror(node):
             continue
         index = project.os_name if isinstance(node, BENCH_LOCAL_MODELS) else os.GLOBAL_INDEX_NAME
@@ -237,6 +242,11 @@ def write_module_to_os(
         raise RuntimeError(f"failed to write module to OpenSearch: {ret['items'][:5]}")
 
 
+def write_module_to_os_from_db(project_v: models.ProjectVersion, *, wipe: bool) -> None:
+    nodes = collect_node(project_v)
+    write_module_to_os(project_v, nodes.visited.values(), wipe=wipe)
+
+
 def write_session_to_os(
     project_v: models.ProjectVersion,
     session: typing.Optional[models.Session],
@@ -245,7 +255,7 @@ def write_session_to_os(
 ) -> None:
     """Writes/mirrors a session to OpenSearch."""
 
-    bench_index = IndexType.LOCAL.get_index_name(project_v.project_id)
+    bench_index = project_v.project.os_name
     ops: list[dict] = []
     if session:
         ops.append({"index": {"_index": bench_index, "_id": str(session.id)}})
@@ -263,6 +273,25 @@ def write_session_to_os(
     ret = os_client.bulk(ops)
     if ret.get("errors"):
         raise RuntimeError(f"failed to write session to OpenSearch: {ret['items'][:5]}")
+
+
+def write_sessions_to_os(project_v: models.ProjectVersion) -> None:
+    """Writes/mirrors all sessions and runs to OpenSearch."""
+    bench_index = project_v.project.os_name
+    ops: list[dict] = []
+    for session in project_v.sessions.all():
+        ops.append({"index": {"_index": bench_index, "_id": str(session.id)}})
+        ops.append(mirror.mirror_node(project_v, session).to_dict())
+    for run in project_v.runs.all():
+        ops.append({"index": {"_index": bench_index, "_id": str(run.id)}})
+        run = packer.pack_data(run)
+        ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
+    logger.debug(
+        "os.write_sessions", project_version=project_v, index=bench_index, operations=len(ops)
+    )
+    ret = os_client.bulk(ops)
+    if ret.get("errors"):
+        raise RuntimeError(f"failed to write sessions to OpenSearch: {ret['items'][:5]}")
 
 
 def delete_module_in_os(project_v: models.ProjectVersion):
