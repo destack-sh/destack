@@ -221,8 +221,8 @@ class StatementManager(models.Manager["Statement"]):
         # pack relevant nodes
         if strip_template_tags:
             template_key = symbolx_lib.resolve(".builtins.template").key
-            filter = packer.DEFAULT_PACK_FILTER.filter(
-                Tagging, lambda qs: qs.exclude(key=template_key)
+            filter = packer.DEFAULT_PACK_FILTER.extend(
+                (Tagging, lambda qs: qs.exclude(key=template_key))
             )
         else:
             filter = packer.DEFAULT_PACK_FILTER

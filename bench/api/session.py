@@ -128,7 +128,7 @@ def get_error_nice(root: "Run") -> Optional[RunError]:
 
 
 WorkerProfile = strawberry.enum(bench.language.const.WorkerProfile)
-WorkerRegion = strawberry.enum(bench.language.const.WorkerRegion)
+WorkerRegion = strawberry.enum(bench.language.const.ProjectRegion)
 WorkerSetStatus = strawberry.enum(bench.language.const.WorkerSetStatus)
 
 

@@ -549,7 +549,7 @@ class RuntimeServer(Monitored):
             if statement.name == "send email":
                 if not await models.User.objects.filter(email=inputs["to"]).aexists():
                     raise RuntimeError(f"{inputs['to']} is not a Bench user")
-                byline = f"<br><br><i>Sent via Bench {VERSION} {msg.p.module_name}</i>"
+                byline = f"<br><br><i>Sent via {msg.p.module_name} (Bench {VERSION})</i>"
                 inputs["body"] = inputs["body"] + byline
                 if not settings.LOCAL:
                     loops_request(

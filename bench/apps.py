@@ -27,3 +27,6 @@ class BenchConfig(AppConfig):
             from bench.management.commands.genschema import write_schema
 
             write_schema("schema.gen.graphql", schema)
+
+        # import libs to ensure they're populated
+        from bench.language.libs import _symbolx_utils  # noqa: F401

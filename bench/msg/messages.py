@@ -10,10 +10,10 @@ from uuid import UUID
 
 from bench.language.const import (
     ModuleReference,
+    ProjectRegion,
     SessionAccessLevel,
     TriggerType,
     WorkerProfile,
-    WorkerRegion,
 )
 from bench.language.edit import EditData
 from bench.language.model import ModelErrorType
@@ -513,7 +513,7 @@ class RepWakeRuntimePayload(Payload):
 class ReqConfigureWorkerSetPayload(Payload):
     project_id: UUID
     profile: WorkerProfile
-    region: WorkerRegion
+    region: ProjectRegion
     target_replicas: int
 
 

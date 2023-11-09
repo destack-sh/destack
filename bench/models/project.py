@@ -818,12 +818,12 @@ def create_per_project_os_index(project: Project):
 
 
 def create_default_worker_set(project: Project):
-    from bench.language.const import WorkerProfile, WorkerRegion, WorkerSetStatus
+    from bench.language.const import ProjectRegion, WorkerProfile, WorkerSetStatus
     from bench.models import WorkerSet
 
     worker_set = WorkerSet.objects.create(
         project_id=project.id,
-        region=WorkerRegion.EU_CENTRAL,
+        region=ProjectRegion.EU_CENTRAL,
         profile=WorkerProfile.TINY,
         sleeping=True,
         desired_replicas=1,

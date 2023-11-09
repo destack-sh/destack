@@ -292,6 +292,9 @@ const windowFocus = useWindowFocus();
 watch(
   () => [bench.canUse, windowFocus.value, workerSet.value?.status],
   () => {
+    if (!windowFocus.value) {
+      lastWakeAttemptAt.value = null;
+    }
     if (bench.canUse && windowFocus.value && workerSet.value?.status == WorkerSetStatus.Sleeping) {
       const secondsSinceLastAttempt = lastWakeAttemptAt.value?.diffNow("seconds").seconds ?? Infinity;
       if (secondsSinceLastAttempt >= 20) {
