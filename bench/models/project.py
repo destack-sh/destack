@@ -500,7 +500,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         """Copies the given files from a source version to a target version (by default everything)"""
 
         from bench.models import packer
-        from bench.search.crud import write_module_to_os
+        from bench.server.search import write_module_to_os
 
         # pack relevant nodes
         filter = packer.DEFAULT_PACK_FILTER.extend()
@@ -523,7 +523,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         # unpack and save
         unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched(), exclude={target.id})
-        write_module_to_os(target, unpacked, wipe=True)
+        write_module_to_os(target, unpacked.walk_bfs(), wipe=True)
 
 
 class ProjectVersion(CrudNode):
@@ -541,6 +541,8 @@ class ProjectVersion(CrudNode):
     parents = models.ManyToManyField("ProjectVersion", related_name="children", symmetrical=False)
     files: models.QuerySet["File"]  # noqa via File
     statements: models.QuerySet["Statement"]  # noqa via Statement
+    sessions: models.QuerySet["Session"]  # noqa via Session
+    runs: models.QuerySet["Run"]  # noqa via Run
 
     def __str__(self) -> str:
         return f"{self.project.path}@{self.tag or self.id.hex}"
@@ -642,7 +644,7 @@ class FileManager(models.Manager):
     ) -> "File":
         """Copies a file from one module to another (may be the same)."""
         from bench.models import packer
-        from bench.search.crud import write_module_to_os
+        from bench.server.search import write_module_to_os
 
         target_id = target_id or uuid.uuid4()
         # pack relevant nodes
@@ -662,7 +664,7 @@ class FileManager(models.Manager):
         # unpack and save
         unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched())
-        write_module_to_os(target, unpacked, wipe=False)
+        write_module_to_os(target, unpacked.walk_bfs(), wipe=False)
 
         target_file = unpacked.nodes_by_id[target_id]
         return target_file

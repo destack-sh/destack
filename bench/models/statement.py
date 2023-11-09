@@ -216,7 +216,7 @@ class StatementManager(models.Manager["Statement"]):
         """Copies the given source statements into the target version in given new files"""
 
         from bench.models import File, ProjectVersion, packer
-        from bench.search.crud import write_module_to_os
+        from bench.server.search import write_module_to_os
 
         # pack relevant nodes
         if strip_template_tags:
@@ -257,7 +257,7 @@ class StatementManager(models.Manager["Statement"]):
             pre_unpacked={target.id: target, **{p.id: p for p in target_parents}},
         )
         create_models_bfs(unpacked.walk_bfs_batched())
-        write_module_to_os(target, unpacked, wipe=False)
+        write_module_to_os(target, unpacked.walk_bfs(), wipe=False)
 
     def get_descendants(
         self, statement_ids: list[UUID], deleted_at: Optional[datetime] = None
