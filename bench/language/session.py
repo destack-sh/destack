@@ -55,18 +55,8 @@ class ModuleWriter(abc.ABC):
         raise NotImplementedError
 
 
-class NoopModuleWriter(ModuleWriter):
-    async def write_module(self, edits: list["EditData"], refresh_index: bool) -> bool:
-        return True
-
-    async def write_session(
-        self, session: "Session", runs: list["Run"], logs: list["LogEntry"]
-    ) -> bool:
-        return True
-
-
 class Session:
-    """A managed context for running code in a module (may mutate)."""
+    """A managed context for running a module."""
 
     def __init__(
         self,
@@ -105,9 +95,6 @@ class Session:
         self.cache_async = CacheAsync(module)
         self.storage = Storage(module)
 
-        self._executor = ThreadPoolExecutor(max_workers=1)
-        self._log = logger.bind(session=self)
-        self._editor = ModuleEditor(self.module._local_tree, module.project_id, module.id)
         self.tracer = SessionTracer(
             self,
             editor=self._editor,
@@ -117,6 +104,10 @@ class Session:
         )
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
+
+        self._executor = ThreadPoolExecutor(max_workers=1)
+        self._log = logger.bind(session=self)
+        self._editor = ModuleEditor(self.module._local_tree, module.project_id, module.id)
 
         self._dangling_nodes_by_ck: dict[UUID, Node] = {}
         self._past_flushes: list[tuple[int, set[MET]]] = []
@@ -181,19 +172,7 @@ class Session:
         await self.tracer.open()
         logger.debug("session.open", session=self)
 
-    async def _do_search_preflight(self, search: "Search") -> None:
-        """FLush any relevant edits before searching."""
-        # nocheckin: move query preflight to database
-        from bench.language.database import RecordSearch
-
-        if isinstance(search, RecordSearch):
-            # force flush and index if there are any pending database edits
-            #  (or previous edits that were already flushed but didn't refresh the index)
-            # TODO @Performance: force flush module for record search only if needed
-            if self._editor.edits or self._past_flushes:
-                await self.aflush(optimistic=False, refresh_index=True)
-
-    async def _do_flush(self, edits: list["EditData"], refresh_index: bool) -> bool:
+    async def _do_commit(self, edits: list["EditData"], refresh_index: bool) -> bool:
         """Flush any pending edits to the module"""
         if not edits and not refresh_index:
             return True  # skip if no edits and no index refresh
@@ -217,7 +196,7 @@ class Session:
         # ensure edits are flushed before we exit out of topmost run for error propagation
         return self._editor.edits and len(self.tracer.stacktrace) == 1
 
-    async def aflush(self, optimistic: bool = False, refresh_index: bool = False):
+    async def acommit(self, optimistic: bool = False, refresh_index: bool = False):
         """
         Flushes all module edits.
         If optimistic, this will return before the flush is complete (but will wait on close).
@@ -239,17 +218,17 @@ class Session:
         edits = EditBundle(edits).compact()
         self._editor.reset()
         self.tracer._new_statement_ids.clear()
-        flush = self._do_flush(edits, refresh_index)
+        flush = self._do_commit(edits, refresh_index)
         if optimistic:
             self._pending_flushes.append((len(edits), asyncio.create_task(flush)))
         else:
             await flush
         self._past_flushes.append((len(edits), set(m.type for m in edits)))
 
-    def flush(self, optimistic: bool = False):
+    def commit(self, optimistic: bool = False):
         if not self._editor.edits:
             return
-        asgiref.sync.async_to_sync(self.aflush)(optimistic=optimistic)
+        asgiref.sync.async_to_sync(self.acommit)(optimistic=optimistic)
 
     async def aclose(self):
         """Closes the session, flushing any edits and preventing further execution/edit."""
@@ -257,7 +236,7 @@ class Session:
             raise RuntimeError(f"session already closed {self}")
         self.closed_at = utcnow_with_tz()
         if not self._failed_flush:
-            await self.aflush(optimistic=True)
+            await self.acommit(optimistic=True)
         # TODO @Robustness: flush pending edits inside top level run (to report errors properly)
         # await all pending flushes
         pending_edits_count = sum(count for count, _ in self._pending_flushes)
@@ -274,7 +253,7 @@ class Session:
 
     def _on_mutated(self, editor: "ModuleEditor", edit: "EditData"):
         if len(self._editor.edits) > SESSION_EDIT_FLUSH_WATERMARK:
-            self.flush(optimistic=True)
+            self.commit(optimistic=True)
 
     async def __aenter__(self):
         await self.aopen()
@@ -404,8 +383,8 @@ class SessionTracer:
         self._cached_logs: deque[LogEntry] = deque(maxlen=LOG_CACHE_SIZE)
         self._pending_logs: list[LogEntry] = []
         self._pending_runs: dict[UUID, Run] = {}
-        self._flush_cancel: asyncio.Event | None = None
-        self._flush_task: asyncio.Task | None = None
+        self._commit_cancel: asyncio.Event | None = None
+        self._commit_task: asyncio.Task | None = None
         self._root_run_id = root_run_id
         self._new_statement_ids: set[UUID] = set()
 
@@ -458,7 +437,7 @@ class SessionTracer:
 
     #
     # Module
-    # Edits are actually written to local source in Session._do_flush.
+    # Edits are actually written to local source in Session._do_commit.
     # We don't track interp edits here because they're manually handled in runtime.
     #
 
@@ -721,10 +700,10 @@ class SessionTracer:
         capture.start()
         return capture
 
-    async def _flush(self, force: bool = False, kill_pending: bool = False) -> None:
+    async def _commit(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session data."""
         if not force and not self._pending_logs and not self._pending_runs:
-            return  # skip if nothing to flush
+            return  # skip if nothing to commit
 
         with self._tracing_lock:
             logs = self._pending_logs[:]
@@ -732,40 +711,40 @@ class SessionTracer:
             runs = list(self._pending_runs.values())
             self._pending_runs.clear()
 
-            if kill_pending:
+            if kill_pending_runs:
                 # abort any remaining active runs
                 for run in chain(runs, self.runs.values()):
                     run._mark_dead_if_active()
 
-        # force flush module as well if a new statement was run
+        # force commit module as well if a new statement was run
         #  (since we need those field mappings, lest OS errors)
         if any(r.statement_id in self._new_statement_ids for r in runs):
-            await self.session.aflush(optimistic=False, refresh_index=False)
+            await self.session.acommit(optimistic=False, refresh_index=False)
 
         success = await self.session._writer.write_session(self.session, runs, logs)
         if not success:
             raise RuntimeError(f"failed to write session {self.session}")
 
-    async def open(self, flush_interval: float = SESSION_FLUSH_INTERVAL):
+    async def open(self, commit_interval: float = SESSION_FLUSH_INTERVAL):
         self.stdout_collector.start()
         self.stderr_collector.start()
 
         _cancel = asyncio.Event()
 
-        async def _flush_loop():
+        async def _commit_loop():
             while not _cancel.is_set():
-                await self._flush()
-                await asyncio.sleep(flush_interval)
+                await self._commit()
+                await asyncio.sleep(commit_interval)
 
-        self._flush_cancel = _cancel
-        self._flush_task = asyncio.create_task(_flush_loop())
+        self._commit_cancel = _cancel
+        self._commit_task = asyncio.create_task(_commit_loop())
 
     async def close(self):
         self.stdout_collector.stop()
         self.stderr_collector.stop()
 
-        self._flush_cancel.set()
-        await self._flush(force=True, kill_pending=True)  # flush pending data
+        self._commit_cancel.set()
+        await self._commit(force=True, kill_pending_runs=True)  # commit pending edits
 
 
 # We track the active root in a contextvar but not children

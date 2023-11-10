@@ -18,11 +18,6 @@ if TYPE_CHECKING:
 #
 
 
-@dataclass
-class Statement:
-    pass
-
-
 class ExpressionOp(enum.StrEnum):
     # logical
     NOT = "NOT"
@@ -105,6 +100,8 @@ def expression(*ops: ExprOp):
     """Register a query class for the given ops."""
 
     def decorator(cls: type[Expression]):
+        if not issubclass(cls, Expression):
+            raise TypeError(f"expression {cls} must be a subclass of {Expression}")
         cls = dataclass(cls, repr=False)
         cls._PROPERTIES = {f.name: f for f in cls.__dataclass_fields__.values()}
         for op in ops:
@@ -282,7 +279,7 @@ class SortMode(enum.StrEnum):
     MEDIAN = "MEDIAN"
 
 
-@dataclass
+@expression()
 class Sort(Expression):
     field: FieldOrStr
     order: SortOrder = SortOrder.ASCENDING

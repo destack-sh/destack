@@ -18,7 +18,7 @@ from more_itertools import first, last
 from bench.language import IssueType
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodePath, TypeFlag
-from bench.language.expression import ExpressionOp, Q, Query, Sort, SortMode, SortOrder
+from bench.language.expression import Q, Query, ExpressionOp, Sort, SortMode, SortOrder
 from bench.language.field import TypedDict
 from bench.language.module import LookupBy, Node, ScopeNode, node_component, nruntime
 from bench.language.packer import check_type, pack_value, unpack_value
@@ -417,7 +417,7 @@ class HasCode(Node):
             def _test_sync(*args, **kwargs):
                 self.current_run.value.test = True
                 ret = callable(*args, **kwargs)
-                self.session.flush()  # force any write errors to appear immediately
+                self.session.commit()  # force any write errors to appear immediately
                 return ret
 
             return _test_sync
@@ -426,7 +426,7 @@ class HasCode(Node):
             async def _test_async(*args, **kwargs):
                 self.current_run.value.test = True
                 ret = await callable(*args, **kwargs)  # force any errors to appear immediately
-                await self.session.aflush()
+                await self.session.acommit()
                 return ret
 
             return _test_async
@@ -465,7 +465,7 @@ class HasCode(Node):
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
             if session._needs_flush_before_exit:
-                await self.session.aflush()
+                await self.session.acommit()
         except BaseException as exception:
             session.tracer.run_exception(self, exception)
             raise
@@ -480,7 +480,7 @@ class HasCode(Node):
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
             if session._needs_flush_before_exit:
-                session.flush()
+                session.commit()
         except BaseException as exception:
             session.tracer.run_exception(self, exception)
             raise

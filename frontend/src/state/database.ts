@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { QueryOp, TypeHint, TypeTag, type SearchQuery } from "@/gql/graphql";
+import { ExpressionOp, TypeHint, TypeTag, type SearchQuery } from "@/gql/graphql";
 import { useCurrentModule } from "@/state/module";
 import type { useFields } from "@/state/statement";
 import { SubfieldType, TypeStorageFormat, getStorageFormat } from "@/state/type";
@@ -67,7 +67,7 @@ export function useDatabaseInlineSearch(
       ...stringFields.value.map(
         (f) =>
           ({
-            op: QueryOp.Matches,
+            op: ExpressionOp.Matches,
             key: "value." + module.getTypedKey(f),
             value: query.value,
           } as SearchQuery)
@@ -75,7 +75,7 @@ export function useDatabaseInlineSearch(
       ...nameFields.value.map(
         (f) =>
           ({
-            op: QueryOp.StartsWith,
+            op: ExpressionOp.StartsWith,
             key: "value." + module.getTypedKey(f) + "." + SubfieldType.starts_with,
             value: query.value?.toLowerCase(), // :StartsWithHack
           } as SearchQuery)
@@ -89,13 +89,13 @@ export function useDatabaseInlineSearch(
       if (matchingMembers == null || matchingMembers.length == 0) continue;
       subqueries.push({
         key: "value." + module.getTypedKey(enumField),
-        op: QueryOp.Equals,
+        op: ExpressionOp.Equals,
         value: matchingMembers.map((m) => m.key),
       } as SearchQuery);
     }
 
     if (subqueries.length == 0) return undefined; // TODO @UX: indicate inline search is not possible if no plausible subqueries
-    return { op: QueryOp.Or, queries: subqueries } as SearchQuery;
+    return { op: ExpressionOp.Or, queries: subqueries } as SearchQuery;
   }
 
   // update inline query on query change

@@ -1,3 +1,4 @@
+import enum
 import typing
 from typing import Optional
 from uuid import UUID
@@ -28,6 +29,7 @@ from bench.utils.utils import flatten_list
 
 if typing.TYPE_CHECKING:
     from bench.language import Field, Statement, View
+LOCAL_RECORD_CACHE_LIMIT = DATABASE_VERSIONED_RECORD_LIMIT
 
 logger = structlog.get_logger(__name__)
 
@@ -97,18 +99,136 @@ class Record(HasValue, Node):
 
 
 class RecordQuery:
-    query: Query
-    sort: list[Sort]
-    include: list["Field"]
-    select: list["Field"]
-    pass  # nocheckin design/scaffold
+    def __init__(
+        self,
+        database: "HasDatabase",
+        query: Query | None = None,
+        sort: list[Sort] = None,
+        include: list["Field"] = None,
+        select: list["Field"] = None,
+    ):
+        self._database = database
+        self._query = query
+        self._sort = sort
+        self._include = include
+        self._select = select
+
+    # nocheckin design/scaffold
+
+    def deepcopy(self):
+        return RecordQuery(
+            database=self._database,
+            query=self._query,
+            sort=self._sort,
+            include=self._include,
+            select=self._select,
+        )
+
+    async def _do_search_preflight(self, search: "Search") -> None:
+        """FLush any relevant edits before searching."""
+        # force flush and index if there are any pending database edits
+        #  (or previous edits that were already flushed but didn't refresh the index)
+        # TODO @Performance: force flush module for record search only if needed
+        session = self._database.session
+        if session._editor.edits or session._past_flushes:
+            await session.acommit(optimistic=False, refresh_index=True)
+
+    def filter(self, query: Query) -> "RecordQuery":
+        copy = self.deepcopy()
+        copy._query = query & self._query if self._query else query
+        return copy
+
+    def sort(self, sort: list[Sort] | Sort) -> "RecordQuery":
+        copy = self.deepcopy()
+        if isinstance(sort, Sort):
+            sort = [sort]
+        copy._sort = sort
+        return copy
+
+    def select(self, *fields: "Field") -> "RecordQuery":
+        raise NotImplementedError
+
+    def include(self, *fields: "Field") -> "RecordQuery":
+        raise NotImplementedError
+
+    def limit(self, limit: int) -> "RecordQuery":
+        raise NotImplementedError
+
+    def update(self, **kwargs) -> int:
+        raise NotImplementedError
+
+    def delete(self) -> int:
+        raise NotImplementedError
+
+
+class RelationType(enum.StrEnum):
+    OneToOne = "OneToOne"
+    OneToMany = "OneToMany"
+    ManyToMany = "ManyToMany"
+    ManyToOne = "ManyToOne"
 
 
 class RecordRelation:
-    pass  # nocheckin design/scaffold
+    """
+    A related (sub-)value in a record.
+    """
+
+    def __init__(
+        self, parent: "Record", field: "Field", type: RelationType, reverse_field: "Field" = None
+    ):
+        self._parent = parent
+        self._field = field
+        self._type = type
+        self._reverse_field: Optional["Field"] = reverse_field
+        self._loaded = False
+
+    def clear(self) -> None:
+        raise NotImplementedError
 
 
-LOCAL_RECORD_CACHE_LIMIT = DATABASE_VERSIONED_RECORD_LIMIT
+class RecordRelationToOne(RecordRelation):
+    """
+    The one side of a one-to-one or many-to-one relation.
+    """
+
+    def __init__(
+        self, parent: "Record", field: "Field", type: RelationType, reverse_field: "Field" = None
+    ):
+        super().__init__(parent, field, type, reverse_field)
+        self.value: Optional[Record] = None
+
+
+class RecordRelationToMany(RecordRelation):
+    """
+    The many side of a one-to-many or many-to-many relation.
+    """
+
+    def __init__(
+        self, parent: "Record", field: "Field", type: RelationType, reverse_field: "Field" = None
+    ):
+        super().__init__(parent, field, type, reverse_field)
+        self.value: list[Record] = []
+
+    def filter(self, query: Query) -> "RecordQuery":
+        raise NotImplementedError
+
+    def create(self, **kwargs) -> "Record":
+        raise NotImplementedError
+
+    def append(self, record: "Record") -> None:
+        raise NotImplementedError
+
+    def extend(self, *records: "Record") -> None:
+        raise NotImplementedError
+
+    def remove(self, record: "Record") -> None:
+        raise NotImplementedError
+
+    def count(self) -> int:
+        raise NotImplementedError
+
+    def __len__(self) -> int:
+        return self.count()
 
 
 class RecordList(NodeListBase[Record], RecordQuery):
@@ -118,38 +238,6 @@ class RecordList(NodeListBase[Record], RecordQuery):
      use local list for everything but search (for now) (in ~small databases only)
      need to fetch initial state on first read, use cache in RecordSearch, watermarks, etc.
     """
-
-    #
-    # Extra methods for record queries/expressions
-    #
-
-    def filter(self, query: Query) -> "RecordSearch":
-        raise NotImplementedError
-
-    def sort(self, sort: list[Sort] | Sort) -> "RecordSearch":
-        raise NotImplementedError
-
-    def limit(self, limit: int) -> "RecordSearch":
-        raise NotImplementedError
-
-    def __len__(self):
-        if self._cached_records_by_ck is not None:
-            return len(self._cached_records_by_ck)
-        else:
-            return self.search().count()
-
-    def __iter__(self):
-        if self._cached_records_by_ck is not None:
-            return iter(self._cached_records_by_ck.values())
-        else:
-            return iter(self.search())
-
-    def __aiter__(self):
-        return aiter(self.search())
-
-    #
-    # Standard NodeList methods
-    #
 
     def __init__(self, parent: "ScopeNode", property: NodeProperty):
         super().__init__(parent, property)
@@ -227,10 +315,26 @@ class RecordList(NodeListBase[Record], RecordQuery):
             self._cached_records_by_ck.clear()
 
     def __getitem__(self, item: slice):
-        raise NotImplementedError(f"index into {self!r} not supported")
+        raise NotImplementedError(f"index into {self!r} not yet supported")
 
     def __contains__(self, obj: object) -> bool:
         return False  # lookup by id?
+
+    #
+    # Extra methods for record queries/expressions
+    #
+
+    def __len__(self):
+        if self._cached_records_by_ck is not None:
+            return len(self._cached_records_by_ck)
+        return len(self.query())
+
+    def __iter__(self):
+        if self._cached_records_by_ck is not None:
+            return iter(self._cached_records_by_ck.values())
+
+    def __aiter__(self):
+        return aiter(self.search())
 
 
 @node_component
