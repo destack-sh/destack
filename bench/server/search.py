@@ -102,9 +102,9 @@ def _create_index(
         os_client.indices.open(index=index_name)
 
 
-def create_global_search_index(name: str = None, upsert: bool = False) -> None:
+def create_global_search_index(upsert: bool = False) -> None:
     _create_index(
-        name or os.GLOBAL_INDEX_NAME,
+        os.GLOBAL_INDEX_NAME,
         shards=GLOBAL_INDEX_SHARDS,
         replicas=GLOBAL_INDEX_REPLICAS,
         documents=DOCUMENTS_BY_INDEX[IndexType.GLOBAL],
@@ -112,9 +112,9 @@ def create_global_search_index(name: str = None, upsert: bool = False) -> None:
     )
 
 
-def create_bench_search_index(project_id: UUID, name: str = None, upsert: bool = False) -> None:
+def create_local_search_index(project_id: UUID, name: str, *, upsert: bool) -> None:
     _create_index(
-        name or IndexType.LOCAL.get_index_name(project_id),
+        name,
         shards=BENCH_INDEX_SHARDS,
         replicas=BENCH_INDEX_REPLICAS,
         documents=DOCUMENTS_BY_INDEX[IndexType.LOCAL],
@@ -247,18 +247,18 @@ def write_module_to_os_from_db(project_v: models.ProjectVersion, *, wipe: bool) 
     write_module_to_os(project_v, nodes.visited.values(), wipe=wipe)
 
 
-def write_runs_to_os(runs: list[wire.RunData]) -> None:
+def write_runs_to_os(os_names: str | list[str], runs: list[wire.RunData]) -> None:
     """Writes/mirrors runs (from different sessions/projects) to OpenSearch."""
 
     if not runs:
         return
+    if isinstance(os_names, list) and len(os_names) != len(runs):
+        raise ValueError(f"len(os_names) != len(runs): {len(os_names)} != {len(runs)}")
     ops: list[dict] = []
-
-    for run in runs:
-        index_name = IndexType.LOCAL.get_index_name(run.project_id)
-        ops.append({"index": {"_index": index_name, "_id": str(run.id)}})
+    for i, run in enumerate(runs):
+        index = os_names[i] if isinstance(os_names, list) else os_names
+        ops.append({"index": {"_index": index, "_id": str(run.id)}})
         ops.append(mirror.unpack_node_flat(None, run, None).to_dict())
-
     logger.debug("os.write_runs", operations=len(ops))
     ret = os_client.bulk(ops)
     if ret.get("errors"):
@@ -273,21 +273,19 @@ def write_session_to_os(
 ) -> None:
     """Writes/mirrors a session to OpenSearch."""
 
-    bench_index = project_v.project.os_name
+    os_name = project_v.project.os_name
     ops: list[dict] = []
     if session:
-        ops.append({"index": {"_index": bench_index, "_id": str(session.id)}})
+        ops.append({"index": {"_index": os_name, "_id": str(session.id)}})
         ops.append(mirror.mirror_node(project_v, session).to_dict())
     for run in runs:
-        ops.append({"index": {"_index": bench_index, "_id": str(run.id)}})
+        ops.append({"index": {"_index": os_name, "_id": str(run.id)}})
         ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
     for log in logs:
-        ops.append({"index": {"_index": bench_index, "_id": str(log.id)}})
+        ops.append({"index": {"_index": os_name, "_id": str(log.id)}})
         ops.append(mirror.unpack_node_flat(project_v, log, None).to_dict())
 
-    logger.debug(
-        "os.write_session", project_version=project_v, index=bench_index, operations=len(ops)
-    )
+    logger.debug("os.write_session", project_version=project_v, index=os_name, operations=len(ops))
     ret = os_client.bulk(ops)
     if ret.get("errors"):
         raise RuntimeError(f"failed to write session to OpenSearch: {ret['errors'][:5]}")

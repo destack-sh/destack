@@ -2,7 +2,7 @@ import structlog
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from bench.models.project import create_global_project_s3_bucket
+from bench.models.project import create_global_user_bucket
 
 logger = structlog.get_logger(__name__)
 
@@ -16,4 +16,4 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, action: str, *args, **options):
         if action == "create":
-            create_global_project_s3_bucket(ignore_exists=True)
+            create_global_user_bucket(ignore_exists=True)

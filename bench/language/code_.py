@@ -18,7 +18,7 @@ from more_itertools import first, last
 from bench.language import IssueType
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodePath, TypeFlag
-from bench.language.expression import Q, Query, QueryOp, Sort, SortMode, SortOrder
+from bench.language.expression import ExpressionOp, Q, Query, Sort, SortMode, SortOrder
 from bench.language.field import TypedDict
 from bench.language.module import LookupBy, Node, ScopeNode, node_component, nruntime
 from bench.language.packer import check_type, pack_value, unpack_value
@@ -500,7 +500,7 @@ STATIC_BUILTINS: dict[str, Any] = {
     # querying
     "Q": Q,
     "Query": Query,
-    "QueryOp": QueryOp,
+    "QueryOp": ExpressionOp,
     "Sort": Sort,
     "SortOrder": SortOrder,
     "SortMode": SortMode,

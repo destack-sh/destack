@@ -14,7 +14,7 @@ from django.db import transaction
 from more_itertools import first
 
 from bench import models, settings
-from bench.language import Module, Q, Query, QueryOp, Trigger, TriggerType, wire
+from bench.language import ExpressionOp, Module, Q, Query, Trigger, TriggerType, wire
 from bench.language.builtin import symbolx_lib
 from bench.language.cache import CacheAsync
 from bench.language.const import (
@@ -59,8 +59,6 @@ from bench.msg.messages import (
     RepRunInferencePayload,
     RepRunStatementPayload,
     RepSearch,
-    RepSearchLogPayload,
-    RepSearchRecordsPayload,
     RepSearchRunPayload,
     RepStartRunPayload,
     RepWakeRuntimePayload,
@@ -76,8 +74,6 @@ from bench.msg.messages import (
     ReqRunInferencePayload,
     ReqRunStatementPayload,
     ReqSearch,
-    ReqSearchLogPayload,
-    ReqSearchRecordsPayload,
     ReqSearchRunsPayload,
     ReqStartRunPayload,
     ReqWakeRuntimePayload,
@@ -101,9 +97,7 @@ from bench.worker.edit import get_api_edit_from_internal, trim_record_edits
 
 logger = structlog.get_logger(__name__)
 
-MAX_SEARCH_RECORDS_LIMIT = 500
-MAX_SEARCH_LOG_LIMIT = 1000
-MAX_SEARCH_RUN_LIMIT = 1000
+MAX_SEARCH_RUN_LIMIT = 100
 
 _cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, models.Project]] = {}
 
@@ -200,10 +194,8 @@ class RuntimeServer(Monitored):
             await handle_reply(NMessageType.WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.PULL_WORKER_RUNS, self.pull_runs),
-            await handle_reply(NMessageType.WAKE_RUNTIME, self.request_runtime),
-            await handle_reply(NMessageType.SEARCH_RECORDS, self.search_records),
+            await handle_reply(NMessageType.WAKE_RUNTIME, self.wake_runtime),
             await handle_reply(NMessageType.SEARCH_RUNS, self.search_runs),
-            await handle_reply(NMessageType.SEARCH_LOGS, self.search_log),
             await handle_reply(NMessageType.READ_BLOB, self.read_blob),
             await handle_reply(NMessageType.WRITE_BLOB, self.write_blob),
             await handle_reply(NMessageType.MARK_UPLOADED_BLOB, self.mark_uploaded_blob),
@@ -371,63 +363,23 @@ class RuntimeServer(Monitored):
         return rep
 
     @message_handler
-    async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
-        logger.debug("search.record", msg=msg)
-        extra_queries = []
-        if msg.p.statement_keys:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_key", value=msg.p.statement_keys))
-        # TODO @Security!: check if msg origin has read access to database
-        project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
-        rep = await sync_to_async(self._do_search)(
-            project_v=project_v,
-            extra_query=Q(QueryOp.AND, extra_queries) if extra_queries else None,
-            type=mirror.DocumentType.RECORD,
-            max_limit=MAX_SEARCH_RECORDS_LIMIT,
-            req=msg.p,
-            unpack=_unpack_record,
-            rep_cls=RepSearchRecordsPayload,
-        )
-        await msg.reply(rep)
-
-    @message_handler
     async def search_runs(self, msg: NMessage[ReqSearchRunsPayload]) -> None:
         logger.debug("search.run", msg=msg)
         # TODO @Security!: check if msg origin has read access to database
         extra_queries = []
         if msg.p.statements_ids:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", value=msg.p.statements_ids))
+            extra_queries.append(Q(ExpressionOp.EQUALS, "statement_id", value=msg.p.statements_ids))
         if msg.p.statements_cks:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", value=msg.p.statements_cks))
+            extra_queries.append(Q(ExpressionOp.EQUALS, "statement_ck", value=msg.p.statements_cks))
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
-            extra_query=Q(QueryOp.AND, extra_queries) if extra_queries else None,
+            extra_query=Q(ExpressionOp.AND, extra_queries) if extra_queries else None,
             type=mirror.DocumentType.RUN,
             max_limit=MAX_SEARCH_RUN_LIMIT,
             req=msg.p,
             unpack=_unpack_run,
             rep_cls=RepSearchRunPayload,
-        )
-        await msg.reply(rep)
-
-    @message_handler
-    async def search_log(self, msg: NMessage[ReqSearchLogPayload]) -> None:
-        logger.debug("search.log", msg=msg)
-        extra_queries = []
-        if msg.p.statements_ids:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", value=msg.p.statements_ids))
-        if msg.p.statements_cks:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", value=msg.p.statements_cks))
-        # TODO @Security!: check if msg origin has read access to database
-        project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
-        rep = await sync_to_async(self._do_search)(
-            project_v=project_v,
-            extra_query=Q(QueryOp.AND, extra_queries) if extra_queries else None,
-            type=mirror.DocumentType.LOG_ENTRY,
-            max_limit=MAX_SEARCH_LOG_LIMIT,
-            req=msg.p,
-            unpack=_unpack_log,
-            rep_cls=RepSearchLogPayload,
         )
         await msg.reply(rep)
 
@@ -573,7 +525,7 @@ class RuntimeServer(Monitored):
         await msg.reply(RepRunStatementPayload(outputs=outputs, error=error))
 
     @message_handler
-    async def request_runtime(self, msg: NMessage[ReqWakeRuntimePayload]):
+    async def wake_runtime(self, msg: NMessage[ReqWakeRuntimePayload]):
         logger.debug("runtime.wake", msg=msg)
         await self._prepare_runtime(msg.p.module_id)
         await msg.reply(RepWakeRuntimePayload(module_id=msg.p.module_id))

@@ -7,9 +7,9 @@ from typing import Any, NamedTuple, Optional, Union
 import bench.language as lang
 import bench.search.core as os
 from bench.language import (
+    ExpressionOp,
     Q,
     Query,
-    QueryOp,
     Sort,
     SortMode,
     SortOrder,
@@ -232,9 +232,9 @@ def compiler(dsl_type: type):
 @compiler(CompoundQuery)
 class CompoundQueryCompiler(Compiler):
     MAPPING = {
-        QueryOp.NOT: "must_not",
-        QueryOp.AND: "must",
-        QueryOp.OR: "should",
+        ExpressionOp.NOT: "must_not",
+        ExpressionOp.AND: "must",
+        ExpressionOp.OR: "should",
     }
 
     def compile(self, info: CompilationInfo, query: CompoundQuery) -> dict[str, Any]:
@@ -244,24 +244,24 @@ class CompoundQueryCompiler(Compiler):
 @compiler(ComparisonQuery)
 class ComparisonQueryCompiler(Compiler):
     def compile(self, info: CompilationInfo, query: ComparisonQuery) -> dict[str, Any]:
-        if query.op == QueryOp.EQUALS:
+        if query.op == ExpressionOp.EQUALS:
             if isinstance(query.value, list):
                 return {"terms": {query.key: query.value}}
             else:
                 return {"term": {query.key: query.value}}
-        elif query.op == QueryOp.NOT_EQUALS:
+        elif query.op == ExpressionOp.NOT_EQUALS:
             return {"bool": {"must_not": {"term": {query.key: query.value}}}}
-        elif query.op == QueryOp.GREATER_THAN:
+        elif query.op == ExpressionOp.GREATER_THAN:
             return {"range": {query.key: {"gt": query.value}}}
-        elif query.op == QueryOp.GREATER_THAN_OR_EQUALS:
+        elif query.op == ExpressionOp.GREATER_THAN_OR_EQUALS:
             return {"range": {query.key: {"gte": query.value}}}
-        elif query.op == QueryOp.LESS_THAN:
+        elif query.op == ExpressionOp.LESS_THAN:
             return {"range": {query.key: {"lt": query.value}}}
-        elif query.op == QueryOp.LESS_THAN_OR_EQUALS:
+        elif query.op == ExpressionOp.LESS_THAN_OR_EQUALS:
             return {"range": {query.key: {"lte": query.value}}}
-        elif query.op == QueryOp.MATCHES:
+        elif query.op == ExpressionOp.MATCHES:
             return {"match": {query.key: query.value}}
-        elif query.op == QueryOp.STARTS_WITH:
+        elif query.op == ExpressionOp.STARTS_WITH:
             return {"prefix": {query.key: query.value}}
         else:
             raise RuntimeError(f"unexpected query: {query}")
@@ -270,9 +270,9 @@ class ComparisonQueryCompiler(Compiler):
 @compiler(ExistenceQuery)
 class ExistenceQueryCompiler(Compiler):
     def compile(self, info: CompilationInfo, query: ExistenceQuery) -> dict[str, Any]:
-        if query.op == QueryOp.EXISTS:
+        if query.op == ExpressionOp.EXISTS:
             return {"exists": {"field": query.key}}
-        elif query.op == QueryOp.DOES_NOT_EXIST:
+        elif query.op == ExpressionOp.DOES_NOT_EXIST:
             return {"bool": {"must_not": {"exists": {"field": query.key}}}}
         else:
             raise RuntimeError(f"unexpected query: {query}")
@@ -348,14 +348,14 @@ def prepare_search(
     source: bool = True,
 ) -> dict:
     combined_query = Q(
-        QueryOp.AND,
+        ExpressionOp.AND,
         queries=[
-            Q(QueryOp.EQUALS, TYPE_DISCRIMINATOR_KEY, value=type.value),
-            ~Q(QueryOp.EXISTS, "deleted_at"),
+            Q(ExpressionOp.EQUALS, TYPE_DISCRIMINATOR_KEY, value=type.value),
+            ~Q(ExpressionOp.EXISTS, "deleted_at"),
         ],
     )
     if project_version_id:
-        combined_query &= Q(QueryOp.EQUALS, "project_version_id", value=project_version_id)
+        combined_query &= Q(ExpressionOp.EQUALS, "project_version_id", value=project_version_id)
     if query is not None:
         combined_query &= query
     # add id to sort as tiebreaker if not already present

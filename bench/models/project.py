@@ -66,8 +66,7 @@ class ProjectManager(models.Manager["Project"]):
         id: UUID = None,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
         create_onboarding_files: bool = False,
-        create_worker_set: bool = True,
-        create_os_index: bool = True,
+        create_infra: bool = True,
         head_version_id: Optional[UUID] = None,
     ):
         if owner.__class__.__name__ == "Organization":
@@ -84,19 +83,26 @@ class ProjectManager(models.Manager["Project"]):
             name=name,
             slug=slug,
             visibility=visibility,
-            os_name=f"bench-user-{id}-{IndexType.LOCAL}",
+            os_name=f"bench-user-{id}-local",
         )
+        # initial version head
         project.head = ProjectVersion.objects.create(
             id=head_version_id or uuid4(), ck=project.id, project=project
         )
+        project.save()
+
+        # onboarding
         if create_onboarding_files:
             # TODO @UX: re-implement create onboarding files
             pass
-        if create_worker_set:
-            create_default_worker_set(project)
-        if create_os_index:
-            create_per_project_os_index(project)
-        project.save()
+
+        # infra
+        if create_infra:
+            from bench.server.search import create_local_search_index
+
+            create_local_worker_set(project, upsert=False)
+            create_local_search_index(project.id, project.os_name, upsert=False)
+
         return project
 
     def get_by_slug(self, owner: str, project: str):
@@ -760,7 +766,7 @@ class File(CrudNode):
         ]
 
 
-def create_global_project_s3_bucket(ignore_exists: bool):
+def create_global_user_bucket(ignore_exists: bool):
     """
     Creates a public S3 bucket for all projects.
     """
@@ -812,16 +818,15 @@ def create_global_project_s3_bucket(ignore_exists: bool):
             raise RuntimeError(f"failed to set encryption on s3 bucket: {response}")
 
 
-def create_per_project_os_index(project: Project):
-    """Creates OpenSearch indices for the project."""
-    from bench.search.crud import create_bench_search_index
-
-    create_bench_search_index(project.id, upsert=True)
-
-
-def create_default_worker_set(project: Project):
+def create_local_worker_set(project: Project, *, upsert: bool):
     from bench.language.const import ProjectRegion, WorkerProfile, WorkerSetStatus
     from bench.models import WorkerSet
+
+    # check if worker set already exists
+    if WorkerSet.objects.filter(project_id=project.id).exists():
+        if not upsert:
+            raise ValueError(f"worker set already exists for project: {project}")
+        return
 
     worker_set = WorkerSet.objects.create(
         project_id=project.id,

@@ -26,11 +26,9 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
-from bench.language.expression import Query, Sort, SortOrder
 from bench.language.module import Module, Node
 from bench.language.packer import check_type, map_value, pack_value, pack_value_flat
 from bench.language.run import LogEntry, Run, RunError
-from bench.language.search import Search
 from bench.language.statement import Statement
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG
@@ -39,7 +37,6 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import HasFields, Trigger
     from bench.language.edit import MET, EditData, ModuleEditor
-    from bench.language.wire import LogEntryData, RunData
 
 logger = structlog.get_logger(__name__)
 
@@ -184,8 +181,9 @@ class Session:
         await self.tracer.open()
         logger.debug("session.open", session=self)
 
-    async def _do_search_preflight(self, search: Search) -> None:
+    async def _do_search_preflight(self, search: "Search") -> None:
         """FLush any relevant edits before searching."""
+        # nocheckin: move query preflight to database
         from bench.language.database import RecordSearch
 
         if isinstance(search, RecordSearch):
@@ -869,143 +867,3 @@ class LazyRun:
 
     def load(self) -> "Run":
         raise NotImplementedError
-
-
-class RunSearch(Search["RunData", "Run"]):
-    """Search over runs."""
-
-    def __init__(
-        self,
-        module: Module,
-        statements: list["Statement"] | None,
-        query: Query | None,
-        sort: list[Sort] | None,
-        limit: Optional[int],
-    ):
-        super().__init__(module, query, sort, limit)
-        self.statements = statements
-
-    async def _do_search(
-        self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
-    ):
-        from bench.msg import NMessage
-        from bench.msg.core import request
-        from bench.msg.messages import NMessageType, RepSearchRunPayload, ReqSearchRunsPayload
-
-        await self.module.session._do_search_preflight(self)
-        batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
-        statements_cks = (
-            [statement.ck for statement in self.statements] if self.statements else None
-        )
-        rep: NMessage[RepSearchRunPayload] = await request(
-            NMessageType.SEARCH_RUNS,
-            ReqSearchRunsPayload(
-                module_id=self.module.id,
-                statements_cks=statements_cks,
-                query=self._query,
-                sort=self._sort,
-                after=after,
-                limit=batch_limit,
-                count=count,
-            ),
-            reply_t=RepSearchRunPayload,
-        )
-        if rep.p.error:
-            raise RuntimeError(f"{self} failed (after={after}, limit={limit}): {rep.p.error}")
-        return rep
-
-    def _unpack_element_data(self, element_data: "RunData") -> "Run":
-        from bench.language import wire
-
-        return wire.unpack_data(element_data, module=self.module)
-
-    def filter(self, query: Query) -> "RunSearch":
-        combined_query = Query.and_if_set(self._query, query)
-        return RunSearch(self.module, self.statements, combined_query, self._sort, self._limit)
-
-    def sort(self, sort: list[Sort] | Sort) -> "RunSearch":
-        sort = [sort] if isinstance(sort, Sort) else sort
-        return RunSearch(self.module, self.statements, self._query, sort, self._limit)
-
-    def limit(self, limit: int) -> "RunSearch":
-        return RunSearch(self.module, self.statements, self._query, self._sort, limit)
-
-    @staticmethod
-    def from_statement(statement: "Statement") -> "RunSearch":
-        return RunSearch(
-            module=statement.module,
-            statements=[statement],
-            query=None,
-            sort=[Sort("created_at", SortOrder.DESCENDING)],
-            limit=None,
-        )
-
-
-class LogSearch(Search["LogEntryData", LogEntry]):
-    """Search over logs."""
-
-    def __init__(
-        self,
-        module: Module,
-        statements: list["Statement"] | None,
-        query: Query | None,
-        sort: list[Sort] | None,
-        limit: Optional[int],
-    ):
-        super().__init__(module, query, sort, limit)
-        self.statements = statements
-
-    async def _do_search(
-        self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
-    ):
-        from bench.msg import NMessage
-        from bench.msg.core import request
-        from bench.msg.messages import NMessageType, RepSearchLogPayload, ReqSearchLogPayload
-
-        await self.module.session._do_search_preflight(self)
-        batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
-        statements_ids = (
-            [statement.id for statement in self.statements] if self.statements else None
-        )
-        rep: NMessage[RepSearchLogPayload] = await request(
-            NMessageType.SEARCH_LOGS,
-            ReqSearchLogPayload(
-                module_id=self.module.id,
-                statements_ids=statements_ids,
-                query=self._query,
-                sort=self._sort,
-                after=after,
-                limit=batch_limit,
-                count=count,
-            ),
-            reply_t=RepSearchLogPayload,
-        )
-        if rep.p.error:
-            raise RuntimeError(f"{self} failed (after={after}, limit={limit}): {rep.p.error}")
-        return rep
-
-    def _unpack_element_data(self, element_data: "LogEntryData") -> LogEntry:
-        from bench.language import wire
-
-        return wire.unpack_data(element_data, module=self.module)
-
-    def filter(self, query: Query) -> "LogSearch":
-        combined_query = Query.and_if_set(self._query, query)
-        return LogSearch(self.module, self.statements, combined_query, self._sort, self._limit)
-
-    def sort(self, sort: list[Sort] | Sort) -> "LogSearch":
-        sort = [sort] if isinstance(sort, Sort) else sort
-        return LogSearch(self.module, self.statements, self._query, sort, self._limit)
-
-    def limit(self, limit: int) -> "LogSearch":
-        return LogSearch(self.module, self.statements, self._query, self._sort, limit)
-
-    @staticmethod
-    def from_statement(statement: "Statement") -> "LogSearch":
-        return LogSearch(
-            module=statement.module,
-            statements=[statement],
-            query=None,
-            sort=[Sort("created_at", SortOrder.DESCENDING)],
-            limit=None,
-        )
