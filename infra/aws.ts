@@ -457,7 +457,7 @@ export function makeRds(name: string, instanceClass: string, config: { password:
       preferredBackupWindow: "04:00-06:00",
       vpcSecurityGroupIds: [dbSecurityGroup.id],
     },
-    { ...extra }
+    { ...extra, protect: true }
   );
   const dbInstance = new aws.rds.ClusterInstance(
     name,
@@ -469,7 +469,7 @@ export function makeRds(name: string, instanceClass: string, config: { password:
       publiclyAccessible: true,
       performanceInsightsEnabled: true,
     },
-    { ...extra }
+    { ...extra, protect: true }
   );
 
   return { dbCluster, dbInstance, dbSecurityGroup };
@@ -545,7 +545,7 @@ export function makeOpensearch(
         },
       },
     },
-    { ...extra }
+    { ...extra, protect: true }
   );
   return { osDomain, osSecurityGroup };
 }
