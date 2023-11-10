@@ -78,7 +78,6 @@ const ebsCsiDriver = makeEbsCsiDriver(eksVpc, eksCluster);
 // DB: RDS Aurora Postgres cluster/database (global and user)
 const { dbInstance: globalDbInstance } = makeRds("global-db", "db.t3.medium", {
   password: config.requireSecret("globalDbPassword"),
-  aliases: ["db"], // previous names
 });
 const globalDbSecret = secretFrom("global-db", config.requireSecret("globalDbPassword"), {
   key: "password",
@@ -528,12 +527,7 @@ const apiIngress = new k8s.networking.v1.Ingress(
       namespace: "default",
     },
     spec: {
-      tls: [
-        {
-          hosts: [apiDomain],
-          secretName: "api-cert",
-        },
-      ],
+      tls: [{ hosts: [apiDomain], secretName: "api-cert" }],
       rules: [
         {
           host: apiDomain,
@@ -565,50 +559,58 @@ const monitoringNamespace = new k8s.core.v1.Namespace(
   { metadata: { name: "monitoring" } },
   { provider: eksCluster.provider }
 );
-const monitoringServiceAccount = new k8s.core.v1.ServiceAccount("monitoringServiceAccount", {
-  metadata: {
-    namespace: monitoringNamespace.metadata.name,
-    name: "vector-service-account", // required by betterstack / Vector
-  },
-});
-const monitoringServiceAccountSecret = new k8s.core.v1.Secret(
-  "monitoringServiceAccountSecret",
-  {
-    metadata: {
-      namespace: monitoringNamespace.metadata.name,
-      name: monitoringServiceAccount.metadata.name,
-      annotations: {
-        "kubernetes.io/service-account.name": monitoringServiceAccount.metadata.name,
-      },
-    },
-    type: "kubernetes.io/service-account-token",
-  },
-  { provider: eksCluster.provider }
-);
+// TODO @Infra @Broken: setting up monitoring with the proper service account fails
+//  which means that kubernetes metrics aren't properly reported
+//  It fails because both we and the chart try to create the service account secret
+//  (even though the chart shouldn't, we disable its service account to give it our own...)
+// const monitoringServiceAccount = new k8s.core.v1.ServiceAccount(
+//   "monitoringServiceAccount",
+//   {
+//     metadata: {
+//       namespace: monitoringNamespace.metadata.name,
+//       name: "vector-service-account", // required by betterstack / Vector
+//     },
+//   },
+//   { aliases: [{ name: "monitoringServiceAccount" }] }
+// );
+// const monitoringServiceAccountSecret = new k8s.core.v1.Secret(
+//   "monitoringServiceAccountSecret",
+//   {
+//     metadata: {
+//       namespace: monitoringNamespace.metadata.name,
+//       name: monitoringServiceAccount.metadata.name,
+//       annotations: {
+//         "kubernetes.io/service-account.name": monitoringServiceAccount.metadata.name,
+//       },
+//     },
+//     type: "kubernetes.io/service-account-token",
+//   },
+//   { provider: eksCluster.provider }
+// );
 
-const monitoringClusterRole = new k8s.rbac.v1.ClusterRole("monitoringClusterRole", {
-  rules: [
-    {
-      apiGroups: ["*"],
-      resources: ["*"],
-      verbs: ["get", "list", "watch"],
-    },
-  ],
-});
-const monitoringClusterRoleBinding = new k8s.rbac.v1.ClusterRoleBinding("monitoringClusterRoleBinding", {
-  subjects: [
-    {
-      kind: "ServiceAccount",
-      name: monitoringServiceAccount.metadata.name,
-      namespace: monitoringServiceAccount.metadata.namespace,
-    },
-  ],
-  roleRef: {
-    kind: "ClusterRole",
-    name: monitoringClusterRole.metadata.name,
-    apiGroup: "rbac.authorization.k8s.io",
-  },
-});
+// const monitoringClusterRole = new k8s.rbac.v1.ClusterRole("monitoringClusterRole", {
+//   rules: [
+//     {
+//       apiGroups: ["*"],
+//       resources: ["*"],
+//       verbs: ["get", "list", "watch"],
+//     },
+//   ],
+// });
+// const monitoringClusterRoleBinding = new k8s.rbac.v1.ClusterRoleBinding("monitoringClusterRoleBinding", {
+//   subjects: [
+//     {
+//       kind: "ServiceAccount",
+//       name: monitoringServiceAccount.metadata.name,
+//       namespace: monitoringServiceAccount.metadata.namespace,
+//     },
+//   ],
+//   roleRef: {
+//     kind: "ClusterRole",
+//     name: monitoringClusterRole.metadata.name,
+//     apiGroup: "rbac.authorization.k8s.io",
+//   },
+// });
 
 const betterstackToken = config.requireSecret("BETTERSTACK_SECRET");
 const betterstack = new k8s.helm.v3.Chart(
@@ -675,16 +677,16 @@ const betterstack = new k8s.helm.v3.Chart(
             },
           },
         },
-        serviceAccount: {
-          create: false,
-          name: monitoringServiceAccount.metadata.name,
-          automountToken: true,
-        },
+        // serviceAccount: {
+        //   create: false,
+        //   name: monitoringServiceAccount.metadata.name,
+        //   automountToken: true,
+        // },
       },
     },
   },
   {
     provider: eksCluster.provider,
-    dependsOn: [monitoringNamespace, monitoringServiceAccount, monitoringServiceAccountSecret],
+    // dependsOn: [monitoringNamespace, monitoringServiceAccount, monitoringServiceAccountSecret],
   }
 );
