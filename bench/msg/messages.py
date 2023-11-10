@@ -23,7 +23,6 @@ from bench.language.wire import (
     EnvironmentData,
     LogEntryData,
     ModuleTreeData,
-    RecordData,
     RunData,
     SecretData,
     SessionData,
@@ -79,12 +78,8 @@ class NMessageType(StrEnum):
     WRITE_MODULE_REP = "module.write.rep"
     WRITE_SESSION = "session.write"
     WRITE_SESSION_REP = "session.write.rep"
-    SEARCH_RECORDS = "module.search.records"
-    SEARCH_RECORDS_REP = "module.search.records.rep"
-    SEARCH_RUNS = "module.search.rusn"
+    SEARCH_RUNS = "module.search.runs"
     SEARCH_RUNS_REP = "module.search.runs.rep"
-    SEARCH_LOGS = "module.search.logs"
-    SEARCH_LOGS_REP = "module.search.logs.rep"
     READ_BLOB = "object.read"
     READ_BLOB_REP = "object.read.rep"
     WRITE_BLOB = "object.write"
@@ -138,9 +133,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.READ_BLOB: NMessageType.READ_BLOB_REP,
     NMessageType.WRITE_BLOB: NMessageType.WRITE_BLOB_REP,
     NMessageType.MARK_UPLOADED_BLOB: NMessageType.MARK_UPLOADED_BLOB_REP,
-    NMessageType.SEARCH_RECORDS: NMessageType.SEARCH_RECORDS_REP,
     NMessageType.SEARCH_RUNS: NMessageType.SEARCH_RUNS_REP,
-    NMessageType.SEARCH_LOGS: NMessageType.SEARCH_LOGS_REP,
     NMessageType.READ_SECRET: NMessageType.READ_SECRET_REP,
     NMessageType.RUN_PROXY_INFERENCE: NMessageType.RUN_PROXY_INFERENCE_REP,
     NMessageType.RUN_PROXY_STATEMENT: NMessageType.RUN_PROXY_STATEMENT_REP,
@@ -393,17 +386,6 @@ class RepSearch(abc.ABC):
     error: Optional[str] = None
 
 
-@payload(NMessageType.SEARCH_RECORDS)
-class ReqSearchRecordsPayload(ReqSearch, Payload):
-    module_id: UUID = required_field()
-    statement_keys: Optional[list[str]] = None
-
-
-@payload(NMessageType.SEARCH_RECORDS_REP)
-class RepSearchRecordsPayload(RepSearch, Payload):
-    elements: Optional[list[RecordData]] = None
-
-
 @payload(NMessageType.SEARCH_RUNS)
 class ReqSearchRunsPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
@@ -414,18 +396,6 @@ class ReqSearchRunsPayload(ReqSearch, Payload):
 @payload(NMessageType.SEARCH_RUNS_REP)
 class RepSearchRunPayload(RepSearch, Payload):
     elements: Optional[list[RunData]] = None
-
-
-@payload(NMessageType.SEARCH_LOGS)
-class ReqSearchLogPayload(ReqSearch, Payload):
-    module_id: UUID = required_field()
-    statements_ids: Optional[list[UUID]] = None
-    statements_cks: Optional[list[UUID]] = None
-
-
-@payload(NMessageType.SEARCH_LOGS_REP)
-class RepSearchLogPayload(RepSearch, Payload):
-    elements: Optional[list[LogEntryData]] = None
 
 
 @payload(NMessageType.READ_BLOB)
