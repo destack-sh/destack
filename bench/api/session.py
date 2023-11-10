@@ -58,8 +58,8 @@ from bench.msg.messages import (
 )
 from bench.search import mirror
 from bench.search.client import os_client
-from bench.search.crud import write_runs_to_os
 from bench.search.mapping import encode_cursor, prepare_search
+from bench.server.search import write_runs_to_os
 
 if TYPE_CHECKING:
     from bench.api.project import Project, ProjectVersion

@@ -247,6 +247,24 @@ def write_module_to_os_from_db(project_v: models.ProjectVersion, *, wipe: bool) 
     write_module_to_os(project_v, nodes.visited.values(), wipe=wipe)
 
 
+def write_runs_to_os(runs: list[wire.RunData]) -> None:
+    """Writes/mirrors runs (from different sessions/projects) to OpenSearch."""
+
+    if not runs:
+        return
+    ops: list[dict] = []
+
+    for run in runs:
+        index_name = IndexType.LOCAL.get_index_name(run.project_id)
+        ops.append({"index": {"_index": index_name, "_id": str(run.id)}})
+        ops.append(mirror.unpack_node_flat(None, run, None).to_dict())
+
+    logger.debug("os.write_runs", operations=len(ops))
+    ret = os_client.bulk(ops)
+    if ret.get("errors"):
+        raise RuntimeError(f"failed to write runs to OpenSearch: {ret['items'][:5]}")
+
+
 def write_session_to_os(
     project_v: models.ProjectVersion,
     session: typing.Optional[models.Session],
