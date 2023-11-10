@@ -318,7 +318,7 @@ const apiService = new k8s.core.v1.Service(
       selector: { app: apiName },
     },
   },
-  { provider: eksCluster.provider }
+  { provider: eksCluster.provider, protect: true }
 );
 // internal server service
 const serverName = "server";
