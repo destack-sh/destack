@@ -429,15 +429,3 @@ class IndexType(enum.StrEnum):
 
     GLOBAL = "global"
     LOCAL = "project"
-
-    @property
-    def is_project_scoped(self) -> bool:
-        return self in (IndexType.LOCAL,)
-
-    def get_index_name(self, project_id: UUID = None):
-        if self.is_project_scoped != (project_id is not None):
-            raise ValueError(f"project scoped index -> project id: {self} -> {project_id}")
-        if self.is_project_scoped:
-            return f"bench-user-{project_id}-{self.value}"
-        else:
-            return f"bench-{self.value}"

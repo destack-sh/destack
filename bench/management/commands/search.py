@@ -5,7 +5,7 @@ from django.db import transaction
 from bench import models
 from bench.models import Project
 from bench.search.client import os_client
-from bench.server.search import create_bench_search_index
+from bench.server.search import create_local_search_index
 
 logger = structlog.get_logger(__name__)
 
@@ -28,10 +28,10 @@ class Command(BaseCommand):
         if action == "create":
             if slug == "all":
                 for project in models.Project.objects.all():
-                    create_bench_search_index(project.id, upsert=True)
+                    create_local_search_index(project.id, upsert=True)
             else:
                 project = self.get_project(slug)
-                create_bench_search_index(project.id, upsert=True)
+                create_local_search_index(project.id, upsert=True)
         elif action == "delete":
             if slug == "all":
                 for project in models.Project.objects.all():

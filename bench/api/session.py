@@ -706,7 +706,9 @@ class SessionMutation:
     async def kill_run(self, info: Info, input: KillRunInput) -> KillRunPayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
-        await sync_to_async(check_module_access)(info, project_version, ModuleAccessLevel.Use)
+        access = await sync_to_async(check_module_access)(
+            info, project_version, ModuleAccessLevel.Use
+        )
         run_id = to_uuid(input.run_id)
         session_id = to_uuid(input.session_id)
 
@@ -728,8 +730,9 @@ class SessionMutation:
             if input.restart_if_unresponsive:
                 logger.debug("kill_run.restart", run_id=run_id, session_id=session_id, exc_info=e)
                 # try to restart worker set
-                project = await models.Project.objects.aget(id=project_version.project_id)
-                await sync_to_async(check_module_access)(info, project, ModuleAccessLevel.Use)
+                await sync_to_async(check_module_access)(
+                    info, access.project, ModuleAccessLevel.Use
+                )
                 rep: NMessage[RepRestartWorkerSetPayload] = await request(
                     NMessageType.RESTART_WORKER_SET,
                     ReqRestartWorkerSetPayload(project_id=project_version.project_id),
@@ -754,7 +757,7 @@ class SessionMutation:
         if runs:
             await models.Run.objects.abulk_update(runs, ["terminated_at", "status"])
             runs_data = [packer.pack_data(r) for r in runs]
-            await sync_to_async(write_runs_to_os)(runs_data)
+            await sync_to_async(write_runs_to_os)(access.project.os_name, runs_data)
             await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_data))
         run = await models.Run.objects.filter(id=run_id).afirst()
         return KillRunPayload(run=run)

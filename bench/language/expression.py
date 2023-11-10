@@ -13,20 +13,17 @@ if TYPE_CHECKING:
 
 
 #
-# Expression language for search and storage (database) access.
+# Expression language. Primarily for module, search and storage (database).
 # Currently serves as both the in-memory representation and the wire format.
 #
 
 
-class SubfieldType(enum.StrEnum):
-    # :QuerySubfields
-    key = "key"
-    starts_with = "starts_with"
-    token_count = "token_count"
-    char_count = "char_count"
+@dataclass
+class Statement:
+    pass
 
 
-class QueryOp(enum.StrEnum):
+class ExpressionOp(enum.StrEnum):
     # logical
     NOT = "NOT"
     AND = "AND"
@@ -54,82 +51,88 @@ class QueryOp(enum.StrEnum):
 
     @property
     def sign(self) -> str | None:
-        return _QUERY_OP_SIGN.get(self)
+        return _OP_SIGN.get(self)
 
 
-_QUERY_OP_SIGN: dict[QueryOp, str] = {
-    QueryOp.NOT: "~",
-    QueryOp.AND: "&",
-    QueryOp.OR: "|",
-    QueryOp.EQUALS: "==",
-    QueryOp.NOT_EQUALS: "!=",
-    QueryOp.GREATER_THAN: ">",
-    QueryOp.GREATER_THAN_OR_EQUALS: ">=",
-    QueryOp.LESS_THAN: "<",
-    QueryOp.LESS_THAN_OR_EQUALS: "<=",
-    QueryOp.MATCHES: "~=",
-    QueryOp.STARTS_WITH: "^=",
-    QueryOp.EXISTS: "?",
-    QueryOp.DOES_NOT_EXIST: "?!",
+ExprOp = ExpressionOp  # alias
+
+
+@dataclass
+class Expression:
+    op: ExprOp
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self})"
+
+
+_OP_SIGN: dict[ExpressionOp, str] = {
+    ExprOp.NOT: "~",
+    ExprOp.AND: "&",
+    ExprOp.OR: "|",
+    ExprOp.EQUALS: "==",
+    ExprOp.NOT_EQUALS: "!=",
+    ExprOp.GREATER_THAN: ">",
+    ExprOp.GREATER_THAN_OR_EQUALS: ">=",
+    ExprOp.LESS_THAN: "<",
+    ExprOp.LESS_THAN_OR_EQUALS: "<=",
+    ExprOp.MATCHES: "~=",
+    ExprOp.STARTS_WITH: "^=",
+    ExprOp.EXISTS: "?",
+    ExprOp.DOES_NOT_EXIST: "?!",
 }
 
 
-class QueryOps:
-    LOGICAL = {QueryOp.NOT, QueryOp.AND, QueryOp.OR}
-    COMPARISON_EXACT = {QueryOp.EQUALS, QueryOp.NOT_EQUALS}
+class ExpressionOps:
+    LOGICAL = {ExprOp.NOT, ExprOp.AND, ExprOp.OR}
+    COMPARISON_EXACT = {ExprOp.EQUALS, ExprOp.NOT_EQUALS}
     COMPARISON_RANGE = {
-        QueryOp.GREATER_THAN,
-        QueryOp.GREATER_THAN_OR_EQUALS,
-        QueryOp.LESS_THAN,
-        QueryOp.LESS_THAN_OR_EQUALS,
+        ExprOp.GREATER_THAN,
+        ExprOp.GREATER_THAN_OR_EQUALS,
+        ExprOp.LESS_THAN,
+        ExprOp.LESS_THAN_OR_EQUALS,
     }
-    EXISTENCE = {QueryOp.EXISTS, QueryOp.DOES_NOT_EXIST}
-    XY = {QueryOp.INTERSECTS, QueryOp.DISJOINT, QueryOp.WITHIN}
-    VECTOR = {QueryOp.NEAR}
+    EXISTENCE = {ExprOp.EXISTS, ExprOp.DOES_NOT_EXIST}
+    COMPARISON_XY = {ExprOp.INTERSECTS, ExprOp.DISJOINT, ExprOp.WITHIN}
+    COMPARISON_VECTOR = {ExprOp.NEAR}
 
 
-SCORED_QUERY_OPS = {QueryOp.MATCHES, *QueryOps.XY, *QueryOps.VECTOR}
+SCORED_QUERY_OPS = {ExprOp.MATCHES, *ExpressionOps.COMPARISON_XY, *ExpressionOps.COMPARISON_VECTOR}
 
-_QUERIES: dict[QueryOp, type[Query]] = {}
+_EXPRESSIONS: dict[ExprOp, type[Expression]] = {}
 
 
-def query(*ops: QueryOp):
+def expression(*ops: ExprOp):
     """Register a query class for the given ops."""
 
-    def decorator(cls: type[Query]):
+    def decorator(cls: type[Expression]):
         cls = dataclass(cls, repr=False)
         cls._PROPERTIES = {f.name: f for f in cls.__dataclass_fields__.values()}
         for op in ops:
-            if op in _QUERIES:
-                raise RuntimeError(f"query for {op} already registered: {_QUERIES[op]}")
-            _QUERIES[op] = cls
+            if op in _EXPRESSIONS:
+                raise RuntimeError(f"expression for {op} already registered: {_EXPRESSIONS[op]}")
+            _EXPRESSIONS[op] = cls
         return cls
 
     return decorator
 
 
-@query()
-class Query:
-    op: QueryOp
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self})"
-
+@expression()
+class Query(Expression):
     def __bool__(self):
         raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
     def __invert__(self):
-        return Q(QueryOp.NOT, queries=[self])
+        return Q(ExprOp.NOT, queries=[self])
 
     def __and__(self, other):
         if not isinstance(other, Query):
             raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
-        return Q(QueryOp.AND, queries=[self, other])
+        return Q(ExprOp.AND, queries=[self, other])
 
     def __or__(self, other):
         if not isinstance(other, Query):
             raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
-        return Q(QueryOp.OR, queries=[self, other])
+        return Q(ExprOp.OR, queries=[self, other])
 
     filter = __and__
 
@@ -139,8 +142,8 @@ class Query:
 
     @staticmethod
     def cls_from_attrs(d: dict[str, Any]) -> type[Query]:  # see :WireFormat
-        op = QueryOp(d["op"])
-        cls = _QUERIES[op]
+        op = ExprOp(d["op"])
+        cls = _EXPRESSIONS[op]
         return cls
 
     @staticmethod
@@ -157,7 +160,7 @@ class Query:
                 return base & extra
 
 
-@query(QueryOp.NOT, QueryOp.AND, QueryOp.OR)
+@expression(ExprOp.NOT, ExprOp.AND, ExprOp.OR)
 class CompoundQuery(Query):
     queries: list[Query]
 
@@ -169,7 +172,7 @@ class CompoundQuery(Query):
         return any(q.is_scored for q in self.queries)
 
     def __invert__(self):
-        if self.op == QueryOp.NOT:
+        if self.op == ExprOp.NOT:
             return self.queries[0]
         else:
             return super().__invert__()
@@ -177,22 +180,22 @@ class CompoundQuery(Query):
     def __and__(self, other):
         if not isinstance(other, Query):
             raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
-        if self.op == QueryOp.AND:
-            if isinstance(other, CompoundQuery) and other.op == QueryOp.AND:
-                return Q(QueryOp.AND, queries=[*self.queries, *other.queries])
+        if self.op == ExprOp.AND:
+            if isinstance(other, CompoundQuery) and other.op == ExprOp.AND:
+                return Q(ExprOp.AND, queries=[*self.queries, *other.queries])
             else:
-                return Q(QueryOp.AND, queries=[*self.queries, other])
+                return Q(ExprOp.AND, queries=[*self.queries, other])
         else:
             return super().__and__(other)
 
     def __or__(self, other):
         if not isinstance(other, Query):
             raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
-        if self.op == QueryOp.OR:
-            if isinstance(other, CompoundQuery) and other.op == QueryOp.OR:
-                return Q(QueryOp.OR, queries=[*self.queries, *other.queries])
+        if self.op == ExprOp.OR:
+            if isinstance(other, CompoundQuery) and other.op == ExprOp.OR:
+                return Q(ExprOp.OR, queries=[*self.queries, *other.queries])
             else:
-                return Q(QueryOp.OR, queries=[*self.queries, other])
+                return Q(ExprOp.OR, queries=[*self.queries, other])
         else:
             return super().__or__(other)
 
@@ -222,15 +225,15 @@ class FieldQuery(Query):
         return key if not self.subkey else f"{key}.{self.subkey}"
 
 
-@query(
-    QueryOp.EQUALS,
-    QueryOp.NOT_EQUALS,
-    QueryOp.GREATER_THAN,
-    QueryOp.GREATER_THAN_OR_EQUALS,
-    QueryOp.LESS_THAN,
-    QueryOp.LESS_THAN_OR_EQUALS,
-    QueryOp.MATCHES,
-    QueryOp.STARTS_WITH,
+@expression(
+    ExprOp.EQUALS,
+    ExprOp.NOT_EQUALS,
+    ExprOp.GREATER_THAN,
+    ExprOp.GREATER_THAN_OR_EQUALS,
+    ExprOp.LESS_THAN,
+    ExprOp.LESS_THAN_OR_EQUALS,
+    ExprOp.MATCHES,
+    ExprOp.STARTS_WITH,
 )
 class ComparisonQuery(FieldQuery):
     value: Any = required_field()
@@ -239,19 +242,19 @@ class ComparisonQuery(FieldQuery):
         return f"{self._field_str} {self.op.sign} {self.value!r}"
 
 
-@query(QueryOp.EXISTS, QueryOp.DOES_NOT_EXIST)
+@expression(ExprOp.EXISTS, ExprOp.DOES_NOT_EXIST)
 class ExistenceQuery(FieldQuery):
     def __str__(self):
         return f"{self._field_str}.{self.op.name.lower()}"
 
     def __invert__(self):
-        if self.op == QueryOp.EXISTS:
-            return Q(QueryOp.DOES_NOT_EXIST, field=self.field, subkey=self.subkey)
+        if self.op == ExprOp.EXISTS:
+            return Q(ExprOp.DOES_NOT_EXIST, field=self.field, subkey=self.subkey)
         else:
-            return Q(QueryOp.EXISTS, field=self.field, subkey=self.subkey)
+            return Q(ExprOp.EXISTS, field=self.field, subkey=self.subkey)
 
 
-@query(QueryOp.NEAR)
+@expression(ExprOp.NEAR)
 class VectorQuery(FieldQuery):
     value: list[float] = required_field()
     approximate: bool = True
@@ -260,8 +263,8 @@ class VectorQuery(FieldQuery):
         return f"{self._field_str}.{self.op.name.lower()}({self.value[:10]}...)"
 
 
-def Q(op: QueryOp, *args, **kwargs) -> Query:
-    cls = _QUERIES[op]
+def Q(op: ExprOp, *args, **kwargs) -> Query:
+    cls = _EXPRESSIONS[op]
     kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls._PROPERTIES}
     return cls(op, *args, **kwargs)
 
@@ -280,7 +283,7 @@ class SortMode(enum.StrEnum):
 
 
 @dataclass
-class Sort:
+class Sort(Expression):
     field: FieldOrStr
     order: SortOrder = SortOrder.ASCENDING
     mode: Optional[SortMode] = None
@@ -311,32 +314,32 @@ TYPE_DISCRIMINATOR_KEY = "_type"
 #
 
 
-class UnsupportedSearchError(Exception):
+class UnsupportedQueryError(Exception):
     def __init__(self, field: "Field", thing: Any):
         super().__init__(f"{repr(field)} does not support {thing}")
 
 
-def _check_supports_query(field: "Field", op: QueryOp):
+def _check_supports_query(field: "Field", op: ExprOp):
     if op not in field._supported_query_ops:
-        raise UnsupportedSearchError(field, op)
+        raise UnsupportedQueryError(field, op)
 
 
 def _check_supports_sort(field: "Field"):
     if not field.can_sort:
-        raise UnsupportedSearchError(field, "sort")
+        raise UnsupportedQueryError(field, "sort")
 
 
-def _check_supports_subfield(field: "Field", subfield: SubfieldType):
+def _check_supports_subfield(field: "Field", subfield: "SubfieldType"):
     if subfield not in field._supported_subfields:
-        raise UnsupportedSearchError(field, subfield)
+        raise UnsupportedQueryError(field, subfield)
 
 
 def _check_has_type_tag(field: "Field", tag: TypeTag):
     if field._effective_tag != tag:
-        raise UnsupportedSearchError(field, tag)
+        raise UnsupportedQueryError(field, tag)
 
 
-def _check_support(op: QueryOp = None, sort: bool = False, subfield: SubfieldType = None):
+def _check_support(op: ExprOp = None, sort: bool = False, subfield: "SubfieldType" = None):
     def decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -383,11 +386,11 @@ class FieldQueryOps:
         return hint_ops | tag_ops
 
     @property
-    def _supported_query_ops(self) -> set[QueryOp]:
-        format_ops = _SUPPORTED_QUERY_OPS_BY_TYPE.get(self._storage_format, _EMPTY_SET)
-        hint_ops = _SUPPORTED_QUERY_OPS_BY_TYPE.get(self.hint, _EMPTY_SET)
-        tag_ops = _SUPPORTED_QUERY_OPS_BY_TYPE.get(self._effective_tag, _EMPTY_SET)
-        return _BASE_QUERY_OPS | format_ops | hint_ops | tag_ops
+    def _supported_query_ops(self) -> set[ExprOp]:
+        format_ops = _SUPPORTED_EXPR_OPS_BY_TYPE.get(self._storage_format, _EMPTY_SET)
+        hint_ops = _SUPPORTED_EXPR_OPS_BY_TYPE.get(self.hint, _EMPTY_SET)
+        tag_ops = _SUPPORTED_EXPR_OPS_BY_TYPE.get(self._effective_tag, _EMPTY_SET)
+        return _BASE_EXPR_OPS | format_ops | hint_ops | tag_ops
 
     def _strip_value(self, value: Any) -> Any:
         from bench.language.field import Field
@@ -406,12 +409,12 @@ class FieldQueryOps:
 
     # comparison
 
-    @_check_support(op=QueryOp.EQUALS)
+    @_check_support(op=ExprOp.EQUALS)
     def equals(self, value: Any) -> Query:
         value = self._strip_value(value)
         if value is None:
             return self.not_exists()
-        return Q(QueryOp.EQUALS, self._field, self._subkey, value)
+        return Q(ExprOp.EQUALS, self._field, self._subkey, value)
 
     def __eq__(self, other):
         from bench.language.module import Node
@@ -420,10 +423,10 @@ class FieldQueryOps:
             return Node.__eq__(self, other)  # imitate Field equality
         return self.equals(other)
 
-    @_check_support(op=QueryOp.NOT_EQUALS)
+    @_check_support(op=ExprOp.NOT_EQUALS)
     def not_equal(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.NOT_EQUALS, self._field, self._subkey, value)
+        return Q(ExprOp.NOT_EQUALS, self._field, self._subkey, value)
 
     def __ne__(self, other):
         from bench.language.module import Node
@@ -432,72 +435,72 @@ class FieldQueryOps:
             return Node.__ne__(self, other)
         return self.not_equal(other)
 
-    @_check_support(op=QueryOp.EQUALS)
+    @_check_support(op=ExprOp.EQUALS)
     def in_(self, *values: list[Any]) -> Query:
         values = [self._strip_value(value) for value in values]
-        return Q(QueryOp.EQUALS, self._field, self._subkey, values)
+        return Q(ExprOp.EQUALS, self._field, self._subkey, values)
 
-    @_check_support(op=QueryOp.GREATER_THAN)
+    @_check_support(op=ExprOp.GREATER_THAN)
     def greater_than(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.GREATER_THAN, self._field, self._subkey, value)
+        return Q(ExprOp.GREATER_THAN, self._field, self._subkey, value)
 
     def __gt__(self, other):
         return self.greater_than(other)
 
-    @_check_support(op=QueryOp.GREATER_THAN_OR_EQUALS)
+    @_check_support(op=ExprOp.GREATER_THAN_OR_EQUALS)
     def greater_than_or_equals(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.GREATER_THAN_OR_EQUALS, self._field, self._subkey, value)
+        return Q(ExprOp.GREATER_THAN_OR_EQUALS, self._field, self._subkey, value)
 
     def __ge__(self, other):
         return self.greater_than_or_equals(other)
 
-    @_check_support(op=QueryOp.LESS_THAN)
+    @_check_support(op=ExprOp.LESS_THAN)
     def less_than(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.LESS_THAN, self._field, self._subkey, value)
+        return Q(ExprOp.LESS_THAN, self._field, self._subkey, value)
 
     def __lt__(self, other):
         return self.less_than(other)
 
-    @_check_support(op=QueryOp.LESS_THAN_OR_EQUALS)
+    @_check_support(op=ExprOp.LESS_THAN_OR_EQUALS)
     def less_than_or_equals(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.LESS_THAN_OR_EQUALS, self._field, self._subkey, value)
+        return Q(ExprOp.LESS_THAN_OR_EQUALS, self._field, self._subkey, value)
 
     def __le__(self, other):
         return self.less_than_or_equals(other)
 
     # string comparison
 
-    @_check_support(op=QueryOp.MATCHES)
+    @_check_support(op=ExprOp.MATCHES)
     def matches(self, value: str) -> Query:
-        return Q(QueryOp.MATCHES, self._field, self._subkey, value)
+        return Q(ExprOp.MATCHES, self._field, self._subkey, value)
 
     contains = matches
 
-    @_check_support(op=QueryOp.STARTS_WITH)
+    @_check_support(op=ExprOp.STARTS_WITH)
     def starts_with(self, value: str) -> Query:
         # :StartsWithHack
-        return Q(QueryOp.STARTS_WITH, self._field, self._subkey, value.lower())
+        return Q(ExprOp.STARTS_WITH, self._field, self._subkey, value.lower())
 
-    @_check_support(op=QueryOp.STARTS_WITH)
+    @_check_support(op=ExprOp.STARTS_WITH)
     def like(self, value: str) -> Query:
         # combines matches and starts_with
-        return Q(QueryOp.STARTS_WITH, self._field, self._subkey, value) | Q(
-            QueryOp.MATCHES, self._field, self._subkey, value
+        return Q(ExprOp.STARTS_WITH, self._field, self._subkey, value) | Q(
+            ExprOp.MATCHES, self._field, self._subkey, value
         )
 
     # existence
 
-    @_check_support(op=QueryOp.EXISTS)
+    @_check_support(op=ExprOp.EXISTS)
     def exists(self) -> Query:
-        return Q(QueryOp.EXISTS, self._source_key)
+        return Q(ExprOp.EXISTS, self._source_key)
 
-    @_check_support(op=QueryOp.DOES_NOT_EXIST)
+    @_check_support(op=ExprOp.DOES_NOT_EXIST)
     def not_exists(self) -> Query:
-        return Q(QueryOp.DOES_NOT_EXIST, self._source_key)
+        return Q(ExprOp.DOES_NOT_EXIST, self._source_key)
 
     # xy
 
@@ -505,9 +508,9 @@ class FieldQueryOps:
 
     # knn
 
-    @_check_support(op=QueryOp.NEAR)
+    @_check_support(op=ExprOp.NEAR)
     def near(self, value: list[float], approximate: bool = True) -> Query:
-        return Q(QueryOp.NEAR, self._field, self._subkey, value, approximate=approximate)
+        return Q(ExprOp.NEAR, self._field, self._subkey, value, approximate=approximate)
 
     # sort
 
@@ -560,6 +563,15 @@ class FieldQueryOps:
     length = char_count  # for convenience
 
 
+# TODO @Cleanup @Architecture: reconsider subfields in expressions (they're ugly)
+class SubfieldType(enum.StrEnum):
+    # :QuerySubfields
+    key = "key"
+    starts_with = "starts_with"
+    token_count = "token_count"
+    char_count = "char_count"
+
+
 @dataclass(eq=False, frozen=True)
 class Subfield(FieldQueryOps):
     parent: Optional[FieldQueryOps]
@@ -583,16 +595,17 @@ _SUPPORTED_SUBFIELDS_BY_TYPE: dict[TypeHint | TypeTag, set[SubfieldType]] = {
     TypeHint.NAME: {SubfieldType.key, SubfieldType.starts_with},
 }
 
-_BASE_QUERY_OPS = QueryOps.EXISTENCE
-_SUPPORTED_QUERY_OPS_BY_TYPE: dict[TypeTag | TypeHint | TypeStorageFormat, set[QueryOp]] = {
+ExprOps = ExpressionOps  # alias
+_BASE_EXPR_OPS = ExprOps.EXISTENCE
+_SUPPORTED_EXPR_OPS_BY_TYPE: dict[TypeTag | TypeHint | TypeStorageFormat, set[ExprOp]] = {
     # cumulative supported query ops by type
-    TypeStorageFormat.LONG: QueryOps.COMPARISON_RANGE | QueryOps.COMPARISON_EXACT,
-    TypeStorageFormat.DOUBLE: QueryOps.COMPARISON_RANGE | QueryOps.COMPARISON_EXACT,
-    TypeStorageFormat.BOOLEAN: QueryOps.COMPARISON_EXACT,
-    TypeStorageFormat.DATE: QueryOps.COMPARISON_RANGE | QueryOps.COMPARISON_EXACT,
-    TypeStorageFormat.KEYWORD: QueryOps.COMPARISON_EXACT,
-    TypeStorageFormat.VECTOR: QueryOps.VECTOR,
-    TypeTag.STRING: {QueryOp.MATCHES},
-    TypeHint.NAME: {QueryOp.STARTS_WITH},
+    TypeStorageFormat.LONG: ExprOps.COMPARISON_RANGE | ExprOps.COMPARISON_EXACT,
+    TypeStorageFormat.DOUBLE: ExprOps.COMPARISON_RANGE | ExprOps.COMPARISON_EXACT,
+    TypeStorageFormat.BOOLEAN: ExprOps.COMPARISON_EXACT,
+    TypeStorageFormat.DATE: ExprOps.COMPARISON_RANGE | ExprOps.COMPARISON_EXACT,
+    TypeStorageFormat.KEYWORD: ExprOps.COMPARISON_EXACT,
+    TypeStorageFormat.VECTOR: ExprOps.COMPARISON_VECTOR,
+    TypeTag.STRING: {ExprOp.MATCHES},
+    TypeHint.NAME: {ExprOp.STARTS_WITH},
 }
 _EMPTY_SET = set()

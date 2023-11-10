@@ -213,6 +213,16 @@ class OrchestrationServer(Monitored):
             dead_runs = dead_runs.filter(project_id=project_id)
         dead_runs = [r async for r in dead_runs]
 
+        # get project search index names
+        if project_id:
+            os_names = [await models.Project.objects.get(id=project_id).os_name]
+        else:
+            project_ids = set(r.project_id for r in dead_runs)
+            os_names_by_project: dict[UUID, str] = {
+                p.id: p.os_name async for p in models.Project.objects.filter(id__in=project_ids)
+            }
+            os_names = [os_names_by_project[r.project_id] for r in dead_runs]
+
         # mark dead and send out updates
         if not dead_runs:
             return
@@ -220,7 +230,7 @@ class OrchestrationServer(Monitored):
             run.mark_dead()
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
         dead_runs_data = [packer.pack_data(r) for r in dead_runs]
-        await sync_to_async(write_runs_to_os)(dead_runs_data)
+        await sync_to_async(write_runs_to_os)(os_names, dead_runs_data)
         await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=dead_runs_data))
 
     async def _watch_worker_sets_in_k8_forever(self, k8_marker: k8.VersionMarker):

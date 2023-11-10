@@ -21,7 +21,7 @@ from bench.api.utils import (
     SearchSort,
     ThingBatch,
 )
-from bench.language import Q, Query, QueryOp
+from bench.language import ExpressionOp, Q, Query
 from bench.models import ModuleAccessLevel
 from bench.search import mirror
 from bench.search.client import os_client
@@ -194,7 +194,9 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
         access = check_module_node_access(info, statement, ModuleAccessLevel.Read)
 
         query = query.to_dsl() if query else None
-        query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_key", value=statement.key), query)
+        query = Query.and_if_set(
+            Q(ExpressionOp.EQUALS, "statement_key", value=statement.key), query
+        )
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.RECORD,  # already limited by database

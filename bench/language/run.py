@@ -17,7 +17,6 @@ from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
     from bench.language import Session, Statement, Trigger
-    from bench.language.session import LogSearch, RunSearch
 
 
 @node_component
@@ -29,17 +28,7 @@ class HasRun(Node):
         """Whether this statement is async."""
         return None
 
-    @property
-    def logs(self) -> "LogSearch":
-        from bench.language.session import LogSearch
-
-        return LogSearch.from_statement(self)
-
-    @property
-    def runs(self) -> "RunSearch":
-        from bench.language.session import RunSearch
-
-        return RunSearch.from_statement(self)
+    # runs/logs will re-appear soon
 
     @property
     def cache(self):

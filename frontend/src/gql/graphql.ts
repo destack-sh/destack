@@ -271,6 +271,26 @@ export type Environment = {
 
 export type EnvironmentOperationInfo = Environment | OperationInfo;
 
+export enum ExpressionOp {
+  And = "AND",
+  Disjoint = "DISJOINT",
+  DoesNotExist = "DOES_NOT_EXIST",
+  Equals = "EQUALS",
+  Exists = "EXISTS",
+  GreaterThan = "GREATER_THAN",
+  GreaterThanOrEquals = "GREATER_THAN_OR_EQUALS",
+  Intersects = "INTERSECTS",
+  LessThan = "LESS_THAN",
+  LessThanOrEquals = "LESS_THAN_OR_EQUALS",
+  Matches = "MATCHES",
+  Near = "NEAR",
+  Not = "NOT",
+  NotEquals = "NOT_EQUALS",
+  Or = "OR",
+  StartsWith = "STARTS_WITH",
+  Within = "WITHIN",
+}
+
 export type Field = HasCrud &
   ModuleNode &
   Node & {
@@ -1647,26 +1667,6 @@ export type QueryUsersArgs = {
   last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
-export enum QueryOp {
-  And = "AND",
-  Disjoint = "DISJOINT",
-  DoesNotExist = "DOES_NOT_EXIST",
-  Equals = "EQUALS",
-  Exists = "EXISTS",
-  GreaterThan = "GREATER_THAN",
-  GreaterThanOrEquals = "GREATER_THAN_OR_EQUALS",
-  Intersects = "INTERSECTS",
-  LessThan = "LESS_THAN",
-  LessThanOrEquals = "LESS_THAN_OR_EQUALS",
-  Matches = "MATCHES",
-  Near = "NEAR",
-  Not = "NOT",
-  NotEquals = "NOT_EQUALS",
-  Or = "OR",
-  StartsWith = "STARTS_WITH",
-  Within = "WITHIN",
-}
-
 export type Record = HasCrud &
   Node & {
     __typename?: "Record";
@@ -1899,7 +1899,7 @@ export enum ScheduleType {
 
 export type SearchQuery = {
   key?: InputMaybe<Scalars["String"]["input"]>;
-  op: QueryOp;
+  op: ExpressionOp;
   queries?: InputMaybe<Array<SearchQuery>>;
   value?: InputMaybe<Scalars["JSON"]["input"]>;
 };

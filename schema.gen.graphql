@@ -245,6 +245,26 @@ type Environment {
 
 union EnvironmentOperationInfo = Environment | OperationInfo
 
+enum ExpressionOp {
+  NOT
+  AND
+  OR
+  EQUALS
+  NOT_EQUALS
+  GREATER_THAN
+  GREATER_THAN_OR_EQUALS
+  LESS_THAN
+  LESS_THAN_OR_EQUALS
+  MATCHES
+  STARTS_WITH
+  EXISTS
+  DOES_NOT_EXIST
+  INTERSECTS
+  DISJOINT
+  WITHIN
+  NEAR
+}
+
 type Field implements HasCrud & ModuleNode & Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -1218,26 +1238,6 @@ type Query {
   ): Secret
 }
 
-enum QueryOp {
-  NOT
-  AND
-  OR
-  EQUALS
-  NOT_EQUALS
-  GREATER_THAN
-  GREATER_THAN_OR_EQUALS
-  LESS_THAN
-  LESS_THAN_OR_EQUALS
-  MATCHES
-  STARTS_WITH
-  EXISTS
-  DOES_NOT_EXIST
-  INTERSECTS
-  DISJOINT
-  WITHIN
-  NEAR
-}
-
 type Record implements HasCrud & Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -1458,7 +1458,7 @@ enum ScheduleType {
 }
 
 input SearchQuery {
-  op: QueryOp!
+  op: ExpressionOp!
   key: String = null
   value: JSON = null
   queries: [SearchQuery!] = null

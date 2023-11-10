@@ -11,6 +11,7 @@ from uuid import UUID
 
 import msgpack
 
+import bench.language.view
 from bench import language as lang
 from bench.language import File, IssueType, Module, NodeVisitor
 from bench.language.const import (
@@ -751,12 +752,12 @@ class DatabaseViewData(NodeData, HasOrder, HasCrud):
     sort: Optional[list[Sort]] = None
 
 
-@node_packer(MNT.VIEW, DatabaseViewData, lang.View)
-class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.View]):
+@node_packer(MNT.VIEW, DatabaseViewData, bench.language.view.View)
+class DatabaseViewPacker(NodePacker[DatabaseViewData, bench.language.view.View]):
     PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
     REMAP: ClassVar[dict[str, str]] = {}
 
-    def pack(self, view: lang.View) -> "DatabaseViewData":
+    def pack(self, view: bench.language.view.View) -> "DatabaseViewData":
         return DatabaseViewData(
             id=view.id,
             ck=view.ck,
@@ -773,8 +774,8 @@ class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.View]):
 
     def unpack(
         self, view: DatabaseViewData, parent: lang.Statement, session: Optional[Session]
-    ) -> lang.View:
-        return lang.View(
+    ) -> bench.language.view.View:
+        return bench.language.view.View(
             id=view.id,
             ck=view.ck,
             name=view.name,

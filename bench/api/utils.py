@@ -228,7 +228,7 @@ class ThingBatch(Iterable):
 
 SortOrder = strawberry.enum(expr.SortOrder)
 SortMode = strawberry.enum(expr.SortMode)
-QueryOp = strawberry.enum(expr.QueryOp)
+QueryOp = strawberry.enum(expr.ExpressionOp)
 
 
 @strawberry.input
