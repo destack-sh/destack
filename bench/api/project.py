@@ -25,7 +25,8 @@ from bench.language.cache import _get_usage_key
 from bench.models import ModuleAccessLevel
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
-from bench.search.mapping import prepare_search
+from bench.search.core import DocumentType
+from bench.search.mapping import prepare_os_query
 from bench.utils.cache import redis_sync
 from bench.utils.dt import utcnow_with_tz
 
@@ -82,18 +83,17 @@ class ProjectUsage:
 
 
 def get_project_usage(info: Info) -> ProjectUsage:
-    from bench.search import mirror
-    from bench.search.client import os_client
+    from bench.search.client import os_client_sync
 
     project_id = UUID(info.variable_values.get("projectId").node_id)
     project_head_id = models.Project.objects.only("head_id").get(id=project_id).head_id
 
     # count total active records
     project = models.Project.objects.get(id=project_id)
-    records_total_search = prepare_search(
-        type=mirror.DocumentType.RECORD, project_version_id=project_head_id, limit=0, count=True
+    records_total_search = prepare_os_query(
+        type=DocumentType.RECORD, project_version_id=project_head_id, limit=0, count=True
     )
-    records_total_results = os_client.search(index=project.os_name, body=records_total_search)
+    records_total_results = os_client_sync.search(index=project.os_name, body=records_total_search)
 
     # count total object bytes
     object_bytes_total = (

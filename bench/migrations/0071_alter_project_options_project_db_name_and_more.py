@@ -8,7 +8,7 @@ import bench.utils.func
 def _assign_initial_db_os_name(apps, schema_editor):
     Project = apps.get_model("bench", "Project")
     for project in Project.objects.all():
-        project.db_name = bench.utils.func.generate_random_name()
+        project.pg_name = bench.utils.func.generate_random_name()
         project.db_username = bench.utils.func.generate_random_name()
         project.db_password = bench.utils.func.generate_secret_password()
         # implementation of IndexType.get_index_name as of now

@@ -339,6 +339,8 @@ class ReqReadModulePayload(Payload):
 class RepReadModulePayload(Payload):
     module: ModuleTreeData
     project_id: UUID
+    os_name: str
+    pg_name: str
 
 
 @payload(NMessageType.WRITE_MODULE)

@@ -85,8 +85,10 @@ from bench.msg.messages import (
     StartRunErrorType,
 )
 from bench.search import mirror
-from bench.search.client import os_client
-from bench.search.mapping import encode_cursor, prepare_search
+from bench.search.client import os_client_sync
+from bench.search.core import DocumentType
+from bench.search.mapping import encode_cursor, prepare_os_query
+from bench.server import search
 from bench.server.observer import WorkerObserver
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.monitoring import Monitored
@@ -135,24 +137,9 @@ async def fetch(ref: ModuleReference) -> wire.ModuleTreeData:
     return (await read_module(ref))[0]
 
 
-record_packer = mirror.get_node_packer(mirror.Record)
-run_packer = mirror.get_node_packer(mirror.Run)
-log_packer = mirror.get_node_packer(mirror.LogEntry)
-
-
-def _unpack_record(record: mirror.Record):
-    doc = mirror.Record.from_dict(record["_source"], record["_id"])
-    return record_packer.pack(doc)
-
-
 def _unpack_run(run: mirror.Run):
     doc = mirror.Run.from_dict(run["_source"], run["_id"])
-    return run_packer.pack(doc)
-
-
-def _unpack_log(log: mirror.LogEntry):
-    doc = mirror.LogEntry.from_dict(log["_source"], log["_id"])
-    return log_packer.pack(doc)
+    return search.unpack_node_flat(doc)
 
 
 def _get_projects_to_manage() -> list[models.Project]:
@@ -249,7 +236,14 @@ class RuntimeServer(Monitored):
         logger.debug("module.read", msg=msg)
         module, project = await read_module(msg.p.ref)
         logger.debug("module.read.done", msg=msg, module=module, project=project)
-        await msg.reply(RepReadModulePayload(module=module, project_id=project.id))
+        await msg.reply(
+            RepReadModulePayload(
+                module=module,
+                project_id=project.id,
+                os_name=project.os_name,
+                pg_name=project.db_name,
+            )
+        )
 
     @message_handler
     async def write_module(self, msg: NMessage[ReqWriteModulePayload]) -> None:
@@ -312,7 +306,7 @@ class RuntimeServer(Monitored):
     def _do_search(
         self,
         project_v: models.ProjectVersion,
-        type: Optional[mirror.DocumentType],
+        type: Optional[DocumentType],
         extra_query: Optional[Conditional],
         max_limit: int,
         req: ReqSearch,
@@ -321,7 +315,7 @@ class RuntimeServer(Monitored):
     ) -> RepSearch:
         effective_limit = min(req.limit, max_limit)
         try:
-            search = prepare_search(
+            search = prepare_os_query(
                 type=type,
                 project_version_id=str(project_v.id),
                 limit=effective_limit,
@@ -330,7 +324,7 @@ class RuntimeServer(Monitored):
                 sort=req.sort,
                 query=Conditional.and_if_set(req.query, extra_query),
             )
-            results = os_client.search(index=project_v.project.os_name, body=search)
+            results = os_client_sync.search(index=project_v.project.os_name, body=search)
             elements: list[typing.Any] = []
             for r in results["hits"]["hits"]:
                 elements.append(unpack(r))
@@ -379,7 +373,7 @@ class RuntimeServer(Monitored):
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
             extra_query=C(ConditionalOp.AND, extra_queries) if extra_queries else None,
-            type=mirror.DocumentType.RUN,
+            type=DocumentType.RUN,
             max_limit=MAX_SEARCH_RUN_LIMIT,
             req=msg.p,
             unpack=_unpack_run,
@@ -629,7 +623,12 @@ class RuntimeHost:
         # fetch and interp module
         assert not self.ready.is_set(), "runtime already started"
         source, project = await read_module(self.module_ref)
-        self.module = await sync_to_async(Module.interp)(source.nodes, project.id)
+        self.module = await sync_to_async(Module.make)(
+            source=source.nodes,
+            project_id=project.id,
+            os_name=project.os_name,
+            pg_name=project.db_name,
+        )
         await self._on_module_changed(change=None)
         self.tasks.start(self.process_time_triggers_forever())
         self.ready.set()

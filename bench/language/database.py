@@ -6,7 +6,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import DATABASE_VERSIONED_RECORD_LIMIT, MNT, new_dynamic_node_key
-from bench.language.expression import Conditional, Sort
+from bench.language.expression import C, Conditional, ConditionalOp, Sort
 from bench.language.module import (
     _NC,
     NS,
@@ -24,6 +24,8 @@ from bench.language.module import (
     nparent,
 )
 from bench.language.value import HasValue
+from bench.search.client import os_client
+from bench.search.core import DocumentType
 from bench.utils.func import describe_type
 from bench.utils.utils import flatten_list
 
@@ -111,7 +113,6 @@ class RecordBaseQuery:
         distinct: list["Field"] = None,
         first: int = None,
         skip: int = None,
-        last: int = None,
     ):
         self._database = database
         self._query = query
@@ -121,7 +122,6 @@ class RecordBaseQuery:
         self._distinct = distinct
         self._first = first
         self._skip = skip
-        self._last = last
         self._result_cache: list[Record] | None = None
 
     def deepcopy(self):
@@ -135,10 +135,23 @@ class RecordBaseQuery:
             distinct=self._distinct,
             first=self._first,
             skip=self._skip,
-            last=self._last,
         )
 
     async def _execute(self, session: "Session"):
+        from bench.search.mapping import prepare_os_query
+
+        query = Conditional.and_if_set(
+            self._query, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
+        )
+        search = prepare_os_query(
+            type=DocumentType.RECORD,
+            project_version_id=None,
+            limit=self._first,
+            count=True,
+        )
+        results = await os_client.search(
+            index=session.module.os_name,
+        )
         raise NotImplementedError("nocheckin execute read query")
 
     async def __aiter__(self):

@@ -29,7 +29,7 @@ from bench.language.expression import (
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
 from bench.language.packer import TYPENAME_SENTINEL
 from bench.search import mirror
-from bench.search.mirror import DocumentType
+from bench.search.core import DocumentType
 
 MAXIMUM_NESTING_DEPTH = 3
 
@@ -335,7 +335,7 @@ def compact_os_queries(queries: list[dict[str, Any]]) -> dict[str, Any]:
         return {"bool": {"must": queries}}
 
 
-def prepare_search(
+def prepare_os_query(
     type: "DocumentType",
     project_version_id: Union[str, list[str], None],
     limit: int,

@@ -58,8 +58,9 @@ from bench.msg.messages import (
     WorkersChangedPayload,
 )
 from bench.search import mirror
-from bench.search.client import os_client
-from bench.search.mapping import encode_cursor, prepare_search
+from bench.search.client import os_client_sync
+from bench.search.core import DocumentType
+from bench.search.mapping import encode_cursor, prepare_os_query
 from bench.server.search import write_runs_to_os
 
 if TYPE_CHECKING:
@@ -486,8 +487,8 @@ class SessionQuery:
 
         logger.debug("runs.search", project_id=project_id, query=query, sort=sort)
         # query id only and then fetch full run from DB
-        search = prepare_search(
-            type=mirror.DocumentType.RUN,
+        search = prepare_os_query(
+            type=DocumentType.RUN,
             project_version_id=str(project_version_id) if project_version_id else None,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
@@ -497,7 +498,7 @@ class SessionQuery:
             fields=[],
             source=False,
         )
-        os_results = os_client.search(index=project.os_name, body=search)
+        os_results = os_client_sync.search(index=project.os_name, body=search)
 
         hits = os_results["hits"]["hits"]
         logger.debug("runs.search.db", project_id=project_id, hits=len(hits))
@@ -581,8 +582,8 @@ class SessionQuery:
                 query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
             )
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
-        search = prepare_search(
-            type=mirror.DocumentType.LOG_ENTRY,
+        search = prepare_os_query(
+            type=DocumentType.LOG_ENTRY,
             project_version_id=str(project_version_id) if project_version_id else None,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
@@ -591,7 +592,7 @@ class SessionQuery:
             query=query,
         )
 
-        results = os_client.search(index=project.os_name, body=search)
+        results = os_client_sync.search(index=project.os_name, body=search)
 
         hits = results["hits"]["hits"]
         edges = []

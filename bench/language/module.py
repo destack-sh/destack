@@ -2133,6 +2133,8 @@ class Module(ScopeNode):
     _lookup_cache: dict[str, NodeT] = nruntime(default_factory=dict)
     _source: Optional[NodeTree] = nruntime(default=None)
     _project_id: Optional[UUID] = nruntime(default=None)
+    _os_name: Optional[str] = nruntime(default=None)
+    _pg_name: Optional[str] = nruntime(default=None)
 
     def __str__(self):
         if self.issues:
@@ -2169,6 +2171,16 @@ class Module(ScopeNode):
     def project_id(self):
         assert self._project_id is not None, f"no project id set in {self!r}"
         return self._project_id
+
+    @property
+    def os_name(self):
+        assert self._os_name is not None, f"no search index name set in {self!r}"
+        return self._os_name
+
+    @property
+    def pg_name(self):
+        assert self._pg_name is not None, f"no database name set in {self!r}"
+        return self._pg_name
 
     @property
     def py_ident(self) -> str:
@@ -2341,13 +2353,15 @@ class Module(ScopeNode):
         )
 
     @staticmethod
-    def interp(source: list["NodeData"], project_id: UUID) -> "Module":
+    def make(source: list["NodeData"], project_id: UUID, os_name: str, pg_name: str) -> "Module":
         """Create an interpreted Module from a source module node tree."""
         from bench.language import libs, wire
 
         module = wire.unpack_module(source, exclude=INTERP_NODE_TYPES, session=None)
         module._source = NodeTree(source)
         module._project_id = project_id
+        module._os_name = os_name
+        module._pg_name = pg_name
         old_nodes_by_ck = {**module._tree.nodes_by_ck}
         old_source_nodes_by_ck = {**module._source.nodes_by_ck}
 
