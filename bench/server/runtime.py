@@ -241,7 +241,7 @@ class RuntimeServer(Monitored):
                 module=module,
                 project_id=project.id,
                 os_name=project.os_name,
-                pg_name=project.db_name,
+                pg_name=project.pg_name,
             )
         )
 
@@ -627,7 +627,7 @@ class RuntimeHost:
             source=source.nodes,
             project_id=project.id,
             os_name=project.os_name,
-            pg_name=project.db_name,
+            pg_name=project.pg_name,
         )
         await self._on_module_changed(change=None)
         self.tasks.start(self.process_time_triggers_forever())

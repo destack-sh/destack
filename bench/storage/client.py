@@ -11,14 +11,14 @@ PG_PASSWORD = get_from_env("LOCAL_PG_PASSWORD", default="admin", alt="USER_PG_PA
 _PG_ENGINES: dict[str, AsyncEngine] = {}
 
 
-def create_async_pg_engine_to(db_name: str):
-    if db_name not in _PG_ENGINES:
+def create_async_pg_engine_to(pg_name: str):
+    if pg_name not in _PG_ENGINES:
         engine = create_async_engine(
-            f"postgresql://{PG_USERNAME}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{db_name}",
+            f"postgresql://{PG_USERNAME}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{pg_name}",
             future=True,
         )
-        _PG_ENGINES[db_name] = engine
-    return _PG_ENGINES[db_name]
+        _PG_ENGINES[pg_name] = engine
+    return _PG_ENGINES[pg_name]
 
 
 if PG_NAME:
