@@ -448,7 +448,7 @@ export function makeRds(name: string, instanceClass: string, config: { password:
     {
       engine: "aurora-postgresql",
       clusterIdentifier: name,
-      engineVersion: "14.6",
+      engineVersion: "14.8",
       databaseName: "postgres",
       deletionProtection: true,
       masterUsername: "postgres",
@@ -456,6 +456,8 @@ export function makeRds(name: string, instanceClass: string, config: { password:
       backupRetentionPeriod: 7,
       preferredBackupWindow: "04:00-06:00",
       vpcSecurityGroupIds: [dbSecurityGroup.id],
+      enabledCloudwatchLogsExports: ["postgresql"],
+      storageEncrypted: true,
     },
     { ...extra, protect: true }
   );
@@ -465,9 +467,11 @@ export function makeRds(name: string, instanceClass: string, config: { password:
       clusterIdentifier: dbCluster.clusterIdentifier,
       instanceClass,
       engine: "aurora-postgresql",
-      engineVersion: "14.6",
+      engineVersion: "14.8",
       publiclyAccessible: true,
       performanceInsightsEnabled: true,
+      monitoringInterval: 30,
+      autoMinorVersionUpgrade: true,
     },
     { ...extra, protect: true }
   );
