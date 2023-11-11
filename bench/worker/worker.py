@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import timedelta
 from functools import partial
-from typing import Any, Optional, Union
+from typing import Any, Optional, TypedDict, Union
 from uuid import UUID
 
 import structlog
@@ -66,6 +66,13 @@ WORKER_SCHEDULE_BLOCK_AHEAD = 1
 logger = structlog.get_logger(__name__)
 
 
+@dataclass
+class ModuleInfo:
+    project_id: UUID
+    os_name: str
+    pg_name: str
+
+
 class WorkerNode(Monitored):
     """
     A user worker to run user code, generally one worker process per project (Bench).
@@ -81,7 +88,9 @@ class WorkerNode(Monitored):
         self.workers: dict[UUID, ModuleWorkerProcess] = {}
         self.subs = []
         self.tasks = TaskManager()
-        self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
+        self.cached_committed_modules: dict[
+            ModuleReference, tuple[wire.ModuleTreeData, ModuleInfo]
+        ] = {}
         self._ready = asyncio.Event()
         self.log = logger.bind(
             worker_node=self.worker_node_id,
@@ -306,23 +315,26 @@ class WorkerNode(Monitored):
     async def ping(self, msg: NMessage[ReqPingWorkerSetPayload]):
         await msg.reply(RepPingWorkerSetPayload(success=self.healthy))
 
-    async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
+    async def get_module(
+        self, ref: ModuleReference | UUID
+    ) -> tuple[wire.ModuleTreeData, ModuleInfo]:
         """Gets a modules wire data"""
         log = self.log.bind(ref=ref)
         cached = self.cached_committed_modules.get(ref)
         if cached is not None:
             log.debug("module.fetch", cached=True)
             return cached
-        module_rep = await request(
+        module_rep: NMessage[RepReadModulePayload] = await request(
             NMessageType.READ_MODULE, ReqReadModulePayload(ref), RepReadModulePayload, retry=3
         )
         if module_rep.p.module.committed:
             self.cached_committed_modules[ref] = module_rep.p.module, module_rep.p.project_id
         log.debug("module.fetch", cached=False)
-        return module_rep.p.module, module_rep.p.project_id
-
-    async def fetch(self, ref: ModuleReference) -> wire.ModuleTreeData:
-        return (await self.get_module(ref))[0]
+        return module_rep.p.module, ModuleInfo(
+            project_id=module_rep.p.project_id,
+            os_name=module_rep.p.os_name,
+            pg_name=module_rep.p.pg_name,
+        )
 
     async def stop(self):
         self.log.info("stop")
@@ -400,9 +412,15 @@ class ModuleWorkerProcess(ModuleWriter):
 
     async def start(self):
         # get & interp module
-        source, self.project_id = await self.node.get_module(self.module_id)
+        source, info = await self.node.get_module(self.module_id)
+        self.project_id = info.project_id
         try:
-            self.module = await sync_to_async(Module.interp)(source.nodes, self.project_id)
+            self.module = await sync_to_async(Module.make)(
+                source=source.nodes,
+                project_id=info.project_id,
+                os_name=info.os_name,
+                pg_name=info.pg_name,
+            )
             self.log = self.log.bind(module=self.module.name)
         except BaseException as e:
             self.log.error("module.init.failed", exc_info=e)
@@ -574,7 +592,7 @@ class ModuleWorkerProcess(ModuleWriter):
             job.session = Session(
                 module=self.module,
                 writer=self,
-                access=job.run_data.access_level or SessionAccessLevel.Read,
+                access_level=job.run_data.access_level or SessionAccessLevel.Read,
                 worker_node_id=self.node.worker_node_id,
                 worker_process_id=None,
                 trigger_type=job.run_data.trigger_type,

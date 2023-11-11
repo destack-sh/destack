@@ -215,7 +215,7 @@ class OrchestrationServer(Monitored):
 
         # get project search index names
         if project_id:
-            os_names = [await models.Project.objects.get(id=project_id).os_name]
+            os_names = [(await models.Project.objects.aget(id=project_id)).os_name]
         else:
             project_ids = set(r.project_id for r in dead_runs)
             os_names_by_project: dict[UUID, str] = {

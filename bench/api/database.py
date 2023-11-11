@@ -25,8 +25,9 @@ from bench.api.utils import (
 from bench.language import ConditionalOp
 from bench.models import ModuleAccessLevel
 from bench.search import mirror
-from bench.search.client import os_client
-from bench.search.mapping import encode_cursor, prepare_search
+from bench.search.client import os_client_sync
+from bench.search.core import DocumentType
+from bench.search.mapping import encode_cursor, prepare_os_query
 from bench.utils.dt import utcnow_with_tz
 
 
@@ -199,8 +200,8 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
             lang.C(ConditionalOp.EQUALS, "statement_key", value=statement.key), query
         )
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
-        search = prepare_search(
-            type=mirror.DocumentType.RECORD,  # already limited by database
+        search = prepare_os_query(
+            type=DocumentType.RECORD,  # already limited by database
             project_version_id=None,  # already limited by database
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
@@ -209,7 +210,7 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
             query=query,
         )
 
-        results = os_client.search(index=access.project.os_name, body=search)
+        results = os_client_sync.search(index=access.project.os_name, body=search)
 
         edges = []
         for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):

@@ -7,7 +7,7 @@ from bench.language.edit import MET, MNT
 from bench.language.module import Module
 from bench.language.run import HasRun
 from bench.search import mirror
-from bench.search.client import os_client
+from bench.search.client import os_client_sync
 from bench.search.core import IndexType
 from bench.search.mapping import map_to_os_field
 
@@ -112,4 +112,4 @@ def update_field_mappings(os_name: str, module: Module) -> None:
         sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items()}
         mappings[key] = {"type": "object", "dynamic": "strict", "properties": sub_mappings}
 
-    os_client.indices.put_mapping(index=os_name, body={"properties": mappings})
+    os_client_sync.indices.put_mapping(index=os_name, body={"properties": mappings})

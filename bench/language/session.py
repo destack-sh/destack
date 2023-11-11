@@ -52,6 +52,8 @@ class ModuleWriter(abc.ABC):
     async def write_session(
         self, session: "Session", runs: list["Run"], logs: list["LogEntry"]
     ) -> bool:
+        # nocheckin: write logs directly to os
+        # and refactor/rename 'ModuleWriter' concept (module synchronizer?)
         raise NotImplementedError
 
 
@@ -62,7 +64,7 @@ class Session:
         self,
         module: Module,
         writer: ModuleWriter,
-        access: SessionAccessLevel,
+        access_level: SessionAccessLevel,
         worker_node_id: str,
         worker_process_id: Optional[str],
         trigger_type: TriggerType,
@@ -88,7 +90,7 @@ class Session:
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
-        self.access_level = access
+        self.access_level = access_level
         self._writer = writer
 
         self.cache_sync = CacheSync(module)
@@ -137,13 +139,13 @@ class Session:
         return self._tracer.value(**kwargs)
 
     @contextlib.contextmanager
-    def bind_access_level(self, access: SessionAccessLevel):
-        if access > self.access_level:
+    def bind_access_level(self, access_level: SessionAccessLevel):
+        if access_level > self.access_level:
             raise PermissionError(
-                f"cannot increase access level from {self.access_level} to {access}"
+                f"cannot increase access level from {self.access_level} to {access_level}"
             )
         old_access = self.access_level
-        self.access_level = access
+        self.access_level = access_level
         try:
             yield
         finally:

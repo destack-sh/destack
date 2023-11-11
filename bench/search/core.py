@@ -429,3 +429,21 @@ class IndexType(enum.StrEnum):
 
     GLOBAL = "global"
     LOCAL = "project"
+
+
+class DocumentType(enum.StrEnum):
+    BLOB = "blob"
+    SECRET = "secret"
+    USER = "user"
+    ORGANIZATION = "organization"
+    PROJECT = "project"
+    PROJECT_VERSION = "project_version"
+    FILE = "file"
+    STATEMENT = "statement"
+    FIELD = "field"
+    TILE = "tile"
+    RECORD = "record"
+    COMMENT = "comment"
+    SESSION = "session"
+    RUN = "run"
+    LOG_ENTRY = "log_entry"

@@ -4,7 +4,7 @@ from django.db import transaction
 
 from bench import models
 from bench.models import Project
-from bench.search.client import os_client
+from bench.search.client import os_client_sync
 from bench.server.search import create_local_search_index
 
 logger = structlog.get_logger(__name__)
@@ -37,10 +37,10 @@ class Command(BaseCommand):
                 for project in models.Project.objects.all():
                     try:
                         logger.info("opensearch.delete", project=project)
-                        os_client.indices.delete(index=project.os_name)
+                        os_client_sync.indices.delete(index=project.os_name)
                     except Exception as e:
                         logger.error("opensearch.delete.error", project=project, error=e)
             else:
                 project = self.get_project(slug)
                 logger.info("opensearch.delete", project=project)
-                os_client.indices.delete(index=project.os_name)
+                os_client_sync.indices.delete(index=project.os_name)

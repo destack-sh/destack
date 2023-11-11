@@ -12,7 +12,7 @@ services:
       - '5432:5432'
 
   search:
-    image: opensearchproject/opensearch:2.7.0 # should be same as in infra
+    image: opensearchproject/opensearch:2.9.0 # should be same as in infra
     restart: on-failure
     environment:
       discovery.type: single-node
@@ -31,7 +31,6 @@ services:
       MINIO_ROOT_USER: 'AKIAIOSFODNN7EXAMPLE'
       MINIO_ROOT_PASSWORD: 'UKht5CaJPQ5ZCaAsfFY52URhg7RWv8V2489e9qSpoAhJRw97gttSBkEWU65wtGz'
     entrypoint: sh
-    # create the 'bench' bucket before starting the service
     command: -c 'mkdir -p /data/bench && minio server --address ":19000" --console-address ":19001" /data'
 
   nats:
@@ -41,7 +40,6 @@ services:
       - '4222:4222'
       - '6222:6222'
       - '8222:8222'
-    # 32MB in bytes
     volumes:
       - ./infra/nats.conf:/nats-server.conf
     command: ["-c", "nats-server", "--config", "/nats-server.conf"]
