@@ -1,7 +1,7 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { formatDuration, useNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import type { SearchLogsQuery, SearchQuery, SearchRunsQueryVariables, SearchSort } from "@/gql/graphql";
+import type { SearchLogsQuery, Conditional, SearchRunsQueryVariables, Sort } from "@/gql/graphql";
 import {
   RunStatus,
   type Run,
@@ -704,7 +704,7 @@ export type RunsQuery = {
   sessionId?: string;
   runId?: string;
   rootOnly?: boolean;
-  query?: SearchQuery;
+  query?: Conditional;
 };
 
 export function useRuns(
@@ -716,8 +716,8 @@ export function useRuns(
     sessionId: Ref<string | null>;
     runId: Ref<string | null>;
     rootOnly: Ref<boolean>;
-    query: Ref<SearchQuery | null | undefined>;
-    sort: Ref<SearchSort[] | null | undefined>;
+    query: Ref<Conditional | null | undefined>;
+    sort: Ref<Sort[] | null | undefined>;
     after: Ref<string | null | undefined>;
   },
   options?: {
@@ -758,8 +758,8 @@ export function useRuns(
       $sessionId: GlobalID
       $runId: GlobalID
       $rootOnly: Boolean!
-      $query: SearchQuery
-      $sort: [SearchSort!]
+      $query: Conditional
+      $sort: [Sort!]
       $after: String
       $limit: Int
       $count: Boolean
@@ -944,7 +944,7 @@ export type LogsQuery = {
   statementIds?: string[] | null | undefined;
   sessionId?: string | null | undefined;
   runId?: string | null | undefined;
-  query?: SearchQuery | null | undefined;
+  query?: Conditional | null | undefined;
 };
 
 export function useLogs(
@@ -955,8 +955,8 @@ export function useLogs(
     statementCks: Ref<string[] | null | undefined>;
     sessionId: Ref<string | null | undefined>;
     runId: Ref<string | null | undefined>;
-    query: Ref<SearchQuery | null | undefined>;
-    sort: Ref<SearchSort[] | null | undefined>;
+    query: Ref<Conditional | null | undefined>;
+    sort: Ref<Sort[] | null | undefined>;
     after: Ref<string | null | undefined>;
   },
   options?: { live?: boolean; limit?: number; count?: boolean }
@@ -987,8 +987,8 @@ export function useLogs(
       $statementCks: [UUID!]
       $sessionId: GlobalID
       $runId: GlobalID
-      $query: SearchQuery
-      $sort: [SearchSort!]
+      $query: Conditional
+      $sort: [Sort!]
       $after: String
       $limit: Int
       $count: Boolean

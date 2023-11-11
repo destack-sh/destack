@@ -9,19 +9,20 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
+from bench import language as lang
 from bench import models
 from bench.api.auth import check_module_node_access
 from bench.api.sync import BatchEditInput, db_edit
 from bench.api.type import MET
 from bench.api.utils import (
+    Conditional,
     HasCrud,
     ListConnectionWithTotalCount,
     Revisioned,
-    SearchQuery,
-    SearchSort,
+    Sort,
     ThingBatch,
 )
-from bench.language import ExpressionOp, Q, Query
+from bench.language import ConditionalOp
 from bench.models import ModuleAccessLevel
 from bench.search import mirror
 from bench.search.client import os_client
@@ -184,8 +185,8 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
         self,
         info: Info,
         statement_id: GlobalID,
-        query: Optional[SearchQuery] = None,
-        sort: Optional[list[SearchSort]] = None,
+        query: Optional[Conditional] = None,
+        sort: Optional[list[Sort]] = None,
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
@@ -194,8 +195,8 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
         access = check_module_node_access(info, statement, ModuleAccessLevel.Read)
 
         query = query.to_dsl() if query else None
-        query = Query.and_if_set(
-            Q(ExpressionOp.EQUALS, "statement_key", value=statement.key), query
+        query = lang.Conditional.and_if_set(
+            lang.C(ConditionalOp.EQUALS, "statement_key", value=statement.key), query
         )
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(

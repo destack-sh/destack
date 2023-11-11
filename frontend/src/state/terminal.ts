@@ -1,4 +1,4 @@
-import { ExpressionOp, SortOrder, type Run, RunStatus } from "@/gql/graphql";
+import { ConditionalOp, SortOrder, type Run, RunStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session";
@@ -41,10 +41,10 @@ function _useTerminal() {
       sessionId: ref(null),
       runId: ref(null),
       query: computed(() => ({
-        op: ExpressionOp.And,
+        op: ConditionalOp.And,
         queries: [
           {
-            op: ExpressionOp.Equals,
+            op: ConditionalOp.Equals,
             key: "value." + botLabelKey.value,
             value: TERMINAL_BOT_LABEL,
           },

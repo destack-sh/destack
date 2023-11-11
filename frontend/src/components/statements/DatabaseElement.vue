@@ -6,7 +6,7 @@ import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useActiveScroll } from "@/composables/useScroll";
-import { SortOrder, EditType, type SearchSort, type SearchRecordsQueryVariables } from "@/gql/graphql";
+import { SortOrder, EditType, type Sort, type SearchRecordsQueryVariables } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
 import { useCurrentModule, type Field, newNodeIdentity, type Statement, type Record } from "@/state/module";
@@ -90,7 +90,7 @@ function addSort(field: Field, order: SortOrder) {
 function removeSort(sort: { key: string }) {
   properties.sorts = properties.sorts?.filter((s) => !s.key.includes(sort.key));
 }
-const sort: Ref<SearchSort[] | null> = computed(() => {
+const sort: Ref<Sort[] | null> = computed(() => {
   if (properties.sorts == null || properties.sorts.length == 0) {
     // default to sort by created at
     return [{ key: "created_at", order: SortOrder.Descending }];

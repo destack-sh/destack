@@ -16,7 +16,7 @@ from bench.language.const import (
     WorkerProfile,
 )
 from bench.language.edit import EditData
-from bench.language.expression import Query, Sort
+from bench.language.expression import Conditional, Sort
 from bench.language.model import ModelErrorType
 from bench.language.wire import (
     BlobData,
@@ -370,7 +370,7 @@ class RepWriteSessionPayload(Payload):
 
 @dataclass
 class ReqSearch(abc.ABC, Payload):
-    query: Optional[Query] = None
+    query: Optional[Conditional] = None
     sort: Optional[list[Sort]] = None
     after: Optional[str] = None
     limit: Optional[int] = None

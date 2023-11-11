@@ -153,6 +153,33 @@ input ClientUpsertInput {
   path: String
 }
 
+input Conditional {
+  op: ConditionalOp!
+  key: String = null
+  value: JSON = null
+  clauses: [Conditional!] = null
+}
+
+enum ConditionalOp {
+  NOT
+  AND
+  OR
+  EQUALS
+  NOT_EQUALS
+  GREATER_THAN
+  GREATER_THAN_OR_EQUALS
+  LESS_THAN
+  LESS_THAN_OR_EQUALS
+  MATCHES
+  STARTS_WITH
+  EXISTS
+  DOES_NOT_EXIST
+  INTERSECTS
+  DISJOINT
+  WITHIN
+  NEAR
+}
+
 """Date with time (isoformat)"""
 scalar DateTime
 
@@ -244,26 +271,6 @@ type Environment {
 }
 
 union EnvironmentOperationInfo = Environment | OperationInfo
-
-enum ExpressionOp {
-  NOT
-  AND
-  OR
-  EQUALS
-  NOT_EQUALS
-  GREATER_THAN
-  GREATER_THAN_OR_EQUALS
-  LESS_THAN
-  LESS_THAN_OR_EQUALS
-  MATCHES
-  STARTS_WITH
-  EXISTS
-  DOES_NOT_EXIST
-  INTERSECTS
-  DISJOINT
-  WITHIN
-  NEAR
-}
 
 type Field implements HasCrud & ModuleNode & Node {
   """The Globally Unique ID of this object"""
@@ -1147,8 +1154,8 @@ type Query {
   ): Run
   currentRuns(projectId: GlobalID!, projectVersionId: GlobalID!): SessionStateOperationInfo!
   environment(projectId: GlobalID!): EnvironmentOperationInfo!
-  searchRuns(projectId: GlobalID!, projectVersionId: GlobalID!, sessionId: GlobalID = null, runId: GlobalID = null, statementIds: [GlobalID!] = null, statementCks: [UUID!] = null, rootOnly: Boolean = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RunConnection!
-  searchLogs(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, statementIds: [GlobalID!] = null, statementCks: [UUID!] = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): LogEntryConnection!
+  searchRuns(projectId: GlobalID!, projectVersionId: GlobalID!, sessionId: GlobalID = null, runId: GlobalID = null, statementIds: [GlobalID!] = null, statementCks: [UUID!] = null, rootOnly: Boolean = null, query: Conditional = null, sort: [Sort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RunConnection!
+  searchLogs(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, statementIds: [GlobalID!] = null, statementCks: [UUID!] = null, query: Conditional = null, sort: [Sort!] = null, after: String = null, limit: Int = null, count: Boolean = null): LogEntryConnection!
   clients(
     projectId: GlobalID = null
     projectVersionId: GlobalID = null
@@ -1170,7 +1177,7 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): ClientConnection!
-  searchRecords(statementId: GlobalID!, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RecordConnection!
+  searchRecords(statementId: GlobalID!, query: Conditional = null, sort: [Sort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RecordConnection!
   systemInfo: SystemInfo!
   me: User
   user(
@@ -1457,19 +1464,6 @@ enum ScheduleType {
   CRON
 }
 
-input SearchQuery {
-  op: ExpressionOp!
-  key: String = null
-  value: JSON = null
-  queries: [SearchQuery!] = null
-}
-
-input SearchSort {
-  key: String!
-  order: SortOrder! = ASCENDING
-  mode: SortMode = null
-}
-
 type Secret implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -1542,6 +1536,12 @@ type SnapshotPayload {
 }
 
 union SnapshotPayloadOperationInfo = SnapshotPayload | OperationInfo
+
+input Sort {
+  key: String!
+  order: SortOrder! = ASCENDING
+  mode: SortMode = null
+}
 
 enum SortMode {
   MAX

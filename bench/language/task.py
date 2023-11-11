@@ -90,7 +90,7 @@ class HasTask(Node):
         view.view_node(seen_from_value.values(), ancestors_up_to=MNT.FILE, max_distance=2)
         await view.view_records(seen_from_value.values(), limit=10)
 
-        self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
+        self.session._tracer.run_enter(self, is_async=True, inputs=inputs)
         try:
             if passthrough_model:
                 # passthrough model
@@ -106,9 +106,9 @@ class HasTask(Node):
             if self.session._needs_flush_before_exit:
                 await self.session.acommit()
         except BaseException as e:
-            self.session.tracer.run_exception(self, e)
+            self.session._tracer.run_exception(self, e)
             raise
-        self.session.tracer.run_exit(self, outputs)
+        self.session._tracer.run_exit(self, outputs)
         return outputs
 
 

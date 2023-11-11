@@ -180,6 +180,33 @@ export type ClientUpsertInput = {
   type: ClientType;
 };
 
+export type Conditional = {
+  clauses?: InputMaybe<Array<Conditional>>;
+  key?: InputMaybe<Scalars["String"]["input"]>;
+  op: ConditionalOp;
+  value?: InputMaybe<Scalars["JSON"]["input"]>;
+};
+
+export enum ConditionalOp {
+  And = "AND",
+  Disjoint = "DISJOINT",
+  DoesNotExist = "DOES_NOT_EXIST",
+  Equals = "EQUALS",
+  Exists = "EXISTS",
+  GreaterThan = "GREATER_THAN",
+  GreaterThanOrEquals = "GREATER_THAN_OR_EQUALS",
+  Intersects = "INTERSECTS",
+  LessThan = "LESS_THAN",
+  LessThanOrEquals = "LESS_THAN_OR_EQUALS",
+  Matches = "MATCHES",
+  Near = "NEAR",
+  Not = "NOT",
+  NotEquals = "NOT_EQUALS",
+  Or = "OR",
+  StartsWith = "STARTS_WITH",
+  Within = "WITHIN",
+}
+
 export type DeleteObjectInput = {
   id: Scalars["GlobalID"]["input"];
 };
@@ -270,26 +297,6 @@ export type Environment = {
 };
 
 export type EnvironmentOperationInfo = Environment | OperationInfo;
-
-export enum ExpressionOp {
-  And = "AND",
-  Disjoint = "DISJOINT",
-  DoesNotExist = "DOES_NOT_EXIST",
-  Equals = "EQUALS",
-  Exists = "EXISTS",
-  GreaterThan = "GREATER_THAN",
-  GreaterThanOrEquals = "GREATER_THAN_OR_EQUALS",
-  Intersects = "INTERSECTS",
-  LessThan = "LESS_THAN",
-  LessThanOrEquals = "LESS_THAN_OR_EQUALS",
-  Matches = "MATCHES",
-  Near = "NEAR",
-  Not = "NOT",
-  NotEquals = "NOT_EQUALS",
-  Or = "OR",
-  StartsWith = "STARTS_WITH",
-  Within = "WITHIN",
-}
 
 export type Field = HasCrud &
   ModuleNode &
@@ -1611,10 +1618,10 @@ export type QuerySearchLogsArgs = {
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   projectId: Scalars["GlobalID"]["input"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
-  query?: InputMaybe<SearchQuery>;
+  query?: InputMaybe<Conditional>;
   runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
-  sort?: InputMaybe<Array<SearchSort>>;
+  sort?: InputMaybe<Array<Sort>>;
   statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]>>;
   statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]>>;
 };
@@ -1623,8 +1630,8 @@ export type QuerySearchRecordsArgs = {
   after?: InputMaybe<Scalars["String"]["input"]>;
   count?: InputMaybe<Scalars["Boolean"]["input"]>;
   limit?: InputMaybe<Scalars["Int"]["input"]>;
-  query?: InputMaybe<SearchQuery>;
-  sort?: InputMaybe<Array<SearchSort>>;
+  query?: InputMaybe<Conditional>;
+  sort?: InputMaybe<Array<Sort>>;
   statementId: Scalars["GlobalID"]["input"];
 };
 
@@ -1634,11 +1641,11 @@ export type QuerySearchRunsArgs = {
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   projectId: Scalars["GlobalID"]["input"];
   projectVersionId: Scalars["GlobalID"]["input"];
-  query?: InputMaybe<SearchQuery>;
+  query?: InputMaybe<Conditional>;
   rootOnly?: InputMaybe<Scalars["Boolean"]["input"]>;
   runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
-  sort?: InputMaybe<Array<SearchSort>>;
+  sort?: InputMaybe<Array<Sort>>;
   statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]>>;
   statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]>>;
 };
@@ -1897,19 +1904,6 @@ export enum ScheduleType {
   Interval = "INTERVAL",
 }
 
-export type SearchQuery = {
-  key?: InputMaybe<Scalars["String"]["input"]>;
-  op: ExpressionOp;
-  queries?: InputMaybe<Array<SearchQuery>>;
-  value?: InputMaybe<Scalars["JSON"]["input"]>;
-};
-
-export type SearchSort = {
-  key: Scalars["String"]["input"];
-  mode?: InputMaybe<SortMode>;
-  order?: SortOrder;
-};
-
 export type Secret = Node & {
   __typename?: "Secret";
   createdAt: Scalars["DateTime"]["output"];
@@ -1987,6 +1981,12 @@ export type SnapshotPayload = {
 };
 
 export type SnapshotPayloadOperationInfo = OperationInfo | SnapshotPayload;
+
+export type Sort = {
+  key: Scalars["String"]["input"];
+  mode?: InputMaybe<SortMode>;
+  order?: SortOrder;
+};
 
 export enum SortMode {
   Average = "AVERAGE",
@@ -3335,8 +3335,8 @@ export type ClientStatusFragment = {
 
 export type SearchRecordsQueryVariables = Exact<{
   statementId: Scalars["GlobalID"]["input"];
-  query?: InputMaybe<SearchQuery>;
-  sort?: InputMaybe<Array<SearchSort> | SearchSort>;
+  query?: InputMaybe<Conditional>;
+  sort?: InputMaybe<Array<Sort> | Sort>;
   after?: InputMaybe<Scalars["String"]["input"]>;
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   count?: InputMaybe<Scalars["Boolean"]["input"]>;
@@ -5436,8 +5436,8 @@ export type SearchRunsQueryVariables = Exact<{
   sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   rootOnly: Scalars["Boolean"]["input"];
-  query?: InputMaybe<SearchQuery>;
-  sort?: InputMaybe<Array<SearchSort> | SearchSort>;
+  query?: InputMaybe<Conditional>;
+  sort?: InputMaybe<Array<Sort> | Sort>;
   after?: InputMaybe<Scalars["String"]["input"]>;
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   count?: InputMaybe<Scalars["Boolean"]["input"]>;
@@ -5484,8 +5484,8 @@ export type SearchLogsQueryVariables = Exact<{
   statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]> | Scalars["UUID"]["input"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
-  query?: InputMaybe<SearchQuery>;
-  sort?: InputMaybe<Array<SearchSort> | SearchSort>;
+  query?: InputMaybe<Conditional>;
+  sort?: InputMaybe<Array<Sort> | Sort>;
   after?: InputMaybe<Scalars["String"]["input"]>;
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   count?: InputMaybe<Scalars["Boolean"]["input"]>;
@@ -10606,14 +10606,14 @@ export const SearchRecordsDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "query" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "SearchQuery" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Conditional" } },
         },
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "sort" } },
           type: {
             kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "SearchSort" } } },
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Sort" } } },
           },
         },
         {
@@ -22072,14 +22072,14 @@ export const SearchRunsDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "query" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "SearchQuery" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Conditional" } },
         },
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "sort" } },
           type: {
             kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "SearchSort" } } },
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Sort" } } },
           },
         },
         {
@@ -22555,14 +22555,14 @@ export const SearchLogsDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "query" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "SearchQuery" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Conditional" } },
         },
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "sort" } },
           type: {
             kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "SearchSort" } } },
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Sort" } } },
           },
         },
         {

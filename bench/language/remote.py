@@ -239,7 +239,7 @@ class Blob(Node):
         return obj
 
 
-class Storage:
+class Blobs:
     """Convenience wrapper around a module's object storage."""
 
     def __init__(self, module: Module):

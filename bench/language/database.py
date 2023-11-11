@@ -6,7 +6,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import DATABASE_VERSIONED_RECORD_LIMIT, MNT, new_dynamic_node_key
-from bench.language.expression import Query, Sort
+from bench.language.expression import Conditional, Sort
 from bench.language.module import (
     _NC,
     NS,
@@ -28,10 +28,12 @@ from bench.utils.func import describe_type
 from bench.utils.utils import flatten_list
 
 if typing.TYPE_CHECKING:
-    from bench.language import Field, Statement, View
-LOCAL_RECORD_CACHE_LIMIT = DATABASE_VERSIONED_RECORD_LIMIT
+    from bench.language import Field, Session, Statement, View
 
 logger = structlog.get_logger(__name__)
+
+LOCAL_RECORD_CACHE_LIMIT = DATABASE_VERSIONED_RECORD_LIMIT
+RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 
 @node(mnt=MNT.RECORD, passthrough=(("value", _Passthrough.Full),))
@@ -98,67 +100,171 @@ class Record(HasValue, Node):
         self.value[key] = value
 
 
-class RecordQuery:
+class RecordBaseQuery:
     def __init__(
         self,
         database: "HasDatabase",
-        query: Query | None = None,
+        query: Conditional | None = None,
         sort: list[Sort] = None,
         include: list["Field"] = None,
         select: list["Field"] = None,
+        distinct: list["Field"] = None,
+        first: int = None,
+        skip: int = None,
+        last: int = None,
     ):
         self._database = database
         self._query = query
         self._sort = sort
         self._include = include
         self._select = select
-
-    # nocheckin design/scaffold
+        self._distinct = distinct
+        self._first = first
+        self._skip = skip
+        self._last = last
+        self._result_cache: list[Record] | None = None
 
     def deepcopy(self):
-        return RecordQuery(
+        """Clones the query (the properties are immutable)."""
+        return RecordBaseQuery(
             database=self._database,
             query=self._query,
             sort=self._sort,
             include=self._include,
             select=self._select,
+            distinct=self._distinct,
+            first=self._first,
+            skip=self._skip,
+            last=self._last,
         )
 
-    async def _do_search_preflight(self, search: "Search") -> None:
-        """FLush any relevant edits before searching."""
-        # force flush and index if there are any pending database edits
-        #  (or previous edits that were already flushed but didn't refresh the index)
-        # TODO @Performance: force flush module for record search only if needed
-        session = self._database.session
-        if session._editor.edits or session._past_flushes:
-            await session.acommit(optimistic=False, refresh_index=True)
+    async def _execute(self, session: "Session"):
+        raise NotImplementedError("nocheckin execute read query")
 
-    def filter(self, query: Query) -> "RecordQuery":
+    async def __aiter__(self):
+        if self._result_cache is None:
+            await self._execute(self._database.session)
+        return iter(self._result_cache)
+
+    def __iter__(self):
+        if self._result_cache is None:
+            self._database.session.async_to_sync(self._execute)(self._database.session)
+        return iter(self._result_cache)
+
+    def __len__(self):
+        # maybe just issue count query?
+        if self._result_cache is None:
+            self._database.session.async_to_sync(self._execute)(self._database.session)
+        return len(self._result_cache)
+
+    def filter(self, query: Conditional) -> "RecordBaseQuery":
+        """Adds a filter clause to the query."""
         copy = self.deepcopy()
         copy._query = query & self._query if self._query else query
         return copy
 
-    def sort(self, sort: list[Sort] | Sort) -> "RecordQuery":
+    def sort(self, sort: list[Sort] | Sort) -> "RecordBaseQuery":
+        """Sorts the query results by the given sort criteria."""
         copy = self.deepcopy()
         if isinstance(sort, Sort):
             sort = [sort]
         copy._sort = sort
         return copy
 
-    def select(self, *fields: "Field") -> "RecordQuery":
-        raise NotImplementedError
+    def select(self, *fields: "Field") -> "RecordBaseQuery":
+        """Selects only the given fields in the results."""
+        raise NotImplementedError("not yet supported")
 
-    def include(self, *fields: "Field") -> "RecordQuery":
-        raise NotImplementedError
+    def include(self, *fields: "Field") -> "RecordBaseQuery":
+        """Includes the given related fields in the results."""
+        raise NotImplementedError("not yet supported")
 
-    def limit(self, limit: int) -> "RecordQuery":
+    def distinct(self, *fields: "Field") -> "RecordBaseQuery":
+        """Returns only distinct results."""
+        raise NotImplementedError("not yet supported")
+
+    def first(self, count: int) -> "RecordBaseQuery":
+        """Returns the first N results."""
+        copy = self.deepcopy()
+        copy._first = count
+        return copy
+
+    def skip(self, count: int) -> "RecordBaseQuery":
+        """Skips the first N results."""
+        copy = self.deepcopy()
+        copy._skip = count
+        return copy
+
+    def last(self, count: int) -> "RecordBaseQuery":
+        """Returns the last N results."""
+        copy = self.deepcopy()
+        copy._last = count
+        return copy
+
+    def group_by(self, *fields: "Field") -> "RecordBaseQuery":
+        """Groups the results by the given fields."""
         raise NotImplementedError
 
     def update(self, **kwargs) -> int:
-        raise NotImplementedError
+        """Updates all results with the given values."""
+        raise NotImplementedError("not yet supported")
 
     def delete(self) -> int:
-        raise NotImplementedError
+        """Deletes all results."""
+        raise NotImplementedError("not yet supported")
+
+
+class RecordWriteQuery(RecordBaseQuery):
+    """
+    Updates or deletes records in a result set.
+    """
+
+    def __init__(
+        self,
+        database: "HasDatabase",
+        query: Conditional | None = None,
+        sort: list[Sort] = None,
+        include: list["Field"] = None,
+        select: list["Field"] = None,
+        distinct: list["Field"] = None,
+        first: int = None,
+        skip: int = None,
+        last: int = None,
+        update: dict["Field", typing.Any] = None,
+        delete: bool = False,
+    ):
+        super().__init__(
+            database=database,
+            query=query,
+            sort=sort,
+            include=include,
+            select=select,
+            distinct=distinct,
+            first=first,
+            skip=skip,
+            last=last,
+        )
+        self._update = update
+        self._delete = delete
+
+    async def _execute(self, session: "Session"):
+        raise NotImplementedError("not yet supported")
+
+
+class RecordSingleAggregationQuery(RecordBaseQuery):
+    """
+    Aggregate results into a single value.
+    """
+
+    pass  # (not yet supported)
+
+
+class RecordGroupAggregationQuery(RecordBaseQuery):
+    """
+    Bucket and aggregate results.
+    """
+
+    pass  # (not yet supported)
 
 
 class RelationType(enum.StrEnum):
@@ -197,6 +303,9 @@ class RecordRelationToOne(RecordRelation):
         super().__init__(parent, field, type, reverse_field)
         self.value: Optional[Record] = None
 
+    def set(self, record: Optional["Record"]) -> None:
+        raise NotImplementedError
+
 
 class RecordRelationToMany(RecordRelation):
     """
@@ -209,7 +318,7 @@ class RecordRelationToMany(RecordRelation):
         super().__init__(parent, field, type, reverse_field)
         self.value: list[Record] = []
 
-    def filter(self, query: Query) -> "RecordQuery":
+    def filter(self, query: Conditional) -> "RecordBaseQuery":
         raise NotImplementedError
 
     def create(self, **kwargs) -> "Record":
@@ -227,21 +336,22 @@ class RecordRelationToMany(RecordRelation):
     def count(self) -> int:
         raise NotImplementedError
 
+    def set(self, records: list["Record"]) -> None:
+        raise NotImplementedError
+
     def __len__(self) -> int:
         return self.count()
 
 
-class RecordList(NodeListBase[Record], RecordQuery):
+class RecordList(NodeListBase[Record], RecordBaseQuery):
     """
     Implements NodeList protocol for remote records with a local cache.
-    TODO @UX @Performance: turn record list into proper hybrid list (:BE-352)
-     use local list for everything but search (for now) (in ~small databases only)
-     need to fetch initial state on first read, use cache in RecordSearch, watermarks, etc.
+    TODO @UX @Performance: turn record list into proper hybrid list? (:BE-352)
     """
 
     def __init__(self, parent: "ScopeNode", property: NodeProperty):
-        super().__init__(parent, property)
-        # TODO @Broken: init RecordList.super(RecordSearch) (need module for that.. where?)
+        NodeListBase[Record].__init__(self, parent, property)
+        RecordBaseQuery.__init__(self, parent)
         self._cached_records_by_ck: dict[UUID, Record] | None = None
         if parent._new:
             # right now we only use the cache for new databases to avoid cache complexity (see above)
@@ -267,7 +377,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
         # 'create' node
         if _create:
             if self._parent._session:
-                self._parent.session.tracer.node_create_preflight(node)
+                self._parent.session._tracer.node_create_preflight(node)
             if not self._parent.attached:
                 # detached record nodes are temporarily hoisted into inline tree :TempRecordTree
                 self._parent._local_root_tree.add(node)
@@ -276,7 +386,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
             _ChangeEffect._collect(None, self._parent, [node], _trigger)._effect(_trigger)
         # 'create' node (for real)
         if _create and self._parent._session and self._parent.attached:
-            self._parent.session.tracer.node_create(node)
+            self._parent.session._tracer.node_create(node)
 
     def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         nodes = flatten_list(nodes)
@@ -285,7 +395,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
         # 'create' nodes
         if _create:
             if self._parent._session:
-                self._parent.session.tracer.node_create_preflight(*nodes)
+                self._parent.session._tracer.node_create_preflight(*nodes)
             if not self._parent.attached:
                 self._parent._local_root_tree.add_many(nodes)  # :TempRecordTree
         # update affected nodes
@@ -293,12 +403,12 @@ class RecordList(NodeListBase[Record], RecordQuery):
             _ChangeEffect._collect(None, self._parent, nodes, _trigger)._effect(_trigger)
         # 'create' nodes (for real)
         if _create and self._parent._session and self._parent.attached:
-            self._parent.session.tracer.node_create(*nodes)
+            self._parent.session._tracer.node_create(*nodes)
 
     def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
         if _delete:
             if self._parent._session:
-                self._parent._session.tracer.node_delete(self, node)
+                self._parent._session._tracer.node_delete(self, node)
             if not self._parent.attached:
                 self._parent._local_root_tree.remove(node)
         node.parent = None
@@ -308,7 +418,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
     def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
         if _delete:
             if self._parent._session:
-                self._parent._session.tracer.node_truncate(self._parent, MNT.RECORD)
+                self._parent._session._tracer.node_truncate(self._parent, MNT.RECORD)
             if not self._parent.attached:
                 self._parent._local_root_tree.truncate(self._parent, MNT.RECORD)
         if self._cached_records_by_ck is not None:
@@ -327,14 +437,17 @@ class RecordList(NodeListBase[Record], RecordQuery):
     def __len__(self):
         if self._cached_records_by_ck is not None:
             return len(self._cached_records_by_ck)
-        return len(self.query())
+        return RecordBaseQuery.__len__(self)
 
     def __iter__(self):
         if self._cached_records_by_ck is not None:
             return iter(self._cached_records_by_ck.values())
+        return RecordBaseQuery.__iter__(self)
 
     def __aiter__(self):
-        return aiter(self.search())
+        if self._cached_records_by_ck is not None:
+            return iter(self._cached_records_by_ck.values())
+        return RecordBaseQuery.__aiter__(self)
 
 
 @node_component

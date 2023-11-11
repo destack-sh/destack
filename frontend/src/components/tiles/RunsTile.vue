@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
-import { TriggerType, type SearchQuery, type SearchSort, type Run } from "@/gql/graphql";
+import { TriggerType, type Conditional, type Sort, type Run } from "@/gql/graphql";
 import { useRuns, getRunStatusColor, getRunStatusIconSolid } from "@/state/session";
 import { useCurrentModule, useNavigation, type NodeBase, type InterpStatement } from "@/state/module";
 import { useKeyModifier } from "@vueuse/core";
@@ -20,8 +20,8 @@ const props = defineProps<{
   rootOnly?: boolean;
   statementIds?: string[];
   statementCks?: string[];
-  query?: SearchQuery;
-  sort?: [SearchSort];
+  query?: Conditional;
+  sort?: [Sort];
   live?: boolean;
   after?: string;
   limit?: number;

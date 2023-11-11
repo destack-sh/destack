@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { ExpressionOp, TypeHint, TypeTag, type SearchQuery } from "@/gql/graphql";
+import { ConditionalOp, TypeHint, TypeTag, type Conditional } from "@/gql/graphql";
 import { useCurrentModule } from "@/state/module";
 import type { useFields } from "@/state/statement";
 import { SubfieldType, TypeStorageFormat, getStorageFormat } from "@/state/type";
@@ -10,8 +10,8 @@ import { computed, ref, watch, type Ref } from "vue";
 export const RECORD_SEARCH_QUERY = graphql(/* GraphQL */ `
   query searchRecords(
     $statementId: GlobalID!
-    $query: SearchQuery
-    $sort: [SearchSort!]
+    $query: Conditional
+    $sort: [Sort!]
     $after: String
     $limit: Int
     $count: Boolean
@@ -60,25 +60,25 @@ export function useDatabaseInlineSearch(
   );
   // TODO @UX: apply inline search to local records immediately/optmistically
   // update search query on inline query change
-  const inlineQuery: Ref<SearchQuery | undefined> = ref(undefined);
+  const inlineQuery: Ref<Conditional | undefined> = ref(undefined);
   function getInlineQuery() {
     if ((query.value ?? "").trim().length == 0) return undefined;
-    const subqueries = [
+    const subclauses = [
       ...stringFields.value.map(
         (f) =>
           ({
-            op: ExpressionOp.Matches,
+            op: ConditionalOp.Matches,
             key: "value." + module.getTypedKey(f),
             value: query.value,
-          } as SearchQuery)
+          } as Conditional)
       ),
       ...nameFields.value.map(
         (f) =>
           ({
-            op: ExpressionOp.StartsWith,
+            op: ConditionalOp.StartsWith,
             key: "value." + module.getTypedKey(f) + "." + SubfieldType.starts_with,
             value: query.value?.toLowerCase(), // :StartsWithHack
-          } as SearchQuery)
+          } as Conditional)
       ),
     ];
     // filter for enum fields members that match the query
@@ -87,15 +87,15 @@ export function useDatabaseInlineSearch(
         .statementOf(enumField.referenceCk)
         ?.fields.filter((m) => m.name?.toLowerCase().startsWith(query.value?.toLowerCase() ?? ""));
       if (matchingMembers == null || matchingMembers.length == 0) continue;
-      subqueries.push({
+      subclauses.push({
         key: "value." + module.getTypedKey(enumField),
-        op: ExpressionOp.Equals,
+        op: ConditionalOp.Equals,
         value: matchingMembers.map((m) => m.key),
-      } as SearchQuery);
+      } as Conditional);
     }
 
-    if (subqueries.length == 0) return undefined; // TODO @UX: indicate inline search is not possible if no plausible subqueries
-    return { op: ExpressionOp.Or, queries: subqueries } as SearchQuery;
+    if (subclauses.length == 0) return undefined; // TODO @UX: indicate inline search is not possible if no plausible subclauses
+    return { op: ConditionalOp.Or, clauses: subclauses } as Conditional;
   }
 
   // update inline query on query change

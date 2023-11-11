@@ -8,7 +8,7 @@ import {
   type ProjectVersion,
   type Scalars,
   type Statement,
-  type SearchSort,
+  type Sort,
   type RunError,
 } from "@/gql/graphql";
 import {
@@ -1235,9 +1235,9 @@ export class ViewRunsPanel extends Panel {
   type = "view-runs" as const;
   limit: number;
   query?: RunsQuery;
-  sort?: SearchSort;
+  sort?: Sort;
 
-  constructor(query?: RunsQuery, sort?: SearchSort) {
+  constructor(query?: RunsQuery, sort?: Sort) {
     super("view-runs", "runs-" + randomHexString(), "Runs", "runs");
     this.limit = 30;
     this.query = query;
@@ -1289,7 +1289,7 @@ export class ViewRunPanel extends Panel {
 export class ViewLogsPanel extends Panel {
   type = "view-logs" as const;
   query?: LogsQuery;
-  sort?: SearchSort;
+  sort?: Sort;
 
   constructor() {
     super("view-logs", "logs-" + randomHexString(), "Logs", "Logs");

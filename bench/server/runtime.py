@@ -14,7 +14,7 @@ from django.db import transaction
 from more_itertools import first
 
 from bench import models, settings
-from bench.language import ExpressionOp, Module, Q, Query, Trigger, TriggerType, wire
+from bench.language import C, Conditional, ConditionalOp, Module, Trigger, TriggerType, wire
 from bench.language.builtin import symbolx_lib
 from bench.language.cache import CacheAsync
 from bench.language.const import (
@@ -313,7 +313,7 @@ class RuntimeServer(Monitored):
         self,
         project_v: models.ProjectVersion,
         type: Optional[mirror.DocumentType],
-        extra_query: Optional[Query],
+        extra_query: Optional[Conditional],
         max_limit: int,
         req: ReqSearch,
         unpack: typing.Callable,
@@ -328,7 +328,7 @@ class RuntimeServer(Monitored):
                 count=req.count,
                 after=req.after,
                 sort=req.sort,
-                query=Query.and_if_set(req.query, extra_query),
+                query=Conditional.and_if_set(req.query, extra_query),
             )
             results = os_client.search(index=project_v.project.os_name, body=search)
             elements: list[typing.Any] = []
@@ -368,13 +368,17 @@ class RuntimeServer(Monitored):
         # TODO @Security!: check if msg origin has read access to database
         extra_queries = []
         if msg.p.statements_ids:
-            extra_queries.append(Q(ExpressionOp.EQUALS, "statement_id", value=msg.p.statements_ids))
+            extra_queries.append(
+                C(ConditionalOp.EQUALS, "statement_id", value=msg.p.statements_ids)
+            )
         if msg.p.statements_cks:
-            extra_queries.append(Q(ExpressionOp.EQUALS, "statement_ck", value=msg.p.statements_cks))
+            extra_queries.append(
+                C(ConditionalOp.EQUALS, "statement_ck", value=msg.p.statements_cks)
+            )
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
-            extra_query=Q(ExpressionOp.AND, extra_queries) if extra_queries else None,
+            extra_query=C(ConditionalOp.AND, extra_queries) if extra_queries else None,
             type=mirror.DocumentType.RUN,
             max_limit=MAX_SEARCH_RUN_LIMIT,
             req=msg.p,

@@ -21,7 +21,6 @@ from bench.language.validation import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
-from bench.search.core import IndexType
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import generate_random_name, generate_secret_password

@@ -61,7 +61,7 @@ class HasValue(Node):
 
             check_type(self.value, self._type_of_value)
             if self.attached:
-                self.session.tracer.node_update(self, ["value"])
+                self.session._tracer.node_update(self, ["value"])
 
         assert self._type_of_value is not None, f"missing type for {self!r}"
         if self.attached:

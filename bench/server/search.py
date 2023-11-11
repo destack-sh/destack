@@ -120,6 +120,7 @@ def create_local_search_index(project_id: UUID, name: str, *, upsert: bool) -> N
         documents=DOCUMENTS_BY_INDEX[IndexType.LOCAL],
         upsert=upsert,
     )
+    # nocheckin: create user/role
 
 
 BENCH_LOCAL_MODELS = (models.Record,)
@@ -239,7 +240,7 @@ def write_module_to_os(
         return
     ret = os_client.bulk(ops, refresh="wait_for" if wait else False)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write module to OpenSearch: {ret['errors'][:5]}")
+        raise RuntimeError(f"failed to write module to OpenSearch: {ret['items'][:5]}")
 
 
 def write_module_to_os_from_db(project_v: models.ProjectVersion, *, wipe: bool) -> None:
@@ -288,7 +289,7 @@ def write_session_to_os(
     logger.debug("os.write_session", project_version=project_v, index=os_name, operations=len(ops))
     ret = os_client.bulk(ops)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write session to OpenSearch: {ret['errors'][:5]}")
+        raise RuntimeError(f"failed to write session to OpenSearch: {ret['items'][:5]}")
 
 
 def write_sessions_to_os(project_v: models.ProjectVersion) -> None:
@@ -307,7 +308,7 @@ def write_sessions_to_os(project_v: models.ProjectVersion) -> None:
     )
     ret = os_client.bulk(ops)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write sessions to OpenSearch: {ret['errors'][:5]}")
+        raise RuntimeError(f"failed to write sessions to OpenSearch: {ret['items'][:5]}")
 
 
 def delete_module_in_os(project_v: models.ProjectVersion):

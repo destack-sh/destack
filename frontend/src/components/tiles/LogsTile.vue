@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { LogEntry, SearchQuery, SearchSort } from "@/gql/graphql";
+import type { LogEntry, Conditional, Sort } from "@/gql/graphql";
 import { useLogs } from "@/state/session";
 import { ChevronDoubleDownIcon } from "@heroicons/vue/24/outline";
 import { useElementBounding, useScroll } from "@vueuse/core";
@@ -13,8 +13,8 @@ const props = defineProps<{
   statementCks?: string[];
   runId?: string;
   sessionId?: string;
-  query?: SearchQuery;
-  sort?: [SearchSort];
+  query?: Conditional;
+  sort?: [Sort];
   live?: boolean;
   limit?: number;
   focus?: {
