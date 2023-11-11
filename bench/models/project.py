@@ -100,7 +100,7 @@ class ProjectManager(models.Manager["Project"]):
             from bench.server.search import create_local_search_index
 
             create_local_worker_set(project, upsert=False)
-            create_local_search_index(project.id, project.os_name, upsert=False)
+            create_local_search_index(project, upsert=False)
 
         return project
 
@@ -144,6 +144,7 @@ class Project(UUIDModel, CrudModel):
         "ProjectVersion", on_delete=models.SET_NULL, null=True, related_name="project+"
     )
     blobs: models.QuerySet["Blob"]  # noqa via Blob
+
     worker_set = models.OneToOneField(  # only one worker set for now
         "WorkerSet", on_delete=models.SET_NULL, related_name="project+", null=True
     )
