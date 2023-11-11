@@ -49,7 +49,7 @@ class ModuleAccessLevel(models.IntegerChoices):  # :ModuleAccessLevel
     Admin = 16  # deletion-protection, destructive actions, manage admins
 
 
-_PROJECT_AUTH_COLUMNS = ("db_username", "db_password", "os_username", "os_password")
+_PROJECT_AUTH_COLUMNS = ("pg_username", "pg_password", "os_username", "os_password")
 
 
 class ProjectManager(models.Manager["Project"]):
@@ -148,9 +148,9 @@ class Project(UUIDModel, CrudModel):
         "WorkerSet", on_delete=models.SET_NULL, related_name="project+", null=True
     )
     worker_sets: models.QuerySet["WorkerSet"]  # noqa via WorkerSet
-    db_name = models.CharField(max_length=64, default=generate_random_name)
-    db_username = models.CharField(max_length=64, default=generate_random_name)
-    db_password = TextPGPSymmetricKeyField(default=generate_secret_password)
+    pg_name = models.CharField(max_length=64, default=generate_random_name)
+    pg_username = models.CharField(max_length=64, default=generate_random_name)
+    pg_password = TextPGPSymmetricKeyField(default=generate_secret_password)
     os_name = models.CharField(max_length=64)
     os_username = models.CharField(max_length=64, default=generate_random_name)
     os_password = TextPGPSymmetricKeyField(default=generate_secret_password)

@@ -149,9 +149,7 @@ class RecordBaseQuery:
             limit=self._first,
             count=True,
         )
-        results = await os_client.search(
-            index=session.module.os_name,
-        )
+        results = await os_client.search(index=session.module.os_name, body=search)
         raise NotImplementedError("nocheckin execute read query")
 
     async def __aiter__(self):
