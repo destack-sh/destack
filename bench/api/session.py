@@ -17,14 +17,15 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 import bench.language.const
+from bench import language as lang
 from bench import models
 from bench.api.auth import check_module_access
 from bench.api.statement import Statement
 from bench.api.utils import (
+    Conditional,
+    ConditionalOp,
     ListConnectionWithTotalCount,
-    QueryOp,
-    SearchQuery,
-    SearchSort,
+    Sort,
     asafe_mutation,
     asafe_subscription,
     get_user_from_info,
@@ -32,7 +33,7 @@ from bench.api.utils import (
     to_uuid,
     to_uuids,
 )
-from bench.language import Q, Query, Sort, SortOrder, wire
+from bench.language import SortOrder, wire
 from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES
 from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import MessagingError, NMessage, publish, request, subscribe, subscribe_many
@@ -436,8 +437,8 @@ class SessionQuery:
         statement_ids: Optional[list[GlobalID]] = None,
         statement_cks: Optional[list[UUID]] = None,
         root_only: Optional[bool] = None,
-        query: Optional[SearchQuery] = None,
-        sort: Optional[list[SearchSort]] = None,
+        query: Optional[Conditional] = None,
+        sort: Optional[list[Sort]] = None,
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
@@ -451,25 +452,35 @@ class SessionQuery:
 
         query = query.to_dsl() if query else None
         if session_id:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", value=session_id))
+            query = lang.Conditional.and_if_set(
+                query, lang.C(ConditionalOp.EQUALS, "session_id", value=session_id)
+            )
         if run_id:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", value=run_id))
+            query = lang.Conditional.and_if_set(
+                query, lang.C(ConditionalOp.EQUALS, "run_id", value=run_id)
+            )
         if statement_ids is not None:
             if statement_ids:
-                query = Query.and_if_set(
-                    query, Q(QueryOp.EQUALS, "statement_id", value=statement_ids)
+                query = lang.Conditional.and_if_set(
+                    query, lang.C(ConditionalOp.EQUALS, "statement_id", value=statement_ids)
                 )
             else:
-                query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "statement_id"))
+                query = lang.Conditional.and_if_set(
+                    query, lang.C(ConditionalOp.DOES_NOT_EXIST, "statement_id")
+                )
         if statement_cks is not None:
             if statement_cks:
-                query = Query.and_if_set(
-                    query, Q(QueryOp.EQUALS, "statement_ck", value=statement_cks)
+                query = lang.Conditional.and_if_set(
+                    query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
                 )
             else:
-                query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "statement_ck"))
+                query = lang.Conditional.and_if_set(
+                    query, lang.C(ConditionalOp.DOES_NOT_EXIST, "statement_ck")
+                )
         if root_only:
-            query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "parent_id"))
+            query = lang.Conditional.and_if_set(
+                query, lang.C(ConditionalOp.DOES_NOT_EXIST, "parent_id")
+            )
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
         sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
 
@@ -536,8 +547,8 @@ class SessionQuery:
         run_id: Optional[GlobalID] = None,
         statement_ids: Optional[list[GlobalID]] = None,
         statement_cks: Optional[list[UUID]] = None,
-        query: Optional[SearchQuery] = None,
-        sort: Optional[list[SearchSort]] = None,
+        query: Optional[Conditional] = None,
+        sort: Optional[list[Sort]] = None,
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
@@ -549,18 +560,26 @@ class SessionQuery:
         statement_ids = to_uuids(statement_ids)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
-        sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
+        sort = (
+            [s.to_dsl() for s in sort] if sort else [lang.Sort("created_at", SortOrder.DESCENDING)]
+        )
         query = query.to_dsl() if query else None
         if session_id:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", value=str(session_id)))
+            query = lang.Conditional.and_if_set(
+                query, lang.C(ConditionalOp.EQUALS, "session_id", value=str(session_id))
+            )
         if run_id:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", value=str(run_id)))
+            query = lang.Conditional.and_if_set(
+                query, lang.C(ConditionalOp.EQUALS, "run_id", value=str(run_id))
+            )
         if statement_ids:
-            query = Query.and_if_set(
-                query, Q(QueryOp.EQUALS, "statement_id", value=str(statement_ids))
+            query = lang.Conditional.and_if_set(
+                query, lang.C(ConditionalOp.EQUALS, "statement_id", value=str(statement_ids))
             )
         if statement_cks:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "statement_ck", value=statement_cks))
+            query = lang.Conditional.and_if_set(
+                query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
+            )
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.LOG_ENTRY,

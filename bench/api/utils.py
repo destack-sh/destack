@@ -19,7 +19,7 @@ from strawberry_django.fields.types import OperationInfo
 from strawberry_django.mutations.fields import _handle_exception
 
 from bench import models
-from bench.language import Q
+from bench.language import C
 from bench.language import expression as expr
 from bench.msg.messages import ClientOrigin
 from bench.utils.utils import DEBUG, LOCAL, sentry_capture
@@ -228,23 +228,23 @@ class ThingBatch(Iterable):
 
 SortOrder = strawberry.enum(expr.SortOrder)
 SortMode = strawberry.enum(expr.SortMode)
-QueryOp = strawberry.enum(expr.ExpressionOp)
+ConditionalOp = strawberry.enum(expr.ConditionalOp)
 
 
 @strawberry.input
-class SearchQuery:
-    op: QueryOp
+class Conditional:
+    op: ConditionalOp
     key: Optional[str] = None
     value: Optional[JSON] = None
-    queries: Optional[list["SearchQuery"]] = None
+    clauses: Optional[list["Conditional"]] = None
 
-    def to_dsl(self) -> expr.Query:
-        queries = [q.to_dsl() for q in self.queries] if self.queries else None
-        return Q(self.op, queries=queries, field=self.key, value=self.value)
+    def to_dsl(self) -> expr.Conditional:
+        clauses = [q.to_dsl() for q in self.clauses] if self.clauses else None
+        return C(self.op, clauses=clauses, field=self.key, value=self.value)
 
 
 @strawberry.input
-class SearchSort:
+class Sort:
     key: str
     order: SortOrder = SortOrder.ASCENDING
     mode: Optional[SortMode] = None

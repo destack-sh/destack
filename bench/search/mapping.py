@@ -7,9 +7,9 @@ from typing import Any, NamedTuple, Optional, Union
 import bench.language as lang
 import bench.search.core as os
 from bench.language import (
-    ExpressionOp,
-    Q,
-    Query,
+    C,
+    Conditional,
+    ConditionalOp,
     Sort,
     SortMode,
     SortOrder,
@@ -19,11 +19,11 @@ from bench.language import (
 from bench.language.const import TypeFlag
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
-    ComparisonQuery,
-    CompoundQuery,
-    ExistenceQuery,
+    ComparisonConditional,
+    CompoundConditional,
+    ExistenceConditional,
     SubfieldType,
-    VectorQuery,
+    VectorConditional,
     get_default_sort,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
@@ -229,58 +229,58 @@ def compiler(dsl_type: type):
     return wrapper
 
 
-@compiler(CompoundQuery)
+@compiler(CompoundConditional)
 class CompoundQueryCompiler(Compiler):
     MAPPING = {
-        ExpressionOp.NOT: "must_not",
-        ExpressionOp.AND: "must",
-        ExpressionOp.OR: "should",
+        ConditionalOp.NOT: "must_not",
+        ConditionalOp.AND: "must",
+        ConditionalOp.OR: "should",
     }
 
-    def compile(self, info: CompilationInfo, query: CompoundQuery) -> dict[str, Any]:
-        return {"bool": {self.MAPPING[query.op]: compile_to_os(info, query.queries)}}
+    def compile(self, info: CompilationInfo, query: CompoundConditional) -> dict[str, Any]:
+        return {"bool": {self.MAPPING[query.op]: compile_to_os(info, query.clauses)}}
 
 
-@compiler(ComparisonQuery)
+@compiler(ComparisonConditional)
 class ComparisonQueryCompiler(Compiler):
-    def compile(self, info: CompilationInfo, query: ComparisonQuery) -> dict[str, Any]:
-        if query.op == ExpressionOp.EQUALS:
+    def compile(self, info: CompilationInfo, query: ComparisonConditional) -> dict[str, Any]:
+        if query.op == ConditionalOp.EQUALS:
             if isinstance(query.value, list):
                 return {"terms": {query.key: query.value}}
             else:
                 return {"term": {query.key: query.value}}
-        elif query.op == ExpressionOp.NOT_EQUALS:
+        elif query.op == ConditionalOp.NOT_EQUALS:
             return {"bool": {"must_not": {"term": {query.key: query.value}}}}
-        elif query.op == ExpressionOp.GREATER_THAN:
+        elif query.op == ConditionalOp.GREATER_THAN:
             return {"range": {query.key: {"gt": query.value}}}
-        elif query.op == ExpressionOp.GREATER_THAN_OR_EQUALS:
+        elif query.op == ConditionalOp.GREATER_THAN_OR_EQUALS:
             return {"range": {query.key: {"gte": query.value}}}
-        elif query.op == ExpressionOp.LESS_THAN:
+        elif query.op == ConditionalOp.LESS_THAN:
             return {"range": {query.key: {"lt": query.value}}}
-        elif query.op == ExpressionOp.LESS_THAN_OR_EQUALS:
+        elif query.op == ConditionalOp.LESS_THAN_OR_EQUALS:
             return {"range": {query.key: {"lte": query.value}}}
-        elif query.op == ExpressionOp.MATCHES:
+        elif query.op == ConditionalOp.MATCHES:
             return {"match": {query.key: query.value}}
-        elif query.op == ExpressionOp.STARTS_WITH:
+        elif query.op == ConditionalOp.STARTS_WITH:
             return {"prefix": {query.key: query.value}}
         else:
             raise RuntimeError(f"unexpected query: {query}")
 
 
-@compiler(ExistenceQuery)
+@compiler(ExistenceConditional)
 class ExistenceQueryCompiler(Compiler):
-    def compile(self, info: CompilationInfo, query: ExistenceQuery) -> dict[str, Any]:
-        if query.op == ExpressionOp.EXISTS:
+    def compile(self, info: CompilationInfo, query: ExistenceConditional) -> dict[str, Any]:
+        if query.op == ConditionalOp.EXISTS:
             return {"exists": {"field": query.key}}
-        elif query.op == ExpressionOp.DOES_NOT_EXIST:
+        elif query.op == ConditionalOp.DOES_NOT_EXIST:
             return {"bool": {"must_not": {"exists": {"field": query.key}}}}
         else:
             raise RuntimeError(f"unexpected query: {query}")
 
 
-@compiler(VectorQuery)
+@compiler(VectorConditional)
 class VectorQueryCompiler(Compiler):
-    def compile(self, info: CompilationInfo, query: VectorQuery) -> dict[str, Any]:
+    def compile(self, info: CompilationInfo, query: VectorConditional) -> dict[str, Any]:
         if query.approximate:
             # TODO @Performance @Robustness: tune knn k relative to database and query limit
             return {"knn": {query.key: {"vector": query.value, "k": info.root_limit * 2}}}
@@ -309,7 +309,7 @@ class SortCompiler(Compiler):
         return {sort.key: props}
 
 
-DslObj = Union[Query, Sort]
+DslObj = Union[Conditional, Sort]
 
 
 def compile_to_os(
@@ -342,20 +342,20 @@ def prepare_search(
     count: bool,
     after: Optional[str] = None,
     sort: Optional[list[Sort]] = None,
-    query: Optional[Query] = None,
+    query: Optional[Conditional] = None,
     version: bool = False,
     fields: Optional[list[str]] = None,
     source: bool = True,
 ) -> dict:
-    combined_query = Q(
-        ExpressionOp.AND,
-        queries=[
-            Q(ExpressionOp.EQUALS, TYPE_DISCRIMINATOR_KEY, value=type.value),
-            ~Q(ExpressionOp.EXISTS, "deleted_at"),
+    combined_query = C(
+        ConditionalOp.AND,
+        clauses=[
+            C(ConditionalOp.EQUALS, TYPE_DISCRIMINATOR_KEY, value=type.value),
+            ~C(ConditionalOp.EXISTS, "deleted_at"),
         ],
     )
     if project_version_id:
-        combined_query &= Q(ExpressionOp.EQUALS, "project_version_id", value=project_version_id)
+        combined_query &= C(ConditionalOp.EQUALS, "project_version_id", value=project_version_id)
     if query is not None:
         combined_query &= query
     # add id to sort as tiebreaker if not already present

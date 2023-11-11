@@ -18,7 +18,7 @@ from more_itertools import first, last
 from bench.language import IssueType
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodePath, TypeFlag
-from bench.language.expression import Q, Query, ExpressionOp, Sort, SortMode, SortOrder
+from bench.language.expression import C, Conditional, ConditionalOp, Sort, SortMode, SortOrder
 from bench.language.field import TypedDict
 from bench.language.module import LookupBy, Node, ScopeNode, node_component, nruntime
 from bench.language.packer import check_type, pack_value, unpack_value
@@ -179,7 +179,7 @@ class HasCode(Node):
             "module": self.module,
             "session": self.session,
             "cache": self.session.cache_async if self._is_async else self.session.cache_sync,
-            "storage": self.session.storage,
+            "storage": self.session.blobs,
             "random": Random(self.id.hex.encode()),
             "ximport": self._import_sync if not self._is_async else self._import_async,
             "install": _install_package,
@@ -338,7 +338,7 @@ class HasCode(Node):
                 run = CachedRun.from_json_bytes(cached_run)
                 outputs = unpack_value(run.outputs, self, ignore_outer_map=True, is_output=True)
                 check_type(outputs, self, is_output=True)
-                self.session.tracer.run_cached(
+                self.session._tracer.run_cached(
                     statement=self,
                     inputs=inputs,
                     outputs=outputs,
@@ -460,31 +460,31 @@ class HasCode(Node):
     async def _call_inner_async(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
         session = self.session
-        session.tracer.run_enter(self, is_async=True, inputs=inputs)
+        session._tracer.run_enter(self, is_async=True, inputs=inputs)
         try:
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
             if session._needs_flush_before_exit:
                 await self.session.acommit()
         except BaseException as exception:
-            session.tracer.run_exception(self, exception)
+            session._tracer.run_exception(self, exception)
             raise
-        session.tracer.run_exit(self, result if not self._export else None)
+        session._tracer.run_exit(self, result if not self._export else None)
         return _to_outputs_dict(self, result)
 
     def _call_inner_sync(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
         session = self.session
-        session.tracer.run_enter(self, is_async=False, inputs=inputs)
+        session._tracer.run_enter(self, is_async=False, inputs=inputs)
         try:
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
             if session._needs_flush_before_exit:
                 session.commit()
         except BaseException as exception:
-            session.tracer.run_exception(self, exception)
+            session._tracer.run_exception(self, exception)
             raise
-        session.tracer.run_exit(self, result if not self._export else None)
+        session._tracer.run_exit(self, result if not self._export else None)
         return _to_outputs_dict(self, result)
 
 
@@ -498,9 +498,9 @@ STATIC_BUILTINS: dict[str, Any] = {
     "number": float,
     "boolean": bool,
     # querying
-    "Q": Q,
-    "Query": Query,
-    "QueryOp": ExpressionOp,
+    "Q": C,
+    "Query": Conditional,
+    "QueryOp": ConditionalOp,
     "Sort": Sort,
     "SortOrder": SortOrder,
     "SortMode": SortMode,

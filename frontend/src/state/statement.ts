@@ -1,6 +1,6 @@
 import ChoiceTypeIconSolid from "@/components/basic/ChoiceTypeIconSolid.vue";
 import ChoiceTypeIconOutline from "@/components/basic/ChoiceTypeIconOutline.vue";
-import { StatementType, TypeHint, TypeTag, type SearchSort, type SearchQuery } from "@/gql/graphql";
+import { StatementType, TypeHint, TypeTag, type Sort, type Conditional } from "@/gql/graphql";
 import {
   TypeFlag,
   useCurrentModule,
@@ -449,8 +449,8 @@ export type DatabaseStatementProperties = {
   inlineQuery?: string;
   wrapColumns: boolean;
   // local 'view' (because we don't have proper module database view yet, this is the only view)
-  sorts?: SearchSort[];
-  query?: SearchQuery;
+  sorts?: Sort[];
+  query?: Conditional;
 };
 
 export type MorphCommandGroup = {

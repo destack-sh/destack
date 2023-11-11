@@ -269,10 +269,10 @@ class WorkerNode(Monitored):
 
         # update job's run_data from session
         # (this doesn't feel like the right place for this, but we always need to do it to reply)
-        if job.session and job.session.tracer.runs:
-            run = job.session.tracer.runs[job.run_data.id]
+        if job.session and job.session._tracer.runs:
+            run = job.session._tracer.runs[job.run_data.id]
             job.run_data = wire.pack_data(run)
-            last_logs = job.session.tracer.cached_logs[:50]
+            last_logs = job.session._tracer.cached_logs[:50]
         else:
             last_logs = None
 

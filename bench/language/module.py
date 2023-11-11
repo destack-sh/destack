@@ -863,14 +863,14 @@ class NodeList(NodeListBase[NodeT]):
             # subsume if previously detached (ignores out of line nodes, see :NodeViews)
             added = _node._local_tree.get_descendants(_node.ck, recursive=True, include_self=True)
             if _create and self._parent._session:
-                self._parent.session.tracer.node_create_preflight(*added)
+                self._parent.session._tracer.node_create_preflight(*added)
             _node._local_tree.update(_node)  # parent changed
             self._parent._import_scope_tree(_node)
             _node._local_tree = None
         else:  # or just add
             added = [_node]
             if _create and self._parent._session:
-                self._parent.session.tracer.node_create_preflight(*added)
+                self._parent.session._tracer.node_create_preflight(*added)
             self._parent._local_root_tree.add(_node)
 
         # register node scope
@@ -892,7 +892,7 @@ class NodeList(NodeListBase[NodeT]):
 
         # 'create' node in session if it's attached
         if _create and self._parent._session and self._parent.attached:
-            self._parent._session.tracer.node_create(*added)
+            self._parent._session._tracer.node_create(*added)
         # temporarily hoisted records may no longer be in tree, so return our added nodes
         return added
 
@@ -917,7 +917,7 @@ class NodeList(NodeListBase[NodeT]):
         # as in append but batched: append, trigger, create
         #  (can we merge them somehow to simplify)?
         if _create and self._parent._session:
-            self._parent._session.tracer.node_create_preflight(*nodes)
+            self._parent._session._tracer.node_create_preflight(*nodes)
         change = _ChangeEffect._collect(None, self._parent, nodes, _trigger)
         change._effect(_trigger & ~_NC.Attach)
         added = []
@@ -927,12 +927,12 @@ class NodeList(NodeListBase[NodeT]):
         if _trigger & _NC.UpdateLists:
             assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
         if _create and self._parent._session and self._parent.attached:
-            self._parent._session.tracer.node_create(*added)
+            self._parent._session._tracer.node_create(*added)
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
         change = _ChangeEffect._collect(self._parent, None, [_node], _trigger)
         if _delete and self._parent._session:
-            self._parent.session.tracer.node_delete(_node)
+            self._parent.session._tracer.node_delete(_node)
         self._parent._local_root_tree.remove(_node)
         _node.parent = None
         change._effect(_trigger)
@@ -1649,7 +1649,7 @@ class Node(abc.ABC):
                 super().__setattr__(key, prev)
                 raise e
             if self.attached:
-                self._session.tracer.node_update(self, [key])
+                self._session._tracer.node_update(self, [key])
             return
         elif key in self.__dict__:
             return super().__setattr__(key, value)

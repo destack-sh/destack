@@ -34,7 +34,7 @@ from bench.language.const import (
     WorkerSetStatus,
 )
 from bench.language.database import HasDatabase
-from bench.language.expression import Query, Sort
+from bench.language.expression import Conditional, Sort
 from bench.language.module import Node, NodeStatus, NodeTree, ScopeNode
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
@@ -748,7 +748,7 @@ class DatabaseViewData(NodeData, HasOrder, HasCrud):
 
     id: UUID
     name: str
-    query: Optional[Query] = None
+    query: Optional[Conditional] = None
     sort: Optional[list[Sort]] = None
 
 
@@ -993,8 +993,8 @@ class SessionPacker(DataPacker[SessionData, lang.Session]):
         return SessionData(
             id=session.id,
             module_id=session.module.id,
-            opened_at=session.opened_at,
-            closed_at=session.closed_at,
+            opened_at=session._opened_at,
+            closed_at=session._closed_at,
             trigger_id=session.trigger_id,
             trigger_type=session.trigger_type,
         )

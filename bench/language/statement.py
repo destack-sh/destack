@@ -268,7 +268,7 @@ class Statement(ScopeNode, HasTags):
         self.type = to_type
         Statement._init_inner(self)
         if self.attached:
-            self._session.tracer.node_update(self, ["type"])
+            self._session._tracer.node_update(self, ["type"])
         # what else to do? trigger re-interp of everything?
         raise NotImplementedError(f"{self!r} does not support morphing yet")
 

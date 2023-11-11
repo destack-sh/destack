@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 #
 
 
-class ExpressionOp(enum.StrEnum):
+class ConditionalOp(enum.StrEnum):
     # logical
     NOT = "NOT"
     AND = "AND"
@@ -49,54 +49,54 @@ class ExpressionOp(enum.StrEnum):
         return _OP_SIGN.get(self)
 
 
-ExprOp = ExpressionOp  # alias
-
-
 @dataclass
 class Expression:
-    op: ExprOp
-
     def __repr__(self):
         return f"{self.__class__.__name__}({self})"
 
 
-_OP_SIGN: dict[ExpressionOp, str] = {
-    ExprOp.NOT: "~",
-    ExprOp.AND: "&",
-    ExprOp.OR: "|",
-    ExprOp.EQUALS: "==",
-    ExprOp.NOT_EQUALS: "!=",
-    ExprOp.GREATER_THAN: ">",
-    ExprOp.GREATER_THAN_OR_EQUALS: ">=",
-    ExprOp.LESS_THAN: "<",
-    ExprOp.LESS_THAN_OR_EQUALS: "<=",
-    ExprOp.MATCHES: "~=",
-    ExprOp.STARTS_WITH: "^=",
-    ExprOp.EXISTS: "?",
-    ExprOp.DOES_NOT_EXIST: "?!",
+_OP_SIGN: dict[ConditionalOp, str] = {
+    ConditionalOp.NOT: "~",
+    ConditionalOp.AND: "&",
+    ConditionalOp.OR: "|",
+    ConditionalOp.EQUALS: "==",
+    ConditionalOp.NOT_EQUALS: "!=",
+    ConditionalOp.GREATER_THAN: ">",
+    ConditionalOp.GREATER_THAN_OR_EQUALS: ">=",
+    ConditionalOp.LESS_THAN: "<",
+    ConditionalOp.LESS_THAN_OR_EQUALS: "<=",
+    ConditionalOp.MATCHES: "~=",
+    ConditionalOp.STARTS_WITH: "^=",
+    ConditionalOp.EXISTS: "?",
+    ConditionalOp.DOES_NOT_EXIST: "?!",
 }
 
 
 class ExpressionOps:
-    LOGICAL = {ExprOp.NOT, ExprOp.AND, ExprOp.OR}
-    COMPARISON_EXACT = {ExprOp.EQUALS, ExprOp.NOT_EQUALS}
-    COMPARISON_RANGE = {
-        ExprOp.GREATER_THAN,
-        ExprOp.GREATER_THAN_OR_EQUALS,
-        ExprOp.LESS_THAN,
-        ExprOp.LESS_THAN_OR_EQUALS,
+    # Conditionals
+    COND_LOGICAL = {ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR}
+    COND_EXACT = {ConditionalOp.EQUALS, ConditionalOp.NOT_EQUALS}
+    COND_RANGE = {
+        ConditionalOp.GREATER_THAN,
+        ConditionalOp.GREATER_THAN_OR_EQUALS,
+        ConditionalOp.LESS_THAN,
+        ConditionalOp.LESS_THAN_OR_EQUALS,
     }
-    EXISTENCE = {ExprOp.EXISTS, ExprOp.DOES_NOT_EXIST}
-    COMPARISON_XY = {ExprOp.INTERSECTS, ExprOp.DISJOINT, ExprOp.WITHIN}
-    COMPARISON_VECTOR = {ExprOp.NEAR}
+    COND_EXISTENCE = {ConditionalOp.EXISTS, ConditionalOp.DOES_NOT_EXIST}
+    COND_XY = {ConditionalOp.INTERSECTS, ConditionalOp.DISJOINT, ConditionalOp.WITHIN}
+    COND_VECTOR = {ConditionalOp.NEAR}
 
 
-SCORED_QUERY_OPS = {ExprOp.MATCHES, *ExpressionOps.COMPARISON_XY, *ExpressionOps.COMPARISON_VECTOR}
+RANKED_CONDITIONAL_OPS = {
+    ConditionalOp.MATCHES,
+    *ExpressionOps.COND_XY,
+    *ExpressionOps.COND_VECTOR,
+}
 
-_EXPRESSIONS: dict[ExprOp, type[Expression]] = {}
+_EXPRESSIONS: dict[ConditionalOp, type[Expression]] = {}
 
 
-def expression(*ops: ExprOp):
+def expression(*ops: ConditionalOp):
     """Register a query class for the given ops."""
 
     def decorator(cls: type[Expression]):
@@ -114,37 +114,39 @@ def expression(*ops: ExprOp):
 
 
 @expression()
-class Query(Expression):
+class Conditional(Expression):
+    op: ConditionalOp
+
     def __bool__(self):
         raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
     def __invert__(self):
-        return Q(ExprOp.NOT, queries=[self])
+        return C(ConditionalOp.NOT, clauses=[self])
 
     def __and__(self, other):
-        if not isinstance(other, Query):
+        if not isinstance(other, Conditional):
             raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
-        return Q(ExprOp.AND, queries=[self, other])
+        return C(ConditionalOp.AND, clauses=[self, other])
 
     def __or__(self, other):
-        if not isinstance(other, Query):
+        if not isinstance(other, Conditional):
             raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
-        return Q(ExprOp.OR, queries=[self, other])
-
-    filter = __and__
+        return C(ConditionalOp.OR, clauses=[self, other])
 
     @property
     def is_scored(self) -> bool:
-        return self.op in SCORED_QUERY_OPS
+        return self.op in RANKED_CONDITIONAL_OPS
 
     @staticmethod
-    def cls_from_attrs(d: dict[str, Any]) -> type[Query]:  # see :WireFormat
-        op = ExprOp(d["op"])
+    def cls_from_attrs(d: dict[str, Any]) -> type[Conditional]:  # see :WireFormat
+        op = ConditionalOp(d["op"])
         cls = _EXPRESSIONS[op]
         return cls
 
     @staticmethod
-    def and_if_set(base: Optional[Query], extra: Optional[Query]) -> Optional[Query]:
+    def and_if_set(
+        base: Optional[Conditional], extra: Optional[Conditional]
+    ) -> Optional[Conditional]:
         if base is None:
             if extra is None:
                 return None
@@ -157,44 +159,44 @@ class Query(Expression):
                 return base & extra
 
 
-@expression(ExprOp.NOT, ExprOp.AND, ExprOp.OR)
-class CompoundQuery(Query):
-    queries: list[Query]
+@expression(ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR)
+class CompoundConditional(Conditional):
+    clauses: list[Conditional]
 
     def __str__(self):
-        return f" {self.op.sign} ".join(str(q) for q in self.queries)
-
-    @property
-    def is_scored(self) -> bool:
-        return any(q.is_scored for q in self.queries)
+        return f" {self.op.sign} ".join(str(q) for q in self.clauses)
 
     def __invert__(self):
-        if self.op == ExprOp.NOT:
-            return self.queries[0]
+        if self.op == ConditionalOp.NOT:
+            return self.clauses[0]
         else:
             return super().__invert__()
 
     def __and__(self, other):
-        if not isinstance(other, Query):
+        if not isinstance(other, Conditional):
             raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
-        if self.op == ExprOp.AND:
-            if isinstance(other, CompoundQuery) and other.op == ExprOp.AND:
-                return Q(ExprOp.AND, queries=[*self.queries, *other.queries])
+        if self.op == ConditionalOp.AND:
+            if isinstance(other, CompoundConditional) and other.op == ConditionalOp.AND:
+                return C(ConditionalOp.AND, clauses=[*self.clauses, *other.queries])
             else:
-                return Q(ExprOp.AND, queries=[*self.queries, other])
+                return C(ConditionalOp.AND, clauses=[*self.clauses, other])
         else:
             return super().__and__(other)
 
     def __or__(self, other):
-        if not isinstance(other, Query):
+        if not isinstance(other, Conditional):
             raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
-        if self.op == ExprOp.OR:
-            if isinstance(other, CompoundQuery) and other.op == ExprOp.OR:
-                return Q(ExprOp.OR, queries=[*self.queries, *other.queries])
+        if self.op == ConditionalOp.OR:
+            if isinstance(other, CompoundConditional) and other.op == ConditionalOp.OR:
+                return C(ConditionalOp.OR, clauses=[*self.clauses, *other.queries])
             else:
-                return Q(ExprOp.OR, queries=[*self.queries, other])
+                return C(ConditionalOp.OR, clauses=[*self.clauses, other])
         else:
             return super().__or__(other)
+
+    @property
+    def is_scored(self) -> bool:
+        return any(q.is_scored for q in self.clauses)
 
 
 if TYPE_CHECKING:
@@ -204,7 +206,7 @@ else:
 
 
 @dataclass(repr=False)
-class FieldQuery(Query):
+class FieldConditional(Conditional):
     field: FieldOrStr
     subkey: str = None
 
@@ -223,36 +225,36 @@ class FieldQuery(Query):
 
 
 @expression(
-    ExprOp.EQUALS,
-    ExprOp.NOT_EQUALS,
-    ExprOp.GREATER_THAN,
-    ExprOp.GREATER_THAN_OR_EQUALS,
-    ExprOp.LESS_THAN,
-    ExprOp.LESS_THAN_OR_EQUALS,
-    ExprOp.MATCHES,
-    ExprOp.STARTS_WITH,
+    ConditionalOp.EQUALS,
+    ConditionalOp.NOT_EQUALS,
+    ConditionalOp.GREATER_THAN,
+    ConditionalOp.GREATER_THAN_OR_EQUALS,
+    ConditionalOp.LESS_THAN,
+    ConditionalOp.LESS_THAN_OR_EQUALS,
+    ConditionalOp.MATCHES,
+    ConditionalOp.STARTS_WITH,
 )
-class ComparisonQuery(FieldQuery):
+class ComparisonConditional(FieldConditional):
     value: Any = required_field()
 
     def __str__(self):
         return f"{self._field_str} {self.op.sign} {self.value!r}"
 
 
-@expression(ExprOp.EXISTS, ExprOp.DOES_NOT_EXIST)
-class ExistenceQuery(FieldQuery):
+@expression(ConditionalOp.EXISTS, ConditionalOp.DOES_NOT_EXIST)
+class ExistenceConditional(FieldConditional):
     def __str__(self):
         return f"{self._field_str}.{self.op.name.lower()}"
 
     def __invert__(self):
-        if self.op == ExprOp.EXISTS:
-            return Q(ExprOp.DOES_NOT_EXIST, field=self.field, subkey=self.subkey)
+        if self.op == ConditionalOp.EXISTS:
+            return C(ConditionalOp.DOES_NOT_EXIST, field=self.field, subkey=self.subkey)
         else:
-            return Q(ExprOp.EXISTS, field=self.field, subkey=self.subkey)
+            return C(ConditionalOp.EXISTS, field=self.field, subkey=self.subkey)
 
 
-@expression(ExprOp.NEAR)
-class VectorQuery(FieldQuery):
+@expression(ConditionalOp.NEAR)
+class VectorConditional(FieldConditional):
     value: list[float] = required_field()
     approximate: bool = True
 
@@ -260,7 +262,7 @@ class VectorQuery(FieldQuery):
         return f"{self._field_str}.{self.op.name.lower()}({self.value[:10]}...)"
 
 
-def Q(op: ExprOp, *args, **kwargs) -> Query:
+def C(op: ConditionalOp, *args, **kwargs) -> Conditional:
     cls = _EXPRESSIONS[op]
     kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls._PROPERTIES}
     return cls(op, *args, **kwargs)
@@ -296,11 +298,39 @@ class Sort(Expression):
         return key if not self.subkey else f"{key}.{self.subkey}"
 
 
-def get_default_sort(query: "Query") -> list["Sort"]:
+def get_default_sort(query: "Conditional") -> list["Sort"]:
     if query.is_scored:
         return [Sort("_score", SortOrder.DESCENDING)]
     else:
         return [Sort("_id", SortOrder.ASCENDING)]
+
+
+class AggregationOp(enum.StrEnum):
+    # Single value
+    COUNT = "COUNT"
+    SUM = "SUM"
+    AVERAGE = "AVERAGE"
+    MIN = "MIN"
+    MAX = "MAX"
+    MEDIAN = "MEDIAN"
+    # Bucket value
+    HISTOGRAM = "HISTOGRAM"
+
+
+@expression()
+class Aggregation(Expression):
+    op: AggregationOp
+    field: FieldOrStr
+    subkey: str = None
+
+    def encode_some_attrs(self):
+        # always inline field key
+        return {"field": self.field if isinstance(self.field, str) else self.field._source_key}
+
+    @property
+    def key(self) -> str:
+        key = self.field if isinstance(self.field, str) else self.field._source_key
+        return key if not self.subkey else f"{key}.{self.subkey}"
 
 
 TYPE_DISCRIMINATOR_KEY = "_type"
@@ -311,37 +341,37 @@ TYPE_DISCRIMINATOR_KEY = "_type"
 #
 
 
-class UnsupportedQueryError(Exception):
+class UnsupportedExpressionError(ValueError):
     def __init__(self, field: "Field", thing: Any):
         super().__init__(f"{repr(field)} does not support {thing}")
 
 
-def _check_supports_query(field: "Field", op: ExprOp):
+def _check_supports_conditional(field: "Field", op: ConditionalOp):
     if op not in field._supported_query_ops:
-        raise UnsupportedQueryError(field, op)
+        raise UnsupportedExpressionError(field, op)
 
 
 def _check_supports_sort(field: "Field"):
     if not field.can_sort:
-        raise UnsupportedQueryError(field, "sort")
+        raise UnsupportedExpressionError(field, "sort")
 
 
 def _check_supports_subfield(field: "Field", subfield: "SubfieldType"):
     if subfield not in field._supported_subfields:
-        raise UnsupportedQueryError(field, subfield)
+        raise UnsupportedExpressionError(field, subfield)
 
 
 def _check_has_type_tag(field: "Field", tag: TypeTag):
     if field._effective_tag != tag:
-        raise UnsupportedQueryError(field, tag)
+        raise UnsupportedExpressionError(field, tag)
 
 
-def _check_support(op: ExprOp = None, sort: bool = False, subfield: "SubfieldType" = None):
+def _check_support(op: ConditionalOp = None, sort: bool = False, subfield: "SubfieldType" = None):
     def decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             if op is not None:
-                _check_supports_query(self, op)
+                _check_supports_conditional(self, op)
             if sort:
                 _check_supports_sort(self)
             if subfield is not None:
@@ -383,7 +413,7 @@ class FieldQueryOps:
         return hint_ops | tag_ops
 
     @property
-    def _supported_query_ops(self) -> set[ExprOp]:
+    def _supported_query_ops(self) -> set[ConditionalOp]:
         format_ops = _SUPPORTED_EXPR_OPS_BY_TYPE.get(self._storage_format, _EMPTY_SET)
         hint_ops = _SUPPORTED_EXPR_OPS_BY_TYPE.get(self.hint, _EMPTY_SET)
         tag_ops = _SUPPORTED_EXPR_OPS_BY_TYPE.get(self._effective_tag, _EMPTY_SET)
@@ -406,12 +436,12 @@ class FieldQueryOps:
 
     # comparison
 
-    @_check_support(op=ExprOp.EQUALS)
-    def equals(self, value: Any) -> Query:
+    @_check_support(op=ConditionalOp.EQUALS)
+    def equals(self, value: Any) -> Conditional:
         value = self._strip_value(value)
         if value is None:
             return self.not_exists()
-        return Q(ExprOp.EQUALS, self._field, self._subkey, value)
+        return C(ConditionalOp.EQUALS, self._field, self._subkey, value)
 
     def __eq__(self, other):
         from bench.language.module import Node
@@ -420,10 +450,10 @@ class FieldQueryOps:
             return Node.__eq__(self, other)  # imitate Field equality
         return self.equals(other)
 
-    @_check_support(op=ExprOp.NOT_EQUALS)
-    def not_equal(self, value: Any) -> Query:
+    @_check_support(op=ConditionalOp.NOT_EQUALS)
+    def not_equal(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return Q(ExprOp.NOT_EQUALS, self._field, self._subkey, value)
+        return C(ConditionalOp.NOT_EQUALS, self._field, self._subkey, value)
 
     def __ne__(self, other):
         from bench.language.module import Node
@@ -432,72 +462,65 @@ class FieldQueryOps:
             return Node.__ne__(self, other)
         return self.not_equal(other)
 
-    @_check_support(op=ExprOp.EQUALS)
-    def in_(self, *values: list[Any]) -> Query:
+    @_check_support(op=ConditionalOp.EQUALS)
+    def in_(self, *values: list[Any]) -> Conditional:
         values = [self._strip_value(value) for value in values]
-        return Q(ExprOp.EQUALS, self._field, self._subkey, values)
+        return C(ConditionalOp.EQUALS, self._field, self._subkey, values)
 
-    @_check_support(op=ExprOp.GREATER_THAN)
-    def greater_than(self, value: Any) -> Query:
+    @_check_support(op=ConditionalOp.GREATER_THAN)
+    def greater_than(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return Q(ExprOp.GREATER_THAN, self._field, self._subkey, value)
+        return C(ConditionalOp.GREATER_THAN, self._field, self._subkey, value)
 
     def __gt__(self, other):
         return self.greater_than(other)
 
-    @_check_support(op=ExprOp.GREATER_THAN_OR_EQUALS)
-    def greater_than_or_equals(self, value: Any) -> Query:
+    @_check_support(op=ConditionalOp.GREATER_THAN_OR_EQUALS)
+    def greater_than_or_equals(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return Q(ExprOp.GREATER_THAN_OR_EQUALS, self._field, self._subkey, value)
+        return C(ConditionalOp.GREATER_THAN_OR_EQUALS, self._field, self._subkey, value)
 
     def __ge__(self, other):
         return self.greater_than_or_equals(other)
 
-    @_check_support(op=ExprOp.LESS_THAN)
-    def less_than(self, value: Any) -> Query:
+    @_check_support(op=ConditionalOp.LESS_THAN)
+    def less_than(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return Q(ExprOp.LESS_THAN, self._field, self._subkey, value)
+        return C(ConditionalOp.LESS_THAN, self._field, self._subkey, value)
 
     def __lt__(self, other):
         return self.less_than(other)
 
-    @_check_support(op=ExprOp.LESS_THAN_OR_EQUALS)
-    def less_than_or_equals(self, value: Any) -> Query:
+    @_check_support(op=ConditionalOp.LESS_THAN_OR_EQUALS)
+    def less_than_or_equals(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return Q(ExprOp.LESS_THAN_OR_EQUALS, self._field, self._subkey, value)
+        return C(ConditionalOp.LESS_THAN_OR_EQUALS, self._field, self._subkey, value)
 
     def __le__(self, other):
         return self.less_than_or_equals(other)
 
     # string comparison
 
-    @_check_support(op=ExprOp.MATCHES)
-    def matches(self, value: str) -> Query:
-        return Q(ExprOp.MATCHES, self._field, self._subkey, value)
+    @_check_support(op=ConditionalOp.MATCHES)
+    def matches(self, value: str) -> Conditional:
+        return C(ConditionalOp.MATCHES, self._field, self._subkey, value)
 
     contains = matches
 
-    @_check_support(op=ExprOp.STARTS_WITH)
-    def starts_with(self, value: str) -> Query:
+    @_check_support(op=ConditionalOp.STARTS_WITH)
+    def starts_with(self, value: str) -> Conditional:
         # :StartsWithHack
-        return Q(ExprOp.STARTS_WITH, self._field, self._subkey, value.lower())
-
-    @_check_support(op=ExprOp.STARTS_WITH)
-    def like(self, value: str) -> Query:
-        # combines matches and starts_with
-        return Q(ExprOp.STARTS_WITH, self._field, self._subkey, value) | Q(
-            ExprOp.MATCHES, self._field, self._subkey, value
-        )
+        return C(ConditionalOp.STARTS_WITH, self._field, self._subkey, value.lower())
 
     # existence
 
-    @_check_support(op=ExprOp.EXISTS)
-    def exists(self) -> Query:
-        return Q(ExprOp.EXISTS, self._source_key)
+    @_check_support(op=ConditionalOp.EXISTS)
+    def exists(self) -> Conditional:
+        return C(ConditionalOp.EXISTS, self._source_key)
 
-    @_check_support(op=ExprOp.DOES_NOT_EXIST)
-    def not_exists(self) -> Query:
-        return Q(ExprOp.DOES_NOT_EXIST, self._source_key)
+    @_check_support(op=ConditionalOp.DOES_NOT_EXIST)
+    def not_exists(self) -> Conditional:
+        return C(ConditionalOp.DOES_NOT_EXIST, self._source_key)
 
     # xy
 
@@ -505,9 +528,9 @@ class FieldQueryOps:
 
     # knn
 
-    @_check_support(op=ExprOp.NEAR)
-    def near(self, value: list[float], approximate: bool = True) -> Query:
-        return Q(ExprOp.NEAR, self._field, self._subkey, value, approximate=approximate)
+    @_check_support(op=ConditionalOp.NEAR)
+    def near(self, value: list[float], approximate: bool = True) -> Conditional:
+        return C(ConditionalOp.NEAR, self._field, self._subkey, value, approximate=approximate)
 
     # sort
 
@@ -593,16 +616,16 @@ _SUPPORTED_SUBFIELDS_BY_TYPE: dict[TypeHint | TypeTag, set[SubfieldType]] = {
 }
 
 ExprOps = ExpressionOps  # alias
-_BASE_EXPR_OPS = ExprOps.EXISTENCE
-_SUPPORTED_EXPR_OPS_BY_TYPE: dict[TypeTag | TypeHint | TypeStorageFormat, set[ExprOp]] = {
+_BASE_EXPR_OPS = ExprOps.COND_EXISTENCE
+_SUPPORTED_EXPR_OPS_BY_TYPE: dict[TypeTag | TypeHint | TypeStorageFormat, set[ConditionalOp]] = {
     # cumulative supported query ops by type
-    TypeStorageFormat.LONG: ExprOps.COMPARISON_RANGE | ExprOps.COMPARISON_EXACT,
-    TypeStorageFormat.DOUBLE: ExprOps.COMPARISON_RANGE | ExprOps.COMPARISON_EXACT,
-    TypeStorageFormat.BOOLEAN: ExprOps.COMPARISON_EXACT,
-    TypeStorageFormat.DATE: ExprOps.COMPARISON_RANGE | ExprOps.COMPARISON_EXACT,
-    TypeStorageFormat.KEYWORD: ExprOps.COMPARISON_EXACT,
-    TypeStorageFormat.VECTOR: ExprOps.COMPARISON_VECTOR,
-    TypeTag.STRING: {ExprOp.MATCHES},
-    TypeHint.NAME: {ExprOp.STARTS_WITH},
+    TypeStorageFormat.LONG: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
+    TypeStorageFormat.DOUBLE: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
+    TypeStorageFormat.BOOLEAN: ExprOps.COND_EXACT,
+    TypeStorageFormat.DATE: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
+    TypeStorageFormat.KEYWORD: ExprOps.COND_EXACT,
+    TypeStorageFormat.VECTOR: ExprOps.COND_VECTOR,
+    TypeTag.STRING: {ConditionalOp.MATCHES},
+    TypeHint.NAME: {ConditionalOp.STARTS_WITH},
 }
 _EMPTY_SET = set()

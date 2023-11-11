@@ -2,7 +2,7 @@ import typing
 from typing import Optional
 
 from bench.language.const import MNT, ViewLayout
-from bench.language.expression import Query, Sort
+from bench.language.expression import Conditional, Sort
 from bench.language.module import ScopeNode, node, nparent, nproperty
 from bench.language.validation import enum_validator
 
@@ -15,7 +15,7 @@ class View(ScopeNode):
     parent: typing.Union["Statement", "File"] = nparent(MNT.STATEMENT, MNT.FILE)
     name: str | None = nproperty(default=None)
     layout: ViewLayout = nproperty(default=ViewLayout.TABLE, validate=enum_validator(ViewLayout))
-    query: Optional[Query] = nproperty(default=None)
+    query: Optional[Conditional] = nproperty(default=None)
     sort: Optional[list[Sort]] = nproperty(default=None)
 
     def __str__(self):

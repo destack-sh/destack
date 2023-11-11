@@ -77,7 +77,7 @@ class Session:
     ):
         from bench.language.cache import CacheAsync, CacheSync
         from bench.language.edit import ModuleEditor
-        from bench.language.remote import Storage
+        from bench.language.remote import Blobs
 
         self.id = id or uuid4()
         self.module = module
@@ -93,29 +93,28 @@ class Session:
 
         self.cache_sync = CacheSync(module)
         self.cache_async = CacheAsync(module)
-        self.storage = Storage(module)
+        self.blobs = Blobs(module)
 
-        self.tracer = SessionTracer(
+        self._executor = ThreadPoolExecutor(max_workers=1)
+        self._log = logger.bind(session=self)
+        self._editor = ModuleEditor(self.module._local_tree, module.project_id, module.id)
+        self._tracer = SessionTracer(
             self,
             editor=self._editor,
             root_run_id=root_run_id,
             root_run_value=root_run_value,
             global_run_value=global_run_value,
         )
-        self.opened_at: Optional[datetime] = None
-        self.closed_at: Optional[datetime] = None
 
-        self._executor = ThreadPoolExecutor(max_workers=1)
-        self._log = logger.bind(session=self)
-        self._editor = ModuleEditor(self.module._local_tree, module.project_id, module.id)
-
+        self._opened_at: Optional[datetime] = None
+        self._closed_at: Optional[datetime] = None
         self._dangling_nodes_by_ck: dict[UUID, Node] = {}
         self._past_flushes: list[tuple[int, set[MET]]] = []
         self._pending_flushes: list[tuple[int, Awaitable[bool]]] = []
         self._failed_flush: bool = False
 
     def __str__(self):
-        status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
+        status = "open" if self._opened_at else ("closed" if self._closed_at else "pending")
         return f"{self.module.name} ({self.access_level.name}, {status}, {len(self._editor.edits)} pending edits)"
 
     def __repr__(self):
@@ -129,13 +128,13 @@ class Session:
 
     @property
     def current_run(self) -> "Run":
-        return self.tracer.current_run
+        return self._tracer.current_run
 
     def capture_runs(self) -> "_RunCapture":
-        return self.tracer.start_capture()
+        return self._tracer.start_capture()
 
     def bind_run_value(self, **kwargs):
-        return self.tracer.value(**kwargs)
+        return self._tracer.value(**kwargs)
 
     @contextlib.contextmanager
     def bind_access_level(self, access: SessionAccessLevel):
@@ -159,17 +158,17 @@ class Session:
 
     @property
     def is_open(self) -> bool:
-        return self.opened_at is not None and self.closed_at is None
+        return self._opened_at is not None and self._closed_at is None
 
     async def aopen(self):
         """Opens the session for execution and modification."""
-        if self.opened_at is not None:
+        if self._opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
-        self.opened_at = utcnow_with_tz()
+        self._opened_at = utcnow_with_tz()
         if _active_session.get() is not None:
             raise RuntimeError(f"another session is active: {_active_session.get()}")
         _active_session.set(self)
-        await self.tracer.open()
+        await self._tracer.open()
         logger.debug("session.open", session=self)
 
     async def _do_commit(self, edits: list["EditData"], refresh_index: bool) -> bool:
@@ -194,7 +193,7 @@ class Session:
     @property
     def _needs_flush_before_exit(self):
         # ensure edits are flushed before we exit out of topmost run for error propagation
-        return self._editor.edits and len(self.tracer.stacktrace) == 1
+        return self._editor.edits and len(self._tracer.stacktrace) == 1
 
     async def acommit(self, optimistic: bool = False, refresh_index: bool = False):
         """
@@ -217,7 +216,7 @@ class Session:
         )
         edits = EditBundle(edits).compact()
         self._editor.reset()
-        self.tracer._new_statement_ids.clear()
+        self._tracer._new_statement_ids.clear()
         flush = self._do_commit(edits, refresh_index)
         if optimistic:
             self._pending_flushes.append((len(edits), asyncio.create_task(flush)))
@@ -232,9 +231,9 @@ class Session:
 
     async def aclose(self):
         """Closes the session, flushing any edits and preventing further execution/edit."""
-        if self.closed_at is not None:
+        if self._closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
-        self.closed_at = utcnow_with_tz()
+        self._closed_at = utcnow_with_tz()
         if not self._failed_flush:
             await self.acommit(optimistic=True)
         # TODO @Robustness: flush pending edits inside top level run (to report errors properly)
@@ -243,7 +242,7 @@ class Session:
         logger.debug("session.close.pending", session=self, pending_edits_count=pending_edits_count)
         await asyncio.gather(*(task for _, task in self._pending_flushes))
         _active_session.set(None)
-        await self.tracer.close()
+        await self._tracer.close()
         if self.dangling:
             logger.warn("session.close.dangling", session=self, dangling=self.dangling)
         logger.debug("session.close", session=self)
