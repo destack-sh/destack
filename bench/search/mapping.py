@@ -338,8 +338,8 @@ def compact_os_queries(queries: list[dict[str, Any]]) -> dict[str, Any]:
 def prepare_os_query(
     type: "DocumentType",
     project_version_id: Union[str, list[str], None],
-    limit: int,
-    count: bool,
+    limit: int | None = None,
+    count: bool = True,
     after: Optional[str] = None,
     sort: Optional[list[Sort]] = None,
     query: Optional[Conditional] = None,
@@ -365,13 +365,14 @@ def prepare_os_query(
     compiled_query = compile_to_os(compilation, combined_query)
     compiled_sort = compile_to_os(compilation, sort or get_default_sort(combined_query))
     search = {
-        "size": limit,
         "query": compiled_query,
         "sort": compiled_sort,
         "track_total_hits": count,
         "version": version,
         "_source": source,
     }
+    if limit:
+        search["size"] = limit
     if fields is not None:
         search["fields"] = fields
     if after:

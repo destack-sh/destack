@@ -1,8 +1,6 @@
-from typing import Any, Generator, Generic, Iterable, Optional, Type, TypeVar
-from uuid import UUID
+from typing import Generator, Iterable, Optional, Type
 
 import structlog
-from django.db.models import Model
 
 from bench import models
 from bench.language import libs, wire
@@ -28,374 +26,11 @@ DEFAULT_FIELDS = {
 
 GLOBAL_INDEX_SHARDS = 5
 GLOBAL_INDEX_REPLICAS = 1
+GLOBAL_READ_ONLY_ROLE = "global-ro"
 
 BENCH_INDEX_SHARDS = 1
 BENCH_INDEX_REPLICAS = 0
 BENCH_MAPPING_TOTAL_FIELDS_LIMIT = 10000  # TODO @Performance: reconsider OS mapping limit
-
-ModelT = TypeVar("ModelT", bound=Model)
-MirrorT = TypeVar("MirrorT", bound=os.Document)
-DataT = TypeVar("DataT", bound=Any)
-
-
-class Packer(Generic[ModelT, MirrorT, DataT]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
-        raise NotImplementedError
-
-    def pack(self, mirror: MirrorT) -> DataT:
-        raise NotImplementedError
-
-    def unpack(self, project_v: models.ProjectVersion, data: DataT, parent: ModelT) -> MirrorT:
-        raise NotImplementedError
-
-
-_packers_by_model: dict[type[ModelT], Packer[ModelT, MirrorT, DataT]] = {}
-_packers_by_mirror: dict[type[MirrorT], Packer[ModelT, MirrorT, DataT]] = {}
-_packers_by_data: dict[type[DataT], Packer[ModelT, MirrorT, DataT]] = {}
-
-
-def packer(model_t: type[ModelT], mirror_t: type[MirrorT], data_t: Optional[type[DataT]] = None):
-    """Decorator to register a NodePacker for a model."""
-
-    def decorator(cls: type[Packer[ModelT, MirrorT, DataT]]):
-        if model_t in _packers_by_model:
-            raise ValueError(
-                f"packer already registered for {model_t}: {_packers_by_model[model_t]}"
-            )
-        if mirror_t in _packers_by_mirror:
-            raise ValueError(
-                f"packer already registered for {mirror_t}: {_packers_by_mirror[mirror_t]}"
-            )
-        if data_t is not None and data_t in _packers_by_data:
-            raise ValueError(f"packer already registered for {data_t}: {_packers_by_data[data_t]}")
-        packer = cls()
-        _packers_by_model[model_t] = packer
-        _packers_by_mirror[mirror_t] = packer
-        _packers_by_mirror[mirror_t.Partial] = packer
-        if data_t is not None:
-            _packers_by_data[data_t] = packer
-        return cls
-
-    return decorator
-
-
-def has_mirror(node: ModelT) -> bool:
-    return type(node) in _packers_by_model
-
-
-def mirror_node(project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
-    packer = _packers_by_model[type(node)]
-    return packer.mirror(project_v, node)
-
-
-def pack_node_flat(node: MirrorT) -> DataT:
-    packer = _packers_by_mirror[type(node)]
-    return packer.pack(node)
-
-
-def unpack_node_flat(
-    project_v: models.ProjectVersion, data: DataT, parent: Optional[ModelT]
-) -> MirrorT:
-    packer = _packers_by_data[type(data)]
-    return packer.unpack(project_v, data, parent)
-
-
-def get_node_packer(mirror_t: type[MirrorT]) -> Packer[ModelT, MirrorT, DataT]:
-    return _packers_by_mirror[mirror_t]
-
-
-@packer(models.CrudModel, mirror.CrudThing, None)
-class CrudThingPacker(Packer):
-    def mirror(self, project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
-        return mirror.CrudThing(
-            id=node.id,
-            created_at=node.created_at,
-            updated_at=node.updated_at,
-            deleted_at=node.deleted_at,
-            created_by_id=node.created_by_id,
-            last_edited_at=node.last_edited_at,
-            last_edited_by_id=node.last_edited_by_id,
-        )
-
-
-@packer(models.Blob, mirror.Blob, wire.BlobData)
-class BlobPacker(Packer[models.Blob, mirror.Blob, wire.BlobData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.Blob) -> mirror.Blob:
-        return mirror.Blob(
-            id=node.id,
-            sha512=node.sha512,
-            content_length=node.content_length,
-            content_type=node.content_type,
-            name=node.name,
-        )
-
-
-@packer(models.Secret, mirror.Secret, wire.SecretData)
-class SecretPacker(Packer[models.Secret, mirror.Secret, wire.SecretData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.Secret) -> mirror.Secret:
-        return mirror.Secret(id=node.id, sha512=node.sha512, name=node.name)
-
-
-@packer(models.User, mirror.User, None)
-class UserPacker(Packer[models.User, mirror.User, None]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.User) -> mirror.User:
-        return mirror.User(id=node.id, name=node.username, slug=node.slug, email=node.email)
-
-
-@packer(models.Organization, mirror.Organization, None)
-class OrganizationPacker(Packer[models.Organization, mirror.Organization, None]):
-    def mirror(
-        self, project_v: models.ProjectVersion | None, node: models.Organization
-    ) -> mirror.Organization:
-        return mirror.Organization(id=node.id, name=node.name, slug=node.slug)
-
-
-@packer(models.Project, mirror.Project, None)
-class ProjectPacker(CrudThingPacker, Packer[models.Project, mirror.Project, None]):
-    def mirror(
-        self, project_v: models.ProjectVersion | None, node: models.Project
-    ) -> mirror.Project:
-        crud = super().mirror(project_v, node)
-        return mirror.Project(**crud.__dict__, name=node.name, description=node.description)
-
-
-@packer(models.ProjectVersion, mirror.ProjectVersion, None)
-class ProjectVersionPacker(
-    CrudThingPacker, Packer[models.ProjectVersion, mirror.ProjectVersion, None]
-):
-    def mirror(
-        self, project_v: models.ProjectVersion | None, node: models.ProjectVersion
-    ) -> mirror.ProjectVersion:
-        crud = super().mirror(project_v, node)
-        return mirror.ProjectVersion(
-            **crud.__dict__,
-            project_id=node.project_id,
-            name=node.name,
-            tag=node.tag,
-            description=node.description,
-        )
-
-
-@packer(models.File, mirror.File, wire.FileData)
-class FilePacker(CrudThingPacker, Packer[models.File, mirror.File, wire.FileData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.File) -> mirror.File:
-        crud = super().mirror(project_v, node)
-        return mirror.File(
-            **crud.__dict__,
-            ck=node.ck,
-            project_version_id=project_v.id,
-            project_id=project_v.project_id,
-            name=node.name,
-        )
-
-
-@packer(models.Statement, mirror.Statement, wire.StatementData)
-class StatementPacker(
-    CrudThingPacker, Packer[models.Statement, mirror.Statement, wire.StatementData]
-):
-    def mirror(
-        self, project_v: models.ProjectVersion | None, node: models.Statement
-    ) -> mirror.Statement:
-        crud = super().mirror(project_v, node)
-        return mirror.Statement(
-            **crud.__dict__,
-            ck=node.ck,
-            project_version_id=node.project_version_id,
-            project_id=project_v.project_id,
-            file_id=node.file_id,
-            type=node.type,
-            name=node.name,
-            text=node.text,
-            code=node.code,
-        )
-
-
-@packer(models.Field, mirror.Field, wire.FieldData)
-class FieldPacker(CrudThingPacker, Packer[models.Field, mirror.Field, wire.FieldData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.Field) -> mirror.Field:
-        crud = super().mirror(project_v, node)
-        return mirror.Field(
-            **crud.__dict__,
-            ck=node.ck,
-            project_version_id=node.statement.project_version_id,
-            project_id=project_v.project_id,
-            statement_id=node.statement_id,
-            name=node.name,
-            text=node.text,
-            type_tag=node.tag,
-            type_hint=node.hint,
-        )
-
-
-@packer(models.Record, mirror.Record, wire.RecordData)
-class RecordPacker(CrudThingPacker, Packer[models.Record, mirror.Record, wire.RecordData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: mirror.Record) -> mirror.Record:
-        return mirror.Record(
-            id=node.id,
-            ck=node.ck,
-            project_id=project_v.project_id,
-            project_version_id=project_v.id,
-            statement_id=node.statement_id,
-            statement_ck=node.statement_ck,
-            statement_key=node.statement_key,
-            value=node.value,
-            revision=node.revision,
-            created_at=node.created_at,
-            created_by_id=node.created_by_id,
-            updated_at=node.updated_at,
-            deleted_at=node.deleted_at if node.deleted_at else "-",  # reset with invalid date
-            last_edited_at=node.last_edited_at,
-            last_edited_by_id=node.last_edited_by_id,
-        )
-
-    def pack(self, node: models.Record) -> wire.RecordData:
-        return wire.RecordData(
-            id=node.id,
-            ck=node.ck,
-            parent_id=node.statement_id,
-            parent_key=node.statement_key,
-            value=node.value,
-            revision=node.revision,
-            created_at=node.created_at,
-            updated_at=node.updated_at,
-            last_edited_at=node.last_edited_at,
-            last_changed_at=None,
-        )
-
-    def unpack(
-        self, project_v: models.ProjectVersion, data: wire.RecordData, parent: models.Statement
-    ):
-        return mirror.Record(
-            id=data.id,
-            ck=data.ck,
-            project_version_id=project_v.id,
-            statement_id=data.parent_id,
-            statement_ck=parent.ck,
-            statement_key=parent.key,
-            value=data.value,
-            revision=data.revision,
-            created_at=data.created_at,
-            created_by_id=None,
-            updated_at=data.updated_at,
-            deleted_at=None,
-            last_edited_at=data.last_edited_at,
-            last_edited_by_id=None,
-        )
-
-
-@packer(models.Session, mirror.Session, wire.SessionData)
-class SessionPacker(Packer[models.Session, mirror.Session, wire.SessionData]):
-    def mirror(
-        self, project_v: models.ProjectVersion | None, node: models.Session
-    ) -> mirror.Session:
-        return mirror.Session(
-            id=node.id,
-            project_version_id=node.project_version_id,
-            opened_at=node.opened_at,
-            closed_at=node.closed_at,
-            trigger_type=node.trigger_type,
-        )
-
-
-@packer(models.Run, mirror.Run, wire.RunData)
-class RunPacker(Packer[models.Run, mirror.Run, wire.RunData]):
-    def pack(self, mirror: mirror.Run) -> wire.RunData:
-        statement_type = (
-            wire.StatementType(mirror.statement_type) if mirror.statement_type else None
-        )
-        return wire.RunData(
-            id=mirror.id,
-            project_id=mirror.project_id,
-            worker_node_id=mirror.worker_node_id,
-            worker_process_id=mirror.worker_process_id,
-            module_id=mirror.project_version_id,
-            session_id=mirror.session_id,
-            trigger_type=mirror.trigger_type,
-            trigger_id=None,  # not stored
-            root_id=mirror.root_id,
-            parent_id=mirror.parent_id,
-            statement_id=mirror.statement_id,
-            statement_ck=mirror.statement_ck,
-            statement_type=statement_type,
-            created_at=mirror.created_at,
-            updated_at=mirror.updated_at,
-            scheduled_at=mirror.scheduled_at,
-            started_at=mirror.started_at,
-            terminated_at=mirror.terminated_at,
-            status=mirror.RunStatus(mirror.status),
-            inputs=mirror.inputs,
-            outputs=mirror.outputs,
-            error=None,
-            value=mirror.value,
-        )
-
-    def unpack(self, project_v: None, data: wire.RunData, parent: None) -> mirror.Run:
-        if data.started_at and data.terminated_at:
-            duration = (data.terminated_at - data.started_at).total_seconds()
-        else:
-            duration = None
-        return mirror.Run(
-            id=data.id,
-            project_id=data.project_id,
-            project_version_id=data.module_id,
-            worker_node_id=data.worker_node_id,
-            worker_process_id=data.worker_process_id,
-            session_id=data.session_id,
-            trigger_type=data.trigger_type,
-            root_id=data.root_id,
-            parent_id=data.parent_id,
-            statement_id=data.statement_id,
-            statement_ck=data.statement_ck,
-            statement_type=data.statement_type,
-            created_at=data.created_at,
-            updated_at=data.updated_at,
-            scheduled_at=data.scheduled_at,
-            started_at=data.started_at,
-            terminated_at=data.terminated_at,
-            duration=duration,
-            status=data.status,
-            inputs=data.inputs,
-            outputs=data.outputs,
-            error=None,
-            value=data.value,
-        )
-
-
-@packer(mirror.LogEntry, mirror.LogEntry, wire.LogEntryData)
-class LogEntryPacker(Packer[mirror.LogEntry, mirror.LogEntry, wire.LogEntryData]):
-    def pack(self, mirror: mirror.LogEntry) -> wire.LogEntryData:
-        return wire.LogEntryData(
-            id=mirror.id,
-            module_id=mirror.project_version_id,
-            session_id=mirror.session_id,
-            run_id=mirror.run_id,
-            statement_id=mirror.statement_id,
-            statement_ck=mirror.statement_ck,
-            created_at=mirror.created_at,
-            stream=mirror.stream,
-            level=mirror.level,
-            logger=mirror.logger,
-            message=mirror.message,
-            value=mirror.value,
-        )
-
-    def unpack(
-        self, project_v: models.ProjectVersion, data: wire.LogEntryData, parent: None
-    ) -> mirror.LogEntry:
-        return mirror.LogEntry(
-            id=data.id,
-            project_version_id=project_v.id,
-            session_id=data.session_id,
-            run_id=data.run_id,
-            statement_id=data.statement_id,
-            statement_ck=data.statement_ck,
-            created_at=data.created_at,
-            stream=data.stream,
-            level=data.level,
-            logger=data.logger,
-            message=data.message,
-            value=data.value,
-        )
 
 
 def _collect_fields(doc_classes: list[os.Document]) -> dict[str, os.Field]:
@@ -467,6 +102,7 @@ def _create_index(
 
 
 def create_global_search_index(upsert: bool = False) -> None:
+    logger.info("os.create_global_index")
     _create_index(
         os.GLOBAL_INDEX_NAME,
         shards=GLOBAL_INDEX_SHARDS,
@@ -476,15 +112,114 @@ def create_global_search_index(upsert: bool = False) -> None:
     )
 
 
-def create_local_search_index(project_id: UUID, name: str, *, upsert: bool) -> None:
+def create_global_search_role(upsert: bool = False) -> None:
+    # creates a global role (that doesn't do anything yet)
+    # every user has this role to read public indices
+    role = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
+    if role is None:
+        rep = os_client_sync.security.create_role(
+            role=GLOBAL_READ_ONLY_ROLE, body={"cluster": [], "indices": []}
+        )
+        if rep.get("error"):
+            raise RuntimeError(f"failed to create global-ro role: {rep['error']}")
+        logger.info("os.create_global_role", role=GLOBAL_READ_ONLY_ROLE)
+    else:
+        logger.info("os.global_role_exists", role=GLOBAL_READ_ONLY_ROLE)
+
+
+def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
+    """
+    Creates the OpenSearch index and corresponding roles/user for a project.
+    """
+    log = logger.bind(project=project, os_name=project.os_name)
+    log.info("os.create_local_index")
+    # create index
     _create_index(
-        name,
+        index_name=project.os_name,
         shards=BENCH_INDEX_SHARDS,
         replicas=BENCH_INDEX_REPLICAS,
         documents=DOCUMENTS_BY_INDEX[IndexType.LOCAL],
         upsert=upsert,
     )
-    # nocheckin: create user/role
+
+    if project.visibility == models.ProjectVisibility.PUBLIC:
+        # grant read access to global read only role
+        log.info("os.grant_global_read_access")
+        rep = os_client_sync.security.patch_role(
+            role=GLOBAL_READ_ONLY_ROLE,
+            body={
+                "op": "add",
+                "path": "/index_permissions",
+                "value": [
+                    {
+                        "index_patterns": [project.os_name],
+                        "fls": [],
+                        "masked_fields": [],
+                        "allowed_actions": ["read"],
+                    }
+                ],
+            },
+        )
+        if rep.get("error"):
+            raise RuntimeError(f"failed to grant read access to global-ro: {rep['error']}")
+        log.info("os.grant_global_read_access.done")
+    else:
+        # revoke read access from global read only role (if exists)
+        log.info("os.revoke_global_read_access")
+        role = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
+        assert role is not None, "global-ro role must exist"
+        # find index permission for this project
+        permission_idx = -1
+        for i, index_permission in enumerate(role["index_permissions"]):
+            if index_permission["index_patterns"] == [project.os_name]:
+                permission_idx = i
+                break
+        if permission_idx >= 0:
+            rep = os_client_sync.security.patch_role(
+                role=GLOBAL_READ_ONLY_ROLE,
+                params={"op": "remove", "path": f"/index_permissions/{permission_idx}"},
+            )
+            if rep.get("error"):
+                raise RuntimeError(f"failed to revoke read access from global-ro: {rep['error']}")
+            log.info("os.revoke_global_read_access.done")
+        else:
+            log.info("os.revoke_global_read_access.not_found")
+
+    # create write access role for project owner
+    log.info("os.create_owner_role")
+    owner_role_name = f"{project.os_name}-rw"
+    owner_role = os_client_sync.security.get_role(role=owner_role_name)
+    if owner_role is not None:
+        os_client_sync.security.delete_role(role=owner_role_name)
+    rep = os_client_sync.security.create_role(
+        role=owner_role_name,
+        body={
+            "index_permissions": [
+                {
+                    "index_patterns": [project.os_name],
+                    "fls": [],
+                    "masked_fields": [],
+                    "allowed_actions": ["all"],
+                }
+            ]
+        },
+    )
+    if rep.get("error"):
+        raise RuntimeError(f"failed to create role {owner_role_name}: {rep['error']}")
+    log.info("os.create_owner_role.done")
+
+    # create user with those roles
+    log.info("os.create_user")
+    user = os_client_sync.security.get_user(username=project.os_username, ignore=404)
+    if user is not None:
+        os_client_sync.security.delete_user(username=project.os_username)
+    rep = os_client_sync.security.create_user(
+        username=project.os_username,
+        body={"password": project.os_password, "roles": [owner_role_name, GLOBAL_READ_ONLY_ROLE]},
+    )
+    if rep.get("error"):
+        raise RuntimeError(f"failed to create user {project.os_username}: {rep['error']}")
+    log.info("os.create_user.done", username=project.os_username)
 
 
 BENCH_LOCAL_MODELS = (models.Record,)
@@ -540,10 +275,10 @@ def write_edits_to_os(
             os_client_sync.delete_by_query(
                 index=index, body={"query": {"term": {"statement_key": e.node.key}}}
             )
-        elif not has_mirror(e.thing):
+        elif not mirror.has_mirror(e.thing):
             continue  # ignore
         elif e.type.kind in (MEK.CREATE, MEK.UPDATE) or e.type.is_soft_delete:
-            mirrored = mirror_node(project_v, e.thing)
+            mirrored = mirror.mirror_node(project_v, e.thing)
             mirrored_data = mirrored.to_dict()
             # TODO @Robustness: limit OS edit to changed properties?
             #  (partial update is not supported in index operation)
@@ -591,11 +326,11 @@ def write_module_to_os(
 
     project: models.Project = project_v.project
     for node in nodes:
-        if not has_mirror(node):
+        if not mirror.has_mirror(node):
             continue
         index = project.os_name if isinstance(node, BENCH_LOCAL_MODELS) else os.GLOBAL_INDEX_NAME
         ops.append({"index": {"_index": index, "_id": str(node.id)}})
-        ops.append(mirror_node(project_v, node).to_dict())
+        ops.append(mirror.mirror_node(project_v, node).to_dict())
 
     logger.debug(
         "os.write_module", project_version=project_v, index=project.os_name, operations=len(ops)
@@ -623,7 +358,7 @@ def write_runs_to_os(os_names: str | list[str], runs: list[wire.RunData]) -> Non
     for i, run in enumerate(runs):
         index = os_names[i] if isinstance(os_names, list) else os_names
         ops.append({"index": {"_index": index, "_id": str(run.id)}})
-        ops.append(unpack_node_flat(None, run, None).to_dict())
+        ops.append(mirror.unpack_node_flat(None, run, None).to_dict())
     logger.debug("os.write_runs", operations=len(ops))
     ret = os_client_sync.bulk(ops)
     if ret.get("errors"):
@@ -642,13 +377,13 @@ def write_session_to_os(
     ops: list[dict] = []
     if session:
         ops.append({"index": {"_index": os_name, "_id": str(session.id)}})
-        ops.append(mirror_node(project_v, session).to_dict())
+        ops.append(mirror.mirror_node(project_v, session).to_dict())
     for run in runs:
         ops.append({"index": {"_index": os_name, "_id": str(run.id)}})
-        ops.append(unpack_node_flat(project_v, run, None).to_dict())
+        ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
     for log in logs:
         ops.append({"index": {"_index": os_name, "_id": str(log.id)}})
-        ops.append(unpack_node_flat(project_v, log, None).to_dict())
+        ops.append(mirror.unpack_node_flat(project_v, log, None).to_dict())
 
     logger.debug("os.write_session", project_version=project_v, index=os_name, operations=len(ops))
     ret = os_client_sync.bulk(ops)
@@ -664,11 +399,11 @@ def write_sessions_to_os(project_v: models.ProjectVersion) -> None:
     ops: list[dict] = []
     for session in project_v.sessions.all():
         ops.append({"index": {"_index": bench_index, "_id": str(session.id)}})
-        ops.append(mirror_node(project_v, session).to_dict())
+        ops.append(mirror.mirror_node(project_v, session).to_dict())
     for run in project_v.runs.all():
         ops.append({"index": {"_index": bench_index, "_id": str(run.id)}})
         run = packer.pack_data(run)
-        ops.append(unpack_node_flat(project_v, run, None).to_dict())
+        ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
     logger.debug(
         "os.write_sessions", project_version=project_v, index=bench_index, operations=len(ops)
     )

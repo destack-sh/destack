@@ -138,19 +138,34 @@ class RecordBaseQuery:
         )
 
     async def _execute(self, session: "Session"):
+        from bench.language import wire
+        from bench.search import mirror
         from bench.search.mapping import prepare_os_query
 
+        # TODO @Broken: iterate through all records if query has no limit?
         query = Conditional.and_if_set(
             self._query, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
         )
+        limit = self._first or LOCAL_RECORD_CACHE_LIMIT
         search = prepare_os_query(
             type=DocumentType.RECORD,
             project_version_id=None,
-            limit=self._first,
+            query=query,
+            limit=limit + 1,
             count=True,
         )
-        results = await os_client.search(index=session.module.os_name, body=search)
-        raise NotImplementedError("nocheckin execute read query")
+        os_results = await os_client.search(index=session.module.os_name, body=search)
+        results = []
+        record_mirror = mirror._packers_by_mirror[mirror.Record]
+        has_next = len(os_results["hits"]["hits"]) > limit
+        total_count = os_results["hits"]["total"]["value"]
+        for hit in os_results["hits"]["hits"][:limit]:
+            record_doc = mirror.Record.from_dict(hit["_source"], hit["_id"])
+            record_data = record_mirror.pack(record_doc)
+            record = wire.unpack_node_flat(record_data, self._database, session)
+            record._activate_self(session)
+            results.append(record)
+        self._result_cache = results
 
     async def __aiter__(self):
         if self._result_cache is None:
@@ -204,12 +219,6 @@ class RecordBaseQuery:
         """Skips the first N results."""
         copy = self.deepcopy()
         copy._skip = count
-        return copy
-
-    def last(self, count: int) -> "RecordBaseQuery":
-        """Returns the last N results."""
-        copy = self.deepcopy()
-        copy._last = count
         return copy
 
     def group_by(self, *fields: "Field") -> "RecordBaseQuery":

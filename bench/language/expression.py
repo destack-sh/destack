@@ -177,7 +177,7 @@ class CompoundConditional(Conditional):
             raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
         if self.op == ConditionalOp.AND:
             if isinstance(other, CompoundConditional) and other.op == ConditionalOp.AND:
-                return C(ConditionalOp.AND, clauses=[*self.clauses, *other.queries])
+                return C(ConditionalOp.AND, clauses=[*self.clauses, *other.clauses])
             else:
                 return C(ConditionalOp.AND, clauses=[*self.clauses, other])
         else:
@@ -188,7 +188,7 @@ class CompoundConditional(Conditional):
             raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
         if self.op == ConditionalOp.OR:
             if isinstance(other, CompoundConditional) and other.op == ConditionalOp.OR:
-                return C(ConditionalOp.OR, clauses=[*self.clauses, *other.queries])
+                return C(ConditionalOp.OR, clauses=[*self.clauses, *other.clauses])
             else:
                 return C(ConditionalOp.OR, clauses=[*self.clauses, other])
         else:
