@@ -111,7 +111,7 @@ async function createProject() {
       kind: "success",
       type: "project.created",
       message: "Bench crafted",
-      description: "Your brand new Bench is ready.",
+      description: "Your very own Bench is ready.",
     });
   }
 }

@@ -23,7 +23,11 @@ from bench.models.statement import Statement
 from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import generate_random_name, generate_secret_password
+from bench.utils.func import (
+    generate_random_lowercase_name,
+    generate_random_name,
+    generate_secret_password,
+)
 from bench.utils.utils import DEBUG
 
 if TYPE_CHECKING:
@@ -76,13 +80,7 @@ class ProjectManager(models.Manager["Project"]):
             organization = None
         id = id or uuid4()
         project = super().create(
-            id=id,
-            organization=organization,
-            user=user,
-            name=name,
-            slug=slug,
-            visibility=visibility,
-            os_name=f"bench-user-{id}-local",
+            id=id, organization=organization, user=user, name=name, slug=slug, visibility=visibility
         )
         # initial version head
         project.head = ProjectVersion.objects.create(
@@ -99,8 +97,14 @@ class ProjectManager(models.Manager["Project"]):
         if create_infra:
             from bench.server.search import create_local_search_index
 
+            logger.info("project.create_infra", project=project)
+            start_time = datetime.now()
             create_local_worker_set(project, upsert=False)
             create_local_search_index(project, upsert=False)
+            duration = datetime.now() - start_time
+            logger.info(
+                "project.create_infra.done", project=project, duration=duration.total_seconds()
+            )
 
         return project
 
@@ -149,10 +153,10 @@ class Project(UUIDModel, CrudModel):
         "WorkerSet", on_delete=models.SET_NULL, related_name="project+", null=True
     )
     worker_sets: models.QuerySet["WorkerSet"]  # noqa via WorkerSet
-    pg_name = models.CharField(max_length=64, default=generate_random_name)
+    pg_name = models.CharField(max_length=64, default=generate_random_lowercase_name)
     pg_username = models.CharField(max_length=64, default=generate_random_name)
     pg_password = TextPGPSymmetricKeyField(default=generate_secret_password)
-    os_name = models.CharField(max_length=64)
+    os_name = models.CharField(max_length=64, default=generate_random_lowercase_name)
     os_username = models.CharField(max_length=64, default=generate_random_name)
     os_password = TextPGPSymmetricKeyField(default=generate_secret_password)
 

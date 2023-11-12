@@ -9,6 +9,10 @@ from bench.server.search import (
     create_global_search_index,
     create_global_search_role,
     create_local_search_index,
+    disable_os_strict_mapping,
+    enable_os_strict_mapping,
+    write_module_to_os_from_db,
+    write_sessions_to_os_from_db,
 )
 
 logger = structlog.get_logger(__name__)
@@ -20,7 +24,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("action", type=str)
         # optional arguments
-        parser.add_argument("slug", type=str)
+        parser.add_argument("slug", type=str, nargs="?")
 
     def get_project(self, slug: str) -> Project:
         owner, project_name = slug.split("/")
@@ -28,26 +32,31 @@ class Command(BaseCommand):
         return project
 
     @transaction.atomic
-    def handle(self, action: str, slug: str, *args, **options):
-        if action == "create":
-            if slug == "-":
-                # create_global_search_index(upsert=True)
-                create_global_search_role(upsert=True)
-            elif slug == "all":
-                for project in models.Project.objects.all():
-                    create_local_search_index(project, upsert=True)
-            else:
-                project = self.get_project(slug)
+    def handle(self, action: str, slug: str | None, *args, **options):
+        if slug == "all":
+            projects = models.Project.objects.all()
+        elif slug:
+            projects = [self.get_project(slug)]
+        else:
+            projects = []
+        if action == "bootstrap":
+            create_global_search_index(upsert=True)
+            create_global_search_role(upsert=True)
+        elif action == "create":
+            for project in projects:
                 create_local_search_index(project, upsert=True)
         elif action == "delete":
-            if slug == "all":
-                for project in models.Project.objects.all():
-                    try:
-                        logger.info("opensearch.delete", project=project)
-                        os_client_sync.indices.delete(index=project.os_name)
-                    except Exception as e:
-                        logger.error("opensearch.delete.error", project=project, error=e)
-            else:
-                project = self.get_project(slug)
+            for project in projects:
                 logger.info("opensearch.delete", project=project)
                 os_client_sync.indices.delete(index=project.os_name)
+        elif action == "reindex":
+            for project in projects:
+                # ignore fields not in mapping during reindex
+                #  (fields may have existed in between snapshots)
+                disable_os_strict_mapping(project.os_name)
+                for project_v in project.versions.all():
+                    write_module_to_os_from_db(project_v, wipe=True)
+                    write_sessions_to_os_from_db(project_v)
+                enable_os_strict_mapping(project.os_name)
+        else:
+            raise ValueError("Unknown action")
