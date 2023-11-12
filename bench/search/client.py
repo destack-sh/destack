@@ -24,3 +24,7 @@ os_client = AsyncOpenSearch(
     ssl_show_warn=False,
     use_ssl=True,
 )
+
+
+def get_os_errors(ret: dict) -> list[dict]:
+    return [i for i in ret["items"] if i.get("index", {}).get("error")]

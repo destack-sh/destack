@@ -1010,12 +1010,16 @@ class RunErrorData:
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "RunErrorData":
+        try:
+            kind = RunErrorKind(data["kind"])
+        except ValueError:
+            kind = RunErrorKind.Runtime
         return RunErrorData(
-            kind=RunErrorKind(data["kind"]),
+            kind=kind,
             type=data["type"],
             message=data["message"],
-            statement_id=data["statement_id"],
-            traceback=[RunCodeFrame.from_dict(frame) for frame in data["traceback"]],
+            statement_id=data.get("statement_id"),
+            traceback=[RunCodeFrame.from_dict(frame) for frame in data.get("traceback") or []],
         )
 
     def to_dict(self) -> dict[str, Any]:

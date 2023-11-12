@@ -9,7 +9,7 @@ from bench.language.edit import MEK, MNT, EditData
 from bench.models.packer import collect_node
 from bench.search import core as os
 from bench.search import mirror
-from bench.search.client import os_client_sync
+from bench.search.client import get_os_errors, os_client_sync
 from bench.search.core import IndexType
 from bench.search.crud import (
     BENCH_LOCAL_MNTS,
@@ -115,16 +115,21 @@ def create_global_search_index(upsert: bool = False) -> None:
 def create_global_search_role(upsert: bool = False) -> None:
     # creates a global role (that doesn't do anything yet)
     # every user has this role to read public indices
-    role = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
-    if role is None:
+    rep = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
+    if rep.get("status") == "NOT_FOUND":
         rep = os_client_sync.security.create_role(
-            role=GLOBAL_READ_ONLY_ROLE, body={"cluster": [], "indices": []}
+            role=GLOBAL_READ_ONLY_ROLE,
+            body={
+                "cluster_permissions": [],
+                "index_permissions": [],
+                "tenant_permissions": [],
+            },
         )
         if rep.get("error"):
             raise RuntimeError(f"failed to create global-ro role: {rep['error']}")
-        logger.info("os.create_global_role", role=GLOBAL_READ_ONLY_ROLE)
+        logger.info("os.create_global_role", name=GLOBAL_READ_ONLY_ROLE, rep=rep)
     else:
-        logger.info("os.global_role_exists", role=GLOBAL_READ_ONLY_ROLE)
+        logger.info("os.global_role_exists", name=GLOBAL_READ_ONLY_ROLE, rep=rep)
 
 
 def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
@@ -147,18 +152,20 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
         log.info("os.grant_global_read_access")
         rep = os_client_sync.security.patch_role(
             role=GLOBAL_READ_ONLY_ROLE,
-            body={
-                "op": "add",
-                "path": "/index_permissions",
-                "value": [
-                    {
-                        "index_patterns": [project.os_name],
-                        "fls": [],
-                        "masked_fields": [],
-                        "allowed_actions": ["read"],
-                    }
-                ],
-            },
+            body=[
+                {
+                    "op": "add",
+                    "path": "/index_permissions",
+                    "value": [
+                        {
+                            "index_patterns": [project.os_name],
+                            "fls": [],
+                            "masked_fields": [],
+                            "allowed_actions": ["read"],
+                        }
+                    ],
+                }
+            ],
         )
         if rep.get("error"):
             raise RuntimeError(f"failed to grant read access to global-ro: {rep['error']}")
@@ -166,8 +173,9 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
     else:
         # revoke read access from global read only role (if exists)
         log.info("os.revoke_global_read_access")
-        role = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
-        assert role is not None, "global-ro role must exist"
+        rep = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
+        role = rep.get(GLOBAL_READ_ONLY_ROLE)
+        assert role is not None, f"failed to get role {GLOBAL_READ_ONLY_ROLE}: {rep}"
         # find index permission for this project
         permission_idx = -1
         for i, index_permission in enumerate(role["index_permissions"]):
@@ -177,7 +185,7 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
         if permission_idx >= 0:
             rep = os_client_sync.security.patch_role(
                 role=GLOBAL_READ_ONLY_ROLE,
-                params={"op": "remove", "path": f"/index_permissions/{permission_idx}"},
+                body={"op": "remove", "path": f"/index_permissions/{permission_idx}"},
             )
             if rep.get("error"):
                 raise RuntimeError(f"failed to revoke read access from global-ro: {rep['error']}")
@@ -188,7 +196,8 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
     # create write access role for project owner
     log.info("os.create_owner_role")
     owner_role_name = f"{project.os_name}-rw"
-    owner_role = os_client_sync.security.get_role(role=owner_role_name)
+    rep = os_client_sync.security.get_role(role=owner_role_name, ignore=404)
+    owner_role = rep.get(owner_role_name)
     if owner_role is not None:
         os_client_sync.security.delete_role(role=owner_role_name)
     rep = os_client_sync.security.create_role(
@@ -210,12 +219,16 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
 
     # create user with those roles
     log.info("os.create_user")
-    user = os_client_sync.security.get_user(username=project.os_username, ignore=404)
+    rep = os_client_sync.security.get_user(username=project.os_username, ignore=404)
+    user = rep.get(project.os_username)
     if user is not None:
         os_client_sync.security.delete_user(username=project.os_username)
     rep = os_client_sync.security.create_user(
         username=project.os_username,
-        body={"password": project.os_password, "roles": [owner_role_name, GLOBAL_READ_ONLY_ROLE]},
+        body={
+            "password": project.os_password,
+            "opendistro_security_roles": [owner_role_name, GLOBAL_READ_ONLY_ROLE],
+        },
     )
     if rep.get("error"):
         raise RuntimeError(f"failed to create user {project.os_username}: {rep['error']}")
@@ -258,8 +271,7 @@ def write_edits_to_os(
             # TODO @Performance: consider bulking OS refreshes in edit somehow
             ret = os_client_sync.bulk(ops, refresh="" if refresh else False)
             if ret.get("errors"):
-                bad_items = [i for i in ret["items"] if i.get("index", {}).get("error")]
-                raise RuntimeError(f"failed to write edit to OpenSearch: {bad_items[:5]}")
+                raise RuntimeError(f"failed to write edit to OpenSearch: {get_os_errors(ret)}")
 
         ops.clear()
         field_mappings_dirty[0] = False
@@ -339,12 +351,22 @@ def write_module_to_os(
         return
     ret = os_client_sync.bulk(ops, refresh="wait_for" if wait else False)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write module to OpenSearch: {ret['items'][:5]}")
+        raise RuntimeError(f"failed to write module to OpenSearch: {get_os_errors(ret)}")
 
 
 def write_module_to_os_from_db(project_v: models.ProjectVersion, *, wipe: bool) -> None:
     nodes = collect_node(project_v)
     write_module_to_os(project_v, nodes.visited.values(), wipe=wipe)
+
+
+def disable_os_strict_mapping(index_name: str) -> None:
+    logger.info("os.disable_strict_dynamic_mapping", index=index_name)
+    os_client_sync.indices.put_mapping(index=index_name, body={"dynamic": "false"})
+
+
+def enable_os_strict_mapping(index_name: str) -> None:
+    logger.info("os.enable_strict_dynamic_mapping", index=index_name)
+    os_client_sync.indices.put_mapping(index=index_name, body={"dynamic": "strict"})
 
 
 def write_runs_to_os(os_names: str | list[str], runs: list[wire.RunData]) -> None:
@@ -362,7 +384,7 @@ def write_runs_to_os(os_names: str | list[str], runs: list[wire.RunData]) -> Non
     logger.debug("os.write_runs", operations=len(ops))
     ret = os_client_sync.bulk(ops)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write runs to OpenSearch: {ret['items'][:5]}")
+        raise RuntimeError(f"failed to write runs to OpenSearch: {get_os_errors(ret)}")
 
 
 def write_session_to_os(
@@ -388,10 +410,10 @@ def write_session_to_os(
     logger.debug("os.write_session", project_version=project_v, index=os_name, operations=len(ops))
     ret = os_client_sync.bulk(ops)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write session to OpenSearch: {ret['items'][:5]}")
+        raise RuntimeError(f"failed to write session to OpenSearch: {get_os_errors(ret)}")
 
 
-def write_sessions_to_os(project_v: models.ProjectVersion) -> None:
+def write_sessions_to_os_from_db(project_v: models.ProjectVersion) -> None:
     """Writes/mirrors all sessions and runs to OpenSearch."""
     from bench.models import packer
 
@@ -407,9 +429,10 @@ def write_sessions_to_os(project_v: models.ProjectVersion) -> None:
     logger.debug(
         "os.write_sessions", project_version=project_v, index=bench_index, operations=len(ops)
     )
-    ret = os_client_sync.bulk(ops)
-    if ret.get("errors"):
-        raise RuntimeError(f"failed to write sessions to OpenSearch: {ret['items'][:5]}")
+    if ops:
+        ret = os_client_sync.bulk(ops)
+        if ret.get("errors"):
+            raise RuntimeError(f"failed to write sessions to OpenSearch: {get_os_errors(ret)}")
 
 
 def delete_module_in_os(project_v: models.ProjectVersion):

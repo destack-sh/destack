@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 import random
 import secrets
 import string
@@ -215,14 +216,20 @@ def cyrb53a(s: str, seed: int = 0) -> int:
     return ((h2 & ((1 << 32) - 1)) << 21) + (h1 >> 11)
 
 
-def generate_random_name(length: int = 32) -> str:
+def generate_random_name(length: int = 32, lowercase: bool = False) -> str:
     """Random alphanumeric name starting with alphabetic character."""
-    pool = string.ascii_letters + string.digits
-    name = random.choice(string.ascii_letters)
+    if lowercase:
+        pool = string.ascii_lowercase + string.digits
+    else:
+        pool = string.ascii_letters + string.digits
+    name = random.choice(string.ascii_lowercase)
     name += "".join(random.choice(pool) for _ in range(length - 1))
     return name
 
 
-def generate_secret_password(length: int = 32) -> str:
+generate_random_lowercase_name = functools.partial(generate_random_name, lowercase=True)
+
+
+def generate_secret_password(length: int = 48) -> str:
     """URL-safe secret password."""
     return secrets.token_urlsafe(length)[:length]
