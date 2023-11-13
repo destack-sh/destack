@@ -157,8 +157,8 @@ class RecordBaseQuery:
         os_results = await os_client.search(index=session.module.os_name, body=search)
         results = []
         record_mirror = mirror._packers_by_mirror[mirror.Record]
-        has_next = len(os_results["hits"]["hits"]) > limit
-        total_count = os_results["hits"]["total"]["value"]
+        len(os_results["hits"]["hits"]) > limit
+        os_results["hits"]["total"]["value"]
         for hit in os_results["hits"]["hits"][:limit]:
             record_doc = mirror.Record.from_dict(hit["_source"], hit["_id"])
             record_data = record_mirror.pack(record_doc)

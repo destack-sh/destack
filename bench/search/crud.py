@@ -13,7 +13,6 @@ from bench.search.mapping import map_to_os_field
 
 logger = structlog.get_logger(__name__)
 
-
 DOCUMENTS_BY_INDEX = {
     IndexType.GLOBAL: [
         mirror.User,
@@ -46,7 +45,7 @@ SEARCH_SEMANTIC_EDIT_TYPES = {
 BENCH_LOCAL_MNTS = (MNT.RECORD,)
 
 
-def update_field_mappings(os_name: str, module: Module) -> None:
+def update_field_mappings(os_name: str, module: Module, dynamic: str = "strict") -> None:
     """
     Updates *all* OpenSearch field mappings for a module
     TODO @Performance: update OS field mappings more efficiently on field edit
@@ -96,13 +95,7 @@ def update_field_mappings(os_name: str, module: Module) -> None:
                 else:
                     inputs_mappings[field._typed_key] = map_to_os_field(field)
 
-    logger.info(
-        "os.update_mappings.done",
-        module=module,
-        value_mappings=len(value_mappings),
-        inputs_mappings=len(inputs_mappings),
-        outputs_mappings=len(outputs_mappings),
-    )
+    # actually update mappings
     mappings = {}
     for key, sub_mappings in (
         ("value", value_mappings),
@@ -110,6 +103,13 @@ def update_field_mappings(os_name: str, module: Module) -> None:
         ("outputs", outputs_mappings),
     ):
         sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items()}
-        mappings[key] = {"type": "object", "dynamic": "strict", "properties": sub_mappings}
+        mappings[key] = {"type": "object", "dynamic": dynamic, "properties": sub_mappings}
 
     os_client_sync.indices.put_mapping(index=os_name, body={"properties": mappings})
+    logger.info(
+        "os.update_mappings.done",
+        module=module,
+        value_mappings=len(value_mappings),
+        inputs_mappings=len(inputs_mappings),
+        outputs_mappings=len(outputs_mappings),
+    )

@@ -9,8 +9,8 @@ from bench.server.search import (
     create_global_search_index,
     create_global_search_role,
     create_local_search_index,
-    disable_os_strict_mapping,
     enable_os_strict_mapping,
+    update_field_mappings_from_db,
     write_module_to_os_from_db,
     write_sessions_to_os_from_db,
 )
@@ -49,13 +49,13 @@ class Command(BaseCommand):
             for project in projects:
                 logger.info("opensearch.delete", project=project)
                 os_client_sync.indices.delete(index=project.os_name)
-        elif action == "reindex":
+        elif action == "index":
             for project in projects:
                 # ignore fields not in mapping during reindex
                 #  (fields may have existed in between snapshots)
-                disable_os_strict_mapping(project.os_name)
                 for project_v in project.versions.all():
-                    write_module_to_os_from_db(project_v, wipe=True)
+                    update_field_mappings_from_db(project_v, dynamic="false")
+                    write_module_to_os_from_db(project_v, wipe=True, update_mappings=False)
                     write_sessions_to_os_from_db(project_v)
                 enable_os_strict_mapping(project.os_name)
         else:
