@@ -19,6 +19,7 @@ from .issue import BenchError, Issue
 from .module import Module, Node, ScopeNode
 from .reference import NodeVisitor
 from .run import HasRun, Run, RunError
+from .secret import Secret
 from .session import LogEntry, PermissionError, Session
 from .statement import Statement
 from .tagging import HasTags, Tagging
@@ -58,6 +59,7 @@ __all__ = [
     "RunError",
     "ScheduleType",
     "ScopeNode",
+    "Secret",
     "Session",
     "SessionAccessLevel",
     "Sort",
