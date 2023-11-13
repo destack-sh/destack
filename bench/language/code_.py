@@ -295,7 +295,7 @@ class HasCode(Node):
             from bench.language.packer import pack_value, unpack_value
 
             inputs = self._inputs_from_args(args, kwargs)
-            inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer_map=True)
+            inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer=True)
             try:
                 logger.debug("code.proxy", code=self, inputs=inputs_raw)
                 outputs = await self.session.runtime.run_proxy_statement(self, inputs_raw)
@@ -317,7 +317,7 @@ class HasCode(Node):
                 from .run import CachedRun
 
                 run = CachedRun.from_json_bytes(cached_run)
-                outputs = unpack_value(run.outputs, self, ignore_outer_map=True, is_output=True)
+                outputs = unpack_value(run.outputs, self, ignore_outer=True, is_output=True)
                 check_type(outputs, self, is_output=True)
                 self.session._tracer.run_cached(
                     statement=self,

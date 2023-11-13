@@ -673,7 +673,7 @@ def render(
                     # add rec  ords to descendants for databases
                     # (this only works when called synchronously)
                     if HasDatabase in node._components:
-                        descendants.extend(node.records.limit(record_limit))
+                        descendants.extend(node.records.first(record_limit))
                 else:
                     descendants = [node]
                 # descendants share file id

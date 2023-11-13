@@ -796,7 +796,7 @@ def _pack_and_truncate_value(
     value: Any,
     type: Statement,
     ignore_array: bool = False,
-    ignore_outer_map: bool = False,
+    ignore_outer: bool = False,
     none_if_invalid: bool = False,
     is_output: bool = None,
 ) -> Any:
@@ -819,7 +819,7 @@ def _pack_and_truncate_value(
         map_v=pack_value_flat,
         premap_v=_truncate_value,
         ignore_array=ignore_array,
-        ignore_outer_map=ignore_outer_map,
+        ignore_outer=ignore_outer,
         none_if_invalid=none_if_invalid,
         is_output=is_output,
     )

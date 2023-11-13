@@ -81,7 +81,7 @@ class HasModel(HasFields, Node):
 
         if cache is None:
             cache = self.should_cache
-        inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer_map=True)
+        inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer=True)
         cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw)
         log = logger.bind(model=self, inputs=describe_type(inputs), cache_subkey=cache_subkey)
         log.debug("inference.enter.pre")
@@ -94,7 +94,7 @@ class HasModel(HasFields, Node):
                 try:
                     inference = Inference.from_json_bytes(cached_inference)
                     outputs = unpack_value(
-                        inference.outputs, self, ignore_outer_map=True, is_output=True
+                        inference.outputs, self, ignore_outer=True, is_output=True
                     )
                     log.debug("inference.cache.hit", output=describe_type(outputs))
                     check_type(outputs, self, is_output=True)
@@ -117,7 +117,7 @@ class HasModel(HasFields, Node):
             self.session._tracer.run_enter(self, is_async=True, inputs=inputs)
             timeout = timeout if timeout is not None else self.session.inference_timeout
             try:
-                outputs = self.session.runtime.run_proxy_inference(self, inputs_raw, timeout)
+                outputs = await self.session.runtime.run_proxy_inference(self, inputs_raw, timeout)
                 outputs = unpack_value(outputs, self, is_output=True)
                 self.session._tracer.run_exit(self, outputs)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
@@ -184,8 +184,8 @@ class HasModel(HasFields, Node):
                 generated_at=now,
                 generated_in=run_id,
                 duration=duration,
-                inputs=pack_value(inputs, self, is_output=False, ignore_outer_map=True),
-                outputs=pack_value(output, self, is_output=True, ignore_outer_map=True),
+                inputs=pack_value(inputs, self, is_output=False, ignore_outer=True),
+                outputs=pack_value(output, self, is_output=True, ignore_outer=True),
             )
             await cache.set(cache_subkey, inference.to_json_bytes(), expire=INFERENCE_CACHE_EXPIRY)
         log.debug("inference.exit", ret=describe_type(output), duration=duration)
