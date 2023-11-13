@@ -10,7 +10,7 @@ from bench.server.search import (
     create_global_search_role,
     create_local_search_index,
     enable_os_strict_mapping,
-    update_field_mappings_from_db,
+    update_os_schema_from_db,
     write_module_to_os_from_db,
     write_sessions_to_os_from_db,
 )
@@ -54,7 +54,7 @@ class Command(BaseCommand):
                 # ignore fields not in mapping during reindex
                 #  (fields may have existed in between snapshots)
                 for project_v in project.versions.all():
-                    update_field_mappings_from_db(project_v, dynamic="false")
+                    update_os_schema_from_db(project_v, dynamic="false")
                     write_module_to_os_from_db(project_v, wipe=True, update_mappings=False)
                     write_sessions_to_os_from_db(project_v)
                 enable_os_strict_mapping(project.os_name)

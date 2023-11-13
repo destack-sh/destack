@@ -16,13 +16,12 @@ import structlog
 from more_itertools import first, last
 
 from bench.language import IssueType
+from bench.language.blob import Blob, BlobStatus
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodePath, TypeFlag
 from bench.language.expression import C, Conditional, ConditionalOp, Sort, SortMode, SortOrder
 from bench.language.field import TypedDict
 from bench.language.module import LookupBy, Node, ScopeNode, node_component, nruntime
-from bench.language.packer import check_type, pack_value, unpack_value
-from bench.language.remote import Blob, BlobStatus
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
@@ -293,33 +292,14 @@ class HasCode(Node):
         """
 
         async def _proxied_async(*args, **kwargs):
-            from bench.msg.core import NMessage, request
-            from bench.msg.messages import (
-                NMessageType,
-                RepRunStatementPayload,
-                ReqRunStatementPayload,
-            )
+            from bench.language.packer import pack_value, unpack_value
 
             inputs = self._inputs_from_args(args, kwargs)
             inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer_map=True)
             try:
                 logger.debug("code.proxy", code=self, inputs=inputs_raw)
-                req = ReqRunStatementPayload(
-                    project_id=self.session.module.project_id,
-                    module_name=self.session.module.path,
-                    statement=self.path,
-                    inputs=inputs_raw,
-                )
-                rep: NMessage[RepRunStatementPayload] = await request(
-                    NMessageType.RUN_PROXY_STATEMENT,
-                    req,
-                    RepRunStatementPayload,
-                    retry=3,
-                    retry_delay=10,
-                )
-                if rep.p.error:
-                    raise RuntimeError(rep.p.error)
-                outputs = unpack_value(rep.p.outputs, self, is_output=True)
+                outputs = await self.session.runtime.run_proxy_statement(self, inputs_raw)
+                outputs = unpack_value(outputs, self, is_output=True)
                 return TypedDict(outputs, self, is_output=True)
             except BaseException as e:
                 logger.exception("code.proxy.error", code=self, e=e, excinfo=e)
@@ -329,6 +309,7 @@ class HasCode(Node):
 
     def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
         """Wraps a callable with caching for #cache tag."""
+        from bench.language.packer import check_type, pack_value, unpack_value
         from bench.language.run import CachedRun, get_run_cache_subkey
 
         def _get_cached_output(inputs: dict, cached_run: bytes) -> Optional[dict]:
@@ -464,7 +445,7 @@ class HasCode(Node):
         try:
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
-            if session._needs_flush_before_exit:
+            if session._autocommit_this_run:
                 await self.session.acommit()
         except BaseException as exception:
             session._tracer.run_exception(self, exception)
@@ -479,7 +460,7 @@ class HasCode(Node):
         try:
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
-            if session._needs_flush_before_exit:
+            if session._autocommit_this_run:
                 session.commit()
         except BaseException as exception:
             session._tracer.run_exception(self, exception)

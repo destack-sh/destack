@@ -777,7 +777,7 @@ class SessionMutation:
         if runs:
             await models.Run.objects.abulk_update(runs, ["terminated_at", "status"])
             runs_data = [packer.pack_data(r) for r in runs]
-            await sync_to_async(write_runs_to_os)(access.project.os_name, runs_data)
+            await sync_to_async(write_runs_to_os)(project_version, runs_data)
             await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_data))
         run = await models.Run.objects.filter(id=run_id).afirst()
         return KillRunPayload(run=run)

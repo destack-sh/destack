@@ -4,7 +4,6 @@ import { useCurrentModule } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import { createSharedComposable } from "@vueuse/core";
-import { DateTime } from "luxon";
 import { computed, ref, toRef } from "vue";
 
 export type TerminalRun = {
@@ -42,7 +41,7 @@ function _useTerminal() {
       runId: ref(null),
       query: computed(() => ({
         op: ConditionalOp.And,
-        queries: [
+        clauses: [
           {
             op: ConditionalOp.Equals,
             key: "value." + botLabelKey.value,

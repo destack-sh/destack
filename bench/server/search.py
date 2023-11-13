@@ -15,7 +15,7 @@ from bench.search.crud import (
     BENCH_LOCAL_MNTS,
     DOCUMENTS_BY_INDEX,
     SEARCH_SEMANTIC_EDIT_TYPES,
-    update_field_mappings,
+    update_os_schema,
 )
 
 logger = structlog.get_logger(__name__)
@@ -258,7 +258,7 @@ def write_edits_to_os(
 
     def _flush():
         if field_mappings_dirty[0]:  # if needed, must happen before any other edit
-            update_field_mappings_from_db(project_v)
+            update_os_schema_from_db(project_v)
 
         if ops:
             logger.debug(
@@ -302,9 +302,7 @@ def write_edits_to_os(
     _flush()  # flush any remaining edit
 
 
-def update_field_mappings_from_db(
-    project_v: models.ProjectVersion, dynamic: str = "strict"
-) -> None:
+def update_os_schema_from_db(project_v: models.ProjectVersion, dynamic: str = "strict") -> None:
     from bench.models import packer
 
     logger.info("os.update_mappings", project_version=project_v)
@@ -317,7 +315,7 @@ def update_field_mappings_from_db(
     module.add_builtin(libs.symbolx_lib.files.get("builtins"))
     module._interp_rec()
 
-    update_field_mappings(project_v.project.os_name, module, dynamic=dynamic)
+    update_os_schema(project_v.project.os_name, module, dynamic=dynamic)
 
 
 def write_module_to_os(
@@ -338,7 +336,7 @@ def write_module_to_os(
         delete_module_in_os(project_v)
 
     if update_mappings:
-        update_field_mappings_from_db(project_v)  # can we only do this sometimes? when?
+        update_os_schema_from_db(project_v)  # can we only do this sometimes? when?
 
     project: models.Project = project_v.project
     for node in nodes:
@@ -381,18 +379,20 @@ def enable_os_strict_mapping(index_name: str) -> None:
         raise RuntimeError(f"failed to enable strict dynamic mapping: {rep['error']}")
 
 
-def write_runs_to_os(os_names: str | list[str], runs: list[wire.RunData]) -> None:
+def write_runs_to_os(
+    project_vs: models.ProjectVersion | list[models.ProjectVersion], runs: list[wire.RunData]
+) -> None:
     """Writes/mirrors runs (from different sessions/projects) to OpenSearch."""
 
     if not runs:
         return
-    if isinstance(os_names, list) and len(os_names) != len(runs):
-        raise ValueError(f"len(os_names) != len(runs): {len(os_names)} != {len(runs)}")
+    if isinstance(project_vs, list) and len(project_vs) != len(runs):
+        raise ValueError(f"len(project_vs) != len(runs): {len(project_vs)} != {len(runs)}")
     ops: list[dict] = []
     for i, run in enumerate(runs):
-        index = os_names[i] if isinstance(os_names, list) else os_names
-        ops.append({"index": {"_index": index, "_id": str(run.id)}})
-        ops.append(mirror.unpack_node_flat(None, run, None).to_dict())
+        project_v = project_vs[i] if isinstance(project_vs, list) else project_vs
+        ops.append({"index": {"_index": project_v.project.os_name, "_id": str(run.id)}})
+        ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
     logger.debug("os.write_runs", operations=len(ops))
     ret = os_client_sync.bulk(ops)
     if ret.get("errors"):
@@ -400,10 +400,7 @@ def write_runs_to_os(os_names: str | list[str], runs: list[wire.RunData]) -> Non
 
 
 def write_session_to_os(
-    project_v: models.ProjectVersion,
-    session: Optional[models.Session],
-    runs: list[wire.RunData],
-    logs: list[wire.LogEntryData],
+    project_v: models.ProjectVersion, session: Optional[models.Session], runs: list[wire.RunData]
 ) -> None:
     """Writes/mirrors a session to OpenSearch."""
 
@@ -415,10 +412,6 @@ def write_session_to_os(
     for run in runs:
         ops.append({"index": {"_index": os_name, "_id": str(run.id)}})
         ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
-    for log in logs:
-        ops.append({"index": {"_index": os_name, "_id": str(log.id)}})
-        ops.append(mirror.unpack_node_flat(project_v, log, None).to_dict())
-
     logger.debug("os.write_session", project_version=project_v, index=os_name, operations=len(ops))
     ret = os_client_sync.bulk(ops)
     if ret.get("errors"):
@@ -429,18 +422,16 @@ def write_sessions_to_os_from_db(project_v: models.ProjectVersion) -> None:
     """Writes/mirrors all sessions and runs to OpenSearch."""
     from bench.models import packer
 
-    bench_index = project_v.project.os_name
+    os_name = project_v.project.os_name
     ops: list[dict] = []
     for session in project_v.sessions.all():
-        ops.append({"index": {"_index": bench_index, "_id": str(session.id)}})
+        ops.append({"index": {"_index": os_name, "_id": str(session.id)}})
         ops.append(mirror.mirror_node(project_v, session).to_dict())
     for run in project_v.runs.all():
-        ops.append({"index": {"_index": bench_index, "_id": str(run.id)}})
+        ops.append({"index": {"_index": os_name, "_id": str(run.id)}})
         run = packer.pack_data(run)
         ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
-    logger.debug(
-        "os.write_sessions", project_version=project_v, index=bench_index, operations=len(ops)
-    )
+    logger.debug("os.write_sessions", project_version=project_v, index=os_name, operations=len(ops))
     if ops:
         ret = os_client_sync.bulk(ops)
         if ret.get("errors"):

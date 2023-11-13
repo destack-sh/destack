@@ -45,7 +45,7 @@ SEARCH_SEMANTIC_EDIT_TYPES = {
 BENCH_LOCAL_MNTS = (MNT.RECORD,)
 
 
-def update_field_mappings(os_name: str, module: Module, dynamic: str = "strict") -> None:
+def update_os_schema(os_name: str, module: Module, dynamic: str = "strict") -> None:
     """
     Updates *all* OpenSearch field mappings for a module
     TODO @Performance: update OS field mappings more efficiently on field edit

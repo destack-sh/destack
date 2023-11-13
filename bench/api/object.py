@@ -12,7 +12,7 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_module_access
 from bench.api.utils import safe_mutation
-from bench.language.remote import BLOB_MAX_SIZE
+from bench.language.blob import BLOB_MAX_SIZE
 from bench.models import ModuleAccessLevel
 from bench.models.object import is_allowed_content_type
 

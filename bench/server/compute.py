@@ -202,7 +202,7 @@ class OrchestrationServer(Monitored):
             worker_node_ids = set(worker_node_ids) | also_dead_worker_node_ids
 
         # collect presumed dead runs
-        dead_runs = models.Run.objects.filter(
+        dead_runs_qs = models.Run.objects.filter(
             Q(
                 Q(worker_node_id__in=worker_node_ids) | Q(worker_node_id=None),
                 status__in=ACTIVE_RUN_STATUSES,
@@ -210,18 +210,15 @@ class OrchestrationServer(Monitored):
             | Q(id__in=run_ids or [])
         )
         if project_id:
-            dead_runs = dead_runs.filter(project_id=project_id)
-        dead_runs = [r async for r in dead_runs]
+            dead_runs_qs = dead_runs_qs.filter(project_id=project_id)
+        dead_runs: list[models.Run] = [r async for r in dead_runs_qs]
 
         # get project search index names
-        if project_id:
-            os_names = [(await models.Project.objects.aget(id=project_id)).os_name]
-        else:
-            project_ids = set(r.project_id for r in dead_runs)
-            os_names_by_project: dict[UUID, str] = {
-                p.id: p.os_name async for p in models.Project.objects.filter(id__in=project_ids)
-            }
-            os_names = [os_names_by_project[r.project_id] for r in dead_runs]
+        project_v_ids = set(r.project_version_id for r in dead_runs)
+        project_v_by_id: dict[UUID, models.ProjectVersion] = {
+            p.id: p async for p in models.ProjectVersion.objects.filter(id__in=project_v_ids)
+        }
+        project_vs = [project_v_by_id[pv_id] for pv_id in project_v_ids]
 
         # mark dead and send out updates
         if not dead_runs:
@@ -230,7 +227,7 @@ class OrchestrationServer(Monitored):
             run.mark_dead()
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
         dead_runs_data = [packer.pack_data(r) for r in dead_runs]
-        await sync_to_async(write_runs_to_os)(os_names, dead_runs_data)
+        await sync_to_async(write_runs_to_os)(project_vs, dead_runs_data)
         await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=dead_runs_data))
 
     async def _watch_worker_sets_in_k8_forever(self, k8_marker: k8.VersionMarker):

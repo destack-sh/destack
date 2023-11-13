@@ -13,11 +13,8 @@ from asgiref.sync import async_to_sync
 
 from bench.language.builtin import active_session
 from bench.language.const import MNT, BlobStatus
-from bench.language.module import Module, Node, ninternal, node, nproperty, nruntime
+from bench.language.module import Module, Node, ninternal, node, nruntime
 from bench.language.validation import ValidationHandler, on_issue_raise
-
-if typing.TYPE_CHECKING:
-    pass
 
 logger = structlog.get_logger(__name__)
 
@@ -53,13 +50,13 @@ class Blob(Node):
         if self.content_length > BLOB_MAX_SIZE:
             on_issue(self, f"{self} is too big ({self.content_length} > {BLOB_MAX_SIZE} bytes)")
 
-    async def aread(self, timeout: float = 1) -> bytes:
+    async def adownload(self) -> bytes:
         """Read the object from the remote storage."""
-        get_url = await self.aget_url(timeout)
+        get_url = await self.aget_url()
         # download file from url
         async with aiohttp.ClientSession() as session:
             async with session.get(get_url) as response:
-                logger.debug("blob.read", object=self, status=response.status, url=get_url)
+                logger.debug("blob.read", blob=self, status=response.status, url=get_url)
                 if response.status != 200:
                     raise ValueError(
                         f"unable to download {self}: {response.status} {response.reason}"
@@ -68,53 +65,40 @@ class Blob(Node):
                 self._cached_bytes = content
                 return content
 
-    async def aget_url(self, timeout: float = 10):
-        from bench.language import wire
-        from bench.msg.core import NMessage, request
-        from bench.msg.messages import NMessageType, RepReadBlobPayload, ReqReadBlobPayload
-
+    async def aget_url(self):
         if self.status != BlobStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
-        rep: NMessage[RepReadBlobPayload] = await request(
-            NMessageType.READ_BLOB,
-            ReqReadBlobPayload(blobs=[wire.pack_data(self)]),
-            reply_t=RepReadBlobPayload,
-            timeout=timeout,
-        )
-        get_url = rep.p.get_urls[0] if rep.p.get_urls else None
-        if get_url is None:
-            raise ValueError(f"unable to GET {self}")
-        return get_url
+        return await self.session.runtime.download_blob(self)
 
-    async def areadtext(self) -> str:
-        content = self._cached_bytes or await self.aread()
+    async def atext(self) -> str:
+        content = self._cached_bytes or await self.adownload()
         return content.decode()
 
-    async def areadlines(self) -> list[str]:
-        content = self._cached_bytes or await self.aread()
+    async def alines(self) -> list[str]:
+        content = self._cached_bytes or await self.adownload()
         return content.decode().splitlines()
 
-    def get_url(self, timeout: float = 1) -> str:
-        return async_to_sync(self.aread_url)(timeout=timeout)
+    def get_url(self) -> str:
+        return async_to_sync(self.aget_url)()
 
-    def read(self, timeout: float = 1) -> bytes:
+    def download(self) -> bytes:
         """Read the object from the remote storage."""
-        content = self._cached_bytes or async_to_sync(self.aread)(timeout=timeout)
+        content = self._cached_bytes or async_to_sync(self.adownload)()
         return content
 
-    def readtext(self) -> str:
-        return self.read().decode()
+    def text(self) -> str:
+        return self.download().decode()
 
-    def readlines(self) -> list[str]:
-        return self.read().decode().splitlines()
+    def lines(self) -> list[str]:
+        return self.download().decode().splitlines()
 
     def io(self) -> typing.BinaryIO:
         """Get a file-like object for the blob."""
-        return io.BytesIO(self.read())
+        return io.BytesIO(self.download())
 
     async def aio(self) -> typing.BinaryIO:
         """Get a file-like object for the blob."""
-        return io.BytesIO(await self.aread())
+        return io.BytesIO(await self.adownload())
 
     async def _prep_upload(self) -> Optional[str]:
         """
@@ -122,58 +106,24 @@ class Blob(Node):
         Note that we perform a sleight of hand here: we change the id and status if the object
         already exists under a different id in the object store.
         """
-        from bench.language import wire
-        from bench.msg.core import NMessage, request
-        from bench.msg.messages import NMessageType, RepWriteObjectPayload, ReqWriteBlobPayload
-
-        if not self.id:
-            self._assign_id_and_ck(self.session.module.ck)
-
-        logger.debug("blob.prepare_upload", object=self)
-        # first get POST url to upload the object
-        rep: NMessage[RepWriteObjectPayload] = await request(
-            NMessageType.WRITE_BLOB,
-            ReqWriteBlobPayload(module_id=self.session.module.id, blobs=[wire.pack_data(self)]),
-            reply_t=RepWriteObjectPayload,
-        )
-        blob = rep.p.blobs[0]
+        blob, post_url = await self.session.runtime.prepare_upload_blob(self)
         self._set_untracked("id", blob.id)
-        if blob.status == BlobStatus.AVAILABLE:
-            # already uploaded
-            self.status = BlobStatus.AVAILABLE
-            return None
-        else:
-            post_url = rep.p.post_urls[0]
-            self.status = BlobStatus.UPLOADING
-            return post_url
+        self._set_untracked("ck", blob.ck)
+        self.status = blob.status
+        return post_url
 
     async def _mark_uploaded(self) -> None:
         """Mark the object as uploaded to the remote storage."""
-        from bench.language import wire
-        from bench.msg.core import NMessage, request
-        from bench.msg.messages import (
-            NMessageType,
-            RepMarkUploadedBlobPayload,
-            ReqMarkUploadedBlobPayload,
-        )
-
-        logger.debug("blob.mark_uploaded", object=self)
-        rep: NMessage[RepMarkUploadedBlobPayload] = await request(
-            NMessageType.MARK_UPLOADED_BLOB,
-            ReqMarkUploadedBlobPayload(blobs=[wire.pack_data(self)]),
-            reply_t=RepMarkUploadedBlobPayload,
-        )
-        if not rep.p.success:
-            raise ValueError(f"unable to mark uploaded {self}")
+        await self.session.runtime.mark_uploaded_blob(self)
         self.status = BlobStatus.AVAILABLE
 
     async def _do_upload(self, content: bytes) -> None:
-        logger.debug("blob.do_upload", object=self)
+        logger.debug("blob.do_upload", blob=self)
 
         # prepare upload (skip if already uploaded)
         post_url = await Blob._prep_upload(self)
         if post_url is None:
-            logger.debug("blob.do_upload.skip", object=self)
+            logger.debug("blob.do_upload.skip", blob=self)
             return  # already uploaded
         url_parts = urlparse(post_url)
         query_params = parse_qs(url_parts.query)
@@ -184,7 +134,7 @@ class Blob(Node):
         response = requests.post(url_main, data=form_data, files={"file": content})
         response.raise_for_status()
         await Blob._mark_uploaded(self)
-        logger.debug("blob.do_upload.done", object=self)
+        logger.debug("blob.do_upload.done", blob=self)
 
     def _assign_id_and_ck(self, module_ck: UUID):
         # derive ck from module ck and sha512 (and id==ck because detached)
@@ -262,42 +212,3 @@ class Blobs:
     def upload_from_requests(self, response: requests.Response, name: str = None) -> Blob:
         """Upload a file to object storage."""
         return Blob.from_requests(response, self.module.session, name=name)
-
-
-SecretValueT = typing.TypeVar("SecretValueT")
-
-
-@node(MNT.SECRET)
-class Secret(Node, typing.Generic[SecretValueT]):
-    """A proxy to a remotely stored secret."""
-
-    sha512: str = nproperty()
-    value: Optional[SecretValueT] = nruntime(default=None)
-
-    def __str__(self):
-        return f"{self.id} ({self.sha512[:8]})"
-
-    def __repr__(self):
-        return f"<Secret {self}>"
-
-    async def areveal(self) -> SecretValueT:
-        if self.value is not None:
-            return self.value
-
-        from bench.language import wire
-        from bench.msg import messages
-        from bench.msg.core import NMessage, NMessageType, request
-
-        rep: NMessage[messages.RepReadSecretPayload] = await request(
-            NMessageType.READ_SECRET,
-            messages.ReqReadSecretPayload(secrets=[wire.pack_data(self)]),
-            reply_t=messages.RepReadSecretPayload,
-            timeout=10,
-        )
-        if not rep.p.secrets:
-            raise ValueError(f"could not reveal {self!r}")
-        self.value = rep.p.secrets[0].value
-        return self.value
-
-    def reveal(self) -> SecretValueT:
-        return async_to_sync(self.areveal)()

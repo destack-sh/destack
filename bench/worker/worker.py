@@ -9,7 +9,7 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import LogEntry, Module, Run, RunError, Statement, wire
+from bench.language import Blob, Module, Run, RunError, Secret, Statement, wire
 from bench.language.builtin import symbolx_lib
 from bench.language.const import (
     RUNNABLE_STATEMENT_TYPES,
@@ -19,32 +19,54 @@ from bench.language.const import (
     SessionAccessLevel,
 )
 from bench.language.edit import EditData
+from bench.language.model import ModelError
 from bench.language.module import _NodeChange
 from bench.language.packer import map_value, unkey_value, unpack_value_flat
 from bench.language.run import RunErrorKind
-from bench.language.session import ModuleWriter, Session
+from bench.language.session import RuntimeHost, Session
 from bench.language.wire import RunData
-from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
+from bench.msg.core import (
+    NMessage,
+    handle_reply,
+    message_handler,
+    nc_init,
+    publish,
+    request,
+    subscribe,
+)
 from bench.msg.messages import (
     ClientOrigin,
+    LogsChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
+    RepDownloadBlobPayload,
     RepGetEnvironmentPayload,
     RepGetModuleHeadPayload,
     RepKillRunPayload,
+    RepMarkUploadedBlobPayload,
     RepPingWorkerSetPayload,
     RepPullWorkerRunsPayload,
     RepReadModulePayload,
+    RepRevealSecretPayload,
+    RepRunInferencePayload,
+    RepRunStatementPayload,
     RepStartRunPayload,
+    RepUploadBlobPayload,
     RepWriteModulePayload,
     RepWriteSessionPayload,
+    ReqDownloadBlobPayload,
     ReqGetEnvironmentPayload,
     ReqGetModuleHeadPayload,
     ReqKillRunPayload,
+    ReqMarkUploadedBlobPayload,
     ReqPingWorkerSetPayload,
     ReqPullWorkerRunsPayload,
     ReqReadModulePayload,
+    ReqRevealSecretPayload,
+    ReqRunInferencePayload,
+    ReqRunStatementPayload,
     ReqStartRunPayload,
+    ReqUploadBlobPayload,
     ReqWriteModulePayload,
     ReqWriteSessionPayload,
     StartRunErrorType,
@@ -374,7 +396,7 @@ class RunStartError(Exception):
         self.type = type
 
 
-class ModuleWorkerProcess(ModuleWriter):
+class ModuleWorkerProcess(RuntimeHost):
     """
     A user worker that helps run a specific module.
     Generally, a worker process is intended to process one run at a time (for now).
@@ -591,7 +613,7 @@ class ModuleWorkerProcess(ModuleWriter):
             # create session
             job.session = Session(
                 module=self.module,
-                writer=self,
+                runtime=self,
                 access_level=job.run_data.access_level or SessionAccessLevel.Read,
                 worker_node_id=self.node.worker_node_id,
                 worker_process_id=None,
@@ -679,12 +701,12 @@ class ModuleWorkerProcess(ModuleWriter):
                 logger.debug("worker.flush_dirty_runs", runs=len(self._dirty_dangling_runs))
                 runs = list(self._dirty_dangling_runs.values())
                 self._dirty_dangling_runs = {}
-                success = await self.write_session(session=None, runs=runs, logs=[])
+                success = await self.push_session(session=None, runs=runs)
                 if not success:
                     logger.error("worker.flush_dirty_runs.failed", runs=len(runs))
             await asyncio.sleep(interval)
 
-    async def write_module(self, edits: list[EditData], refresh_index: bool) -> bool:
+    async def commit_edits(self, edits: list[EditData], refresh_index: bool) -> bool:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
         self.log.debug("module.write", edits=len(edits))
         req = ReqWriteModulePayload(
@@ -698,17 +720,13 @@ class ModuleWorkerProcess(ModuleWriter):
         )
         return rep.p.success
 
-    async def write_session(
-        self,
-        session: Optional["Session"],
-        runs: list[Union["Run", wire.RunData]],
-        logs: list[Union["LogEntry", wire.LogEntryData]],
+    async def push_session(
+        self, session: Optional["Session"], runs: list[Union["Run", wire.RunData]]
     ) -> bool:
-        self.log.debug("session.write", session=session, runs=len(runs), logs=len(logs))
+        self.log.debug("session.write", session=session, runs=len(runs))
 
         session_data = wire.pack_data(session) if session else None
         runs_data = [wire.pack_data(run) if isinstance(run, Run) else run for run in runs]
-        logs_data = [wire.pack_data(log) if isinstance(log, LogEntry) else log for log in logs]
 
         # remove runs from dirty dangling runs
         for run in runs:
@@ -719,10 +737,98 @@ class ModuleWorkerProcess(ModuleWriter):
             module_id=self.module_id,
             session=session_data,
             runs=runs_data,
-            logs=logs_data,
             client=self.node.client,
         )
         rep: NMessage[RepWriteSessionPayload] = await request(
             NMessageType.WRITE_SESSION, req, RepWriteSessionPayload, retry=3
         )
         return rep.p.success
+
+    async def notify_logs_changed(self, logs: list[wire.LogEntryData]) -> None:
+        await publish(
+            NMessageType.LOGS_CHANGED,
+            LogsChangedPayload(project_id=self.project_id, module_id=self.module_id, logs=logs),
+        )
+
+    async def download_blob(self, blob: "Blob") -> str:
+        rep: NMessage[RepDownloadBlobPayload] = await request(
+            NMessageType.DOWNLOAD_BLOB,
+            ReqDownloadBlobPayload(blobs=[wire.pack_data(blob)]),
+            reply_t=RepDownloadBlobPayload,
+            timeout=5,
+        )
+        get_url = rep.p.get_urls[0] if rep.p.get_urls else None
+        if get_url is None:
+            raise ValueError(f"unable to GET {blob}")
+        return get_url
+
+    async def prepare_upload_blob(self, blob: "Blob") -> tuple["Blob", str | None]:
+        self.log.debug("blob.prepare_upload", blob=blob)
+        # first get POST url to upload the object
+        rep: NMessage[RepUploadBlobPayload] = await request(
+            NMessageType.UPLOAD_BLOB,
+            ReqUploadBlobPayload(module_id=self.module.id, blobs=[wire.pack_data(blob)]),
+            reply_t=RepUploadBlobPayload,
+        )
+        blob_data = rep.p.blobs[0]
+        post_url = rep.p.post_urls[0] if rep.p.post_urls else None
+        blob = wire.unpack_data(blob_data, blob.module)
+        return blob, post_url
+
+    async def mark_uploaded_blob(self, blob: "Blob") -> None:
+        logger.debug("blob.mark_uploaded", object=self)
+        rep: NMessage[RepMarkUploadedBlobPayload] = await request(
+            NMessageType.MARK_UPLOADED_BLOB,
+            ReqMarkUploadedBlobPayload(blobs=[wire.pack_data(blob)]),
+            reply_t=RepMarkUploadedBlobPayload,
+        )
+        if not rep.p.success:
+            raise ValueError(f"unable to mark uploaded {blob}")
+
+    async def reveal_secret(self, secret: "Secret") -> None:
+        logger.debug("secret.reveal", secret=secret)
+        rep: NMessage[RepRevealSecretPayload] = await request(
+            NMessageType.REVEAL_SECRET,
+            ReqRevealSecretPayload(secrets=[wire.pack_data(secret)]),
+            reply_t=RepRevealSecretPayload,
+            timeout=10,
+        )
+        if not rep.p.secrets:
+            raise ValueError(f"could not reveal {secret!r}")
+        return rep.p.secrets[0].value
+
+    async def run_proxy_statement(self, statement: Statement, inputs: dict) -> dict:
+        req = ReqRunStatementPayload(
+            project_id=statement.session.module.project_id,
+            module_name=statement.session.module.path,
+            statement=statement.path,
+            inputs=inputs,
+        )
+        rep: NMessage[RepRunStatementPayload] = await request(
+            NMessageType.RUN_PROXY_STATEMENT,
+            req,
+            RepRunStatementPayload,
+            retry=3,
+            retry_delay=10,
+        )
+        if rep.p.error:
+            raise RuntimeError(rep.p.error)
+        return rep.p.outputs
+
+    async def run_proxy_inference(self, statement: Statement, inputs: dict, timeout: float) -> dict:
+        req = ReqRunInferencePayload(
+            project_id=self.module.project_id,
+            model_path=statement.path,
+            inputs=inputs,
+            timeout=timeout,
+            run_id=statement.session.current_run.id,
+        )
+        rep: NMessage[RepRunInferencePayload] = await request(
+            NMessageType.RUN_PROXY_INFERENCE,
+            req,
+            RepRunInferencePayload,
+            timeout=timeout + 3,
+        )
+        if rep.p.error is not None:
+            raise ModelError(rep.p.error, statement, f"remote {self} failed")
+        return rep.p.outputs

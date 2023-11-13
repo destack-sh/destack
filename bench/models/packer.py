@@ -958,7 +958,6 @@ def write_session(
     project_v: models.ProjectVersion,
     session: Optional[wire.SessionData],
     runs: list[wire.RunData],
-    logs: list[wire.LogEntryData],
 ):
     from bench.server.search import write_session_to_os
 
@@ -990,7 +989,7 @@ def write_session(
         ],
     )
 
-    write_session_to_os(project_v, session, runs, logs)
+    write_session_to_os(project_v, session, runs)
 
 
 INTERP_MODEL_TYPES = tuple(BASE_MODEL_CLASS_BY_MNT[mnt] for mnt in INTERP_NODE_TYPES)

@@ -5,7 +5,6 @@ from dataclasses import dataclass, field, fields, is_dataclass
 from datetime import date, datetime, time
 from functools import partial
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Collection,
@@ -25,6 +24,7 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
+from bench.language.blob import Blob
 from bench.language.const import BlobStatus, TypeFlag, TypeHint, TypeTag
 from bench.language.field import (
     PRIMITIVE_TYPES,
@@ -40,12 +40,10 @@ from bench.language.field import (
     Vector,
 )
 from bench.language.module import NS, Node, ScopeNode
-from bench.language.remote import Blob, Secret
+from bench.language.secret import Secret
+from bench.language.statement import Statement
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
 from bench.utils.utils import IdentifierType, to_pyidentifier
-
-if TYPE_CHECKING:
-    from bench.language import Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -823,7 +821,11 @@ def field_from_instance_type(
 
 
 def unpack_value_flat(
-    value: Any, type: HasType, scope: Optional[ScopeNode] = None, ignore_array: bool = False
+    value: Any,
+    type: HasType,
+    scope: Optional[ScopeNode] = None,
+    session: Optional["Session"] = None,
+    ignore_array: bool = False,
 ) -> Any:
     """Maps to the proper Python representation of the given value."""
     if value is None:  # skip null values

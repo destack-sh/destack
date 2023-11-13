@@ -11,7 +11,6 @@ from bench.language.const import MNT, IssueType, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.model import HasModel
 from bench.language.module import Node, ScopeNode, node_component, nruntime
-from bench.language.packer import check_type, unpack_value
 from bench.language.reference import NodeView
 
 from ..utils.func import describe_type
@@ -103,7 +102,7 @@ class HasTask(Node):
                     outputs = TypedDict(outputs, self, is_output=True)
             else:
                 outputs = await run_task(self, view, inputs, nonce, models)
-            if self.session._needs_flush_before_exit:
+            if self.session._autocommit_this_run:
                 await self.session.acommit()
         except BaseException as e:
             self.session._tracer.run_exception(self, e)
@@ -134,6 +133,8 @@ async def run_task(
     nonce: Optional[str],
     models: list["Statement"] = None,
 ) -> dict:
+    from bench.language.packer import check_type, unpack_value
+
     total_attempts = 0
     model_attempts = 0
     # in priority order
