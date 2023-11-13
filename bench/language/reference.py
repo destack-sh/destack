@@ -138,7 +138,7 @@ class NodeView:
         seen_by_ck: dict[UUID, Node] = {}
         for database in databases:
             # sort by ck for consistency
-            records = await database.records.sort(Sort("ck")).limit(limit).atolist()
+            records = await database.records.sort(Sort("ck")).first(limit).atolist()
             for record in records:
                 seen_by_ck[record.ck] = record
 

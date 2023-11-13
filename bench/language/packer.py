@@ -41,8 +41,8 @@ from bench.language.field import (
 )
 from bench.language.module import NS, Node, ScopeNode
 from bench.language.secret import Secret
-from bench.language.statement import Statement
 from bench.language.session import Session
+from bench.language.statement import Statement
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
@@ -83,7 +83,7 @@ def map_value(
     premap_v: Callable[[Any, Field, bool], Any] = None,
     is_output: bool = None,
     ignore_array: bool = False,
-    ignore_outer_map: bool = False,
+    ignore_outer: bool = False,
     none_if_invalid: bool = False,
     ignore_empty: bool = True,
 ):
@@ -170,7 +170,7 @@ def map_value(
                 none_if_invalid=none_if_invalid,
             )
         mapped[target_k] = target_value
-    if not ignore_outer_map:
+    if not ignore_outer:
         mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
     return mapped
 
@@ -319,7 +319,9 @@ class TypeMapper:
         """
         raise NotImplementedError(f"{self!r} does not support this for {type!r}")
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
+    def unpack_value(
+        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
         """Converts and coerces a raw flat value of the type into an instance value."""
         return value
 
@@ -443,7 +445,9 @@ class StaticPyTypeMapper(TypeMapper):
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, self._all_py_types)
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
+    def unpack_value(
+        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
         return self.py_type(value)
 
     def render_python(self, type: HasType, value: Any) -> str:
@@ -480,7 +484,9 @@ class RichTextMapper(TypeMapper):
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, (str, Text))
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
+    def unpack_value(
+        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
         spans = parse_text_multi(value)
         text = Text(spans=spans, _raw_text=value)
         text._resolve(scope)
@@ -500,7 +506,9 @@ class StringifyTypeMapping(StaticPyTypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return self.py_type == py_type
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
+    def unpack_value(
+        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
         return self.py_type(value)
 
     def pack_value(self, type: HasType, value: Any) -> str:
@@ -526,7 +534,9 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
         return Field(tag=TypeTag.STRING, hint=self.HINT_BY_PY_TYPE[py_type])
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
+    def unpack_value(
+        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
         if isinstance(value, self.py_type):
             return value
         return self.py_type.fromisoformat(value)
@@ -563,7 +573,9 @@ class EnumMapper(TypeMapper):
             return value in type.resolved_fields
         return isinstance(value, Field) and value.key in type.resolved_fields
 
-    def unpack_value(self, type: HasFields, scope: ScopeNode, value: Any) -> Any:
+    def unpack_value(
+        self, type: HasFields, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
         field_ = type.resolved_fields.get(value)
         return field_.field if field_ else value
 
@@ -600,7 +612,9 @@ class NodeMapper(TypeMapper):
             raise ValueError(f"cannot map {py_type}")
         return Field(name=None, tag=TypeTag.NODE, hint=hint)
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
+    def unpack_value(
+        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
         raise NotImplementedError(":NodesAsValues not yet supported")
 
     def pack_value(self, type: HasType, value: Any) -> Any:
@@ -621,7 +635,9 @@ class BlobMapper(TypeMapper):
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, Blob)
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
+    def unpack_value(
+        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
         return Blob(
             id=UUID(value["id"]),
             name=value["name"],
@@ -629,6 +645,7 @@ class BlobMapper(TypeMapper):
             content_length=value["content_length"],
             sha512=value["sha512"],
             status=BlobStatus[value["status"]],
+            _session=session,
         )
 
     def pack_value(self, type: HasType, value: Any) -> Any:
@@ -644,7 +661,7 @@ class BlobMapper(TypeMapper):
 
 
 @dataclass
-class SecretTypeMapper(TypeMapper):
+class SecretMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is Secret
 
@@ -654,8 +671,10 @@ class SecretTypeMapper(TypeMapper):
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, Secret)
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
-        return Secret(id=UUID(value["id"]), sha512=value["sha512"])
+    def unpack_value(
+        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
+        return Secret(id=UUID(value["id"]), sha512=value["sha512"], _session=session)
 
     def pack_value(self, type: HasType, value: Any) -> Any:
         return {
@@ -666,7 +685,7 @@ class SecretTypeMapper(TypeMapper):
 
 
 @dataclass
-class StructTypeMapper(TypeMapper):
+class StructMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return is_dataclass(py_type) or is_typeddict(py_type)
 
@@ -692,7 +711,9 @@ class StructTypeMapper(TypeMapper):
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, Mapping) or is_dataclass(value)
 
-    def unpack_value(self, type: HasType, scope: ScopeNode, value: Any) -> Any:
+    def unpack_value(
+        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
+    ) -> Any:
         return TypedDict(value, type) if not isinstance(value, TypedDict) else value
 
     def pack_value(self, type: HasType, value: Any) -> Any:
@@ -713,7 +734,7 @@ class StructTypeMapper(TypeMapper):
 
 
 @dataclass
-class JsonTypeMapper(TypeMapper):
+class JsonMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is Json or py_type is dict or get_origin(py_type) is dict
 
@@ -728,7 +749,7 @@ class JsonTypeMapper(TypeMapper):
 
 
 @dataclass
-class FunctionTypeMapper(TypeMapper):
+class FunctionMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return inspect.isfunction(py_type)
 
@@ -832,6 +853,7 @@ def unpack_value_flat(
     if value is None:  # skip null values
         return None  # type checking is done elsewhere
     scope = scope or type.scope
+    session = session or type._session
     if scope is None:
         raise ValueError(f"cannot unpack without scope: {type!r}")
     # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
@@ -839,21 +861,23 @@ def unpack_value_flat(
     try:
         if type.flags & TypeFlag.IS_ARRAYABLE:  # keep as is
             if not isinstance(value, list):
-                return mapping.unpack_value(type, scope, value)
+                return mapping.unpack_value(type, scope, session, value)
             else:
-                return [mapping.unpack_value(type, scope, v) for v in value]
+                return [mapping.unpack_value(type, scope, session, v) for v in value]
         elif type.flags & TypeFlag.IS_ARRAY and not ignore_array:  # promote to array
             if not isinstance(value, list):
                 value = [value]
             else:
-                return [mapping.unpack_value(type, scope, v) for v in value]
+                return [mapping.unpack_value(type, scope, session, v) for v in value]
         else:  # trim to element
             if isinstance(value, list):
                 value = value[0]
             else:
-                return mapping.unpack_value(type, scope, value)
+                return mapping.unpack_value(type, scope, session, value)
     except (KeyError, ValueError, TypeError):
-        logger.warning("unpack_failed", exc_info=True, value=value, type=type)
+        logger.warning(
+            "unpack.failed", exc_info=True, value=value, type=type, scope=scope, session=session
+        )
         return value  # type checking is done elsewhere
 
 
@@ -879,8 +903,9 @@ def unpack_value(
     type: HasFields,
     # TODO @Cleanup: always pass unpacking scope explicitly?
     scope: Optional[ScopeNode] = None,
+    session: Optional[Session] = None,
     ignore_array: bool = False,
-    ignore_outer_map: bool = False,
+    ignore_outer: bool = False,
     ignore_empty: bool = True,
     is_output: bool = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
@@ -893,9 +918,9 @@ def unpack_value(
         value=value,
         type=type,
         map_k=map_k or (lambda f: (f._typed_key, f.py_ident)),
-        map_v=partial(unpack_value_flat, scope=scope),
+        map_v=partial(unpack_value_flat, scope=scope, session=session),
         ignore_array=ignore_array,
-        ignore_outer_map=ignore_outer_map,
+        ignore_outer=ignore_outer,
         ignore_empty=ignore_empty,
         is_output=is_output,
     )
@@ -905,7 +930,7 @@ def pack_value(
     value: Any,
     type: HasFields,
     ignore_array: bool = False,
-    ignore_outer_map: bool = False,
+    ignore_outer: bool = False,
     ignore_empty: bool = True,
     none_if_invalid: bool = False,
     is_output: bool = None,
@@ -929,7 +954,7 @@ def pack_value(
         map_k=map_k or (lambda f: (f.py_ident, f._typed_key)),
         map_v=map_v,
         ignore_array=ignore_array,
-        ignore_outer_map=ignore_outer_map,
+        ignore_outer=ignore_outer,
         ignore_empty=ignore_empty,
         none_if_invalid=none_if_invalid,
         is_output=is_output,
@@ -1063,9 +1088,9 @@ register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN
 register_mapper(VectorTypeMapper(), tags=[TypeTag.VECTOR])
 register_mapper(BlobMapper(), tags=[TypeTag.BLOB])
 register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
-register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])
-register_mapper(FunctionTypeMapper(), tags=[TypeTag.FUNCTION])
-register_mapper(JsonTypeMapper(), tags=[TypeTag.JSON])
+register_mapper(StructMapper(), tags=[TypeTag.STRUCT])
+register_mapper(FunctionMapper(), tags=[TypeTag.FUNCTION])
+register_mapper(JsonMapper(), tags=[TypeTag.JSON])
 # type hints
 register_mapper(RichTextMapper(), hints=[TypeHint.RICH_TEXT])
 register_mapper(
@@ -1078,4 +1103,4 @@ register_mapper(
     StaticPyTypeMapper(int, TypeTag.NUMBER, hint=TypeHint.INTEGER), hints=[TypeHint.INTEGER]
 )
 # other
-register_mapper(SecretTypeMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IS_SECRET)
+register_mapper(SecretMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IS_SECRET)

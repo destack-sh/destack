@@ -124,6 +124,17 @@ class RecordBaseQuery:
         self._skip = skip
         self._result_cache: list[Record] | None = None
 
+    def __str__(self):
+        args_strs = []
+        for k in ("query", "sort", "include", "select", "distinct", "first", "skip"):
+            v = getattr(self, f"_{k}")
+            if v is not None:
+                args_strs.append(f"{k}={v}")
+        return ", ".join(args_strs) or "()"
+
+    def __repr__(self):
+        return f"<RecordQuery {self}>"
+
     def deepcopy(self):
         """Clones the query (the properties are immutable)."""
         return RecordBaseQuery(
@@ -142,7 +153,14 @@ class RecordBaseQuery:
         from bench.search import mirror
         from bench.search.mapping import prepare_os_query
 
+        # force flush and index if there are any pending database edits
+        #  (or previous edits that were already flushed but didn't refresh the index)
+        # TODO @Performance: force flush module for record search only if needed by query
+        if session._editor.edits or session._past_commits:
+            await session.acommit(refresh_index=True)
+
         # TODO @Broken: iterate through all records if query has no limit?
+        logger.debug("record.query", query=self)
         query = Conditional.and_if_set(
             self._query, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
         )
@@ -157,8 +175,8 @@ class RecordBaseQuery:
         os_results = await os_client.search(index=session.module.os_name, body=search)
         results = []
         record_mirror = mirror._packers_by_mirror[mirror.Record]
-        len(os_results["hits"]["hits"]) > limit
-        os_results["hits"]["total"]["value"]
+        has_more = len(os_results["hits"]["hits"]) > limit
+        total = os_results["hits"]["total"]["value"]
         for hit in os_results["hits"]["hits"][:limit]:
             record_doc = mirror.Record.from_dict(hit["_source"], hit["_id"])
             record_data = record_mirror.pack(record_doc)
@@ -166,16 +184,29 @@ class RecordBaseQuery:
             record._activate_self(session)
             results.append(record)
         self._result_cache = results
+        logger.debug(
+            "record.query.done", query=self, results=len(results), total=total, has_more=has_more
+        )
 
     async def __aiter__(self):
         if self._result_cache is None:
             await self._execute(self._database.session)
         return iter(self._result_cache)
 
+    async def atolist(self) -> list[Record]:
+        if self._result_cache is None:
+            await self._execute(self._database.session)
+        return self._result_cache
+
     def __iter__(self):
         if self._result_cache is None:
             self._database.session.async_to_sync(self._execute)(self._database.session)
         return iter(self._result_cache)
+
+    def tolist(self) -> list[Record]:
+        if self._result_cache is None:
+            self._database.session.async_to_sync(self._execute)(self._database.session)
+        return self._result_cache
 
     def __len__(self):
         # maybe just issue count query?

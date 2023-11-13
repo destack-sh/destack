@@ -941,8 +941,12 @@ def write_edits(
 
                     num_updated = model_cls.objects.bulk_update(nodes, properties)
                     if num_updated != len(nodes):
+                        # report existing/missing nodes for debugging
+                        existing_nodes = model_cls.objects.filter(id__in=[n.id for n in nodes])
+                        existing_nodes_ids = set(n.id for n in existing_nodes)
+                        missing_nodes = [n for n in nodes if n.id not in existing_nodes_ids]
                         raise ValueError(
-                            f"failed to update {len(nodes)} {model_cls} nodes {properties} (got {num_updated})"
+                            f"failed to update {len(nodes)} {model_cls} nodes {properties} (got {num_updated}, missing={missing_nodes})"
                         )
             for e, node in zip(batch, nodes):
                 e.thing = node  # keep node model for downstream indexing in opensearch

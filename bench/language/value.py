@@ -33,7 +33,7 @@ class HasValue(Node):
 
     def _attached_inner(self) -> None:
         # pack this value if it couldn't be packed in deactivate/detach
-        #  (e.g. when it was just attached and the type wasn't ready yet)
+        #  (e.g. the type wasn't available on instantiation)
         assert self._type_of_value is not None, f"missing type for {self!r}"
         is_packed = self._type_of_value.resolved_fields and any(
             self.value.get(k.py_ident) for k in self._type_of_value.resolved_fields
@@ -43,7 +43,7 @@ class HasValue(Node):
 
             check_type(self.value, self._type_of_value)
             value = pack_value(
-                self.value, self._type_of_value, ignore_outer_map=True, none_if_invalid=True
+                self.value, self._type_of_value, ignore_outer=True, none_if_invalid=True
             )
             self._set_untracked("value", value)
 
@@ -65,9 +65,11 @@ class HasValue(Node):
 
         assert self._type_of_value is not None, f"missing type for {self!r}"
         if self.attached:
-            value = unpack_value(self.value, self._type_of_value, ignore_outer_map=True)
+            value = unpack_value(
+                self.value, self._type_of_value, session=self._session, ignore_outer=True
+            )
         else:
-            value = self.value  # don't unpack if not attached (user sets packed values)
+            value = self.value  # don't unpack if not attached (user sets 'unpacked' values)
         value = TypedDict(value, self._type_of_value)
         value = proxy_value(value, onread=lambda *args: None, onwrite=_onwrite_value)
         self._set_untracked("value", value)
@@ -84,6 +86,4 @@ class HasValue(Node):
         if not _force and (self._status != NS.ACTIVE or not self.attached):
             return unproxy_value(self.value)
         assert self._type_of_value is not None, f"missing type for {self!r}"
-        return pack_value(
-            self.value, self._type_of_value, ignore_outer_map=True, none_if_invalid=True
-        )
+        return pack_value(self.value, self._type_of_value, ignore_outer=True, none_if_invalid=True)

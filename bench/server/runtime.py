@@ -471,7 +471,7 @@ class RuntimeServer(Monitored):
                 run_id=msg.p.run_id,
             )
             outputs = await asyncio.wait_for(asyncio.shield(inference), msg.p.timeout)
-            outputs = pack_value(outputs, model, is_output=True, ignore_outer_map=True)
+            outputs = pack_value(outputs, model, is_output=True, ignore_outer=True)
             error = None
         except Exception as e:
             log.error("inference.exception", exc_info=True, sentry=sentry_capture(e))

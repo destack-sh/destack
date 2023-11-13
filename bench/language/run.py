@@ -171,7 +171,7 @@ class Run:
         def _onwrite_value(key: str):
             check_type(self.value, metatype)
 
-        value = unpack_value(self.value, metatype, ignore_array=True, ignore_outer_map=True)
+        value = unpack_value(self.value, metatype, ignore_array=True, ignore_outer=True)
         self.value = proxy_value(
             value, onread=lambda *args: None, onwrite=_onwrite_value, default_none=True
         )
@@ -190,7 +190,7 @@ class Run:
         if not self._value_unpacked:
             return self.value
         else:
-            return pack_value(self.value, run_value, ignore_array=True, ignore_outer_map=True)
+            return pack_value(self.value, run_value, ignore_array=True, ignore_outer=True)
 
     @property
     def statement_id(self):
