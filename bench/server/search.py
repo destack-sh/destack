@@ -147,7 +147,13 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
         upsert=upsert,
     )
 
+    # get global read only role to modify
+    rep = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
+    role = rep.get(GLOBAL_READ_ONLY_ROLE)
+    assert role is not None, f"failed to get role {GLOBAL_READ_ONLY_ROLE}: {rep}"
     if project.visibility == models.ProjectVisibility.PUBLIC:
+        # TODO @Robustness: fix race condition between read and patch global role
+        #  (unfortunately the 'add' op doesn't seem to be actually additive?)
         # grant read access to global read only role
         log.info("os.grant_global_read_access")
         rep = os_client_sync.security.patch_role(
@@ -157,12 +163,17 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
                     "op": "add",
                     "path": "/index_permissions",
                     "value": [
+                        *(
+                            r
+                            for r in role["index_permissions"]
+                            if r["index_patterns"] != [project.os_name]
+                        ),
                         {
                             "index_patterns": [project.os_name],
                             "fls": [],
                             "masked_fields": [],
                             "allowed_actions": ["read"],
-                        }
+                        },
                     ],
                 }
             ],
@@ -173,9 +184,7 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
     else:
         # revoke read access from global read only role (if exists)
         log.info("os.revoke_global_read_access")
-        rep = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
-        role = rep.get(GLOBAL_READ_ONLY_ROLE)
-        assert role is not None, f"failed to get role {GLOBAL_READ_ONLY_ROLE}: {rep}"
+
         # find index permission for this project
         permission_idx = -1
         for i, index_permission in enumerate(role["index_permissions"]):
