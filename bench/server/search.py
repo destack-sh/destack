@@ -208,7 +208,7 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
                     "index_patterns": [project.os_name],
                     "fls": [],
                     "masked_fields": [],
-                    "allowed_actions": ["all"],
+                    "allowed_actions": ["*"],
                 }
             ]
         },
