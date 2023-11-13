@@ -1,3 +1,4 @@
+from .blob import Blob
 from .const import (
     IssueType,
     ScheduleType,
@@ -17,7 +18,6 @@ from .file import File
 from .issue import BenchError, Issue
 from .module import Module, Node, ScopeNode
 from .reference import NodeVisitor
-from .remote import Blob, Secret
 from .run import HasRun, Run, RunError
 from .session import LogEntry, PermissionError, Session
 from .statement import Statement
@@ -58,7 +58,6 @@ __all__ = [
     "RunError",
     "ScheduleType",
     "ScopeNode",
-    "Secret",
     "Session",
     "SessionAccessLevel",
     "Sort",

@@ -51,6 +51,9 @@ class ConditionalOp(enum.StrEnum):
 
 @dataclass
 class Expression:
+    def __str__(self):
+        return self.__class__.__name__
+
     def __repr__(self):
         return f"{self.__class__.__name__}({self})"
 
@@ -145,18 +148,16 @@ class Conditional(Expression):
 
     @staticmethod
     def and_if_set(
-        base: Optional[Conditional], extra: Optional[Conditional]
+        *clauses: Optional[Conditional],
     ) -> Optional[Conditional]:
-        if base is None:
-            if extra is None:
-                return None
-            else:
-                return extra
-        else:
-            if extra is None:
-                return base
-            else:
-                return base & extra
+        base = None
+        for clause in clauses:
+            if clause is not None:
+                if base is None:
+                    base = clause
+                else:
+                    base &= clause
+        return base
 
 
 @expression(ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR)

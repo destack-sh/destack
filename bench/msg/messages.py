@@ -80,14 +80,14 @@ class NMessageType(StrEnum):
     WRITE_SESSION_REP = "session.write.rep"
     SEARCH_RUNS = "module.search.runs"
     SEARCH_RUNS_REP = "module.search.runs.rep"
-    READ_BLOB = "object.read"
-    READ_BLOB_REP = "object.read.rep"
-    WRITE_BLOB = "object.write"
-    WRITE_BLOB_REP = "object.write.rep"
+    DOWNLOAD_BLOB = "object.read"
+    DOWNLOAD_BLOB_REP = "object.read.rep"
+    UPLOAD_BLOB = "object.write"
+    UPLOAD_BLOB_REP = "object.write.rep"
     MARK_UPLOADED_BLOB = "object.mark_uploaded"
     MARK_UPLOADED_BLOB_REP = "object.mark_uploaded.rep"
-    READ_SECRET = "secret.read"
-    READ_SECRET_REP = "secret.read.rep"
+    REVEAL_SECRET = "secret.read"
+    REVEAL_SECRET_REP = "secret.read.rep"
     RUN_PROXY_INFERENCE = "model.proxy_inference"
     RUN_PROXY_INFERENCE_REP = "model.proxy_inference.rep"
     RUN_PROXY_STATEMENT = "statement.proxy_run"
@@ -130,11 +130,11 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.READ_MODULE: NMessageType.READ_MODULE_REP,
     NMessageType.WRITE_MODULE: NMessageType.WRITE_MODULE_REP,
     NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
-    NMessageType.READ_BLOB: NMessageType.READ_BLOB_REP,
-    NMessageType.WRITE_BLOB: NMessageType.WRITE_BLOB_REP,
+    NMessageType.DOWNLOAD_BLOB: NMessageType.DOWNLOAD_BLOB_REP,
+    NMessageType.UPLOAD_BLOB: NMessageType.UPLOAD_BLOB_REP,
     NMessageType.MARK_UPLOADED_BLOB: NMessageType.MARK_UPLOADED_BLOB_REP,
     NMessageType.SEARCH_RUNS: NMessageType.SEARCH_RUNS_REP,
-    NMessageType.READ_SECRET: NMessageType.READ_SECRET_REP,
+    NMessageType.REVEAL_SECRET: NMessageType.REVEAL_SECRET_REP,
     NMessageType.RUN_PROXY_INFERENCE: NMessageType.RUN_PROXY_INFERENCE_REP,
     NMessageType.RUN_PROXY_STATEMENT: NMessageType.RUN_PROXY_STATEMENT_REP,
     NMessageType.START_RUN: NMessageType.START_RUN_REP,
@@ -361,7 +361,6 @@ class ReqWriteSessionPayload(Payload):
     module_id: UUID
     session: Optional[SessionData]
     runs: list[RunData]
-    logs: list[LogEntryData]
     client: ClientOrigin
 
 
@@ -400,24 +399,24 @@ class RepSearchRunPayload(RepSearch, Payload):
     elements: Optional[list[RunData]] = None
 
 
-@payload(NMessageType.READ_BLOB)
-class ReqReadBlobPayload(Payload):
+@payload(NMessageType.DOWNLOAD_BLOB)
+class ReqDownloadBlobPayload(Payload):
     blobs: list[BlobData]
 
 
-@payload(NMessageType.READ_BLOB_REP)
-class RepReadBlobPayload(Payload):
+@payload(NMessageType.DOWNLOAD_BLOB_REP)
+class RepDownloadBlobPayload(Payload):
     get_urls: list[typing.Union[str, None]]
 
 
-@payload(NMessageType.WRITE_BLOB)
-class ReqWriteBlobPayload(Payload):
+@payload(NMessageType.UPLOAD_BLOB)
+class ReqUploadBlobPayload(Payload):
     module_id: UUID
     blobs: list[BlobData]
 
 
-@payload(NMessageType.WRITE_BLOB_REP)
-class RepWriteObjectPayload(Payload):
+@payload(NMessageType.UPLOAD_BLOB_REP)
+class RepUploadBlobPayload(Payload):
     blobs: list[BlobData]
     post_urls: list[typing.Union[str, None]]
 
@@ -432,13 +431,13 @@ class RepMarkUploadedBlobPayload(Payload):
     success: bool
 
 
-@payload(NMessageType.READ_SECRET)
-class ReqReadSecretPayload(Payload):
+@payload(NMessageType.REVEAL_SECRET)
+class ReqRevealSecretPayload(Payload):
     secrets: list[SecretData]
 
 
-@payload(NMessageType.READ_SECRET_REP)
-class RepReadSecretPayload(Payload):
+@payload(NMessageType.REVEAL_SECRET_REP)
+class RepRevealSecretPayload(Payload):
     secrets: list[SecretData]
 
 

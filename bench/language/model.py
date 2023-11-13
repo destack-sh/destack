@@ -15,7 +15,6 @@ import structlog
 from bench.language.cache import CacheAsync
 from bench.language.field import Field, HasFields, TypedDict, TypeTag
 from bench.language.module import Node, ScopeNode, node_component, nruntime
-from bench.language.packer import check_type, pack_value, unpack_value
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
@@ -77,6 +76,7 @@ class HasModel(HasFields, Node):
         return True
 
     async def _call_inner_async(self, timeout: int = None, cache: bool = None, **inputs):
+        from bench.language.packer import check_type, pack_value, unpack_value
         from bench.language.run import get_run_cache_subkey
 
         if cache is None:
@@ -113,32 +113,12 @@ class HasModel(HasFields, Node):
 
         if self._remote:
             # request remotely proxied inference if needed (key not available locally)
-            from bench.msg.core import NMessage, request
-            from bench.msg.messages import (
-                NMessageType,
-                RepRunInferencePayload,
-                ReqRunInferencePayload,
-            )
 
             self.session._tracer.run_enter(self, is_async=True, inputs=inputs)
             timeout = timeout if timeout is not None else self.session.inference_timeout
             try:
-                req = ReqRunInferencePayload(
-                    project_id=self.module.project_id,
-                    model_path=self.path,
-                    inputs=inputs_raw,
-                    timeout=timeout,
-                    run_id=self.session.current_run.id,
-                )
-                rep: NMessage[RepRunInferencePayload] = await request(
-                    NMessageType.RUN_PROXY_INFERENCE,
-                    req,
-                    RepRunInferencePayload,
-                    timeout=timeout + 3,
-                )
-                if rep.p.error is not None:
-                    raise ModelError(rep.p.error, self, f"remote {self} failed")
-                outputs = unpack_value(rep.p.outputs, self, is_output=True)
+                outputs = self.session.runtime.run_proxy_inference(self, inputs_raw, timeout)
+                outputs = unpack_value(outputs, self, is_output=True)
                 self.session._tracer.run_exit(self, outputs)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
                 return TypedDict(outputs, self, is_output=True)
@@ -191,6 +171,8 @@ class HasModel(HasFields, Node):
         Runs inference on the given endpoint without timeout.
         This should be asyncio.shield-ed to ensure we write the result to cache (if enabled).
         """
+        from bench.language.packer import pack_value
+
         started_at = utcnow_with_tz()
         log.debug("inference.enter")
         output = await self._endpoint_resolved(**inputs)

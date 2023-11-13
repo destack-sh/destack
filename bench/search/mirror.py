@@ -1,4 +1,4 @@
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from uuid import UUID
@@ -23,6 +23,13 @@ if TYPE_CHECKING:
     from django.db.models import Model
 else:
     Model = object
+
+
+@dataclass
+class ModuleInfo:
+    id: UUID
+    project_id: UUID
+
 
 NAME_FIELD = os.Field(
     os.FT.TEXT,
@@ -57,13 +64,15 @@ def document(type: os.DocumentType, *, store_type: bool = True):
 
 
 class Packer(Generic[ModelT, MirrorT, DataT]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
+    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: ModelT) -> MirrorT:
         raise NotImplementedError
 
     def pack(self, mirror: MirrorT) -> DataT:
         raise NotImplementedError
 
-    def unpack(self, project_v: models.ProjectVersion, data: DataT, parent: ModelT) -> MirrorT:
+    def unpack(
+        self, project_v: models.ProjectVersion | ModuleInfo, data: DataT, parent: ModelT
+    ) -> MirrorT:
         raise NotImplementedError
 
 
@@ -102,7 +111,7 @@ def has_mirror(node: ModelT) -> bool:
     return type(node) in _packers_by_model
 
 
-def mirror_node(project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
+def mirror_node(project_v: models.ProjectVersion | ModuleInfo, node: ModelT) -> MirrorT:
     packer = _packers_by_model[type(node)]
     return packer.mirror(project_v, node)
 
@@ -113,7 +122,7 @@ def pack_node_flat(node: MirrorT) -> DataT:
 
 
 def unpack_node_flat(
-    project_v: models.ProjectVersion, data: DataT, parent: Optional[ModelT]
+    project_v: models.ProjectVersion | ModuleInfo, data: DataT, parent: Optional[ModelT]
 ) -> MirrorT:
     packer = _packers_by_data[type(data)]
     return packer.unpack(project_v, data, parent)
@@ -145,7 +154,7 @@ class Revisioned(os.Document):
 
 @packer(models.CrudModel, CrudThing, None)
 class CrudThingPacker(Packer):
-    def mirror(self, project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
+    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: ModelT) -> MirrorT:
         return CrudThing(
             id=node.id,
             created_at=node.created_at,
@@ -169,7 +178,7 @@ class Blob(os.Document):
 
 @packer(models.Blob, Blob, wire.BlobData)
 class BlobPacker(Packer[models.Blob, Blob, wire.BlobData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.Blob) -> Blob:
+    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.Blob) -> Blob:
         return Blob(
             id=node.id,
             sha512=node.sha512,
@@ -187,7 +196,7 @@ class Secret(os.Document):
 
 @packer(models.Secret, Secret, wire.SecretData)
 class SecretPacker(Packer[models.Secret, Secret, wire.SecretData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.Secret) -> Secret:
+    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.Secret) -> Secret:
         return Secret(id=node.id, sha512=node.sha512, name=node.name)
 
 
@@ -203,7 +212,7 @@ class User(os.Document):
 
 @packer(models.User, User, None)
 class UserPacker(Packer[models.User, User, None]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.User) -> User:
+    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.User) -> User:
         return User(id=node.id, name=node.username, slug=node.slug, email=node.email)
 
 
@@ -216,7 +225,7 @@ class Organization(os.Document):
 @packer(models.Organization, Organization, None)
 class OrganizationPacker(Packer[models.Organization, Organization, None]):
     def mirror(
-        self, project_v: models.ProjectVersion | None, node: models.Organization
+        self, project_v: models.ProjectVersion | ModuleInfo, node: models.Organization
     ) -> Organization:
         return Organization(id=node.id, name=node.name, slug=node.slug)
 
@@ -229,7 +238,9 @@ class Project(CrudThing, os.Document):
 
 @packer(models.Project, Project, None)
 class ProjectPacker(CrudThingPacker, Packer[models.Project, Project, None]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.Project) -> Project:
+    def mirror(
+        self, project_v: models.ProjectVersion | ModuleInfo, node: models.Project
+    ) -> Project:
         crud = super().mirror(project_v, node)
         return Project(**crud.__dict__, name=node.name, description=node.description)
 
@@ -248,7 +259,7 @@ class ProjectVersion(CrudThing, Revisioned, os.Document):
 @packer(models.ProjectVersion, ProjectVersion, None)
 class ProjectVersionPacker(CrudThingPacker, Packer[models.ProjectVersion, ProjectVersion, None]):
     def mirror(
-        self, project_v: models.ProjectVersion | None, node: models.ProjectVersion
+        self, project_v: models.ProjectVersion | ModuleInfo, node: models.ProjectVersion
     ) -> ProjectVersion:
         crud = super().mirror(project_v, node)
         return ProjectVersion(
@@ -270,7 +281,7 @@ class File(CrudThing, Revisioned, os.Document):
 
 @packer(models.File, File, wire.FileData)
 class FilePacker(CrudThingPacker, Packer[models.File, File, wire.FileData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.File) -> File:
+    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.File) -> File:
         crud = super().mirror(project_v, node)
         return File(
             **crud.__dict__,
@@ -296,7 +307,9 @@ class Statement(CrudThing, Revisioned, os.Document):
 
 @packer(models.Statement, Statement, wire.StatementData)
 class StatementPacker(CrudThingPacker, Packer[models.Statement, Statement, wire.StatementData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.Statement) -> Statement:
+    def mirror(
+        self, project_v: models.ProjectVersion | ModuleInfo, node: models.Statement
+    ) -> Statement:
         crud = super().mirror(project_v, node)
         return Statement(
             **crud.__dict__,
@@ -325,7 +338,7 @@ class Field(CrudThing, Revisioned, os.Document):
 
 @packer(models.Field, Field, wire.FieldData)
 class FieldPacker(CrudThingPacker, Packer[models.Field, Field, wire.FieldData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.Field) -> Field:
+    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.Field) -> Field:
         crud = super().mirror(project_v, node)
         return Field(
             **crud.__dict__,
@@ -366,7 +379,7 @@ class Record(CrudThing, os.Document):
 
 @packer(models.Record, Record, wire.RecordData)
 class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: Record) -> Record:
+    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: Record) -> Record:
         return Record(
             id=node.id,
             ck=node.ck,
@@ -400,7 +413,10 @@ class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordDat
         )
 
     def unpack(
-        self, project_v: models.ProjectVersion, data: wire.RecordData, parent: models.Statement
+        self,
+        project_v: models.ProjectVersion | ModuleInfo,
+        data: wire.RecordData,
+        parent: models.Statement,
     ) -> Record:
         return Record(
             id=data.id,
@@ -438,7 +454,9 @@ class Session(os.Document):
 
 @packer(models.Session, Session, wire.SessionData)
 class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
-    def mirror(self, project_v: models.ProjectVersion | None, node: models.Session) -> Session:
+    def mirror(
+        self, project_v: models.ProjectVersion | ModuleInfo, node: models.Session
+    ) -> Session:
         return Session(
             id=node.id,
             project_version_id=node.project_version_id,
@@ -550,7 +568,7 @@ class LogEntry(os.Document):
     level: Optional[str] = os.field(os.FT.KEYWORD)
     logger: Optional[str] = os.field(os.FT.KEYWORD)
     message: Optional[str] = os.field(os.FT.TEXT)
-    value: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
+    value: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
 
 
 @packer(LogEntry, LogEntry, wire.LogEntryData)
@@ -572,7 +590,7 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
         )
 
     def unpack(
-        self, project_v: models.ProjectVersion, data: wire.LogEntryData, parent: None
+        self, project_v: models.ProjectVersion | ModuleInfo, data: wire.LogEntryData, parent: None
     ) -> LogEntry:
         return LogEntry(
             id=data.id,

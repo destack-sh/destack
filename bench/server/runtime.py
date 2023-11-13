@@ -46,38 +46,37 @@ from bench.msg.core import (
 )
 from bench.msg.messages import (
     ClientOrigin,
-    LogsChangedPayload,
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
+    RepDownloadBlobPayload,
     RepGetModuleHeadPayload,
     RepMarkUploadedBlobPayload,
     RepPullWorkerRunsPayload,
-    RepReadBlobPayload,
     RepReadModulePayload,
-    RepReadSecretPayload,
+    RepRevealSecretPayload,
     RepRunInferencePayload,
     RepRunStatementPayload,
     RepSearch,
     RepSearchRunPayload,
     RepStartRunPayload,
+    RepUploadBlobPayload,
     RepWakeRuntimePayload,
     RepWriteModulePayload,
-    RepWriteObjectPayload,
     RepWriteSessionPayload,
+    ReqDownloadBlobPayload,
     ReqGetModuleHeadPayload,
     ReqMarkUploadedBlobPayload,
     ReqPullWorkerRunsPayload,
-    ReqReadBlobPayload,
     ReqReadModulePayload,
-    ReqReadSecretPayload,
+    ReqRevealSecretPayload,
     ReqRunInferencePayload,
     ReqRunStatementPayload,
     ReqSearch,
     ReqSearchRunsPayload,
     ReqStartRunPayload,
+    ReqUploadBlobPayload,
     ReqWakeRuntimePayload,
-    ReqWriteBlobPayload,
     ReqWriteModulePayload,
     ReqWriteSessionPayload,
     RunsChangedGlobalPayload,
@@ -183,10 +182,10 @@ class RuntimeServer(Monitored):
             await handle_reply(NMessageType.PULL_WORKER_RUNS, self.pull_runs),
             await handle_reply(NMessageType.WAKE_RUNTIME, self.wake_runtime),
             await handle_reply(NMessageType.SEARCH_RUNS, self.search_runs),
-            await handle_reply(NMessageType.READ_BLOB, self.read_blob),
-            await handle_reply(NMessageType.WRITE_BLOB, self.write_blob),
+            await handle_reply(NMessageType.DOWNLOAD_BLOB, self.read_blob),
+            await handle_reply(NMessageType.UPLOAD_BLOB, self.write_blob),
             await handle_reply(NMessageType.MARK_UPLOADED_BLOB, self.mark_uploaded_blob),
-            await handle_reply(NMessageType.READ_SECRET, self.read_secret),
+            await handle_reply(NMessageType.REVEAL_SECRET, self.reveal_secret),
             await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
             await handle_reply(NMessageType.RUN_PROXY_STATEMENT, self.run_statement),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.>", cb=self.module_changed),
@@ -268,7 +267,7 @@ class RuntimeServer(Monitored):
         runtime = await self._prepare_runtime(msg.p.module_id)
         try:
             await runtime.write_session(
-                msg.p.session, msg.p.runs, msg.p.logs, origins=(msg.p.client,)
+                session=msg.p.session, runs=msg.p.runs, origins=(msg.p.client,)
             )
             logger.debug("session.write.done", msg=msg)
             success = True
@@ -382,7 +381,7 @@ class RuntimeServer(Monitored):
         await msg.reply(rep)
 
     @message_handler
-    async def read_blob(self, msg: NMessage[ReqReadBlobPayload]) -> None:
+    async def read_blob(self, msg: NMessage[ReqDownloadBlobPayload]) -> None:
         logger.debug("blob.read", msg=msg)
         # TODO @Security!: check if msg origin has read access to object
         get_urls: list[str | None] = []
@@ -397,10 +396,10 @@ class RuntimeServer(Monitored):
             else:
                 get_urls.append(model_obj.presigned_get)
         logger.debug("blob.read.rep", msg=msg, get_urls=[url is not None for url in get_urls])
-        await msg.reply(RepReadBlobPayload(get_urls=get_urls))
+        await msg.reply(RepDownloadBlobPayload(get_urls=get_urls))
 
     @message_handler
-    async def write_blob(self, msg: NMessage[ReqWriteBlobPayload]) -> None:
+    async def write_blob(self, msg: NMessage[ReqUploadBlobPayload]) -> None:
         logger.debug("blob.write", msg=msg)
         # TODO @Security!: check if msg origin has write access to object
         project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
@@ -422,7 +421,7 @@ class RuntimeServer(Monitored):
                 post_urls.append(model_blob.presigned_post)
                 await model_blob.asave()  # create
         logger.debug("blob.write.rep", msg=msg, post_urls=[url is not None for url in post_urls])
-        await msg.reply(RepWriteObjectPayload(blobs=msg.p.blobs, post_urls=post_urls))
+        await msg.reply(RepUploadBlobPayload(blobs=msg.p.blobs, post_urls=post_urls))
 
     @message_handler
     async def mark_uploaded_blob(self, msg: NMessage[ReqMarkUploadedBlobPayload]) -> None:
@@ -439,7 +438,7 @@ class RuntimeServer(Monitored):
         await msg.reply(RepMarkUploadedBlobPayload(success=success))
 
     @message_handler
-    async def read_secret(self, msg: NMessage[ReqReadSecretPayload]) -> None:
+    async def reveal_secret(self, msg: NMessage[ReqRevealSecretPayload]) -> None:
         logger.debug("secret.read", msg=msg)
         # TODO @Security!!: check if msg origin has read access to secret
         secrets = []
@@ -447,7 +446,7 @@ class RuntimeServer(Monitored):
             secret_data = packer.pack_data(secret)
             secret_data.value = json.loads(secret_data.value)  # :SecretJson
             secrets.append(secret_data)
-        await msg.reply(RepReadSecretPayload(secrets=secrets))
+        await msg.reply(RepRevealSecretPayload(secrets=secrets))
 
     @message_handler
     async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
@@ -1022,12 +1021,11 @@ class RuntimeHost:
         self,
         session: Optional[wire.SessionData],
         runs: list[wire.RunData] | None,
-        logs: list[wire.LogEntryData] | None,
         origins: tuple[ClientOrigin] = None,
     ) -> None:
         """Write a session to the database, and publish it to the client"""
-        self.log.debug("session.write", session=session, runs=len(runs), logs=len(logs))
-        await sync_to_async(write_session)(self.project_version, session, runs, logs)
+        self.log.debug("session.write", session=session, runs=len(runs))
+        await sync_to_async(write_session)(self.project_version, session, runs)
 
         await publish(
             NMessageType.SESSION_CHANGED,
@@ -1035,8 +1033,3 @@ class RuntimeHost:
                 project_id=self.project_id, module_id=self.module_id, session=session, runs=runs
             ),
         )
-        if logs:
-            await publish(
-                NMessageType.LOGS_CHANGED,
-                LogsChangedPayload(project_id=self.project_id, module_id=self.module_id, logs=logs),
-            )

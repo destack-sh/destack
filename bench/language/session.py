@@ -27,43 +27,59 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.module import Module, Node
-from bench.language.packer import check_type, map_value, pack_value, pack_value_flat
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.statement import Statement
+from bench.search.client import get_os_errors, os_client
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import HasFields, Trigger
+    from bench.language import Blob, HasFields, Secret, Trigger
     from bench.language.edit import MET, EditData, ModuleEditor
+    from bench.language.wire import LogEntryData
 
 logger = structlog.get_logger(__name__)
 
-SESSION_EDIT_FLUSH_WATERMARK = 512
 
+class RuntimeHost(abc.ABC):
+    """Central Bench runtime server for synchronizing modules and sessions."""
 
-class ModuleWriter(abc.ABC):
-    """Base for writing module/session for type-checking."""
-
-    async def write_module(self, edits: list["EditData"], refresh_index: bool) -> bool:
+    async def commit_edits(self, edits: list["EditData"], refresh_index: bool) -> bool:
         raise NotImplementedError
 
-    async def write_session(
-        self, session: "Session", runs: list["Run"], logs: list["LogEntry"]
-    ) -> bool:
-        # nocheckin: write logs directly to os
-        # and refactor/rename 'ModuleWriter' concept (module synchronizer?)
+    async def push_session(self, session: "Session", runs: list["Run"]) -> bool:
+        raise NotImplementedError
+
+    async def notify_logs_changed(self, logs: list["LogEntryData"]) -> None:
+        raise NotImplementedError
+
+    async def download_blob(self, blob: "Blob") -> str:
+        raise NotImplementedError
+
+    async def prepare_upload_blob(self, blob: "Blob") -> tuple["Blob", Optional[str]]:
+        raise NotImplementedError
+
+    async def mark_uploaded_blob(self, blob: "Blob") -> None:
+        raise NotImplementedError
+
+    async def reveal_secret(self, secret: "Secret") -> Any:
+        raise NotImplementedError
+
+    async def run_proxy_statement(self, statement: Statement, inputs: dict) -> dict:
+        raise NotImplementedError
+
+    async def run_proxy_inference(self, statement: Statement, inputs: dict, timeout: float) -> dict:
         raise NotImplementedError
 
 
 class Session:
-    """A managed context for running a Bench module."""
+    """A managed context for running a Bench module (in a worker)."""
 
     def __init__(
         self,
         module: Module,
-        writer: ModuleWriter,
+        runtime: RuntimeHost,
         access_level: SessionAccessLevel,
         worker_node_id: str,
         worker_process_id: Optional[str],
@@ -77,9 +93,9 @@ class Session:
         inference_timeout: int = 300,
         inference_retries: int = 5,
     ):
+        from bench.language.blob import Blobs
         from bench.language.cache import CacheAsync, CacheSync
         from bench.language.edit import ModuleEditor
-        from bench.language.remote import Blobs
 
         self.id = id or uuid4()
         self.module = module
@@ -91,7 +107,7 @@ class Session:
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
         self.access_level = access_level
-        self._writer = writer
+        self.runtime = runtime
 
         self.cache_sync = CacheSync(module)
         self.cache_async = CacheAsync(module)
@@ -111,9 +127,8 @@ class Session:
         self._opened_at: Optional[datetime] = None
         self._closed_at: Optional[datetime] = None
         self._dangling_nodes_by_ck: dict[UUID, Node] = {}
-        self._past_flushes: list[tuple[int, set[MET]]] = []
-        self._pending_flushes: list[tuple[int, Awaitable[bool]]] = []
-        self._failed_flush: bool = False
+        self._past_commits: list[tuple[int, set[MET]]] = []
+        self._failed_commit: bool = False
 
     def __str__(self):
         status = "open" if self._opened_at else ("closed" if self._closed_at else "pending")
@@ -171,16 +186,16 @@ class Session:
             raise RuntimeError(f"another session is active: {_active_session.get()}")
         _active_session.set(self)
         await self._tracer.open()
-        logger.debug("session.open", session=self)
+        self._log.debug("session.open")
 
     async def _do_commit(self, edits: list["EditData"], refresh_index: bool) -> bool:
         """Flush any pending edits to the module"""
         if not edits and not refresh_index:
             return True  # skip if no edits and no index refresh
         # TODO @Robustness: auto-split edits if not in atomic block and too large
-        success = await self._writer.write_module(edits, refresh_index)
+        success = await self.runtime.commit_edits(edits, refresh_index)
         if not success:
-            self._failed_flush = True
+            self._failed_commit = True
             self.module._reset_from_source()
             if len(edits) > 10:
                 edits_str = f"{edits[:5]} ... {edits[-5:]}"
@@ -189,72 +204,52 @@ class Session:
             raise RuntimeError(f"failed to write {len(edits)} edits {edits_str}")
         else:
             self.module._apply_edits_to_source(edits)
-        logger.debug("session.flush.done", session=self, editor=self._editor)
+        self._log.debug("session.commit.done", editor=self._editor)
         return success
 
     @property
-    def _needs_flush_before_exit(self):
-        # ensure edits are flushed before we exit out of topmost run for error propagation
+    def _autocommit_this_run(self):
+        # ensure edits are commited before we exit out of topmost run for error propagation
         return self._editor.edits and len(self._tracer.stacktrace) == 1
 
-    async def acommit(self, optimistic: bool = False, refresh_index: bool = False):
+    async def acommit(self, refresh_index: bool = False):
         """
         Flushes all module edits.
-        If optimistic, this will return before the flush is complete (but will wait on close).
+        If optimistic, this will return before the commit is complete (but will wait on close).
         """
         edits = [e for e in self._editor.edits if e.mnt not in INTERP_NODE_TYPES]  # :InterpFilter
         if not edits and not refresh_index:
             return  # skip if no edits and no index refresh
-        assert not self._failed_flush, f"session {self!r} is broken after failed flush"
+        assert not self._failed_commit, f"session {self!r} is broken after failed commit"
 
         from bench.language.edit import EditBundle
 
-        logger.debug(
-            "session.flush",
-            session=self,
-            editor=self._editor,
-            optimistic=optimistic,
-            refresh_index=refresh_index,
-        )
+        self._log.debug("session.commit", editor=self._editor, refresh_index=refresh_index)
         edits = EditBundle(edits).compact()
         self._editor.reset()
         self._tracer._new_statement_ids.clear()
-        flush = self._do_commit(edits, refresh_index)
-        if optimistic:
-            self._pending_flushes.append((len(edits), asyncio.create_task(flush)))
-        else:
-            await flush
-        self._past_flushes.append((len(edits), set(m.type for m in edits)))
+        await self._do_commit(edits, refresh_index)
+        self._past_commits.append((len(edits), set(m.type for m in edits)))
 
-    def commit(self, optimistic: bool = False):
-        if not self._editor.edits:
-            return
-        asgiref.sync.async_to_sync(self.acommit)(optimistic=optimistic)
+    def commit(self):
+        asgiref.sync.async_to_sync(self.acommit)()
 
     async def aclose(self):
-        """Closes the session, flushing any edits and preventing further execution/edit."""
+        """Closes the session, commiting any edits and preventing further execution/edit."""
         if self._closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
+        self._log.debug("session.close")
         self._closed_at = utcnow_with_tz()
-        if not self._failed_flush:
-            await self.acommit(optimistic=True)
-        # TODO @Robustness: flush pending edits inside top level run (to report errors properly)
-        # await all pending flushes
-        pending_edits_count = sum(count for count, _ in self._pending_flushes)
-        logger.debug("session.close.pending", session=self, pending_edits_count=pending_edits_count)
-        await asyncio.gather(*(task for _, task in self._pending_flushes))
+        if not self._failed_commit:
+            await self.acommit()
         _active_session.set(None)
         await self._tracer.close()
         if self.dangling:
-            logger.warn("session.close.dangling", session=self, dangling=self.dangling)
-        logger.debug("session.close", session=self)
+            self._log.warn("session.close.dangling", dangling=self.dangling)
+        self._log.debug("session.close.done")
 
     def close(self):
         asgiref.sync.async_to_sync(self.aclose)()
-
-    def _on_mutated(self, editor: "ModuleEditor", edit: "EditData"):
-        if len(self._editor.edits) > SESSION_EDIT_FLUSH_WATERMARK:
-            self.commit(optimistic=True)
 
     async def __aenter__(self):
         await self.aopen()
@@ -263,19 +258,24 @@ class Session:
     async def __aexit__(self, exc_type, exc_value, traceback):
         await self.aclose()
 
-    def sync(self):
-        """A sync context manager for this session."""
-        session = self
+    async def _write_logs(self, logs: list[LogEntry]) -> None:
+        from bench.language import wire
+        from bench.search import mirror
 
-        class SyncSession:
-            def __enter__(self):
-                asgiref.sync.async_to_sync(session.aopen)()
-                return session
-
-            def __exit__(self, exc_type, exc_value, traceback):
-                asgiref.sync.async_to_sync(session.aclose)()
-
-        return SyncSession()
+        if not logs:
+            return
+        self._log.debug("session.write_logs", logs=len(logs))
+        ops: list[dict] = []
+        os_name = self.module.os_name
+        logs = [wire.pack_data(log) for log in logs]
+        for log in logs:
+            ops.append({"index": {"_index": os_name, "_id": str(log.id)}})
+            ops.append(mirror.unpack_node_flat(self.module, log, None).to_dict())
+        ret = await os_client.bulk(ops)
+        if ret["errors"]:
+            raise RuntimeError(f"failed to write logs: {get_os_errors(ret)}")
+        await self.runtime.notify_logs_changed(logs)
+        self._log.debug("session.write_logs.done", logs=len(logs))
 
 
 # TODO @Performance: improve performance of contextual stdout/stderr capture
@@ -299,8 +299,8 @@ class _ContextRedirectedStream:
             # TODO @Robustness: figure out better way of collecting stdout/stderr
             #  This is very hacky because we don't know who called print and want to skip
             #  some of our own log messages. Unfortunately we can't just trivially
-            #  provide a custom 'print' since many libraries use the real 'print' internally.
-            if not ("[debug    ]" in data or "[info     ]" in data):
+            #  provide a custom 'print' since many libraries use the real 'print' internally (?)
+            if not ("[debug" in data or "[info" in data):
                 track(data)
         self._just_saw_newline = data == "\n"
         return ret
@@ -384,8 +384,8 @@ class SessionTracer:
         self._cached_logs: deque[LogEntry] = deque(maxlen=LOG_CACHE_SIZE)
         self._pending_logs: list[LogEntry] = []
         self._pending_runs: dict[UUID, Run] = {}
-        self._commit_cancel: asyncio.Event | None = None
-        self._commit_task: asyncio.Task | None = None
+        self._flush_cancel: asyncio.Event | None = None
+        self._flush_task: asyncio.Task | None = None
         self._root_run_id = root_run_id
         self._new_statement_ids: set[UUID] = set()
 
@@ -527,6 +527,8 @@ class SessionTracer:
     def run_enter(self, statement: "Statement", is_async: bool, inputs):
         # we set invalid values to none here unlike in other packing places because
         #  these values may be written even if invalid
+        from bench.language.packer import check_type, pack_value
+
         run = self._create_run(
             statement=statement,
             inputs=pack_value(inputs, statement, is_output=False, none_if_invalid=True),
@@ -548,6 +550,8 @@ class SessionTracer:
             raise e
 
     def run_exit(self, statement: "Statement", outputs):
+        from bench.language.packer import check_type
+
         # post-run validation
         try:
             check_type(outputs, statement, is_output=True)
@@ -701,14 +705,15 @@ class SessionTracer:
         capture.start()
         return capture
 
-    async def _commit(self, force: bool = False, kill_pending_runs: bool = False) -> None:
+    async def _flush(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session data."""
         if not force and not self._pending_logs and not self._pending_runs:
             return  # skip if nothing to commit
 
+        self.session._log.debug(
+            "trace.flush", logs=len(self._pending_logs), runs=len(self._pending_runs)
+        )
         with self._tracing_lock:
-            logs = self._pending_logs[:]
-            self._pending_logs.clear()
             runs = list(self._pending_runs.values())
             self._pending_runs.clear()
 
@@ -717,35 +722,41 @@ class SessionTracer:
                 for run in chain(runs, self.runs.values()):
                     run._mark_dead_if_active()
 
+            logs = self._pending_logs
+            self._pending_logs = []
+
         # force commit module as well if a new statement was run
         #  (since we need those field mappings, lest OS errors)
         if any(r.statement_id in self._new_statement_ids for r in runs):
-            await self.session.acommit(optimistic=False, refresh_index=False)
+            await self.session.acommit(refresh_index=False)
 
-        success = await self.session._writer.write_session(self.session, runs, logs)
+        # push session
+        success = await self.session.runtime.push_session(self.session, runs)
         if not success:
-            raise RuntimeError(f"failed to write session {self.session}")
+            raise RuntimeError(f"failed to push session {self.session}")
+        # write logs
+        await self.session._write_logs(logs)
 
-    async def open(self, commit_interval: float = SESSION_FLUSH_INTERVAL):
+    async def open(self, flush_interval: float = SESSION_FLUSH_INTERVAL):
         self.stdout_collector.start()
         self.stderr_collector.start()
 
         _cancel = asyncio.Event()
 
-        async def _commit_loop():
+        async def _flush_loop():
             while not _cancel.is_set():
-                await self._commit()
-                await asyncio.sleep(commit_interval)
+                await self._flush()
+                await asyncio.sleep(flush_interval)
 
-        self._commit_cancel = _cancel
-        self._commit_task = asyncio.create_task(_commit_loop())
+        self._flush_cancel = _cancel
+        self._flush_task = asyncio.create_task(_flush_loop())
 
     async def close(self):
         self.stdout_collector.stop()
         self.stderr_collector.stop()
 
-        self._commit_cancel.set()
-        await self._commit(force=True, kill_pending_runs=True)  # commit pending edits
+        self._flush_cancel.set()
+        await self._flush(force=True, kill_pending_runs=True)  # commit pending edits
 
 
 # We track the active root in a contextvar but not children
@@ -789,6 +800,8 @@ def _pack_and_truncate_value(
     none_if_invalid: bool = False,
     is_output: bool = None,
 ) -> Any:
+    from bench.language.packer import map_value, pack_value_flat
+
     def _is_type_truncated(type: "HasFields") -> bool:
         return type.tag in (TypeTag.VECTOR,)
 

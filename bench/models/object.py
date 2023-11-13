@@ -9,7 +9,7 @@ import structlog
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from bench.language.remote import BLOB_HASH_LENGTH
+from bench.language.blob import BLOB_HASH_LENGTH
 from bench.models.utils import UUIDModel
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 

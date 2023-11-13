@@ -11,6 +11,7 @@ from uuid import UUID
 
 import msgpack
 
+import bench.language.secret
 import bench.language.view
 from bench import language as lang
 from bench.language import File, IssueType, Module, NodeVisitor
@@ -968,13 +969,13 @@ class SecretData:
         return f"<Secret {self}>"
 
 
-@data_packer(SecretData, lang.Secret)
-class SecretPacker(DataPacker[SecretData, lang.Secret]):
-    def pack(self, object: lang.Secret) -> SecretData:
+@data_packer(SecretData, bench.language.secret.Secret)
+class SecretPacker(DataPacker[SecretData, bench.language.secret.Secret]):
+    def pack(self, object: bench.language.secret.Secret) -> SecretData:
         return SecretData(id=object.id, sha512=object.sha512, value=object.value)
 
-    def unpack(self, data: SecretData, module: Module) -> lang.Secret:
-        return lang.Secret(id=data.id, sha512=data.sha512, value=data.value)
+    def unpack(self, data: SecretData, module: Module) -> bench.language.secret.Secret:
+        return bench.language.secret.Secret(id=data.id, sha512=data.sha512, value=data.value)
 
 
 @dataclass
