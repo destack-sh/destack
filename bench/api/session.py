@@ -483,7 +483,9 @@ class SessionQuery:
                 query, lang.C(ConditionalOp.DOES_NOT_EXIST, "parent_id")
             )
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
-        sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
+        sort = (
+            [s.to_dsl() for s in sort] if sort else [lang.Sort("created_at", SortOrder.DESCENDING)]
+        )
 
         logger.debug("runs.search", project_id=project_id, query=query, sort=sort)
         # query id only and then fetch full run from DB

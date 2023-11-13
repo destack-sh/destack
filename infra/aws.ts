@@ -459,7 +459,7 @@ export function makeRds(name: string, instanceClass: string, config: { password:
       enabledCloudwatchLogsExports: ["postgresql"],
       storageEncrypted: false, // TODO @Security: make rds storage encrypted
     },
-    { ...extra, protect: true }
+    { ...extra, protect: true, ignoreChanges: ["engineVersion"] /* until :PulumiFixed */ }
   );
   const dbInstance = new aws.rds.ClusterInstance(
     name,
@@ -473,7 +473,11 @@ export function makeRds(name: string, instanceClass: string, config: { password:
       monitoringInterval: 30,
       autoMinorVersionUpgrade: true,
     },
-    { ...extra, protect: true }
+    {
+      ...extra,
+      protect: true,
+      ignoreChanges: ["engineVersion", "monitoringInterval"] /* TODO @Infra: until :PulumiFixed  */,
+    }
   );
 
   return { dbCluster, dbInstance, dbSecurityGroup };
