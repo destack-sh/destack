@@ -20,7 +20,7 @@ from bench.settings.k8 import (
     KUBERNETES_WORKER_IMAGE,
     KUBERNETES_WORKER_NAMESPACE,
 )
-from bench.utils.utils import DEBUG, LOCAL
+from bench.utils.utils import DEBUG, LOCAL, get_from_env
 
 logger = structlog.get_logger(__name__)
 
@@ -188,11 +188,26 @@ class Deployment:
     def name(self):
         return f"{WORKER_APP_LABEL}-{self.project_id}-{self.worker_set_id.hex[:6]}"
 
-    def to_k8(self: "Deployment") -> client.V1Deployment:
+    def to_k8(self: "Deployment", project: "models.Project") -> client.V1Deployment:
         namespace = settings.KUBERNETES_WORKER_NAMESPACE
+        env_vars: dict[str, str] = {
+            "WORKER_PROJECT_ID": str(self.project_id),
+            "WORKER_SET_ID": str(self.worker_set_id),
+            # local opensearch auth
+            "LOCAL_OS_HOST": get_from_env("GLOBAL_OS_HOST"),
+            "LOCAL_OS_NAME": project.os_name,
+            "LOCAL_OS_PORT": get_from_env("GLOBAL_OS_PORT"),
+            "LOCAL_OS_USERNAME": project.os_username,
+            "LOCAL_OS_PASSWORD": project.os_password,
+            # global postgres auth
+            "LOCAL_PG_HOST": get_from_env("USER_PG_HOST"),
+            "LOCAL_PG_NAME": project.pg_name,
+            "LOCAL_PG_PORT": get_from_env("USER_PG_PORT"),
+            "LOCAL_PG_USERNAME": project.pg_username,
+            "LOCAL_PG_PASSWORD": project.pg_password,
+        }
         extended_env_vars = [
-            client.V1EnvVar(name="WORKER_PROJECT_ID", value=str(self.project_id)),
-            client.V1EnvVar(name="WORKER_SET_ID", value=str(self.worker_set_id)),
+            *(client.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
             # worker node id from k8
             client.V1EnvVar(
                 name="WORKER_NODE_ID",
@@ -301,12 +316,12 @@ def _check_k8_available():
         raise RuntimeError("Kubernetes API is not available")
 
 
-async def update_deployments(deployments: list[Deployment]) -> None:
+async def update_deployments(projects: list[models.Project], deployments: list[Deployment]) -> None:
     """Upserts deployments in k8."""
     _check_k8_available()
     async with client.ApiClient() as api:
-        for deployment in deployments:
-            k8_deployment = deployment.to_k8()
+        for project, deployment in zip(projects, deployments):
+            k8_deployment = deployment.to_k8(project)
             try:
                 logger.info("k8.deployment.update", deployment=deployment)
                 await client.AppsV1Api(api).replace_namespaced_deployment(

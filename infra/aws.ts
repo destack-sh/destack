@@ -470,7 +470,6 @@ export function makeRds(name: string, instanceClass: string, config: { password:
       engineVersion: "14.8",
       publiclyAccessible: true,
       performanceInsightsEnabled: true,
-      monitoringInterval: 30,
       autoMinorVersionUpgrade: true,
     },
     { ...extra, protect: true }

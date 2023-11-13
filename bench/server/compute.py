@@ -159,7 +159,8 @@ class OrchestrationServer(Monitored):
             return
         if KUBERNETES_ENABLED:  # update k8 deployments
             deployments = [k8.Deployment.from_model(worker_set) for worker_set in worker_sets]
-            await k8.update_deployments(deployments)
+            projects = [worker_set.project for worker_set in worker_sets]
+            await k8.update_deployments(projects, deployments)
         else:  # pretend they're all as needed
             for worker_set in worker_sets:
                 worker_set.available_replicas = worker_set.target_replicas
