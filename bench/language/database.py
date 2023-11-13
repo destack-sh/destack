@@ -130,7 +130,7 @@ class RecordBaseQuery:
             v = getattr(self, f"_{k}")
             if v is not None:
                 args_strs.append(f"{k}={v}")
-        return ", ".join(args_strs) or "()"
+        return f"{self._database} {', '.join(args_strs)}"
 
     def __repr__(self):
         return f"<RecordQuery {self}>"
@@ -160,7 +160,6 @@ class RecordBaseQuery:
             await session.acommit(refresh_index=True)
 
         # TODO @Broken: iterate through all records if query has no limit?
-        logger.debug("record.query", query=self)
         query = Conditional.and_if_set(
             self._query, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
         )
@@ -171,8 +170,11 @@ class RecordBaseQuery:
             query=query,
             limit=limit + 1,
             count=True,
+            sort=self._sort,
         )
-        os_results = await os_client.search(index=session.module.os_name, body=search)
+        os_name = self._database.module.os_name  # may be different from current session's module
+        logger.debug("record.query", query=self, actual=query, limit=limit, os_name=os_name)
+        os_results = await os_client.search(index=os_name, body=search)
         results = []
         record_mirror = mirror._packers_by_mirror[mirror.Record]
         has_more = len(os_results["hits"]["hits"]) > limit

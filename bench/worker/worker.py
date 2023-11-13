@@ -19,6 +19,7 @@ from bench.language.const import (
     SessionAccessLevel,
 )
 from bench.language.edit import EditData
+from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError
 from bench.language.module import _NodeChange
 from bench.language.packer import map_value, unkey_value, unpack_value_flat
@@ -137,6 +138,17 @@ class WorkerNode(Monitored):
     async def run(self):
         await nc_init.wait()
         self.log.info("start")
+
+        # get default modules info (we need their project_id/os_name/pg_name/...)
+        # (maybe cache it or get it more efficiently? maybe compare versions?)
+        for module_name, module in DEFAULT_MODULES.items():
+            module_ref = ModuleReference(name=module_name, version="x", id=None)
+            module_loaded, info = await self.read_module(module_ref)
+            module._project_id = info.project_id
+            module._os_name = info.os_name
+            module._pg_name = info.pg_name
+            self.cached_committed_modules[module_ref] = module, info
+
         # topics for .project.module or just .project
         m_routing = f"{self.project_id}.*" if self.project_id else ">"
         p_routing = f"{self.project_id}" if self.project_id else "*"
@@ -337,7 +349,7 @@ class WorkerNode(Monitored):
     async def ping(self, msg: NMessage[ReqPingWorkerSetPayload]):
         await msg.reply(RepPingWorkerSetPayload(success=self.healthy))
 
-    async def get_module(
+    async def read_module(
         self, ref: ModuleReference | UUID
     ) -> tuple[wire.ModuleTreeData, ModuleInfo]:
         """Gets a modules wire data"""
@@ -434,7 +446,7 @@ class ModuleWorkerProcess(RuntimeHost):
 
     async def start(self):
         # get & interp module
-        source, info = await self.node.get_module(self.module_id)
+        source, info = await self.node.read_module(self.module_id)
         self.project_id = info.project_id
         try:
             self.module = await sync_to_async(Module.make)(
