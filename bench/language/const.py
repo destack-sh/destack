@@ -270,14 +270,6 @@ class TypeStorageFormat(enum.StrEnum):
     OBJECT = "obj"
 
 
-class FieldReferenceMask(enum.IntFlag):
-    """Per-key mask for field unions"""
-
-    PICK = 2**0
-    TO_INPUT = 2**2
-    TO_OUTPUT = 2**3
-
-
 class BlobStatus(enum.StrEnum):
     PREPARED = "prepared"
     UPLOADING = "uploading"

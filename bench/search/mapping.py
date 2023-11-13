@@ -101,7 +101,7 @@ class StructFieldMapper(FieldMapper):
         if isinstance(type.reference, lang.Statement) and type.reference.issues:
             # bail out early if there are issues from a reference
             # (these don't get reported up to every reference but we still can't map it)
-            return os.Field(os.FT.OBJECT, dynamic="strict", properties=subfields)
+            return os.Field(os.FT.OBJECT, properties=subfields)
 
         for f in type.resolved_fields:
             if f._effective_tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH:
@@ -109,7 +109,7 @@ class StructFieldMapper(FieldMapper):
             else:
                 # treat as json (but not as flattened yet.. :BadJsonMapping)
                 subfields[f._typed_key] = os.Field(os.FT.OBJECT, dynamic=True, enabled=False)
-        return os.Field(os.FT.OBJECT, dynamic="strict", properties=subfields)
+        return os.Field(os.FT.OBJECT, properties=subfields)
 
 
 class VectorFieldMapper(FieldMapper):
@@ -163,8 +163,7 @@ register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
 register_mapper(VectorFieldMapper(), tags=[TypeTag.VECTOR])
 # vector
-# TODO @Feature: index JSON as flattened object fields (not available in OpenSearch 2.5) :BadJsonMapping
-register_mapper(os.Field(os.FT.OBJECT, dynamic=True, enabled=False), tags=[TypeTag.JSON])
+register_mapper(os.Field(os.FT.FLAT_OBJECT), tags=[TypeTag.JSON])
 # file
 register_mapper(
     os.Field(

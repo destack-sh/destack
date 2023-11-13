@@ -302,7 +302,9 @@ def write_edits_to_os(
     _flush()  # flush any remaining edit
 
 
-def update_field_mappings_from_db(project_v: models.ProjectVersion) -> None:
+def update_field_mappings_from_db(
+    project_v: models.ProjectVersion, dynamic: str = "strict"
+) -> None:
     from bench.models import packer
 
     logger.info("os.update_mappings", project_version=project_v)
@@ -315,7 +317,7 @@ def update_field_mappings_from_db(project_v: models.ProjectVersion) -> None:
     module.add_builtin(libs.symbolx_lib.files.get("builtins"))
     module._interp_rec()
 
-    update_field_mappings(project_v.project.os_name, module)
+    update_field_mappings(project_v.project.os_name, module, dynamic=dynamic)
 
 
 def write_module_to_os(
@@ -323,6 +325,7 @@ def write_module_to_os(
     nodes: Iterable[models.ModuleNode] | Generator[models.ModuleNode, None, None],
     *,
     wipe: bool,
+    update_mappings: bool = True,
     wait: bool = False,
 ):
     """
@@ -334,7 +337,8 @@ def write_module_to_os(
     if wipe:
         delete_module_in_os(project_v)
 
-    update_field_mappings_from_db(project_v)  # can we only do this sometimes? when?
+    if update_mappings:
+        update_field_mappings_from_db(project_v)  # can we only do this sometimes? when?
 
     project: models.Project = project_v.project
     for node in nodes:
@@ -354,19 +358,27 @@ def write_module_to_os(
         raise RuntimeError(f"failed to write module to OpenSearch: {get_os_errors(ret)}")
 
 
-def write_module_to_os_from_db(project_v: models.ProjectVersion, *, wipe: bool) -> None:
+def write_module_to_os_from_db(
+    project_v: models.ProjectVersion, *, wipe: bool, update_mappings: bool
+) -> None:
     nodes = collect_node(project_v)
-    write_module_to_os(project_v, nodes.visited.values(), wipe=wipe)
+    write_module_to_os(
+        project_v, nodes.visited.values(), wipe=wipe, update_mappings=update_mappings
+    )
 
 
 def disable_os_strict_mapping(index_name: str) -> None:
     logger.info("os.disable_strict_dynamic_mapping", index=index_name)
-    os_client_sync.indices.put_mapping(index=index_name, body={"dynamic": "false"})
+    rep = os_client_sync.indices.put_mapping(index=index_name, body={"dynamic": "false"})
+    if rep.get("error"):
+        raise RuntimeError(f"failed to disable strict dynamic mapping: {rep['error']}")
 
 
 def enable_os_strict_mapping(index_name: str) -> None:
     logger.info("os.enable_strict_dynamic_mapping", index=index_name)
-    os_client_sync.indices.put_mapping(index=index_name, body={"dynamic": "strict"})
+    rep = os_client_sync.indices.put_mapping(index=index_name, body={"dynamic": "strict"})
+    if rep.get("error"):
+        raise RuntimeError(f"failed to enable strict dynamic mapping: {rep['error']}")
 
 
 def write_runs_to_os(os_names: str | list[str], runs: list[wire.RunData]) -> None:

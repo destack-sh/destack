@@ -1,10 +1,9 @@
 import asyncio
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import timedelta
 from functools import partial
-from typing import Any, Optional, TypedDict, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 import structlog

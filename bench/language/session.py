@@ -58,7 +58,7 @@ class ModuleWriter(abc.ABC):
 
 
 class Session:
-    """A managed context for running a module."""
+    """A managed context for running a Bench module."""
 
     def __init__(
         self,
