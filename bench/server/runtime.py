@@ -112,7 +112,7 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
     else:
         owner, project = ref.name.split(".")
         if ref.version != "x":
-            raise NotImplementedError("TODO: versioned module fetch")
+            raise RuntimeError("versioned module fetch not supported (must be head)")
         project_version = (
             await Project.objects.filter(
                 slug=project,

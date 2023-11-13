@@ -76,7 +76,11 @@ class HasTask(Node):
             if mode == "auto":
                 mode = "fast"
             if mode == "fast":
-                models = ["anthropic.lib.text.claude-instant-1", "openai.lib.chat.gpt3-turbo"]
+                models = [
+                    "openai.lib.chat.gpt4-turbo",
+                    "anthropic.lib.text.claude-instant-1",
+                    "openai.lib.chat.gpt3-turbo",
+                ]
             else:
                 models = ["openai.lib.chat.gpt4-turbo", "anthropic.lib.text.claude-2"]
             models = [self.session.module.resolve(m) for m in models]
