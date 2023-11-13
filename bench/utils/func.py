@@ -232,4 +232,10 @@ generate_random_lowercase_name = functools.partial(generate_random_name, lowerca
 
 def generate_secret_password(length: int = 48) -> str:
     """URL-safe secret password."""
-    return secrets.token_urlsafe(length)[:length]
+    password = secrets.token_urlsafe(length - 4)[: length - 4]
+    # ensure at least one lowercase, uppercase, digit, special character
+    password += random.choice(string.ascii_lowercase)
+    password += random.choice(string.ascii_uppercase)
+    password += random.choice(string.digits)
+    password += random.choice("!@#$%^&*()_+-=")
+    return password
