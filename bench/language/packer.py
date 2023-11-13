@@ -42,6 +42,7 @@ from bench.language.field import (
 from bench.language.module import NS, Node, ScopeNode
 from bench.language.secret import Secret
 from bench.language.statement import Statement
+from bench.language.session import Session
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
