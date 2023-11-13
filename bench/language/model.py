@@ -88,7 +88,6 @@ class HasModel(HasFields, Node):
 
         # try to read from cache if enabled
         if cache and self.session.cache_inferences:
-            # TODO @Performance: use leases to cooperatively inference endpoints
             cached_inference = await self.cache.get(cache_subkey)
             if cached_inference is not None:
                 try:
