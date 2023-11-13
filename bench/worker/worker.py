@@ -359,7 +359,12 @@ class WorkerNode(Monitored):
             log.debug("module.fetch", cached=True)
             return cached
         module_rep: NMessage[RepReadModulePayload] = await request(
-            NMessageType.READ_MODULE, ReqReadModulePayload(ref), RepReadModulePayload, retry=3
+            NMessageType.READ_MODULE,
+            ReqReadModulePayload(ref),
+            RepReadModulePayload,
+            retry=5,
+            timeout=15,
+            retry_delay=10,
         )
         if module_rep.p.module.committed:
             self.cached_committed_modules[ref] = module_rep.p.module, module_rep.p.project_id
@@ -829,7 +834,7 @@ class ModuleWorkerProcess(RuntimeHost):
 
     async def run_proxy_inference(self, statement: Statement, inputs: dict, timeout: float) -> dict:
         req = ReqRunInferencePayload(
-            project_id=self.module.project_id,
+            project_id=statement.module.project_id,
             model_path=statement.path,
             inputs=inputs,
             timeout=timeout,
