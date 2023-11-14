@@ -1,9 +1,23 @@
-import psycopg
+from itertools import chain
+from uuid import UUID
+
+from psycopg import sql
 
 import bench.language as lang
 from bench.language import HasDatabase, Module
 from bench.language.const import MNT, TypeStorageFormat
-from bench.storage.core import BASE_RECORD_TABLE, Column, ColumnType, Table
+from bench.storage.client import async_pg_cursor
+from bench.storage.core import (
+    BASE_RECORD_TABLE,
+    COMMON_TABLES,
+    Column,
+    ColumnType,
+    Construct,
+    ConstructInfo,
+    ConstructKind,
+    Table,
+    get_record_table_name,
+)
 
 COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
     TypeStorageFormat.STRING: ColumnType.STRING,
@@ -35,45 +49,59 @@ def map_to_table(statement: lang.Statement) -> Table:
     constraints = []
 
     return Table(
-        name=f"record_{statement.key.replace('-', '')}",
-        columns=(*BASE_RECORD_TABLE.columns, *columns),
-        indexes=(*BASE_RECORD_TABLE.indexes, *indexes),
-        constraints=(*BASE_RECORD_TABLE.constraints, *constraints),
+        name=get_record_table_name(statement.ck),
+        columns=(*(c.clone() for c in BASE_RECORD_TABLE.columns), *columns),
+        indexes=(*(i.clone() for i in BASE_RECORD_TABLE.indexes), *indexes),
+        constraints=(*(c.clone() for c in BASE_RECORD_TABLE.constraints), *constraints),
     )
 
 
-async def upsert_pg_table(cur: psycopg.AsyncCursor, table: Table) -> None:
-    """Upserts a table schema into Postgres."""
-    # create table
-    await cur.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {table.name} (
-            {', '.join(c.sql() for c in table.columns)}
-        )
-        """
-    )
-
-    # create indexes
-    for index in table.indexes:
-        await cur.execute(
-            f"""
-            CREATE INDEX IF NOT EXISTS {index.name} ON {table.name} ({', '.join(index.columns)})
-            """
-        )
-
-    # create constraints
-    for constraint in table.constraints:
-        await cur.execute(
-            f"""
-            ALTER TABLE {table.name} ADD CONSTRAINT {constraint.name} {constraint.sql()}
-            """
-        )
+async def get_pg_constructs(pg_name: str) -> dict[UUID, ConstructInfo]:
+    raise NotImplementedError  # nocheckin fetch from CONSTRUCT_TABLE for current migration
 
 
 async def update_pg_schema(pg_name: str, module: Module) -> None:
     """Updates Postgres tables (i.e. schema) for a module's databases."""
     databases: list[lang.Statement] = [
-        s for s in module._nodes if s.mnt == MNT.STATEMENT and HasDatabase in s._components
+        s
+        for s in module._nodes
+        if s.mnt == MNT.STATEMENT and HasDatabase in s._components and not s.ephemeral
     ]
-    [map_to_table(s) for s in databases]
-    raise NotImplementedError  # nocheckin do it
+    tables = (*COMMON_TABLES, *(map_to_table(s) for s in databases))
+
+    # get missing constructs (diff existing and current)
+    existing_constructs = await get_pg_constructs(pg_name)
+    current_constructs: dict[UUID, Construct] = {c.id: c for c in chain(t.walk() for t in tables)}
+    missing_constructs = {
+        id: c for id, c in current_constructs.items() if id not in existing_constructs
+    }
+
+    # create missing constructs
+    async with async_pg_cursor(pg_name, autocommit=False) as cur:
+        for construct in missing_constructs.values():
+            if construct.kind == ConstructKind.TABLE:
+                await cur.execute(
+                    sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(construct.name))
+                )
+            elif construct.kind == ConstructKind.COLUMN:
+                await cur.execute(
+                    sql.SQL("ALTER TABLE {} ADD COLUMN {} {}").format(
+                        sql.Identifier(construct.table_name), sql.SQL(construct.sql())
+                    )
+                )
+            elif construct.kind == ConstructKind.INDEX:
+                await cur.execute(
+                    sql.SQL("CREATE INDEX {} on {}").format(
+                        sql.SQL(construct.sql()),
+                        sql.Identifier(construct.table_name),
+                    )
+                )
+            elif construct.kind == ConstructKind.CONSTRAINT:
+                await cur.execute(
+                    sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
+                        sql.Identifier(construct.table_name),
+                        sql.SQL(construct.sql()),
+                    )
+                )
+            else:
+                raise RuntimeError(f"unexpected construct: {construct}")
