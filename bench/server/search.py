@@ -212,6 +212,11 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
     rep = os_client_sync.security.create_role(
         role=owner_role_name,
         body={
+            "cluster_permissions": [
+                # this is required for all bulk indexing
+                #  (the actual permission is checked per index@)
+                "indices:data/write/bulk",
+            ],
             "index_permissions": [
                 {
                     "index_patterns": [project.os_name],
@@ -219,7 +224,7 @@ def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
                     "masked_fields": [],
                     "allowed_actions": ["*"],
                 }
-            ]
+            ],
         },
     )
     if rep.get("error"):

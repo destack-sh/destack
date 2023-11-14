@@ -148,7 +148,7 @@ defineExpose({
     >
       <!-- Loading / empty state -->
       <div v-if="loading || visibleHistory?.length == 0" class="self-center justify-self-center">
-        <BusySpinnerIcon v-if="loading" class="mx-auto h-5 w-5 animate-spin text-white" />
+        <BusySpinnerIcon v-if="loading" class="mx-auto h-8 w-8 animate-spin text-white" />
         <span v-else class="text-gray-500">No terminal history</span>
       </div>
       <!-- Previous runs -->
