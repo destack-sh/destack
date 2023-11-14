@@ -645,6 +645,7 @@ class BlobMapper(TypeMapper):
             content_length=value["content_length"],
             sha512=value["sha512"],
             status=BlobStatus[value["status"]],
+            parent=scope,
             _session=session,
         )
 
@@ -674,7 +675,7 @@ class SecretMapper(TypeMapper):
     def unpack_value(
         self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
     ) -> Any:
-        return Secret(id=UUID(value["id"]), sha512=value["sha512"], _session=session)
+        return Secret(id=UUID(value["id"]), sha512=value["sha512"], parent=scope, _session=session)
 
     def pack_value(self, type: HasType, value: Any) -> Any:
         return {

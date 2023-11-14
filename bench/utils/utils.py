@@ -38,7 +38,9 @@ def get_from_env(
         elif default is not None:
             value = default
         else:
-            raise ValueError(f'The environment variable "{key}" is missing and required for Bench.')
+            raise ValueError(
+                f'Environment variable "{key}" is required (alt="{alt}", type_cast={type_cast}).'
+            )
     if type_cast is not None:
         if type_cast is bool:
             value = str_to_bool(value)
