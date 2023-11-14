@@ -19,6 +19,7 @@ from bench.language.module import (
     _ChangeEffect,
     _Passthrough,
     nchildren,
+    ninternal,
     node,
     node_component,
     nparent,
@@ -505,6 +506,7 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
 
 @node_component
 class HasDatabase(Node):
+    ephemeral: bool = ninternal(default=True)
     views: NodeList["View"] = nchildren(MNT.VIEW, NRel.Named | NRel.Ordered)
     records: NodeList["Record"] = nchildren(MNT.RECORD, NRel.Remote, custom_list=RecordList)
 

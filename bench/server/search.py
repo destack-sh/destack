@@ -11,7 +11,7 @@ from bench.search import core as os
 from bench.search import mirror
 from bench.search.client import get_os_errors, os_client_sync
 from bench.search.core import IndexType
-from bench.search.crud import (
+from bench.search.mapping import (
     BENCH_LOCAL_MNTS,
     DOCUMENTS_BY_INDEX,
     SEARCH_SEMANTIC_EDIT_TYPES,
@@ -60,13 +60,14 @@ def _create_index(
         tokenizer.value: definition for tokenizer, definition in os.CUSTOM_TOKENIZERS.items()
     }
     analyzers = {analyzer.value: definition for analyzer, definition in os.CUSTOM_ANALYZERS.items()}
-    logger.info(
-        "os.create_index",
+
+    log = logger.bind(
         index_name=index_name,
         shards=shards,
         replicas=replicas,
         fields=list(fields.keys()),
     )
+    log.info("os.create_index")
     result = os_client_sync.indices.create(
         index=index_name,
         body={
@@ -99,9 +100,10 @@ def _create_index(
         )
         # reopen index
         os_client_sync.indices.open(index=index_name)
+    log.info("os.create_index.done")
 
 
-def create_global_search_index(upsert: bool = False) -> None:
+def create_global_os_index(upsert: bool = False) -> None:
     logger.info("os.create_global_index")
     _create_index(
         os.GLOBAL_INDEX_NAME,
@@ -112,7 +114,7 @@ def create_global_search_index(upsert: bool = False) -> None:
     )
 
 
-def create_global_search_role(upsert: bool = False) -> None:
+def create_global_os_role() -> None:
     # creates a global role (that doesn't do anything yet)
     # every user has this role to read public indices
     rep = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
@@ -132,7 +134,7 @@ def create_global_search_role(upsert: bool = False) -> None:
         logger.info("os.global_role_exists", name=GLOBAL_READ_ONLY_ROLE, rep=rep)
 
 
-def create_local_search_index(project: models.Project, *, upsert: bool) -> None:
+def create_local_os_index(project: models.Project, *, upsert: bool) -> None:
     """
     Creates the OpenSearch index and corresponding roles/user for a project.
     """

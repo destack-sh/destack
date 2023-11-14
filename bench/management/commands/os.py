@@ -6,9 +6,9 @@ from bench import models
 from bench.models import Project
 from bench.search.client import os_client_sync
 from bench.server.search import (
-    create_global_search_index,
-    create_global_search_role,
-    create_local_search_index,
+    create_global_os_index,
+    create_global_os_role,
+    create_local_os_index,
     enable_os_strict_mapping,
     update_os_schema_from_db,
     write_module_to_os_from_db,
@@ -40,11 +40,11 @@ class Command(BaseCommand):
         else:
             projects = []
         if action == "bootstrap":
-            create_global_search_index(upsert=True)
-            create_global_search_role(upsert=True)
+            create_global_os_index(upsert=True)
+            create_global_os_role()
         elif action == "create":
             for project in projects:
-                create_local_search_index(project, upsert=True)
+                create_local_os_index(project, upsert=True)
         elif action == "delete":
             for project in projects:
                 logger.info("opensearch.delete", project=project)

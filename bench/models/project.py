@@ -95,12 +95,12 @@ class ProjectManager(models.Manager["Project"]):
 
         # infra
         if create_infra:
-            from bench.server.search import create_local_search_index
+            from bench.server.search import create_local_os_index
 
             logger.info("project.create_infra", project=project)
             start_time = datetime.now()
             create_local_worker_set(project, upsert=False)
-            create_local_search_index(project, upsert=False)
+            create_local_os_index(project, upsert=False)
             duration = datetime.now() - start_time
             logger.info(
                 "project.create_infra.done", project=project, duration=duration.total_seconds()
