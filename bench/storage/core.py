@@ -1,5 +1,6 @@
 import enum
 from dataclasses import dataclass
+from datetime import datetime
 
 
 class ColumnType(enum.StrEnum):
@@ -21,7 +22,6 @@ class ColumnType(enum.StrEnum):
     BYTES = "Bytes"
 
 
-@dataclass
 class Column:
     """
     A high-level SQL column definition.
@@ -35,6 +35,16 @@ class Column:
     is_nullable: bool = False
     default: str | None = None
 
+    def __str__(self):
+        args_str = ", ".join(
+            f"{name}={self.__dict__[name]}"
+            for name in ("is_array", "is_primary_key", "is_unique", "is_nullable", "default")
+        )
+        return f"{self.name} ({self.type}) [{args_str}])"
+
+    def __repr__(self):
+        return f"<Column {self}>"
+
 
 class ConstraintType(enum.StrEnum):
     """
@@ -46,16 +56,24 @@ class ConstraintType(enum.StrEnum):
     CHECK = "CHECK"
 
 
-@dataclass
+dataclass(ceq=True, frozen=True)
+
+
 class Constraint:
     """
     A high-level SQL constraint.
     """
 
+    name: str
     type: ConstraintType
     columns: list[str]
-    name: str
     condition: str | None = None
+
+    def __str__(self):
+        return f"{self.name} ({self.type}) [{self.columns}, condition={self.condition}])"
+
+    def __repr__(self):
+        return f"<Constraint {self}>"
 
 
 class IndexType(enum.StrEnum):
@@ -69,19 +87,29 @@ class IndexType(enum.StrEnum):
     GIST = "GIST"
 
 
-@dataclass
+dataclass(ceq=True, frozen=True)
+
+
 class Index:
     """
     A high-level SQL index.
     """
 
+    name: str
     type: IndexType
     columns: list[str]
-    name: str
     condition: str | None = None
 
+    def __str__(self):
+        return f"{self.name} ({self.type}) [{self.columns}, condition={self.condition}])"
 
-@dataclass
+    def __repr__(self):
+        return f"<Index {self}>"
+
+
+dataclass(ceq=True, frozen=True)
+
+
 class Table:
     """
     A high-level SQL table.
@@ -92,10 +120,18 @@ class Table:
     constraints: list[Constraint] = ()
     indexes: list[str] = ()
 
+    def __str__(self):
+        return (
+            f"{self.name} ({self.columns}, constraints={self.constraints}, indexes={self.indexes})"
+        )
+
+    def __repr__(self):
+        return f"<Table {self}>"
+
 
 # template for actual record tables
 BASE_RECORD_TABLE = Table(
-    "base_record",
+    "record_base",
     columns=[
         Column("id", ColumnType.UUID, is_primary_key=True),
         Column("ck", ColumnType.UUID),
@@ -120,7 +156,7 @@ BASE_RECORD_TABLE = Table(
 
 # 'hufflepuff' table for ephemeral 'tables' without actual tables
 EPHEMERAL_RECORD_TABLE = Table(
-    "ephemeral_record",
+    "record_ephemeral",
     columns=[
         *BASE_RECORD_TABLE.columns,
         Column("statement_id", ColumnType.UUID),
@@ -128,6 +164,31 @@ EPHEMERAL_RECORD_TABLE = Table(
         Column("value", ColumnType.JSON, is_nullable=True),
     ],
 )
+
+# for internal use only
+MIGRATION_TABLE = Table(
+    "_migration",
+    columns=[
+        Column("id", ColumnType.INT, is_primary_key=True),
+        Column("applied_at", ColumnType.DATETIME),
+        Column("runtime_version", ColumnType.STRING),
+        Column("module_version", ColumnType.STRING),
+        Column("hash", ColumnType.STRING),
+    ],
+)
+
+
+@dataclass
+class Migration:
+    """
+    A recorded SQL migration.
+    """
+
+    id: int
+    version: str
+    hash: str
+    sql: str
+    applied_at: datetime
 
 
 #

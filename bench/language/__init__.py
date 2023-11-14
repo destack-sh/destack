@@ -10,10 +10,10 @@ from .const import (
     TypeTag,
     ViewLayout,
 )
-from .database import Record
+from .database import HasDatabase, Record
 from .edit import render, render_as_python
 from .expression import C, Conditional, ConditionalOp, Sort, SortMode, SortOrder
-from .field import Field, HasFields, ResolvedField, Type, TypeStorageFormat
+from .field import Field, HasFields, HasType, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
 from .module import Module, Node, ScopeNode
@@ -39,6 +39,8 @@ __all__ = [
     "HasTags",
     "HasText",
     "HasTriggers",
+    "HasDatabase",
+    "HasType",
     "HasValue",
     "Issue",
     "IssueType",

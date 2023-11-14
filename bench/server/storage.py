@@ -103,4 +103,4 @@ async def update_pg_schema_from_db(project_v: models.ProjectVersion) -> None:
     module.add_builtin(libs.symbolx_lib.files.get("builtins"))
     module._interp_rec()
 
-    update_pg_schema(project_v.project.os_name, module)
+    await update_pg_schema(project_v.project.os_name, module)
