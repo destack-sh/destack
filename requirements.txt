@@ -309,8 +309,12 @@ prometheus-client==0.17.1
     # via django-prometheus
 protobuf==4.24.3
     # via -r requirements.in
-psycopg2==2.9.5
+psycopg[binary,pool]==3.1.12
     # via -r requirements.in
+psycopg-binary==3.1.12
+    # via psycopg
+psycopg-pool==3.2.0
+    # via psycopg
 pyasn1==0.5.0
     # via
     #   pyasn1-modules
@@ -453,6 +457,8 @@ typing-extensions==4.7.1
     #   libcst
     #   mypy
     #   opentelemetry-sdk
+    #   psycopg
+    #   psycopg-pool
     #   pydantic
     #   pydantic-core
     #   sqlalchemy

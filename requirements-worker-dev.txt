@@ -407,8 +407,12 @@ protobuf==4.24.3
     #   googleapis-common-protos
 psutil==5.9.2
     # via -r requirements-worker.in
-psycopg2==2.9.3
+psycopg[binary,pool]==3.1.12
     # via -r requirements-worker.in
+psycopg-binary==3.1.12
+    # via psycopg
+psycopg-pool==3.2.0
+    # via psycopg
 pyairtable==2.1.0.post1
     # via -r requirements-worker.in
 pyarrow==10.0.1
@@ -621,6 +625,8 @@ typing-extensions==4.7.1
     #   janus
     #   jax
     #   mypy
+    #   psycopg
+    #   psycopg-pool
     #   pyairtable
     #   pydantic
     #   pyee
