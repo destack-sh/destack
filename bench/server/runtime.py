@@ -14,7 +14,16 @@ from django.db import transaction
 from more_itertools import first
 
 from bench import models, settings
-from bench.language import C, Conditional, ConditionalOp, Module, Trigger, TriggerType, wire
+from bench.language import (
+    C,
+    Conditional,
+    ConditionalOp,
+    Module,
+    Trigger,
+    TriggerType,
+    libs,
+    wire,
+)
 from bench.language.builtin import symbolx_lib
 from bench.language.cache import CacheAsync
 from bench.language.const import (
@@ -120,7 +129,7 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
             .filter(
                 models.Q(organization__owner_slug_id=owner) | models.Q(user__owner_slug_id=owner)
             )
-            .select_related("head")
+            .select_related("head", "user", "organization")
             .aget()
         )
         project_version = project_version.head
@@ -130,6 +139,16 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
     if project_version.committed:
         _cached_modules[ref] = module, project_version.project
     return module, project_version.project
+
+
+async def interp_module(ref: ModuleReference | UUID) -> tuple[Module, models.Project]:
+    module, project = await read_module(ref)
+    module = wire.unpack_module(module.nodes, exclude=INTERP_NODE_TYPES, session=None)
+    for dependency in libs.DEFAULT_MODULES.values():
+        module.add_dependency(dependency)
+    module.add_builtin(symbolx_lib.files.get("builtins"))
+    module._interp_rec()
+    return module, project
 
 
 async def fetch(ref: ModuleReference) -> wire.ModuleTreeData:

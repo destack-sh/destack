@@ -5,7 +5,7 @@ from django.db import transaction
 
 from bench import models
 from bench.models import Project
-from bench.server.storage import create_local_pg_database, update_pg_schema_from_db
+from bench.server.sql import create_local_pg_database, update_pg_schema_from_db
 
 logger = structlog.get_logger(__name__)
 
@@ -21,7 +21,7 @@ class Command(BaseCommand):
     def get_project(self, slug: str) -> Project:
         owner, project_name = slug.split("/")
         project = Project.objects.get_by_slug(owner, project_name)
-        for attr in ("user", "organization", "pg_username", "pg_password"):
+        for attr in ("user", "organization", "head", "pg_username", "pg_password"):
             getattr(project, attr)
         return project
 
@@ -29,7 +29,9 @@ class Command(BaseCommand):
     def handle(self, action: str, slug: str | None, *args, **options):
         if slug == "all":
             projects = (
-                models.Project.objects.select_related("user", "organization").defer(None).all()
+                models.Project.objects.select_related("user", "organization", "head")
+                .defer(None)
+                .all()
             )
         elif slug:
             projects = [self.get_project(slug)]
@@ -42,6 +44,9 @@ class Command(BaseCommand):
                 async_to_sync(create_local_pg_database)(project, upsert=True)
         elif action == "schema":
             for project in projects:
-                async_to_sync(update_pg_schema_from_db)(project)
+                project_v = project.head
+                project_v.project = project  # 'preloaded' project
+                project_v.project.owner  # noqa why do we need to load this again?
+                async_to_sync(update_pg_schema_from_db)(project_v)
         else:
             raise ValueError("Unknown action")

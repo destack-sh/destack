@@ -6,6 +6,8 @@ from itertools import chain
 from typing import ClassVar, Union
 from uuid import UUID, uuid5
 
+import psycopg
+
 from bench.language.const import BENCH_UUID_NAMESPACE
 
 
@@ -38,6 +40,16 @@ class ConstructKind(enum.StrEnum):
 
 
 @dataclass
+class ConstructInfo:
+    """Reconstructed info for a construct."""
+
+    id: UUID
+    kind: ConstructKind
+    name: str
+    hash: int
+
+
+@dataclass
 class Construct:
     kind: ClassVar[ConstructKind]
     name: str
@@ -47,6 +59,10 @@ class Construct:
 
     def walk(self) -> tuple["Construct", ...]:
         return (self,)
+
+    @property
+    def hash(self) -> int:
+        return hash(self)
 
     def __hash__(self):
         """Computes a stable hash of this construct and any child constructs."""
@@ -59,6 +75,11 @@ class Construct:
 
 @dataclass
 class TableConstruct(Construct):
+    @property
+    def table(self) -> "Table":
+        assert self._table is not None, f"{self} is not attached to a table"
+        return self._table
+
     @property
     def _table(self) -> Union["Table", None]:
         raise NotImplementedError
@@ -161,7 +182,7 @@ class ConstraintType(enum.StrEnum):
 
 
 @dataclass
-class Constraint(Construct):
+class Constraint(TableConstruct):
     """
     A high-level SQL constraint.
     """
@@ -208,7 +229,7 @@ class IndexType(enum.StrEnum):
 
 
 @dataclass
-class Index(Construct):
+class Index(TableConstruct):
     """
     A high-level SQL index.
     """
@@ -218,8 +239,16 @@ class Index(Construct):
     name: str
     type: IndexType
     columns: list[str]
+    expression: str | None = None
     condition: str | None = None
     _table: Union["Table", None] = None
+
+    def __post_init__(self):
+        if self.expression is not None:
+            # check that all columns are in the expression
+            for column in self.columns:
+                if column not in self.expression:
+                    raise ValueError(f"{column} is not in {self.expression} (in {self!r})")
 
     def __str__(self):
         table_name = self._table.name if self._table else None
@@ -235,7 +264,11 @@ class Index(Construct):
         return hash(self) == hash(other)
 
     def sql(self) -> str:
-        parts = [self.name, self.type, f"({', '.join(self.columns)})"]
+        parts = [self.name, self.type]
+        if self.expression is not None:
+            parts.append(f"({self.expression})")
+        else:
+            parts.append(f"({', '.join(self.columns)})")
         if self.condition is not None:
             parts.append(f"WHERE {self.condition}")
         return " ".join(parts)
@@ -300,7 +333,7 @@ BASE_RECORD_TABLE = Table(
         ),
     ),
 )
-# 'hufflepuff' table for ephemeral 'tables' without actual tables
+# 'hufflepuff' table for ephemeral 'tables' without real tables
 EPHEMERAL_RECORD_TABLE = Table(
     "record_ephemeral",
     columns=(
@@ -338,30 +371,32 @@ CONSTRUCT_TABLE = Table(
     ),
 )
 
-COMMON_TABLES = (EPHEMERAL_RECORD_TABLE, MIGRATION_TABLE, CONSTRUCT_TABLE)
+INTERNAL_TABLES = (EPHEMERAL_RECORD_TABLE, MIGRATION_TABLE, CONSTRUCT_TABLE)
 
 
 @dataclass
-class ConstructInfo:
-    """Reconstructed info for a construct."""
+class MigrationInfo:
+    """Reconstructed info for a migration."""
 
     id: int
-    kind: ConstructKind
-    name: str
+    version: str
     hash: int
+    applied_at: datetime
 
 
 @dataclass
 class Migration:
-    """
-    A recorded SQL migration.
-    """
+    """A stored SQL migration."""
 
     id: int
-    version: str
-    hash: str
-    sql: str
-    applied_at: datetime
+
+    async def apply(
+        self,
+        cur: psycopg.AsyncCursor,
+        tables: dict[str, Table],
+        constructs: dict[UUID, Construct],
+    ):
+        raise NotImplementedError
 
 
 class PostgresColumnType(enum.StrEnum):
