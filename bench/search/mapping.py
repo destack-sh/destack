@@ -277,7 +277,7 @@ class ExistenceQueryCompiler(Compiler):
     def compile(self, info: CompilationInfo, query: ExistenceConditional) -> dict[str, Any]:
         if query.op == ConditionalOp.EXISTS:
             return {"exists": {"field": query.key}}
-        elif query.op == ConditionalOp.DOES_NOT_EXIST:
+        elif query.op == ConditionalOp.NOT_EXISTS:
             return {"bool": {"must_not": {"exists": {"field": query.key}}}}
         else:
             raise RuntimeError(f"unexpected query: {query}")

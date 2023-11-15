@@ -19,7 +19,6 @@ from bench.language.module import (
     _ChangeEffect,
     _Passthrough,
     nchildren,
-    ninternal,
     node,
     node_component,
     nparent,
@@ -160,7 +159,7 @@ class RecordBaseQuery:
         if session._editor.edits or session._past_commits:
             await session.acommit(refresh_index=True)
 
-        # TODO @Broken: iterate through all records if query has no limit?
+        # TODO @Broken: iterate through all records if query has no limit? nocheckin
         query = Conditional.and_if_set(
             self._query, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
         )
@@ -506,7 +505,6 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
 
 @node_component
 class HasDatabase(Node):
-    ephemeral: bool = ninternal(default=True)
     views: NodeList["View"] = nchildren(MNT.VIEW, NRel.Named | NRel.Ordered)
     records: NodeList["Record"] = nchildren(MNT.RECORD, NRel.Remote, custom_list=RecordList)
 
@@ -515,6 +513,11 @@ class HasDatabase(Node):
         #  (which is necessary because HasFields also sets key)
         if self.key is None:
             self.key = self._derive_key()
+
+    @property
+    def ephemeral(self) -> bool:
+        # basically whether this should be 1:1 a real database table or just virtual
+        return True  # nocheckin: make database non-ephemeral by default
 
     @staticmethod
     def _derive_key(instance: "HasDatabase") -> str | None:

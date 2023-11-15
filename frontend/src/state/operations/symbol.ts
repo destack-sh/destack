@@ -380,64 +380,6 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: batchSoftDeleteRecordMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation batchSoftDeleteRecord($ids: [GlobalID!]!, $statementId: GlobalID!) {
-        batchSoftDeleteRecord(input: { ids: $ids, statementId: $statementId }) {
-          ... on RecordBatch {
-            records {
-              id
-              deletedAt
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `),
-    {
-      optimisticResponse: (vars: { ids: string[] }) =>
-        ({
-          batchSoftDeleteRecord: {
-            __typename: "RecordBatch",
-            records: vars.ids.map((id) => ({
-              __typename: "Record",
-              id: id,
-              deletedAt: new Date().toISOString(),
-            })),
-          },
-        } as BatchSoftDeleteRecordMutation),
-    }
-  );
-
-  const { mutate: batchRestoreRecordMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation batchRestoreRecord($ids: [GlobalID!]!, $statementId: GlobalID!) {
-        batchRestoreRecord(input: { ids: $ids, statementId: $statementId }) {
-          ... on RecordBatch {
-            records {
-              id
-              deletedAt
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `),
-    {
-      optimisticResponse: (vars: { ids: string[] }) =>
-        ({
-          batchRestoreRecord: {
-            __typename: "RecordBatch",
-            records: vars.ids.map((id) => ({
-              __typename: "Record",
-              id: id,
-              deletedAt: null,
-            })),
-          },
-        } as BatchRestoreRecordMutation),
-    }
-  );
-
   async function createRecord(
     tx: Transaction | null,
     id: string,
@@ -507,30 +449,6 @@ export function useSymbolContentOps() {
       },
       undo: async () => {
         return await restoreRecordMut({ statementId, id });
-      },
-    });
-  }
-
-  async function batchSoftDeleteRecord(statementId: string, ids: string[]) {
-    await ops.perform({
-      type: "statement.batchSoftDeleteRecord",
-      do: async () => {
-        return await batchSoftDeleteRecordMut({ statementId, ids });
-      },
-      undo: async () => {
-        return await batchRestoreRecordMut({ statementId, ids });
-      },
-    });
-  }
-
-  async function batchRestoreRecord(statementId: string, ids: string[]) {
-    await ops.perform({
-      type: "statement.batchRestoreRecord",
-      do: async () => {
-        return await batchRestoreRecordMut({ statementId, ids });
-      },
-      undo: async () => {
-        return await batchSoftDeleteRecordMut({ statementId, ids });
       },
     });
   }
@@ -1640,8 +1558,6 @@ export function useSymbolContentOps() {
     updateRecord,
     deleteRecord,
     softDeleteRecord,
-    batchSoftDeleteRecord,
-    batchRestoreRecord,
     createField,
     updateField,
     moveField,

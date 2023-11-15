@@ -23,24 +23,22 @@ class ConditionalOp(enum.StrEnum):
     NOT = "NOT"
     AND = "AND"
     OR = "OR"
-    # comparison (exact)
+    # comparison
     EQUALS = "EQUALS"
     NOT_EQUALS = "NOT_EQUALS"
-    # comparison (range)
     GREATER_THAN = "GREATER_THAN"
     GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
     LESS_THAN = "LESS_THAN"
     LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
+    # containment
+    CONTAINS = "CONTAINS"
+    NOT_CONTAINS = "NOT_CONTAINS"
     # string comparison
     MATCHES = "MATCHES"
     STARTS_WITH = "STARTS_WITH"
     # existence
     EXISTS = "EXISTS"
-    DOES_NOT_EXIST = "DOES_NOT_EXIST"
-    # xy
-    INTERSECTS = "INTERSECTS"
-    DISJOINT = "DISJOINT"
-    WITHIN = "WITHIN"
+    NOT_EXISTS = "DOES_NOT_EXIST"
     # vector
     NEAR = "NEAR"
 
@@ -71,7 +69,7 @@ _OP_SIGN: dict[ConditionalOp, str] = {
     ConditionalOp.MATCHES: "~=",
     ConditionalOp.STARTS_WITH: "^=",
     ConditionalOp.EXISTS: "?",
-    ConditionalOp.DOES_NOT_EXIST: "?!",
+    ConditionalOp.NOT_EXISTS: "?!",
 }
 
 
@@ -85,14 +83,12 @@ class ExpressionOps:
         ConditionalOp.LESS_THAN,
         ConditionalOp.LESS_THAN_OR_EQUALS,
     }
-    COND_EXISTENCE = {ConditionalOp.EXISTS, ConditionalOp.DOES_NOT_EXIST}
-    COND_XY = {ConditionalOp.INTERSECTS, ConditionalOp.DISJOINT, ConditionalOp.WITHIN}
+    COND_EXISTENCE = {ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS}
     COND_VECTOR = {ConditionalOp.NEAR}
 
 
 RANKED_CONDITIONAL_OPS = {
     ConditionalOp.MATCHES,
-    *ExpressionOps.COND_XY,
     *ExpressionOps.COND_VECTOR,
 }
 
@@ -242,14 +238,14 @@ class ComparisonConditional(FieldConditional):
         return f"{self._field_str} {self.op.sign} {self.value!r}"
 
 
-@expression(ConditionalOp.EXISTS, ConditionalOp.DOES_NOT_EXIST)
+@expression(ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS)
 class ExistenceConditional(FieldConditional):
     def __str__(self):
         return f"{self._field_str}.{self.op.name.lower()}"
 
     def __invert__(self):
         if self.op == ConditionalOp.EXISTS:
-            return C(ConditionalOp.DOES_NOT_EXIST, field=self.field, subkey=self.subkey)
+            return C(ConditionalOp.NOT_EXISTS, field=self.field, subkey=self.subkey)
         else:
             return C(ConditionalOp.EXISTS, field=self.field, subkey=self.subkey)
 
@@ -519,9 +515,9 @@ class FieldQueryOps:
     def exists(self) -> Conditional:
         return C(ConditionalOp.EXISTS, self._source_key)
 
-    @_check_support(op=ConditionalOp.DOES_NOT_EXIST)
+    @_check_support(op=ConditionalOp.NOT_EXISTS)
     def not_exists(self) -> Conditional:
-        return C(ConditionalOp.DOES_NOT_EXIST, self._source_key)
+        return C(ConditionalOp.NOT_EXISTS, self._source_key)
 
     # xy
 

@@ -467,7 +467,7 @@ class SessionQuery:
                 )
             else:
                 query = lang.Conditional.and_if_set(
-                    query, lang.C(ConditionalOp.DOES_NOT_EXIST, "statement_id")
+                    query, lang.C(ConditionalOp.NOT_EXISTS, "statement_id")
                 )
         if statement_cks is not None:
             if statement_cks:
@@ -476,11 +476,11 @@ class SessionQuery:
                 )
             else:
                 query = lang.Conditional.and_if_set(
-                    query, lang.C(ConditionalOp.DOES_NOT_EXIST, "statement_ck")
+                    query, lang.C(ConditionalOp.NOT_EXISTS, "statement_ck")
                 )
         if root_only:
             query = lang.Conditional.and_if_set(
-                query, lang.C(ConditionalOp.DOES_NOT_EXIST, "parent_id")
+                query, lang.C(ConditionalOp.NOT_EXISTS, "parent_id")
             )
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
         sort = (
