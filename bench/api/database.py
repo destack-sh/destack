@@ -120,7 +120,7 @@ class RecordBatchRestoreInput(RecordInput, BatchEditInput):
 
 @strawberry.type
 class RecordMutation:
-    # nocheckin: reroute api record mutation to runtime host
+    # nocheckin: reroute db_edits to runtime host
     @db_edit(MET.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         record = models.Record(

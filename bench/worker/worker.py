@@ -42,7 +42,6 @@ from bench.msg.messages import (
     NMessageType,
     RepDownloadBlobPayload,
     RepGetEnvironmentPayload,
-    RepGetModuleHeadPayload,
     RepKillRunPayload,
     RepMarkUploadedBlobPayload,
     RepPingWorkerSetPayload,
@@ -53,11 +52,10 @@ from bench.msg.messages import (
     RepRunStatementPayload,
     RepStartRunPayload,
     RepUploadBlobPayload,
-    RepWriteModulePayload,
+    RepWriteEditsPayload,
     RepWriteSessionPayload,
     ReqDownloadBlobPayload,
     ReqGetEnvironmentPayload,
-    ReqGetModuleHeadPayload,
     ReqKillRunPayload,
     ReqMarkUploadedBlobPayload,
     ReqPingWorkerSetPayload,
@@ -68,7 +66,7 @@ from bench.msg.messages import (
     ReqRunStatementPayload,
     ReqStartRunPayload,
     ReqUploadBlobPayload,
-    ReqWriteModulePayload,
+    ReqWriteEditsPayload,
     ReqWriteSessionPayload,
     StartRunErrorType,
 )
@@ -104,10 +102,17 @@ class WorkerNode(Monitored):
      (see :BE-213)
     """
 
-    def __init__(self, worker_node_id: str, worker_set_id: UUID | None, project_id: UUID | None):
+    def __init__(
+        self,
+        worker_node_id: str,
+        worker_set_id: UUID | None,
+        project_id: UUID | None,
+        module_id: UUID | None,
+    ):
         self.worker_set_id = worker_set_id
         self.worker_node_id = worker_node_id
         self.project_id = project_id
+        self.module_id = module_id
         self.workers: dict[UUID, ModuleWorkerProcess] = {}
         self.subs = []
         self.tasks = TaskManager()
@@ -166,16 +171,8 @@ class WorkerNode(Monitored):
                 self.mark_as_active_if_active_forever(interval=WORKER_ACTIVE_PUBLISH_INTERVAL)
             )
 
-        if self.project_id is not None:
-            # preload worker for project (assumes it's at head)
-            rep: NMessage[RepGetModuleHeadPayload] = await request(
-                NMessageType.GET_MODULE_HEAD,
-                ReqGetModuleHeadPayload(project_id=self.project_id),
-                retry=3,
-                timeout=3,
-                reply_t=RepGetModuleHeadPayload,
-            )
-            await self._prepare_worker(rep.p.module_id)
+        if self.module_id is not None:
+            await self._prepare_worker(self.module_id)
 
         self._ready.set()
 
@@ -726,14 +723,14 @@ class ModuleWorkerProcess(RuntimeHost):
     async def commit_edits(self, edits: list[EditData], refresh_index: bool) -> bool:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
         self.log.debug("module.write", edits=len(edits))
-        req = ReqWriteModulePayload(
+        req = ReqWriteEditsPayload(
             module_id=self.module_id,
             edits=edits,
             client=self.node.client,
             refresh_index=refresh_index,
         )
-        rep: NMessage[RepWriteModulePayload] = await request(
-            NMessageType.WRITE_MODULE, req, RepWriteModulePayload, retry=3
+        rep: NMessage[RepWriteEditsPayload] = await request(
+            NMessageType.WRITE_EDIT, req, RepWriteEditsPayload, retry=3
         )
         return rep.p.success
 

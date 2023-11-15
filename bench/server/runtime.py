@@ -59,7 +59,6 @@ from bench.msg.messages import (
     ModuleInternalChangedPayload,
     NMessageType,
     RepDownloadBlobPayload,
-    RepGetModuleHeadPayload,
     RepMarkUploadedBlobPayload,
     RepPullWorkerRunsPayload,
     RepReadModulePayload,
@@ -71,10 +70,9 @@ from bench.msg.messages import (
     RepStartRunPayload,
     RepUploadBlobPayload,
     RepWakeRuntimePayload,
-    RepWriteModulePayload,
+    RepWriteEditsPayload,
     RepWriteSessionPayload,
     ReqDownloadBlobPayload,
-    ReqGetModuleHeadPayload,
     ReqMarkUploadedBlobPayload,
     ReqPullWorkerRunsPayload,
     ReqReadModulePayload,
@@ -86,7 +84,7 @@ from bench.msg.messages import (
     ReqStartRunPayload,
     ReqUploadBlobPayload,
     ReqWakeRuntimePayload,
-    ReqWriteModulePayload,
+    ReqWriteEditsPayload,
     ReqWriteSessionPayload,
     RunsChangedGlobalPayload,
     SessionChangedPayload,
@@ -194,9 +192,8 @@ class RuntimeServer(Monitored):
         await nc_init.wait()
         logger.info("start")
         self.subs = [
-            await handle_reply(f"{NMessageType.GET_MODULE_HEAD}.>", self.get_module_head),
             await handle_reply(NMessageType.READ_MODULE, self.read_module),
-            await handle_reply(NMessageType.WRITE_MODULE, self.write_module),
+            await handle_reply(NMessageType.WRITE_EDIT, self.write_edits),
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.PULL_WORKER_RUNS, self.pull_runs),
             await handle_reply(NMessageType.WAKE_RUNTIME, self.wake_runtime),
@@ -242,14 +239,6 @@ class RuntimeServer(Monitored):
         return runtime
 
     @message_handler
-    async def get_module_head(self, msg: NMessage[ReqGetModuleHeadPayload]) -> None:
-        logger.debug("module.head", msg=msg)
-        project = await Project.objects.select_related("user", "organization").aget(
-            id=msg.p.project_id
-        )
-        await msg.reply(RepGetModuleHeadPayload(module_id=project.head_id))
-
-    @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
         logger.debug("module.read", msg=msg)
         module, project = await read_module(msg.p.ref)
@@ -264,12 +253,12 @@ class RuntimeServer(Monitored):
         )
 
     @message_handler
-    async def write_module(self, msg: NMessage[ReqWriteModulePayload]) -> None:
+    async def write_edits(self, msg: NMessage[ReqWriteEditsPayload]) -> None:
         logger.debug("module.write", msg=msg)
         # TODO @Security!: check if msg origin has write access to module
         runtime = await self._prepare_runtime(msg.p.module_id)
         try:
-            await runtime.write_module(
+            await runtime.write_edits(
                 msg.p.edits, origins=(msg.p.client,), refresh_index=msg.p.refresh_index
             )
             logger.debug("module.write.done", msg=msg)
@@ -278,7 +267,7 @@ class RuntimeServer(Monitored):
             sentry_capture(e)
             logger.error("module.write.failed", msg=msg, exc_info=True)
             success = False
-        await msg.reply(RepWriteModulePayload(success=success))
+        await msg.reply(RepWriteEditsPayload(success=success))
 
     @message_handler
     async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
@@ -983,7 +972,7 @@ class RuntimeHost:
         self.log.debug("runtime.apply_edits", total=len(edits), duration=duration)
         await self._on_module_changed(change)
 
-    async def write_module(
+    async def write_edits(
         self,
         edits: list[EditData],
         origins: tuple[ClientOrigin] = None,

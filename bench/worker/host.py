@@ -26,10 +26,17 @@ class WorkerHost:
     During local development, this may also launch the worker node in the same process.
     """
 
-    def __init__(self, worker_set_id: UUID | None, worker_node_id: str, project_id: UUID | None):
+    def __init__(
+        self,
+        worker_set_id: UUID | None,
+        worker_node_id: str,
+        project_id: UUID | None,
+        module_id: UUID | None,
+    ):
         self.worker_set_id = worker_set_id
         self.worker_node_id = worker_node_id
         self.project_id = project_id
+        self.module_id = module_id
         self.worker_process: Popen | None = None
         self.subs = []
         self._stopped = False
