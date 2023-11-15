@@ -224,7 +224,7 @@ class Session:
 
         from bench.language.edit import EditBundle
 
-        # nocheckin: intercept and commit record edit through local database
+        # nocheckin: 5. intercept and commit record edit through local database
         self._log.debug("session.commit", editor=self._editor, refresh_index=refresh_index)
         edits = EditBundle(edits).compact()
         self._editor.reset()

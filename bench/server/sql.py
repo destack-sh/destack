@@ -88,7 +88,7 @@ async def create_local_pg_database(project: models.Project, *, upsert: bool) -> 
 
 
 async def update_pg_schema_from_db(project_v: models.ProjectVersion) -> None:
-    # nocheckin: consolidate with update_os_schema_from_db? (at least in common call sites)
+    # nocheckin: 4. also run this when update_os_schema_from_db? (consolidate in common call sites)
     from bench.server.runtime import interp_module
 
     logger.info("pg.update_mappings", project_version=repr(project_v))

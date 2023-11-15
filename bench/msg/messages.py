@@ -23,6 +23,7 @@ from bench.language.wire import (
     EnvironmentData,
     LogEntryData,
     ModuleTreeData,
+    RecordData,
     RunData,
     SecretData,
     SessionData,
@@ -64,7 +65,7 @@ class NMessageType(StrEnum):
     PROJECT_CHANGED = "project.changed"
     MODULE_CHANGED = "module.changed"
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal sync
-    # nocheckin: remove module 'internal' distinction
+    # nocheckin: 3. remove module 'internal' edit distinction
     SESSION_CHANGED = "session.changed"
     RUNS_CHANGED = "runs.changed"
     LOGS_CHANGED = "logs.changed"
@@ -73,12 +74,12 @@ class NMessageType(StrEnum):
     # read/write via runtime
     READ_MODULE = "module.read"
     READ_MODULE_REP = "module.read.rep"
-    WRITE_EDIT = "module.write"
-    WRITE_EDIT_REP = "module.write.rep"
+    WRITE_EDITS = "module.write"
+    WRITE_EDITS_REP = "module.write.rep"
     WRITE_SESSION = "session.write"
     WRITE_SESSION_REP = "session.write.rep"
-    SEARCH_RUNS = "module.search.runs"
-    SEARCH_RUNS_REP = "module.search.runs.rep"
+    SEARCH_RECORDS = "module.search.records"
+    SEARCH_RECORDS_REP = "module.search.records.rep"
     DOWNLOAD_BLOB = "object.read"
     DOWNLOAD_BLOB_REP = "object.read.rep"
     UPLOAD_BLOB = "object.write"
@@ -126,12 +127,12 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.RESTART_WORKER_SET: NMessageType.RESTART_WORKER_SET_REP,
     NMessageType.DO_RESTART_WORKER_NODE: NMessageType.DO_RESTART_WORKER_NODE_REP,
     NMessageType.READ_MODULE: NMessageType.READ_MODULE_REP,
-    NMessageType.WRITE_EDIT: NMessageType.WRITE_EDIT_REP,
+    NMessageType.WRITE_EDITS: NMessageType.WRITE_EDITS_REP,
     NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
     NMessageType.DOWNLOAD_BLOB: NMessageType.DOWNLOAD_BLOB_REP,
+    NMessageType.SEARCH_RECORDS: NMessageType.SEARCH_RECORDS_REP,
     NMessageType.UPLOAD_BLOB: NMessageType.UPLOAD_BLOB_REP,
     NMessageType.MARK_UPLOADED_BLOB: NMessageType.MARK_UPLOADED_BLOB_REP,
-    NMessageType.SEARCH_RUNS: NMessageType.SEARCH_RUNS_REP,
     NMessageType.REVEAL_SECRET: NMessageType.REVEAL_SECRET_REP,
     NMessageType.RUN_PROXY_INFERENCE: NMessageType.RUN_PROXY_INFERENCE_REP,
     NMessageType.RUN_PROXY_STATEMENT: NMessageType.RUN_PROXY_STATEMENT_REP,
@@ -331,7 +332,7 @@ class RepReadModulePayload(Payload):
     pg_name: str
 
 
-@payload(NMessageType.WRITE_EDIT)
+@payload(NMessageType.WRITE_EDITS)
 class ReqWriteEditsPayload(Payload):
     module_id: UUID
     edits: list[EditData]
@@ -339,7 +340,7 @@ class ReqWriteEditsPayload(Payload):
     refresh_index: bool
 
 
-@payload(NMessageType.WRITE_EDIT_REP)
+@payload(NMessageType.WRITE_EDITS_REP)
 class RepWriteEditsPayload(Payload):
     success: bool
 
@@ -370,21 +371,21 @@ class ReqSearch(abc.ABC, Payload):
 class RepSearch(abc.ABC):
     total: Optional[int]
     limit: int
-    start_cursor: Optional[str] = None
-    end_cursor: Optional[str] = None
     error: Optional[str] = None
 
 
-@payload(NMessageType.SEARCH_RUNS)
-class ReqSearchRunsPayload(ReqSearch, Payload):
+@payload(NMessageType.SEARCH_RECORDS)
+class ReqSearchRecordsPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
-    statements_ids: Optional[list[UUID]] = None
-    statements_cks: Optional[list[UUID]] = None
+    statement_id: UUID = required_field()
+    statement_ck: UUID = required_field()
+    statement_key: str = required_field()
 
 
-@payload(NMessageType.SEARCH_RUNS_REP)
-class RepSearchRunPayload(RepSearch, Payload):
-    elements: Optional[list[RunData]] = None
+@payload(NMessageType.SEARCH_RECORDS_REP)
+class RepSearchRecordsPayload(RepSearch, Payload):
+    records: Optional[list[RecordData]] = None
+    cursors: Optional[list[str]] = None
 
 
 @payload(NMessageType.DOWNLOAD_BLOB)

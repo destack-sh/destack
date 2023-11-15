@@ -153,13 +153,14 @@ class RecordBaseQuery:
         from bench.search import mirror
         from bench.search.mapping import prepare_os_query
 
+        # nocheckin: 7. reroute api record search through local DB (if possible)?
         # force flush and index if there are any pending database edits
         #  (or previous edits that were already flushed but didn't refresh the index)
         # TODO @Performance: force flush module for record search only if needed by query
         if session._editor.edits or session._past_commits:
             await session.acommit(refresh_index=True)
 
-        # TODO @Broken: iterate through all records if query has no limit? nocheckin
+        # nocheckin: iterate through all records if query has no limit
         query = Conditional.and_if_set(
             self._query, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
         )

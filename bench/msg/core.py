@@ -213,7 +213,7 @@ def message_handler(func=None):
 async def request(
     type: NMessageType,
     payload: Payload,
-    reply_t: Type[PayloadT],
+    reply_t: Type[PayloadT] = None,
     *,
     timeout: float = 10,
     retry: int = 0,
@@ -249,7 +249,7 @@ async def request(
             await asyncio.sleep(retry_delay)
 
     reply_msg = _parse_message(reply.data)
-    if not isinstance(reply_msg.payload, reply_t):
+    if reply_t and not isinstance(reply_msg.payload, reply_t):
         raise TypeError(f"expected message {reply_t} for {reply_t}, got {message}")
     reply_msg.msg = reply
     log.debug(
