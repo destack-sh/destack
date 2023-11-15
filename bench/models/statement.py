@@ -65,12 +65,6 @@ class Field(CrudNode):
     def parent(self) -> Statement:
         return self.statement
 
-    def soft_delete(self):
-        self.deleted_at = utcnow_with_tz()
-
-    def restore(self):
-        self.deleted_at = None
-
     objects = FieldManager()
 
     class Meta:
@@ -120,12 +114,6 @@ class Trigger(CrudNode):
     def parent(self) -> Statement:
         return self.statement
 
-    def soft_delete(self):
-        self.deleted_at = utcnow_with_tz()
-
-    def restore(self):
-        self.deleted_at = None
-
     class Meta:
         # interval must be >60 if set
         constraints = [
@@ -159,12 +147,6 @@ class Tagging(CrudNode):
     @property
     def parent(self):
         return self.statement
-
-    def soft_delete(self):
-        self.deleted_at = utcnow_with_tz()
-
-    def restore(self):
-        self.deleted_at = None
 
 
 class TileManager(models.Manager["Tile"]):
@@ -338,16 +320,6 @@ class Statement(CrudNode):
     @property
     def path(self) -> str:
         return self.file.path + ":" + str(self.order_key)
-
-    def soft_delete(self):
-        self.deleted_at = utcnow_with_tz()
-        # soft delete descendants (that aren't yet deleted)
-        self.descendants.filter(deleted_at=None).update(deleted_at=self.deleted_at)
-
-    def restore(self):
-        # restore descendants (that were deleted at the same time)
-        self.descendants.filter(deleted_at=self.deleted_at).update(deleted_at=None)
-        self.deleted_at = None
 
     objects: StatementManager = StatementManager()
 

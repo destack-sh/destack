@@ -272,31 +272,9 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
     label: "Duplicate",
     icon: DocumentDuplicateIcon,
     active: duplicating.value,
-    disabled: duplicating.value || effectiveReadonly.value,
+    disabled: true,
     action: async () => {
-      if (fileHeader.value == null) return;
-      duplicating.value = true;
-      const targetIdentity = newNodeIdentity(bench.projectVersionId as string, "File");
-      try {
-        const ret = await ops.file.paste(
-          null,
-          fileHeader.value?.id,
-          targetIdentity.id,
-          targetIdentity.ck,
-          module.id.value,
-          null
-        );
-        if (ret?.data?.pasteFile.__typename == "File") {
-          bench.focusFile({
-            __typename: "File",
-            id: targetIdentity.id,
-            ck: targetIdentity.ck,
-            name: fileHeader.value?.name ?? "",
-          });
-        }
-      } finally {
-        duplicating.value = false;
-      }
+      // TODO @Feature: re-implement duplicate with new edit system :BE-114
     },
   },
   // we don't have a proper 'duplicate to' action yet (if you're read-only, or just generally)

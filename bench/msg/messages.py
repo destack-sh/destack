@@ -64,8 +64,6 @@ class NMessageType(StrEnum):
     CLIENT_CHANGED = "client.changed"
     PROJECT_CHANGED = "project.changed"
     MODULE_CHANGED = "module.changed"
-    MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal sync
-    # nocheckin: 3. remove module 'internal' edit distinction
     SESSION_CHANGED = "session.changed"
     RUNS_CHANGED = "runs.changed"
     LOGS_CHANGED = "logs.changed"
@@ -242,11 +240,6 @@ class ProjectChangedPayload(ProjectScoped, HasOrigin, Payload):
 
 @payload(NMessageType.MODULE_CHANGED)
 class ModuleChangedPayload(ModuleScoped, HasOrigin, Payload):
-    edits: list[EditData]
-
-
-@payload(NMessageType.MODULE_INTERNAL_CHANGED)
-class ModuleInternalChangedPayload(ModuleScoped, HasOrigin, Payload):
     edits: list[EditData]
 
 

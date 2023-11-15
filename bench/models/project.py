@@ -679,25 +679,6 @@ class FileManager(models.Manager):
         target_file = unpacked.nodes_by_id[target_id]
         return target_file
 
-    def get_descendants(
-        self, file_ids: list[UUID], deleted_at: Optional[datetime] = None
-    ) -> models.QuerySet[File]:
-        """Gets descendants of files with given ids (including the files themselves)."""
-        query = """
-           WITH RECURSIVE descendants(id, parent_file_id) AS (
-               SELECT id, parent_file_id
-               FROM bench_file
-               WHERE id = ANY(%s)
-               UNION ALL
-               SELECT bench_file.id, bench_file.parent_file_id
-               FROM bench_file
-               INNER JOIN descendants ON descendants.id = bench_file.parent_file_id
-           )
-           SELECT DISTINCT id
-           FROM descendants
-        """
-        return File._base_manager.filter(id__in=RawSQL(query, (file_ids,)), deleted_at=deleted_at)
-
 
 class File(CrudNode):
     """
@@ -745,16 +726,6 @@ class File(CrudNode):
     @property
     def root_statements(self) -> models.QuerySet["Statement"]:
         return self.statements.filter(parent=None)
-
-    def soft_delete(self):
-        self.deleted_at = utcnow_with_tz()
-        self.statements.filter(deleted_at=None).update(deleted_at=self.deleted_at)
-
-    def restore(self):
-        Statement._base_manager.filter(file=self, deleted_at=self.deleted_at).update(
-            deleted_at=None
-        )
-        self.deleted_at = None
 
     objects = FileManager()
 

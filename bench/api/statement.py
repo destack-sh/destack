@@ -5,7 +5,6 @@ import strawberry
 import strawberry_django
 import structlog
 from django.core.exceptions import ValidationError
-from django.db.models import F
 from strawberry import UNSET, auto, lazy, relay
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
@@ -306,19 +305,19 @@ class StatementMutation:
     @db_edit(MET.SOFT_DELETE_STATEMENT, atomic=True)
     def soft_delete_statement(self, input: StatementSoftDeleteInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.soft_delete()
+        statement.deleted_at = utcnow_with_tz()
         return statement
 
     @db_edit(MET.RESTORE_STATEMENT, atomic=True)
     def restore_statement(self, input: StatementRestoreInput) -> Statement | OperationInfo:
         # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)
-        statement.restore()
+        statement.deleted_at = None
         return statement
 
     @db_edit(MET.DELETE_STATEMENT)
     def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
-        raise NotImplementedError("only for sync")
+        raise NotImplementedError
 
     @db_edit(MET.MOVE_STATEMENT, atomic=True)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
@@ -345,12 +344,9 @@ class StatementMutation:
         statement_ids = [UUID(i.node_id) for i in input.ids]
         # imitate Statement.soft_delete but for a batch
         deleted_at = utcnow_with_tz()
-        models.Statement.objects.filter(id__in=statement_ids).update(deleted_at=deleted_at)
-        models.Statement.objects.get_descendants(statement_ids, deleted_at=None).update(
-            deleted_at=deleted_at
-        )
-        # use base manager since the statements are now deleted
-        statements = models.Statement._base_manager.filter(id__in=statement_ids)
+        statements = models.Statement.objects.filter(id__in=statement_ids)
+        for statement in statements:
+            statement.deleted_at = deleted_at
         return StatementBatch(statements=list(statements))
 
     @db_edit(MET.RESTORE_STATEMENT, atomic=True, batch=True, register=False)
@@ -359,14 +355,9 @@ class StatementMutation:
     ) -> StatementBatch | OperationInfo:
         statement_ids = [UUID(i.node_id) for i in input.ids]
         # imitate Statement.restore but for a batch
-        deleted_at = models.Statement._base_manager.values_list("deleted_at", flat=True).get(
-            id=statement_ids[0]
-        )
         statements = models.Statement._base_manager.filter(id__in=statement_ids)
-        models.Statement.objects.get_descendants(statement_ids, deleted_at=deleted_at).update(
-            deleted_at=None
-        )
-        statements.update(deleted_at=None)
+        for statement in statements:
+            statement.deleted_at = None
         return StatementBatch(statements=list(statements))
 
     @db_edit(MET.MOVE_STATEMENT, atomic=True, batch=True, register=False)
@@ -387,16 +378,6 @@ class StatementMutation:
             parent_id = UUID(input.parent_ids[i].node_id) if input.parent_ids[i] else None
             statement.parent_statement = statements_parents_by_id.get(parent_id)
             statement.order_key = input.order_keys[i]
-            statement.revision = F("revision") + 1
-        models.Statement.objects.bulk_update(
-            statements, ["file_id", "parent_statement_id", "order_key", "revision"]
-        )
-        # refresh revisions from DB
-        new_revisions = models.Statement.objects.filter(id__in=statement_ids).values_list(
-            "revision"
-        )
-        for i, statement in enumerate(statements):
-            statement.revision = new_revisions[i][0]
         return StatementBatch(statements=list(statements))
 
     # we check auth manually here (simpler for copy/paste across projects & versions)
@@ -722,19 +703,17 @@ class SymbolMutation:
     def soft_delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
         # use _base_manager since soft deleted type nodes are not visible
         field = models.Field._base_manager.get(id=input.id.node_id)
-        field.soft_delete()
+        field.deleted_at = utcnow_with_tz()
         return field
 
     @db_edit(MET.DELETE_FIELD)
     def delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
-        field = models.Field.objects.get(id=input.id.node_id)
-        field.delete()
-        return field
+        raise NotImplementedError
 
     @db_edit(MET.RESTORE_FIELD)
     def restore_field(self, input: FieldRestoreInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
-        field.restore()
+        field.deleted_at = None
         return field
 
     @db_edit(MET.CREATE_TAGGING)
@@ -757,20 +736,18 @@ class SymbolMutation:
 
     @db_edit(MET.DELETE_TAGGING)
     def delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
-        tagging = models.Tagging.objects.get(id=input.id.node_id)
-        tagging.delete()
-        return tagging
+        raise NotImplementedError
 
     @db_edit(MET.SOFT_DELETE_TAGGING)
     def soft_delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
-        tagging.soft_delete()
+        tagging.deleted_at = utcnow_with_tz()
         return tagging
 
     @db_edit(MET.RESTORE_TAGGING)
     def restore_tagging(self, input: TaggingRestoreInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
-        tagging.restore()
+        tagging.deleted_at = None
         return tagging
 
     @db_edit(MET.CREATE_TRIGGER)
@@ -807,18 +784,16 @@ class SymbolMutation:
 
     @db_edit(MET.DELETE_TRIGGER)
     def delete_trigger(self, input: TriggerDeleteInput) -> Trigger | OperationInfo:
-        trigger = models.Trigger.objects.get(id=input.id.node_id)
-        trigger.delete()
-        return trigger
+        raise NotImplementedError
 
     @db_edit(MET.SOFT_DELETE_TRIGGER)
     def soft_delete_trigger(self, input: TriggerDeleteInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
-        trigger.soft_delete()
+        trigger.deleted_at = utcnow_with_tz()
         return trigger
 
     @db_edit(MET.RESTORE_TRIGGER)
     def restore_trigger(self, input: TriggerRestoreInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
-        trigger.restore()
+        trigger.deleted_at = None
         return trigger

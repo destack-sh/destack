@@ -67,6 +67,7 @@ class RecordManager(models.Manager):
 
 class Record(CrudModel, DetachedModuleNode, Revisioned):
     """
+    nocheckin: 7. remove global Record model
     A record in a database (may be detached if the database is not versioned).
     We may choose not to store the actual record value here later, but for now it's convenient.
     """
@@ -85,12 +86,6 @@ class Record(CrudModel, DetachedModuleNode, Revisioned):
     @property
     def parent(self) -> Statement:
         return self.statement
-
-    def soft_delete(self):
-        self.deleted_at = utcnow_with_tz()
-
-    def restore(self):
-        self.deleted_at = None
 
     objects = RecordManager()
 

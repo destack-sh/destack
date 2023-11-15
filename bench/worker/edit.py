@@ -135,8 +135,6 @@ def get_api_edit_from_internal(edit: EditData) -> list[EditData]:
     would have caused that edit. For some edits, this is theoretical,
     since e.g., hard deletes aren't used in the UX (only for internal synchronisation).
     """
-    if not edit.type.simple:
-        raise ValueError(f"edit is not a simple internal edit: {edit}")
     input = get_gql_input_from_edit(edit)
     api_edit = EditData(
         type=edit.type,
@@ -152,12 +150,7 @@ def get_api_edit_from_internal(edit: EditData) -> list[EditData]:
 
 
 # extra fields in API edits that are not in internal module data
-_EXTRA_FIELDS_BY_SCOPE = {
-    MNT.FILE: {
-        "parent_id": None,
-        "directory": False,
-    },
-}
+_EXTRA_FIELDS_BY_SCOPE = {MNT.FILE: {"parent_id": None, "directory": False}}
 
 
 def get_gql_input_from_edit(edit: EditData) -> Optional[dict]:

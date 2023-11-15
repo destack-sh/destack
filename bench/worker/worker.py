@@ -38,7 +38,6 @@ from bench.msg.core import (
 from bench.msg.messages import (
     ClientOrigin,
     LogsChangedPayload,
-    ModuleInternalChangedPayload,
     NMessageType,
     RepDownloadBlobPayload,
     RepGetEnvironmentPayload,
@@ -69,6 +68,7 @@ from bench.msg.messages import (
     ReqWriteEditsPayload,
     ReqWriteSessionPayload,
     StartRunErrorType,
+    ModuleChangedPayload,
 )
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
@@ -158,9 +158,7 @@ class WorkerNode(Monitored):
         m_routing = f"{self.project_id}.*" if self.project_id else ">"
         p_routing = f"{self.project_id}" if self.project_id else "*"
         self.subs = [
-            await subscribe(
-                f"{NMessageType.MODULE_INTERNAL_CHANGED}.{m_routing}", cb=self.module_changed
-            ),
+            await subscribe(f"{NMessageType.MODULE_CHANGED}.{m_routing}", cb=self.module_changed),
             await handle_reply(f"{NMessageType.START_RUN}.{m_routing}", self.start_run),
             await handle_reply(f"{NMessageType.KILL_RUN}.{m_routing}", self.kill_run),
             await handle_reply(f"{NMessageType.GET_ENVIRONMENT}.{p_routing}", self.get_environment),
@@ -215,7 +213,7 @@ class WorkerNode(Monitored):
             await asyncio.sleep(interval)
 
     @message_handler
-    async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]):
+    async def module_changed(self, msg: NMessage[ModuleChangedPayload]):
         if msg.p.module_id not in self.workers:
             # ignore if we don't have a worker for this module
             return

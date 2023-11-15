@@ -12,7 +12,7 @@ from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_module_node_access
-from bench.api.sync import BatchEditInput, db_edit
+from bench.api.sync import db_edit
 from bench.api.type import MET
 from bench.api.utils import (
     Conditional,
@@ -27,6 +27,7 @@ from bench.msg import NMessage
 from bench.msg.core import request
 from bench.msg.messages import NMessageType, RepSearchRecordsPayload, ReqSearchRecordsPayload
 from bench.search import mirror
+from bench.utils.dt import utcnow_with_tz
 
 
 @strawberry_django.type(models.Record)
@@ -101,25 +102,8 @@ class RecordRestoreInput(RecordInput, strawberry_django.NodeInput):
     pass
 
 
-@strawberry.input
-class RecordBatchSoftDeleteInput(RecordInput, BatchEditInput):
-    ids: list[GlobalID]
-
-    def unbatch(self) -> list:
-        return [RecordDeleteInput(statement_id=self.statement_id, id=i) for i in self.ids]
-
-
-@strawberry.input
-class RecordBatchRestoreInput(RecordInput, BatchEditInput):
-    ids: list[GlobalID]
-
-    def unbatch(self) -> list:
-        return [RecordRestoreInput(statement_id=self.statement_id, id=i) for i in self.ids]
-
-
 @strawberry.type
 class RecordMutation:
-    # nocheckin: 2. reroute db_edits to runtime host
     @db_edit(MET.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         record = models.Record(
@@ -141,27 +125,25 @@ class RecordMutation:
     @db_edit(MET.SOFT_DELETE_RECORD)
     def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
         record = models.Record.objects.get(id=UUID(input.id.node_id))
-        record.soft_delete()
+        record.deleted_at = utcnow_with_tz()
         return record
 
     @db_edit(MET.RESTORE_RECORD)
     def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
         record = models.Record._base_manager.get(id=UUID(input.id.node_id))
-        record.restore()
+        record.deleted_at = None
         return record
 
     @db_edit(MET.DELETE_RECORD)
     def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=UUID(input.id.node_id))
-        record.delete()
-        return record
+        raise NotImplementedError
 
 
 RECORDS_LIMIT = 100
 
 
 @strawberry.type
-class RecordQuery:  # avoid name conflict with DatabaseQuery
+class RecordQuery:
     @strawberry_django.field
     async def search_records(
         self,

@@ -244,7 +244,6 @@ enum EditType {
   RENAME_FIELD
   UPDATE_FIELD_TEXT
   UPDATE_FIELD_TYPE
-  UPDATE_FIELD_METADATA
   MOVE_FIELD
   SOFT_DELETE_FIELD
   RESTORE_FIELD
@@ -398,14 +397,6 @@ input FileMoveInput {
 }
 
 union FileOperationInfo = File | OperationInfo
-
-input FilePasteInput {
-  sourceId: GlobalID!
-  targetVersionId: GlobalID!
-  targetId: GlobalID!
-  targetCk: UUID!
-  parentId: GlobalID = null
-}
 
 input FileRenameInput {
   id: GlobalID!
@@ -614,7 +605,6 @@ type Mutation {
   restoreFile(input: NodeInput!): FileOperationInfo!
   moveFile(input: FileMoveInput!): FileOperationInfo!
   renameFile(input: FileRenameInput!): FileOperationInfo!
-  pasteFile(input: FilePasteInput!): FileOperationInfo!
   wakeRuntime(input: WakeRuntimeInput!): WakeRuntimePayloadOperationInfo!
   wakeWorkerSet(input: WakeWorkerSetInput!): WakeWorkerSetPayloadOperationInfo!
   restartWorkerSet(input: RestartWorkerSetInput!): RestartWorkerSetPayloadOperationInfo!
