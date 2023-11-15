@@ -393,7 +393,7 @@ def prepare_os_query(
     return search
 
 
-def encode_cursor(record: dict[str, Any], after: Optional[str], i: int) -> str:
+def encode_os_cursor(record: dict[str, Any], after: Optional[str], i: int) -> str:
     # for relevance-scored search, cursor is from offset, so add i to it
     # otherwise, cursor is search_after, so encode 'sort' from record
     if "sort" in record:

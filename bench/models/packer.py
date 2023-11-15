@@ -235,7 +235,7 @@ def pack_node(
     excluded: Collection[type[ModelT]] = DEFAULT_EXCLUDED,
 ) -> _Packed:
     """Pack a node and its descendants"""
-    # nocheckin: update pack_node with local records (no longer in our main DB)
+    # nocheckin: 6. update pack_node with local records (no longer in our main DB)
     visited = collect_node(*models, filter=filter, excluded=excluded)
     nodes = {node.id: pack_node_flat(node) for node in visited.visited.values()}
     roots = [nodes[node.id] for node in visited.roots]
@@ -303,6 +303,7 @@ def pack_node_flat(model: ModelT) -> NodeDataT:
 
 def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> list[NodeT]:
     """Unpack a node (flat) (can return multiple nodes for normalized/related models)"""
+    # nocheckin: probably shouldn't return a list here anymore?
     packer = _node_packers_by_data[type(data)]
     unpacked = packer.unpack(data, parent)
     if not isinstance(unpacked, list):

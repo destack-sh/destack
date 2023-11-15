@@ -1,4 +1,4 @@
 from .compute import OrchestrationServer
-from .runtime import RuntimeServer
+from .runtime import RuntimeSupervisor
 
-__all__ = ["OrchestrationServer", "RuntimeServer"]
+__all__ = ["OrchestrationServer", "RuntimeSupervisor"]

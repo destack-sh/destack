@@ -60,7 +60,7 @@ from bench.msg.messages import (
 from bench.search import mirror
 from bench.search.client import os_client_sync
 from bench.search.core import DocumentType
-from bench.search.mapping import encode_cursor, prepare_os_query
+from bench.search.mapping import encode_os_cursor, prepare_os_query
 from bench.server.search import write_runs_to_os
 
 if TYPE_CHECKING:
@@ -518,7 +518,7 @@ class SessionQuery:
 
         logger.debug("runs.search.resolve", project_id=project_id, hits=len(db_runs))
         for i, r in enumerate(hits[0:effective_limit]):
-            cursor = encode_cursor(r, after, i)
+            cursor = encode_os_cursor(r, after, i)
             run = db_runs[i]
             edges.append(relay.Edge(node=run, cursor=cursor))
             # pres-set related fields where we know we only need the id
@@ -601,7 +601,7 @@ class SessionQuery:
         for i, r in enumerate(hits[0:effective_limit]):
             doc = mirror.LogEntry.from_dict(r["_source"], r["_id"])
             node = LogEntry.from_os(doc)
-            cursor = encode_cursor(r, after, i)
+            cursor = encode_os_cursor(r, after, i)
             edge = relay.Edge(node=node, cursor=cursor)
             edges.append(edge)
         page_info = relay.PageInfo(

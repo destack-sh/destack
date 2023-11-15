@@ -730,7 +730,7 @@ class ModuleWorkerProcess(RuntimeHost):
             refresh_index=refresh_index,
         )
         rep: NMessage[RepWriteEditsPayload] = await request(
-            NMessageType.WRITE_EDIT, req, RepWriteEditsPayload, retry=3
+            NMessageType.WRITE_EDITS, req, RepWriteEditsPayload, retry=3
         )
         return rep.p.success
 

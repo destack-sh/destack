@@ -3,13 +3,13 @@ from uuid import UUID
 
 import strawberry
 import strawberry_django
+from asgiref.sync import sync_to_async
 from strawberry import relay
-from strawberry.relay import GlobalID
+from strawberry.relay import GlobalID, PageInfo
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
-from bench import language as lang
 from bench import models
 from bench.api.auth import check_module_node_access
 from bench.api.sync import BatchEditInput, db_edit
@@ -22,12 +22,11 @@ from bench.api.utils import (
     Sort,
     ThingBatch,
 )
-from bench.language import ConditionalOp
-from bench.models import ModuleAccessLevel
+from bench.models import ModuleAccessLevel, packer
+from bench.msg import NMessage
+from bench.msg.core import request
+from bench.msg.messages import NMessageType, RepSearchRecordsPayload, ReqSearchRecordsPayload
 from bench.search import mirror
-from bench.search.client import os_client_sync
-from bench.search.core import DocumentType
-from bench.search.mapping import encode_cursor, prepare_os_query
 
 
 @strawberry_django.type(models.Record)
@@ -120,7 +119,7 @@ class RecordBatchRestoreInput(RecordInput, BatchEditInput):
 
 @strawberry.type
 class RecordMutation:
-    # nocheckin: reroute db_edits to runtime host
+    # nocheckin: 2. reroute db_edits to runtime host
     @db_edit(MET.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         record = models.Record(
@@ -164,7 +163,7 @@ RECORDS_LIMIT = 100
 @strawberry.type
 class RecordQuery:  # avoid name conflict with DatabaseQuery
     @strawberry_django.field
-    def search_records(
+    async def search_records(
         self,
         info: Info,
         statement_id: GlobalID,
@@ -174,41 +173,41 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
         limit: Optional[int] = None,
         count: Optional[bool] = None,
     ) -> ListConnectionWithTotalCount[Record]:
-        # nocheckin: reroute api record search to runtime host
-        statement = models.Statement.objects.get(id=statement_id.node_id)
-        access = check_module_node_access(info, statement, ModuleAccessLevel.Read)
+        statement = await models.Statement.objects.aget(id=statement_id.node_id)
+        access = await sync_to_async(check_module_node_access)(
+            info, statement, ModuleAccessLevel.Read
+        )
 
         query = query.to_dsl() if query else None
-        query = lang.Conditional.and_if_set(
-            lang.C(ConditionalOp.EQUALS, "statement_key", value=statement.key), query
-        )
+        sort = [s.to_dsl() for s in sort] if sort else None
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
-        search = prepare_os_query(
-            type=DocumentType.RECORD,  # already limited by database
-            project_version_id=None,  # already limited by database
-            limit=effective_limit + 1,  # +1 to determine if there is a next page
-            count=count or False,
-            after=after,
-            sort=[s.to_dsl() for s in sort] if sort else None,
+        req = ReqSearchRecordsPayload(
+            module_id=access.project_version.id,
+            statement_id=statement.id,
+            statement_ck=statement.ck,
+            statement_key=statement.key,
             query=query,
+            sort=sort,
+            limit=effective_limit + 1,
+            after=after,
+            count=count or False,
         )
-
-        results = os_client_sync.search(index=access.project.os_name, body=search)
-
-        edges = []
-        for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):
-            doc = mirror.Record.from_dict(r["_source"], r["_id"])
-            node = Record.from_os(doc)
-            cursor = encode_cursor(r, after, i)
-            edge = relay.Edge(node=node, cursor=cursor)
-            edges.append(edge)
-        page_info = relay.PageInfo(
-            start_cursor=edges[0].cursor if edges else None,
-            end_cursor=edges[-1].cursor if edges else None,
-            has_next_page=len(results["hits"]["hits"]) > effective_limit,
+        rep: NMessage[RepSearchRecordsPayload] = await request(NMessageType.SEARCH_RECORDS, req)
+        if rep.p.records is not None:
+            records = [packer.unpack_node_flat(r, statement)[0] for r in rep.p.records]
+            edges = []
+            for cursor, record in zip(rep.p.cursors, records):
+                node = Record.from_os(record)
+                edge = relay.Edge(node=node, cursor=cursor)
+                edges.append(edge)
+        else:
+            edges = []
+        page_info = PageInfo(
+            start_cursor=rep.p.cursors[0] if rep.p.cursors else None,
+            end_cursor=rep.p.cursors[-1] if rep.p.cursors else None,
+            has_next_page=rep.p.records and len(rep.p.records) > effective_limit,
             has_previous_page=False,
         )
-        total_count = results["hits"]["total"]["value"] if count else None
         return ListConnectionWithTotalCount(
-            edges=edges, page_info=page_info, total_count=total_count
+            edges=edges, page_info=page_info, total_count=rep.p.total
         )

@@ -1,10 +1,9 @@
 import asyncio
 import json
-import typing
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
 import structlog
@@ -65,8 +64,7 @@ from bench.msg.messages import (
     RepRevealSecretPayload,
     RepRunInferencePayload,
     RepRunStatementPayload,
-    RepSearch,
-    RepSearchRunPayload,
+    RepSearchRecordsPayload,
     RepStartRunPayload,
     RepUploadBlobPayload,
     RepWakeRuntimePayload,
@@ -79,8 +77,7 @@ from bench.msg.messages import (
     ReqRevealSecretPayload,
     ReqRunInferencePayload,
     ReqRunStatementPayload,
-    ReqSearch,
-    ReqSearchRunsPayload,
+    ReqSearchRecordsPayload,
     ReqStartRunPayload,
     ReqUploadBlobPayload,
     ReqWakeRuntimePayload,
@@ -91,9 +88,9 @@ from bench.msg.messages import (
     StartRunErrorType,
 )
 from bench.search import mirror
-from bench.search.client import os_client_sync
+from bench.search.client import os_client
 from bench.search.core import DocumentType
-from bench.search.mapping import encode_cursor, prepare_os_query
+from bench.search.mapping import encode_os_cursor, prepare_os_query
 from bench.server import search
 from bench.server.observer import WorkerObserver
 from bench.utils.dt import utcnow_with_tz
@@ -104,8 +101,6 @@ from bench.utils.uuidt import UUIDT
 from bench.worker.edit import get_api_edit_from_internal, trim_record_edits
 
 logger = structlog.get_logger(__name__)
-
-MAX_SEARCH_RUN_LIMIT = 100
 
 _cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, models.Project]] = {}
 
@@ -174,10 +169,9 @@ def _get_projects_to_manage() -> list[models.Project]:
     return projects
 
 
-class RuntimeServer(Monitored):
+class RuntimeSupervisor(Monitored):
     """
-    Bench runtime server to host per-module runtime workers that
-     proxy user worker module access (read/write) and process triggers.
+    Bench runtime server to host runtime hosts for each Bench.
     """
 
     def __init__(self):
@@ -192,12 +186,13 @@ class RuntimeServer(Monitored):
         await nc_init.wait()
         logger.info("start")
         self.subs = [
+            # ideally most of these should be delegated to the RuntimeHost directly
             await handle_reply(NMessageType.READ_MODULE, self.read_module),
-            await handle_reply(NMessageType.WRITE_EDIT, self.write_edits),
+            await handle_reply(NMessageType.WRITE_EDITS, self.write_edits),
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.PULL_WORKER_RUNS, self.pull_runs),
             await handle_reply(NMessageType.WAKE_RUNTIME, self.wake_runtime),
-            await handle_reply(NMessageType.SEARCH_RUNS, self.search_runs),
+            await handle_reply(NMessageType.SEARCH_RECORDS, self.search_records),
             await handle_reply(NMessageType.DOWNLOAD_BLOB, self.read_blob),
             await handle_reply(NMessageType.UPLOAD_BLOB, self.write_blob),
             await handle_reply(NMessageType.MARK_UPLOADED_BLOB, self.mark_uploaded_blob),
@@ -209,7 +204,7 @@ class RuntimeServer(Monitored):
 
         logger.info("load_modules")
         projects = await sync_to_async(_get_projects_to_manage)()
-        await asyncio.gather(*[self._prepare_runtime(project.head_id) for project in projects])
+        await asyncio.gather(*[self._prepare_runtime_host(project.head_id) for project in projects])
 
         await self.workers.start()
 
@@ -224,7 +219,7 @@ class RuntimeServer(Monitored):
     def healthy(self):
         return self.ready and self.tasks.healthy
 
-    async def _prepare_runtime(self, module_id: UUID) -> "RuntimeHost":
+    async def _prepare_runtime_host(self, module_id: UUID) -> "RuntimeHost":
         runtime = self.runtimes.get(module_id)
         if runtime is None:
             # start language worker if not already started
@@ -256,7 +251,7 @@ class RuntimeServer(Monitored):
     async def write_edits(self, msg: NMessage[ReqWriteEditsPayload]) -> None:
         logger.debug("module.write", msg=msg)
         # TODO @Security!: check if msg origin has write access to module
-        runtime = await self._prepare_runtime(msg.p.module_id)
+        runtime = await self._prepare_runtime_host(msg.p.module_id)
         try:
             await runtime.write_edits(
                 msg.p.edits, origins=(msg.p.client,), refresh_index=msg.p.refresh_index
@@ -272,7 +267,7 @@ class RuntimeServer(Monitored):
     @message_handler
     async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
         logger.debug("session.write", msg=msg, client=msg.p.client)
-        runtime = await self._prepare_runtime(msg.p.module_id)
+        runtime = await self._prepare_runtime_host(msg.p.module_id)
         try:
             await runtime.write_session(
                 session=msg.p.session, runs=msg.p.runs, origins=(msg.p.client,)
@@ -294,7 +289,7 @@ class RuntimeServer(Monitored):
     @message_handler
     async def pull_runs(self, msg: NMessage[ReqPullWorkerRunsPayload]) -> None:
         logger.debug("run.pull", msg=msg)
-        runtime = await self._prepare_runtime(msg.p.module_id)
+        runtime = await self._prepare_runtime_host(msg.p.module_id)
         try:
             runs = await runtime.pull_runs(
                 worker_set_id=msg.p.worker_set_id,
@@ -310,83 +305,10 @@ class RuntimeServer(Monitored):
             runs = []
         await msg.reply(RepPullWorkerRunsPayload(runs=runs, success=success))
 
-    def _do_search(
-        self,
-        project_v: models.ProjectVersion,
-        type: Optional[DocumentType],
-        extra_query: Optional[Conditional],
-        max_limit: int,
-        req: ReqSearch,
-        unpack: typing.Callable,
-        rep_cls: typing.Type[RepSearch],
-    ) -> RepSearch:
-        effective_limit = min(req.limit, max_limit)
-        try:
-            search = prepare_os_query(
-                type=type,
-                project_version_id=str(project_v.id),
-                limit=effective_limit,
-                count=req.count,
-                after=req.after,
-                sort=req.sort,
-                query=Conditional.and_if_set(req.query, extra_query),
-            )
-            results = os_client_sync.search(index=project_v.project.os_name, body=search)
-            elements: list[typing.Any] = []
-            for r in results["hits"]["hits"]:
-                elements.append(unpack(r))
-            if elements:
-                start_cursor = encode_cursor(results["hits"]["hits"][0], req.after, i=0)
-                end_cursor = encode_cursor(
-                    results["hits"]["hits"][-1], req.after, i=len(elements) - 1
-                )
-            else:
-                start_cursor = None
-                end_cursor = None
-            rep = rep_cls(
-                elements=elements,
-                total=(results["hits"]["total"]["value"] if req.count else None),
-                limit=effective_limit,
-                start_cursor=start_cursor,
-                end_cursor=end_cursor,
-            )
-        except Exception as e:
-            sentry_capture(e)
-            logger.error("database.search.failed", req=req, exc_info=True)
-            rep = rep_cls(
-                elements=None,
-                total=-1,
-                limit=effective_limit,
-                start_cursor=None,
-                end_cursor=None,
-                error=str(e),
-            )
-        return rep
-
     @message_handler
-    async def search_runs(self, msg: NMessage[ReqSearchRunsPayload]) -> None:
-        logger.debug("search.run", msg=msg)
-        # TODO @Security!: check if msg origin has read access to database
-        extra_queries = []
-        if msg.p.statements_ids:
-            extra_queries.append(
-                C(ConditionalOp.EQUALS, "statement_id", value=msg.p.statements_ids)
-            )
-        if msg.p.statements_cks:
-            extra_queries.append(
-                C(ConditionalOp.EQUALS, "statement_ck", value=msg.p.statements_cks)
-            )
-        project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
-        rep = await sync_to_async(self._do_search)(
-            project_v=project_v,
-            extra_query=C(ConditionalOp.AND, extra_queries) if extra_queries else None,
-            type=DocumentType.RUN,
-            max_limit=MAX_SEARCH_RUN_LIMIT,
-            req=msg.p,
-            unpack=_unpack_run,
-            rep_cls=RepSearchRunPayload,
-        )
-        await msg.reply(rep)
+    async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
+        runtime = await self._prepare_runtime_host(msg.p.module_id)
+        await runtime.search_records(msg)
 
     @message_handler
     async def read_blob(self, msg: NMessage[ReqDownloadBlobPayload]) -> None:
@@ -532,7 +454,7 @@ class RuntimeServer(Monitored):
     @message_handler
     async def wake_runtime(self, msg: NMessage[ReqWakeRuntimePayload]):
         logger.debug("runtime.wake", msg=msg)
-        await self._prepare_runtime(msg.p.module_id)
+        await self._prepare_runtime_host(msg.p.module_id)
         await msg.reply(RepWakeRuntimePayload(module_id=msg.p.module_id))
 
     @message_handler
@@ -540,8 +462,8 @@ class RuntimeServer(Monitored):
         logger.debug("module.changed", msg=msg)
         if msg.p.has_origin(self.id):
             return  # ignore own changes
-        runtime = await self._prepare_runtime(msg.p.module_id)
-        await runtime.apply_edits(msg.p.edits)
+        runtime = await self._prepare_runtime_host(msg.p.module_id)
+        await runtime.on_module_changed(msg.p.edits)
 
     async def stop(self):
         logger.info("stop")
@@ -552,15 +474,6 @@ class RuntimeServer(Monitored):
 # :MinTriggerInterval (because less than pre send window won't work)
 TIME_TRIGGER_PRE_SEND_WINDOW = 45  # seconds
 TIME_TRIGGER_LOOKAHEAD = 2  # occurrences
-
-
-async def run_at(func: typing.Callable[[], typing.Awaitable[None]], at: datetime) -> None:
-    """Run a function at a given time."""
-    delay = (at - utcnow_with_tz()).total_seconds()
-    if delay < 0:
-        delay = 0
-    await asyncio.sleep(delay)
-    await func()
 
 
 @dataclass
@@ -639,6 +552,171 @@ class RuntimeHost:
         await self._on_module_changed(change=None)
         self.tasks.start(self.process_time_triggers_forever())
         self.ready.set()
+
+    async def _on_module_changed(self, change: Optional[ModuleChange]):
+        """Handle module changes to store interp state, update triggers, etc."""
+
+        # interp state
+        start_time = utcnow_with_tz()
+        if change is None:  # reset completely
+            interp_mut = ModuleEditor(self.module._source, self.project_id, self.module_id)
+            module_data = wire.pack_node_flat(self.module)
+            for mnt in INTERP_NODE_TYPES:
+                interp_mut.truncate(module_data, mnt, apply=False)
+            for node in self.module._nodes:
+                # config fields are only used internally for now
+                # :InterpEditFilter
+                if node.mnt in INTERP_NODE_TYPES:
+                    interp_mut.create(node, apply=False)
+            interp_edits = interp_mut.edits
+        else:
+            interp_edits = change.interp_edits
+        if interp_edits:
+            await sync_to_async(write_edits)(
+                self.project_version,
+                self.module._source,
+                interp_edits,
+                validate=False,
+                refresh_index=False,
+                apply=False,
+            )
+            await publish(
+                NMessageType.MODULE_CHANGED,
+                ModuleChangedPayload(
+                    project_id=self.project_id,
+                    module_id=self.module_id,
+                    origins=(self.client,),
+                    edits=interp_edits,
+                ),
+            )
+            duration = (utcnow_with_tz() - start_time).total_seconds()
+            self.log.debug("runtime.interp", total=len(interp_edits), duration=duration)
+
+        # triggers
+        if change is None or any(isinstance(n, Trigger) for n in change.touched):
+            await self._update_local_triggers()
+
+    async def on_module_changed(self, edits: list[EditData]) -> None:
+        """Apply external edits to the module."""
+        start_time = utcnow_with_tz()
+        change = self.module._apply_edits(edits)
+        duration = (utcnow_with_tz() - start_time).total_seconds()
+        self.log.debug("runtime.on_module_changed", total=len(edits), duration=duration)
+        await self._on_module_changed(change)
+
+    async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
+        """Search records in this module."""
+        try:
+            query = prepare_os_query(
+                type=DocumentType.RECORD,
+                project_version_id=str(self.module_id),
+                limit=msg.p.limit,
+                count=msg.p.count,
+                after=msg.p.after,
+                sort=msg.p.sort,
+                query=Conditional.and_if_set(
+                    msg.p.query,
+                    C(ConditionalOp.EQUALS, "statement_key", value=msg.p.statement_key),
+                ),
+            )
+            self.module.resolve(msg.p.statement_ck)
+            results = await os_client.search(index=self.project_version.project.os_name, body=query)
+            records: list[Any] = []
+            cursors: list[str] = []
+            for r in results["hits"]["hits"]:
+                record_doc = mirror.Record.from_dict(r["_source"], r["_id"])
+                record = mirror.pack_node_flat(record_doc)
+                records.append(record)
+                cursor = encode_os_cursor(r, msg.p.after, i=len(records))
+                cursors.append(cursor)
+            rep = RepSearchRecordsPayload(
+                records=records,
+                cursors=cursors,
+                total=(results["hits"]["total"]["value"] if msg.p.count else None),
+                limit=msg.p.limit,
+            )
+        except Exception as e:
+            sentry_capture(e)
+            logger.error("database.search.failed", req=msg.p, exc_info=True)
+            rep = RepSearchRecordsPayload(
+                records=None, cursors=None, total=None, limit=msg.p.limit, error=str(e)
+            )
+        await msg.reply(rep)
+
+    async def write_edits(
+        self,
+        edits: list[EditData],
+        origins: tuple[ClientOrigin] = None,
+        refresh_index: bool = False,
+    ):
+        # nocheckin: 5. intercept and commit record edit through local database
+        self.log.debug(
+            "module.write",
+            edits=edits[:5],
+            total=len(edits),
+            origins=origins,
+            refresh_index=refresh_index,
+        )
+
+        # apply in DB/OS
+        await sync_to_async(write_edits)(
+            self.project_version,
+            self.module._source,
+            edits,
+            validate=True,
+            refresh_index=refresh_index,
+        )
+        if not edits:
+            # edits may be empty if we just want to trigger an index refresh
+            # e.g. on record search preflight in session after a non-refresh flush happened
+            return
+
+        # broadcast
+        trimmed_edits = trim_record_edits(edits)
+        origins = (*(origins or ()), self.client)
+        api_edits = list(chain.from_iterable(get_api_edit_from_internal(e) for e in trimmed_edits))
+        await publish(
+            NMessageType.MODULE_INTERNAL_CHANGED,
+            ModuleInternalChangedPayload(
+                project_id=self.project_id,
+                module_id=self.module_id,
+                origins=origins,
+                edits=trimmed_edits,
+            ),
+        )
+        await publish(
+            NMessageType.MODULE_CHANGED,
+            ModuleChangedPayload(
+                project_id=self.project_id,
+                module_id=self.module_id,
+                origins=origins,
+                edits=api_edits,
+            ),
+        )
+
+        # apply locally (after broadcast to ensure interp edits are delivered after source edits)
+        await self.on_module_changed(edits)
+
+    async def write_session(
+        self,
+        session: Optional[wire.SessionData],
+        runs: list[wire.RunData] | None,
+        origins: tuple[ClientOrigin] = None,
+    ) -> None:
+        """Write a session to the database, and publish it to the client"""
+        self.log.debug("session.write", session=session, runs=len(runs))
+        await sync_to_async(write_session)(self.project_version, session, runs)
+
+        await publish(
+            NMessageType.SESSION_CHANGED,
+            SessionChangedPayload(
+                project_id=self.project_id, module_id=self.module_id, session=session, runs=runs
+            ),
+        )
+
+    #
+    # Scheduled triggers
+    #
 
     async def pull_runs(
         self, worker_set_id: UUID, worker_node_id: Optional[str], worker_process_id: Optional[str]
@@ -920,124 +998,3 @@ class RuntimeHost:
 
         # re-trigger active trigger processing
         self.active_trigger_process_wait.set()
-
-    async def _on_module_changed(self, change: Optional[ModuleChange]):
-        """Handle module changes to store interp state, update triggers, etc."""
-
-        # interp state
-        start_time = utcnow_with_tz()
-        if change is None:  # reset completely
-            interp_mut = ModuleEditor(self.module._source, self.project_id, self.module_id)
-            module_data = wire.pack_node_flat(self.module)
-            for mnt in INTERP_NODE_TYPES:
-                interp_mut.truncate(module_data, mnt, apply=False)
-            for node in self.module._nodes:
-                # config fields are only used internally for now
-                # :InterpEditFilter
-                if node.mnt in INTERP_NODE_TYPES:
-                    interp_mut.create(node, apply=False)
-            interp_edits = interp_mut.edits
-        else:
-            interp_edits = change.interp_edits
-        if interp_edits:
-            await sync_to_async(write_edits)(
-                self.project_version,
-                self.module._source,
-                interp_edits,
-                validate=False,
-                refresh_index=False,
-                apply=False,
-            )
-            await publish(
-                NMessageType.MODULE_CHANGED,
-                ModuleChangedPayload(
-                    project_id=self.project_id,
-                    module_id=self.module_id,
-                    origins=(self.client,),
-                    edits=interp_edits,
-                ),
-            )
-            duration = (utcnow_with_tz() - start_time).total_seconds()
-            self.log.debug("runtime.interp", total=len(interp_edits), duration=duration)
-
-        # triggers
-        if change is None or any(isinstance(n, Trigger) for n in change.touched):
-            await self._update_local_triggers()
-
-    async def apply_edits(self, edits: list[EditData]) -> None:
-        """Apply external edits to the module."""
-        start_time = utcnow_with_tz()
-        change = self.module._apply_edits(edits)
-        duration = (utcnow_with_tz() - start_time).total_seconds()
-        self.log.debug("runtime.apply_edits", total=len(edits), duration=duration)
-        await self._on_module_changed(change)
-
-    async def write_edits(
-        self,
-        edits: list[EditData],
-        origins: tuple[ClientOrigin] = None,
-        refresh_index: bool = False,
-    ):
-        self.log.debug(
-            "module.write",
-            edits=edits[:5],
-            total=len(edits),
-            origins=origins,
-            refresh_index=refresh_index,
-        )
-
-        # apply in DB/OS
-        await sync_to_async(write_edits)(
-            self.project_version,
-            self.module._source,
-            edits,
-            validate=True,
-            refresh_index=refresh_index,
-        )
-        if not edits:
-            # edits may be empty if we just want to trigger an index refresh
-            # e.g. on record search preflight in session after a non-refresh flush happened
-            return
-
-        # broadcast
-        trimmed_edits = trim_record_edits(edits)
-        origins = (*(origins or ()), self.client)
-        api_edits = list(chain.from_iterable(get_api_edit_from_internal(e) for e in trimmed_edits))
-        await publish(
-            NMessageType.MODULE_INTERNAL_CHANGED,
-            ModuleInternalChangedPayload(
-                project_id=self.project_id,
-                module_id=self.module_id,
-                origins=origins,
-                edits=trimmed_edits,
-            ),
-        )
-        await publish(
-            NMessageType.MODULE_CHANGED,
-            ModuleChangedPayload(
-                project_id=self.project_id,
-                module_id=self.module_id,
-                origins=origins,
-                edits=api_edits,
-            ),
-        )
-
-        # apply locally (after broadcast to ensure interp edits are delivered after source edits)
-        await self.apply_edits(edits)
-
-    async def write_session(
-        self,
-        session: Optional[wire.SessionData],
-        runs: list[wire.RunData] | None,
-        origins: tuple[ClientOrigin] = None,
-    ) -> None:
-        """Write a session to the database, and publish it to the client"""
-        self.log.debug("session.write", session=session, runs=len(runs))
-        await sync_to_async(write_session)(self.project_version, session, runs)
-
-        await publish(
-            NMessageType.SESSION_CHANGED,
-            SessionChangedPayload(
-                project_id=self.project_id, module_id=self.module_id, session=session, runs=runs
-            ),
-        )
