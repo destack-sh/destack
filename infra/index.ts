@@ -424,6 +424,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               env: [
                 ...PUBLIC_BACKEND_VARS,
                 ...GLOBAL_PG_VARS,
+                ...USER_PG_VARS,
                 ...GLOBAL_OS_VARS,
                 ...AWS_BACKEND_VARS,
                 ...BASE_PRIVATE_BACKEND_VARS,
