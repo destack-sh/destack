@@ -64,18 +64,17 @@ class NMessageType(StrEnum):
     PROJECT_CHANGED = "project.changed"
     MODULE_CHANGED = "module.changed"
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal sync
+    # nocheckin: remove module 'internal' distinction
     SESSION_CHANGED = "session.changed"
     RUNS_CHANGED = "runs.changed"
     LOGS_CHANGED = "logs.changed"
     WORKERS_CHANGED = "workers.changed"
 
     # read/write via runtime
-    GET_MODULE_HEAD = "module.get_head"
-    GET_MODULE_HEAD_REP = "module.get_head.rep"
     READ_MODULE = "module.read"
     READ_MODULE_REP = "module.read.rep"
-    WRITE_MODULE = "module.write"
-    WRITE_MODULE_REP = "module.write.rep"
+    WRITE_EDIT = "module.write"
+    WRITE_EDIT_REP = "module.write.rep"
     WRITE_SESSION = "session.write"
     WRITE_SESSION_REP = "session.write.rep"
     SEARCH_RUNS = "module.search.runs"
@@ -126,9 +125,8 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.WAKE_WORKER_SET: NMessageType.WAKE_WORKER_SET_REP,
     NMessageType.RESTART_WORKER_SET: NMessageType.RESTART_WORKER_SET_REP,
     NMessageType.DO_RESTART_WORKER_NODE: NMessageType.DO_RESTART_WORKER_NODE_REP,
-    NMessageType.GET_MODULE_HEAD: NMessageType.GET_MODULE_HEAD_REP,
     NMessageType.READ_MODULE: NMessageType.READ_MODULE_REP,
-    NMessageType.WRITE_MODULE: NMessageType.WRITE_MODULE_REP,
+    NMessageType.WRITE_EDIT: NMessageType.WRITE_EDIT_REP,
     NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
     NMessageType.DOWNLOAD_BLOB: NMessageType.DOWNLOAD_BLOB_REP,
     NMessageType.UPLOAD_BLOB: NMessageType.UPLOAD_BLOB_REP,
@@ -320,16 +318,6 @@ class LogsChangedPayload(ModuleScoped, Payload):
     logs: list[LogEntryData]
 
 
-@payload(NMessageType.GET_MODULE_HEAD)
-class ReqGetModuleHeadPayload(ProjectScoped, Payload):
-    pass
-
-
-@payload(NMessageType.GET_MODULE_HEAD_REP)
-class RepGetModuleHeadPayload(Payload):
-    module_id: UUID
-
-
 @payload(NMessageType.READ_MODULE)
 class ReqReadModulePayload(Payload):
     ref: typing.Union[ModuleReference, UUID]
@@ -343,16 +331,16 @@ class RepReadModulePayload(Payload):
     pg_name: str
 
 
-@payload(NMessageType.WRITE_MODULE)
-class ReqWriteModulePayload(Payload):
+@payload(NMessageType.WRITE_EDIT)
+class ReqWriteEditsPayload(Payload):
     module_id: UUID
     edits: list[EditData]
     client: ClientOrigin
     refresh_index: bool
 
 
-@payload(NMessageType.WRITE_MODULE_REP)
-class RepWriteModulePayload(Payload):
+@payload(NMessageType.WRITE_EDIT_REP)
+class RepWriteEditsPayload(Payload):
     success: bool
 
 

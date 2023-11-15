@@ -5,7 +5,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.const import DATABASE_VERSIONED_RECORD_LIMIT, MNT, new_dynamic_node_key
+from bench.language.const import MNT, new_dynamic_node_key
 from bench.language.expression import C, Conditional, ConditionalOp, Sort
 from bench.language.module import (
     _NC,
@@ -34,7 +34,7 @@ if typing.TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-LOCAL_RECORD_CACHE_LIMIT = DATABASE_VERSIONED_RECORD_LIMIT
+LOCAL_RECORD_CACHE_LIMIT = 2048
 RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 

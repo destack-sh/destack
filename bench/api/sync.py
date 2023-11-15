@@ -101,7 +101,7 @@ def db_edit(
             api_edits, internal_edits = publish_tracked_edit(
                 access.project_version, origin, type, kwargs.get("input"), things, batch
             )
-            write_edits_to_os(access.project_version, api_edits, refresh=False)
+            write_edits_to_os(access.project_version, internal_edits, refresh=False)
             track_edit_for_analytics(type, access.project_version, things, batch, info)
 
             return ret

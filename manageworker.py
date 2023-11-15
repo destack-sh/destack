@@ -33,6 +33,7 @@ if os.environ.get("DEBUG") == "1" and "WORKER_SET_ID" not in os.environ:
     worker_set_id = None
     worker_node_id = "local"
     project_id = None
+    module_id = None
     nats_name = "worker-local"
     logger.info("worker.dev_mode")
 else:
@@ -40,6 +41,7 @@ else:
     worker_set_id = UUID(os.environ["WORKER_SET_ID"])
     worker_node_id = os.environ["WORKER_NODE_ID"].replace(".", "-")
     project_id = UUID(os.environ["WORKER_PROJECT_ID"])
+    module_id = UUID(os.environ["WORKER_MODULE_ID"])
     nats_name = f"worker-{worker_set_id}-{worker_node_id}"
     logger.info(
         "worker.prod_mode",
@@ -54,7 +56,10 @@ async def _run_node():
     await test_redis_connection()
     asyncio.create_task(process_soon_queue())
     worker = WorkerNode(
-        worker_set_id=worker_set_id, worker_node_id=worker_node_id, project_id=project_id
+        worker_set_id=worker_set_id,
+        worker_node_id=worker_node_id,
+        project_id=project_id,
+        module_id=module_id,
     )
     logger.info("start_process_worker", worker=worker)
     await worker.launch_monitoring_server("0.0.0.0", 80)
@@ -66,7 +71,10 @@ async def _run_host():
     await test_redis_connection()
     asyncio.create_task(process_soon_queue())
     host = WorkerHost(
-        worker_set_id=worker_set_id, worker_node_id=worker_node_id, project_id=project_id
+        worker_set_id=worker_set_id,
+        worker_node_id=worker_node_id,
+        project_id=project_id,
+        module_id=module_id,
     )
     logger.info("start_process_host", host=host)
     if os.environ.get("DEBUG") == "1":
