@@ -1,10 +1,10 @@
 from typing import Generator, Iterable, Optional, Type
 
 import structlog
+from asgiref.sync import async_to_sync
 
 from bench import models
-from bench.language import libs, wire
-from bench.language.const import INTERP_NODE_TYPES
+from bench.language import wire
 from bench.language.edit import MEK, MNT, EditData
 from bench.models.packer import collect_node
 from bench.search import core as os
@@ -319,18 +319,10 @@ def write_edits_to_os(
 
 
 def update_os_schema_from_db(project_v: models.ProjectVersion, dynamic: str = "strict") -> None:
-    from bench.models import packer
+    from bench.server.runtime import interp_module
 
     logger.info("os.update_mappings", project_version=project_v)
-    source = packer.pack_module(
-        project_v, excluded=[models.Record, models.Trigger, models.ResolvedField, models.Issue]
-    )
-    module = wire.unpack_module(source.nodes, exclude=INTERP_NODE_TYPES, session=None)
-    for dependency in libs.DEFAULT_MODULES.values():
-        module.add_dependency(dependency)
-    module.add_builtin(libs.symbolx_lib.files.get("builtins"))
-    module._interp_rec()
-
+    module, project = async_to_sync(interp_module)(project_v.id)
     update_os_schema(project_v.project.os_name, module, dynamic=dynamic)
 
 

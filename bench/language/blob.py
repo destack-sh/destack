@@ -143,13 +143,13 @@ class Blob(Node):
 
     @staticmethod
     def from_url(url: str, name: str = None, timeout: int = None) -> "Blob":
-        """Upload a file to object storage."""
+        """Upload a file to blob storage."""
         response = requests.get(url, timeout=timeout)
         return Blob.from_requests(response, name=name)
 
     @staticmethod
     def from_requests(response: requests.Response, name: str = None) -> "Blob":
-        """Upload a file to object storage."""
+        """Upload a file to blob storage."""
         session = active_session()
         response.raise_for_status()
         obj = Blob(
@@ -165,14 +165,14 @@ class Blob(Node):
 
     @staticmethod
     def from_file(file: typing.BinaryIO, name: str = None, content_type: str = None) -> "Blob":
-        """Upload a file to object storage."""
+        """Upload a file to blob storage."""
         content = file.read()
         content_type = content_type or mimetypes.guess_type(file.name)[0]
         return Blob.from_content(name or file.name, content_type, content)
 
     @staticmethod
     def from_content(name: str, content_type: str, content: bytes | typing.BinaryIO) -> "Blob":
-        """Upload a file to object storage."""
+        """Upload a file to blob storage."""
         session = active_session()
         if isinstance(content, typing.BinaryIO):
             content = content.read()
@@ -190,7 +190,7 @@ class Blob(Node):
 
 
 class Blobs:
-    """Convenience wrapper around a module's object storage."""
+    """Convenience wrapper around a module's blob storage."""
 
     def __init__(self, module: Module):
         self.module = module
@@ -202,13 +202,13 @@ class Blobs:
         return f"<Storage {self}>"
 
     def upload(self, file: typing.BinaryIO, name: str = None, content_type: str = None) -> Blob:
-        """Upload a file to object storage."""
+        """Upload a file to blob storage."""
         return Blob.from_file(file, name=name, content_type=content_type)
 
     def upload_from_url(self, url: str, name: str = None, timeout: int = None) -> Blob:
-        """Upload a file to object storage."""
+        """Upload a file to blob storage."""
         return Blob.from_url(url, self.module.session, name=name, timeout=timeout)
 
     def upload_from_requests(self, response: requests.Response, name: str = None) -> Blob:
-        """Upload a file to object storage."""
+        """Upload a file to blob storage."""
         return Blob.from_requests(response, self.module.session, name=name)
