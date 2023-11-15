@@ -55,7 +55,6 @@ from bench.msg.core import (
 from bench.msg.messages import (
     ClientOrigin,
     ModuleChangedPayload,
-    ModuleInternalChangedPayload,
     NMessageType,
     RepDownloadBlobPayload,
     RepMarkUploadedBlobPayload,
@@ -199,7 +198,7 @@ class RuntimeSupervisor(Monitored):
             await handle_reply(NMessageType.REVEAL_SECRET, self.reveal_secret),
             await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
             await handle_reply(NMessageType.RUN_PROXY_STATEMENT, self.run_statement),
-            await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.>", cb=self.module_changed),
+            await subscribe(f"{NMessageType.MODULE_CHANGED}.>", cb=self.module_changed),
         ]
 
         logger.info("load_modules")
@@ -458,7 +457,7 @@ class RuntimeSupervisor(Monitored):
         await msg.reply(RepWakeRuntimePayload(module_id=msg.p.module_id))
 
     @message_handler
-    async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]) -> None:
+    async def module_changed(self, msg: NMessage[ModuleChangedPayload]) -> None:
         logger.debug("module.changed", msg=msg)
         if msg.p.has_origin(self.id):
             return  # ignore own changes
@@ -662,7 +661,7 @@ class RuntimeHost:
         await sync_to_async(write_edits)(
             self.project_version,
             self.module._source,
-            edits,
+            edits=edits,
             validate=True,
             refresh_index=refresh_index,
         )
@@ -675,15 +674,6 @@ class RuntimeHost:
         trimmed_edits = trim_record_edits(edits)
         origins = (*(origins or ()), self.client)
         api_edits = list(chain.from_iterable(get_api_edit_from_internal(e) for e in trimmed_edits))
-        await publish(
-            NMessageType.MODULE_INTERNAL_CHANGED,
-            ModuleInternalChangedPayload(
-                project_id=self.project_id,
-                module_id=self.module_id,
-                origins=origins,
-                edits=trimmed_edits,
-            ),
-        )
         await publish(
             NMessageType.MODULE_CHANGED,
             ModuleChangedPayload(

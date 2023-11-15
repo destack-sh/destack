@@ -3,25 +3,22 @@ import inspect
 from inspect import Signature
 from typing import Any, Optional, Sequence
 
-import posthog
 import strawberry_django
 import structlog
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import F
 from strawberry.types import Info
 
 from bench.api.auth import has_module_node_access
 from bench.api.type import MET, PMT
-from bench.api.utils import get_client_origin_from_info, get_user_from_info, wrap_exceptions
+from bench.api.utils import get_client_origin_from_info, wrap_exceptions
 from bench.language import Statement
-from bench.language.edit import EditData, EditKind
+from bench.language.edit import EditData
 from bench.models import ModuleAccessLevel, ProjectVersion
 from bench.msg.core import publish_soon
 from bench.msg.messages import (
     ClientOrigin,
     ModuleChangedPayload,
-    ModuleInternalChangedPayload,
     NMessageType,
 )
 from bench.server.search import write_edits_to_os
@@ -87,22 +84,13 @@ def db_edit(
                 validate_unique=False, validate_constraints=False, exclude=["revision"]
             )
 
-            # save and bump revision (if not new or batched)
-            if not batch and not skip_save:
-                is_new = thing._state.adding or type.kind == EditKind.CREATE
-                if not is_new:
-                    thing.revision = F("revision") + 1
-                thing.save()
-                if not is_new:
-                    thing.refresh_from_db(fields=["revision"])  # @Performance: inefficient?
-
             # dual write, publish and track edit
+            # nocheckin: 2. reroute db_edits to runtime host
             origin = get_client_origin_from_info(info)
-            api_edits, internal_edits = publish_tracked_edit(
-                access.project_version, origin, type, kwargs.get("input"), things, batch
-            )
-            write_edits_to_os(access.project_version, internal_edits, refresh=False)
-            track_edit_for_analytics(type, access.project_version, things, batch, info)
+            # api_edits, internal_edits = publish_tracked_edit(
+            #     access.project_version, origin, type, kwargs.get("input"), things, batch
+            # )
+            # write_edits_to_os(access.project_version, internal_edits, refresh=False)
 
             return ret
 
@@ -180,53 +168,4 @@ def publish_tracked_edit(
             edits=api_edits,
         ),
     )
-    if internal_edits:
-        publish_soon(
-            NMessageType.MODULE_INTERNAL_CHANGED,
-            ModuleInternalChangedPayload(
-                project_id=project_v.project_id,
-                module_id=project_v.id,
-                origins=[origin],
-                edits=internal_edits,
-            ),
-        )
     return api_edits, internal_edits
-
-
-def track_edit_for_analytics(
-    type: MET, project_version: ProjectVersion, things, batch: bool, info: Info
-):
-    """Tracks a project edit for Posthog analytics."""
-    user = get_user_from_info(info)
-    if user.is_anonymous:
-        return
-
-    if "FILE" in type.value:
-        properties = {"file_id": things[0].id, "name": things[0].name, "path": things[0].path}
-    elif "STATEMENT" in type.value or "SYMBOL" in type.value:
-        properties = {
-            "statement_id": things[0].id,
-            "name": things[0].name,
-            "order_key": things[0].order_key,
-            "file_id": things[0].file_id,
-        }
-    elif "FIELD" in type.value:
-        properties = {
-            "field_id": things[0].id,
-            "name": things[0].name,
-            "order_key": things[0].order_key,
-        }
-    elif "RECORD" in type.value:
-        properties = {"record_id": things[0].id}
-    else:
-        return  # just ignore for now
-
-    project_properties = {
-        "project_id": project_version.project_id,
-        "project_version_id": project_version.id,
-        "project_path": project_version.project.path,
-    }
-    normalized_type = type.name.lower().replace("_", " ")
-    posthog.capture(
-        str(user.id), normalized_type, properties={batch: batch, **properties, **project_properties}
-    )

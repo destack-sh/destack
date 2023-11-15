@@ -5,7 +5,6 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 """
 import enum
 from dataclasses import dataclass
-from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -90,7 +89,6 @@ class EditType(enum.StrEnum):
     RENAME_FIELD = "RENAME_FIELD"
     UPDATE_FIELD_TEXT = "UPDATE_FIELD_TEXT"
     UPDATE_FIELD_TYPE = "UPDATE_FIELD_TYPE"
-    UPDATE_FIELD_METADATA = "UPDATE_FIELD_METADATA"
     MOVE_FIELD = "MOVE_FIELD"
     SOFT_DELETE_FIELD = "SOFT_DELETE_FIELD"
     RESTORE_FIELD = "RESTORE_FIELD"
@@ -122,10 +120,6 @@ class EditType(enum.StrEnum):
     def mnt(self) -> "ModuleNodeType":
         return _MODULE_EDIT_MAP[self][1]
 
-    @property
-    def simple(self) -> bool:
-        return self in SIMPLE_EDITS
-
     @staticmethod
     def from_nt(mmk: "EditKind", nt: "ModuleNodeType") -> "EditType":
         return EditType(f"{mmk.value}_{nt.value}")
@@ -138,42 +132,6 @@ class EditKind(enum.StrEnum):
     TRUNCATE = "TRUNCATE"
     BUMP = "BUMP"
 
-
-# Basic CUD edits with full (flat) data for the node
-SIMPLE_EDITS = {
-    # File
-    EditType.BUMP_FILE,
-    EditType.CREATE_FILE,
-    EditType.UPDATE_FILE,
-    EditType.DELETE_FILE,
-    # Statement
-    EditType.BUMP_STATEMENT,
-    EditType.CREATE_STATEMENT,
-    EditType.UPDATE_STATEMENT,
-    EditType.DELETE_STATEMENT,
-    # Taggings
-    EditType.CREATE_TAGGING,
-    EditType.UPDATE_TAGGING,
-    EditType.DELETE_TAGGING,
-    # Triggers
-    EditType.CREATE_TRIGGER,
-    EditType.UPDATE_TRIGGER,
-    EditType.DELETE_TRIGGER,
-    # Fields
-    EditType.CREATE_FIELD,
-    EditType.UPDATE_FIELD,
-    EditType.DELETE_FIELD,
-    # Record
-    EditType.TRUNCATE_RECORDS,
-    EditType.CREATE_RECORD,
-    EditType.UPDATE_RECORD,
-    EditType.DELETE_RECORD,
-    # Interp
-    EditType.TRUNCATE_ISSUES,
-    EditType.CREATE_ISSUE,
-    EditType.TRUNCATE_RESOLVED_FIELDS,
-    EditType.CREATE_RESOLVED_FIELD,
-}
 
 MET = EditType
 MEK = EditKind
@@ -230,7 +188,6 @@ _MODULE_EDIT_MAP: dict[MET, tuple[MEK, MNT]] = {
     MET.RENAME_FIELD: (MEK.UPDATE, MNT.FIELD),
     MET.UPDATE_FIELD_TEXT: (MEK.UPDATE, MNT.FIELD),
     MET.UPDATE_FIELD_TYPE: (MEK.UPDATE, MNT.FIELD),
-    MET.UPDATE_FIELD_METADATA: (MEK.UPDATE, MNT.FIELD),
     MET.MOVE_FIELD: (MEK.UPDATE, MNT.FIELD),
     MET.DELETE_FIELD: (MEK.DELETE, MNT.FIELD),
     MET.SOFT_DELETE_FIELD: (MEK.DELETE, MNT.FIELD),
@@ -525,14 +482,6 @@ class EditBundle:
     def __repr__(self):
         return f"<EditBundle {self}>"
 
-    @cached_property
-    def simple(self) -> bool:
-        return not any(m.type not in SIMPLE_EDITS for m in self.edits)
-
-    @property
-    def complex_edits(self):
-        return [e for e in self.edits if e.type not in SIMPLE_EDITS]
-
     # TODO @Performance: edit compaction & batching can be much smarter
     #  But we may also want to record these in full as events... compact before write only?
     def compact(self) -> list[Edit | EditData]:
@@ -546,9 +495,6 @@ class EditBundle:
          3. Delete after create to nothing
          4. Create then updated merged into a single create
         """
-        if not self.simple:
-            raise ValueError(f"cannot collapse complex edits: {self}")
-
         reduced_inverse = []
         seen_ops: dict[tuple[MET, UUID], Edit | EditData] = {}
 

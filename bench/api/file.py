@@ -3,19 +3,15 @@ from uuid import UUID
 
 import strawberry
 import strawberry_django
-from django.core.exceptions import ValidationError
 from strawberry import UNSET, auto, lazy, relay
 from strawberry.relay import GlobalID
-from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_module_access, check_module_node_access
-from bench.api.module import read_module_node
 from bench.api.sync import db_edit
 from bench.api.utils import HasCrud, ModuleNode, Revisioned
 from bench.language.edit import MET
-from bench.models import ModuleAccessLevel
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.interp import Issue
@@ -105,21 +101,19 @@ class FileMutation:
 
     @db_edit(MET.DELETE_FILE, atomic=True)
     def delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
-        file.delete()
-        return file
+        raise NotImplementedError
 
     @db_edit(MET.SOFT_DELETE_FILE, atomic=True)
     def soft_delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
-        file.soft_delete()
+        file.deleted_at = utcnow_with_tz()
         return file
 
     @db_edit(MET.RESTORE_FILE, atomic=True)
     def restore_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)
-        file.restore()
+        file.deleted_at = None
         return file
 
     @db_edit(MET.MOVE_FILE)
@@ -133,35 +127,3 @@ class FileMutation:
         file = models.File.objects.get(id=input.id.node_id)
         file.name = input.name
         return file
-
-    @db_edit(MET.PASTE_FILE, atomic=True, skip_save=True, skip_auth_check=True)
-    def paste_file(self, info: Info, input: FilePasteInput) -> File | OperationInfo:
-        # get and check source/target
-        source_file = models.File.objects.get(id=input.source_id.node_id)
-        check_module_node_access(info, source_file, ModuleAccessLevel.Read)
-        target_version = models.ProjectVersion.objects.get(id=input.target_version_id.node_id)
-        check_module_access(info, target_version.project, ModuleAccessLevel.Edit)
-        parent_file = (
-            models.File.objects.get(id=input.parent_id.node_id) if input.parent_id else None
-        )
-        if parent_file is not None and parent_file.project_version_id != target_version.id:
-            raise ValidationError("target version does not match parent file version")
-        if input.target_id and models.File.objects.filter(id=input.target_id.node_id).exists():
-            raise ValidationError("target file already exists")
-
-        # copy file
-        target_id = UUID(input.target_id.node_id)
-        target_ck = input.target_ck
-        target_file = models.File.objects.copy(
-            file=source_file,
-            source=source_file.project_version,
-            target=target_version,
-            target_id=target_id,
-            target_ck=target_ck,
-            keep_cks=False,
-            include_interp=False,
-        )
-        root_fragment = info.selected_fields[0].selections[0]  # mutation, returned object is first
-        resolved_file = read_module_node(info, target_file, root_fragment=root_fragment)
-        resolved_file.project_version = target_version  # ensure real project version is set (auth)
-        return resolved_file  # type: ignore

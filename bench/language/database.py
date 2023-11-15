@@ -153,7 +153,7 @@ class RecordBaseQuery:
         from bench.search import mirror
         from bench.search.mapping import prepare_os_query
 
-        # nocheckin: 7. reroute api record search through local DB (if possible)?
+        # nocheckin: 8. reroute api record search through local DB (if possible)?
         # force flush and index if there are any pending database edits
         #  (or previous edits that were already flushed but didn't refresh the index)
         # TODO @Performance: force flush module for record search only if needed by query
