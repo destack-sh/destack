@@ -1,5 +1,6 @@
-from itertools import chain
 from uuid import UUID
+
+import structlog
 
 import bench.language as lang
 from bench.language import HasDatabase, Module
@@ -14,7 +15,14 @@ from bench.sql.core import (
     Table,
     get_record_table_name,
 )
-from bench.sql.engine import create_pg_constructs, get_pg_constructs
+from bench.sql.engine import (
+    UnknownConstruct,
+    create_pg_constructs,
+    get_stored_pg_constructs,
+    replace_stored_pg_constructs,
+)
+
+logger = structlog.get_logger(__name__)
 
 COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
     TypeStorageFormat.STRING: ColumnType.STRING,
@@ -34,6 +42,8 @@ def map_to_column(field: lang.Field) -> Column:
     is_array = (
         field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
     ) and column_type != ColumnType.JSON
+    # nocheckin: map field is_array identity to column somehow
+    #  (are there other similar problems?)
     return Column(
         name=field._typed_key,
         type=column_type,
@@ -57,21 +67,30 @@ def map_to_table(statement: lang.Statement) -> Table:
 
 async def update_pg_schema(pg_name: str, module: Module) -> None:
     """Updates Postgres tables (i.e. schema) for a module's databases."""
+    log = logger.bind(pg_name=pg_name, module=module)
     databases: list[lang.Statement] = [
         s
         for s in module._nodes
         if s.mnt == MNT.STATEMENT and HasDatabase in s._components and not s.ephemeral
     ]
     tables = (*INTERNAL_TABLES, *(map_to_table(s) for s in databases))
+    log.info("pg.update_schema", databases=len(databases), tables=len(tables))
 
     async with async_pg_cursor(pg_name, autocommit=False) as cur:
         # get missing constructs (diff existing and current)
-        existing_constructs = await get_pg_constructs(cur)
-        current_constructs: dict[UUID, Construct] = {
-            c.id: c for c in chain(t.walk() for t in tables)
-        }
+        try:
+            existing_constructs = await get_stored_pg_constructs(cur)
+        except UnknownConstruct:
+            # TODO @Robustness @Architecture: figure out some simple Migration system
+            # does not exist yet, will be created below
+            await cur.connection.rollback()
+            existing_constructs = {}
+        current_constructs: dict[UUID, Construct] = {c.id: c for t in tables for c in t.walk()}
         missing_constructs = {
             id: c for id, c in current_constructs.items() if id not in existing_constructs
         }
-        # create missing constructs
-        await create_pg_constructs(cur, missing_constructs)
+        if missing_constructs:
+            # create missing constructs
+            await create_pg_constructs(cur, missing_constructs)
+            # and remember the state
+            await replace_stored_pg_constructs(cur, {**existing_constructs, **missing_constructs})

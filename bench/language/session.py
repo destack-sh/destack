@@ -224,6 +224,7 @@ class Session:
 
         from bench.language.edit import EditBundle
 
+        # nocheckin: commits record edits through local database
         self._log.debug("session.commit", editor=self._editor, refresh_index=refresh_index)
         edits = EditBundle(edits).compact()
         self._editor.reset()

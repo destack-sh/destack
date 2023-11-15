@@ -112,6 +112,10 @@ class ColumnType(enum.StrEnum):
     BYTES = "Bytes"
 
 
+SqlPrimitiveSingle = Union[str, int, float, bool, datetime, UUID, bytes, type(None)]
+SqlPrimitive = Union[SqlPrimitiveSingle, list[SqlPrimitiveSingle], dict[str, SqlPrimitiveSingle]]
+
+
 @dataclass
 class Column(TableConstruct):
     """
@@ -294,8 +298,11 @@ class Table(Construct):
             construct._table = self
 
     def __str__(self):
+        columns_str = ", ".join(f"{c.name} {c.type}" for c in self.columns)
+        constraints_str = ", ".join(f"{c.name} {c.type}" for c in self.constraints)
+        indexes_str = ", ".join(f"{c.name} {c.type}" for c in self.indexes)
         return (
-            f"{self.name} ({self.columns}, constraints={self.constraints}, indexes={self.indexes})"
+            f"{self.name} ({columns_str}, constraints=[{constraints_str}], indexes=[{indexes_str}])"
         )
 
     def __repr__(self):
@@ -357,7 +364,7 @@ MIGRATION_TABLE = Table(
         Column("applied_at", ColumnType.DATETIME),
         Column("runtime_version", ColumnType.STRING),
         Column("module_version", ColumnType.STRING),
-        Column("hash", ColumnType.INT),
+        Column("hash", ColumnType.BIGINT),
     ),
 )
 CONSTRUCT_TABLE = Table(
@@ -366,8 +373,7 @@ CONSTRUCT_TABLE = Table(
         Column("id", ColumnType.UUID, is_primary_key=True),
         Column("kind", ColumnType.STRING),
         Column("name", ColumnType.STRING),
-        Column("hash", ColumnType.INT),
-        Column("migration_id", ColumnType.INT),
+        Column("hash", ColumnType.BIGINT),
     ),
 )
 
@@ -386,7 +392,11 @@ class MigrationInfo:
 
 @dataclass
 class Migration:
-    """A stored SQL migration."""
+    """
+    A stored SQL migration for internal mappings.
+    This does NOT concern Bench field changes, which nave no 'migration' concept
+      (for now, and if they did it would be separate from this).
+    """
 
     id: int
 

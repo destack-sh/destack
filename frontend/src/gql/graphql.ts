@@ -189,22 +189,21 @@ export type Conditional = {
 
 export enum ConditionalOp {
   And = "AND",
-  Disjoint = "DISJOINT",
-  DoesNotExist = "DOES_NOT_EXIST",
+  Contains = "CONTAINS",
   Equals = "EQUALS",
   Exists = "EXISTS",
   GreaterThan = "GREATER_THAN",
   GreaterThanOrEquals = "GREATER_THAN_OR_EQUALS",
-  Intersects = "INTERSECTS",
   LessThan = "LESS_THAN",
   LessThanOrEquals = "LESS_THAN_OR_EQUALS",
   Matches = "MATCHES",
   Near = "NEAR",
   Not = "NOT",
+  NotContains = "NOT_CONTAINS",
   NotEquals = "NOT_EQUALS",
+  NotExists = "NOT_EXISTS",
   Or = "OR",
   StartsWith = "STARTS_WITH",
-  Within = "WITHIN",
 }
 
 export type DeleteObjectInput = {
@@ -577,9 +576,7 @@ export type Mutation = {
   acceptProjectInvite: UserOperationInfo;
   batchMoveStatement: StatementBatchOperationInfo;
   batchPasteStatement: StatementBatchOperationInfo;
-  batchRestoreRecord: RecordBatchOperationInfo;
   batchRestoreStatement: StatementBatchOperationInfo;
-  batchSoftDeleteRecord: RecordBatchOperationInfo;
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
   cancelProjectInvite: ProjectOperationInfo;
@@ -680,16 +677,8 @@ export type MutationBatchPasteStatementArgs = {
   input: StatementBatchPasteInput;
 };
 
-export type MutationBatchRestoreRecordArgs = {
-  input: RecordBatchRestoreInput;
-};
-
 export type MutationBatchRestoreStatementArgs = {
   input: StatementBatchRestoreInput;
-};
-
-export type MutationBatchSoftDeleteRecordArgs = {
-  input: RecordBatchSoftDeleteInput;
 };
 
 export type MutationBatchSoftDeleteStatementArgs = {
@@ -1689,23 +1678,6 @@ export type Record = HasCrud &
     updatedAt: Scalars["DateTime"]["output"];
     value: Scalars["JSON"]["output"];
   };
-
-export type RecordBatch = {
-  __typename?: "RecordBatch";
-  records: Array<Record>;
-};
-
-export type RecordBatchOperationInfo = OperationInfo | RecordBatch;
-
-export type RecordBatchRestoreInput = {
-  ids: Array<Scalars["GlobalID"]["input"]>;
-  statementId: Scalars["GlobalID"]["input"];
-};
-
-export type RecordBatchSoftDeleteInput = {
-  ids: Array<Scalars["GlobalID"]["input"]>;
-  statementId: Scalars["GlobalID"]["input"];
-};
 
 /** A connection to a list of items. */
 export type RecordConnection = {
@@ -4803,34 +4775,6 @@ export type RestoreRecordMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Record"; id: any; deletedAt?: any | null; revision: number };
-};
-
-export type BatchSoftDeleteRecordMutationVariables = Exact<{
-  ids: Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"];
-  statementId: Scalars["GlobalID"]["input"];
-}>;
-
-export type BatchSoftDeleteRecordMutation = {
-  __typename?: "Mutation";
-  batchSoftDeleteRecord:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | { __typename?: "RecordBatch"; records: Array<{ __typename?: "Record"; id: any; deletedAt?: any | null }> };
-};
-
-export type BatchRestoreRecordMutationVariables = Exact<{
-  ids: Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"];
-  statementId: Scalars["GlobalID"]["input"];
-}>;
-
-export type BatchRestoreRecordMutation = {
-  __typename?: "Mutation";
-  batchRestoreRecord:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | { __typename?: "RecordBatch"; records: Array<{ __typename?: "Record"; id: any; deletedAt?: any | null }> };
 };
 
 export type CreateFieldMutationVariables = Exact<{
@@ -18508,236 +18452,6 @@ export const RestoreRecordDocument = {
     },
   ],
 } as unknown as DocumentNode<RestoreRecordMutation, RestoreRecordMutationVariables>;
-export const BatchSoftDeleteRecordDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "batchSoftDeleteRecord" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "ids" } },
-          type: {
-            kind: "NonNullType",
-            type: {
-              kind: "ListType",
-              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-            },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "batchSoftDeleteRecord" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "ids" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "ids" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "statementId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RecordBatch" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "records" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "OperationInfoContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "InlineFragment",
-            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "messages" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "kind" } },
-                      { kind: "Field", name: { kind: "Name", value: "message" } },
-                      { kind: "Field", name: { kind: "Name", value: "field" } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<BatchSoftDeleteRecordMutation, BatchSoftDeleteRecordMutationVariables>;
-export const BatchRestoreRecordDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "batchRestoreRecord" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "ids" } },
-          type: {
-            kind: "NonNullType",
-            type: {
-              kind: "ListType",
-              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-            },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "batchRestoreRecord" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "ids" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "ids" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "statementId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RecordBatch" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "records" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "OperationInfoContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "InlineFragment",
-            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "messages" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "kind" } },
-                      { kind: "Field", name: { kind: "Name", value: "message" } },
-                      { kind: "Field", name: { kind: "Name", value: "field" } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<BatchRestoreRecordMutation, BatchRestoreRecordMutationVariables>;
 export const CreateFieldDocument = {
   kind: "Document",
   definitions: [

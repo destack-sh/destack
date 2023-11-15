@@ -170,13 +170,12 @@ enum ConditionalOp {
   GREATER_THAN_OR_EQUALS
   LESS_THAN
   LESS_THAN_OR_EQUALS
+  CONTAINS
+  NOT_CONTAINS
   MATCHES
   STARTS_WITH
   EXISTS
-  DOES_NOT_EXIST
-  INTERSECTS
-  DISJOINT
-  WITHIN
+  NOT_EXISTS
   NEAR
 }
 
@@ -608,8 +607,6 @@ type Mutation {
   softDeleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
   restoreRecord(input: RecordRestoreInput!): RecordOperationInfo!
   deleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
-  batchSoftDeleteRecord(input: RecordBatchSoftDeleteInput!): RecordBatchOperationInfo!
-  batchRestoreRecord(input: RecordBatchRestoreInput!): RecordBatchOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
   updateFile(input: FileUpdateInput!): FileOperationInfo!
   deleteFile(input: NodeInput!): FileOperationInfo!
@@ -1257,22 +1254,6 @@ type Record implements HasCrud & Node {
   revision: Int!
   ck: UUID!
   value: JSON!
-}
-
-type RecordBatch {
-  records: [Record!]!
-}
-
-union RecordBatchOperationInfo = RecordBatch | OperationInfo
-
-input RecordBatchRestoreInput {
-  statementId: GlobalID!
-  ids: [GlobalID!]!
-}
-
-input RecordBatchSoftDeleteInput {
-  statementId: GlobalID!
-  ids: [GlobalID!]!
 }
 
 """A connection to a list of items."""

@@ -28,7 +28,6 @@ from bench.search import mirror
 from bench.search.client import os_client_sync
 from bench.search.core import DocumentType
 from bench.search.mapping import encode_cursor, prepare_os_query
-from bench.utils.dt import utcnow_with_tz
 
 
 @strawberry_django.type(models.Record)
@@ -121,6 +120,7 @@ class RecordBatchRestoreInput(RecordInput, BatchEditInput):
 
 @strawberry.type
 class RecordMutation:
+    # nocheckin: reroute api record mutation to runtime host
     @db_edit(MET.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         record = models.Record(
@@ -157,24 +157,6 @@ class RecordMutation:
         record.delete()
         return record
 
-    @db_edit(MET.SOFT_DELETE_RECORD, batch=True, register=False)
-    def batch_soft_delete_record(
-        self, input: RecordBatchSoftDeleteInput
-    ) -> RecordBatch | OperationInfo:
-        # imitate soft_delete_record but for a batch
-        record_ids = [UUID(i.node_id) for i in input.ids]
-        deleted_at = utcnow_with_tz()
-        models.Record.objects.filter(id__in=record_ids).update(deleted_at=deleted_at)
-        records = models.Record._base_manager.filter(id__in=record_ids)
-        return RecordBatch(records=list(records))
-
-    @db_edit(MET.RESTORE_RECORD, batch=True, register=False)
-    def batch_restore_record(self, input: RecordBatchRestoreInput) -> RecordBatch | OperationInfo:
-        record_ids = [UUID(i.node_id) for i in input.ids]
-        models.Record._base_manager.filter(id__in=record_ids).update(deleted_at=None)
-        records = models.Record._base_manager.filter(id__in=record_ids)
-        return RecordBatch(records=list(records))
-
 
 RECORDS_LIMIT = 100
 
@@ -192,6 +174,7 @@ class RecordQuery:  # avoid name conflict with DatabaseQuery
         limit: Optional[int] = None,
         count: Optional[bool] = None,
     ) -> ListConnectionWithTotalCount[Record]:
+        # nocheckin: reroute api record search to runtime host
         statement = models.Statement.objects.get(id=statement_id.node_id)
         access = check_module_node_access(info, statement, ModuleAccessLevel.Read)
 
