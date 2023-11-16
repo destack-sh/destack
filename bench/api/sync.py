@@ -102,8 +102,9 @@ def bench_edit(
             if not rep.p.success:
                 raise RuntimeError(f"failed to write edits: {rep.p.error}")
 
-            # use returned nodes as return value (assume their values)
-            for updated_node, thing in zip(rep.p.nodes, things):
+            # use returned nodes as return value (assuming their values, ignore any other new nodes)
+            edited_nodes = [n for n in rep.p.nodes if n.mnt == type.mnt]
+            for updated_node, thing in zip(edited_nodes, things):
                 for key in updated_node.__dict__.keys():
                     if hasattr(thing, key) and getattr(thing, key) != getattr(updated_node, key):
                         thing.__dict__[key] = getattr(updated_node, key)

@@ -187,7 +187,7 @@ class RecordQuery:
         page_info = PageInfo(
             start_cursor=rep.p.cursors[0] if rep.p.cursors else None,
             end_cursor=rep.p.cursors[-1] if rep.p.cursors else None,
-            has_next_page=rep.p.records and len(rep.p.records) > effective_limit,
+            has_next_page=bool(rep.p.records) and len(rep.p.records) > effective_limit,
             has_previous_page=False,
         )
         return ListConnectionWithTotalCount(

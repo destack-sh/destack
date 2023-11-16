@@ -28,6 +28,7 @@ from bench.language.const import (
 from bench.language.edit import MEK, MET, EditBundle, EditData
 from bench.language.module import NodeTree
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.utils import flatten_list
 
 MNT = ModuleNodeType
 ParentsT = set[MNT]
@@ -861,15 +862,23 @@ class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
         )
 
 
-@transaction.atomic(savepoint=False)
+REMAP_PROPERTIES: dict[tuple[MNT, str], list[str]] = {
+    (MNT.FILE, "parent_id"): ["parent_file_id", "project_version_id"],
+    (MNT.STATEMENT, "parent_id"): ["parent_statement_id", "file_id", "project_version_id"],
+    (MNT.FIELD, "parent_id"): ["statement_id", "project_version_id"],
+    (MNT.TRIGGER, "parent_id"): ["statement_id", "project_version_id"],
+    (MNT.TAGGING, "parent_id"): ["statement_id", "project_version_id"],
+}
+
+
+@transaction.atomic
 def write_db_edits(
     project_v: models.ProjectVersion,
     source: NodeTree,
     edits: list[EditData],
     *,
     validate: bool = True,
-    apply: bool = True,
-    raise_on_error: bool = True,
+    raise_on_apply_error: bool = True,
 ) -> list[NodeDataT]:
     """
     Writes module edits to the database.
@@ -879,12 +888,10 @@ def write_db_edits(
     edits = EditBundle(edits)
     now = utcnow_with_tz()
     edited_nodes: list[NodeDataT] = []
-
-    if apply:
-        source = source.deepcopy()  # copy source to not mutate it directly
+    source = source.deepcopy()  # copy source to not mutate it directly
 
     for met, batch in edits.batched_apply(
-        source, project_v.project_id, project_v.id, apply=apply, raise_on_error=raise_on_error
+        source, project_v.project_id, project_v.id, raise_on_error=raise_on_apply_error
     ):
         if met.kind == MEK.TRUNCATE:
             # remove children of a certain type by scope
@@ -908,7 +915,6 @@ def write_db_edits(
                         model_cls.objects.filter(parent_file_id__in=file_ids).delete()
                 else:
                     model_cls.objects.filter(project_version_id=project_v.id).delete()
-            edited_nodes = []
 
         elif met.kind == MEK.CREATE:
             # create nodes
@@ -920,24 +926,30 @@ def write_db_edits(
             for e, node in zip(batch, nodes):
                 e.node = pack_node_flat(node)
                 e.thing = node  # keep node model for downstream indexing in opensearch
-            edited_nodes = [e.node for e in batch]
+            edited_nodes.extend(e.node for e in batch)
 
         elif met.kind in (MEK.UPDATE, MEK.MOVE, MEK.SOFT_DELETE, MEK.RESTORE):
             # update nodes in place
             nodes = unpack_nodes(project_v, source, [e.node for e in batch])
             model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
-            # update CRU info
-            if not met.is_soft_delete:
+            if met.kind in (MEK.SOFT_DELETE, MEK.RESTORE):
+                # manually update deleted_at since it's not in node data (for now?)
+                deleted_at = now if met.kind == MEK.SOFT_DELETE else None
+                for node in nodes:
+                    node.deleted_at = deleted_at
+                cru_properties = ["deleted_at"]
+            else:
                 for node in nodes:
                     node.updated_at = now
                     node.revision = F("revision") + 1
                 cru_properties = ["updated_at", "revision"]
-            else:
-                cru_properties = []
             # different properties may be updated, so group by properties
             nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
             for e, node in zip(batch, nodes):
-                properties = ";".join(e.properties or [])
+                properties = flatten_list(
+                    *(REMAP_PROPERTIES.get((met.mnt, p), [p]) for p in e.properties)
+                )
+                properties = ";".join(properties or [])
                 nodes_by_props[properties].append(node)
             # batch update
             for properties, nodes in nodes_by_props.items():
@@ -951,7 +963,9 @@ def write_db_edits(
                     ]
                     for node in nodes:
                         node.clean_fields(exclude=unchanged_properties)
-                num_updated = model_cls.objects.bulk_update(nodes, [*properties, *cru_properties])
+                num_updated = model_cls._base_manager.bulk_update(
+                    nodes, [*properties, *cru_properties]
+                )
                 if num_updated != len(nodes):
                     raise ValueError(
                         f"failed to update {len(nodes)} {model_cls} ({properties}, got {num_updated})"
@@ -961,12 +975,11 @@ def write_db_edits(
             for e, node in zip(batch, nodes):
                 e.node = pack_node_flat(node)
                 e.thing = node  # keep node model for downstream indexing in opensearch
-            edited_nodes = [e.node for e in batch]
+            edited_nodes.extend(e.node for e in batch)
 
         elif met.kind == MEK.DELETE:
             model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
-            model_cls.objects.filter(id__in=[e.node.id for e in batch]).delete()
-            edited_nodes = []
+            model_cls._base_manager.filter(id__in=[e.node.id for e in batch]).delete()
 
     return edited_nodes
 
