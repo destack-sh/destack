@@ -14,7 +14,7 @@ from uuid import UUID
 
 import structlog
 from django.db import transaction
-from django.db.models import Model, QuerySet
+from django.db.models import F, Model, QuerySet
 
 from bench import models
 from bench.language import IssueType, StatementType, TypeHint, TypeTag, wire
@@ -26,7 +26,7 @@ from bench.language.const import (
     TriggerType,
 )
 from bench.language.edit import MEK, MET, EditBundle, EditData
-from bench.language.module import NodeTree
+from bench.language.module import Module, NodeTree
 from bench.utils.dt import utcnow_with_tz
 
 MNT = ModuleNodeType
@@ -869,40 +869,41 @@ class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
 
 
 @transaction.atomic(savepoint=False)
-def write_edits(
+def write_db_edits(
     project_v: models.ProjectVersion,
-    source: NodeTree,
+    module: Module,
     edits: list[EditData],
     *,
-    refresh_index: bool,
-    validate: bool,
+    validate: bool = True,
     apply: bool = True,
     raise_on_error: bool = True,
-):
+) -> list[NodeDataT]:
     """
-    Writes a series of module edits to the database.
-    If apply, also mutates a COPY of the module tree. Yeah, this seems a bit inefficient...
+    Writes module edits to the database.
+    If apply, also mutates a COPY of the module tree. Yeah, this is inefficient...
     """
-    from bench.server.search import write_edits_to_os
 
     edits = EditBundle(edits)
+    now = utcnow_with_tz()
+    edited_nodes: list[NodeDataT] = []
 
+    source = module._source
     if apply:
         source = source.deepcopy()  # copy source to not mutate it directly
 
-    for mmt, batch in edits.batched_apply(
+    for met, batch in edits.batched_apply(
         source, project_v.project_id, project_v.id, apply=apply, raise_on_error=raise_on_error
     ):
-        if mmt.kind == MEK.TRUNCATE:
+        if met.kind == MEK.TRUNCATE:
             # remove descendants of a certain type by scope
-            if mmt == MET.TRUNCATE_RECORDS:
+            if met == MET.TRUNCATE_RECORDS:
                 statement_keys = [typing.cast(wire.StatementData, e.node).key for e in batch]
                 models.Record.objects.filter(statement_key__in=statement_keys).delete()
             else:
                 # this is a bit unwieldy...
                 statement_ids = [e.statement_id for e in batch if e.statement_id is not None]
                 file_ids = [e.file_id for e in batch if e.file_id is not None]
-                model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
+                model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
                 if statement_ids:
                     if hasattr(model_cls, "statement"):
                         model_cls.objects.filter(statement_id__in=statement_ids).delete()
@@ -915,48 +916,64 @@ def write_edits(
                         model_cls.objects.filter(parent_file_id__in=file_ids).delete()
                 else:
                     model_cls.objects.filter(project_version_id=project_v.id).delete()
-        elif mmt.kind in (MEK.CREATE, MEK.UPDATE):
-            # create or update nodes in place
-            # (first assemble ancestor models - no queries, just unpacking)
-            nodes = unpack_nodes(project_v, source, [e.node for e in batch])
-            model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
-            if mmt.kind == MEK.CREATE:
-                model_cls.objects.bulk_create(nodes)
-            else:  # MEK.UPDATE
-                # different properties may be updated, so group by properties
-                nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
-                for e, node in zip(batch, nodes):
-                    properties = ";".join(e.properties or [])
-                    nodes_by_props[properties].append(node)
-                # batch update
-                for properties, nodes in nodes_by_props.items():
-                    properties = properties.split(";")
-                    # need to remap properties since edit data uses language names (see :Edit)
-                    properties = wire.remap_properties(mmt.mnt, properties)
-                    # validate changed properties (records have no validation)
-                    if validate and mmt.mnt != MNT.RECORD:
-                        unchanged_properties = [
-                            f.name for f in model_cls._meta.fields if f.name not in properties
-                        ]
-                        for node in nodes:
-                            node.clean_fields(exclude=unchanged_properties)
+            edited_nodes = []
 
-                    num_updated = model_cls.objects.bulk_update(nodes, properties)
-                    if num_updated != len(nodes):
-                        # report existing/missing nodes for debugging
-                        existing_nodes = model_cls.objects.filter(id__in=[n.id for n in nodes])
-                        existing_nodes_ids = set(n.id for n in existing_nodes)
-                        missing_nodes = [n for n in nodes if n.id not in existing_nodes_ids]
-                        raise ValueError(
-                            f"failed to update {len(nodes)} {model_cls} nodes {properties} (got {num_updated}, missing={missing_nodes})"
-                        )
+        elif met.kind == MEK.CREATE:
+            # create nodes
+            nodes = unpack_nodes(project_v, source, [e.node for e in batch])
+            model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
+            model_cls.objects.bulk_create(nodes)
             for e, node in zip(batch, nodes):
                 e.thing = node  # keep node model for downstream indexing in opensearch
-        elif mmt.kind == MEK.DELETE:
-            model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
-            model_cls.objects.filter(id__in=[e.node.id for e in batch]).delete()
+            edited_nodes = [e.node for e in batch]
 
-    write_edits_to_os(project_v, edits.edits, refresh=refresh_index)
+        elif met.kind == MEK.UPDATE:
+            # update nodes in place
+            nodes = unpack_nodes(project_v, source, [e.node for e in batch])
+            model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
+            # update CRU info
+            if not met.is_soft_delete:
+                for node in nodes:
+                    node.updated_at = now
+                    node.revision = F("revision") + 1
+                cru_properties = ["updated_at", "revision"]
+            else:
+                cru_properties = []
+            # different properties may be updated, so group by properties
+            nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
+            for e, node in zip(batch, nodes):
+                properties = ";".join(e.properties or [])
+                nodes_by_props[properties].append(node)
+            # batch update
+            for properties, nodes in nodes_by_props.items():
+                properties = properties.split(";")
+                # need to remap properties since edit data uses language names (see :Edit)
+                properties = wire.remap_properties(met.mnt, properties)
+                # validate changed properties (records have no validation)
+                if validate and met.mnt != MNT.RECORD:
+                    unchanged_properties = [
+                        f.name for f in model_cls._meta.fields if f.name not in properties
+                    ]
+                    for node in nodes:
+                        node.clean_fields(exclude=unchanged_properties)
+                num_updated = model_cls.objects.bulk_update(nodes, [*properties, *cru_properties])
+                if num_updated != len(nodes):
+                    raise ValueError(
+                        f"failed to update {len(nodes)} {model_cls} ({properties}, got {num_updated})"
+                    )
+            # reload revisions
+            nodes = model_cls.objects.filter(id__in=[e.node.id for e in batch])
+            for e, node in zip(batch, nodes):
+                e.node = pack_node_flat(node)
+                e.thing = node  # keep node model for downstream indexing in opensearch
+            edited_nodes = [e.node for e in batch]
+
+        elif met.kind == MEK.DELETE:
+            model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
+            model_cls.objects.filter(id__in=[e.node.id for e in batch]).delete()
+            edited_nodes = []
+
+    return edited_nodes
 
 
 @transaction.atomic(savepoint=False)

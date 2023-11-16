@@ -246,7 +246,6 @@ export enum EditType {
   MoveFile = "MOVE_FILE",
   MoveStatement = "MOVE_STATEMENT",
   MoveTagging = "MOVE_TAGGING",
-  PasteFile = "PASTE_FILE",
   PasteStatement = "PASTE_STATEMENT",
   RenameField = "RENAME_FIELD",
   RenameFile = "RENAME_FILE",

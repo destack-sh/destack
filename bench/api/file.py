@@ -99,17 +99,17 @@ class FileMutation:
         file.parent_file_id = input.parent_id.node_id if input.parent_id else None
         return file
 
-    @db_edit(MET.DELETE_FILE, atomic=True)
+    @db_edit(MET.DELETE_FILE)
     def delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         raise NotImplementedError
 
-    @db_edit(MET.SOFT_DELETE_FILE, atomic=True)
+    @db_edit(MET.SOFT_DELETE_FILE)
     def soft_delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.deleted_at = utcnow_with_tz()
         return file
 
-    @db_edit(MET.RESTORE_FILE, atomic=True)
+    @db_edit(MET.RESTORE_FILE)
     def restore_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)

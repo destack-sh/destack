@@ -149,7 +149,7 @@ async def _execute(cur: psycopg.AsyncCursor, query: sql.Composed) -> None:
         raise UnknownConstruct(str(e)) from e
 
 
-async def select_rows(
+async def select(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
@@ -178,7 +178,7 @@ async def select_rows(
     return await cur.fetchall()
 
 
-async def insert_rows(
+async def insert(
     cur: psycopg.AsyncCursor,
     table: Table,
     rows: list[RowIn],
@@ -186,15 +186,14 @@ async def insert_rows(
     returning: list[Column] | None = None,
 ) -> list[RowOut] | None:
     """Inserts into the given table."""
+    values = (
+        sql.SQL("(") + sql.SQL(", ").join(sql_node_to_sql(v) for v in row.values()) + sql.SQL(")")
+        for row in rows
+    )
     query = sql.SQL("INSERT INTO {table} ({fields}) VALUES {values}").format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ").join(
-            sql.SQL("(")
-            + sql.SQL(", ").join(sql_node_to_sql(v) for v in row.values())
-            + sql.SQL(")")
-            for row in rows
-        ),
+        values=sql.SQL(", ").join(*values),
     )
     if returning:
         query += sql.SQL(" RETURNING {}").format(
@@ -206,7 +205,24 @@ async def insert_rows(
         return await cur.fetchall()
 
 
-async def update_rows(
+async def exists(
+    cur: psycopg.AsyncCursor,
+    table: Table,
+    where: SqlExpression | None,
+) -> bool:
+    """Checks if rows matching the given query exist."""
+    query = sql.SQL("SELECT EXISTS (SELECT 1 FROM {table}").format(
+        table=sql.Identifier(table.name),
+    )
+    if where:
+        query += sql.SQL(" WHERE {}").format(where.sql())
+    query += sql.SQL(")")
+    logger.debug("pg.exists_rows", table=table, query=query.as_string(cur))
+    await _execute(cur, query)
+    return (await cur.fetchone())["exists"]
+
+
+async def update(
     cur: psycopg.AsyncCursor,
     table: Table,
     where: SqlExpression | None,
@@ -237,7 +253,7 @@ async def update_rows(
         return await cur.fetchall()
 
 
-async def delete_rows(
+async def delete(
     cur: psycopg.AsyncCursor,
     table: Table,
     where: SqlExpression | None,
@@ -260,14 +276,14 @@ async def delete_rows(
         return await cur.fetchall()
 
 
-async def truncate_rows(cur: psycopg.AsyncCursor, table: Table) -> None:
+async def truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
     """Truncates the given table."""
     await cur.execute(sql.SQL("TRUNCATE TABLE {}").format(sql.Identifier(table.name)))
 
 
 async def get_stored_pg_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, ConstructInfo]:
     """Gets the current constructs in the given database (through the CONSTRUCT_TABLE)."""
-    rows = await select_rows(cur, CONSTRUCT_TABLE)
+    rows = await select(cur, CONSTRUCT_TABLE)
     construct_infos = [
         ConstructInfo(
             id=row["id"],
@@ -282,7 +298,7 @@ async def get_stored_pg_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, Const
 
 async def replace_stored_pg_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
     """Replaces the STORED constructs in construct table (data only, no definitions)."""
-    await truncate_rows(cur, CONSTRUCT_TABLE)
+    await truncate(cur, CONSTRUCT_TABLE)
     rows = [
         {
             "id": construct.id,
@@ -292,7 +308,7 @@ async def replace_stored_pg_constructs(cur: psycopg.AsyncCursor, constructs: dic
         }
         for construct in constructs.values()
     ]
-    await insert_rows(cur, CONSTRUCT_TABLE, rows)
+    await insert(cur, CONSTRUCT_TABLE, rows)
 
 
 async def create_pg_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):

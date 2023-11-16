@@ -2116,6 +2116,15 @@ class ModuleChange:
     added: list[Node]
     updated: list[Node]
     removed: list[Node]
+    touched_types: set[MNT] = dataclasses.field(init=False)
+    all_edits: list["EditData"] = dataclasses.field(init=False)
+
+    def __post_init__(self):
+        self.touched_types = set(n.mnt for n in self.touched)
+        self.all_edits = self.source_edits + self.interp_edits
+
+    def includes(self, mnt: MNT) -> bool:
+        return mnt in self.touched_types
 
     @property
     def touched(self) -> typing.Iterable[Node]:

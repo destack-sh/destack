@@ -36,24 +36,22 @@ COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
 }
 
 
-def map_to_column(field: lang.Field) -> Column:
+def map_to_pg_column(field: lang.Field) -> Column:
     """Gets a column from a field. Later, there may be more than one column per field (?)."""
     column_type = COLUMN_TYPE_BY_STORAGE_FORMAT[field.type.storage_format]
     is_array = (
         field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
     ) and column_type != ColumnType.JSON
-    # nocheckin: map field is_array identity to column somehow
-    #  (are there other similar problems?)
     return Column(
-        name=field._typed_key,
+        name=field._source_key.replace(".", "_"),
         type=column_type,
         is_array=is_array,
     )
 
 
-def map_to_table(statement: lang.Statement) -> Table:
+def map_to_pg_table(statement: lang.Statement) -> Table:
     """Gets the full table with all specific fields of a database and general record stuff."""
-    columns = [map_to_column(f) for f in statement.resolved_fields]
+    columns = [map_to_pg_column(f) for f in statement.resolved_fields]
     indexes = []
     constraints = []
 
@@ -73,7 +71,7 @@ async def update_pg_schema(pg_name: str, module: Module) -> None:
         for s in module._nodes
         if s.mnt == MNT.STATEMENT and HasDatabase in s._components and not s.ephemeral
     ]
-    tables = (*INTERNAL_TABLES, *(map_to_table(s) for s in databases))
+    tables = (*INTERNAL_TABLES, *(map_to_pg_table(s) for s in databases))
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))
 
     async with async_pg_cursor(pg_name, autocommit=False) as cur:
@@ -93,4 +91,6 @@ async def update_pg_schema(pg_name: str, module: Module) -> None:
             # create missing constructs
             await create_pg_constructs(cur, missing_constructs)
             # and remember the state
-            await replace_stored_pg_constructs(cur, {**existing_constructs, **missing_constructs})
+            new_constructs = {**existing_constructs}
+            new_constructs.update(missing_constructs)  # retain all old constructs (for now)
+            await replace_stored_pg_constructs(cur, new_constructs)

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 import structlog
+from asgiref.sync import async_to_sync
 from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
@@ -15,7 +16,6 @@ from bench.language.builtin import symbolx_lib
 from bench.language.const import ScheduleType, TriggerType, TypeFlag
 from bench.language.validation import MAX_NAME_LENGTH
 from bench.models.utils import NAME_VALIDATOR, CrudNode, create_models_bfs, get_choices
-from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.models import File, ProjectVersion
@@ -239,7 +239,7 @@ class StatementManager(models.Manager["Statement"]):
             pre_unpacked={target.id: target, **{p.id: p for p in target_parents}},
         )
         create_models_bfs(unpacked.walk_bfs_batched())
-        write_module_to_os(target, unpacked.walk_bfs(), wipe=False)
+        async_to_sync(write_module_to_os)(target, unpacked.walk_bfs(), wipe=False)
 
     def get_descendants(
         self, statement_ids: list[UUID], deleted_at: Optional[datetime] = None

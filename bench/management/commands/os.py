@@ -1,4 +1,5 @@
 import structlog
+from asgiref.sync import async_to_sync
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -54,9 +55,11 @@ class Command(BaseCommand):
                 # ignore fields not in mapping during reindex
                 #  (fields may have existed in between snapshots)
                 for project_v in project.versions.all():
-                    update_os_schema_from_db(project_v, dynamic="false")
-                    write_module_to_os_from_db(project_v, wipe=True, update_mappings=False)
-                    write_sessions_to_os_from_db(project_v)
+                    async_to_sync(update_os_schema_from_db)(project_v, dynamic="false")
+                    async_to_sync(write_module_to_os_from_db)(
+                        project_v, wipe=True, update_mappings=False
+                    )
+                    async_to_sync(write_sessions_to_os_from_db)(project_v)
                 enable_os_strict_mapping(project.os_name)
         else:
             raise ValueError("Unknown action")

@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import structlog
+from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand, CommandParser
 from django.db import transaction
 
@@ -146,8 +147,8 @@ class Command(BaseCommand):
                     module_data.nodes, pre_unpacked={project_v.id: project_v}
                 )
                 create_models_bfs(unpacked.walk_bfs_batched(), exclude=[project_v.id])
-                update_os_schema_from_db(project_v)
-                write_module_to_os(project_v, unpacked.walk_bfs(), wipe=True)
+                async_to_sync(update_os_schema_from_db)(project_v)
+                async_to_sync(write_module_to_os)(project_v, unpacked.walk_bfs(), wipe=True)
 
             # set parents to previous version
             for version in project.versions.exclude(tag=None).order_by("-tag"):

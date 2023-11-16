@@ -12,6 +12,7 @@ from asgiref.sync import sync_to_async
 from bench.language import Blob, Module, Run, RunError, Secret, Statement, wire
 from bench.language.builtin import symbolx_lib
 from bench.language.const import (
+    INTERP_NODE_TYPES,
     RUNNABLE_STATEMENT_TYPES,
     ModuleReference,
     NodeTrackingLevel,
@@ -38,6 +39,7 @@ from bench.msg.core import (
 from bench.msg.messages import (
     ClientOrigin,
     LogsChangedPayload,
+    ModuleChangedPayload,
     NMessageType,
     RepDownloadBlobPayload,
     RepGetEnvironmentPayload,
@@ -68,7 +70,6 @@ from bench.msg.messages import (
     ReqWriteEditsPayload,
     ReqWriteSessionPayload,
     StartRunErrorType,
-    ModuleChangedPayload,
 )
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
@@ -510,6 +511,7 @@ class ModuleWorkerProcess(RuntimeHost):
 
     async def on_module_changed(self, edits: list[EditData]):
         now = utcnow_with_tz()
+        edits = [e for e in edits if e.mnt not in INTERP_NODE_TYPES]
         self.module._apply_edits(edits)
         duration = utcnow_with_tz() - now
         self.log.info("worker.interp", edits=len(edits), duration=duration.total_seconds())

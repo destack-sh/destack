@@ -202,7 +202,6 @@ enum EditType {
   CREATE_FILE
   UPDATE_FILE
   DELETE_FILE
-  PASTE_FILE
   SOFT_DELETE_FILE
   RESTORE_FILE
   RENAME_FILE
@@ -568,7 +567,6 @@ type Mutation {
   batchSoftDeleteStatement(input: StatementBatchSoftDeleteInput!): StatementBatchOperationInfo!
   batchRestoreStatement(input: StatementBatchRestoreInput!): StatementBatchOperationInfo!
   batchMoveStatement(input: StatementBatchMoveInput!): StatementBatchOperationInfo!
-  batchPasteStatement(input: StatementBatchPasteInput!): StatementBatchOperationInfo!
   updateStatementText(input: StatementUpdateTextInput!): StatementOperationInfo!
   updateStatementHeadingLevel(input: StatementUpdateHeadingLevelInput!): StatementOperationInfo!
   updateStatementReference(input: StatementUpdateReferenceInput!): StatementOperationInfo!
@@ -1580,15 +1578,6 @@ input StatementBatchMoveInput {
 }
 
 union StatementBatchOperationInfo = StatementBatch | OperationInfo
-
-input StatementBatchPasteInput {
-  sourceIds: [GlobalID!]!
-  targetIds: [GlobalID!]!
-  targetCks: [UUID!]!
-  targetFileId: GlobalID!
-  targetParentIds: [GlobalID]!
-  targetOrderKeys: [String!]!
-}
 
 input StatementBatchRestoreInput {
   ids: [GlobalID!]!
