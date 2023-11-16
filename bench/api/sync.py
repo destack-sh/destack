@@ -31,7 +31,7 @@ class BatchEditInput:
         raise NotImplementedError
 
 
-def db_edit(
+def bench_edit(
     type: MET | PMT,
     *,
     batch: bool = False,
@@ -106,12 +106,15 @@ def db_edit(
             if not rep.p.success:
                 raise RuntimeError(f"failed to write edits: {rep.p.error}")
 
-            # use returned nodes as return value
-            # nocheckin: this mapping is almost definitely wrong
-            if batch:
-                ret = ret.__class__(rep.p.nodes)
+            # use returned nodes as return value (assume their values)
+            for updated_node, thing in zip(rep.p.nodes, things):
+                for key in updated_node.__dict__.keys():
+                    if hasattr(thing, key) and getattr(thing, key) != getattr(updated_node, key):
+                        setattr(thing, key, getattr(updated_node, key))
+            if batch:  # restore batch wrapper
+                ret = ret.__class__(things)
             else:
-                ret = rep.p.nodes[0]
+                ret = things[0]
             return ret
 
         # add info to wrapped_edit function signature if missing

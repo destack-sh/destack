@@ -14,7 +14,7 @@ from strawberry_django.fields.types import OperationInfo
 from bench import language, models
 from bench.api.auth import check_module_access
 from bench.api.interp import Issue, ResolvedField
-from bench.api.sync import MET, BatchEditInput, db_edit
+from bench.api.sync import MET, BatchEditInput, bench_edit
 from bench.api.utils import HasCrud, ModuleNode, Revisioned, ThingBatch
 from bench.language import const
 from bench.models import ModuleAccessLevel
@@ -255,7 +255,7 @@ class StatementBatch(ThingBatch):
 
 @strawberry.type
 class StatementMutation:
-    @db_edit(MET.CREATE_STATEMENT)
+    @bench_edit(MET.CREATE_STATEMENT)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
         parent_statement = (
@@ -280,11 +280,11 @@ class StatementMutation:
         )
         return statement
 
-    @db_edit(MET.UPDATE_STATEMENT)
+    @bench_edit(MET.UPDATE_STATEMENT)
     def update_statement(self, input: StatementUpdateInput) -> Statement | OperationInfo:
         raise NotImplementedError("only for sync")
 
-    @db_edit(MET.MORPH_STATEMENT)
+    @bench_edit(MET.MORPH_STATEMENT)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.type = input.type
@@ -296,30 +296,30 @@ class StatementMutation:
             raise ValidationError("only databases can be detached")
         return statement
 
-    @db_edit(MET.RENAME_STATEMENT)
+    @bench_edit(MET.RENAME_STATEMENT)
     def rename_statement(self, input: StatementRenameInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.name = input.name
         return statement
 
-    @db_edit(MET.SOFT_DELETE_STATEMENT)
+    @bench_edit(MET.SOFT_DELETE_STATEMENT)
     def soft_delete_statement(self, input: StatementSoftDeleteInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.deleted_at = utcnow_with_tz()
         return statement
 
-    @db_edit(MET.RESTORE_STATEMENT)
+    @bench_edit(MET.RESTORE_STATEMENT)
     def restore_statement(self, input: StatementRestoreInput) -> Statement | OperationInfo:
         # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.deleted_at = None
         return statement
 
-    @db_edit(MET.DELETE_STATEMENT)
+    @bench_edit(MET.DELETE_STATEMENT)
     def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
         raise NotImplementedError
 
-    @db_edit(MET.MOVE_STATEMENT)
+    @bench_edit(MET.MOVE_STATEMENT)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.file_id = UUID(input.file_id.node_id)
@@ -337,7 +337,7 @@ class StatementMutation:
         statement.order_key = input.order_key
         return statement
 
-    @db_edit(MET.SOFT_DELETE_STATEMENT, batch=True, register=False)
+    @bench_edit(MET.SOFT_DELETE_STATEMENT, batch=True, register=False)
     def batch_soft_delete_statement(
         self, input: StatementBatchSoftDeleteInput
     ) -> StatementBatch | OperationInfo:
@@ -349,7 +349,7 @@ class StatementMutation:
             statement.deleted_at = deleted_at
         return StatementBatch(statements=list(statements))
 
-    @db_edit(MET.RESTORE_STATEMENT, batch=True, register=False)
+    @bench_edit(MET.RESTORE_STATEMENT, batch=True, register=False)
     def batch_restore_statement(
         self, input: StatementBatchRestoreInput
     ) -> StatementBatch | OperationInfo:
@@ -360,7 +360,7 @@ class StatementMutation:
             statement.deleted_at = None
         return StatementBatch(statements=list(statements))
 
-    @db_edit(MET.MOVE_STATEMENT, batch=True, register=False)
+    @bench_edit(MET.MOVE_STATEMENT, batch=True, register=False)
     def batch_move_statement(
         self, input: StatementBatchMoveInput
     ) -> StatementBatch | OperationInfo:
@@ -607,13 +607,13 @@ class FieldRestoreInput(strawberry_django.NodeInput):
 
 @strawberry.type
 class SymbolMutation:
-    @db_edit(MET.UPDATE_STATEMENT_TEXT)
+    @bench_edit(MET.UPDATE_STATEMENT_TEXT)
     def update_statement_text(self, input: StatementUpdateTextInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.text = input.text
         return statement
 
-    @db_edit(MET.UPDATE_STATEMENT_HEADING_LEVEL)
+    @bench_edit(MET.UPDATE_STATEMENT_HEADING_LEVEL)
     def update_statement_heading_level(
         self, input: StatementUpdateHeadingLevelInput
     ) -> Statement | OperationInfo:
@@ -621,7 +621,7 @@ class SymbolMutation:
         statement.heading_level = input.heading_level
         return statement
 
-    @db_edit(MET.UPDATE_STATEMENT_REFERENCE)
+    @bench_edit(MET.UPDATE_STATEMENT_REFERENCE)
     def update_statement_reference(
         self, input: StatementUpdateReferenceInput
     ) -> Statement | OperationInfo:
@@ -629,19 +629,19 @@ class SymbolMutation:
         statement.reference_ck = input.reference_ck
         return statement
 
-    @db_edit(MET.UPDATE_SYMBOL_CODE)
+    @bench_edit(MET.UPDATE_SYMBOL_CODE)
     def update_symbol_code(self, input: SymbolUpdateCodeInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.code = input.code
         return statement
 
-    @db_edit(MET.UPDATE_SYMBOL_VALUE)
+    @bench_edit(MET.UPDATE_SYMBOL_VALUE)
     def update_symbol_value(self, input: SymbolUpdateValueInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.value = input.value
         return statement
 
-    @db_edit(MET.CREATE_FIELD)
+    @bench_edit(MET.CREATE_FIELD)
     def create_field(self, input: FieldCreateInput) -> Field | OperationInfo:
         field = models.Field(
             id=UUID(input.id.node_id),
@@ -659,7 +659,7 @@ class SymbolMutation:
         )
         return field
 
-    @db_edit(MET.UPDATE_FIELD)
+    @bench_edit(MET.UPDATE_FIELD)
     def update_field(self, input: FieldUpdateInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.name = input.name
@@ -671,19 +671,19 @@ class SymbolMutation:
         field.value = input.value
         return field
 
-    @db_edit(MET.RENAME_FIELD)
+    @bench_edit(MET.RENAME_FIELD)
     def update_field_name(self, input: FieldRenameInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.name = input.name
         return field
 
-    @db_edit(MET.UPDATE_FIELD_TEXT)
+    @bench_edit(MET.UPDATE_FIELD_TEXT)
     def update_field_text(self, input: FieldUpdateTextInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.text = input.text
         return field
 
-    @db_edit(MET.UPDATE_FIELD_TYPE)
+    @bench_edit(MET.UPDATE_FIELD_TYPE)
     def update_field_type(self, input: FieldUpdateTypeInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.tag = input.tag
@@ -692,30 +692,30 @@ class SymbolMutation:
         field.reference_ck = input.reference_ck
         return field
 
-    @db_edit(MET.MOVE_FIELD)
+    @bench_edit(MET.MOVE_FIELD)
     def move_field(self, input: FieldMoveInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.order_key = input.order_key
         return field
 
-    @db_edit(MET.SOFT_DELETE_FIELD)
+    @bench_edit(MET.SOFT_DELETE_FIELD)
     def soft_delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
         # use _base_manager since soft deleted type nodes are not visible
         field = models.Field._base_manager.get(id=input.id.node_id)
         field.deleted_at = utcnow_with_tz()
         return field
 
-    @db_edit(MET.DELETE_FIELD)
+    @bench_edit(MET.DELETE_FIELD)
     def delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
         raise NotImplementedError
 
-    @db_edit(MET.RESTORE_FIELD)
+    @bench_edit(MET.RESTORE_FIELD)
     def restore_field(self, input: FieldRestoreInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.deleted_at = None
         return field
 
-    @db_edit(MET.CREATE_TAGGING)
+    @bench_edit(MET.CREATE_TAGGING)
     def create_tagging(self, input: TaggingCreateInput) -> Tagging | OperationInfo:
         tagging = models.Tagging(
             id=UUID(input.id.node_id),
@@ -727,29 +727,29 @@ class SymbolMutation:
         )
         return tagging
 
-    @db_edit(MET.UPDATE_TAGGING)
+    @bench_edit(MET.UPDATE_TAGGING)
     def update_tagging(self, input: TaggingUpdateInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
         tagging.value = input.value
         return tagging
 
-    @db_edit(MET.DELETE_TAGGING)
+    @bench_edit(MET.DELETE_TAGGING)
     def delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
         raise NotImplementedError
 
-    @db_edit(MET.SOFT_DELETE_TAGGING)
+    @bench_edit(MET.SOFT_DELETE_TAGGING)
     def soft_delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
         tagging.deleted_at = utcnow_with_tz()
         return tagging
 
-    @db_edit(MET.RESTORE_TAGGING)
+    @bench_edit(MET.RESTORE_TAGGING)
     def restore_tagging(self, input: TaggingRestoreInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
         tagging.deleted_at = None
         return tagging
 
-    @db_edit(MET.CREATE_TRIGGER)
+    @bench_edit(MET.CREATE_TRIGGER)
     def create_trigger(self, input: TriggerCreateInput) -> Trigger | OperationInfo:
         trigger = models.Trigger(
             id=UUID(input.id.node_id),
@@ -767,7 +767,7 @@ class SymbolMutation:
         )
         return trigger
 
-    @db_edit(MET.UPDATE_TRIGGER)
+    @bench_edit(MET.UPDATE_TRIGGER)
     def update_trigger(self, input: TriggerUpdateInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
         trigger.type = input.type
@@ -781,17 +781,17 @@ class SymbolMutation:
         trigger.scope_ck = input.scope_ck
         return trigger
 
-    @db_edit(MET.DELETE_TRIGGER)
+    @bench_edit(MET.DELETE_TRIGGER)
     def delete_trigger(self, input: TriggerDeleteInput) -> Trigger | OperationInfo:
         raise NotImplementedError
 
-    @db_edit(MET.SOFT_DELETE_TRIGGER)
+    @bench_edit(MET.SOFT_DELETE_TRIGGER)
     def soft_delete_trigger(self, input: TriggerDeleteInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
         trigger.deleted_at = utcnow_with_tz()
         return trigger
 
-    @db_edit(MET.RESTORE_TRIGGER)
+    @bench_edit(MET.RESTORE_TRIGGER)
     def restore_trigger(self, input: TriggerRestoreInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
         trigger.deleted_at = None

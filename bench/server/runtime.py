@@ -242,14 +242,12 @@ class RuntimeSupervisor(Monitored):
 
     @message_handler
     async def write_edits(self, msg: NMessage[ReqWriteEditsPayload]) -> None:
-        logger.debug("module.write", msg=msg)
         # TODO @Security!: check if msg origin has write access to module
         runtime = await self._prepare_runtime_host(msg.p.module_id)
         try:
             edited_nodes = await runtime.write_edits(
                 msg.p.edits, origins=(msg.p.client,), refresh_index=msg.p.refresh_index
             )
-            logger.debug("module.write.done", msg=msg)
             success = True
             error = None
         except Exception as e:
@@ -262,13 +260,11 @@ class RuntimeSupervisor(Monitored):
 
     @message_handler
     async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
-        logger.debug("session.write", msg=msg, client=msg.p.client)
         runtime = await self._prepare_runtime_host(msg.p.module_id)
         try:
             await runtime.write_session(
                 session=msg.p.session, runs=msg.p.runs, origins=(msg.p.client,)
             )
-            logger.debug("session.write.done", msg=msg)
             success = True
         except Exception as e:
             sentry_capture(e)
@@ -560,12 +556,20 @@ class RuntimeHost:
         start_time = time.time()
         self.log.debug("module.write", edits=len(edits), origins=origins)
 
-        # apply to source of truth
+        # apply
+        old_source = (
+            self.module._source.deepcopy()
+        )  # TODO @Performance: don't deepcopy module on edit
         change = self.module._apply_edits(edits)
         # nocheckin: 5. intercept and commit record edit through local database
-        edited_nodes = await sync_to_async(write_db_edits)(
-            self.project_version, self.module, edits=change.all_edits
-        )
+        # TODO @Robustness: support two-phase commit for record edit :TwoPhaseCommit
+        try:
+            edited_nodes = await sync_to_async(write_db_edits)(
+                self.project_version, source=old_source, edits=change.all_edits
+            )
+        except Exception:
+            self.module._reset_from_source(old_source)
+            raise
         schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
         if schema_changed:
             await update_pg_schema(self.project.pg_name, self.module)
@@ -592,7 +596,6 @@ class RuntimeHost:
 
         duration = time.time() - start_time
         self.log.debug("module.write.done", duration=duration, edited_nodes=len(edited_nodes))
-
         return edited_nodes
 
     async def write_session(
@@ -615,7 +618,7 @@ class RuntimeHost:
     async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
         """
         Search records in this module (for the frontend client).
-        Full module state is needed to
+        Full module state is needed to access the local database.
         """
         try:
             query = prepare_os_query(

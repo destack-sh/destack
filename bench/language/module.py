@@ -2289,10 +2289,12 @@ class Module(ScopeNode):
             self._apply_edits_to_source(change.interp_edits)
         return change
 
-    def _reset_from_source(self):
+    def _reset_from_source(self, source: Optional["NodeTree"] = None):
         """Resets the module completely from the source."""
         from bench.language.wire import unpack_node
 
+        if source is not None:
+            self._source = source
         assert self._source and self.id in self._source, f"cannot reset {self!r} without source"
 
         prev_session = self.module._session
