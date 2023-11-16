@@ -33,7 +33,7 @@ from bench.language.const import (
     SessionAccessLevel,
     parse_absolute_node_reference,
 )
-from bench.language.edit import EditData
+from bench.language.edit import EditData, NodeTreeEditor
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.packer import pack_value, unpack_value
@@ -50,6 +50,7 @@ from bench.msg.messages import (
     NMessageType,
     RepDownloadBlobPayload,
     RepMarkUploadedBlobPayload,
+    RepPasteNodesPayload,
     RepPullWorkerRunsPayload,
     RepReadModulePayload,
     RepRevealSecretPayload,
@@ -63,6 +64,7 @@ from bench.msg.messages import (
     RepWriteSessionPayload,
     ReqDownloadBlobPayload,
     ReqMarkUploadedBlobPayload,
+    ReqPasteNodesPayload,
     ReqPullWorkerRunsPayload,
     ReqReadModulePayload,
     ReqRevealSecretPayload,
@@ -182,6 +184,7 @@ class RuntimeSupervisor(Monitored):
             # ideally most of these should be delegated to the RuntimeHost directly
             await handle_reply(NMessageType.READ_MODULE, self.read_module),
             await handle_reply(NMessageType.WRITE_EDITS, self.write_edits),
+            await handle_reply(NMessageType.PASTE_NODES, self.paste_nodes),
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.PULL_WORKER_RUNS, self.pull_runs),
             await handle_reply(NMessageType.WAKE_RUNTIME, self.wake_runtime),
@@ -257,6 +260,30 @@ class RuntimeSupervisor(Monitored):
             error = str(e)
             success = False
         await msg.reply(RepWriteEditsPayload(nodes=edited_nodes, success=success, error=error))
+
+    @message_handler
+    async def paste_nodes(self, msg: NMessage[ReqPasteNodesPayload]) -> None:
+        # TODO @Security!: check if msg origin has read/write access
+        runtime = await self._prepare_runtime_host(msg.p.target_module_id)
+        try:
+            edited_nodes = await runtime.paste_nodes(
+                source_module_id=msg.p.source_module_id,
+                source_ids=msg.p.source_ids,
+                target_ids=msg.p.target_ids,
+                target_cks=msg.p.target_cks,
+                target_parent_ids=msg.p.target_parent_ids,
+                target_order_keys=msg.p.target_order_keys,
+                origins=(msg.p.client,),
+            )
+            success = True
+            error = None
+        except Exception as e:
+            sentry_capture(e)
+            logger.error("module.paste.failed", msg=msg, exc_info=True)
+            edited_nodes = []
+            error = str(e)
+            success = False
+        await msg.reply(RepPasteNodesPayload(nodes=edited_nodes, success=success, error=error))
 
     @message_handler
     async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
@@ -548,31 +575,30 @@ class RuntimeHost:
         refresh_index: bool = False,
     ) -> list[wire.NodeData]:
         """
-        Writes the edits locally to the source of truth module (DB),
+        Writes the edits locally and to the source of truth (DB),
          publishes the complete changes and then mirrors them into the search index.
-        This is the main point of entry for ALL edits from everyone (frontend and workers);
-         only record edits may bypass this and write directly to the local DB in the worker.
+        This is the main point of entry for ALL edits (frontend, workers, etc.);
+         but record edits may bypass this and write directly to the local DB via the worker.
         """
         start_time = time.time()
         self.log.debug("module.write", edits=len(edits), origins=origins)
 
         # apply
-        old_source = (
-            self.module._source.deepcopy()
-        )  # TODO @Performance: don't deepcopy module on edit
+        # TODO @Performance: don't deepcopy module on edit
+        old_source = self.module._source.deepcopy()
         change = self.module._apply_edits(edits)
-        # nocheckin: 5. intercept and commit record edit through local database
+        schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
         # TODO @Robustness: support two-phase commit for record edit :TwoPhaseCommit
         try:
             edited_nodes = await sync_to_async(write_db_edits)(
                 self.project_version, source=old_source, edits=change.all_edits
             )
+            if schema_changed:
+                await update_pg_schema(self.project.pg_name, self.module)
+            # nocheckin: 5. intercept and commit record edit through local database
         except Exception:
             self.module._reset_from_source(old_source)
             raise
-        schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
-        if schema_changed:
-            await update_pg_schema(self.project.pg_name, self.module)
         if change.includes(MNT.TRIGGER):
             await self._update_local_triggers()
 
@@ -597,6 +623,59 @@ class RuntimeHost:
         duration = time.time() - start_time
         self.log.debug("module.write.done", duration=duration, edited_nodes=len(edited_nodes))
         return edited_nodes
+
+    async def paste_nodes(
+        self,
+        source_module_id: UUID,
+        source_ids: list[UUID],
+        target_ids: dict[UUID, UUID],
+        target_cks: dict[UUID, UUID],
+        target_parent_ids: dict[UUID, UUID],
+        target_order_keys: dict[UUID, str],
+        origins: tuple[ClientOrigin] = None,
+    ):
+        # get copy
+        # TODO @Broken: include records in paste
+        #  (probably as a second step because there may be >>k, and so we can optimize PG copy)
+        same_module = source_module_id == self.module_id
+        if same_module:
+            source = self.project_version
+        else:
+            source = await ProjectVersion.objects.aget(id=source_module_id)
+        # extend default filter to exclude template tags
+        template_key = symbolx_lib.resolve(".builtins.template").key
+        filter = packer.DEFAULT_PACK_FILTER.extend(
+            (models.Tagging, lambda qs: qs.exclude(key=template_key))
+        )
+        copy = await sync_to_async(models.ProjectVersion.objects.pack_copy)(
+            source=source,
+            target=self.project_version,
+            nodes=models.Statement.objects.filter(id__in=source_ids),
+            keep_cks=False,
+            excluded=(*packer.INTERP_MODEL_TYPES, models.Record),
+            target_ids=target_ids,
+            target_cks=target_cks,
+            copy_revisions=False,
+            filter=filter,
+        )
+        for node in copy.nodes_by_id.values():  # patch parent and order keys
+            if node.id in target_parent_ids:
+                node.parent_id = target_parent_ids[node.id]
+            elif node.parent_id in target_ids:
+                node.parent_id = copy.target_ids[node.parent_id]
+            if isinstance(node, wire.HasOrder):
+                node.order_key = target_order_keys.get(node.id, node.order_key)
+
+        # apply copy as edits
+        editor = NodeTreeEditor(
+            self.module._source.deepcopy(), project_id=self.project_id, module_id=self.module_id
+        )
+        for node in copy.nodes_by_id.values():
+            editor.create(node)
+        await self.write_edits(editor.edits)
+        # we don't include origins because we use the edit publishing to get the results
+        #  (and if we include the origin, the frontend will auto-ignore its own edits;
+        #   this is faster and easier with the current API edit/load mechanism)
 
     async def write_session(
         self,

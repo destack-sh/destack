@@ -565,7 +565,7 @@ export type Mutation = {
   acceptOrganizationInvite: UserOperationInfo;
   acceptProjectInvite: UserOperationInfo;
   batchMoveStatement: StatementBatchOperationInfo;
-  batchPasteStatement: StatementBatchOperationInfo;
+  batchPasteStatement?: Maybe<OperationInfo>;
   batchRestoreStatement: StatementBatchOperationInfo;
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
@@ -1976,7 +1976,6 @@ export type Statement = HasCrud &
     createdAt: Scalars["DateTime"]["output"];
     createdBy?: Maybe<User>;
     deletedAt?: Maybe<Scalars["DateTime"]["output"]>;
-    descendants: Array<Statement>;
     fields: Array<Field>;
     file: File;
     headingLevel?: Maybe<Scalars["Int"]["output"]>;
@@ -4547,12 +4546,7 @@ export type RestoreStatementMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | {
-        __typename?: "Statement";
-        id: any;
-        deletedAt?: any | null;
-        descendants: Array<{ __typename?: "Statement"; id: any; deletedAt?: any | null }>;
-      };
+    | { __typename?: "Statement"; id: any; deletedAt?: any | null };
 };
 
 export type BatchRestoreStatementsMutationVariables = Exact<{
@@ -4582,18 +4576,11 @@ export type BatchPasteStatementMutationVariables = Exact<{
 
 export type BatchPasteStatementMutation = {
   __typename?: "Mutation";
-  batchPasteStatement:
+  batchPasteStatement?:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | {
-        __typename?: "StatementBatch";
-        statements: Array<
-          { __typename?: "Statement"; id: any; file: { __typename?: "File"; id: any } } & {
-            " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment };
-          }
-        >;
-      };
+    | null;
 };
 
 export type UpdateStatementReferenceMutationVariables = Exact<{
@@ -16223,17 +16210,6 @@ export const RestoreStatementDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "descendants" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                          ],
-                        },
-                      },
                     ],
                   },
                 },
@@ -16497,366 +16473,7 @@ export const BatchPasteStatementDocument = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "StatementBatch" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "statements" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "file" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "TaggingContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "ck" } },
-          { kind: "Field", name: { kind: "Name", value: "revision" } },
-          { kind: "Field", name: { kind: "Name", value: "key" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "parent" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
-          { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "createdBy" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "lastEditedBy" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "FieldContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "ck" } },
-          { kind: "Field", name: { kind: "Name", value: "revision" } },
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "key" } },
-          { kind: "Field", name: { kind: "Name", value: "tag" } },
-          { kind: "Field", name: { kind: "Name", value: "hint" } },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
-          { kind: "Field", name: { kind: "Name", value: "text" } },
-          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "parent" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "createdBy" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "lastEditedBy" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "TriggerContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "ck" } },
-          { kind: "Field", name: { kind: "Name", value: "revision" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "parent" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-          { kind: "Field", name: { kind: "Name", value: "active" } },
-          { kind: "Field", name: { kind: "Name", value: "mapping" } },
-          { kind: "Field", name: { kind: "Name", value: "timezone" } },
-          { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
-          { kind: "Field", name: { kind: "Name", value: "interval" } },
-          { kind: "Field", name: { kind: "Name", value: "cron" } },
-          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
-          { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "createdBy" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "lastEditedBy" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "IssueContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "ck" } },
-          { kind: "Field", name: { kind: "Name", value: "kind" } },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-          { kind: "Field", name: { kind: "Name", value: "message" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "parent" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "ResolvedFieldContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "__typename" } },
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "ck" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "StatementContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "ck" } },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-          { kind: "Field", name: { kind: "Name", value: "revision" } },
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "parent" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "key" } },
-          { kind: "Field", name: { kind: "Name", value: "text" } },
-          { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
-          { kind: "Field", name: { kind: "Name", value: "code" } },
-          { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
-          { kind: "Field", name: { kind: "Name", value: "versioned" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "tags" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "filters" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "isVisible" },
-                      value: { kind: "BooleanValue", value: true },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "fields" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "filters" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "isVisible" },
-                      value: { kind: "BooleanValue", value: true },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "triggers" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "filters" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "isVisible" },
-                      value: { kind: "BooleanValue", value: true },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TriggerContent" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "issues" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "resolvedFields" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "createdBy" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "lastEditedBy" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
             },
           },
         ],

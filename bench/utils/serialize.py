@@ -195,4 +195,4 @@ def from_dict(
         path_str = ".".join(_path) if _path else "<root>"
     else:
         path_str = "<unknown>"
-    raise TypeError(f"unexpected type {cls} for {data} at {path_str}")
+    raise TypeError(f"unexpected type {cls} for {type(data)} at {path_str} (data={data})")

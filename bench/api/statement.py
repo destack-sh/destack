@@ -4,6 +4,7 @@ from uuid import UUID
 import strawberry
 import strawberry_django
 import structlog
+from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 from strawberry import UNSET, auto, lazy, relay
 from strawberry.relay import GlobalID
@@ -15,9 +16,19 @@ from bench import language, models
 from bench.api.auth import check_module_access
 from bench.api.interp import Issue, ResolvedField
 from bench.api.sync import MET, BatchEditInput, bench_edit
-from bench.api.utils import HasCrud, ModuleNode, Revisioned, ThingBatch
+from bench.api.utils import (
+    HasCrud,
+    ModuleNode,
+    Revisioned,
+    ThingBatch,
+    asafe_mutation,
+    get_client_origin_from_info,
+)
 from bench.language import const
 from bench.models import ModuleAccessLevel
+from bench.msg import NMessage
+from bench.msg.core import request
+from bench.msg.messages import NMessageType, RepPasteNodesPayload, ReqPasteNodesPayload
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
@@ -108,7 +119,6 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".file")]
     parent: Union[ModuleNode]
-    descendants: list["Statement"]
     type: StatementType
     name: auto
     key: auto
@@ -380,13 +390,15 @@ class StatementMutation:
             statement.order_key = input.order_keys[i]
         return StatementBatch(statements=list(statements))
 
-    # not a regular db_edit
-    def batch_paste_statement(
+    # not a regular bench edit
+    @asafe_mutation
+    async def batch_paste_statement(
         self, info: Info, input: StatementBatchPasteInput
-    ) -> StatementBatch | OperationInfo:
+    ) -> None | OperationInfo:
+        origin = get_client_origin_from_info(info)
         source_ids = [UUID(i.node_id) for i in input.source_ids]
         source_statements_by_id = {
-            s.id: s for s in models.Statement._base_manager.filter(id__in=source_ids)
+            s.id: s async for s in models.Statement._base_manager.filter(id__in=source_ids)
         }
         source_statements = [source_statements_by_id[s] for s in source_ids]
         source_cks = [s.ck for s in source_statements]
@@ -395,18 +407,26 @@ class StatementMutation:
 
         # check user access
         source_file_ids = set(s.file_id for s in source_statements)
-        target_file = models.File.objects.get(id=input.target_file_id.node_id)
-        source_project_v = source_statements[0].project_version
+        target_file = await models.File.objects.select_related("project_version").aget(
+            id=input.target_file_id.node_id
+        )
+        source_project_v = await models.ProjectVersion.objects.aget(
+            id=source_statements[0].project_version_id
+        )
         source_project_v_ids = set(s.project_version_id for s in source_statements)
         if len(source_project_v_ids) > 1:
             raise ValidationError("statements must be from the same project version")
-        if source_project_v != target_file.project_version:
-            check_module_access(info, source_project_v.project, ModuleAccessLevel.Read)
-        check_module_access(info, target_file.project_version.project, ModuleAccessLevel.Edit)
+        if source_project_v.id != target_file.project_version_id:
+            await sync_to_async(check_module_access)(
+                info, source_project_v.project, ModuleAccessLevel.Read
+            )
+        await sync_to_async(check_module_access)(
+            info, target_file.project_version, ModuleAccessLevel.Edit
+        )
 
-        # nocheckin: 3. use runtime host for paste
         # do the copy paste
-        target_ids = [UUID(i.node_id) for i in input.target_ids]
+        target_ids = {s: UUID(t.node_id) for s, t in zip(source_ids, input.target_ids)}
+        target_cks = {s: t for s, t in zip(source_cks, input.target_cks)}
         target_parent_ids = {
             **{
                 s: UUID(t.node_id)
@@ -415,26 +435,25 @@ class StatementMutation:
             },
             **{s: target_file.id for s in source_file_ids},
         }
-        target_order_keys = {s: t for s, t in zip(target_ids, input.target_order_keys)}
-        models.Statement.objects.copy(
-            statements=source_statements,
-            source=source_project_v,
-            target=target_file.project_version,
-            target_ids={s: t for s, t in zip(source_ids, target_ids)},
-            target_cks={s: t for s, t in zip(source_cks, input.target_cks)},
-            target_parent_ids=target_parent_ids,
-            target_order_keys=target_order_keys,
-            keep_cks=False,
-            include_interp=False,
-            strip_template_tags=True,  # manual copy paste
-        )
+        target_order_keys = {s: t for s, t in zip(target_ids.values(), input.target_order_keys)}
 
-        target_statements = models.Statement.objects.filter(id__in=target_ids)
-        if target_statements.count() != len(input.target_ids):
-            raise RuntimeError(
-                f"paste {target_statements} is incomplete (wanted {input.target_ids})"
-            )
-        return StatementBatch(statements=target_statements)
+        rep: NMessage[RepPasteNodesPayload] = await request(
+            NMessageType.PASTE_NODES,
+            ReqPasteNodesPayload(
+                source_module_id=source_project_v.id,
+                target_module_id=target_file.project_version.id,
+                source_ids=source_ids,
+                target_ids=target_ids,
+                target_cks=target_cks,
+                target_parent_ids=target_parent_ids,
+                target_order_keys=target_order_keys,
+                client=origin,
+            ),
+        )
+        if not rep.p.success:
+            raise RuntimeError(f"failed to paste nodes: {rep.p.error}")
+
+        return None
 
 
 #

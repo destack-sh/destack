@@ -36,7 +36,7 @@ from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Blob, HasFields, Secret, Trigger
-    from bench.language.edit import MET, EditData, ModuleEditor
+    from bench.language.edit import MET, EditData, NodeTreeEditor
     from bench.language.wire import LogEntryData
 
 logger = structlog.get_logger(__name__)
@@ -95,7 +95,7 @@ class Session:
     ):
         from bench.language.blob import Blobs
         from bench.language.cache import CacheAsync, CacheSync
-        from bench.language.edit import ModuleEditor
+        from bench.language.edit import NodeTreeEditor
 
         self.id = id or uuid4()
         self.module = module
@@ -115,7 +115,7 @@ class Session:
 
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._log = logger.bind(session=self)
-        self._editor = ModuleEditor(self.module._local_tree, module.project_id, module.id)
+        self._editor = NodeTreeEditor(self.module._local_tree, module.project_id, module.id)
         self._tracer = SessionTracer(
             self,
             editor=self._editor,
@@ -376,7 +376,7 @@ class SessionTracer:
     def __init__(
         self,
         session: Session,
-        editor: "ModuleEditor",
+        editor: "NodeTreeEditor",
         root_run_id: UUID = None,
         root_run_value: dict = None,
         global_run_value: dict = None,

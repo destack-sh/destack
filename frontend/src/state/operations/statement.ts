@@ -755,10 +755,6 @@ export function useStatementOps() {
           ... on Statement {
             id
             deletedAt
-            descendants {
-              id
-              deletedAt
-            }
           }
           ...OperationInfoContent
         }
@@ -771,7 +767,6 @@ export function useStatementOps() {
             __typename: "Statement",
             id: vars.id,
             deletedAt: null,
-            descendants: [], // unknown
           },
         } as RestoreStatementMutation),
     }
@@ -875,38 +870,10 @@ export function useStatementOps() {
             targetOrderKeys: $targetOrderKeys
           }
         ) {
-          ... on StatementBatch {
-            statements {
-              id
-              ...StatementContent
-              file {
-                id
-              }
-            }
-          }
           ...OperationInfoContent
         }
       }
-    `),
-    {
-      update(cache, { data: batchPasteStatement }) {
-        if (batchPasteStatement?.batchPasteStatement.__typename != "StatementBatch") {
-          return; // error
-        }
-        // extend File.statements array with (ref to) new statements
-        batchPasteStatement.batchPasteStatement.statements.forEach((statement) => {
-          cache.modify({
-            id: cache.identify(statement.file),
-            fields: {
-              statements(currentStatements = []) {
-                return [...currentStatements, { __ref: cache.identify(statement) }];
-              },
-            },
-            optimistic: true,
-          });
-        });
-      },
-    }
+    `)
   );
 
   async function batchPaste(
