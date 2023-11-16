@@ -95,7 +95,8 @@ POSTGRES_COMPARISON_OP_BY_BENCH_OP: dict[ConditionalOp, PostgresConditionalOp] =
     # string
     ConditionalOp.MATCHES: PostgresConditionalOp.LIKE,
     ConditionalOp.STARTS_WITH: PostgresConditionalOp.LIKE,
-    # nocheckin: map in/contains properly (expression language doesn't differentiate)
+    # nocheckin: map expression language to sql engine
+    #  and map in/contains properly (expression language doesn't differentiate)
 }
 
 

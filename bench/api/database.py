@@ -12,7 +12,7 @@ from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_module_node_access
-from bench.api.sync import db_edit
+from bench.api.sync import bench_edit
 from bench.api.type import MET
 from bench.api.utils import (
     Conditional,
@@ -104,7 +104,7 @@ class RecordRestoreInput(RecordInput, strawberry_django.NodeInput):
 
 @strawberry.type
 class RecordMutation:
-    @db_edit(MET.CREATE_RECORD)
+    @bench_edit(MET.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         record = models.Record(
             id=UUID(input.id.node_id),
@@ -116,25 +116,25 @@ class RecordMutation:
         )
         return record
 
-    @db_edit(MET.UPDATE_RECORD)
+    @bench_edit(MET.UPDATE_RECORD)
     def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
         record = models.Record.objects.get(id=UUID(input.id.node_id))
         record.value = input.value
         return record
 
-    @db_edit(MET.SOFT_DELETE_RECORD)
+    @bench_edit(MET.SOFT_DELETE_RECORD)
     def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
         record = models.Record.objects.get(id=UUID(input.id.node_id))
         record.deleted_at = utcnow_with_tz()
         return record
 
-    @db_edit(MET.RESTORE_RECORD)
+    @bench_edit(MET.RESTORE_RECORD)
     def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
         record = models.Record._base_manager.get(id=UUID(input.id.node_id))
         record.deleted_at = None
         return record
 
-    @db_edit(MET.DELETE_RECORD)
+    @bench_edit(MET.DELETE_RECORD)
     def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
         raise NotImplementedError
 

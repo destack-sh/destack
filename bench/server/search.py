@@ -250,14 +250,14 @@ BENCH_LOCAL_MODELS = (models.Record,)
 
 
 async def write_edits_to_os(
-    project_v: models.ProjectVersion, edit: list[EditData], *, refresh: bool = False
+    project_v: models.ProjectVersion, edits: list[EditData], *, refresh: bool = False
 ) -> None:
     """
     Writes/mirrors any relevant edit to OpenSearch.
     All regular DB edit come this way.
     """
     project: models.Project = project_v.project
-    if not edit:
+    if not edits:
         if refresh:
             # just refresh the index
             os_client_sync.indices.refresh(index=project.os_name)
@@ -272,7 +272,7 @@ async def write_edits_to_os(
                 "os.write_edits",
                 project_version=project_v,
                 index=project.os_name,
-                edit=len(edit),
+                edit=len(edits),
                 operations=len(ops),
             )
             # TODO @Performance: consider bulking OS refreshes in edit somehow
@@ -282,24 +282,24 @@ async def write_edits_to_os(
 
         ops.clear()
 
-    for e in edit:
-        index = project.os_name if e.type.mnt in BENCH_LOCAL_MNTS else os.GLOBAL_INDEX_NAME
-        if e.type.kind == MEK.TRUNCATE and e.mnt == MNT.RECORD:
+    for edit in edits:
+        index = project.os_name if edit.type.mnt in BENCH_LOCAL_MNTS else os.GLOBAL_INDEX_NAME
+        if edit.type.kind == MEK.TRUNCATE and edit.mnt == MNT.RECORD:
             await _flush()  # unfortunately can't be batched with the other operations
             os_client_sync.delete_by_query(
-                index=index, body={"query": {"term": {"statement_key": e.node.key}}}
+                index=index, body={"query": {"term": {"statement_key": edit.node.key}}}
             )
-        elif not mirror.has_mirror(e.thing):
+        elif not mirror.has_mirror(edit.thing):
             continue  # ignore
-        elif e.type.kind in (MEK.CREATE, MEK.UPDATE) or e.type.is_soft_delete:
-            mirrored = mirror.mirror_node(project_v, e.thing)
+        elif edit.type.kind in (MEK.CREATE, MEK.UPDATE) or edit.type.is_soft_delete:
+            mirrored = mirror.mirror_node(project_v, edit.thing)
             mirrored_data = mirrored.to_dict()
             # TODO @Robustness: limit OS edit to changed properties?
             #  (partial update is not supported in index operation)
-            ops.append({"index": {"_index": index, "_id": str(e.thing.id)}})
+            ops.append({"index": {"_index": index, "_id": str(edit.thing.id)}})
             ops.append(mirrored_data)
-        elif e.type.kind == MEK.DELETE:
-            ops.append({"delete": {"_index": index, "_id": str(e.thing.id)}})
+        elif edit.type.kind == MEK.DELETE:
+            ops.append({"delete": {"_index": index, "_id": str(edit.thing.id)}})
 
     await _flush()  # flush all remaining edits
 

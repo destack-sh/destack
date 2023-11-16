@@ -26,7 +26,7 @@ from bench.language.const import (
     TriggerType,
 )
 from bench.language.edit import MEK, MET, EditBundle, EditData
-from bench.language.module import Module, NodeTree
+from bench.language.module import NodeTree
 from bench.utils.dt import utcnow_with_tz
 
 MNT = ModuleNodeType
@@ -871,7 +871,7 @@ class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
 @transaction.atomic(savepoint=False)
 def write_db_edits(
     project_v: models.ProjectVersion,
-    module: Module,
+    source: NodeTree,
     edits: list[EditData],
     *,
     validate: bool = True,
@@ -887,7 +887,6 @@ def write_db_edits(
     now = utcnow_with_tz()
     edited_nodes: list[NodeDataT] = []
 
-    source = module._source
     if apply:
         source = source.deepcopy()  # copy source to not mutate it directly
 
@@ -895,7 +894,7 @@ def write_db_edits(
         source, project_v.project_id, project_v.id, apply=apply, raise_on_error=raise_on_error
     ):
         if met.kind == MEK.TRUNCATE:
-            # remove descendants of a certain type by scope
+            # remove children of a certain type by scope
             if met == MET.TRUNCATE_RECORDS:
                 statement_keys = [typing.cast(wire.StatementData, e.node).key for e in batch]
                 models.Record.objects.filter(statement_key__in=statement_keys).delete()
@@ -923,7 +922,10 @@ def write_db_edits(
             nodes = unpack_nodes(project_v, source, [e.node for e in batch])
             model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
             model_cls.objects.bulk_create(nodes)
+            # reload nodes (e.g., for revisions)
+            nodes = model_cls.objects.filter(id__in=[e.node.id for e in batch])
             for e, node in zip(batch, nodes):
+                e.node = pack_node_flat(node)
                 e.thing = node  # keep node model for downstream indexing in opensearch
             edited_nodes = [e.node for e in batch]
 
@@ -961,7 +963,7 @@ def write_db_edits(
                     raise ValueError(
                         f"failed to update {len(nodes)} {model_cls} ({properties}, got {num_updated})"
                     )
-            # reload revisions
+            # reload nodes (e.g., for revisions)
             nodes = model_cls.objects.filter(id__in=[e.node.id for e in batch])
             for e, node in zip(batch, nodes):
                 e.node = pack_node_flat(node)
