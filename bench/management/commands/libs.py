@@ -123,9 +123,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
             )
             edit.node = wire.pack_node_flat(node)
             edits.append(edit)
-    packer.write_db_edits(
-        project_v, blank_module._source, edits, validate=False, refresh_index=False
-    )
+    packer.write_db_edits(project_v, blank_module._source, edits, validate=False)
     project_v.commit()
 
     if sanity_check:

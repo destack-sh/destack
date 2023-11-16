@@ -108,10 +108,6 @@ class EditType(enum.StrEnum):
     DELETE_RESOLVED_FIELD = "DELETE_RESOLVED_FIELD"
 
     @property
-    def is_soft_delete(self) -> bool:
-        return self.value.startswith("SOFT_DELETE_")
-
-    @property
     def kind(self) -> "EditKind":
         return _MODULE_EDIT_MAP[self][0]
 
@@ -305,9 +301,9 @@ class EditData:
         return self.type.mnt
 
     def __str__(self):
-        data_str = f" {self.node}" if self.node else ""
+        data_str = f"{self.node.mnt} {self.node.id} " if self.node else ""
         properties_str = (" [" + ", ".join(self.properties) + "]") if self.properties else ""
-        return f"{self.type} {self.revision}{data_str}{properties_str}"
+        return f"{self.type} {data_str}{self.revision}{properties_str}"
 
     def __repr__(self):
         return f"<Edit {self}>"

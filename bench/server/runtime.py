@@ -122,7 +122,7 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
         )
         project_version = project_version.head
     module = await sync_to_async(packer.pack_module)(
-        project_version, excluded=[models.Record, models.ResolvedField, models.Issue]
+        project_version, excluded=[models.Record, *INTERP_NODE_TYPES]
     )
     if project_version.committed:
         _cached_modules[ref] = module, project_version.project
@@ -568,6 +568,17 @@ class RuntimeHost:
         self.tasks.start(self.process_time_triggers_forever())
         self.ready.set()
 
+    async def _publish_edits(self, edits: list[EditData], origins: tuple[ClientOrigin, ...] = None):
+        await publish(
+            NMessageType.MODULE_CHANGED,
+            ModuleChangedPayload(
+                project_id=self.project_id,
+                module_id=self.module_id,
+                origins=origins,
+                edits=edits,
+            ),
+        )
+
     async def write_edits(
         self,
         edits: list[EditData],
@@ -575,13 +586,13 @@ class RuntimeHost:
         refresh_index: bool = False,
     ) -> list[wire.NodeData]:
         """
-        Writes the edits locally and to the source of truth (DB),
+        Writes the edits to the source of truth (DB) and locally,
          publishes the complete changes and then mirrors them into the search index.
         This is the main point of entry for ALL edits (frontend, workers, etc.);
          but record edits may bypass this and write directly to the local DB via the worker.
         """
         start_time = time.time()
-        self.log.debug("module.write", edits=len(edits), origins=origins)
+        self.log.debug("module.write_edits", edits=edits, origins=origins)
 
         # apply
         # TODO @Performance: don't deepcopy module on edit
@@ -590,30 +601,32 @@ class RuntimeHost:
         schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
         # TODO @Robustness: support two-phase commit for record edit :TwoPhaseCommit
         try:
+            self.log.debug("module.write_edits.apply", edits=change.all_edits)
             edited_nodes = await sync_to_async(write_db_edits)(
-                self.project_version, source=old_source, edits=change.all_edits
+                self.project_version,
+                source=old_source,
+                edits=change.all_edits,
+                raise_on_apply_error=False,  # ignore missing interp nodes (until better edits)
             )
             if schema_changed:
                 await update_pg_schema(self.project.pg_name, self.module)
             # nocheckin: 5. intercept and commit record edit through local database
         except Exception:
-            self.module._reset_from_source(old_source)
+            # reset source & module from db on failure (a crutch until we have better edits)
+            self.log.error("module.write_edits.failed", exc_info=True, edits=edits)
+            old_source = await sync_to_async(packer.pack_module)(
+                self.project_version, excluded=[models.Record, *INTERP_NODE_TYPES]
+            )
+            self.module._reset_from_source(wire.NodeTree(old_source.nodes))
             raise
         if change.includes(MNT.TRIGGER):
             await self._update_local_triggers()
 
-        # broadcast
-        origins = (*(origins or ()), self.client)
-        api_edits = [get_api_edit_from_internal(e) for e in change.all_edits]
-        await publish(
-            NMessageType.MODULE_CHANGED,
-            ModuleChangedPayload(
-                project_id=self.project_id,
-                module_id=self.module_id,
-                origins=origins,
-                edits=api_edits,
-            ),
-        )
+        # broadcast (source from user, interp from runtime)
+        source_edits = [get_api_edit_from_internal(e) for e in change.source_edits]
+        interp_edits = [get_api_edit_from_internal(e) for e in change.interp_edits]
+        await self._publish_edits(source_edits, origins=(*(origins or ()), self.client))
+        await self._publish_edits(interp_edits, origins=(self.client,))
 
         # mirror
         if schema_changed:
@@ -621,7 +634,7 @@ class RuntimeHost:
         await write_edits_to_os(self.project_version, edits=change.all_edits, refresh=refresh_index)
 
         duration = time.time() - start_time
-        self.log.debug("module.write.done", duration=duration, edited_nodes=len(edited_nodes))
+        self.log.debug("module.write_edits.done", duration=duration, edited_nodes=len(edited_nodes))
         return edited_nodes
 
     async def paste_nodes(
@@ -730,7 +743,7 @@ class RuntimeHost:
             )
         except Exception as e:
             sentry_capture(e)
-            logger.error("database.search.failed", req=msg.p, exc_info=True)
+            logger.error("records.search.failed", req=msg.p, exc_info=True)
             rep = RepSearchRecordsPayload(
                 records=None, cursors=None, total=None, limit=msg.p.limit, error=str(e)
             )
