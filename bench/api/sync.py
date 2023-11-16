@@ -13,17 +13,21 @@ from bench import models
 from bench.api.auth import has_module_node_access
 from bench.api.type import MET, PMT
 from bench.api.utils import get_client_origin_from_info, wrap_exceptions
-from bench.language.edit import EditData
+from bench.language.edit import MEK, MNT, EditData
 from bench.models import ModuleAccessLevel, packer
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
 from bench.msg.messages import RepWriteEditsPayload, ReqWriteEditsPayload
-from bench.search import mirror
-from bench.worker.edit import MutableThing, input_to_gql_jsonable
+from bench.worker.edit import input_to_gql_jsonable
 
 logger = structlog.get_logger(__name__)
 
 INPUT_CLASS_BY_TYPE = {}
+
+
+#
+#  Note that this is all annoying and terrible and will be ripped out with :BE-114.
+#
 
 
 class BatchEditInput:
@@ -40,13 +44,7 @@ def bench_edit(
     extensions: Optional[Sequence[object]] = None,
 ):
     """
-    A module in-DB edit of a specific type
-    Handles auth, revision bumping and edit pub. To be used as a decorator.
-
-    For batch edits this does not handle revision bumping,
-     and assumes that all things belong to the same project (only checks committed for one).
-
-    Assumes that your wrapped func is either marked atomic or does not save changes itself.
+    A wrapper for a Bench module edit, applied via the runtime host. This will be ripped out soon.
     """
 
     extensions = extensions or []
@@ -83,7 +81,6 @@ def bench_edit(
             # )
 
             # map api edit to actual edit
-            # nocheckin: 2. reroute db_edits to runtime host
             origin = get_client_origin_from_info(info)
             api_input = kwargs.get("input")
             if batch:
@@ -92,7 +89,6 @@ def bench_edit(
                 inputs = [api_input]
             edits = []
             for input, thing in zip(inputs, things):
-                input = input_to_gql_jsonable(input)
                 edit = map_edit_from_api(type, input, thing, access.project_version)
                 edits.append(edit)
 
@@ -110,9 +106,10 @@ def bench_edit(
             for updated_node, thing in zip(rep.p.nodes, things):
                 for key in updated_node.__dict__.keys():
                     if hasattr(thing, key) and getattr(thing, key) != getattr(updated_node, key):
-                        setattr(thing, key, getattr(updated_node, key))
-            if batch:  # restore batch wrapper
-                ret = ret.__class__(things)
+                        thing.__dict__[key] = getattr(updated_node, key)
+            if batch:  # restore batch wrapper (convert to kwargs)
+                things_key = "statements" if type.mnt == MNT.STATEMENT else "records"
+                ret = ret.__class__(**{things_key: things})
             else:
                 ret = things[0]
             return ret
@@ -147,7 +144,7 @@ def _add_info_parameter(original: callable, wrapped: callable):
 
 
 def map_edit_from_api(
-    type: MET, input: Any, thing: MutableThing, project_v: models.ProjectVersion
+    type: MET, input: Any, thing: models.CrudNode, project_v: models.ProjectVersion
 ) -> EditData:
     """
     Remap/create API multiplayer edit for other clients and internals.
@@ -157,9 +154,17 @@ def map_edit_from_api(
         type=MET(type.kind + "_" + type.mnt.caps_name),
         project_version_id=project_v.id,
         revision=thing.revision,
-        input=input,
+        input=input_to_gql_jsonable(input),
         thing=thing,
     )
+    edit.node = packer.pack_node_flat(thing)
+    # guesstimate changed properties
+    edit.properties = [
+        k for k in input.__dict__.keys() if k in edit._node.__dict__ and k not in ("id", "ck")
+    ]
+    if edit.kind in (MEK.SOFT_DELETE, MEK.RESTORE):
+        edit.properties.append("deleted_at")  # not part of input
+    # map source file/statement
     if isinstance(thing, models.File):
         edit.file_id = thing.id
         edit.statement_id = None
@@ -171,8 +176,4 @@ def map_edit_from_api(
         edit.statement_id = thing.statement_id
     else:
         raise TypeError(f"thing is not a project thing: {thing}")
-    if isinstance(thing, mirror.Document):  # os indexed Document
-        edit.node = mirror.pack_node_flat(thing)
-    else:
-        edit.node = packer.pack_node_flat(thing)
     return edit

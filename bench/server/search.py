@@ -291,14 +291,14 @@ async def write_edits_to_os(
             )
         elif not mirror.has_mirror(edit.thing):
             continue  # ignore
-        elif edit.type.kind in (MEK.CREATE, MEK.UPDATE) or edit.type.is_soft_delete:
+        elif edit.type.kind != MEK.DELETE:
             mirrored = mirror.mirror_node(project_v, edit.thing)
             mirrored_data = mirrored.to_dict()
             # TODO @Robustness: limit OS edit to changed properties?
             #  (partial update is not supported in index operation)
             ops.append({"index": {"_index": index, "_id": str(edit.thing.id)}})
             ops.append(mirrored_data)
-        elif edit.type.kind == MEK.DELETE:
+        else:
             ops.append({"delete": {"_index": index, "_id": str(edit.thing.id)}})
 
     await _flush()  # flush all remaining edits

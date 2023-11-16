@@ -346,6 +346,7 @@ class ProjectVersionMutation:
         check_module_access(info, project, ModuleAccessLevel.Edit)
 
         # insert new head between parents and head
+        # nocheckin: 4. use runtime host to snapshot
         snapshot = models.ProjectVersion.objects.create(
             id=uuid.uuid4(),
             ck=project.id,

@@ -176,7 +176,7 @@ class RecordQuery:
         )
         rep: NMessage[RepSearchRecordsPayload] = await request(NMessageType.SEARCH_RECORDS, req)
         if rep.p.records is not None:
-            records = [packer.unpack_node_flat(r, statement)[0] for r in rep.p.records]
+            records = [packer.unpack_node_flat(r, statement) for r in rep.p.records]
             edges = []
             for cursor, record in zip(rep.p.cursors, records):
                 node = Record.from_os(record)

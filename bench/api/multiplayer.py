@@ -93,7 +93,7 @@ async def unpack_module_edits(
                     parent = await project_v.files.aget(id=e.file_id)
                 else:
                     parent = project_v
-                data = packer.unpack_node_flat(e.node, parent)[0]
+                data = packer.unpack_node_flat(e.node, parent)
         else:  # ignore other data types
             data = None
 

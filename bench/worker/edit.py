@@ -2,21 +2,12 @@ import enum
 from collections import OrderedDict
 from dataclasses import fields, is_dataclass
 from datetime import datetime
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from uuid import UUID
 
 from strawberry.utils.str_converters import to_camel_case
 
-from bench import models
 from bench.language.edit import MNT, EditData
-from bench.search import mirror
-
-MutableThing = Union[
-    models.File,
-    models.Statement,
-    models.Field,
-    mirror.Record,
-]
 
 MAX_RECORD_MUTATIONS_PER_BATCH = 15
 
@@ -40,8 +31,9 @@ def get_api_edit_from_internal(edit: EditData) -> EditData:
         statement_id=edit.statement_id,
         revision=edit.revision,
         input=input,
+        properties=edit.properties,
     )
-    if input is None and edit.node is not None:
+    if edit.node is not None:
         api_edit.node = edit.node
     return api_edit
 

@@ -88,7 +88,6 @@ async def create_local_pg_database(project: models.Project, *, upsert: bool) -> 
 
 
 async def update_pg_schema_from_db(project_v: models.ProjectVersion) -> None:
-    # nocheckin: 4. also run this when update_os_schema_from_db? (consolidate in common call sites)
     from bench.server.runtime import interp_module
 
     logger.info("pg.update_mappings", project_version=repr(project_v))
@@ -97,4 +96,4 @@ async def update_pg_schema_from_db(project_v: models.ProjectVersion) -> None:
 
 
 async def copy_pg_records_from_legacy(project: models.Project) -> None:
-    raise NotImplementedError  # nocheckin: copy records from legacy
+    raise NotImplementedError  # nocheckin: 9. copy records from legacy
