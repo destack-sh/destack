@@ -2271,7 +2271,7 @@ class Module(ScopeNode):
     def _apply_edits(self, edits: list["EditData"]) -> ModuleChange:
         """
         Applies the given external edits to the module.
-        TODO @Performance @UX: :HotReload patch edits locally
+        TODO @Performance @UX: :HotReload patch edits directly?
         """
         assert self._source is not None, f"cannot apply edits to {self!r} without source"
 
