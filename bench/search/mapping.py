@@ -34,7 +34,7 @@ from bench.language.field import TYPE_TAG_BY_TYPE_HINT
 from bench.language.packer import TYPENAME_SENTINEL
 from bench.search import core as os
 from bench.search import mirror
-from bench.search.client import os_client_sync
+from bench.search.client import os_client
 from bench.search.core import DocumentType, IndexType
 
 MAXIMUM_NESTING_DEPTH = 3
@@ -436,7 +436,7 @@ SEARCH_SEMANTIC_EDIT_TYPES = {
 BENCH_LOCAL_MNTS = (MNT.RECORD,)
 
 
-def update_os_schema(os_name: str, module: Module, dynamic: str = "strict") -> None:
+async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict") -> None:
     """
     Updates *all* OpenSearch field mappings for a module
     TODO @Performance: update OS field mappings more efficiently on field edit
@@ -496,7 +496,7 @@ def update_os_schema(os_name: str, module: Module, dynamic: str = "strict") -> N
         sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items()}
         mappings[key] = {"type": "object", "dynamic": dynamic, "properties": sub_mappings}
 
-    os_client_sync.indices.put_mapping(index=os_name, body={"properties": mappings})
+    await os_client.indices.put_mapping(index=os_name, body={"properties": mappings})
     logger.info(
         "os.update_mappings.done",
         module=module,

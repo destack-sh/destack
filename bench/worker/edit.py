@@ -2,17 +2,13 @@ import enum
 from collections import OrderedDict
 from dataclasses import fields, is_dataclass
 from datetime import datetime
-from itertools import chain
 from typing import Any, Optional, Union
 from uuid import UUID
 
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
-from bench.language.edit import MET, MNT, EditData, ModuleEditor
-from bench.language.module import NodeTree
-from bench.models import packer
-from bench.models.packer import INTERP_MODEL_TYPES
+from bench.language.edit import MNT, EditData
 from bench.search import mirror
 
 MutableThing = Union[
@@ -22,109 +18,10 @@ MutableThing = Union[
     mirror.Record,
 ]
 
-
 MAX_RECORD_MUTATIONS_PER_BATCH = 15
 
 
-def trim_record_edits(
-    edits: list[EditData],
-) -> list[EditData]:
-    """Trims record edits into bumps if necessary."""
-    has_record_edits = any(e.scope == MNT.RECORD or e.mnt == MNT.RECORD for e in edits)
-    if not has_record_edits:
-        return edits
-    num_record_updates = 0
-    bumped_statement_ids: dict[UUID, UUID] = {}  # statement_id -> file_id
-    trimmed_edits = []
-    for edit in edits:
-        if edit.scope == MNT.RECORD or edit.mnt == MNT.RECORD:
-            num_record_updates += 1
-            bumped_statement_ids[edit.statement_id] = edit.file_id
-            if num_record_updates < MAX_RECORD_MUTATIONS_PER_BATCH:
-                trimmed_edits.append(edit)
-        else:
-            trimmed_edits.append(edit)
-    # always add bumps since we don't have proper bump propagation on the frontend yet
-    for statement_id, file_id in bumped_statement_ids.items():
-        trimmed_edits.append(
-            EditData(
-                type=MET.BUMP_STATEMENT,
-                project_version_id=edits[0].project_version_id,
-                file_id=file_id,
-                statement_id=statement_id,
-            )
-        )
-    return trimmed_edits
-
-
-def map_edit_from_api(
-    type: MET,
-    input: Any,
-    thing: MutableThing,
-    project_v: models.ProjectVersion,
-    statement: Optional[models.Statement],
-) -> tuple[list[EditData], list[EditData]]:
-    """
-    Remap/create API multiplayer edit for other clients and internals.
-    Returns both the internal and API edits to publish.
-    """
-    api_edit = EditData(
-        type=type,
-        project_version_id=project_v.id,
-        revision=thing.revision,
-        input=input,
-        thing=thing,
-    )
-    if statement is not None:
-        api_edit.file_id = statement.file_id
-        api_edit.statement_id = statement.id
-    elif isinstance(thing, models.File):
-        api_edit.file_id = thing.id
-        api_edit.statement_id = None
-    elif isinstance(thing, models.Statement):
-        api_edit.file_id = thing.file_id
-        api_edit.statement_id = thing.id
-    elif isinstance(thing, (models.Field, models.Record, models.Tagging, models.Trigger)):
-        api_edit.file_id = thing.statement.file_id
-        api_edit.statement_id = thing.statement_id
-    else:
-        raise TypeError(f"thing is not a project thing: {thing}")
-
-    if type in (MET.PASTE_FILE, MET.RESTORE_FILE, MET.PASTE_STATEMENT, MET.RESTORE_STATEMENT):
-        packed = packer.pack_node(thing, excluded=[models.Record, *INTERP_MODEL_TYPES])
-        file_id = thing.file_id if isinstance(thing, models.Statement) else thing.id
-        editor = ModuleEditor(
-            tree=NodeTree(),
-            project_id=project_v.project_id,
-            module_id=project_v.id,
-            file_id=file_id,
-        )
-        internal = editor.create_many(*packed.nodes_list())
-        api_edits = list(chain.from_iterable(get_api_edit_from_internal(e) for e in internal.edits))
-        # strip interp data from internal edits (but keep in API, user clients need it)
-        stripped_internal_edits = [
-            e
-            for e in internal.edits
-            if not isinstance(packed.nodes_by_id[e.node.id], INTERP_MODEL_TYPES)
-        ]
-        return stripped_internal_edits, api_edits
-    else:
-        # map everything else to a simple internal edit (CUD_X)
-        internal_type = MET(type.kind + "_" + api_edit.mnt.caps_name)
-        internal_edit = EditData(
-            type=internal_type,
-            project_version_id=api_edit.project_version_id,
-            revision=thing.revision,
-            thing=thing,
-        )
-        if isinstance(thing, mirror.Document):  # os indexed Document
-            internal_edit.node = mirror.pack_node_flat(thing)
-        else:
-            internal_edit.node = packer.pack_node_flat(thing)
-        return [internal_edit], [api_edit]
-
-
-def get_api_edit_from_internal(edit: EditData) -> list[EditData]:
+def get_api_edit_from_internal(edit: EditData) -> EditData:
     """
     Maps a simple internal edit to an API multiplayer edit.
 
@@ -146,7 +43,7 @@ def get_api_edit_from_internal(edit: EditData) -> list[EditData]:
     )
     if input is None and edit.node is not None:
         api_edit.node = edit.node
-    return [api_edit]
+    return api_edit
 
 
 # extra fields in API edits that are not in internal module data

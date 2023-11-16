@@ -260,6 +260,14 @@ class NodeData:
     ck: UUID
     parent_id: Optional[UUID]
 
+    def encode_some_attrs(self) -> dict[str, Any]:
+        return {"mnt": self.mnt.name}
+
+    @staticmethod
+    def cls_from_attrs(data: dict[str, Any]) -> typing.Type[NodeDataT]:
+        mnt = MNT[data["mnt"]]
+        return DATA_CLASS_BY_MNT[mnt]
+
     @property
     def mnt(self) -> ModuleNodeType:
         return MNT_BY_DATA_CLASS[type(self)]

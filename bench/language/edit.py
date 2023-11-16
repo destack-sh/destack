@@ -39,7 +39,6 @@ class EditType(enum.StrEnum):
     UPDATE_FILE = "UPDATE_FILE"
     DELETE_FILE = "DELETE_FILE"
     # Files (API)
-    PASTE_FILE = "PASTE_FILE"
     SOFT_DELETE_FILE = "SOFT_DELETE_FILE"
     RESTORE_FILE = "RESTORE_FILE"
     RENAME_FILE = "RENAME_FILE"
@@ -128,6 +127,7 @@ class EditType(enum.StrEnum):
 class EditKind(enum.StrEnum):
     CREATE = "CREATE"
     UPDATE = "UPDATE"
+    MOVE = "MOVE"
     DELETE = "DELETE"
     TRUNCATE = "TRUNCATE"
     BUMP = "BUMP"
@@ -140,7 +140,6 @@ MNT = ModuleNodeType
 _MODULE_EDIT_MAP: dict[MET, tuple[MEK, MNT]] = {
     # Files
     MET.BUMP_FILE: (MEK.BUMP, MNT.FILE),
-    MET.PASTE_FILE: (MEK.CREATE, MNT.FILE),
     MET.CREATE_FILE: (MEK.CREATE, MNT.FILE),
     MET.SOFT_DELETE_FILE: (MEK.DELETE, MNT.FILE),
     MET.RESTORE_FILE: (MEK.CREATE, MNT.FILE),

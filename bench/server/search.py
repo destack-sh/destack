@@ -1,7 +1,7 @@
 from typing import Generator, Iterable, Optional, Type
 
 import structlog
-from asgiref.sync import async_to_sync
+from asgiref.sync import sync_to_async
 
 from bench import models
 from bench.language import wire
@@ -9,14 +9,9 @@ from bench.language.edit import MEK, MNT, EditData
 from bench.models.packer import collect_node
 from bench.search import core as os
 from bench.search import mirror
-from bench.search.client import get_os_errors, os_client_sync
+from bench.search.client import get_os_errors, os_client, os_client_sync
 from bench.search.core import IndexType
-from bench.search.mapping import (
-    BENCH_LOCAL_MNTS,
-    DOCUMENTS_BY_INDEX,
-    SEARCH_SEMANTIC_EDIT_TYPES,
-    update_os_schema,
-)
+from bench.search.mapping import BENCH_LOCAL_MNTS, DOCUMENTS_BY_INDEX, update_os_schema
 
 logger = structlog.get_logger(__name__)
 
@@ -254,7 +249,7 @@ def create_local_os_index(project: models.Project, *, upsert: bool) -> None:
 BENCH_LOCAL_MODELS = (models.Record,)
 
 
-def write_edits_to_os(
+async def write_edits_to_os(
     project_v: models.ProjectVersion, edit: list[EditData], *, refresh: bool = False
 ) -> None:
     """
@@ -270,12 +265,8 @@ def write_edits_to_os(
 
     # mut state
     ops: list[dict] = []
-    field_mappings_dirty: list[bool] = [False]  # for closure
 
-    def _flush():
-        if field_mappings_dirty[0]:  # if needed, must happen before any other edit
-            update_os_schema_from_db(project_v)
-
+    async def _flush():
         if ops:
             logger.debug(
                 "os.write_edits",
@@ -285,21 +276,16 @@ def write_edits_to_os(
                 operations=len(ops),
             )
             # TODO @Performance: consider bulking OS refreshes in edit somehow
-            ret = os_client_sync.bulk(ops, refresh="" if refresh else False)
+            ret = await os_client.bulk(ops, refresh="" if refresh else False)
             if ret.get("errors"):
                 raise RuntimeError(f"failed to write edit to OpenSearch: {get_os_errors(ret)}")
 
         ops.clear()
-        field_mappings_dirty[0] = False
 
     for e in edit:
-        # mark field mappings as dirty if relevant mutation
-        if e.type in SEARCH_SEMANTIC_EDIT_TYPES:
-            field_mappings_dirty[0] = True
-
         index = project.os_name if e.type.mnt in BENCH_LOCAL_MNTS else os.GLOBAL_INDEX_NAME
         if e.type.kind == MEK.TRUNCATE and e.mnt == MNT.RECORD:
-            _flush()  # unfortunately can't be batched with the other operations
+            await _flush()  # unfortunately can't be batched with the other operations
             os_client_sync.delete_by_query(
                 index=index, body={"query": {"term": {"statement_key": e.node.key}}}
             )
@@ -315,18 +301,20 @@ def write_edits_to_os(
         elif e.type.kind == MEK.DELETE:
             ops.append({"delete": {"_index": index, "_id": str(e.thing.id)}})
 
-    _flush()  # flush any remaining edit
+    await _flush()  # flush all remaining edits
 
 
-def update_os_schema_from_db(project_v: models.ProjectVersion, dynamic: str = "strict") -> None:
+async def update_os_schema_from_db(
+    project_v: models.ProjectVersion, dynamic: str = "strict"
+) -> None:
     from bench.server.runtime import interp_module
 
     logger.info("os.update_mappings", project_version=project_v)
-    module, project = async_to_sync(interp_module)(project_v.id)
-    update_os_schema(project_v.project.os_name, module, dynamic=dynamic)
+    module, project = await interp_module(project_v.id)
+    await update_os_schema(project_v.project.os_name, module, dynamic=dynamic)
 
 
-def write_module_to_os(
+async def write_module_to_os(
     project_v: models.ProjectVersion,
     nodes: Iterable[models.ModuleNode] | Generator[models.ModuleNode, None, None],
     *,
@@ -341,10 +329,10 @@ def write_module_to_os(
     ops: list[dict] = []
 
     if wipe:
-        delete_module_in_os(project_v)
+        await delete_module_in_os(project_v)
 
     if update_mappings:
-        update_os_schema_from_db(project_v)  # can we only do this sometimes? when?
+        await update_os_schema_from_db(project_v)  # can we only do this sometimes? when?
 
     project: models.Project = project_v.project
     for node in nodes:
@@ -359,16 +347,16 @@ def write_module_to_os(
     )
     if not ops:
         return
-    ret = os_client_sync.bulk(ops, refresh="wait_for" if wait else False)
+    ret = await os_client.bulk(ops, refresh="wait_for" if wait else False)
     if ret.get("errors"):
         raise RuntimeError(f"failed to write module to OpenSearch: {get_os_errors(ret)}")
 
 
-def write_module_to_os_from_db(
+async def write_module_to_os_from_db(
     project_v: models.ProjectVersion, *, wipe: bool, update_mappings: bool
 ) -> None:
-    nodes = collect_node(project_v)
-    write_module_to_os(
+    nodes = await sync_to_async(collect_node)(project_v)
+    await write_module_to_os(
         project_v, nodes.visited.values(), wipe=wipe, update_mappings=update_mappings
     )
 
@@ -426,7 +414,7 @@ def write_session_to_os(
         raise RuntimeError(f"failed to write session to OpenSearch: {get_os_errors(ret)}")
 
 
-def write_sessions_to_os_from_db(project_v: models.ProjectVersion) -> None:
+async def write_sessions_to_os_from_db(project_v: models.ProjectVersion) -> None:
     """Writes/mirrors all sessions and runs to OpenSearch."""
     from bench.models import packer
 
@@ -441,18 +429,18 @@ def write_sessions_to_os_from_db(project_v: models.ProjectVersion) -> None:
         ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
     logger.debug("os.write_sessions", project_version=project_v, index=os_name, operations=len(ops))
     if ops:
-        ret = os_client_sync.bulk(ops)
+        ret = await os_client.bulk(ops)
         if ret.get("errors"):
             raise RuntimeError(f"failed to write sessions to OpenSearch: {get_os_errors(ret)}")
 
 
-def delete_module_in_os(project_v: models.ProjectVersion):
+async def delete_module_in_os(project_v: models.ProjectVersion):
     logger.debug("os.delete", project_version=project_v)
-    os_client_sync.delete_by_query(
+    await os_client.delete_by_query(
         index=os.GLOBAL_INDEX_NAME,
         body={"query": {"term": {"project_version_id": project_v.id}}},
     )
-    os_client_sync.delete_by_query(
+    await os_client.delete_by_query(
         index=project_v.project.os_name,
         body={
             "query": {

@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID, uuid4
 
 import structlog
+from asgiref.sync import async_to_sync
 from django.core.validators import validate_slug
 from django.db import models, transaction
 from django.db.models import Q
-from django.db.models.expressions import RawSQL
 from pgcrypto.fields import TextPGPSymmetricKeyField
 from strawberry_django.descriptors import model_property
 
@@ -533,7 +533,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         # unpack and save
         unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched(), exclude={target.id})
-        write_module_to_os(target, unpacked.walk_bfs(), wipe=True)
+        async_to_sync(write_module_to_os)(target, unpacked.walk_bfs(), wipe=True)
 
 
 class ProjectVersion(CrudNode):
@@ -674,7 +674,7 @@ class FileManager(models.Manager):
         # unpack and save
         unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched())
-        write_module_to_os(target, unpacked.walk_bfs(), wipe=False)
+        async_to_sync(write_module_to_os)(target, unpacked.walk_bfs(), wipe=False)
 
         target_file = unpacked.nodes_by_id[target_id]
         return target_file

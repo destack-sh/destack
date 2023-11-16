@@ -255,7 +255,7 @@ class StatementBatch(ThingBatch):
 
 @strawberry.type
 class StatementMutation:
-    @db_edit(MET.CREATE_STATEMENT, atomic=True)
+    @db_edit(MET.CREATE_STATEMENT)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
         parent_statement = (
@@ -280,11 +280,11 @@ class StatementMutation:
         )
         return statement
 
-    @db_edit(MET.UPDATE_STATEMENT, atomic=True)
+    @db_edit(MET.UPDATE_STATEMENT)
     def update_statement(self, input: StatementUpdateInput) -> Statement | OperationInfo:
         raise NotImplementedError("only for sync")
 
-    @db_edit(MET.MORPH_STATEMENT, atomic=True)
+    @db_edit(MET.MORPH_STATEMENT)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.type = input.type
@@ -302,13 +302,13 @@ class StatementMutation:
         statement.name = input.name
         return statement
 
-    @db_edit(MET.SOFT_DELETE_STATEMENT, atomic=True)
+    @db_edit(MET.SOFT_DELETE_STATEMENT)
     def soft_delete_statement(self, input: StatementSoftDeleteInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.deleted_at = utcnow_with_tz()
         return statement
 
-    @db_edit(MET.RESTORE_STATEMENT, atomic=True)
+    @db_edit(MET.RESTORE_STATEMENT)
     def restore_statement(self, input: StatementRestoreInput) -> Statement | OperationInfo:
         # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)
@@ -319,7 +319,7 @@ class StatementMutation:
     def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
         raise NotImplementedError
 
-    @db_edit(MET.MOVE_STATEMENT, atomic=True)
+    @db_edit(MET.MOVE_STATEMENT)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.file_id = UUID(input.file_id.node_id)
@@ -337,7 +337,7 @@ class StatementMutation:
         statement.order_key = input.order_key
         return statement
 
-    @db_edit(MET.SOFT_DELETE_STATEMENT, atomic=True, batch=True, register=False)
+    @db_edit(MET.SOFT_DELETE_STATEMENT, batch=True, register=False)
     def batch_soft_delete_statement(
         self, input: StatementBatchSoftDeleteInput
     ) -> StatementBatch | OperationInfo:
@@ -349,7 +349,7 @@ class StatementMutation:
             statement.deleted_at = deleted_at
         return StatementBatch(statements=list(statements))
 
-    @db_edit(MET.RESTORE_STATEMENT, atomic=True, batch=True, register=False)
+    @db_edit(MET.RESTORE_STATEMENT, batch=True, register=False)
     def batch_restore_statement(
         self, input: StatementBatchRestoreInput
     ) -> StatementBatch | OperationInfo:
@@ -360,7 +360,7 @@ class StatementMutation:
             statement.deleted_at = None
         return StatementBatch(statements=list(statements))
 
-    @db_edit(MET.MOVE_STATEMENT, atomic=True, batch=True, register=False)
+    @db_edit(MET.MOVE_STATEMENT, batch=True, register=False)
     def batch_move_statement(
         self, input: StatementBatchMoveInput
     ) -> StatementBatch | OperationInfo:
@@ -380,8 +380,7 @@ class StatementMutation:
             statement.order_key = input.order_keys[i]
         return StatementBatch(statements=list(statements))
 
-    # we check auth manually here (simpler for copy/paste across projects & versions)
-    @db_edit(MET.PASTE_STATEMENT, atomic=True, batch=True, skip_auth_check=True)
+    # not a regular db_edit
     def batch_paste_statement(
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:

@@ -7,7 +7,6 @@ from django.db import models
 
 from bench.language.const import ViewLayout
 from bench.models.utils import CrudModel, CrudNode, DetachedModuleNode, Revisioned, get_choices
-from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.models.statement import Statement

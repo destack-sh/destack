@@ -23,6 +23,7 @@ from bench.language.wire import (
     EnvironmentData,
     LogEntryData,
     ModuleTreeData,
+    NodeData,
     RecordData,
     RunData,
     SecretData,
@@ -74,6 +75,10 @@ class NMessageType(StrEnum):
     READ_MODULE_REP = "module.read.rep"
     WRITE_EDITS = "module.write"
     WRITE_EDITS_REP = "module.write.rep"
+    PASTE_NODES = "module.paste_nodes"
+    PASTE_NODES_REP = "module.paste_nodes.rep"
+    SNAPSHOT_MODULE = "module.snapshot"
+    SNAPSHOT_MODULE_REP = "module.snapshot.rep"
     WRITE_SESSION = "session.write"
     WRITE_SESSION_REP = "session.write.rep"
     SEARCH_RECORDS = "module.search.records"
@@ -126,6 +131,8 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.DO_RESTART_WORKER_NODE: NMessageType.DO_RESTART_WORKER_NODE_REP,
     NMessageType.READ_MODULE: NMessageType.READ_MODULE_REP,
     NMessageType.WRITE_EDITS: NMessageType.WRITE_EDITS_REP,
+    NMessageType.PASTE_NODES: NMessageType.PASTE_NODES_REP,
+    NMessageType.SNAPSHOT_MODULE: NMessageType.SNAPSHOT_MODULE_REP,
     NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
     NMessageType.DOWNLOAD_BLOB: NMessageType.DOWNLOAD_BLOB_REP,
     NMessageType.SEARCH_RECORDS: NMessageType.SEARCH_RECORDS_REP,
@@ -330,11 +337,43 @@ class ReqWriteEditsPayload(Payload):
     module_id: UUID
     edits: list[EditData]
     client: ClientOrigin
-    refresh_index: bool
+    refresh_index: bool = False
 
 
 @payload(NMessageType.WRITE_EDITS_REP)
 class RepWriteEditsPayload(Payload):
+    nodes: list[NodeData]
+    success: bool
+    error: Optional[str] = None
+
+
+@payload(NMessageType.PASTE_NODES)
+class ReqPasteNodesPayload(Payload):
+    module_id: UUID
+    source_ids: list[UUID]
+    target_ids: list[UUID]
+    target_cks: list[UUID]
+    target_root_id: UUID
+    target_parent_ids: list[UUID]
+    target_order_keys: list[Optional[str]]
+
+
+@payload(NMessageType.PASTE_NODES_REP)
+class RepPasteNodesPayload(Payload):
+    nodes: list[NodeData]
+    success: bool
+
+
+@payload(NMessageType.SNAPSHOT_MODULE)
+class ReqSnapshotModulePayload(Payload):
+    module_id: UUID
+    name: Optional[str] = None
+    tag: Optional[str] = None
+    description: Optional[str] = None
+
+
+@payload(NMessageType.SNAPSHOT_MODULE_REP)
+class RepSnapshotModulePayload(Payload):
     success: bool
 
 

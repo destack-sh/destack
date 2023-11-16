@@ -106,10 +106,10 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
         project_v.name = version
         project_v.save()
 
-    blank_module = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
-    blank_module_tree = wire.NodeTree(blank_module.nodes)
+    blank_module_data = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
+    blank_module = wire.unpack_module(blank_module_data.nodes, session=None)
     new_module = wire.pack_module(module, exclude=set())
-    edits = diff_modules(blank_module, new_module, project_id=project.id)
+    edits = diff_modules(blank_module_data, new_module, project_id=project.id)
     # truncate records for new databases
     #  (manually because this out-of-line change isn't included in the diff)
     for node in module._nodes:
@@ -123,7 +123,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
             )
             edit.node = wire.pack_node_flat(node)
             edits.append(edit)
-    packer.write_edits(project_v, blank_module_tree, edits, validate=False, refresh_index=False)
+    packer.write_db_edits(project_v, blank_module, edits, validate=False, refresh_index=False)
     project_v.commit()
 
     if sanity_check:

@@ -1,8 +1,8 @@
 import asyncio
 import json
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from itertools import chain
 from typing import Any, Optional
 from uuid import UUID
 
@@ -27,31 +27,23 @@ from bench.language.builtin import symbolx_lib
 from bench.language.cache import CacheAsync
 from bench.language.const import (
     INTERP_NODE_TYPES,
+    MNT,
     ModuleReference,
     RunStatus,
     SessionAccessLevel,
     parse_absolute_node_reference,
 )
-from bench.language.edit import EditData, ModuleEditor
+from bench.language.edit import EditData
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
-from bench.language.module import ModuleChange
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.models import Project, ProjectVersion, packer
-from bench.models.packer import write_edits, write_session
+from bench.models.packer import write_db_edits, write_session
 from bench.models.user import loops_request
 from bench.msg import NMessage
-from bench.msg.core import (
-    VERSION,
-    handle_reply,
-    message_handler,
-    nc_init,
-    publish,
-    request,
-    subscribe,
-)
+from bench.msg.core import VERSION, handle_reply, message_handler, nc_init, publish, request
 from bench.msg.messages import (
     ClientOrigin,
     ModuleChangedPayload,
@@ -89,15 +81,17 @@ from bench.msg.messages import (
 from bench.search import mirror
 from bench.search.client import os_client
 from bench.search.core import DocumentType
-from bench.search.mapping import encode_os_cursor, prepare_os_query
+from bench.search.mapping import encode_os_cursor, prepare_os_query, update_os_schema
 from bench.server import search
 from bench.server.observer import WorkerObserver
+from bench.server.search import write_edits_to_os
+from bench.sql.mapping import update_pg_schema
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import sentry_capture
 from bench.utils.uuidt import UUIDT
-from bench.worker.edit import get_api_edit_from_internal, trim_record_edits
+from bench.worker.edit import get_api_edit_from_internal
 
 logger = structlog.get_logger(__name__)
 
@@ -198,7 +192,6 @@ class RuntimeSupervisor(Monitored):
             await handle_reply(NMessageType.REVEAL_SECRET, self.reveal_secret),
             await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
             await handle_reply(NMessageType.RUN_PROXY_STATEMENT, self.run_statement),
-            await subscribe(f"{NMessageType.MODULE_CHANGED}.>", cb=self.module_changed),
         ]
 
         logger.info("load_modules")
@@ -225,7 +218,8 @@ class RuntimeSupervisor(Monitored):
             project_version = await ProjectVersion.objects.select_related(
                 "project", "project__user", "project__organization"
             ).aget(id=module_id)
-            runtime = RuntimeHost(self.id, self.tasks, self.workers, project_version)
+            project = project_version.project
+            runtime = RuntimeHost(self.id, self.tasks, self.workers, project, project_version)
             self.runtimes[module_id] = runtime
             self.tasks.start(runtime.run(), f"worker-{module_id}")
         if not runtime.ready.is_set():
@@ -252,16 +246,19 @@ class RuntimeSupervisor(Monitored):
         # TODO @Security!: check if msg origin has write access to module
         runtime = await self._prepare_runtime_host(msg.p.module_id)
         try:
-            await runtime.write_edits(
+            edited_nodes = await runtime.write_edits(
                 msg.p.edits, origins=(msg.p.client,), refresh_index=msg.p.refresh_index
             )
             logger.debug("module.write.done", msg=msg)
             success = True
+            error = None
         except Exception as e:
             sentry_capture(e)
             logger.error("module.write.failed", msg=msg, exc_info=True)
+            edited_nodes = []
+            error = str(e)
             success = False
-        await msg.reply(RepWriteEditsPayload(success=success))
+        await msg.reply(RepWriteEditsPayload(nodes=edited_nodes, success=success, error=error))
 
     @message_handler
     async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
@@ -456,14 +453,6 @@ class RuntimeSupervisor(Monitored):
         await self._prepare_runtime_host(msg.p.module_id)
         await msg.reply(RepWakeRuntimePayload(module_id=msg.p.module_id))
 
-    @message_handler
-    async def module_changed(self, msg: NMessage[ModuleChangedPayload]) -> None:
-        logger.debug("module.changed", msg=msg)
-        if msg.p.has_origin(self.id):
-            return  # ignore own changes
-        runtime = await self._prepare_runtime_host(msg.p.module_id)
-        await runtime.on_module_changed(msg.p.edits)
-
     async def stop(self):
         logger.info("stop")
         self._ready = False
@@ -496,11 +485,13 @@ class RuntimeHost:
         host_id: UUID,
         tasks: TaskManager,
         workers: WorkerObserver,
+        project: models.Project,
         project_version: models.ProjectVersion,
     ):
         self.server_id = host_id
         self.tasks = tasks
         self.workers = workers
+        self.project = project
         self.project_version = project_version
         self.ready = asyncio.Event()
         self.log = logger.bind(
@@ -536,7 +527,7 @@ class RuntimeHost:
 
     @property
     def project_id(self) -> UUID:
-        return self.project_version.project_id
+        return self.project.id
 
     async def run(self) -> None:
         # fetch and interp module
@@ -548,63 +539,84 @@ class RuntimeHost:
             os_name=project.os_name,
             pg_name=project.pg_name,
         )
-        await self._on_module_changed(change=None)
+        await update_os_schema(self.project.os_name, self.module)
+        await update_pg_schema(self.project.pg_name, self.module)
+        await self._update_local_triggers()
         self.tasks.start(self.process_time_triggers_forever())
         self.ready.set()
 
-    async def _on_module_changed(self, change: Optional[ModuleChange]):
-        """Handle module changes to store interp state, update triggers, etc."""
+    async def write_edits(
+        self,
+        edits: list[EditData],
+        origins: tuple[ClientOrigin] = None,
+        refresh_index: bool = False,
+    ) -> list[wire.NodeData]:
+        """
+        Writes the edits locally to the source of truth module (DB),
+         publishes the complete changes and then mirrors them into the search index.
+        This is the main point of entry for ALL edits from everyone (frontend and workers);
+         only record edits may bypass this and write directly to the local DB in the worker.
+        """
+        start_time = time.time()
+        self.log.debug("module.write", edits=len(edits), origins=origins)
 
-        # interp state
-        start_time = utcnow_with_tz()
-        if change is None:  # reset completely
-            interp_mut = ModuleEditor(self.module._source, self.project_id, self.module_id)
-            module_data = wire.pack_node_flat(self.module)
-            for mnt in INTERP_NODE_TYPES:
-                interp_mut.truncate(module_data, mnt, apply=False)
-            for node in self.module._nodes:
-                # config fields are only used internally for now
-                # :InterpEditFilter
-                if node.mnt in INTERP_NODE_TYPES:
-                    interp_mut.create(node, apply=False)
-            interp_edits = interp_mut.edits
-        else:
-            interp_edits = change.interp_edits
-        if interp_edits:
-            await sync_to_async(write_edits)(
-                self.project_version,
-                self.module._source,
-                interp_edits,
-                validate=False,
-                refresh_index=False,
-                apply=False,
-            )
-            await publish(
-                NMessageType.MODULE_CHANGED,
-                ModuleChangedPayload(
-                    project_id=self.project_id,
-                    module_id=self.module_id,
-                    origins=(self.client,),
-                    edits=interp_edits,
-                ),
-            )
-            duration = (utcnow_with_tz() - start_time).total_seconds()
-            self.log.debug("runtime.interp", total=len(interp_edits), duration=duration)
-
-        # triggers
-        if change is None or any(isinstance(n, Trigger) for n in change.touched):
+        # apply to source of truth
+        change = self.module._apply_edits(edits)
+        # nocheckin: 5. intercept and commit record edit through local database
+        edited_nodes = await sync_to_async(write_db_edits)(
+            self.project_version, self.module, edits=change.all_edits
+        )
+        schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
+        if schema_changed:
+            await update_pg_schema(self.project.pg_name, self.module)
+        if change.includes(MNT.TRIGGER):
             await self._update_local_triggers()
 
-    async def on_module_changed(self, edits: list[EditData]) -> None:
-        """Apply external edits to the module."""
-        start_time = utcnow_with_tz()
-        change = self.module._apply_edits(edits)
-        duration = (utcnow_with_tz() - start_time).total_seconds()
-        self.log.debug("runtime.on_module_changed", total=len(edits), duration=duration)
-        await self._on_module_changed(change)
+        # broadcast
+        origins = (*(origins or ()), self.client)
+        api_edits = [get_api_edit_from_internal(e) for e in change.all_edits]
+        await publish(
+            NMessageType.MODULE_CHANGED,
+            ModuleChangedPayload(
+                project_id=self.project_id,
+                module_id=self.module_id,
+                origins=origins,
+                edits=api_edits,
+            ),
+        )
+
+        # mirror
+        if schema_changed:
+            await update_os_schema(self.project.os_name, self.module)
+        await write_edits_to_os(self.project_version, edits=change.all_edits, refresh=refresh_index)
+
+        duration = time.time() - start_time
+        self.log.debug("module.write.done", duration=duration, edited_nodes=len(edited_nodes))
+
+        return edited_nodes
+
+    async def write_session(
+        self,
+        session: Optional[wire.SessionData],
+        runs: list[wire.RunData] | None,
+        origins: tuple[ClientOrigin] = None,
+    ) -> None:
+        """Write a session and runs to the database, and publish it to the client"""
+        self.log.debug("session.write", session=session, runs=len(runs))
+        await sync_to_async(write_session)(self.project_version, session, runs)
+
+        await publish(
+            NMessageType.SESSION_CHANGED,
+            SessionChangedPayload(
+                project_id=self.project_id, module_id=self.module_id, session=session, runs=runs
+            ),
+        )
 
     async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
-        """Search records in this module."""
+        """
+        Search records in this module (for the frontend client).
+        Full module state is needed to
+        """
         try:
             query = prepare_os_query(
                 type=DocumentType.RECORD,
@@ -642,75 +654,14 @@ class RuntimeHost:
             )
         await msg.reply(rep)
 
-    async def write_edits(
-        self,
-        edits: list[EditData],
-        origins: tuple[ClientOrigin] = None,
-        refresh_index: bool = False,
-    ):
-        # nocheckin: 5. intercept and commit record edit through local database
-        self.log.debug(
-            "module.write",
-            edits=edits[:5],
-            total=len(edits),
-            origins=origins,
-            refresh_index=refresh_index,
-        )
-
-        # apply in DB/OS
-        await sync_to_async(write_edits)(
-            self.project_version,
-            self.module._source,
-            edits=edits,
-            validate=True,
-            refresh_index=refresh_index,
-        )
-        if not edits:
-            # edits may be empty if we just want to trigger an index refresh
-            # e.g. on record search preflight in session after a non-refresh flush happened
-            return
-
-        # broadcast
-        trimmed_edits = trim_record_edits(edits)
-        origins = (*(origins or ()), self.client)
-        api_edits = list(chain.from_iterable(get_api_edit_from_internal(e) for e in trimmed_edits))
-        await publish(
-            NMessageType.MODULE_CHANGED,
-            ModuleChangedPayload(
-                project_id=self.project_id,
-                module_id=self.module_id,
-                origins=origins,
-                edits=api_edits,
-            ),
-        )
-
-        # apply locally (after broadcast to ensure interp edits are delivered after source edits)
-        await self.on_module_changed(edits)
-
-    async def write_session(
-        self,
-        session: Optional[wire.SessionData],
-        runs: list[wire.RunData] | None,
-        origins: tuple[ClientOrigin] = None,
-    ) -> None:
-        """Write a session to the database, and publish it to the client"""
-        self.log.debug("session.write", session=session, runs=len(runs))
-        await sync_to_async(write_session)(self.project_version, session, runs)
-
-        await publish(
-            NMessageType.SESSION_CHANGED,
-            SessionChangedPayload(
-                project_id=self.project_id, module_id=self.module_id, session=session, runs=runs
-            ),
-        )
-
     #
-    # Scheduled triggers
+    # Triggers
     #
 
     async def pull_runs(
         self, worker_set_id: UUID, worker_node_id: Optional[str], worker_process_id: Optional[str]
     ) -> list[wire.RunData]:
+        """Pull any runs potentially missed by the worker."""
         prescheduled_runs = [
             r
             async for r in models.Run.objects.filter(
@@ -719,6 +670,49 @@ class RuntimeHost:
         ]
         prescheduled_runs = [packer.pack_data(r) for r in prescheduled_runs]
         return prescheduled_runs
+
+    async def _update_local_triggers(self):
+        """Update active time triggers when the module changes."""
+
+        # collect new (i.e. current) module's triggers
+        new_active_triggers = {}
+        for node in self.module._nodes:
+            if HasTriggers in node._components and not node.errors:
+                for trigger in node.triggers:
+                    if trigger.active and trigger.type == TriggerType.TIME:
+                        new_active_triggers[trigger.id] = trigger
+
+        # upsert triggers (if new or changed)
+        new_now = utcnow_with_tz()
+        for new_trigger in new_active_triggers.values():
+            existing_trigger = self.active_triggers.get(new_trigger.id)
+            if not existing_trigger or not is_time_trigger_equal(
+                existing_trigger.trigger, new_trigger
+            ):
+                processed_up_to = await (
+                    models.Trigger.objects.filter(id=new_trigger.id)
+                    .values_list("processed_up_to", flat=True)
+                    .afirst()
+                )
+                self.active_triggers[new_trigger.id] = ActiveTrigger(
+                    trigger=new_trigger,
+                    iter=TriggerScheduleIterator(new_trigger, new_now),
+                    next_occurrence=None,
+                    processed_up_to=processed_up_to,
+                )
+                logger.debug("time_triggers.upsert", trigger=new_trigger)
+            elif existing_trigger:
+                # preserve existing active trigger, just update trigger reference
+                self.active_triggers[new_trigger.id].trigger = new_trigger
+
+        # remove triggers that are no longer active
+        for old_trigger_id in set(self.active_triggers.keys()) - set(new_active_triggers.keys()):
+            removed_trigger = self.active_triggers[old_trigger_id]
+            del self.active_triggers[old_trigger_id]
+            logger.debug("time_triggers.remove", trigger=removed_trigger.trigger)
+
+        # re-trigger active trigger processing
+        self.active_trigger_process_wait.set()
 
     async def process_time_triggers_forever(self) -> None:
         """
@@ -945,46 +939,3 @@ class RuntimeHost:
         models.Run.objects.bulk_create([packer.unpack_data(run) for run in runs])
 
         return runs
-
-    async def _update_local_triggers(self):
-        """Update active time triggers when the module changes."""
-
-        # collect new (i.e. current) module's triggers
-        new_active_triggers = {}
-        for node in self.module._nodes:
-            if HasTriggers in node._components and not node.errors:
-                for trigger in node.triggers:
-                    if trigger.active and trigger.type == TriggerType.TIME:
-                        new_active_triggers[trigger.id] = trigger
-
-        # upsert triggers (if new or changed)
-        new_now = utcnow_with_tz()
-        for new_trigger in new_active_triggers.values():
-            existing_trigger = self.active_triggers.get(new_trigger.id)
-            if not existing_trigger or not is_time_trigger_equal(
-                existing_trigger.trigger, new_trigger
-            ):
-                processed_up_to = await (
-                    models.Trigger.objects.filter(id=new_trigger.id)
-                    .values_list("processed_up_to", flat=True)
-                    .afirst()
-                )
-                self.active_triggers[new_trigger.id] = ActiveTrigger(
-                    trigger=new_trigger,
-                    iter=TriggerScheduleIterator(new_trigger, new_now),
-                    next_occurrence=None,
-                    processed_up_to=processed_up_to,
-                )
-                logger.debug("time_triggers.upsert", trigger=new_trigger)
-            elif existing_trigger:
-                # preserve existing active trigger, just update trigger reference
-                self.active_triggers[new_trigger.id].trigger = new_trigger
-
-        # remove triggers that are no longer active
-        for old_trigger_id in set(self.active_triggers.keys()) - set(new_active_triggers.keys()):
-            removed_trigger = self.active_triggers[old_trigger_id]
-            del self.active_triggers[old_trigger_id]
-            logger.debug("time_triggers.remove", trigger=removed_trigger.trigger)
-
-        # re-trigger active trigger processing
-        self.active_trigger_process_wait.set()
