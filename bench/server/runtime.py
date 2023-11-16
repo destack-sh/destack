@@ -591,6 +591,9 @@ class RuntimeHost:
         This is the main point of entry for ALL edits (frontend, workers, etc.);
          but record edits may bypass this and write directly to the local DB via the worker.
         """
+        if not edits:
+            return []  # bail
+
         start_time = time.time()
         self.log.debug("module.write_edits", edits=edits, origins=origins)
 
@@ -626,7 +629,8 @@ class RuntimeHost:
         source_edits = [get_api_edit_from_internal(e) for e in change.source_edits]
         interp_edits = [get_api_edit_from_internal(e) for e in change.interp_edits]
         await self._publish_edits(source_edits, origins=(*(origins or ()), self.client))
-        await self._publish_edits(interp_edits, origins=(self.client,))
+        if interp_edits:
+            await self._publish_edits(interp_edits, origins=(self.client,))
 
         # mirror
         if schema_changed:

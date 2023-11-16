@@ -76,7 +76,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
-from bench.utils.utils import get_from_env, sentry_capture
+from bench.utils.utils import get_from_env, required_field, sentry_capture
 from bench.utils.uuidt import UUIDT
 from bench.worker.environment import WORKER_ENVIRONMENT_DATA
 
@@ -379,29 +379,42 @@ class WorkerNode(Monitored):
 
 
 @dataclass(repr=False, slots=True)
-class RunJob:
-    run_data: RunData
-    session_id: UUID
+class Job:
+    priority: int = 10  # default
+
+    def __lt__(self, other: "Job"):
+        return self.priority < other.priority
+
+    def __gt__(self, other):
+        return self.priority > other.priority
+
+
+@dataclass(repr=False, slots=True)
+class RunJob(Job):
+    """Execute a run, the primary job of a worker process."""
+
+    run_data: RunData = required_field()
+    session_id: UUID = required_field()
     global_value: dict[str, Any] | None = None
     tags: list[str] | None = None
-    priority: int = 10  # default
     task: asyncio.Task | None = None
     session: Optional[Session] = None
     started: asyncio.Event = field(default_factory=asyncio.Event)
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
     exception: Optional[Exception] = None
 
-    def __lt__(self, other: "RunJob"):
-        return self.priority < other.priority
-
-    def __gt__(self, other):
-        return self.priority > other.priority
-
     def __str__(self):
         return f"{self.run_data.id}"
 
     def __repr__(self):
         return f"<RunJob {self}>"
+
+
+@dataclass(repr=False, slots=True)
+class MakeJob(Job):
+    """Update the module given some edits."""
+
+    edits: list[EditData] = required_field()
 
 
 class RunStartError(Exception):
@@ -423,7 +436,7 @@ class ModuleWorkerProcess(RuntimeHost):
 
         self.module: Module | None = None
 
-        self.queue: asyncio.Queue[RunJob] = asyncio.PriorityQueue()
+        self.queue: asyncio.Queue[RunJob | MakeJob] = asyncio.PriorityQueue()
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
             worker_set=str(self.node.worker_set_id),
@@ -492,14 +505,16 @@ class ModuleWorkerProcess(RuntimeHost):
         await self.start()
 
         # process run tasks ad infinitum
-        await self._process_runs_forever()
+        await self._process_jobs_forever()
 
-    async def _process_runs_forever(self):
+    async def _process_jobs_forever(self):
         while True:
             job = await self.queue.get()
-            if job.run_data.status != RunStatus.Queued:
+            if isinstance(job, MakeJob):
+                await self._do_make_job(job)
                 continue
-
+            if job.run_data.status != RunStatus.Queued:
+                continue  # cancelled
             try:
                 await self._do_run_job(job, WORKER_RUN_TIMEOUT)
             except RunError as e:
@@ -510,11 +525,21 @@ class ModuleWorkerProcess(RuntimeHost):
                 self.queue.task_done()
 
     async def on_module_changed(self, edits: list[EditData]):
-        now = utcnow_with_tz()
-        edits = [e for e in edits if e.mnt not in INTERP_NODE_TYPES]
-        self.module._apply_edits(edits)
-        duration = utcnow_with_tz() - now
-        self.log.info("worker.interp", edits=edits, duration=duration.total_seconds())
+        self.log.debug("worker.make.queue", edits=edits)
+        await self.queue.put(MakeJob(edits=edits, priority=0))
+
+    async def _do_make_job(self, job: MakeJob) -> None:
+        """Actually update the module with the given edits."""
+
+        try:
+            # apply edits
+            now = utcnow_with_tz()
+            edits = [e for e in job.edits if e.mnt not in INTERP_NODE_TYPES]
+            self.module._apply_edits(edits)
+            duration = utcnow_with_tz() - now
+            self.log.info("worker.make", edits=edits, duration=duration.total_seconds())
+        except ModelError as e:
+            self.log.error("worker.make.error", job=job, exc_info=e)
 
     def add_run(
         self,
