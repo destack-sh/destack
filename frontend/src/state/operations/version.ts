@@ -38,9 +38,6 @@ export function useProjectVersionOps() {
                 ...ProjectVersionHeader
               }
             }
-            snapshot {
-              ...ProjectVersionHeader
-            }
           }
           ...OperationInfoContent
         }

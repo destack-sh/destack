@@ -1,9 +1,9 @@
-import uuid
 from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
 import strawberry
 import strawberry_django
+from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from strawberry import UNSET, auto, lazy, relay
@@ -16,6 +16,7 @@ from bench.api.auth import check_module_access, has_module_access, is_owner_or_m
 from bench.api.utils import (
     HasCrud,
     ModuleNode,
+    asafe_mutation,
     get_client_origin_from_info,
     get_user_from_info,
     safe_mutation,
@@ -23,12 +24,11 @@ from bench.api.utils import (
 from bench.language import const
 from bench.language.cache import _get_usage_key
 from bench.models import ModuleAccessLevel
-from bench.msg.core import publish_soon
-from bench.msg.messages import NMessageType, ProjectChangedPayload
+from bench.msg.core import NMessage, request
+from bench.msg.messages import NMessageType, RepSnapshotModulePayload, ReqSnapshotModulePayload
 from bench.search.core import DocumentType
 from bench.search.mapping import prepare_os_query
 from bench.utils.cache import redis_sync
-from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.file import File
@@ -318,7 +318,6 @@ class SnapshotInput:
 @strawberry.type
 class SnapshotPayload:
     project: Project
-    snapshot: ProjectVersion
 
 
 @strawberry.type
@@ -335,39 +334,25 @@ class ProjectVersionMutation:
         project_v.save()
         return project_v
 
-    @safe_mutation(atomic=True)
-    def snapshot(self, info, input: SnapshotInput) -> SnapshotPayload | OperationInfo:
-        head = models.ProjectVersion.objects.select_related("project").get(
+    @asafe_mutation
+    async def snapshot(self, info, input: SnapshotInput) -> SnapshotPayload | OperationInfo:
+        head = await models.ProjectVersion.objects.select_related("project").aget(
             id=input.project_version_id.node_id
         )
         project = head.project
         if head.id != project.head_id:
             raise ValueError("cannot commit version that's not the head")
-        check_module_access(info, project, ModuleAccessLevel.Edit)
+        await sync_to_async(check_module_access)(info, project, ModuleAccessLevel.Edit)
 
-        # insert new head between parents and head
-        # nocheckin: 4. use runtime host to snapshot
-        snapshot = models.ProjectVersion.objects.create(
-            id=uuid.uuid4(),
-            ck=project.id,
-            project=project,
+        req = ReqSnapshotModulePayload(
+            module_id=head.id,
             name=input.name,
             tag=input.tag,
             description=input.description,
-            committed_at=utcnow_with_tz(),
+            client=get_client_origin_from_info(info),
         )
-        snapshot.parents.set(head.parents.all())
-        head.parents.set([snapshot])
+        rep: NMessage[RepSnapshotModulePayload] = await request(NMessageType.SNAPSHOT_MODULE, req)
+        if not rep.p.success:
+            raise RuntimeError(f"failed to create snapshot: {rep.p.error}")
 
-        # actually copy into new version
-        models.ProjectVersion.objects.copy(
-            source=head, target=snapshot, keep_cks=True, copy_revisions=True, include_interp=True
-        )
-
-        # publish
-        origin = get_client_origin_from_info(info)
-        publish_soon(
-            NMessageType.PROJECT_CHANGED,
-            ProjectChangedPayload(project_id=project.id, origins=[origin]),
-        )
-        return SnapshotPayload(project=project, snapshot=snapshot)
+        return SnapshotPayload(project=project)

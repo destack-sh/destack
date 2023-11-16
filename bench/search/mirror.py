@@ -343,7 +343,7 @@ class FieldPacker(CrudThingPacker, Packer[models.Field, Field, wire.FieldData]):
         return Field(
             **crud.__dict__,
             ck=node.ck,
-            project_version_id=node.statement.project_version_id,
+            project_version_id=project_v.id,
             project_id=project_v.project_id,
             statement_id=node.statement_id,
             name=node.name,

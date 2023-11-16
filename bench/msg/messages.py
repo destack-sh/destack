@@ -369,6 +369,7 @@ class RepPasteNodesPayload(Payload):
 @payload(NMessageType.SNAPSHOT_MODULE)
 class ReqSnapshotModulePayload(Payload):
     module_id: UUID
+    client: ClientOrigin
     name: Optional[str] = None
     tag: Optional[str] = None
     description: Optional[str] = None

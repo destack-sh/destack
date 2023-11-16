@@ -4,7 +4,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 from asgiref.sync import sync_to_async
@@ -48,6 +48,7 @@ from bench.msg.messages import (
     ClientOrigin,
     ModuleChangedPayload,
     NMessageType,
+    ProjectChangedPayload,
     RepDownloadBlobPayload,
     RepMarkUploadedBlobPayload,
     RepPasteNodesPayload,
@@ -57,6 +58,7 @@ from bench.msg.messages import (
     RepRunInferencePayload,
     RepRunStatementPayload,
     RepSearchRecordsPayload,
+    RepSnapshotModulePayload,
     RepStartRunPayload,
     RepUploadBlobPayload,
     RepWakeRuntimePayload,
@@ -71,6 +73,7 @@ from bench.msg.messages import (
     ReqRunInferencePayload,
     ReqRunStatementPayload,
     ReqSearchRecordsPayload,
+    ReqSnapshotModulePayload,
     ReqStartRunPayload,
     ReqUploadBlobPayload,
     ReqWakeRuntimePayload,
@@ -188,6 +191,7 @@ class RuntimeSupervisor(Monitored):
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.PULL_WORKER_RUNS, self.pull_runs),
             await handle_reply(NMessageType.WAKE_RUNTIME, self.wake_runtime),
+            await handle_reply(NMessageType.SNAPSHOT_MODULE, self.snapshot),
             await handle_reply(NMessageType.SEARCH_RECORDS, self.search_records),
             await handle_reply(NMessageType.DOWNLOAD_BLOB, self.read_blob),
             await handle_reply(NMessageType.UPLOAD_BLOB, self.write_blob),
@@ -323,6 +327,21 @@ class RuntimeSupervisor(Monitored):
             success = False
             runs = []
         await msg.reply(RepPullWorkerRunsPayload(runs=runs, success=success))
+
+    @message_handler
+    async def snapshot(self, msg: NMessage[ReqSnapshotModulePayload]) -> None:
+        logger.debug("module.snapshot", msg=msg)
+        runtime = await self._prepare_runtime_host(msg.p.module_id)
+        try:
+            await runtime.snapshot(name=msg.p.name, tag=msg.p.tag, description=msg.p.description)
+            success = True
+            error = None
+        except Exception as e:
+            sentry_capture(e)
+            logger.error("module.snapshot.failed", msg=msg, exc_info=True)
+            success = False
+            error = str(e)
+        await msg.reply(RepSnapshotModulePayload(success=success, error=error))
 
     @message_handler
     async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
@@ -598,6 +617,7 @@ class RuntimeHost:
         self.log.debug("module.write_edits", edits=edits, origins=origins)
 
         # apply
+        # nocheckin: restore is broken (get old descendants from db, add as create edits)
         # TODO @Performance: don't deepcopy module on edit
         old_source = self.module._source.deepcopy()
         change = self.module._apply_edits(edits)
@@ -709,6 +729,39 @@ class RuntimeHost:
             SessionChangedPayload(
                 project_id=self.project_id, module_id=self.module_id, session=session, runs=runs
             ),
+        )
+
+    async def snapshot(self, name: str | None, tag: str | None, description: str | None) -> None:
+        """Snapshot the module and publish a corresponding project change."""
+
+        # insert new head between parents and head
+        @transaction.atomic
+        def _do_snapshot():
+            snapshot = models.ProjectVersion.objects.create(
+                id=uuid4(),
+                ck=self.project.id,
+                project=self.project,
+                name=name,
+                tag=tag,
+                description=description,
+                committed_at=utcnow_with_tz(),
+            )
+            snapshot.parents.set(self.project_version.parents.all())
+            self.project_version.parents.set([snapshot])
+
+            # actually copy into new version
+            models.ProjectVersion.objects.copy(
+                source=self.project_version,
+                target=snapshot,
+                keep_cks=True,
+                copy_revisions=True,
+                include_interp=True,
+            )
+
+        await sync_to_async(_do_snapshot)()
+        await publish(
+            NMessageType.PROJECT_CHANGED,
+            ProjectChangedPayload(project_id=self.project.id, origins=[self.client]),
         )
 
     async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
