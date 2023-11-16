@@ -155,6 +155,28 @@ def to_pyidentifier_multi(*parts: str, type: IdentifierType) -> str:
     return ".".join(to_pyidentifier(part, type) for part in parts)
 
 
+def to_camel_case(snake_str: str) -> str:
+    components = snake_str.split("_")
+    return components[0] + "".join(x.capitalize() if x else "_" for x in components[1:])
+
+
+def from_camel_case(camel_str: str) -> str:
+    """From camel case to snake case."""
+    components = re.split(r"(?<=[a-z])(?=[A-Z0-9])", camel_str)
+    return "_".join(components).lower()
+
+
+TO_KEBAB_CASE_RE = re.compile("((?<=[a-z0-9])[A-Z]|(?!^)[A-Z](?=[a-z]))")
+
+
+def to_kebab_case(name: str) -> str:
+    return TO_KEBAB_CASE_RE.sub(r"-\1", name).lower()
+
+
+def capitalize_first(name: str) -> str:
+    return name[0].upper() + name[1:]
+
+
 def sentry_capture(e: Exception) -> bool:
     sentry_enabled = sentry_sdk.Hub.current is not None
     if sentry_enabled:

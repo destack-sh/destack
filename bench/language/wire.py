@@ -264,7 +264,9 @@ class NodeData:
         return {"mnt": self.mnt.name}
 
     @staticmethod
-    def cls_from_attrs(data: dict[str, Any]) -> typing.Type[NodeDataT]:
+    def cls_from_attrs(data: dict[str, Any]) -> typing.Type[NodeDataT] | None:
+        if "mnt" not in data:
+            return None  # encoded some other way
         mnt = MNT[data["mnt"]]
         return DATA_CLASS_BY_MNT[mnt]
 

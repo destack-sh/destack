@@ -514,7 +514,7 @@ class ModuleWorkerProcess(RuntimeHost):
         edits = [e for e in edits if e.mnt not in INTERP_NODE_TYPES]
         self.module._apply_edits(edits)
         duration = utcnow_with_tz() - now
-        self.log.info("worker.interp", edits=len(edits), duration=duration.total_seconds())
+        self.log.info("worker.interp", edits=edits, duration=duration.total_seconds())
 
     def add_run(
         self,

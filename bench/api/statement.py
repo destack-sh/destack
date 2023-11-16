@@ -404,6 +404,7 @@ class StatementMutation:
             check_module_access(info, source_project_v.project, ModuleAccessLevel.Read)
         check_module_access(info, target_file.project_version.project, ModuleAccessLevel.Edit)
 
+        # nocheckin: 3. use runtime host for paste
         # do the copy paste
         target_ids = [UUID(i.node_id) for i in input.target_ids]
         target_parent_ids = {

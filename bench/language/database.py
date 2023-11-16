@@ -160,7 +160,7 @@ class RecordBaseQuery:
         if session._editor.edits or session._past_commits:
             await session.acommit(refresh_index=True)
 
-        # nocheckin: iterate through all records if query has no limit
+        # nocheckin: 10. iterate through all records if query has no limit
         query = Conditional.and_if_set(
             self._query, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
         )
@@ -518,7 +518,7 @@ class HasDatabase(Node):
     @property
     def ephemeral(self) -> bool:
         # basically whether this should be 1:1 a real database table or just virtual
-        return True  # nocheckin: make database non-ephemeral by default
+        return True  # nocheckin: 11. make database non-ephemeral by default
 
     @staticmethod
     def _derive_key(instance: "HasDatabase") -> str | None:

@@ -84,7 +84,9 @@ def from_dict(
         if not isinstance(data, dict):
             raise TypeError(f"expected dict, got {type(data)} in {data}")
         if hasattr(cls, "cls_from_attrs"):
-            cls = cls.cls_from_attrs(data)  # hack until :WireFormat
+            new_cls = cls.cls_from_attrs(data)  # hack until :WireFormat
+            if new_cls:
+                cls = new_cls
         # first pass: create object while skipping not required fields
         fields = _prepare_dataclass_fields(cls)
         if hasattr(cls, "decode_some_attrs"):

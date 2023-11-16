@@ -50,11 +50,8 @@ class NodePacker(typing.Generic[NodeDataT, NodeT]):
         """Pack the node and any relevant normalized related nodes."""
         raise NotImplementedError(f"{self.__class__.__name__} does not support 'pack'")
 
-    def unpack(self, data: NodeDataT, parent: Optional[NodeT]) -> NodeT | list[NodeT]:
-        """
-        Unpack the node and any relevant normalized related nodes.
-        If returning a list, the first item is the main node.
-        """
+    def unpack(self, data: NodeDataT, parent: Optional[NodeT]) -> NodeT:
+        """Unpack the node."""
         raise NotImplementedError(f"{self.__class__.__name__} does not support 'unpack'")
 
     # we don't need an 'unwalk' here because child models are associated automatically
@@ -289,9 +286,9 @@ def unpack_nodes(
             if ancestor.id not in ancestors_by_id:
                 parent = ancestors_by_id.get(ancestor.parent_id)
                 unpacked = unpack_node_flat(ancestor, parent)
-                ancestors_by_id[ancestor.id] = unpacked[0]
-        nodes = unpack_node_flat(data, ancestors_by_id[data.parent_id])
-        unpacked_nodes.extend(nodes)
+                ancestors_by_id[ancestor.id] = unpacked
+        node = unpack_node_flat(data, ancestors_by_id[data.parent_id])
+        unpacked_nodes.append(node)
     return unpacked_nodes
 
 
@@ -301,14 +298,10 @@ def pack_node_flat(model: ModelT) -> NodeDataT:
     return packer.pack(model)
 
 
-def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> list[NodeT]:
+def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
     """Unpack a node (flat) (can return multiple nodes for normalized/related models)"""
-    # nocheckin: probably shouldn't return a list here anymore?
     packer = _node_packers_by_data[type(data)]
-    unpacked = packer.unpack(data, parent)
-    if not isinstance(unpacked, list):
-        unpacked = [unpacked]
-    return unpacked
+    return packer.unpack(data, parent)
 
 
 @node_packer(MNT.MODULE, wire.ModuleData, models.ProjectVersion)
@@ -929,7 +922,7 @@ def write_db_edits(
                 e.thing = node  # keep node model for downstream indexing in opensearch
             edited_nodes = [e.node for e in batch]
 
-        elif met.kind == MEK.UPDATE:
+        elif met.kind in (MEK.UPDATE, MEK.MOVE, MEK.SOFT_DELETE, MEK.RESTORE):
             # update nodes in place
             nodes = unpack_nodes(project_v, source, [e.node for e in batch])
             model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
@@ -948,7 +941,7 @@ def write_db_edits(
                 nodes_by_props[properties].append(node)
             # batch update
             for properties, nodes in nodes_by_props.items():
-                properties = properties.split(";")
+                properties = [p for p in properties.split(";") if p]
                 # need to remap properties since edit data uses language names (see :Edit)
                 properties = wire.remap_properties(met.mnt, properties)
                 # validate changed properties (records have no validation)
