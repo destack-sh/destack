@@ -1934,7 +1934,6 @@ export type SnapshotInput = {
 export type SnapshotPayload = {
   __typename?: "SnapshotPayload";
   project: Project;
-  snapshot: ProjectVersion;
 };
 
 export type SnapshotPayloadOperationInfo = OperationInfo | SnapshotPayload;
@@ -5156,9 +5155,6 @@ export type SnapshotMutation = {
             " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
           };
         } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
-        snapshot: { __typename?: "ProjectVersion" } & {
-          " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-        };
       };
 };
 
@@ -19947,16 +19943,6 @@ export const SnapshotDocument = {
                                 ],
                               },
                             },
-                          ],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "snapshot" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
                           ],
                         },
                       },

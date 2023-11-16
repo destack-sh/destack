@@ -1502,7 +1502,6 @@ input SnapshotInput {
 
 type SnapshotPayload {
   project: Project!
-  snapshot: ProjectVersion!
 }
 
 union SnapshotPayloadOperationInfo = SnapshotPayload | OperationInfo
