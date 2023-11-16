@@ -2311,9 +2311,9 @@ class Module(ScopeNode):
 
     def _apply_edits_to_source(self, edits: list["EditData"]) -> None:
         """Applies the edits directly to the source without any interp."""
-        from bench.language.edit import ModuleEditor
+        from bench.language.edit import NodeTreeEditor
 
-        editor = ModuleEditor(self._source, self._project_id, self.id)
+        editor = NodeTreeEditor(self._source, self._project_id, self.id)
         # errors are fine here since e.g. a deleted issue's parent may have disappeared
         #  (we could filter that, but it's easier this way since it's more explicit for clients)
         editor.apply_all(edits, raise_on_error=False)
@@ -2325,7 +2325,7 @@ class Module(ScopeNode):
         old_source: NodeTree,
     ) -> ModuleChange:
         """Computes the change between the old and new module state."""
-        from bench.language.edit import ModuleEditor
+        from bench.language.edit import NodeTreeEditor
 
         new_nodes: dict[UUID, Node] = self.module._tree.nodes_by_ck
         added = []
@@ -2339,7 +2339,7 @@ class Module(ScopeNode):
         removed = [n for n in old_nodes_by_ck.values() if n.ck not in new_nodes]
 
         # gather interp edits (delete from old, create in new)
-        old_editor = ModuleEditor(old_source, self._project_id, self.id)
+        old_editor = NodeTreeEditor(old_source, self._project_id, self.id)
         for node in removed:
             # :InterpEditFilter
             if node.mnt in INTERP_NODE_TYPES:
@@ -2350,7 +2350,7 @@ class Module(ScopeNode):
                 # recover parent info from source
                 old_node = old_source.nodes_by_ck[node.ck]
                 old_editor.delete(old_node, apply=False)
-        new_editor = ModuleEditor(self._source, self._project_id, self.id)
+        new_editor = NodeTreeEditor(self._source, self._project_id, self.id)
         for node in added:
             if node.mnt in INTERP_NODE_TYPES:
                 new_editor.create(node, apply=False)

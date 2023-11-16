@@ -567,6 +567,7 @@ type Mutation {
   batchSoftDeleteStatement(input: StatementBatchSoftDeleteInput!): StatementBatchOperationInfo!
   batchRestoreStatement(input: StatementBatchRestoreInput!): StatementBatchOperationInfo!
   batchMoveStatement(input: StatementBatchMoveInput!): StatementBatchOperationInfo!
+  batchPasteStatement(input: StatementBatchPasteInput!): OperationInfo
   updateStatementText(input: StatementUpdateTextInput!): StatementOperationInfo!
   updateStatementHeadingLevel(input: StatementUpdateHeadingLevelInput!): StatementOperationInfo!
   updateStatementReference(input: StatementUpdateReferenceInput!): StatementOperationInfo!
@@ -1548,7 +1549,6 @@ type Statement implements HasCrud & ModuleNode & Node {
   revision: Int!
   projectVersion: ProjectVersion!
   file: File!
-  descendants: [Statement!]!
   type: StatementType!
   name: String
   key: String
@@ -1578,6 +1578,15 @@ input StatementBatchMoveInput {
 }
 
 union StatementBatchOperationInfo = StatementBatch | OperationInfo
+
+input StatementBatchPasteInput {
+  sourceIds: [GlobalID!]!
+  targetIds: [GlobalID!]!
+  targetCks: [UUID!]!
+  targetFileId: GlobalID!
+  targetParentIds: [GlobalID]!
+  targetOrderKeys: [String!]!
+}
 
 input StatementBatchRestoreInput {
   ids: [GlobalID!]!

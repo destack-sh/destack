@@ -1,24 +1,19 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
-from uuid import UUID
 
 import structlog
-from asgiref.sync import async_to_sync
 from django.db import models
 from django.db.models import Q
-from django.db.models.expressions import RawSQL
 
-from bench.language import StatementType, TypeHint, TypeTag, wire
-from bench.language.builtin import symbolx_lib
+from bench.language import StatementType, TypeHint, TypeTag
 from bench.language.const import ScheduleType, TriggerType, TypeFlag
 from bench.language.validation import MAX_NAME_LENGTH
-from bench.models.utils import NAME_VALIDATOR, CrudNode, create_models_bfs, get_choices
+from bench.models.utils import NAME_VALIDATOR, CrudNode, get_choices
 
 if TYPE_CHECKING:
-    from bench.models import File, ProjectVersion
+    from bench.models import File
 
 logger = structlog.get_logger(__name__)
 
@@ -181,87 +176,6 @@ class StatementManager(models.Manager["Statement"]):
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
 
-    def copy(
-        self,
-        statements: models.QuerySet[Statement],
-        source: ProjectVersion,
-        target: ProjectVersion,
-        keep_cks: bool,
-        include_interp: bool = True,
-        copy_revisions: bool = True,
-        strip_template_tags: bool = False,
-        target_ids: dict[UUID, UUID] | None = None,
-        target_cks: dict[UUID, UUID] | None = None,
-        target_parent_ids: dict[UUID, UUID] | None = None,
-        target_order_keys: dict[UUID, str] | None = None,
-    ) -> None:
-        """Copies the given source statements into the target version in given new files"""
-
-        from bench.models import File, ProjectVersion, packer
-        from bench.server.search import write_module_to_os
-
-        # pack relevant nodes
-        if strip_template_tags:
-            template_key = symbolx_lib.resolve(".builtins.template").key
-            filter = packer.DEFAULT_PACK_FILTER.extend(
-                (Tagging, lambda qs: qs.exclude(key=template_key))
-            )
-        else:
-            filter = packer.DEFAULT_PACK_FILTER
-        copy = ProjectVersion.objects.pack_copy(
-            source=source,
-            target=target,
-            nodes=list(statements),
-            keep_cks=keep_cks,
-            excluded=packer.INTERP_MODEL_TYPES if not include_interp else set(),
-            target_ids=target_ids,
-            target_cks=target_cks,
-            copy_revisions=copy_revisions,
-            filter=filter,
-        )
-        for node in copy.nodes_by_id.values():  # patch parent and order keys
-            if node.id in target_parent_ids:
-                node.parent_id = target_parent_ids[node.id]
-            elif node.parent_id in target_ids:
-                node.parent_id = copy.target_ids[node.parent_id]
-            if isinstance(node, wire.HasOrder):
-                node.order_key = target_order_keys.get(node.id, node.order_key)
-
-        # collect parents at target (not part of the packed tree since they're the destination)
-        # assumes parents can only be File or Statement (will error below if parent is missing)
-        target_parents = [
-            *self.filter(id__in=target_parent_ids.values()),
-            *File.objects.filter(id__in=target_parent_ids.values()),
-        ]
-        # unpack and save
-        unpacked = packer.unpack_nodes_tree(
-            copy.nodes_list(),
-            pre_unpacked={target.id: target, **{p.id: p for p in target_parents}},
-        )
-        create_models_bfs(unpacked.walk_bfs_batched())
-        async_to_sync(write_module_to_os)(target, unpacked.walk_bfs(), wipe=False)
-
-    def get_descendants(
-        self, statement_ids: list[UUID], deleted_at: Optional[datetime] = None
-    ) -> models.QuerySet[Statement]:
-        """Gets descendants of statements with given ids (including the statements themselves)."""
-        query = """
-           WITH RECURSIVE descendants(id, parent_statement_id) AS (
-               SELECT id, parent_statement_id
-               FROM bench_statement
-               WHERE id = ANY(%s)
-               UNION ALL
-               SELECT bench_statement.id, bench_statement.parent_statement_id
-               FROM bench_statement
-               INNER JOIN descendants ON descendants.id = bench_statement.parent_statement_id
-           )
-           SELECT DISTINCT id
-           FROM descendants
-        """
-        return Statement._base_manager.filter(
-            id__in=RawSQL(query, (statement_ids,)), deleted_at=deleted_at
-        )
-
 
 class Statement(CrudNode):
     """
@@ -301,10 +215,6 @@ class Statement(CrudNode):
 
     def __str__(self):
         return f"{self.path} {self.type} {self.name}"
-
-    @property
-    def descendants(self) -> models.QuerySet[Statement]:
-        return Statement.objects.get_descendants([self.id])
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:

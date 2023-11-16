@@ -349,19 +349,21 @@ class RepWriteEditsPayload(Payload):
 
 @payload(NMessageType.PASTE_NODES)
 class ReqPasteNodesPayload(Payload):
-    module_id: UUID
+    source_module_id: UUID
+    target_module_id: UUID
     source_ids: list[UUID]
-    target_ids: list[UUID]
-    target_cks: list[UUID]
-    target_root_id: UUID
-    target_parent_ids: list[UUID]
-    target_order_keys: list[Optional[str]]
+    target_ids: dict[UUID, UUID]
+    target_cks: dict[UUID, UUID]
+    target_parent_ids: dict[UUID, UUID]
+    target_order_keys: dict[UUID, str]
+    client: ClientOrigin
 
 
 @payload(NMessageType.PASTE_NODES_REP)
 class RepPasteNodesPayload(Payload):
     nodes: list[NodeData]
     success: bool
+    error: Optional[str] = None
 
 
 @payload(NMessageType.SNAPSHOT_MODULE)
@@ -375,6 +377,7 @@ class ReqSnapshotModulePayload(Payload):
 @payload(NMessageType.SNAPSHOT_MODULE_REP)
 class RepSnapshotModulePayload(Payload):
     success: bool
+    error: Optional[str] = None
 
 
 @payload(NMessageType.WRITE_SESSION)

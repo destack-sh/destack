@@ -322,9 +322,9 @@ def pack_node_flat_if_needed(node: Union[Node, "NodeData"]) -> "NodeData":
         return wire.pack_node_flat(node)
 
 
-class ModuleEditor:
+class NodeTreeEditor:
     """
-    Create any apply edits to a module.
+    Create any apply edits to a module node tree.
     TODO @Cleanup: split module mutator into edit creation and application
      also @Performance: pre-filter edits to track
       (e.g. to exclude interp edits in worker, see :InterpFilter)
@@ -357,7 +357,7 @@ class ModuleEditor:
 
     def _do(
         self, type: MET, node: "NodeData", apply: bool = True, properties: list[str] = None
-    ) -> "ModuleEditor":
+    ) -> "NodeTreeEditor":
         from bench.language import wire
 
         if isinstance(node, wire.StatementData):
@@ -415,18 +415,18 @@ class ModuleEditor:
 
     def truncate(
         self, node: Union["NodeData", Node], mnt: MNT, apply: bool = True
-    ) -> "ModuleEditor":
+    ) -> "NodeTreeEditor":
         node = pack_node_flat_if_needed(node)
         mmt = MET(f"TRUNCATE_{mnt.caps_name}S")
         self._do(mmt, node, apply=apply)
         return self
 
-    def create_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
+    def create_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
         for obj in nodes:
             self.create(obj, apply=apply)
         return self
 
-    def create(self, node: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
+    def create(self, node: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
         node = pack_node_flat_if_needed(node)
@@ -435,14 +435,14 @@ class ModuleEditor:
         self._do(mmt, node, apply=apply)
         return self
 
-    def update_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
+    def update_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
         for obj in nodes:
             self.update(obj, apply=apply)
         return self
 
     def update(
         self, node: Union["NodeData", Node], apply: bool = True, properties: list[str] = None
-    ) -> "ModuleEditor":
+    ) -> "NodeTreeEditor":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
         assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
@@ -453,12 +453,12 @@ class ModuleEditor:
         self._do(mmt, node, apply=apply, properties=properties)
         return self
 
-    def delete_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
+    def delete_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
         for obj in nodes:
             self.delete(obj, apply=apply)
         return self
 
-    def delete(self, node: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
+    def delete(self, node: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
         node = pack_node_flat_if_needed(node)
@@ -549,7 +549,7 @@ class EditBundle:
         if not apply:
             yield from self.batched()
             return
-        editor = ModuleEditor(tree, project_id, module_id)
+        editor = NodeTreeEditor(tree, project_id, module_id)
         for type, batch in self.batched():
             editor.apply_all(batch, raise_on_error=raise_on_error)
             yield type, batch
@@ -563,7 +563,7 @@ def diff_modules(
     Find nodes by their id (not ck).
     """
     old_tree = NodeTree(old_module.nodes)
-    editor = ModuleEditor(old_tree, old_module.id, project_id)
+    editor = NodeTreeEditor(old_tree, old_module.id, project_id)
     new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():
