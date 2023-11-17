@@ -33,7 +33,7 @@ from bench.language.const import (
     SessionAccessLevel,
     parse_absolute_node_reference,
 )
-from bench.language.edit import EditData, NodeTreeEditor
+from bench.language.edit import EditData, EditKind, NodeTreeEditor
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.packer import pack_value, unpack_value
@@ -571,6 +571,11 @@ class RuntimeHost:
     def project_id(self) -> UUID:
         return self.project.id
 
+    def _new_editor(self) -> NodeTreeEditor:
+        return NodeTreeEditor(
+            self.module._source.deepcopy(), project_id=self.project_id, module_id=self.module_id
+        )
+
     async def run(self) -> None:
         # fetch and interp module
         assert not self.ready.is_set(), "runtime already started"
@@ -581,6 +586,7 @@ class RuntimeHost:
             os_name=project.os_name,
             pg_name=project.pg_name,
         )
+        await self._reset_interp_state()
         await update_os_schema(self.project.os_name, self.module)
         await update_pg_schema(self.project.pg_name, self.module)
         await self._update_local_triggers()
@@ -588,6 +594,7 @@ class RuntimeHost:
         self.ready.set()
 
     async def _publish_edits(self, edits: list[EditData], origins: tuple[ClientOrigin, ...] = None):
+        edits = [get_api_edit_from_internal(e) for e in edits]
         await publish(
             NMessageType.MODULE_CHANGED,
             ModuleChangedPayload(
@@ -597,6 +604,27 @@ class RuntimeHost:
                 edits=edits,
             ),
         )
+
+    async def _reset_interp_state(self):
+        """Resets, stores and broadcasts the module's interp nodes."""
+        # gather interp changes (reset to 0)
+        editor = self._new_editor()
+        module_data = wire.pack_node_flat(self.module)
+        for mnt in INTERP_NODE_TYPES:
+            editor.truncate(module_data, mnt, apply=False)
+        for node in self.module._nodes:
+            if node.mnt in INTERP_NODE_TYPES:
+                editor.create(node, apply=False)
+        # write
+        await sync_to_async(write_db_edits)(
+            self.project_version,
+            source=self.module._source,
+            edits=editor.edits,
+            raise_on_apply_error=False,
+        )
+        await write_edits_to_os(self.project_version, edits=editor.edits)
+        # broadcast
+        await self._publish_edits(editor.edits, origins=(self.client,))
 
     async def write_edits(
         self,
@@ -609,6 +637,7 @@ class RuntimeHost:
          publishes the complete changes and then mirrors them into the search index.
         This is the main point of entry for ALL edits (frontend, workers, etc.);
          but record edits may bypass this and write directly to the local DB via the worker.
+        TODO @Robustness: support two-phase commit for record edit :TwoPhaseCommit
         """
         if not edits:
             return []  # bail
@@ -616,26 +645,49 @@ class RuntimeHost:
         start_time = time.time()
         self.log.debug("module.write_edits", edits=edits, origins=origins)
 
+        restored_edits = []
+        # expand restore edits to include all descendants from DB
+        if any(e.kind == EditKind.RESTORE for e in edits):
+            restored_roots = packer.unpack_nodes(
+                self.project_version,
+                self.module._source,
+                [e.node for e in edits if e.kind == EditKind.RESTORE],
+            )
+            restored = await sync_to_async(packer.pack_node)(
+                *restored_roots, excluded=[models.Record, *INTERP_NODE_TYPES]
+            )
+            restored_edits = self._new_editor().create_many(*restored.nodes_list()).edits
+            restored_edits = [
+                e for e in restored_edits if not any(e.node.id == r.id for r in restored_roots)
+            ]
+            logger.debug("module.write_edits.restore", edits=edits, internal=restored_edits)
+        elif any(e.kind == EditKind.SOFT_DELETE for e in edits):
+            pass  # TODO @Robustness: cascade soft delete to all descendants
+
+        # TODO @Performance: don't deepcopy module on edit?
         # apply
-        # nocheckin: restore is broken (get old descendants from db, add as create edits)
-        # TODO @Performance: don't deepcopy module on edit
         old_source = self.module._source.deepcopy()
-        change = self.module._apply_edits(edits)
+        change = self.module._apply_edits(edits + restored_edits, old_source=old_source)
         schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
-        # TODO @Robustness: support two-phase commit for record edit :TwoPhaseCommit
         try:
-            self.log.debug("module.write_edits.apply", edits=change.all_edits)
+            # for DB, turn restore 'CREATE' edits into 'RESTORE' (since they are already in DB)
+            restored_node_ids = {e.node.id for e in restored_edits}
+            db_edits = [
+                e.to_kind(EditKind.RESTORE) if e.node.id in restored_node_ids else e
+                for e in change.all_edits
+            ]
+            self.log.debug("module.write_edits.apply", db_edits=db_edits)
             edited_nodes = await sync_to_async(write_db_edits)(
                 self.project_version,
                 source=old_source,
-                edits=change.all_edits,
+                edits=db_edits,
                 raise_on_apply_error=False,  # ignore missing interp nodes (until better edits)
             )
             if schema_changed:
                 await update_pg_schema(self.project.pg_name, self.module)
             # nocheckin: 5. intercept and commit record edit through local database
         except Exception:
-            # reset source & module from db on failure (a crutch until we have better edits)
+            # reset source & module from db on failure
             self.log.error("module.write_edits.failed", exc_info=True, edits=edits)
             old_source = await sync_to_async(packer.pack_module)(
                 self.project_version, excluded=[models.Record, *INTERP_NODE_TYPES]
@@ -646,11 +698,9 @@ class RuntimeHost:
             await self._update_local_triggers()
 
         # broadcast (source from user, interp from runtime)
-        source_edits = [get_api_edit_from_internal(e) for e in change.source_edits]
-        interp_edits = [get_api_edit_from_internal(e) for e in change.interp_edits]
-        await self._publish_edits(source_edits, origins=(*(origins or ()), self.client))
-        if interp_edits:
-            await self._publish_edits(interp_edits, origins=(self.client,))
+        await self._publish_edits(change.source_edits, origins=(*(origins or ()), self.client))
+        if change.interp_edits:
+            await self._publish_edits(change.interp_edits, origins=(self.client,))
 
         # mirror
         if schema_changed:
@@ -704,9 +754,7 @@ class RuntimeHost:
                 node.order_key = target_order_keys.get(node.id, node.order_key)
 
         # apply copy as edits
-        editor = NodeTreeEditor(
-            self.module._source.deepcopy(), project_id=self.project_id, module_id=self.module_id
-        )
+        editor = self._new_editor()
         for node in copy.nodes_by_id.values():
             editor.create(node)
         await self.write_edits(editor.edits)

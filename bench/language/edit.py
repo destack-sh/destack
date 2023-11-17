@@ -4,7 +4,7 @@ It shouldn't live in models, so we can use it in messages.py, which shouldn't de
 Maybe a better move would be to make the payload partially opaque and keep this in api.
 """
 import enum
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -117,7 +117,7 @@ class EditType(enum.StrEnum):
 
     @staticmethod
     def from_nt(mmk: "EditKind", nt: "ModuleNodeType") -> "EditType":
-        return EditType(f"{mmk.value}_{nt.value}")
+        return EditType(f"{mmk.value}_{nt.value.upper()}")
 
 
 class EditKind(enum.StrEnum):
@@ -299,6 +299,10 @@ class EditData:
     @property
     def mnt(self) -> ModuleNodeType:
         return self.type.mnt
+
+    def to_kind(self, kind: EditKind) -> "EditData":
+        new_type = EditType.from_nt(kind, self.mnt)
+        return replace(self, type=new_type)
 
     def __str__(self):
         data_str = f"{self.node.mnt} {self.node.id} " if self.node else ""

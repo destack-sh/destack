@@ -212,7 +212,7 @@ def omit_empty(obj):
 T = typing.TypeVar("T")
 
 
-def flatten_list(*lists: list[T] | tuple[T]) -> list[T]:
+def flatten(*lists: list[T] | tuple[T]) -> list[T]:
     """Flatten a list, generator, element or mixed list of those."""
     flattened: list[T] = []
     for item in lists:
