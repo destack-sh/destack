@@ -144,33 +144,6 @@ class Tagging(CrudNode):
         return self.statement
 
 
-class TileManager(models.Manager["Tile"]):
-    def get_queryset(self):
-        # soft-deleted statements are not returned by default
-        return super().get_queryset().filter(deleted_at__isnull=True)
-
-
-class Tile(CrudNode):
-    """
-    An element on a screen statement (not used yet)
-    """
-
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="tiles"
-    )
-    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="tiles")
-    name = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
-    parent_tile = models.ForeignKey(
-        "Tile", on_delete=models.CASCADE, related_name="children", null=True, blank=True
-    )
-    order_key = models.CharField(max_length=64)  # in parent
-    x = models.IntegerField(null=True, blank=True)
-    y = models.IntegerField(null=True, blank=True)
-    value = models.JSONField(null=True, blank=True)
-
-    children: models.QuerySet[Tile]  # noqa via Tile.parent
-
-
 class StatementManager(models.Manager["Statement"]):
     def get_queryset(self) -> models.QuerySet[Statement]:
         # soft-deleted statements are not returned by default

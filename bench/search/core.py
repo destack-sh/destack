@@ -441,7 +441,6 @@ class DocumentType(enum.StrEnum):
     FILE = "file"
     STATEMENT = "statement"
     FIELD = "field"
-    TILE = "tile"
     RECORD = "record"
     COMMENT = "comment"
     SESSION = "session"

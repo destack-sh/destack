@@ -116,7 +116,6 @@ ALLOWED_EXTERNAL_RELATIONS = {models.Project, models.User}
 FLATTENED_RELATIONS = {
     (models.ProjectVersion, models.File),
     (models.File, models.Statement),
-    (models.Statement, models.Tile),
 }
 
 

@@ -415,7 +415,6 @@ DOCUMENTS_BY_INDEX = {
         mirror.File,
         mirror.Statement,
         mirror.Field,
-        mirror.Tile,
         mirror.Comment,
     ],
     IndexType.LOCAL: [
