@@ -194,7 +194,7 @@ async def insert(
     query = sql.SQL("INSERT INTO {table} ({fields}) VALUES {values}").format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ").join(*values),
+        values=sql.SQL(", ").join(values),
     )
     if returning:
         query += sql.SQL(" RETURNING {}").format(
