@@ -18,7 +18,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
-import { SortOrder, TypeTag } from "@/gql/graphql";
+import { SortOp, TypeTag } from "@/gql/graphql";
 import { canSort } from "@/state/type";
 import type { Field } from "@/state/module";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
@@ -55,7 +55,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
   (e: "focus", event: FocusEvent): void;
   (e: "drop", p: "above" | "below" | "left" | "right", v: Dragged): void;
-  (e: "sort", order: SortOrder): void;
+  (e: "sort", order: SortOp): void;
 }>();
 
 const tupleName = computed(() => props.tupleName ?? "field");
@@ -134,14 +134,14 @@ const actions: Ref<TypeAction[]> = computed(() => {
         groupId: "query",
         label: "Sort ascending",
         icon: ArrowUpIcon,
-        action: () => emit("sort", SortOrder.Ascending),
+        action: () => emit("sort", SortOp.Ascending),
         disabled: !canSort(value.value),
       });
       actions.push({
         groupId: "query",
         label: "Sort descending",
         icon: ArrowDownIcon,
-        action: () => emit("sort", SortOrder.Descending),
+        action: () => emit("sort", SortOp.Descending),
         disabled: !canSort(value.value),
       });
       actions.push({

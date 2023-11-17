@@ -724,22 +724,19 @@ class ModuleWorkerProcess(RuntimeHost):
     ) -> None:
         """Actually runs the statement in the session"""
 
-        # open session
-        await session.aopen()
-
-        # run session
+        await session.open()
         try:
             await statement(**inputs)
         except BaseException as e:
-            raise RunError(
+            error = RunError(
                 kind=RunErrorKind.Runtime,
                 type=type(e).__name__,
                 message=str(e),
                 statement=statement,
-            ) from e
+            )
+            raise error from e
         finally:
-            # always close session
-            await session.aclose()
+            await session.close()
 
     async def kill_run(self, run_id: UUID) -> bool:
         run = self._active_runs.get(run_id)

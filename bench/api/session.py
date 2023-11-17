@@ -33,7 +33,7 @@ from bench.api.utils import (
     to_uuid,
     to_uuids,
 )
-from bench.language import SortOrder, wire
+from bench.language import SortOp, wire
 from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES
 from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import MessagingError, NMessage, publish, request, subscribe, subscribe_many
@@ -58,9 +58,8 @@ from bench.msg.messages import (
     WorkersChangedPayload,
 )
 from bench.search import mirror
-from bench.search.client import os_client_sync
 from bench.search.core import DocumentType
-from bench.search.mapping import encode_os_cursor, prepare_os_query
+from bench.search.engine import compile_os_query, encode_os_cursor, os_search_sync
 from bench.server.search import write_runs_to_os
 
 if TYPE_CHECKING:
@@ -483,24 +482,19 @@ class SessionQuery:
                 query, lang.C(ConditionalOp.NOT_EXISTS, "parent_id")
             )
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
-        sort = (
-            [s.to_dsl() for s in sort] if sort else [lang.Sort("created_at", SortOrder.DESCENDING)]
-        )
+        sort = [s.to_dsl() for s in sort] if sort else [lang.Sort("created_at", SortOp.DESCENDING)]
 
         logger.debug("runs.search", project_id=project_id, query=query, sort=sort)
         # query id only and then fetch full run from DB
-        search = prepare_os_query(
+        search = compile_os_query(
             type=DocumentType.RUN,
-            project_version_id=str(project_version_id) if project_version_id else None,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
             after=after,
             sort=sort,
             query=query,
-            fields=[],
-            source=False,
         )
-        os_results = os_client_sync.search(index=project.os_name, body=search)
+        os_results = os_search_sync(project.os_name, search)
 
         hits = os_results["hits"]["hits"]
         logger.debug("runs.search.db", project_id=project_id, hits=len(hits))
@@ -563,9 +557,7 @@ class SessionQuery:
         statement_ids = to_uuids(statement_ids)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
-        sort = (
-            [s.to_dsl() for s in sort] if sort else [lang.Sort("created_at", SortOrder.DESCENDING)]
-        )
+        sort = [s.to_dsl() for s in sort] if sort else [lang.Sort("created_at", SortOp.DESCENDING)]
         query = query.to_dsl() if query else None
         if session_id:
             query = lang.Conditional.and_if_set(
@@ -584,9 +576,8 @@ class SessionQuery:
                 query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
             )
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
-        search = prepare_os_query(
+        search = compile_os_query(
             type=DocumentType.LOG_ENTRY,
-            project_version_id=str(project_version_id) if project_version_id else None,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
             after=after,
@@ -594,7 +585,7 @@ class SessionQuery:
             query=query,
         )
 
-        results = os_client_sync.search(index=project.os_name, body=search)
+        results = os_search_sync(project.os_name, search)
 
         hits = results["hits"]["hits"]
         edges = []

@@ -194,6 +194,7 @@ export enum ConditionalOp {
   Exists = "EXISTS",
   GreaterThan = "GREATER_THAN",
   GreaterThanOrEquals = "GREATER_THAN_OR_EQUALS",
+  In = "IN",
   LessThan = "LESS_THAN",
   LessThanOrEquals = "LESS_THAN_OR_EQUALS",
   Matches = "MATCHES",
@@ -202,6 +203,7 @@ export enum ConditionalOp {
   NotContains = "NOT_CONTAINS",
   NotEquals = "NOT_EQUALS",
   NotExists = "NOT_EXISTS",
+  NotIn = "NOT_IN",
   Or = "OR",
   StartsWith = "STARTS_WITH",
 }
@@ -1941,7 +1943,7 @@ export type SnapshotPayloadOperationInfo = OperationInfo | SnapshotPayload;
 export type Sort = {
   key: Scalars["String"]["input"];
   mode?: InputMaybe<SortMode>;
-  order?: SortOrder;
+  order?: SortOp;
 };
 
 export enum SortMode {
@@ -1952,7 +1954,7 @@ export enum SortMode {
   Sum = "SUM",
 }
 
-export enum SortOrder {
+export enum SortOp {
   Ascending = "ASCENDING",
   Descending = "DESCENDING",
 }

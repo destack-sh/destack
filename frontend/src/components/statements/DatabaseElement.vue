@@ -6,7 +6,7 @@ import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useActiveScroll } from "@/composables/useScroll";
-import { SortOrder, EditType, type Sort, type SearchRecordsQueryVariables } from "@/gql/graphql";
+import { SortOp, EditType, type Sort, type SearchRecordsQueryVariables } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
 import { useCurrentModule, type Field, newNodeIdentity, type Statement, type Record } from "@/state/module";
@@ -75,7 +75,7 @@ onMounted(() => {
 
 const { inlineQuery } = useDatabaseInlineSearch(fields, toRef(properties, "inlineQuery"));
 
-function addSort(field: Field, order: SortOrder) {
+function addSort(field: Field, order: SortOp) {
   const subkey = canSort(field, { excludeSubfields: true }) ? "" : "." + getMainSubfield(field);
   const key = "value." + module.getTypedKey(field) + subkey;
   if (properties.sorts == null) properties.sorts = [];
@@ -93,7 +93,7 @@ function removeSort(sort: { key: string }) {
 const sort: Ref<Sort[] | null> = computed(() => {
   if (properties.sorts == null || properties.sorts.length == 0) {
     // default to sort by created at
-    return [{ key: "created_at", order: SortOrder.Descending }];
+    return [{ key: "created_at", order: SortOp.Descending }];
   }
   return properties.sorts;
 });
@@ -516,7 +516,7 @@ defineExpose({
         <span class="underline decoration-gray-300 underline-offset-4">
           {{ allFields.find((f) => sort.key.includes(f.key))?.name }}
         </span>
-        <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span>
+        <span class="ml-0.5 text-gray-700">{{ sort.order == SortOp.Ascending ? "↑" : "↓" }}</span>
         <!-- Clear button -->
         <button @click="removeSort(sort)">
           <XMarkIcon class="h-3 w-3 text-gray-400" />

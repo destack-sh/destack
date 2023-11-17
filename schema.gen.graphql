@@ -172,6 +172,8 @@ enum ConditionalOp {
   LESS_THAN_OR_EQUALS
   CONTAINS
   NOT_CONTAINS
+  IN
+  NOT_IN
   MATCHES
   STARTS_WITH
   EXISTS
@@ -1508,7 +1510,7 @@ union SnapshotPayloadOperationInfo = SnapshotPayload | OperationInfo
 
 input Sort {
   key: String!
-  order: SortOrder! = ASCENDING
+  order: SortOp! = ASCENDING
   mode: SortMode = null
 }
 
@@ -1520,7 +1522,7 @@ enum SortMode {
   MEDIAN
 }
 
-enum SortOrder {
+enum SortOp {
   ASCENDING
   DESCENDING
 }

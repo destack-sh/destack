@@ -26,8 +26,6 @@ from bench.language.cache import _get_usage_key
 from bench.models import ModuleAccessLevel
 from bench.msg.core import NMessage, request
 from bench.msg.messages import NMessageType, RepSnapshotModulePayload, ReqSnapshotModulePayload
-from bench.search.core import DocumentType
-from bench.search.mapping import prepare_os_query
 from bench.utils.cache import redis_sync
 
 if TYPE_CHECKING:
@@ -83,17 +81,7 @@ class ProjectUsage:
 
 
 def get_project_usage(info: Info) -> ProjectUsage:
-    from bench.search.client import os_client_sync
-
     project_id = UUID(info.variable_values.get("projectId").node_id)
-    project_head_id = models.Project.objects.only("head_id").get(id=project_id).head_id
-
-    # count total active records
-    project = models.Project.objects.get(id=project_id)
-    records_total_search = prepare_os_query(
-        type=DocumentType.RECORD, project_version_id=project_head_id, limit=0, count=True
-    )
-    records_total_results = os_client_sync.search(index=project.os_name, body=records_total_search)
 
     # count total object bytes
     object_bytes_total = (
@@ -105,7 +93,7 @@ def get_project_usage(info: Info) -> ProjectUsage:
     # get cache bytes total
     cache_bytes_total = redis_sync.get(_get_usage_key(project_id))
     return ProjectUsage(
-        records_active=records_total_results["hits"]["total"]["value"],
+        records_active=0,  # doesn't matter anymore, will remove later in favor of bytes
         objects_bytes_total=object_bytes_total or 0,
         cache_bytes_total=cache_bytes_total or 0,
     )

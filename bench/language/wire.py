@@ -46,7 +46,7 @@ from bench.utils.serialize import from_dict, to_dict
 #
 # Stable, concise and flat data nodes for transit and storage.
 # TODO @Performance @Robustness: use an optimized and evolvable :WireFormat
-# TODO! @Cleanup @Architecture: auto-generate wire format and module data packers (most of it)
+# TODO @Cleanup @Architecture: auto-generate wire format and module data packers (most of it)
 #  We can probably do this and implement protobuf or such at the same time.
 #  Maybe we can also auto-generate some of the model packers, though that mapping is less 1:1.
 #
@@ -57,6 +57,53 @@ NodeDataT = typing.TypeVar("NodeDataT", bound="NodeData")
 NodeT = typing.TypeVar("NodeT", bound=Node)
 DataT = typing.TypeVar("DataT")
 ObjectT = typing.TypeVar("ObjectT")
+
+
+class DataPacker(abc.ABC, typing.Generic[DataT, ObjectT]):
+    """Generic data packer for non-node module data types"""
+
+    def pack(self, object: ObjectT) -> DataT:
+        raise NotImplementedError
+
+    def unpack(self, data: DataT, module: Module) -> ObjectT:
+        raise NotImplementedError
+
+
+_data_packers_by_data: dict[typing.Type[DataT], "DataPacker"] = {}
+_data_packers_by_node: dict[typing.Type, "DataPacker"] = {}
+
+
+def data_packer(data_t: typing.Type[DataT], node_t: typing.Optional[typing.Type] | None):
+    """Decorator to register a data packer for a given type"""
+
+    def decorator(cls: "DataPacker"):
+        if data_t in _data_packers_by_data:
+            raise ValueError(
+                f"packer for {data_t} already registered: {_data_packers_by_data[data_t]}"
+            )
+        if node_t in _data_packers_by_node:
+            raise ValueError(
+                f"packer for {node_t} already registered: {_data_packers_by_node[node_t]}"
+            )
+        packer = cls()
+        _data_packers_by_data[data_t] = packer
+        if node_t:
+            _data_packers_by_node[node_t] = packer
+        return cls
+
+    return decorator
+
+
+def pack_data(data: ObjectT) -> DataT:
+    """Pack a language data object into a flat module node"""
+    packer = _data_packers_by_node[type(data)]
+    return packer.pack(data)
+
+
+def unpack_data(data: DataT, module: Module) -> ObjectT:
+    """Unpack a flat module node into a language data object"""
+    packer = _data_packers_by_data[type(data)]
+    return packer.unpack(data, module)
 
 
 class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
@@ -878,53 +925,6 @@ class IssuePacker(NodePacker[IssueData, lang.Issue]):
 
 
 # other objects
-
-
-class DataPacker(abc.ABC, typing.Generic[DataT, ObjectT]):
-    """Generic data packer for non-node module data types"""
-
-    def pack(self, object: ObjectT) -> DataT:
-        raise NotImplementedError
-
-    def unpack(self, data: DataT, module: Module) -> ObjectT:
-        raise NotImplementedError
-
-
-_data_packers_by_data: dict[typing.Type[DataT], "DataPacker"] = {}
-_data_packers_by_node: dict[typing.Type, "DataPacker"] = {}
-
-
-def data_packer(data_t: typing.Type[DataT], node_t: typing.Optional[typing.Type] | None):
-    """Decorator to register a data packer for a given type"""
-
-    def decorator(cls: "DataPacker"):
-        if data_t in _data_packers_by_data:
-            raise ValueError(
-                f"packer for {data_t} already registered: {_data_packers_by_data[data_t]}"
-            )
-        if node_t in _data_packers_by_node:
-            raise ValueError(
-                f"packer for {node_t} already registered: {_data_packers_by_node[node_t]}"
-            )
-        packer = cls()
-        _data_packers_by_data[data_t] = packer
-        if node_t:
-            _data_packers_by_node[node_t] = packer
-        return cls
-
-    return decorator
-
-
-def pack_data(data: ObjectT) -> DataT:
-    """Pack a language data object into a flat module node"""
-    packer = _data_packers_by_node[type(data)]
-    return packer.pack(data)
-
-
-def unpack_data(data: DataT, module: Module) -> ObjectT:
-    """Unpack a flat module node into a language data object"""
-    packer = _data_packers_by_data[type(data)]
-    return packer.unpack(data, module)
 
 
 @dataclass

@@ -6,7 +6,6 @@ from uuid import UUID
 import bench.search.core as os
 from bench.language import StatementType, wire
 from bench.language.const import RunStatus
-from bench.language.expression import SubfieldType
 from bench.utils.utils import IS_WORKER
 
 if TYPE_CHECKING or not IS_WORKER:
@@ -34,8 +33,8 @@ class ModuleInfo:
 NAME_FIELD = os.Field(
     os.FT.TEXT,
     fields={
-        SubfieldType.starts_with: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
-        SubfieldType.key: os.Field(os.FieldType.KEYWORD),
+        os.SubfieldType.starts_with: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
+        os.SubfieldType.key: os.Field(os.FieldType.KEYWORD),
     },
 )
 HTML_FIELD = os.Field(os.FieldType.TEXT, analyzer=os.Analyzer.HTML)
