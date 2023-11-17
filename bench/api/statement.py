@@ -410,7 +410,7 @@ class StatementMutation:
         target_file = await models.File.objects.select_related("project_version").aget(
             id=input.target_file_id.node_id
         )
-        source_project_v = await models.ProjectVersion.objects.aget(
+        source_project_v = await models.ProjectVersion.objects.select_related("project").aget(
             id=source_statements[0].project_version_id
         )
         source_project_v_ids = set(s.project_version_id for s in source_statements)
@@ -425,15 +425,13 @@ class StatementMutation:
         )
 
         # do the copy paste
-        target_ids = {s: UUID(t.node_id) for s, t in zip(source_ids, input.target_ids)}
+        target_ids = {
+            **{s: UUID(t.node_id) for s, t in zip(source_ids, input.target_ids)},
+            **{s: target_file.id for s in source_file_ids},
+        }
         target_cks = {s: t for s, t in zip(source_cks, input.target_cks)}
         target_parent_ids = {
-            **{
-                s: UUID(t.node_id)
-                for s, t in zip(target_ids, input.target_parent_ids)
-                if t is not None
-            },
-            **{s: target_file.id for s in source_file_ids},
+            s: UUID(t.node_id) for s, t in zip(target_ids, input.target_parent_ids) if t is not None
         }
         target_order_keys = {s: t for s, t in zip(target_ids.values(), input.target_order_keys)}
 

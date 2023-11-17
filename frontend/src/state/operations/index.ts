@@ -313,7 +313,7 @@ function onResponse(operation: Operation<unknown>, ret: unknown) {
   if ((ret as any)?.data != null) {
     // get only field of data (which is the mutation response)
     ret = Object.values((ret as any).data)[0];
-    if ((ret as any).__typename == "OperationInfo") {
+    if ((ret as any)?.__typename == "OperationInfo") {
       onError(operation, ret);
     }
   }
