@@ -11,7 +11,7 @@ from bench.search import core as os
 from bench.search import mirror
 from bench.search.client import get_os_errors, os_client, os_client_sync
 from bench.search.core import IndexType
-from bench.search.mapping import BENCH_LOCAL_MNTS, DOCUMENTS_BY_INDEX, update_os_schema
+from bench.search.engine import BENCH_LOCAL_MNTS, DOCUMENTS_BY_INDEX, update_os_schema
 
 logger = structlog.get_logger(__name__)
 

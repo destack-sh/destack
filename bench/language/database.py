@@ -5,6 +5,7 @@ from uuid import UUID
 
 import structlog
 
+from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import MNT, new_dynamic_node_key
 from bench.language.expression import C, Conditional, ConditionalOp, Sort
 from bench.language.module import (
@@ -25,7 +26,6 @@ from bench.language.module import (
     nruntime,
 )
 from bench.language.value import HasValue
-from bench.search.client import os_client
 from bench.search.core import DocumentType
 from bench.sql.core import EPHEMERAL_RECORD_TABLE, Table
 from bench.utils.func import describe_type
@@ -150,24 +150,23 @@ class RecordBaseQuery:
             skip=self._skip,
         )
 
-    async def _execute(self, session: "Session"):
+    async def _execute(self, session: "Session") -> list[Record]:
         from bench.language import wire
         from bench.search import mirror
-        from bench.search.mapping import prepare_os_query
+        from bench.search.engine import compile_os_query, os_search
 
-        # nocheckin: 8. reroute api record search through local DB (if possible)?
+        # nocheckin: 8. reroute record query through local DB if possible
         # force flush and index if there are any pending database edits
         #  (or previous edits that were already flushed but didn't refresh the index)
         # TODO @Performance: force flush module for record search only if needed by query
         if session._editor.edits or session._past_commits:
-            await session.acommit(refresh_index=True)
+            await session.commit(refresh_index=True)
 
-        # nocheckin: 10. iterate through all records if query has no limit
         query = Conditional.and_if_set(
             self._query, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
         )
         limit = self._first or LOCAL_RECORD_CACHE_LIMIT
-        search = prepare_os_query(
+        query = compile_os_query(
             type=DocumentType.RECORD,
             project_version_id=None,
             query=query,
@@ -175,30 +174,32 @@ class RecordBaseQuery:
             count=True,
             sort=self._sort,
         )
+        logger.debug("record.query", query=self, actual=query, limit=limit)
         os_name = self._database.module.os_name  # may be different from current session's module
-        logger.debug("record.query", query=self, actual=query, limit=limit, os_name=os_name)
-        os_results = await os_client.search(index=os_name, body=search)
-        results = []
+        os_results = await os_search(os_name, query)
+        results: list[Record] = []
         record_mirror = mirror._packers_by_mirror[mirror.Record]
         has_more = len(os_results["hits"]["hits"]) > limit
         total = os_results["hits"]["total"]["value"]
         for hit in os_results["hits"]["hits"][:limit]:
             record_doc = mirror.Record.from_dict(hit["_source"], hit["_id"])
             record_data = record_mirror.pack(record_doc)
-            record = wire.unpack_node_flat(record_data, self._database, session)
+            record: Record = wire.unpack_node_flat(record_data, self._database, session)
             record._activate_self(session)
             results.append(record)
         self._result_cache = results
         logger.debug(
             "record.query.done", query=self, results=len(results), total=total, has_more=has_more
         )
+        return results
 
     async def __aiter__(self):
         if self._result_cache is None:
             await self._execute(self._database.session)
         return iter(self._result_cache)
 
-    async def atolist(self) -> list[Record]:
+    @_auto_async_to_sync
+    async def tolist(self) -> list[Record]:
         if self._result_cache is None:
             await self._execute(self._database.session)
         return self._result_cache
@@ -208,16 +209,8 @@ class RecordBaseQuery:
             self._database.session.async_to_sync(self._execute)(self._database.session)
         return iter(self._result_cache)
 
-    def tolist(self) -> list[Record]:
-        if self._result_cache is None:
-            self._database.session.async_to_sync(self._execute)(self._database.session)
-        return self._result_cache
-
     def __len__(self):
-        # maybe just issue count query?
-        if self._result_cache is None:
-            self._database.session.async_to_sync(self._execute)(self._database.session)
-        return len(self._result_cache)
+        return self.count()
 
     def filter(self, query: Conditional) -> "RecordBaseQuery":
         """Adds a filter clause to the query."""
@@ -228,7 +221,7 @@ class RecordBaseQuery:
     def sort(self, sort: list[Sort] | Sort) -> "RecordBaseQuery":
         """Sorts the query results by the given sort criteria."""
         copy = self.deepcopy()
-        if isinstance(sort, Sort):
+        if not isinstance(sort, list):
             sort = [sort]
         copy._sort = sort
         return copy
@@ -257,53 +250,25 @@ class RecordBaseQuery:
         copy._skip = count
         return copy
 
+    @_auto_async_to_sync
+    async def count(self) -> int:
+        """Returns the number of results."""
+        assert not self._first and not self._skip, "bounded count is deliberately not supported"
+        assert not self._sort, "sorted count is deliberately not supported"
+        raise NotImplementedError("nocheckin")
+
     def group_by(self, *fields: "Field") -> "RecordBaseQuery":
         """Groups the results by the given fields."""
         raise NotImplementedError
 
-    def update(self, **kwargs) -> int:
+    @_auto_async_to_sync
+    async def update(self, **kwargs) -> int:
         """Updates all results with the given values."""
         raise NotImplementedError("not yet supported")
 
-    def delete(self) -> int:
+    @_auto_async_to_sync
+    async def delete(self) -> int:
         """Deletes all results."""
-        raise NotImplementedError("not yet supported")
-
-
-class RecordWriteQuery(RecordBaseQuery):
-    """
-    Updates or deletes records in a result set.
-    """
-
-    def __init__(
-        self,
-        database: "HasDatabase",
-        query: Conditional | None = None,
-        sort: list[Sort] = None,
-        include: list["Field"] = None,
-        select: list["Field"] = None,
-        distinct: list["Field"] = None,
-        first: int = None,
-        skip: int = None,
-        last: int = None,
-        update: dict["Field", typing.Any] = None,
-        delete: bool = False,
-    ):
-        super().__init__(
-            database=database,
-            query=query,
-            sort=sort,
-            include=include,
-            select=select,
-            distinct=distinct,
-            first=first,
-            skip=skip,
-            last=last,
-        )
-        self._update = update
-        self._delete = delete
-
-    async def _execute(self, session: "Session"):
         raise NotImplementedError("not yet supported")
 
 
@@ -499,7 +464,7 @@ class HasDatabase(Node):
         self._table = None
 
     def _interp_inner(self, scope: "ScopeNode") -> None:
-        from bench.sql.mapping import map_to_pg_table
+        from bench.sql.engine import map_to_pg_table
 
         self._table = map_to_pg_table(self) if not self.ephemeral else EPHEMERAL_RECORD_TABLE
 

@@ -84,13 +84,12 @@ from bench.msg.messages import (
     StartRunErrorType,
 )
 from bench.search import mirror
-from bench.search.client import os_client
 from bench.search.core import DocumentType
-from bench.search.mapping import encode_os_cursor, prepare_os_query, update_os_schema
+from bench.search.engine import compile_os_query, encode_os_cursor, os_search, update_os_schema
 from bench.server import search
 from bench.server.observer import WorkerObserver
 from bench.server.search import write_edits_to_os
-from bench.sql.mapping import update_pg_schema
+from bench.sql.engine import update_pg_schema
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
@@ -816,11 +815,11 @@ class RuntimeHost:
         """
         Search records in this module (for the frontend client).
         Full module state is needed to access the local database.
+         nocheckin: 8. reroute record query through local DB if possible
         """
         try:
-            query = prepare_os_query(
+            query = compile_os_query(
                 type=DocumentType.RECORD,
-                project_version_id=str(self.module_id),
                 limit=msg.p.limit,
                 count=msg.p.count,
                 after=msg.p.after,
@@ -830,8 +829,7 @@ class RuntimeHost:
                     C(ConditionalOp.EQUALS, "statement_key", value=msg.p.statement_key),
                 ),
             )
-            self.module.resolve(msg.p.statement_ck)
-            results = await os_client.search(index=self.project_version.project.os_name, body=query)
+            results = await os_search(self.project_version.project.os_name, query)
             records: list[Any] = []
             cursors: list[str] = []
             for r in results["hits"]["hits"]:

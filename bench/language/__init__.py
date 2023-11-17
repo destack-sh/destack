@@ -12,7 +12,7 @@ from .const import (
 )
 from .database import HasDatabase, Record
 from .edit import render, render_as_python
-from .expression import C, Conditional, ConditionalOp, Sort, SortMode, SortOrder
+from .expression import C, Conditional, ConditionalOp, Sort, SortMode, SortOp
 from .field import Field, HasFields, HasType, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
@@ -26,6 +26,7 @@ from .tagging import HasTags, Tagging
 from .text import HasText
 from .trigger import HasTriggers, Trigger
 from .value import HasValue
+from .view import View
 
 # Note that all these imports are auto-imported as prelude in user code.
 #  (maybe we should factor that out...)
@@ -66,7 +67,7 @@ __all__ = [
     "SessionAccessLevel",
     "Sort",
     "SortMode",
-    "SortOrder",
+    "SortOp",
     "Statement",
     "StatementType",
     "Tagging",
@@ -77,4 +78,5 @@ __all__ = [
     "TypeHint",
     "TypeStorageFormat",
     "TypeTag",
+    "View",
 ]

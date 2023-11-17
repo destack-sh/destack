@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 from uuid import UUID
 
-from bench.language.expression import TYPE_DISCRIMINATOR_KEY, SubfieldType
+from bench.language.expression import TYPE_DISCRIMINATOR_KEY
 
 
 class FieldType(enum.StrEnum):
@@ -69,6 +69,14 @@ class FieldType(enum.StrEnum):
     @property
     def can_ignore_malformed(self) -> bool:
         return self in MALFORMABLE_TYPES
+
+
+class SubfieldType(enum.StrEnum):
+    # :QuerySubfields
+    key = "key"
+    starts_with = "starts_with"
+    token_count = "token_count"
+    char_count = "char_count"
 
 
 FT = FieldType

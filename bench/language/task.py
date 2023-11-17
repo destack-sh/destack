@@ -106,8 +106,8 @@ class HasTask(Node):
                     outputs = TypedDict(outputs, self, is_output=True)
             else:
                 outputs = await run_task(self, view, inputs, nonce, models)
-            if self.session._autocommit_this_run:
-                await self.session.acommit()
+            if self.session._should_autocommit_this_run:
+                await self.session.commit()
         except BaseException as e:
             self.session._tracer.run_exception(self, e)
             raise

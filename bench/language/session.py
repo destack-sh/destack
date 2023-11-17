@@ -13,9 +13,10 @@ from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, Optional,
 from uuid import UUID, uuid4
 
 import asgiref.sync
+import psycopg
 import structlog
 
-from bench.language.builtin import _active_session, symbolx_lib
+from bench.language.builtin import _active_session, _auto_async_to_sync, symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
@@ -123,6 +124,7 @@ class Session:
             root_run_value=root_run_value,
             global_run_value=global_run_value,
         )
+        self._pg_tx: psycopg.AsyncTransaction | None = None
 
         self._opened_at: Optional[datetime] = None
         self._closed_at: Optional[datetime] = None
@@ -177,7 +179,11 @@ class Session:
     def is_open(self) -> bool:
         return self._opened_at is not None and self._closed_at is None
 
-    async def aopen(self):
+    @contextlib.asynccontextmanager
+    async def pg_cursor(self) -> psycopg.AsyncCursor:
+        raise NotImplementedError
+
+    async def open(self):
         """Opens the session for execution and modification."""
         if self._opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
@@ -208,11 +214,12 @@ class Session:
         return success
 
     @property
-    def _autocommit_this_run(self):
-        # ensure edits are commited before we exit out of topmost run for error propagation
+    def _should_autocommit_this_run(self):
+        # ensure edits are committed before we exit out of topmost run for error propagation
         return self._editor.edits and len(self._tracer.stacktrace) == 1
 
-    async def acommit(self, refresh_index: bool = False):
+    @_auto_async_to_sync
+    async def commit(self, refresh_index: bool = False):
         """
         Flushes all module edits.
         If optimistic, this will return before the commit is complete (but will wait on close).
@@ -232,32 +239,20 @@ class Session:
         await self._do_commit(edits, refresh_index)
         self._past_commits.append((len(edits), set(m.type for m in edits)))
 
-    def commit(self):
-        asgiref.sync.async_to_sync(self.acommit)()
-
-    async def aclose(self):
+    @_auto_async_to_sync
+    async def close(self):
         """Closes the session, commiting any edits and preventing further execution/edit."""
         if self._closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
         self._log.debug("session.close")
         self._closed_at = utcnow_with_tz()
         if not self._failed_commit:
-            await self.acommit()
+            await self.commit()
         _active_session.set(None)
         await self._tracer.close()
         if self.dangling:
             self._log.warn("session.close.dangling", dangling=self.dangling)
         self._log.debug("session.close.done")
-
-    def close(self):
-        asgiref.sync.async_to_sync(self.aclose)()
-
-    async def __aenter__(self):
-        await self.aopen()
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        await self.aclose()
 
     async def _write_logs(self, logs: list[LogEntry]) -> None:
         from bench.language import wire
@@ -405,8 +400,7 @@ class SessionTracer:
         self.session = session
         self.editor = editor
         self._stacktrace: list[Run] = []
-        # used to prevent deleting ancestors of running statements
-        self._stacktrace_ancestors_cks: dict[UUID, Statement] = {}
+        self._stacktrace_ancestors_cks: dict[UUID, Statement] = {}  # protect running statements
         self._tracing_lock = threading.Lock()
         self.runs = {}
 
@@ -729,7 +723,7 @@ class SessionTracer:
         # force commit module as well if a new statement was run
         #  (since we need those field mappings, lest OS errors)
         if any(r.statement_id in self._new_statement_ids for r in runs):
-            await self.session.acommit(refresh_index=False)
+            await self.session.commit(refresh_index=False)
 
         # push session
         success = await self.session.runtime.push_session(self.session, runs)

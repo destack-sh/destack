@@ -6,10 +6,16 @@ import psycopg
 import structlog
 from psycopg import sql
 
-from bench.language import ConditionalOp
+import bench.language as lang
+from bench.language import ConditionalOp, HasDatabase, Module
+from bench.language.const import MNT, TypeStorageFormat
+from bench.sql.client import async_pg_cursor
 from bench.sql.core import (
+    BASE_RECORD_TABLE,
     CONSTRUCT_TABLE,
+    INTERNAL_TABLES,
     Column,
+    ColumnType,
     Constraint,
     Construct,
     ConstructInfo,
@@ -17,16 +23,90 @@ from bench.sql.core import (
     Index,
     SqlPrimitive,
     Table,
+    get_record_table_name,
 )
 
 logger = structlog.get_logger(__name__)
+
+COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
+    TypeStorageFormat.STRING: ColumnType.STRING,
+    TypeStorageFormat.DOUBLE: ColumnType.FLOAT,
+    TypeStorageFormat.LONG: ColumnType.BIGINT,
+    TypeStorageFormat.VECTOR: ColumnType.VECTOR,
+    TypeStorageFormat.BINARY: ColumnType.BINARY,
+    TypeStorageFormat.DATE: ColumnType.DATETIME,
+    TypeStorageFormat.BOOLEAN: ColumnType.BOOLEAN,
+    TypeStorageFormat.KEYWORD: ColumnType.STRING,
+    TypeStorageFormat.OBJECT: ColumnType.JSON,
+}
+assert len(COLUMN_TYPE_BY_STORAGE_FORMAT) == len(TypeStorageFormat), "missing column type"
+
+
+def map_to_pg_column(field: lang.Field) -> Column:
+    """Gets a column from a field. Later, there may be more than one column per field (?)."""
+    column_type = COLUMN_TYPE_BY_STORAGE_FORMAT[field._storage_format]
+    is_array = (
+        field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
+    ) and column_type != ColumnType.JSON
+    return Column(
+        name=field._source_key.replace(".", "_"),
+        type=column_type,
+        is_array=is_array,
+    )
+
+
+def map_to_pg_table(statement: lang.Statement) -> Table:
+    """Gets the full table with all specific fields of a database and general record stuff."""
+    columns = [map_to_pg_column(f) for f in statement.resolved_fields]
+    indexes = []
+    constraints = []
+
+    return Table(
+        name=get_record_table_name(statement.ck),
+        columns=(*(c.clone() for c in BASE_RECORD_TABLE.columns), *columns),
+        indexes=(*(i.clone() for i in BASE_RECORD_TABLE.indexes), *indexes),
+        constraints=(*(c.clone() for c in BASE_RECORD_TABLE.constraints), *constraints),
+    )
+
+
+async def update_pg_schema(pg_name: str, module: Module) -> None:
+    """Updates Postgres tables (i.e. schema) for a module's databases."""
+    log = logger.bind(pg_name=pg_name, module=module)
+    databases: list[lang.Statement] = [
+        s
+        for s in module._nodes
+        if s.mnt == MNT.STATEMENT and HasDatabase in s._components and not s.ephemeral
+    ]
+    tables = (*INTERNAL_TABLES, *(s._table for s in databases if s._table))
+    log.info("pg.update_schema", databases=len(databases), tables=len(tables))
+
+    async with async_pg_cursor(pg_name, autocommit=False) as cur:
+        # get missing constructs (diff existing and current)
+        try:
+            existing_constructs = await get_stored_pg_constructs(cur)
+        except SqlUnknownConstruct:
+            # TODO @Robustness @Architecture: figure out some simple Migration system
+            # does not exist yet, will be created below
+            await cur.connection.rollback()
+            existing_constructs = {}
+        current_constructs: dict[UUID, Construct] = {c.id: c for t in tables for c in t.walk()}
+        missing_constructs = {
+            id: c for id, c in current_constructs.items() if id not in existing_constructs
+        }
+        if missing_constructs:
+            # create missing constructs
+            await create_pg_constructs(cur, missing_constructs)
+            # and remember the state
+            new_constructs = {**existing_constructs}
+            new_constructs.update(missing_constructs)  # retain all old constructs (for now)
+            await replace_stored_pg_constructs(cur, new_constructs)
 
 
 class SqlException(Exception):
     pass
 
 
-class UnknownConstruct(SqlException):
+class SqlUnknownConstruct(SqlException):
     pass
 
 
@@ -39,7 +119,6 @@ class SqlExpression:
 SqlNode = SqlExpression | SqlPrimitive | sql.SQL
 
 
-# where SqlPrimitive is Union[str, int, float, bool, None, etc.]
 def sql_node_to_sql(node: SqlNode) -> sql.Composable:
     if isinstance(node, SqlExpression):
         return node.sql()
@@ -95,9 +174,14 @@ POSTGRES_COMPARISON_OP_BY_BENCH_OP: dict[ConditionalOp, PostgresConditionalOp] =
     # string
     ConditionalOp.MATCHES: PostgresConditionalOp.LIKE,
     ConditionalOp.STARTS_WITH: PostgresConditionalOp.LIKE,
-    # nocheckin: 8. map expression language to sql engine
-    #  and map in/contains properly (expression language doesn't differentiate)
+    # containment
+    ConditionalOp.CONTAINS: PostgresConditionalOp.CONTAINS,
+    ConditionalOp.IN: PostgresConditionalOp.IN,
+    ConditionalOp.NOT_IN: PostgresConditionalOp.NOT_IN,
 }
+
+
+# nocheckin: 8. map expression language to sql engine
 
 
 @dataclass(frozen=True)
@@ -147,10 +231,10 @@ async def _execute(cur: psycopg.AsyncCursor, query: sql.Composed) -> None:
     try:
         await cur.execute(query)
     except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
-        raise UnknownConstruct(str(e)) from e
+        raise SqlUnknownConstruct(str(e)) from e
 
 
-async def select(
+async def pg_select(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
@@ -179,7 +263,24 @@ async def select(
     return await cur.fetchall()
 
 
-async def insert(
+async def pg_count(
+    cur: psycopg.AsyncCursor,
+    table: Table,
+    *,
+    where: SqlExpression | None = None,
+) -> int:
+    """Counts rows matching the given query."""
+    query = sql.SQL("SELECT COUNT(*) FROM {table}").format(
+        table=sql.Identifier(table.name),
+    )
+    if where:
+        query += sql.SQL(" WHERE {}").format(where.sql())
+    logger.debug("pg.count_rows", table=table, query=query.as_string(cur))
+    await _execute(cur, query)
+    return (await cur.fetchone())["count"]
+
+
+async def pg_insert(
     cur: psycopg.AsyncCursor,
     table: Table,
     rows: list[RowIn],
@@ -206,7 +307,7 @@ async def insert(
         return await cur.fetchall()
 
 
-async def exists(
+async def pg_exists(
     cur: psycopg.AsyncCursor,
     table: Table,
     where: SqlExpression | None,
@@ -223,7 +324,7 @@ async def exists(
     return (await cur.fetchone())["exists"]
 
 
-async def update(
+async def pg_update(
     cur: psycopg.AsyncCursor,
     table: Table,
     where: SqlExpression | None,
@@ -254,7 +355,7 @@ async def update(
         return await cur.fetchall()
 
 
-async def delete(
+async def pg_delete(
     cur: psycopg.AsyncCursor,
     table: Table,
     where: SqlExpression | None,
@@ -277,14 +378,14 @@ async def delete(
         return await cur.fetchall()
 
 
-async def truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
+async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
     """Truncates the given table."""
     await cur.execute(sql.SQL("TRUNCATE TABLE {}").format(sql.Identifier(table.name)))
 
 
 async def get_stored_pg_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, ConstructInfo]:
     """Gets the current constructs in the given database (through the CONSTRUCT_TABLE)."""
-    rows = await select(cur, CONSTRUCT_TABLE)
+    rows = await pg_select(cur, CONSTRUCT_TABLE)
     construct_infos = [
         ConstructInfo(
             id=row["id"],
@@ -299,7 +400,7 @@ async def get_stored_pg_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, Const
 
 async def replace_stored_pg_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
     """Replaces the STORED constructs in construct table (data only, no definitions)."""
-    await truncate(cur, CONSTRUCT_TABLE)
+    await pg_truncate(cur, CONSTRUCT_TABLE)
     rows = [
         {
             "id": construct.id,
@@ -309,7 +410,7 @@ async def replace_stored_pg_constructs(cur: psycopg.AsyncCursor, constructs: dic
         }
         for construct in constructs.values()
     ]
-    await insert(cur, CONSTRUCT_TABLE, rows)
+    await pg_insert(cur, CONSTRUCT_TABLE, rows)
 
 
 async def create_pg_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):

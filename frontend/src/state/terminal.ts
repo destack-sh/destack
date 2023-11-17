@@ -1,4 +1,4 @@
-import { ConditionalOp, SortOrder, type Run, RunStatus } from "@/gql/graphql";
+import { ConditionalOp, SortOp, type Run, RunStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session";
@@ -48,7 +48,7 @@ function _useTerminal() {
           },
         ],
       })),
-      sort: ref([{ key: "created_at", order: SortOrder.Descending }]),
+      sort: ref([{ key: "created_at", order: SortOp.Descending }]),
       after: ref(null),
     },
     {

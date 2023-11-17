@@ -3,7 +3,7 @@ from psycopg import sql
 
 from bench import models
 from bench.sql.client import GLOBAL_RO_PASSWORD, GLOBAL_RO_USERNAME, async_pg_cursor
-from bench.sql.mapping import update_pg_schema
+from bench.sql.engine import update_pg_schema
 
 logger = structlog.get_logger(__name__)
 

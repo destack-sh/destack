@@ -9,9 +9,8 @@ from uuid import UUID, uuid5
 import aiohttp
 import requests
 import structlog
-from asgiref.sync import async_to_sync
 
-from bench.language.builtin import active_session
+from bench.language.builtin import _auto_async_to_sync, active_session
 from bench.language.const import MNT, BlobStatus
 from bench.language.module import Module, Node, ninternal, node, nruntime
 from bench.language.validation import ValidationHandler, on_issue_raise
@@ -50,7 +49,8 @@ class Blob(Node):
         if self.content_length > BLOB_MAX_SIZE:
             on_issue(self, f"{self} is too big ({self.content_length} > {BLOB_MAX_SIZE} bytes)")
 
-    async def adownload(self) -> bytes:
+    @_auto_async_to_sync
+    async def download(self) -> bytes:
         """Read the object from the remote storage."""
         get_url = await self.aget_url()
         # download file from url
@@ -65,40 +65,26 @@ class Blob(Node):
                 self._cached_bytes = content
                 return content
 
-    async def aget_url(self):
+    @_auto_async_to_sync
+    async def get_url(self):
         if self.status != BlobStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
         return await self.session.runtime.download_blob(self)
 
-    async def atext(self) -> str:
+    @_auto_async_to_sync
+    async def text(self) -> str:
         content = self._cached_bytes or await self.adownload()
         return content.decode()
 
-    async def alines(self) -> list[str]:
+    @_auto_async_to_sync
+    async def lines(self) -> list[str]:
         content = self._cached_bytes or await self.adownload()
         return content.decode().splitlines()
 
-    def get_url(self) -> str:
-        return async_to_sync(self.aget_url)()
-
-    def download(self) -> bytes:
-        """Read the object from the remote storage."""
-        content = self._cached_bytes or async_to_sync(self.adownload)()
-        return content
-
-    def text(self) -> str:
-        return self.download().decode()
-
-    def lines(self) -> list[str]:
-        return self.download().decode().splitlines()
-
-    def io(self) -> typing.BinaryIO:
+    @_auto_async_to_sync
+    async def io(self) -> typing.BinaryIO:
         """Get a file-like object for the blob."""
-        return io.BytesIO(self.download())
-
-    async def aio(self) -> typing.BinaryIO:
-        """Get a file-like object for the blob."""
-        return io.BytesIO(await self.adownload())
+        return io.BytesIO(await self.download())
 
     async def _prep_upload(self) -> Optional[str]:
         """

@@ -3,10 +3,9 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, cast
 
-from bench.language.const import TypeFlag, TypeHint, TypeStorageFormat, TypeTag
-from bench.utils.utils import required_field
+from bench.language.const import TypeHint, TypeStorageFormat, TypeTag
 
 if TYPE_CHECKING:
     from bench.language import Field
@@ -14,8 +13,25 @@ if TYPE_CHECKING:
 
 #
 # Expression language. Primarily for module, search and storage (database).
-# Currently serves as both the in-memory representation and the wire format.
+# nocheckin: separate expression language and wire format
 #
+
+
+class QueryEngine(enum.StrEnum):
+    LOCAL = "LOCAL"
+    RUNTIME = "RUNTIME"
+    OPENSEARCH = "OS"
+    POSTGRES = "PG"
+
+
+class QueryEngineIncapableError(Exception):
+    pass
+
+
+class ExpressionKind(enum.StrEnum):
+    CONDITIONAL = "CONDITIONAL"
+    SORT = "SORT"
+    AGGREGATION = "AGGREGATION"
 
 
 class ConditionalOp(enum.StrEnum):
@@ -33,6 +49,8 @@ class ConditionalOp(enum.StrEnum):
     # containment
     CONTAINS = "CONTAINS"
     NOT_CONTAINS = "NOT_CONTAINS"
+    IN = "IN"
+    NOT_IN = "NOT_IN"
     # string comparison
     MATCHES = "MATCHES"
     STARTS_WITH = "STARTS_WITH"
@@ -47,8 +65,38 @@ class ConditionalOp(enum.StrEnum):
         return _OP_SIGN.get(self)
 
 
+class AggregationOp(enum.StrEnum):
+    # Single value
+    COUNT = "COUNT"
+    SUM = "SUM"
+    AVERAGE = "AVERAGE"
+    MIN = "MIN"
+    MAX = "MAX"
+    MEDIAN = "MEDIAN"
+    # Bucket value
+    HISTOGRAM = "HISTOGRAM"
+
+
+class SortOp(enum.StrEnum):
+    ASCENDING = "ASCENDING"
+    DESCENDING = "DESCENDING"
+
+
+class SortMode(enum.StrEnum):
+    MAX = "MAX"
+    MIN = "MIN"
+    AVERAGE = "AVERAGE"
+    SUM = "SUM"
+    MEDIAN = "MEDIAN"
+
+
+ExpressionOp = ConditionalOp | AggregationOp | SortOp
+
+
 @dataclass
 class Expression:
+    kind: ClassVar[ExpressionKind]
+
     def __str__(self):
         return self.__class__.__name__
 
@@ -85,17 +133,26 @@ class ExpressionOps:
     }
     COND_EXISTENCE = {ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS}
     COND_VECTOR = {ConditionalOp.NEAR}
+    # Aggregations
+    AGG_SINGLE = {
+        AggregationOp.COUNT,
+        AggregationOp.SUM,
+        AggregationOp.AVERAGE,
+        AggregationOp.MIN,
+        AggregationOp.MAX,
+        AggregationOp.MEDIAN,
+    }
+    AGG_BUCKET = {AggregationOp.HISTOGRAM}
+    # Sorts
+    SORT = {SortOp.ASCENDING, SortOp.DESCENDING}
 
 
-RANKED_CONDITIONAL_OPS = {
-    ConditionalOp.MATCHES,
-    *ExpressionOps.COND_VECTOR,
-}
+RANKED_CONDITIONAL_OPS = {ConditionalOp.MATCHES, *ExpressionOps.COND_VECTOR}
 
-_EXPRESSIONS: dict[ConditionalOp, type[Expression]] = {}
+_EXPRESSIONS: dict[ExpressionOp, type[Expression]] = {}
 
 
-def expression(*ops: ConditionalOp):
+def expression(*ops: ExpressionOp):
     """Register a query class for the given ops."""
 
     def decorator(cls: type[Expression]):
@@ -114,6 +171,7 @@ def expression(*ops: ConditionalOp):
 
 @expression()
 class Conditional(Expression):
+    kind: ClassVar[ExpressionKind] = ExpressionKind.CONDITIONAL
     op: ConditionalOp
 
     def __bool__(self):
@@ -196,31 +254,6 @@ class CompoundConditional(Conditional):
         return any(q.is_scored for q in self.clauses)
 
 
-if TYPE_CHECKING:
-    FieldOrStr = Union[Field, str]
-else:
-    FieldOrStr = str
-
-
-@dataclass(repr=False)
-class FieldConditional(Conditional):
-    field: FieldOrStr
-    subkey: str = None
-
-    def encode_some_attrs(self):  # :WireFormat
-        # always inline field key
-        return {"field": self.field if isinstance(self.field, str) else self.field._source_key}
-
-    @property
-    def _field_str(self):
-        return self.field if isinstance(self.field, str) else self.field.path
-
-    @property
-    def key(self):
-        key = self.field if isinstance(self.field, str) else self.field._source_key
-        return key if not self.subkey else f"{key}.{self.subkey}"
-
-
 @expression(
     ConditionalOp.EQUALS,
     ConditionalOp.NOT_EQUALS,
@@ -231,103 +264,74 @@ class FieldConditional(Conditional):
     ConditionalOp.MATCHES,
     ConditionalOp.STARTS_WITH,
 )
-class ComparisonConditional(FieldConditional):
-    value: Any = required_field()
+class ComparisonConditional(Conditional):
+    field: Field
+    value: Any | Field
 
     def __str__(self):
         return f"{self._field_str} {self.op.sign} {self.value!r}"
 
 
 @expression(ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS)
-class ExistenceConditional(FieldConditional):
+class ExistenceConditional(Conditional):
+    field: Field
+
     def __str__(self):
         return f"{self._field_str}.{self.op.name.lower()}"
 
     def __invert__(self):
         if self.op == ConditionalOp.EXISTS:
-            return C(ConditionalOp.NOT_EXISTS, field=self.field, subkey=self.subkey)
+            return C(ConditionalOp.NOT_EXISTS, field=self.field)
         else:
-            return C(ConditionalOp.EXISTS, field=self.field, subkey=self.subkey)
+            return C(ConditionalOp.EXISTS, field=self.field)
 
 
 @expression(ConditionalOp.NEAR)
-class VectorConditional(FieldConditional):
-    value: list[float] = required_field()
+class VectorConditional(Conditional):
+    field: Field
+    value: list[float]
     approximate: bool = True
 
     def __str__(self):
         return f"{self._field_str}.{self.op.name.lower()}({self.value[:10]}...)"
 
 
-def C(op: ConditionalOp, *args, **kwargs) -> Conditional:
-    cls = _EXPRESSIONS[op]
-    kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls._PROPERTIES}
-    return cls(op, *args, **kwargs)
-
-
-class SortOrder(enum.StrEnum):
-    ASCENDING = "ASCENDING"
-    DESCENDING = "DESCENDING"
-
-
-class SortMode(enum.StrEnum):
-    MAX = "MAX"
-    MIN = "MIN"
-    AVERAGE = "AVERAGE"
-    SUM = "SUM"
-    MEDIAN = "MEDIAN"
-
-
-@expression()
+@expression(*SortOp)
 class Sort(Expression):
-    field: FieldOrStr
-    order: SortOrder = SortOrder.ASCENDING
+    kind: ClassVar[ExpressionKind] = ExpressionKind.SORT
+    field: Field
+    op: SortOp = SortOp.ASCENDING
     mode: Optional[SortMode] = None
-    subkey: str = None
 
     def encode_some_attrs(self):
         # always inline field key
         return {"field": self.field if isinstance(self.field, str) else self.field._source_key}
 
-    @property
-    def key(self) -> str:
-        key = self.field if isinstance(self.field, str) else self.field._source_key
-        return key if not self.subkey else f"{key}.{self.subkey}"
+
+@expression(*AggregationOp)
+class Aggregation(Expression):
+    kind: ClassVar[ExpressionKind] = ExpressionKind.AGGREGATION
+    op: AggregationOp
+    field: Field
 
 
 def get_default_sort(query: "Conditional") -> list["Sort"]:
     if query.is_scored:
-        return [Sort("_score", SortOrder.DESCENDING)]
+        return [Sort("_score", SortOp.DESCENDING)]
     else:
-        return [Sort("_id", SortOrder.ASCENDING)]
+        return [Sort("_id", SortOp.ASCENDING)]
 
 
-class AggregationOp(enum.StrEnum):
-    # Single value
-    COUNT = "COUNT"
-    SUM = "SUM"
-    AVERAGE = "AVERAGE"
-    MIN = "MIN"
-    MAX = "MAX"
-    MEDIAN = "MEDIAN"
-    # Bucket value
-    HISTOGRAM = "HISTOGRAM"
+def C(op: ConditionalOp, *args, **kwargs) -> Conditional:
+    cls = _EXPRESSIONS[op]
+    kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls._PROPERTIES}
+    return cast(Conditional, cls(op, *args, **kwargs))
 
 
-@expression()
-class Aggregation(Expression):
-    op: AggregationOp
-    field: FieldOrStr
-    subkey: str = None
-
-    def encode_some_attrs(self):
-        # always inline field key
-        return {"field": self.field if isinstance(self.field, str) else self.field._source_key}
-
-    @property
-    def key(self) -> str:
-        key = self.field if isinstance(self.field, str) else self.field._source_key
-        return key if not self.subkey else f"{key}.{self.subkey}"
+def S(op: SortOp, *args, **kwargs) -> Sort:
+    cls = _EXPRESSIONS[op]
+    kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls._PROPERTIES}
+    return cast(Sort, cls(op, *args, **kwargs))
 
 
 TYPE_DISCRIMINATOR_KEY = "_type"
@@ -353,17 +357,7 @@ def _check_supports_sort(field: "Field"):
         raise UnsupportedExpressionError(field, "sort")
 
 
-def _check_supports_subfield(field: "Field", subfield: "SubfieldType"):
-    if subfield not in field._supported_subfields:
-        raise UnsupportedExpressionError(field, subfield)
-
-
-def _check_has_type_tag(field: "Field", tag: TypeTag):
-    if field._effective_tag != tag:
-        raise UnsupportedExpressionError(field, tag)
-
-
-def _check_support(op: ConditionalOp = None, sort: bool = False, subfield: "SubfieldType" = None):
+def _check_support(op: ConditionalOp = None, sort: bool = False):
     def decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -371,8 +365,6 @@ def _check_support(op: ConditionalOp = None, sort: bool = False, subfield: "Subf
                 _check_supports_conditional(self, op)
             if sort:
                 _check_supports_sort(self)
-            if subfield is not None:
-                _check_supports_subfield(self, subfield)
             return func(self, *args, **kwargs)
 
         return wrapper
@@ -385,12 +377,7 @@ class FieldQueryOps:
     hint: Optional[TypeHint]
     _effective_tag: TypeTag
     _source_key: Optional[str]
-    _subkey: Optional[str]
     _storage_format: TypeStorageFormat
-
-    @property
-    def _field(self) -> "Field":
-        return self
 
     # basic support checks
 
@@ -404,31 +391,23 @@ class FieldQueryOps:
         )
 
     @property
-    def _supported_subfields(self) -> set[SubfieldType]:
-        hint_ops = _SUPPORTED_SUBFIELDS_BY_TYPE.get(self.hint, _EMPTY_SET)
-        tag_ops = _SUPPORTED_SUBFIELDS_BY_TYPE.get(self._effective_tag, _EMPTY_SET)
-        return hint_ops | tag_ops
-
-    @property
     def _supported_query_ops(self) -> set[ConditionalOp]:
-        format_ops = _SUPPORTED_EXPR_OPS_BY_TYPE.get(self._storage_format, _EMPTY_SET)
-        hint_ops = _SUPPORTED_EXPR_OPS_BY_TYPE.get(self.hint, _EMPTY_SET)
-        tag_ops = _SUPPORTED_EXPR_OPS_BY_TYPE.get(self._effective_tag, _EMPTY_SET)
-        return _BASE_EXPR_OPS | format_ops | hint_ops | tag_ops
+        format_ops = SUPPORTED_OPS_BY_TYPE.get(self._storage_format, _EMPTY_SET)
+        hint_ops = SUPPORTED_OPS_BY_TYPE.get(self.hint, _EMPTY_SET)
+        tag_ops = SUPPORTED_OPS_BY_TYPE.get(self._effective_tag, _EMPTY_SET)
+        return ExprOps.COND_EXISTENCE | format_ops | hint_ops | tag_ops
 
-    def _strip_value(self, value: Any) -> Any:
+    def _strip_value(self: "Field", value: Any) -> Any:
         from bench.language.field import Field
 
         # coerce to field to get its key
         if self._effective_tag == TypeTag.ENUM and not isinstance(value, Field):
             value = self.resolved_fields.get(value)
-
         # coerce field to key
         if isinstance(value, Field):
             if value._effective_tag != TypeTag.LITERAL:
                 # prevent confusion since this doesn't translate to a valid query
                 raise TypeError(f"cannot compare a field to a non-literal field: {self} == {value}")
-            value = value.key
         return value
 
     # comparison
@@ -438,7 +417,7 @@ class FieldQueryOps:
         value = self._strip_value(value)
         if value is None:
             return self.not_exists()
-        return C(ConditionalOp.EQUALS, self._field, self._subkey, value)
+        return C(ConditionalOp.EQUALS, self, value)
 
     def __eq__(self, other):
         from bench.language.module import Node
@@ -450,7 +429,7 @@ class FieldQueryOps:
     @_check_support(op=ConditionalOp.NOT_EQUALS)
     def not_equal(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return C(ConditionalOp.NOT_EQUALS, self._field, self._subkey, value)
+        return C(ConditionalOp.NOT_EQUALS, self, value)
 
     def __ne__(self, other):
         from bench.language.module import Node
@@ -459,15 +438,20 @@ class FieldQueryOps:
             return Node.__ne__(self, other)
         return self.not_equal(other)
 
-    @_check_support(op=ConditionalOp.EQUALS)
+    @_check_support(op=ConditionalOp.IN)
     def in_(self, *values: list[Any]) -> Conditional:
         values = [self._strip_value(value) for value in values]
-        return C(ConditionalOp.EQUALS, self._field, self._subkey, values)
+        return C(ConditionalOp.IN, self, values)
+
+    @_check_support(op=ConditionalOp.NOT_IN)
+    def not_in(self, *values: list[Any]) -> Conditional:
+        values = [self._strip_value(value) for value in values]
+        return C(ConditionalOp.NOT_IN, self, values)
 
     @_check_support(op=ConditionalOp.GREATER_THAN)
     def greater_than(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return C(ConditionalOp.GREATER_THAN, self._field, self._subkey, value)
+        return C(ConditionalOp.GREATER_THAN, self, value)
 
     def __gt__(self, other):
         return self.greater_than(other)
@@ -475,7 +459,7 @@ class FieldQueryOps:
     @_check_support(op=ConditionalOp.GREATER_THAN_OR_EQUALS)
     def greater_than_or_equals(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return C(ConditionalOp.GREATER_THAN_OR_EQUALS, self._field, self._subkey, value)
+        return C(ConditionalOp.GREATER_THAN_OR_EQUALS, self, value)
 
     def __ge__(self, other):
         return self.greater_than_or_equals(other)
@@ -483,7 +467,7 @@ class FieldQueryOps:
     @_check_support(op=ConditionalOp.LESS_THAN)
     def less_than(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return C(ConditionalOp.LESS_THAN, self._field, self._subkey, value)
+        return C(ConditionalOp.LESS_THAN, self, value)
 
     def __lt__(self, other):
         return self.less_than(other)
@@ -491,7 +475,7 @@ class FieldQueryOps:
     @_check_support(op=ConditionalOp.LESS_THAN_OR_EQUALS)
     def less_than_or_equals(self, value: Any) -> Conditional:
         value = self._strip_value(value)
-        return C(ConditionalOp.LESS_THAN_OR_EQUALS, self._field, self._subkey, value)
+        return C(ConditionalOp.LESS_THAN_OR_EQUALS, self, value)
 
     def __le__(self, other):
         return self.less_than_or_equals(other)
@@ -500,14 +484,14 @@ class FieldQueryOps:
 
     @_check_support(op=ConditionalOp.MATCHES)
     def matches(self, value: str) -> Conditional:
-        return C(ConditionalOp.MATCHES, self._field, self._subkey, value)
+        return C(ConditionalOp.MATCHES, self, value)
 
     contains = matches
 
     @_check_support(op=ConditionalOp.STARTS_WITH)
     def starts_with(self, value: str) -> Conditional:
         # :StartsWithHack
-        return C(ConditionalOp.STARTS_WITH, self._field, self._subkey, value.lower())
+        return C(ConditionalOp.STARTS_WITH, self, value.lower())
 
     # existence
 
@@ -527,94 +511,25 @@ class FieldQueryOps:
 
     @_check_support(op=ConditionalOp.NEAR)
     def near(self, value: list[float], approximate: bool = True) -> Conditional:
-        return C(ConditionalOp.NEAR, self._field, self._subkey, value, approximate=approximate)
+        return C(ConditionalOp.NEAR, self, value, approximate=approximate)
 
     # sort
 
     @_check_support(sort=True)
     def asc(self) -> Sort:
-        return Sort(self._field, SortOrder.ASCENDING, subkey=self._subkey)
+        return Sort(self, SortOp.ASCENDING)
 
     ascending = asc
 
     @_check_support(sort=True)
     def desc(self) -> Sort:
-        return Sort(self._field, SortOrder.DESCENDING, subkey=self._subkey)
+        return Sort(self, SortOp.DESCENDING)
 
     descending = desc
 
-    # subfields and properties
-    # TODO @Cleanup: wrap sub properties into accessor for disambiguation (like with FieldAccessor)
-
-    def _subfield(self, name: str, tag: TypeTag, hint: Optional[TypeHint] = None) -> Subfield:
-        from bench.language.field import get_storage_format
-
-        storage_format = get_storage_format(tag, hint, TypeFlag.ZERO)
-        return Subfield(
-            parent=self,
-            name=name,
-            hint=hint,
-            _effective_tag=tag,
-            _source_key=self._source_key + "." + name,
-            _subkey=name,
-            _storage_format=storage_format,
-        )
-
-    @property
-    def raw(self):
-        _check_has_type_tag(self, TypeTag.STRING)
-        return self._subfield(SubfieldType.key.name, TypeTag.STRING, TypeHint.KEY)
-
-    @property
-    def token_count(self) -> Subfield:
-        _check_supports_subfield(self, SubfieldType.token_count)
-        return self._subfield("token_count", TypeTag.NUMBER, TypeHint.INTEGER)
-
-    word_count = token_count  # for convenience
-
-    @property
-    def char_count(self) -> Subfield:
-        _check_supports_subfield(self, SubfieldType.char_count)
-        return self._subfield("char_count", TypeTag.NUMBER, TypeHint.INTEGER)
-
-    length = char_count  # for convenience
-
-
-# TODO @Cleanup @Architecture: reconsider subfields in expressions (they're ugly)
-class SubfieldType(enum.StrEnum):
-    # :QuerySubfields
-    key = "key"
-    starts_with = "starts_with"
-    token_count = "token_count"
-    char_count = "char_count"
-
-
-@dataclass(eq=False, frozen=True)
-class Subfield(FieldQueryOps):
-    parent: Optional[FieldQueryOps]
-    name: str
-    hint: Optional[TypeHint]
-    _subkey: str
-    _source_key: str
-    _storage_format: TypeStorageFormat
-    _effective_tag: TypeTag
-
-    @property
-    def _field(self):
-        return self.parent
-
-
-# :QuerySubfields
-_SUPPORTED_SUBFIELDS_BY_TYPE: dict[TypeHint | TypeTag, set[SubfieldType]] = {
-    # cumulative supported subfields by type
-    TypeTag.STRING: {SubfieldType.char_count, SubfieldType.token_count},
-    TypeHint.EMAIL: {SubfieldType.key, SubfieldType.starts_with},
-    TypeHint.NAME: {SubfieldType.key, SubfieldType.starts_with},
-}
 
 ExprOps = ExpressionOps  # alias
-_BASE_EXPR_OPS = ExprOps.COND_EXISTENCE
-_SUPPORTED_EXPR_OPS_BY_TYPE: dict[TypeTag | TypeHint | TypeStorageFormat, set[ConditionalOp]] = {
+SUPPORTED_OPS_BY_TYPE: dict[TypeTag | TypeHint | TypeStorageFormat, set[ConditionalOp]] = {
     # cumulative supported query ops by type
     TypeStorageFormat.LONG: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
     TypeStorageFormat.DOUBLE: ExprOps.COND_RANGE | ExprOps.COND_EXACT,

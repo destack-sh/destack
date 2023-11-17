@@ -226,7 +226,7 @@ class ThingBatch(Iterable):
         return iter(self.things)
 
 
-SortOrder = strawberry.enum(expr.SortOrder)
+SortOp = strawberry.enum(expr.SortOp)
 SortMode = strawberry.enum(expr.SortMode)
 ConditionalOp = strawberry.enum(expr.ConditionalOp)
 
@@ -246,7 +246,7 @@ class Conditional:
 @strawberry.input
 class Sort:
     key: str
-    order: SortOrder = SortOrder.ASCENDING
+    order: SortOp = SortOp.ASCENDING
     mode: Optional[SortMode] = None
 
     def to_dsl(self) -> expr.Sort:

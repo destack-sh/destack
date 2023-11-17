@@ -19,7 +19,7 @@ from bench.language import IssueType
 from bench.language.blob import Blob, BlobStatus
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodePath, TypeFlag
-from bench.language.expression import C, Conditional, ConditionalOp, Sort, SortMode, SortOrder
+from bench.language.expression import C, Conditional, ConditionalOp, Sort, SortMode, SortOp
 from bench.language.field import TypedDict
 from bench.language.module import LookupBy, Node, ScopeNode, node_component, nruntime
 from bench.utils.dt import utcnow_with_tz
@@ -407,7 +407,7 @@ class HasCode(Node):
             async def _test_async(*args, **kwargs):
                 self.current_run.value.test = True
                 ret = await callable(*args, **kwargs)  # force any errors to appear immediately
-                await self.session.acommit()
+                await self.session.commit()
                 return ret
 
             return _test_async
@@ -445,8 +445,8 @@ class HasCode(Node):
         try:
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
-            if session._autocommit_this_run:
-                await self.session.acommit()
+            if session._should_autocommit_this_run:
+                await self.session.commit()
         except BaseException as exception:
             session._tracer.run_exception(self, exception)
             raise
@@ -460,7 +460,7 @@ class HasCode(Node):
         try:
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
-            if session._autocommit_this_run:
+            if session._should_autocommit_this_run:
                 session.commit()
         except BaseException as exception:
             session._tracer.run_exception(self, exception)
@@ -483,7 +483,7 @@ STATIC_BUILTINS: dict[str, Any] = {
     "Query": Conditional,
     "QueryOp": ConditionalOp,
     "Sort": Sort,
-    "SortOrder": SortOrder,
+    "SortOp": SortOp,
     "SortMode": SortMode,
     # remote
     "Blob": Blob,
