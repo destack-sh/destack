@@ -353,16 +353,6 @@ class FieldPacker(CrudThingPacker, Packer[models.Field, Field, wire.FieldData]):
         )
 
 
-@document(os.DocumentType.TILE)
-class Tile(CrudThing, Revisioned, os.Document):
-    ck: UUID = os.field(os.FT.KEYWORD)
-    project_id: UUID = os.field(os.FT.KEYWORD)
-    project_version_id: UUID = os.field(os.FT.KEYWORD)
-    statement_id: UUID = os.field(os.FT.KEYWORD)
-    type: str = os.field(os.FT.KEYWORD)
-    name: Optional[str] = NAME_FIELD
-
-
 @document(os.DocumentType.RECORD)
 class Record(CrudThing, os.Document):
     ck: UUID = os.field(os.FT.KEYWORD)

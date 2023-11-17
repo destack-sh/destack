@@ -17,7 +17,7 @@ from .project import (
 )
 from .secret import Secret
 from .session import Run, Session
-from .statement import Field, Statement, Tagging, Tile, Trigger, TriggerType
+from .statement import Field, Statement, Tagging, Trigger, TriggerType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User, UserStatus
 from .utils import CrudModel, CrudNode, DetachedModuleNode, ModuleNode
@@ -61,7 +61,6 @@ __all__ = [
     "Session",
     "Statement",
     "Tagging",
-    "Tile",
     "Trigger",
     "TriggerType",
     "User",
