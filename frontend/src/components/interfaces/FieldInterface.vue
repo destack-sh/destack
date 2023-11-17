@@ -129,7 +129,6 @@ const actions: Ref<TypeAction[]> = computed(() => {
       action: () => emit("deleteSelf"),
     });
     if (props.isView) {
-      // TODO @UX: support filter and sort via subfields if available (and default to it if native sort is unavailable)
       actions.push({
         groupId: "query",
         label: "Sort ascending",

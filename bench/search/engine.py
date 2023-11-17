@@ -41,9 +41,6 @@ logger = structlog.get_logger(__name__)
 MAXIMUM_NESTING_DEPTH = 3
 
 
-# nocheckin: move subfield shit to OS query engine
-
-
 #
 # Mapping schemas
 #
@@ -314,10 +311,8 @@ async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict"
 #
 
 
-# :QuerySubfields
 _SUPPORTED_SUBFIELDS_BY_TYPE: dict[TypeHint | TypeTag, set[SubfieldType]] = {
     # cumulative supported subfields by type
-    TypeTag.STRING: {SubfieldType.char_count, SubfieldType.token_count},
     TypeHint.EMAIL: {SubfieldType.key, SubfieldType.starts_with},
     TypeHint.NAME: {SubfieldType.key, SubfieldType.starts_with},
 }
@@ -366,23 +361,23 @@ class ComparisonQueryCompiler(Compiler):
     def compile(self, info: CompilationInfo, query: ComparisonConditional) -> dict[str, Any]:
         if query.op == ConditionalOp.EQUALS:
             if isinstance(query.value, list):
-                return {"terms": {query.key: query.value}}
+                return {"terms": {query.field_key: query.value}}
             else:
-                return {"term": {query.key: query.value}}
+                return {"term": {query.field_key: query.value}}
         elif query.op == ConditionalOp.NOT_EQUALS:
-            return {"bool": {"must_not": {"term": {query.key: query.value}}}}
+            return {"bool": {"must_not": {"term": {query.field_key: query.value}}}}
         elif query.op == ConditionalOp.GREATER_THAN:
-            return {"range": {query.key: {"gt": query.value}}}
+            return {"range": {query.field_key: {"gt": query.value}}}
         elif query.op == ConditionalOp.GREATER_THAN_OR_EQUALS:
-            return {"range": {query.key: {"gte": query.value}}}
+            return {"range": {query.field_key: {"gte": query.value}}}
         elif query.op == ConditionalOp.LESS_THAN:
-            return {"range": {query.key: {"lt": query.value}}}
+            return {"range": {query.field_key: {"lt": query.value}}}
         elif query.op == ConditionalOp.LESS_THAN_OR_EQUALS:
-            return {"range": {query.key: {"lte": query.value}}}
+            return {"range": {query.field_key: {"lte": query.value}}}
         elif query.op == ConditionalOp.MATCHES:
-            return {"match": {query.key: query.value}}
+            return {"match": {query.field_key: query.value}}
         elif query.op == ConditionalOp.STARTS_WITH:
-            return {"prefix": {query.key: query.value}}
+            return {"prefix": {query.field_key: query.value}}
         else:
             raise RuntimeError(f"unexpected query: {query}")
 
@@ -391,9 +386,9 @@ class ComparisonQueryCompiler(Compiler):
 class ExistenceQueryCompiler(Compiler):
     def compile(self, info: CompilationInfo, query: ExistenceConditional) -> dict[str, Any]:
         if query.op == ConditionalOp.EXISTS:
-            return {"exists": {"field": query.key}}
+            return {"exists": {"field": query.field_key}}
         elif query.op == ConditionalOp.NOT_EXISTS:
-            return {"bool": {"must_not": {"exists": {"field": query.key}}}}
+            return {"bool": {"must_not": {"exists": {"field": query.field_key}}}}
         else:
             raise RuntimeError(f"unexpected query: {query}")
 
@@ -403,7 +398,7 @@ class VectorQueryCompiler(Compiler):
     def compile(self, info: CompilationInfo, query: VectorConditional) -> dict[str, Any]:
         if query.approximate:
             # TODO @Performance @Robustness: tune knn k relative to database and query limit
-            return {"knn": {query.key: {"vector": query.value, "k": info.root_limit * 2}}}
+            return {"knn": {query.field_key: {"vector": query.value, "k": info.root_limit * 2}}}
         else:
             raise NotImplementedError(f"exact knn not implemented: {query}")
 
@@ -426,7 +421,7 @@ class SortCompiler(Compiler):
         props = {"order": self.SORT_ORDERS[sort.op]}
         if sort.mode:
             props["mode"] = self.SORT_MODES[sort.mode]
-        return {sort.key: props}
+        return {sort.field_key: props}
 
 
 DslObj = Union[Conditional, Sort]
@@ -492,8 +487,8 @@ def compile_os_query(
     if query is not None:
         combined_query &= query
     # add id to sort as tiebreaker if not already present
-    if sort and not any(s.key == "_id" for s in sort):
-        sort = sort + [Sort(field="_id", order=SortOp.ASCENDING)]
+    if sort and not any(s.field_key == "_id" for s in sort):
+        sort = sort + [Sort(field="_id")]
     compilation = CompilationInfo(root_limit=limit)
     compiled_query = compile_to_os(compilation, combined_query)
     compiled_sort = compile_to_os(compilation, sort or get_default_sort(combined_query))

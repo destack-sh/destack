@@ -31,7 +31,7 @@ def try_from_uuid(id: UUID | str) -> UUID | str:
         return id
     try:
         return UUID(id)
-    except ValueError:
+    except (ValueError, TypeError):
         return id
 
 
@@ -239,3 +239,12 @@ def generate_secret_password(length: int = 48) -> str:
     password += random.choice(string.digits)
     password += random.choice("!@#$%^&*()_+-=")
     return password
+
+
+def get_subclasses(cls, seen=None):
+    seen = seen or set()
+    seen.add(cls)
+    for subclass in cls.__subclasses__():
+        if subclass not in seen:
+            yield from get_subclasses(subclass, seen=seen)
+            yield subclass

@@ -12,7 +12,19 @@ from .const import (
 )
 from .database import HasDatabase, Record
 from .edit import render, render_as_python
-from .expression import C, Conditional, ConditionalOp, Sort, SortMode, SortOp
+from .expression import (
+    A,
+    Aggregation,
+    C,
+    Conditional,
+    ConditionalOp,
+    E,
+    Expression,
+    S,
+    Sort,
+    SortMode,
+    SortOp,
+)
 from .field import Field, HasFields, HasType, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
@@ -28,19 +40,27 @@ from .trigger import HasTriggers, Trigger
 from .value import HasValue
 from .view import View
 
-# Note that all these imports are auto-imported as prelude in user code.
+# NOTE! that all these imports are auto-imported as prelude in user code.
 #  (maybe we should factor that out...)
 __all__ = [
+    "Aggregation",
     "BenchError",
-    "ViewLayout",
+    "Blob",
+    "C",
+    "E",
+    "A",
+    "S",
+    "Conditional",
+    "ConditionalOp",
+    "Expression",
     "Field",
     "File",
+    "HasDatabase",
     "HasFields",
     "HasRun",
     "HasTags",
     "HasText",
     "HasTriggers",
-    "HasDatabase",
     "HasType",
     "HasValue",
     "Issue",
@@ -50,11 +70,7 @@ __all__ = [
     "Node",
     "NodeVisitor",
     "PermissionError",
-    "C",
-    "Conditional",
-    "ConditionalOp",
     "Record",
-    "Blob",
     "render",
     "render_as_python",
     "ResolvedField",
@@ -79,4 +95,5 @@ __all__ = [
     "TypeStorageFormat",
     "TypeTag",
     "View",
+    "ViewLayout",
 ]

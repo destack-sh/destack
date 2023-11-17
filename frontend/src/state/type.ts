@@ -143,13 +143,12 @@ export function getStorageFormat(
   return STORAGE_FORMAT_BY_TYPE_TAG[tag];
 }
 
-export type TypeIndexInfo = {
+export type TypeStorageInfo = {
   tag: TypeTag;
   hint: TypeHint | null;
   flags: TypeFlag;
   format: TypeStorageFormat | null;
   sortable: boolean;
-  subfields: TypeIndexInfo[] | null;
 };
 
 export const TYPENAME_SENTINEL = "__typename"; // :TypeSentinel
@@ -157,32 +156,11 @@ export const OMITTED_SENTINEL = "__omitted"; // :OmittedSentinel
 export const BLOB_TYPENAME = "Blob";
 export const SECRET_TYPENAME = "Secret";
 
-export enum SubfieldType {
-  key = "key",
-  starts_with = "starts_with",
-  token_count = "token_count",
-  char_count = "char_count",
-}
-
-export function getMainSubfield(field: Pick<Field, "hint" | "tag">): SubfieldType | null {
-  if (field.hint == TypeHint.Name) {
-    return SubfieldType.key;
-  } else if (field.tag == TypeTag.String) {
-    return SubfieldType.char_count;
-  }
-  return null;
-}
-
-export function canSort(
-  field: Pick<Field, "tag" | "hint" | "flags">,
-  options?: { excludeSubfields?: boolean }
-): boolean {
+export function canSort(field: Pick<Field, "tag" | "hint" | "flags">): boolean {
   const storageFormat = getStorageFormat(field.tag, field.hint, field.flags);
   if (storageFormat == null) return false;
   if (NATIVELY_SORTABLE_STORAGE_FORMATS.includes(storageFormat)) return true;
-  if (options?.excludeSubfields) return false;
-  const subfield = getMainSubfield(field);
-  return subfield != null;
+  return false;
 }
 import {
   AdjustmentsHorizontalIcon,

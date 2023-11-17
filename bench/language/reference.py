@@ -20,10 +20,7 @@ class HasReference(Node):
         if isinstance(self.reference, Node) and (
             scope is None or self.reference.ck in scope._local_root_tree
         ):
-            self._set_untracked(
-                "reference",
-                self.reference.ck if isinstance(self.reference, Node) else self.reference,
-            )
+            self._set_untracked("reference", self.reference.ck)
 
     def _interp_inner(self, scope: ScopeNode) -> None:
         if self.reference is None:

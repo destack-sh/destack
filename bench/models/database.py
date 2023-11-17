@@ -18,7 +18,7 @@ class RecordManager(models.Manager):
 
 class Record(CrudModel, DetachedModuleNode, Revisioned):
     """
-    nocheckin: 7. remove global Record model
+    nocheckin: 7. remove Record model
     A record in a database (may be detached if the database is not versioned).
     We may choose not to store the actual record value here later, but for now it's convenient.
     """

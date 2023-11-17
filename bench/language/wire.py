@@ -14,7 +14,7 @@ import msgpack
 import bench.language.secret
 import bench.language.view
 from bench import language as lang
-from bench.language import File, IssueType, Module, NodeVisitor
+from bench.language import File, IssueType, Module
 from bench.language.const import (
     MNT,
     BlobStatus,
@@ -35,12 +35,23 @@ from bench.language.const import (
     WorkerSetStatus,
 )
 from bench.language.database import HasDatabase
-from bench.language.expression import Conditional, Sort
+from bench.language.expression import (
+    EXPRESSION_CLASS_BY_OP,
+    ComparisonConditional,
+    CompoundConditional,
+    Conditional,
+    ExistenceConditional,
+    ExpressionKind,
+    FieldExpression,
+    Sort,
+    SortMode,
+    VectorConditional,
+)
 from bench.language.module import Node, NodeStatus, NodeTree, ScopeNode
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
 from bench.language.text import patch_text_html
-from bench.utils.func import describe_type
+from bench.utils.func import describe_type, get_subclasses
 from bench.utils.serialize import from_dict, to_dict
 
 #
@@ -69,43 +80,6 @@ class DataPacker(abc.ABC, typing.Generic[DataT, ObjectT]):
         raise NotImplementedError
 
 
-_data_packers_by_data: dict[typing.Type[DataT], "DataPacker"] = {}
-_data_packers_by_node: dict[typing.Type, "DataPacker"] = {}
-
-
-def data_packer(data_t: typing.Type[DataT], node_t: typing.Optional[typing.Type] | None):
-    """Decorator to register a data packer for a given type"""
-
-    def decorator(cls: "DataPacker"):
-        if data_t in _data_packers_by_data:
-            raise ValueError(
-                f"packer for {data_t} already registered: {_data_packers_by_data[data_t]}"
-            )
-        if node_t in _data_packers_by_node:
-            raise ValueError(
-                f"packer for {node_t} already registered: {_data_packers_by_node[node_t]}"
-            )
-        packer = cls()
-        _data_packers_by_data[data_t] = packer
-        if node_t:
-            _data_packers_by_node[node_t] = packer
-        return cls
-
-    return decorator
-
-
-def pack_data(data: ObjectT) -> DataT:
-    """Pack a language data object into a flat module node"""
-    packer = _data_packers_by_node[type(data)]
-    return packer.pack(data)
-
-
-def unpack_data(data: DataT, module: Module) -> ObjectT:
-    """Unpack a flat module node into a language data object"""
-    packer = _data_packers_by_data[type(data)]
-    return packer.unpack(data, module)
-
-
 class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
     """Module node packer"""
 
@@ -127,19 +101,41 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
         pass
 
 
-class PackContext(NodeVisitor):
-    """Tree visitor for packing"""
-
-    pass
-
-
 # registered packers
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
 _node_packers_by_node: dict[typing.Type[NodeT], NodePacker] = {}
+_data_packers_by_data: dict[typing.Type[DataT], "DataPacker"] = {}
+_data_packers_by_node: dict[typing.Type, "DataPacker"] = {}
 MNT_BY_DATA_CLASS: dict[typing.Type[NodeDataT], MNT] = {}
 DATA_CLASS_BY_MNT: dict[MNT, typing.Type[NodeDataT]] = {}
-
 _DATA_CLASS_BY_NAME: dict[str, typing.Type[NodeDataT]] = {}
+
+
+def data_packer(
+    data_t: typing.Type[DataT],
+    node_t: typing.Optional[typing.Type] | None,
+    *extra_node_t: typing.Optional[typing.Type] | None,
+):
+    """Decorator to register a data packer for a given type"""
+
+    def decorator(cls: "DataPacker"):
+        node_ts = [node_t, *extra_node_t]
+        packer = cls()
+        if data_t in _data_packers_by_data:
+            raise ValueError(
+                f"packer for {data_t} already registered: {_data_packers_by_data[data_t]}"
+            )
+        _data_packers_by_data[data_t] = packer
+        for t in node_ts:
+            if t in _data_packers_by_node:
+                raise ValueError(
+                    f"packer for {t} already registered: {_data_packers_by_node[node_t]}"
+                )
+            if t:
+                _data_packers_by_node[t] = packer
+        return cls
+
+    return decorator
 
 
 def node_packer(
@@ -171,6 +167,18 @@ def node_packer(
         return cls
 
     return decorator
+
+
+def pack_data(data: ObjectT) -> DataT:
+    """Pack a language data object into a flat module node"""
+    packer = _data_packers_by_node[type(data)]
+    return packer.pack(data)
+
+
+def unpack_data(data: DataT, module: Module) -> ObjectT:
+    """Unpack a flat module node into a language data object"""
+    packer = _data_packers_by_data[type(data)]
+    return packer.unpack(data, module)
 
 
 def pack_module(module: Module, exclude: set[MNT] | None = None) -> "ModuleTreeData":
@@ -298,6 +306,11 @@ def remap_properties(mnt: MNT, properties: list[str] | None) -> list[str] | None
     packer = _node_packers_by_data[DATA_CLASS_BY_MNT[mnt]]
     properties = [packer.REMAP.get(p, p) for p in properties]
     return properties
+
+
+#
+# Nodes
+#
 
 
 @dataclass
@@ -924,7 +937,64 @@ class IssuePacker(NodePacker[IssueData, lang.Issue]):
         )
 
 
-# other objects
+#
+# Other data
+#
+
+
+@dataclass
+class ExpressionData:
+    kind: ExpressionKind
+    op: str
+    clauses: list[ExpressionData] = None
+    field: typing.Union[UUID, str] = None
+    value: typing.Any = None
+    approximate: Optional[bool] = None
+    mode: Optional[SortMode] = None
+
+    def __str__(self):
+        return f"{self.kind.name} {self.op.name}"
+
+
+@data_packer(ExpressionData, lang.Expression, *get_subclasses(lang.Expression))
+class ExpressionPacker(DataPacker[ExpressionData, lang.Expression]):
+    def pack(self, expr: lang.Expression) -> ExpressionData:
+        if isinstance(expr, FieldExpression):
+            field = expr.field.ck if isinstance(expr.field, lang.Field) else expr.field
+        else:
+            field = None
+        if isinstance(expr, CompoundConditional):
+            clauses = [self.pack(clause) for clause in expr.clauses]
+        else:
+            clauses = None
+        return ExpressionData(
+            kind=expr.kind,
+            op=expr.op,
+            clauses=clauses,
+            field=field,
+            value=getattr(expr, "value", None),
+            approximate=getattr(expr, "approximate", None),
+            mode=(expr.mode if isinstance(expr, Sort) else None),
+        )
+
+    def unpack(self, data: ExpressionData, module: Module) -> lang.Expression:
+        expr_cls = EXPRESSION_CLASS_BY_OP[data.op]
+        if data.clauses is not None:
+            clauses = [self.unpack(clause, module) for clause in data.clauses]
+        else:
+            clauses = None
+        if issubclass(expr_cls, CompoundConditional):
+            return expr_cls(op=data.op, clauses=clauses)
+        elif issubclass(expr_cls, ComparisonConditional):
+            return expr_cls(op=data.op, field=data.field, value=data.value)
+        elif issubclass(expr_cls, ExistenceConditional):
+            return expr_cls(op=data.op, field=data.field)
+        elif issubclass(expr_cls, VectorConditional):
+            return expr_cls(op=data.op, field=data.field, value=data.value)
+        elif issubclass(expr_cls, Sort):
+            return expr_cls(field=data.field, mode=data.mode)
+        else:
+            raise NotImplementedError(f"unexpected expression class {expr_cls} ({data})")
 
 
 @dataclass
@@ -945,14 +1015,14 @@ class BlobData:
 
 @data_packer(BlobData, lang.Blob)
 class BlobPacker(DataPacker[BlobData, lang.Blob]):
-    def pack(self, object: lang.Blob) -> BlobData:
+    def pack(self, blob: lang.Blob) -> BlobData:
         return BlobData(
-            id=object.id,
-            sha512=object.sha512,
-            content_length=object.content_length,
-            content_type=object.content_type,
-            name=object.name,
-            status=object.status,
+            id=blob.id,
+            sha512=blob.sha512,
+            content_length=blob.content_length,
+            content_type=blob.content_type,
+            name=blob.name,
+            status=blob.status,
         )
 
     def unpack(self, data: BlobData, module: Module) -> lang.Blob:

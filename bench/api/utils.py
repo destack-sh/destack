@@ -19,9 +19,9 @@ from strawberry_django.fields.types import OperationInfo
 from strawberry_django.mutations.fields import _handle_exception
 
 from bench import models
-from bench.language import C
 from bench.language import expression as expr
 from bench.msg.messages import ClientOrigin
+from bench.utils.func import try_from_uuid
 from bench.utils.utils import DEBUG, LOCAL, sentry_capture
 
 if typing.TYPE_CHECKING:
@@ -234,20 +234,20 @@ ConditionalOp = strawberry.enum(expr.ConditionalOp)
 @strawberry.input
 class Conditional:
     op: ConditionalOp
-    key: Optional[str] = None
+    field: Optional[str] = None
     value: Optional[JSON] = None
     clauses: Optional[list["Conditional"]] = None
 
-    def to_dsl(self) -> expr.Conditional:
-        clauses = [q.to_dsl() for q in self.clauses] if self.clauses else None
-        return C(self.op, clauses=clauses, field=self.key, value=self.value)
+    def to_bench(self) -> expr.Conditional:
+        clauses = [q.to_bench() for q in self.clauses] if self.clauses else None
+        return expr.C(self.op, clauses=clauses, field=try_from_uuid(self.field), value=self.value)
 
 
 @strawberry.input
 class Sort:
-    key: str
+    field: str
     order: SortOp = SortOp.ASCENDING
     mode: Optional[SortMode] = None
 
-    def to_dsl(self) -> expr.Sort:
-        return expr.Sort(self.key, self.order, self.mode)
+    def to_bench(self) -> expr.Sort:
+        return expr.S(self.order, field=try_from_uuid(self.field), mode=self.mode)
