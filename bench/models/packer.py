@@ -28,7 +28,7 @@ from bench.language.const import (
 from bench.language.edit import MEK, MET, EditBundle, EditData
 from bench.language.module import NodeTree
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.utils import flatten_list
+from bench.utils.utils import flatten
 
 MNT = ModuleNodeType
 ParentsT = set[MNT]
@@ -241,7 +241,7 @@ def pack_node(
     return _Packed(roots, nodes, visited.visited_by_parent)
 
 
-def unpack_nodes_tree(
+def unpack_nodes_ptree(
     nodes: list[NodeDataT], parent: Optional[NodeT] = None, pre_unpacked: dict[UUID, NodeT] = None
 ) -> NodeTree:
     """Unpack a node and its descendants"""
@@ -276,19 +276,19 @@ def unpack_nodes_tree(
 
 
 def unpack_nodes(
-    project_v: models.ProjectVersion, module: NodeTree, data_nodes: list[NodeDataT]
+    project_v: models.ProjectVersion, module: NodeTree, nodes: list[NodeDataT]
 ) -> list[NodeT]:
     """Unpack a list nodes (incl. their ancestors) without DB queries"""
     unpacked_nodes = []
     ancestors_by_id = {project_v.id: project_v}
-    for data in data_nodes:
-        ancestors = module.get_ancestors(data.parent_id, include_self=True)
+    for node in nodes:
+        ancestors = module.get_ancestors(node.parent_id, include_self=True)
         for ancestor in reversed(ancestors):
             if ancestor.id not in ancestors_by_id:
                 parent = ancestors_by_id.get(ancestor.parent_id)
                 unpacked = unpack_node_flat(ancestor, parent)
                 ancestors_by_id[ancestor.id] = unpacked
-        node = unpack_node_flat(data, ancestors_by_id[data.parent_id])
+        node = unpack_node_flat(node, ancestors_by_id[node.parent_id])
         unpacked_nodes.append(node)
     return unpacked_nodes
 
@@ -888,7 +888,6 @@ def write_db_edits(
     edits = EditBundle(edits)
     now = utcnow_with_tz()
     edited_nodes: list[NodeDataT] = []
-    source = source.deepcopy()  # copy source to not mutate it directly
 
     for met, batch in edits.batched_apply(
         source, project_v.project_id, project_v.id, raise_on_error=raise_on_apply_error
@@ -946,10 +945,9 @@ def write_db_edits(
             # different properties may be updated, so group by properties
             nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
             for e, node in zip(batch, nodes):
-                properties = flatten_list(
-                    *(REMAP_PROPERTIES.get((met.mnt, p), [p]) for p in e.properties)
+                properties = ";".join(
+                    flatten(*(REMAP_PROPERTIES.get((met.mnt, p), [p]) for p in e.properties or ()))
                 )
-                properties = ";".join(properties or [])
                 nodes_by_props[properties].append(node)
             # batch update
             for properties, nodes in nodes_by_props.items():

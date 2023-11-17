@@ -27,7 +27,7 @@ from bench.language.value import HasValue
 from bench.search.client import os_client
 from bench.search.core import DocumentType
 from bench.utils.func import describe_type
-from bench.utils.utils import flatten_list
+from bench.utils.utils import flatten
 
 if typing.TYPE_CHECKING:
     from bench.language import Field, Session, Statement, View
@@ -443,7 +443,7 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
             self._parent.session._tracer.node_create(node)
 
     def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
-        nodes = flatten_list(nodes)
+        nodes = flatten(nodes)
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
         # 'create' nodes

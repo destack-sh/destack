@@ -43,7 +43,7 @@ from bench.utils.utils import (
     DEBUG,
     LOCAL,
     IdentifierType,
-    flatten_list,
+    flatten,
     frozendict,
     required_field,
     to_pyidentifier,
@@ -904,7 +904,7 @@ class NodeList(NodeListBase[NodeT]):
         before: NodeT = None,
         _trigger: _NC = _NC.Full,
     ):
-        nodes = flatten_list(*nodes)
+        nodes = flatten(*nodes)
         if not nodes:
             return
 
@@ -1039,7 +1039,7 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
         raise NotImplementedError
 
     def add_many(self, *nodes: Collection[NT]):
-        nodes = flatten_list(*nodes)
+        nodes = flatten(*nodes)
         for node in nodes:
             self.add(node)
 
@@ -2268,7 +2268,9 @@ class Module(ScopeNode):
         for builtin in self.builtins:
             self._add_node_to_scope(builtin)
 
-    def _apply_edits(self, edits: list["EditData"]) -> ModuleChange:
+    def _apply_edits(
+        self, edits: list["EditData"], old_source: NodeTree | None = None
+    ) -> ModuleChange:
         """
         Applies the given external edits to the module.
         TODO @Performance @UX: :HotReload patch edits directly?
@@ -2276,15 +2278,14 @@ class Module(ScopeNode):
         assert self._source is not None, f"cannot apply edits to {self!r} without source"
 
         # update source
-        old_nodes_by_ck: dict[UUID, Node] = {**self.module._tree.nodes_by_ck}
-        old_source = self._source.copy()
+        old_source = old_source if old_source is not None else self._source.copy()
         self._apply_edits_to_source(edits)
 
         # update self (this is obviously inefficient, but performs surprisingly okay)
         self._reset_from_source()
 
         # compute change, apply interp source changes if any
-        change = self._compute_change(edits, old_nodes_by_ck, old_source)
+        change = self._compute_change(edits, old_source)
         if change.interp_edits:
             self._apply_edits_to_source(change.interp_edits)
         return change
@@ -2321,7 +2322,6 @@ class Module(ScopeNode):
     def _compute_change(
         self,
         source_edits: list["EditData"],
-        old_nodes_by_ck: dict[UUID, Node],
         old_source: NodeTree,
     ) -> ModuleChange:
         """Computes the change between the old and new module state."""
@@ -2331,12 +2331,15 @@ class Module(ScopeNode):
         added = []
         updated = []
         for n in new_nodes.values():
-            if n.ck in old_nodes_by_ck:
-                if n.revision != old_nodes_by_ck[n.ck].revision:
+            if n.ck in old_source.nodes_by_ck:
+                if (
+                    n.mnt not in INTERP_NODE_TYPES
+                    and n.revision != old_source.nodes_by_ck[n.ck].revision
+                ):
                     updated.append(n)
             else:
                 added.append(n)
-        removed = [n for n in old_nodes_by_ck.values() if n.ck not in new_nodes]
+        removed = [n for n in old_source.nodes_by_ck.values() if n.ck not in new_nodes]
 
         # gather interp edits (delete from old, create in new)
         old_editor = NodeTreeEditor(old_source, self._project_id, self.id)
@@ -2347,7 +2350,7 @@ class Module(ScopeNode):
                     # need to investigate
                     logger.warning(f"node {node!r} not found in old source for {self!r}")
                     continue
-                # recover parent info from source
+                # recover parent info from old source
                 old_node = old_source.nodes_by_ck[node.ck]
                 old_editor.delete(old_node, apply=False)
         new_editor = NodeTreeEditor(self._source, self._project_id, self.id)
@@ -2373,8 +2376,7 @@ class Module(ScopeNode):
         module._project_id = project_id
         module._os_name = os_name
         module._pg_name = pg_name
-        old_nodes_by_ck = {**module._tree.nodes_by_ck}
-        old_source_nodes_by_ck = {**module._source.nodes_by_ck}
+        old_source = module._source.copy()
 
         for dependency in libs.DEFAULT_MODULES.values():
             module.add_dependency(dependency)
@@ -2382,7 +2384,7 @@ class Module(ScopeNode):
         module._interp_rec()
 
         # update source with interp edits (doesn't have them)
-        change = module._compute_change([], old_nodes_by_ck, old_source_nodes_by_ck)
+        change = module._compute_change([], old_source)
         if change.interp_edits:
             module._apply_edits_to_source(change.interp_edits)
 
