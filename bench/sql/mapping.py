@@ -31,14 +31,16 @@ COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
     TypeStorageFormat.VECTOR: ColumnType.VECTOR,
     TypeStorageFormat.BINARY: ColumnType.BINARY,
     TypeStorageFormat.DATE: ColumnType.DATETIME,
+    TypeStorageFormat.BOOLEAN: ColumnType.BOOLEAN,
     TypeStorageFormat.KEYWORD: ColumnType.STRING,
     TypeStorageFormat.OBJECT: ColumnType.JSON,
 }
+assert len(COLUMN_TYPE_BY_STORAGE_FORMAT) == len(TypeStorageFormat), "missing column type"
 
 
 def map_to_pg_column(field: lang.Field) -> Column:
     """Gets a column from a field. Later, there may be more than one column per field (?)."""
-    column_type = COLUMN_TYPE_BY_STORAGE_FORMAT[field.type.storage_format]
+    column_type = COLUMN_TYPE_BY_STORAGE_FORMAT[field._storage_format]
     is_array = (
         field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
     ) and column_type != ColumnType.JSON
@@ -71,7 +73,7 @@ async def update_pg_schema(pg_name: str, module: Module) -> None:
         for s in module._nodes
         if s.mnt == MNT.STATEMENT and HasDatabase in s._components and not s.ephemeral
     ]
-    tables = (*INTERNAL_TABLES, *(map_to_pg_table(s) for s in databases))
+    tables = (*INTERNAL_TABLES, *(s._table for s in databases if s._table))
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))
 
     async with async_pg_cursor(pg_name, autocommit=False) as cur:

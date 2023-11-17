@@ -2,7 +2,6 @@ import { ConditionalOp, SortOrder, type Run, RunStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session";
-import { getUUIDFromGlobalID } from "@/utils/functools";
 import { createSharedComposable } from "@vueuse/core";
 import { computed, ref, toRef } from "vue";
 
@@ -12,7 +11,7 @@ export type TerminalRun = {
   run: Run;
 };
 export const TERMINAL_BOT_LABEL = "symbolx.bench.terminal";
-export const STDLIB_TEXT_TO_CODE_TASK_CK = "0c8e5c97-7433-51e6-8d2f-61893fc48d04";
+export const STDLIB_TEXT_TO_CODE_TASK_CK = "9904403b-a09b-421f-a8b9-8ca2fa3cea9a";
 
 function _useTerminal() {
   const session = useCurrentSessions();
@@ -21,7 +20,7 @@ function _useTerminal() {
   const botLabelKey = computed(() => module.runMetadataKey("bot"));
   const codeKey = computed(() => module.runMetadataKey("code"));
   const scopeKey = computed(() => module.runMetadataKey("scope"));
-  const textToCodeTask = computed(() => module.statementOf("0c8e5c97-7433-51e6-8d2f-61893fc48d04"));
+  const textToCodeTask = computed(() => module.statementOf(STDLIB_TEXT_TO_CODE_TASK_CK));
   const generatedFromKey = computed(() => module.runMetadataKey("generated from"));
   const generatedInKey = computed(() => module.runMetadataKey("generated in"));
   const codeOutputKey = computed(() => {
