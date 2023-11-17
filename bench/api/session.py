@@ -450,7 +450,7 @@ class SessionQuery:
         statement_ids = to_uuids(statement_ids)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
-        query = query.to_dsl() if query else None
+        query = query.to_bench() if query else None
         if session_id:
             query = lang.Conditional.and_if_set(
                 query, lang.C(ConditionalOp.EQUALS, "session_id", value=session_id)
@@ -482,7 +482,9 @@ class SessionQuery:
                 query, lang.C(ConditionalOp.NOT_EXISTS, "parent_id")
             )
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
-        sort = [s.to_dsl() for s in sort] if sort else [lang.Sort("created_at", SortOp.DESCENDING)]
+        sort = (
+            [s.to_bench() for s in sort] if sort else [lang.Sort("created_at", SortOp.DESCENDING)]
+        )
 
         logger.debug("runs.search", project_id=project_id, query=query, sort=sort)
         # query id only and then fetch full run from DB
@@ -557,8 +559,10 @@ class SessionQuery:
         statement_ids = to_uuids(statement_ids)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
-        sort = [s.to_dsl() for s in sort] if sort else [lang.Sort("created_at", SortOp.DESCENDING)]
-        query = query.to_dsl() if query else None
+        sort = (
+            [s.to_bench() for s in sort] if sort else [lang.Sort("created_at", SortOp.DESCENDING)]
+        )
+        query = query.to_bench() if query else None
         if session_id:
             query = lang.Conditional.and_if_set(
                 query, lang.C(ConditionalOp.EQUALS, "session_id", value=str(session_id))

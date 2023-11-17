@@ -30,7 +30,6 @@ import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref, onMounted, toRef } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import { canSort, getMainSubfield } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
 import { useEditListener } from "@/state/sync";
 import { DateTime } from "luxon";
@@ -76,24 +75,22 @@ onMounted(() => {
 const { inlineQuery } = useDatabaseInlineSearch(fields, toRef(properties, "inlineQuery"));
 
 function addSort(field: Field, order: SortOp) {
-  const subkey = canSort(field, { excludeSubfields: true }) ? "" : "." + getMainSubfield(field);
-  const key = "value." + module.getTypedKey(field) + subkey;
   if (properties.sorts == null) properties.sorts = [];
   // replace or append sort
-  const oldIndex = properties.sorts.findIndex((s) => s.key == key);
+  const oldIndex = properties.sorts.findIndex((s) => s.field == field.key);
   if (oldIndex >= 0) {
-    properties.sorts.splice(oldIndex, 1, { key, order });
+    properties.sorts.splice(oldIndex, 1, { field: field.ck, order });
   } else {
-    properties.sorts.push({ key, order });
+    properties.sorts.push({ field: field.ck, order });
   }
 }
-function removeSort(sort: { key: string }) {
-  properties.sorts = properties.sorts?.filter((s) => !s.key.includes(sort.key));
+function removeSort(sort: { field: string }) {
+  properties.sorts = properties.sorts?.filter((s) => !s.field.includes(sort.field));
 }
 const sort: Ref<Sort[] | null> = computed(() => {
   if (properties.sorts == null || properties.sorts.length == 0) {
     // default to sort by created at
-    return [{ key: "created_at", order: SortOp.Descending }];
+    return [{ field: "created_at", order: SortOp.Descending }];
   }
   return properties.sorts;
 });
@@ -510,11 +507,11 @@ defineExpose({
       <!-- Sort pills -->
       <span
         v-for="sort in properties.sorts ?? []"
-        :key="sort.key"
+        :key="sort.field"
         class="flex w-fit flex-row items-center rounded-xl border border-amber-900/[15%] px-1.5 py-0.5 text-gray-900"
       >
         <span class="underline decoration-gray-300 underline-offset-4">
-          {{ allFields.find((f) => sort.key.includes(f.key))?.name }}
+          {{ allFields.find((f) => sort.field == f.ck)?.name }}
         </span>
         <span class="ml-0.5 text-gray-700">{{ sort.order == SortOp.Ascending ? "↑" : "↓" }}</span>
         <!-- Clear button -->

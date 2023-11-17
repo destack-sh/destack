@@ -22,6 +22,7 @@ from bench.api.utils import (
     Sort,
     ThingBatch,
 )
+from bench.language import wire
 from bench.models import ModuleAccessLevel, packer
 from bench.msg import NMessage
 from bench.msg.core import request
@@ -160,16 +161,16 @@ class RecordQuery:
             info, statement, ModuleAccessLevel.Read
         )
 
-        query = query.to_dsl() if query else None
-        sort = [s.to_dsl() for s in sort] if sort else None
+        query = query.to_bench() if query else None
+        sort = [s.to_bench() for s in sort] if sort else None
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         req = ReqSearchRecordsPayload(
             module_id=access.project_version.id,
             statement_id=statement.id,
             statement_ck=statement.ck,
             statement_key=statement.key,
-            query=query,
-            sort=sort,
+            query=wire.pack_data(query) if query is not None else None,
+            sort=[wire.pack_data(s) for s in sort] if sort is not None else None,
             limit=effective_limit + 1,
             after=after,
             count=count or False,

@@ -818,18 +818,20 @@ class RuntimeHost:
          nocheckin: 8. reroute record query through local DB if possible
         """
         try:
-            query = compile_os_query(
+            query = wire.unpack_data(msg.p.query, self.module) if msg.p.query else None
+            sort = [wire.unpack_data(s, self.module) for s in msg.p.sort] if msg.p.sort else None
+            search = compile_os_query(
                 type=DocumentType.RECORD,
                 limit=msg.p.limit,
                 count=msg.p.count,
                 after=msg.p.after,
-                sort=msg.p.sort,
+                sort=sort,
                 query=Conditional.and_if_set(
-                    msg.p.query,
+                    query,
                     C(ConditionalOp.EQUALS, "statement_key", value=msg.p.statement_key),
                 ),
             )
-            results = await os_search(self.project_version.project.os_name, query)
+            results = await os_search(self.project_version.project.os_name, search)
             records: list[Any] = []
             cursors: list[str] = []
             for r in results["hits"]["hits"]:

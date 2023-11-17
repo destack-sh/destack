@@ -257,10 +257,6 @@ class RecordBaseQuery:
         assert not self._sort, "sorted count is deliberately not supported"
         raise NotImplementedError("nocheckin")
 
-    def group_by(self, *fields: "Field") -> "RecordBaseQuery":
-        """Groups the results by the given fields."""
-        raise NotImplementedError
-
     @_auto_async_to_sync
     async def update(self, **kwargs) -> int:
         """Updates all results with the given values."""
@@ -270,6 +266,10 @@ class RecordBaseQuery:
     async def delete(self) -> int:
         """Deletes all results."""
         raise NotImplementedError("not yet supported")
+
+    def group_by(self, *fields: "Field") -> "RecordBaseQuery":
+        """Groups the results by the given fields."""
+        raise NotImplementedError
 
 
 class RecordSingleAggregationQuery(RecordBaseQuery):

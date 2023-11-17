@@ -624,6 +624,9 @@ class NodeMapper(TypeMapper):
         return value.py_ident
 
 
+# TODO @Architecture @Cleanup: Blob/Secret references should just be flat ck references
+
+
 @dataclass
 class BlobMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:

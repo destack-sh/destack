@@ -1,19 +1,55 @@
 from __future__ import annotations
 
 import enum
+import functools
 from dataclasses import dataclass
 from functools import wraps
-from typing import TYPE_CHECKING, Any, ClassVar, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast, dataclass_transform
+from uuid import UUID
 
-from bench.language.const import TypeHint, TypeStorageFormat, TypeTag
+from bench.language.const import IssueType, TypeHint, TypeStorageFormat, TypeTag
+from bench.utils.func import get_subclasses
+from bench.utils.utils import required_field
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    from bench.language import Field, ScopeNode
+    from bench.language.validation import ValidationHandler
+
+
+@dataclass
+class Struct:
+    """
+    A non-node data structure, usually inside a node.
+    Will activate, track, etc. when we start using these in nodes.
+    """
+
+    def _clear(self, scope: Optional["ScopeNode"] = None):
+        pass
+
+    def _interp(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
+        pass
+
+    def _set_untracked(self, key: str, value: Any):
+        self.__dict__[key] = value
+
+
+@dataclass_transform()
+def struct(cls: type[Struct] = None):
+    """Register a struct class."""
+
+    def decorator(cls: type[Struct]):
+        if not issubclass(cls, Struct):
+            raise TypeError(f"struct {cls} must be a subclass of {Struct}")
+        cls = dataclass(cls)
+        return cls
+
+    if cls is not None:
+        return decorator(cls)
+    return decorator
 
 
 #
 # Expression language. Primarily for module, search and storage (database).
-# nocheckin: separate expression language and wire format
 #
 
 
@@ -90,18 +126,53 @@ class SortMode(enum.StrEnum):
     MEDIAN = "MEDIAN"
 
 
-ExpressionOp = ConditionalOp | AggregationOp | SortOp
+if TYPE_CHECKING:
+    ExpressionOp = ConditionalOp | AggregationOp | SortOp
+else:
+    ExpressionOp = enum.StrEnum(
+        "ExpressionOp",
+        {**ConditionalOp.__members__, **AggregationOp.__members__, **SortOp.__members__},
+    )
+FieldReference = UUID | str  # str as an alias for fields that we don't have reflected yet
 
 
-@dataclass
-class Expression:
-    kind: ClassVar[ExpressionKind]
+@struct
+class Expression(Struct):
+    op: ExpressionOp
 
     def __str__(self):
         return self.__class__.__name__
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self})"
+        return f"{self.kind}({self})"
+
+    @property
+    def kind(self) -> ExpressionKind:
+        return EXPRESSION_KIND_BY_CLASS[type(self)]
+
+
+@struct
+class FieldExpression(Expression):
+    field: Field | FieldReference = required_field()
+
+    def _clear(self, scope: Optional["ScopeNode"] = None):
+        if not isinstance(self.field, UUID) and (
+            scope is None or self.field.ck in scope._local_root_tree
+        ):
+            self._set_untracked("field", self.field.ck)
+
+    def _interp(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
+        resolved = self.field
+        if isinstance(self.field, UUID):
+            resolved = scope.lookup(self.field)
+        if resolved is None:
+            on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<expression>")
+        else:
+            self._set_untracked("field", resolved)
+
+    @property
+    def field_key(self) -> str:
+        return self.field if isinstance(self.field, str) else self.field._source_key
 
 
 _OP_SIGN: dict[ConditionalOp, str] = {
@@ -149,7 +220,7 @@ class ExpressionOps:
 
 RANKED_CONDITIONAL_OPS = {ConditionalOp.MATCHES, *ExpressionOps.COND_VECTOR}
 
-_EXPRESSIONS: dict[ExpressionOp, type[Expression]] = {}
+EXPRESSION_CLASS_BY_OP: dict[ExpressionOp, type[Expression]] = {}
 
 
 def expression(*ops: ExpressionOp):
@@ -161,9 +232,11 @@ def expression(*ops: ExpressionOp):
         cls = dataclass(cls, repr=False)
         cls._PROPERTIES = {f.name: f for f in cls.__dataclass_fields__.values()}
         for op in ops:
-            if op in _EXPRESSIONS:
-                raise RuntimeError(f"expression for {op} already registered: {_EXPRESSIONS[op]}")
-            _EXPRESSIONS[op] = cls
+            if op in EXPRESSION_CLASS_BY_OP:
+                raise RuntimeError(
+                    f"expression for {op} already registered: {EXPRESSION_CLASS_BY_OP[op]}"
+                )
+            EXPRESSION_CLASS_BY_OP[op] = cls
         return cls
 
     return decorator
@@ -171,7 +244,6 @@ def expression(*ops: ExpressionOp):
 
 @expression()
 class Conditional(Expression):
-    kind: ClassVar[ExpressionKind] = ExpressionKind.CONDITIONAL
     op: ConditionalOp
 
     def __bool__(self):
@@ -195,12 +267,6 @@ class Conditional(Expression):
         return self.op in RANKED_CONDITIONAL_OPS
 
     @staticmethod
-    def cls_from_attrs(d: dict[str, Any]) -> type[Conditional]:  # see :WireFormat
-        op = ConditionalOp(d["op"])
-        cls = _EXPRESSIONS[op]
-        return cls
-
-    @staticmethod
     def and_if_set(
         *clauses: Optional[Conditional],
     ) -> Optional[Conditional]:
@@ -216,7 +282,7 @@ class Conditional(Expression):
 
 @expression(ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR)
 class CompoundConditional(Conditional):
-    clauses: list[Conditional]
+    clauses: list[Conditional] = required_field()
 
     def __str__(self):
         return f" {self.op.sign} ".join(str(q) for q in self.clauses)
@@ -264,18 +330,15 @@ class CompoundConditional(Conditional):
     ConditionalOp.MATCHES,
     ConditionalOp.STARTS_WITH,
 )
-class ComparisonConditional(Conditional):
-    field: Field
-    value: Any | Field
+class ComparisonConditional(FieldExpression, Conditional):
+    value: Any = required_field()
 
     def __str__(self):
         return f"{self._field_str} {self.op.sign} {self.value!r}"
 
 
 @expression(ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS)
-class ExistenceConditional(Conditional):
-    field: Field
-
+class ExistenceConditional(FieldExpression, Conditional):
     def __str__(self):
         return f"{self._field_str}.{self.op.name.lower()}"
 
@@ -287,9 +350,8 @@ class ExistenceConditional(Conditional):
 
 
 @expression(ConditionalOp.NEAR)
-class VectorConditional(Conditional):
-    field: Field
-    value: list[float]
+class VectorConditional(FieldExpression, Conditional):
+    value: list[float] = required_field()
     approximate: bool = True
 
     def __str__(self):
@@ -297,22 +359,25 @@ class VectorConditional(Conditional):
 
 
 @expression(*SortOp)
-class Sort(Expression):
-    kind: ClassVar[ExpressionKind] = ExpressionKind.SORT
-    field: Field
+class Sort(FieldExpression):
     op: SortOp = SortOp.ASCENDING
     mode: Optional[SortMode] = None
 
-    def encode_some_attrs(self):
-        # always inline field key
-        return {"field": self.field if isinstance(self.field, str) else self.field._source_key}
-
 
 @expression(*AggregationOp)
-class Aggregation(Expression):
-    kind: ClassVar[ExpressionKind] = ExpressionKind.AGGREGATION
-    op: AggregationOp
-    field: Field
+class Aggregation(FieldExpression):
+    op: AggregationOp = required_field()
+
+
+EXPRESSION_KIND_BY_CLASS: dict[type[Expression], ExpressionKind] = {
+    Conditional: ExpressionKind.CONDITIONAL,
+    Sort: ExpressionKind.SORT,
+    Aggregation: ExpressionKind.AGGREGATION,
+}
+# expand into subclasses
+for super_t, kind in list(EXPRESSION_KIND_BY_CLASS.items()):
+    for sub_t in get_subclasses(super_t):
+        EXPRESSION_KIND_BY_CLASS[sub_t] = kind
 
 
 def get_default_sort(query: "Conditional") -> list["Sort"]:
@@ -322,17 +387,18 @@ def get_default_sort(query: "Conditional") -> list["Sort"]:
         return [Sort("_id", SortOp.ASCENDING)]
 
 
-def C(op: ConditionalOp, *args, **kwargs) -> Conditional:
-    cls = _EXPRESSIONS[op]
-    kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls._PROPERTIES}
-    return cast(Conditional, cls(op, *args, **kwargs))
-
-
-def S(op: SortOp, *args, **kwargs) -> Sort:
-    cls = _EXPRESSIONS[op]
+# single-letter convenience constructors
+def E(op: ExpressionOp, *args, _expect_t: type[Expression] = None, **kwargs) -> Sort:
+    cls = EXPRESSION_CLASS_BY_OP[op]
+    if _expect_t is not None and not issubclass(cls, _expect_t):
+        raise TypeError(f"expected {_expect_t}, got {cls}")
     kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls._PROPERTIES}
     return cast(Sort, cls(op, *args, **kwargs))
 
+
+C = functools.partial(E, _expect_t=Conditional)
+S = functools.partial(E, _expect_t=Sort)
+A = functools.partial(E, _expect_t=Aggregation)
 
 TYPE_DISCRIMINATOR_KEY = "_type"
 
@@ -373,6 +439,7 @@ def _check_support(op: ConditionalOp = None, sort: bool = False):
 
 
 class FieldQueryOps:
+    # for typing, assumes Field superclass
     name: Optional[str]
     hint: Optional[TypeHint]
     _effective_tag: TypeTag

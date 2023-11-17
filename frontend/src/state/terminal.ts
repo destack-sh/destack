@@ -48,7 +48,7 @@ function _useTerminal() {
           },
         ],
       })),
-      sort: ref([{ key: "created_at", order: SortOp.Descending }]),
+      sort: ref([{ field: "created_at", order: SortOp.Descending }]),
       after: ref(null),
     },
     {

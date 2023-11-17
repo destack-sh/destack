@@ -182,7 +182,7 @@ export type ClientUpsertInput = {
 
 export type Conditional = {
   clauses?: InputMaybe<Array<Conditional>>;
-  key?: InputMaybe<Scalars["String"]["input"]>;
+  field?: InputMaybe<Scalars["String"]["input"]>;
   op: ConditionalOp;
   value?: InputMaybe<Scalars["JSON"]["input"]>;
 };
@@ -1941,7 +1941,7 @@ export type SnapshotPayload = {
 export type SnapshotPayloadOperationInfo = OperationInfo | SnapshotPayload;
 
 export type Sort = {
-  key: Scalars["String"]["input"];
+  field: Scalars["String"]["input"];
   mode?: InputMaybe<SortMode>;
   order?: SortOp;
 };

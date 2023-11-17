@@ -1,8 +1,8 @@
 import { graphql } from "@/gql";
-import { ConditionalOp, TypeHint, TypeTag, type Conditional } from "@/gql/graphql";
+import { ConditionalOp, TypeHint, TypeTag, type Conditional, StatementType } from "@/gql/graphql";
 import { useCurrentModule } from "@/state/module";
 import type { useFields } from "@/state/statement";
-import { SubfieldType, TypeStorageFormat, getStorageFormat } from "@/state/type";
+import { TypeStorageFormat, getStorageFormat } from "@/state/type";
 import { useDebounceFn } from "@vueuse/core";
 import { computed, ref, watch, type Ref } from "vue";
 
@@ -55,7 +55,7 @@ export function useDatabaseInlineSearch(
     fields.allFields.value.filter(
       (f) =>
         f.tag == TypeTag.Enum ||
-        (f.tag == TypeTag.TypeReference && module.statementOf(f.referenceCk)?.tag == TypeTag.Enum)
+        (f.tag == TypeTag.TypeReference && module.statementOf(f.referenceCk)?.type == StatementType.Choice)
     )
   );
   // TODO @UX: apply inline search to local records immediately/optmistically
@@ -68,7 +68,7 @@ export function useDatabaseInlineSearch(
         (f) =>
           ({
             op: ConditionalOp.Matches,
-            key: "value." + module.getTypedKey(f),
+            field: "value." + module.getTypedKey(f),
             value: query.value,
           } as Conditional)
       ),
@@ -76,7 +76,7 @@ export function useDatabaseInlineSearch(
         (f) =>
           ({
             op: ConditionalOp.StartsWith,
-            key: "value." + module.getTypedKey(f) + "." + SubfieldType.starts_with,
+            field: "value." + module.getTypedKey(f),
             value: query.value?.toLowerCase(), // :StartsWithHack
           } as Conditional)
       ),
@@ -88,7 +88,7 @@ export function useDatabaseInlineSearch(
         ?.fields.filter((m) => m.name?.toLowerCase().startsWith(query.value?.toLowerCase() ?? ""));
       if (matchingMembers == null || matchingMembers.length == 0) continue;
       subclauses.push({
-        key: "value." + module.getTypedKey(enumField),
+        field: "value." + module.getTypedKey(enumField),
         op: ConditionalOp.Equals,
         value: matchingMembers.map((m) => m.key),
       } as Conditional);

@@ -155,7 +155,7 @@ input ClientUpsertInput {
 
 input Conditional {
   op: ConditionalOp!
-  key: String = null
+  field: String = null
   value: JSON = null
   clauses: [Conditional!] = null
 }
@@ -1509,7 +1509,7 @@ type SnapshotPayload {
 union SnapshotPayloadOperationInfo = SnapshotPayload | OperationInfo
 
 input Sort {
-  key: String!
+  field: String!
   order: SortOp! = ASCENDING
   mode: SortMode = null
 }
