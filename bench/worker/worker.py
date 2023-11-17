@@ -20,7 +20,7 @@ from bench.language.const import (
     SessionAccessLevel,
 )
 from bench.language.edit import EditData
-from bench.language.libs import DEFAULT_MODULES
+from bench.language.libs import DEFAULT_DEPENDENCIES, DEFAULT_MODULES
 from bench.language.model import ModelError
 from bench.language.module import _NodeChange
 from bench.language.packer import map_value, unkey_value, unpack_value_flat
@@ -117,9 +117,10 @@ class WorkerNode(Monitored):
         self.workers: dict[UUID, ModuleWorkerProcess] = {}
         self.subs = []
         self.tasks = TaskManager()
-        self.cached_committed_modules: dict[
+        self._cached_module_source: dict[
             ModuleReference, tuple[wire.ModuleTreeData, ModuleInfo]
         ] = {}
+        self._cached_modules: dict[ModuleReference, Module] = {}
         self._ready = asyncio.Event()
         self.log = logger.bind(
             worker_node=self.worker_node_id,
@@ -153,7 +154,19 @@ class WorkerNode(Monitored):
             module._project_id = info.project_id
             module._os_name = info.os_name
             module._pg_name = info.pg_name
-            self.cached_committed_modules[module_ref] = module, info
+            self._cached_module_source[module_ref] = module, info
+        # and add other default dependencies
+        for module_name in DEFAULT_DEPENDENCIES:
+            module_ref = ModuleReference(name=module_name, version="x", id=None)
+            module_loaded, info = await self.read_module(module_ref)
+            self._cached_module_source[module_ref] = module_loaded, info
+            module = await sync_to_async(Module.make)(
+                source=module_loaded.nodes,
+                project_id=info.project_id,
+                os_name=info.os_name,
+                pg_name=info.pg_name,
+            )
+            self._cached_modules[module_ref] = module
 
         # topics for .project.module or just .project
         m_routing = f"{self.project_id}.*" if self.project_id else ">"
@@ -350,7 +363,7 @@ class WorkerNode(Monitored):
     ) -> tuple[wire.ModuleTreeData, ModuleInfo]:
         """Gets a modules wire data"""
         log = self.log.bind(ref=ref)
-        cached = self.cached_committed_modules.get(ref)
+        cached = self._cached_module_source.get(ref)
         if cached is not None:
             log.debug("module.fetch", cached=True)
             return cached
@@ -363,7 +376,7 @@ class WorkerNode(Monitored):
             retry_delay=10,
         )
         if module_rep.p.module.committed:
-            self.cached_committed_modules[ref] = module_rep.p.module, module_rep.p.project_id
+            self._cached_module_source[ref] = module_rep.p.module, module_rep.p.project_id
         log.debug("module.fetch", cached=False)
         return module_rep.p.module, ModuleInfo(
             project_id=module_rep.p.project_id,
@@ -469,6 +482,10 @@ class ModuleWorkerProcess(RuntimeHost):
                 os_name=info.os_name,
                 pg_name=info.pg_name,
             )
+            for dependency_name in DEFAULT_DEPENDENCIES:
+                dependency_ref = ModuleReference(name=dependency_name, version="x", id=None)
+                dependency = self.node._cached_modules[dependency_ref]
+                self.module.add_dependency(dependency)
             self.log = self.log.bind(module=self.module.name)
         except BaseException as e:
             self.log.error("module.init.failed", exc_info=e)

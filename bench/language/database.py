@@ -22,10 +22,12 @@ from bench.language.module import (
     node,
     node_component,
     nparent,
+    nruntime,
 )
 from bench.language.value import HasValue
 from bench.search.client import os_client
 from bench.search.core import DocumentType
+from bench.sql.core import EPHEMERAL_RECORD_TABLE, Table
 from bench.utils.func import describe_type
 from bench.utils.utils import flatten
 
@@ -398,24 +400,14 @@ class RecordRelationToMany(RecordRelation):
 
 
 class RecordList(NodeListBase[Record], RecordBaseQuery):
-    """
-    Implements NodeList protocol for remote records with a local cache.
-    TODO @UX @Performance: turn record list into proper hybrid list? (:BE-352)
-    """
+    """A NodeList for remote records."""
 
     def __init__(self, parent: "ScopeNode", property: NodeProperty):
         NodeListBase[Record].__init__(self, parent, property)
         RecordBaseQuery.__init__(self, parent)
-        self._cached_records_by_ck: dict[UUID, Record] | None = None
-        if parent._new:
-            # right now we only use the cache for new databases to avoid cache complexity (see above)
-            self._cached_records_by_ck = {}
 
     def __str__(self):
-        if self._cached_records_by_ck is None:
-            return "remote"  # can't really say anything useful here
-        else:
-            return str(self._cached_records_by_ck.values())
+        return f"from {self._parent._table}"
 
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, not part of regular tree
@@ -425,9 +417,6 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
         node.parent = self._parent
         if node.id is None and self._parent.attached:
             node._assign_id(self._parent.module.id)
-        # update cache
-        if self._cached_records_by_ck is not None:
-            self._cached_records_by_ck[node.ck] = node  # not quite right, see :BE-352
         # 'create' node
         if _create:
             if self._parent._session:
@@ -438,7 +427,7 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
         # update affected nodes
         if _trigger:
             _ChangeEffect._collect(None, self._parent, [node], _trigger)._effect(_trigger)
-        # 'create' node (for real)
+        # 'create' node in session
         if _create and self._parent._session and self._parent.attached:
             self._parent.session._tracer.node_create(node)
 
@@ -455,7 +444,7 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
         # update affected nodes
         if _trigger:
             _ChangeEffect._collect(None, self._parent, nodes, _trigger)._effect(_trigger)
-        # 'create' nodes (for real)
+        # 'create' nodes in session
         if _create and self._parent._session and self._parent.attached:
             self._parent.session._tracer.node_create(*nodes)
 
@@ -466,8 +455,6 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
             if not self._parent.attached:
                 self._parent._local_root_tree.remove(node)
         node.parent = None
-        if self._cached_records_by_ck is not None and node.ck in self._cached_records_by_ck:
-            del self._cached_records_by_ck[node.ck]
 
     def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
         if _delete:
@@ -475,8 +462,6 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
                 self._parent._session._tracer.node_truncate(self._parent, MNT.RECORD)
             if not self._parent.attached:
                 self._parent._local_root_tree.truncate(self._parent, MNT.RECORD)
-        if self._cached_records_by_ck is not None:
-            self._cached_records_by_ck.clear()
 
     def __getitem__(self, item: slice):
         raise NotImplementedError(f"index into {self!r} not yet supported")
@@ -489,31 +474,34 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
     #
 
     def __len__(self):
-        if self._cached_records_by_ck is not None:
-            return len(self._cached_records_by_ck)
         return RecordBaseQuery.__len__(self)
 
     def __iter__(self):
-        if self._cached_records_by_ck is not None:
-            return iter(self._cached_records_by_ck.values())
         return RecordBaseQuery.__iter__(self)
 
     def __aiter__(self):
-        if self._cached_records_by_ck is not None:
-            return iter(self._cached_records_by_ck.values())
         return RecordBaseQuery.__aiter__(self)
 
 
 @node_component
 class HasDatabase(Node):
     views: NodeList["View"] = nchildren(MNT.VIEW, NRel.Named | NRel.Ordered)
-    records: NodeList["Record"] = nchildren(MNT.RECORD, NRel.Remote, custom_list=RecordList)
+    records: NodeList[Record] = nchildren(MNT.RECORD, NRel.Remote, custom_list=RecordList)
+    _table: Optional[Table] = nruntime(default=None)
 
     def _init_inner(self):
         # this runs before HasFields because of the ordering in
         #  (which is necessary because HasFields also sets key)
         if self.key is None:
             self.key = self._derive_key()
+
+    def _clear_inner(self, scope: Optional["ScopeNode"]) -> None:
+        self._table = None
+
+    def _interp_inner(self, scope: "ScopeNode") -> None:
+        from bench.sql.mapping import map_to_pg_table
+
+        self._table = map_to_pg_table(self) if not self.ephemeral else EPHEMERAL_RECORD_TABLE
 
     @property
     def ephemeral(self) -> bool:
