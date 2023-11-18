@@ -168,6 +168,10 @@ class Session:
         finally:
             self.access_level = old_access
 
+    def check_access(self, access_level: SessionAccessLevel):
+        if access_level > self.access_level:
+            raise PermissionError(f"cannot {access_level} in {self!r}")
+
     @property
     def dangling(self) -> list[Node]:
         return [n for n in self._dangling_nodes_by_ck.values() if not n.parent]
@@ -433,10 +437,11 @@ class SessionTracer:
 
     #
     # Module
-    # Edits are actually written to local source in Session._do_commit.
+    # Edits are actually written to local source in session commit.
     # We don't track interp edits here because they're manually handled in runtime.
     #
 
+    # nocheckin: use mark and collect to track node changes
     def node_create(self, *nodes: Node):
         # :InterpFilter
         nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL]
@@ -452,8 +457,10 @@ class SessionTracer:
     def node_create_preflight(self, *nodes: Node):
         # used to check permission before modifying state locally
         # (only for create since this is the only edit fired 'after' making an irreversible change)
-        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL]
-        if nodes and self.session.access_level < SessionAccessLevel.Create:
+        if (
+            any(n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL)
+            and self.session.access_level < SessionAccessLevel.Create
+        ):
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
 
     def node_update(self, node: Node, properties: list[str]):

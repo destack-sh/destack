@@ -55,13 +55,14 @@ def struct(cls: type[Struct] = None):
 
 class QueryEngine(enum.StrEnum):
     LOCAL = "LOCAL"
-    RUNTIME = "RUNTIME"
+    SERVER = "SERVER"
     OPENSEARCH = "OS"
     POSTGRES = "PG"
 
 
 class QueryEngineIncapableError(Exception):
-    pass
+    def __init__(self, engine: QueryEngine, expr: Expression, reason: str):
+        super().__init__(f"query engine {engine.value} is incapable of {expr}: {reason}")
 
 
 class ExpressionKind(enum.StrEnum):
@@ -82,14 +83,14 @@ class ConditionalOp(enum.StrEnum):
     GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
     LESS_THAN = "LESS_THAN"
     LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
+    # string comparison
+    MATCHES = "MATCHES"
+    STARTS_WITH = "STARTS_WITH"
     # containment
     CONTAINS = "CONTAINS"
     NOT_CONTAINS = "NOT_CONTAINS"
     IN = "IN"
     NOT_IN = "NOT_IN"
-    # string comparison
-    MATCHES = "MATCHES"
-    STARTS_WITH = "STARTS_WITH"
     # existence
     EXISTS = "EXISTS"
     NOT_EXISTS = "DOES_NOT_EXIST"
@@ -155,6 +156,12 @@ class Expression(Struct):
 class FieldExpression(Expression):
     field: Field | FieldReference = required_field()
 
+    def _field_str(self) -> str:
+        if isinstance(self.field, Field):
+            return self.field.py_ident
+        else:
+            return str(self.field)
+
     def _clear(self, scope: Optional["ScopeNode"] = None):
         if not isinstance(self.field, UUID) and (
             scope is None or self.field.ck in scope._local_root_tree
@@ -195,7 +202,13 @@ _OP_SIGN: dict[ConditionalOp, str] = {
 class ExpressionOps:
     # Conditionals
     COND_LOGICAL = {ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR}
-    COND_EXACT = {ConditionalOp.EQUALS, ConditionalOp.NOT_EQUALS}
+    COND_EXACT = {
+        ConditionalOp.EQUALS,
+        ConditionalOp.NOT_EQUALS,
+        ConditionalOp.IN,
+        ConditionalOp.NOT_IN,
+    }
+    COND_STRUCT = {ConditionalOp.CONTAINS, ConditionalOp.NOT_CONTAINS}
     COND_RANGE = {
         ConditionalOp.GREATER_THAN,
         ConditionalOp.GREATER_THAN_OR_EQUALS,
@@ -380,13 +393,6 @@ for super_t, kind in list(EXPRESSION_KIND_BY_CLASS.items()):
         EXPRESSION_KIND_BY_CLASS[sub_t] = kind
 
 
-def get_default_sort(query: "Conditional") -> list["Sort"]:
-    if query.is_scored:
-        return [Sort("_score", SortOp.DESCENDING)]
-    else:
-        return [Sort("_id", SortOp.ASCENDING)]
-
-
 # single-letter convenience constructors
 def E(op: ExpressionOp, *args, _expect_t: type[Expression] = None, **kwargs) -> Sort:
     cls = EXPRESSION_CLASS_BY_OP[op]
@@ -400,6 +406,7 @@ C = functools.partial(E, _expect_t=Conditional)
 S = functools.partial(E, _expect_t=Sort)
 A = functools.partial(E, _expect_t=Aggregation)
 
+SCORE_KEY = "_score"  # for ranking
 TYPE_DISCRIMINATOR_KEY = "_type"
 
 
@@ -470,11 +477,6 @@ class FieldQueryOps:
         # coerce to field to get its key
         if self._effective_tag == TypeTag.ENUM and not isinstance(value, Field):
             value = self.resolved_fields.get(value)
-        # coerce field to key
-        if isinstance(value, Field):
-            if value._effective_tag != TypeTag.LITERAL:
-                # prevent confusion since this doesn't translate to a valid query
-                raise TypeError(f"cannot compare a field to a non-literal field: {self} == {value}")
         return value
 
     # comparison

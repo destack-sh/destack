@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
 from uuid import UUID
 
 from bench.language.const import INTERP_NODE_TYPES, MNT, IssueType, StatementReference
-from bench.language.expression import Sort
+from bench.language.expression import S, SortOp
 from bench.language.module import Node, ScopeNode, node_component, nproperty
 from bench.utils.utils import identity
 
@@ -135,7 +135,10 @@ class NodeView:
         seen_by_ck: dict[UUID, Node] = {}
         for database in databases:
             # sort by ck for consistency
-            records = await database.records.sort(Sort("ck")).first(limit).atolist()
+            # nocheckin: revisit view records when we have proper databases
+            records = (
+                await database.records.sort(S(SortOp.ASCENDING, field="ck")).first(limit).tolist()
+            )
             for record in records:
                 seen_by_ck[record.ck] = record
 

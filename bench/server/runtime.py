@@ -3,7 +3,7 @@ import json
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Optional
 from uuid import UUID, uuid4
 
 import structlog
@@ -34,6 +34,7 @@ from bench.language.const import (
     parse_absolute_node_reference,
 )
 from bench.language.edit import EditData, EditKind, NodeTreeEditor
+from bench.language.expression import SCORE_KEY, Sort, SortOp
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.packer import pack_value, unpack_value
@@ -85,7 +86,7 @@ from bench.msg.messages import (
 )
 from bench.search import mirror
 from bench.search.core import DocumentType
-from bench.search.engine import compile_os_query, encode_os_cursor, os_search, update_os_schema
+from bench.search.engine import compile_os_search, os_search, update_os_schema
 from bench.server import search
 from bench.server.observer import WorkerObserver
 from bench.server.search import write_edits_to_os
@@ -819,31 +820,27 @@ class RuntimeHost:
         """
         try:
             query = wire.unpack_data(msg.p.query, self.module) if msg.p.query else None
+            query = Conditional.and_if_set(
+                query,
+                C(ConditionalOp.EQUALS, "statement_key", value=msg.p.statement_key),
+                ~C(ConditionalOp.EXISTS, "deleted_at"),
+            )
             sort = [wire.unpack_data(s, self.module) for s in msg.p.sort] if msg.p.sort else None
-            search = compile_os_query(
+            if not sort and query.scored:
+                sort = [Sort(SortOp.DESCENDING, key=SCORE_KEY)]
+            search = compile_os_search(
                 type=DocumentType.RECORD,
                 limit=msg.p.limit,
                 count=msg.p.count,
                 after=msg.p.after,
                 sort=sort,
-                query=Conditional.and_if_set(
-                    query,
-                    C(ConditionalOp.EQUALS, "statement_key", value=msg.p.statement_key),
-                ),
+                query=query,
             )
-            results = await os_search(self.project_version.project.os_name, search)
-            records: list[Any] = []
-            cursors: list[str] = []
-            for r in results["hits"]["hits"]:
-                record_doc = mirror.Record.from_dict(r["_source"], r["_id"])
-                record = mirror.pack_node_flat(record_doc)
-                records.append(record)
-                cursor = encode_os_cursor(r, msg.p.after, i=len(records))
-                cursors.append(cursor)
+            os_results = await os_search(self.project_version.project.os_name, search)
             rep = RepSearchRecordsPayload(
-                records=records,
-                cursors=cursors,
-                total=(results["hits"]["total"]["value"] if msg.p.count else None),
+                records=os_results.as_records(),
+                cursors=os_results.cursors,
+                total=os_results.total,
                 limit=msg.p.limit,
             )
         except Exception as e:

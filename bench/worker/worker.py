@@ -372,7 +372,7 @@ class WorkerNode(Monitored):
             ReqReadModulePayload(ref),
             RepReadModulePayload,
             retry=5,
-            timeout=15,
+            timeout=10,
             retry_delay=10,
         )
         if module_rep.p.module.committed:

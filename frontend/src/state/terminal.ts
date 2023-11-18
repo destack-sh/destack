@@ -43,7 +43,7 @@ function _useTerminal() {
         clauses: [
           {
             op: ConditionalOp.Equals,
-            key: "value." + botLabelKey.value,
+            field: "value." + botLabelKey.value,
             value: TERMINAL_BOT_LABEL,
           },
         ],

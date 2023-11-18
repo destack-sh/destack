@@ -59,7 +59,7 @@ from bench.msg.messages import (
 )
 from bench.search import mirror
 from bench.search.core import DocumentType
-from bench.search.engine import compile_os_query, encode_os_cursor, os_search_sync
+from bench.search.engine import compile_os_search, encode_os_cursor, os_search_sync
 from bench.server.search import write_runs_to_os
 
 if TYPE_CHECKING:
@@ -482,13 +482,12 @@ class SessionQuery:
                 query, lang.C(ConditionalOp.NOT_EXISTS, "parent_id")
             )
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
-        sort = (
-            [s.to_bench() for s in sort] if sort else [lang.Sort("created_at", SortOp.DESCENDING)]
-        )
+        default_sort = [lang.S(SortOp.DESCENDING, field="created_at")]
+        sort = [s.to_bench() for s in sort] if sort else default_sort
 
         logger.debug("runs.search", project_id=project_id, query=query, sort=sort)
         # query id only and then fetch full run from DB
-        search = compile_os_query(
+        search = compile_os_search(
             type=DocumentType.RUN,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
@@ -559,9 +558,8 @@ class SessionQuery:
         statement_ids = to_uuids(statement_ids)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
-        sort = (
-            [s.to_bench() for s in sort] if sort else [lang.Sort("created_at", SortOp.DESCENDING)]
-        )
+        default_sort = [lang.S(SortOp.DESCENDING, field="created_at")]
+        sort = [s.to_bench() for s in sort] if sort else default_sort
         query = query.to_bench() if query else None
         if session_id:
             query = lang.Conditional.and_if_set(
@@ -580,7 +578,7 @@ class SessionQuery:
                 query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
             )
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
-        search = compile_os_query(
+        search = compile_os_search(
             type=DocumentType.LOG_ENTRY,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
