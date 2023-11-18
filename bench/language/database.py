@@ -6,8 +6,8 @@ from uuid import UUID
 import structlog
 
 from bench.language.builtin import _auto_async_to_sync
-from bench.language.const import MNT, new_dynamic_node_key
-from bench.language.expression import C, Conditional, ConditionalOp, Sort
+from bench.language.const import MNT, SessionAccessLevel, new_dynamic_node_key
+from bench.language.expression import C, Conditional, ConditionalOp, QueryEngine, Sort
 from bench.language.module import (
     _NC,
     NS,
@@ -115,6 +115,7 @@ class RecordBaseQuery:
         distinct: list["Field"] = None,
         first: int = None,
         skip: int = None,
+        engine: Optional[QueryEngine] = None,
     ):
         self._database = database
         self._query = query
@@ -124,6 +125,7 @@ class RecordBaseQuery:
         self._distinct = distinct
         self._first = first
         self._skip = skip
+        self._engine = engine
         self._result_cache: list[Record] | None = None
 
     def __str__(self):
@@ -137,7 +139,7 @@ class RecordBaseQuery:
     def __repr__(self):
         return f"<RecordQuery {self}>"
 
-    def deepcopy(self):
+    def copy(self):
         """Clones the query (the properties are immutable)."""
         return RecordBaseQuery(
             database=self._database,
@@ -148,12 +150,21 @@ class RecordBaseQuery:
             distinct=self._distinct,
             first=self._first,
             skip=self._skip,
+            engine=self._engine,
         )
+
+    def using(self, engine: QueryEngine) -> "RecordBaseQuery":
+        """Forces use of a query engine."""
+        copy = self.copy()
+        copy._engine = engine
+        return copy
+
+    def _invalidate(self):
+        self._result_cache = None
 
     async def _execute(self, session: "Session") -> list[Record]:
         from bench.language import wire
-        from bench.search import mirror
-        from bench.search.engine import compile_os_query, os_search
+        from bench.search.engine import compile_os_search, os_search
 
         # nocheckin: 8. reroute record query through local DB if possible
         # force flush and index if there are any pending database edits
@@ -162,36 +173,31 @@ class RecordBaseQuery:
         if session._editor.edits or session._past_commits:
             await session.commit(refresh_index=True)
 
-        query = Conditional.and_if_set(
-            self._query, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
+        where = Conditional.and_if_set(
+            self._query,
+            C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
+            & ~C(ConditionalOp.EXISTS, "deleted_at"),
         )
         limit = self._first or LOCAL_RECORD_CACHE_LIMIT
-        query = compile_os_query(
-            type=DocumentType.RECORD,
-            project_version_id=None,
-            query=query,
-            limit=limit + 1,
-            count=True,
-            sort=self._sort,
+        logger.debug("record.query", query=self, where=where, limit=limit)
+
+        # prefer sql engine if possible
+        search = compile_os_search(
+            type=DocumentType.RECORD, query=where, limit=limit, count=False, sort=self._sort
         )
-        logger.debug("record.query", query=self, actual=query, limit=limit)
-        os_name = self._database.module.os_name  # may be different from current session's module
-        os_results = await os_search(os_name, query)
-        results: list[Record] = []
-        record_mirror = mirror._packers_by_mirror[mirror.Record]
-        has_more = len(os_results["hits"]["hits"]) > limit
-        total = os_results["hits"]["total"]["value"]
-        for hit in os_results["hits"]["hits"][:limit]:
-            record_doc = mirror.Record.from_dict(hit["_source"], hit["_id"])
-            record_data = record_mirror.pack(record_doc)
+        os_results = await os_search(self._database.module.os_name, search)
+        records_data = os_results.as_records()
+
+        # turn into records
+        records: list[Record] = []
+        for record_data in records_data:
             record: Record = wire.unpack_node_flat(record_data, self._database, session)
             record._activate_self(session)
-            results.append(record)
-        self._result_cache = results
-        logger.debug(
-            "record.query.done", query=self, results=len(results), total=total, has_more=has_more
-        )
-        return results
+            records.append(record)
+
+        self._result_cache = records
+        logger.debug("record.query.done", query=self, results=len(records))
+        return records
 
     async def __aiter__(self):
         if self._result_cache is None:
@@ -210,17 +216,28 @@ class RecordBaseQuery:
         return iter(self._result_cache)
 
     def __len__(self):
+        if self._result_cache is not None:
+            return len(self._result_cache)
         return self.count()
+
+    @_auto_async_to_sync
+    async def get(self, query: Conditional) -> Record:
+        """Returns the unique result matching the query (errors otherwise)."""
+        results = await self.filter(query).tolist()
+        if len(results) == 1:
+            return results[0]
+        else:
+            raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results}")
 
     def filter(self, query: Conditional) -> "RecordBaseQuery":
         """Adds a filter clause to the query."""
-        copy = self.deepcopy()
+        copy = self.copy()
         copy._query = query & self._query if self._query else query
         return copy
 
     def sort(self, sort: list[Sort] | Sort) -> "RecordBaseQuery":
         """Sorts the query results by the given sort criteria."""
-        copy = self.deepcopy()
+        copy = self.copy()
         if not isinstance(sort, list):
             sort = [sort]
         copy._sort = sort
@@ -240,52 +257,62 @@ class RecordBaseQuery:
 
     def first(self, count: int) -> "RecordBaseQuery":
         """Returns the first N results."""
-        copy = self.deepcopy()
+        copy = self.copy()
         copy._first = count
         return copy
 
     def skip(self, count: int) -> "RecordBaseQuery":
         """Skips the first N results."""
-        copy = self.deepcopy()
+        copy = self.copy()
         copy._skip = count
         return copy
+
+    def __getitem__(self, item: slice | int) -> typing.Union["RecordBaseQuery", Record]:
+        if isinstance(item, slice):
+            if item.stop is None:
+                return self.skip(item.start or 0)
+            elif item.start is not None:
+                return self.skip(item.start).first(item.stop - item.start)
+            else:
+                return self.first(item.stop)
+        elif isinstance(item, int):
+            if self._result_cache is None:
+                self._database.session.async_to_sync(self._execute)(self._database.session)
+            if item < 0:
+                item += len(self._result_cache)
+            if item >= len(self._result_cache):
+                raise IndexError(f"index {item} out of range for {self!r} (got {len(self)})")
+            return self._result_cache[item]
+        else:
+            raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
     @_auto_async_to_sync
     async def count(self) -> int:
         """Returns the number of results."""
         assert not self._first and not self._skip, "bounded count is deliberately not supported"
         assert not self._sort, "sorted count is deliberately not supported"
+        if self._result_cache is not None:
+            return len(self._result_cache)
         raise NotImplementedError("nocheckin")
 
     @_auto_async_to_sync
     async def update(self, **kwargs) -> int:
         """Updates all results with the given values."""
+
+        self._database.session.check_access(SessionAccessLevel.Update)
+        # return the full updated values to update in OS
         raise NotImplementedError("not yet supported")
 
     @_auto_async_to_sync
     async def delete(self) -> int:
         """Deletes all results."""
+        self._database.session.check_access(SessionAccessLevel.Delete)
+        # return the ids to delete in OS
         raise NotImplementedError("not yet supported")
 
     def group_by(self, *fields: "Field") -> "RecordBaseQuery":
         """Groups the results by the given fields."""
         raise NotImplementedError
-
-
-class RecordSingleAggregationQuery(RecordBaseQuery):
-    """
-    Aggregate results into a single value.
-    """
-
-    pass  # (not yet supported)
-
-
-class RecordGroupAggregationQuery(RecordBaseQuery):
-    """
-    Bucket and aggregate results.
-    """
-
-    pass  # (not yet supported)
 
 
 class RelationType(enum.StrEnum):
@@ -372,7 +399,7 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
         RecordBaseQuery.__init__(self, parent)
 
     def __str__(self):
-        return f"from {self._parent._table}"
+        return f"from {self._parent._table.name}"
 
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, not part of regular tree
@@ -429,7 +456,7 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
                 self._parent._local_root_tree.truncate(self._parent, MNT.RECORD)
 
     def __getitem__(self, item: slice):
-        raise NotImplementedError(f"index into {self!r} not yet supported")
+        return RecordBaseQuery.__getitem__(self, item)
 
     def __contains__(self, obj: object) -> bool:
         return False  # lookup by id?
@@ -471,7 +498,7 @@ class HasDatabase(Node):
     @property
     def ephemeral(self) -> bool:
         # basically whether this should be 1:1 a real database table or just virtual
-        return True  # nocheckin: 11. make database non-ephemeral by default
+        return True  # nocheckin: 10. make database non-ephemeral by default
 
     @staticmethod
     def _derive_key(instance: "HasDatabase") -> str | None:
@@ -493,3 +520,6 @@ class HasDatabase(Node):
 
     def _len_inner(self):
         return len(self.records)
+
+    def _getitem_inner(self, item):
+        return self.records[item]

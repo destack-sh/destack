@@ -242,7 +242,7 @@ async def request(
                 retry=retry,
             )
             retry -= 1
-            if retry < 0 or not isinstance(e, retry_except):
+            if retry < 0 or retry_except and not isinstance(e, retry_except):
                 raise MessagingError(
                     f"request {type.name} failed (retries={num_retries}, timeout={timeout})"
                 ) from e

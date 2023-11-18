@@ -304,6 +304,7 @@ class NodeMethod(enum.Enum):
     iter = "iter"
     aiter = "aiter"
     len = "len"
+    getitem = "getitem"
 
     @property
     def inner(self) -> str:
@@ -1510,7 +1511,7 @@ def _make_inner_dunder_method(method: NodeMethod):
 
     def inner_method(self: "Node", *args, **kwargs):
         meths = _get_component_methods(self._components, method, self._concrete_cache_key)
-        if len(meths) < 2:  # includes this one
+        if len(meths) <= 1:  # includes this one
             raise RuntimeError(f"{self!r} does not support {method.name}")
         return meths[1](self, *args, **kwargs)
 
@@ -1771,11 +1772,13 @@ class Node(abc.ABC):
     _iter_inner = _make_inner_dunder_method(NodeMethod.iter)
     _aiter_inner = _make_inner_dunder_method(NodeMethod.aiter)
     _len_inner = _make_inner_dunder_method(NodeMethod.len)
+    _getitem_inner = _make_inner_dunder_method(NodeMethod.getitem)
 
     __call__ = _call_inner
     __iter__ = _iter_inner
     __aiter__ = _aiter_inner
     __len__ = _len_inner
+    __getitem__ = _getitem_inner
 
     def __bool__(self):
         return True  # allow truthy checks for nodes

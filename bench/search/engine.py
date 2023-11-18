@@ -18,6 +18,7 @@ from bench.language import (
     SortOp,
     TypeHint,
     TypeTag,
+    wire,
 )
 from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
 from bench.language.edit import MET, MNT
@@ -26,8 +27,8 @@ from bench.language.expression import (
     ComparisonConditional,
     CompoundConditional,
     ExistenceConditional,
-    VectorConditional,
-    get_default_sort,
+    QueryEngine,
+    QueryEngineIncapableError,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
 from bench.language.packer import TYPENAME_SENTINEL
@@ -169,7 +170,7 @@ register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 register_mapper(VectorFieldMapper(), tags=[TypeTag.VECTOR])
 # vector
 register_mapper(os.Field(os.FT.FLAT_OBJECT), tags=[TypeTag.JSON])
-# file
+# blob
 register_mapper(
     os.Field(
         os.FT.OBJECT,
@@ -218,12 +219,7 @@ DOCUMENTS_BY_INDEX = {
         mirror.Field,
         mirror.Comment,
     ],
-    IndexType.LOCAL: [
-        mirror.Record,
-        mirror.Session,
-        mirror.Run,
-        mirror.LogEntry,
-    ],
+    IndexType.LOCAL: [mirror.Record, mirror.Session, mirror.Run, mirror.LogEntry],
 }
 SEARCH_SEMANTIC_EDIT_TYPES = {
     MET.CREATE_FIELD,
@@ -311,21 +307,21 @@ async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict"
 #
 
 
-_SUPPORTED_SUBFIELDS_BY_TYPE: dict[TypeHint | TypeTag, set[SubfieldType]] = {
+_SUPPORTED_SUBFIELDS_BY_TYPE: dict[TypeHint | TypeTag, tuple[SubfieldType, ...]] = {
     # cumulative supported subfields by type
-    TypeHint.EMAIL: {SubfieldType.key, SubfieldType.starts_with},
-    TypeHint.NAME: {SubfieldType.key, SubfieldType.starts_with},
+    TypeHint.EMAIL: (SubfieldType.key, SubfieldType.starts_with),
+    TypeHint.NAME: (SubfieldType.key, SubfieldType.starts_with),
 }
 
 
 @dataclass
-class CompilationInfo:
+class CompilationContext:
     root_limit: Optional[int]
 
 
 class Compiler(ABC):
     @abstractmethod
-    def compile(self, info: CompilationInfo, obj: Any) -> dict[str, Any]:
+    def compile(self, ctx: CompilationContext, obj: Any) -> dict[str, Any]:
         raise NotImplementedError
 
 
@@ -344,101 +340,75 @@ def compiler(dsl_type: type):
     return wrapper
 
 
-@compiler(CompoundConditional)
-class CompoundQueryCompiler(Compiler):
-    MAPPING = {
-        ConditionalOp.NOT: "must_not",
-        ConditionalOp.AND: "must",
-        ConditionalOp.OR: "should",
-    }
-
-    def compile(self, info: CompilationInfo, query: CompoundConditional) -> dict[str, Any]:
-        return {"bool": {self.MAPPING[query.op]: compile_to_os(info, query.clauses)}}
+OS_CONDITIONAL_OP_BY_BENCH = {
+    ConditionalOp.NOT: "must_not",
+    ConditionalOp.AND: "must",
+    ConditionalOp.OR: "should",
+}
 
 
-@compiler(ComparisonConditional)
-class ComparisonQueryCompiler(Compiler):
-    def compile(self, info: CompilationInfo, query: ComparisonConditional) -> dict[str, Any]:
-        if query.op == ConditionalOp.EQUALS:
-            if isinstance(query.value, list):
-                return {"terms": {query.field_key: query.value}}
+def _compile_field_key(field: lang.Field) -> str:
+    return field._source_key  # nocheckin: compile :BuiltInFields
+
+
+def compile_os_conditional(ctx: CompilationContext, cond: Conditional) -> dict[str, Any]:
+    if isinstance(cond, CompoundConditional):
+        clauses = [compile_os_conditional(ctx, c) for c in cond.clauses]
+        return {"bool": {OS_CONDITIONAL_OP_BY_BENCH[cond.op]: clauses}}
+    elif isinstance(cond, ComparisonConditional):
+        key = _compile_field_key(cond.field)
+        if cond.op == ConditionalOp.EQUALS:
+            if isinstance(cond.value, list):
+                return {"terms": {key: cond.value}}
             else:
-                return {"term": {query.field_key: query.value}}
-        elif query.op == ConditionalOp.NOT_EQUALS:
-            return {"bool": {"must_not": {"term": {query.field_key: query.value}}}}
-        elif query.op == ConditionalOp.GREATER_THAN:
-            return {"range": {query.field_key: {"gt": query.value}}}
-        elif query.op == ConditionalOp.GREATER_THAN_OR_EQUALS:
-            return {"range": {query.field_key: {"gte": query.value}}}
-        elif query.op == ConditionalOp.LESS_THAN:
-            return {"range": {query.field_key: {"lt": query.value}}}
-        elif query.op == ConditionalOp.LESS_THAN_OR_EQUALS:
-            return {"range": {query.field_key: {"lte": query.value}}}
-        elif query.op == ConditionalOp.MATCHES:
-            return {"match": {query.field_key: query.value}}
-        elif query.op == ConditionalOp.STARTS_WITH:
-            return {"prefix": {query.field_key: query.value}}
-        else:
-            raise RuntimeError(f"unexpected query: {query}")
-
-
-@compiler(ExistenceConditional)
-class ExistenceQueryCompiler(Compiler):
-    def compile(self, info: CompilationInfo, query: ExistenceConditional) -> dict[str, Any]:
-        if query.op == ConditionalOp.EXISTS:
-            return {"exists": {"field": query.field_key}}
-        elif query.op == ConditionalOp.NOT_EXISTS:
-            return {"bool": {"must_not": {"exists": {"field": query.field_key}}}}
-        else:
-            raise RuntimeError(f"unexpected query: {query}")
-
-
-@compiler(VectorConditional)
-class VectorQueryCompiler(Compiler):
-    def compile(self, info: CompilationInfo, query: VectorConditional) -> dict[str, Any]:
-        if query.approximate:
+                return {"term": {key: cond.value}}
+        elif cond.op == ConditionalOp.NOT_EQUALS:
+            return {"bool": {"must_not": {"term": {key: cond.value}}}}
+        elif cond.op in (
+            ConditionalOp.GREATER_THAN,
+            ConditionalOp.GREATER_THAN_OR_EQUALS,
+            ConditionalOp.LESS_THAN,
+            ConditionalOp.LESS_THAN_OR_EQUALS,
+        ):
+            return {"range": {key: {OS_CONDITIONAL_OP_BY_BENCH[cond.op]: cond.value}}}
+        elif cond.op == ConditionalOp.MATCHES:
+            return {"match": {key: cond.value}}
+        elif cond.op == ConditionalOp.STARTS_WITH:
+            return {"prefix": {key: cond.value}}
+        elif cond.op == ConditionalOp.NEAR:
             # TODO @Performance @Robustness: tune knn k relative to database and query limit
-            return {"knn": {query.field_key: {"vector": query.value, "k": info.root_limit * 2}}}
-        else:
-            raise NotImplementedError(f"exact knn not implemented: {query}")
+            return {"kn": {key: {"vector": cond.value, "k": ctx.root_limit * 2}}}
+    elif isinstance(cond, ExistenceConditional):
+        key = _compile_field_key(cond.field)
+        if cond.op == ConditionalOp.EXISTS:
+            return {"exists": {"field": key}}
+        elif cond.op == ConditionalOp.NOT_EXISTS:
+            return {"bool": {"must_not": {"exists": {"field": key}}}}
+    raise QueryEngineIncapableError(QueryEngine.OPENSEARCH, cond, "unsupported conditional")
 
 
-@compiler(Sort)
-class SortCompiler(Compiler):
-    SORT_ORDERS = {
-        SortOp.ASCENDING: "asc",
-        SortOp.DESCENDING: "desc",
-    }
-    SORT_MODES = {
-        SortMode.MIN: "min",
-        SortMode.MAX: "max",
-        SortMode.AVERAGE: "avg",
-        SortMode.MEDIAN: "median",
-        SortMode.SUM: "sum",
-    }
-
-    def compile(self, info: CompilationInfo, sort: Sort) -> dict[str, Any]:
-        props = {"order": self.SORT_ORDERS[sort.op]}
-        if sort.mode:
-            props["mode"] = self.SORT_MODES[sort.mode]
-        return {sort.field_key: props}
+OS_SORT_ORDER_BY_BENCH = {
+    SortOp.ASCENDING: "asc",
+    SortOp.DESCENDING: "desc",
+}
+OS_SORT_MODE_BY_BENCH = {
+    SortMode.MIN: "min",
+    SortMode.MAX: "max",
+    SortMode.AVERAGE: "avg",
+    SortMode.MEDIAN: "median",
+    SortMode.SUM: "sum",
+}
 
 
-DslObj = Union[Conditional, Sort]
+def compile_os_sort(ctx: CompilationContext, sort: Sort) -> dict[str, Any]:
+    props = {"order": OS_SORT_ORDER_BY_BENCH[sort.op]}
+    if sort.mode:
+        props["mode"] = OS_SORT_MODE_BY_BENCH[sort.mode]
+    return {sort.field_key: props}
 
 
-def compile_to_os(
-    info: CompilationInfo, obj: DslObj | list[DslObj]
-) -> dict[str, Any] | list[dict[str, Any]]:
-    if isinstance(obj, list):
-        return [compile_to_os(info, o) for o in obj]
-    else:
-        compiler = _COMPILERS[type(obj)]
-        return compiler.compile(info, obj)
-
-
-@dataclass
-class SearchQuery:
+@dataclass(frozen=True)
+class OsSearch:
     """Compiled search query for OS."""
 
     type: DocumentType
@@ -469,47 +439,60 @@ class SearchQuery:
         return search
 
 
-def compile_os_query(
+@dataclass(frozen=True)
+class OsSearchResult:
+    total: Optional[int]
+    results: list[dict[str, Any]]
+    cursors: list[str]
+
+    def as_records(self) -> list[wire.RecordData]:
+        records_data: list[wire.RecordData] = []
+        for result in self.results:
+            record_doc = mirror.Record.from_dict(result["_source"], result["_id"])
+            record_data = mirror.pack_node_flat(record_doc)
+            records_data.append(record_data)
+        return records_data
+
+
+def compile_os_search(
     type: "DocumentType",
     query: Optional[Conditional] = None,
     sort: Optional[list[Sort]] = None,
     limit: int | None = None,
     count: bool = True,
     after: Optional[str] = None,
-) -> SearchQuery:
+) -> OsSearch:
     combined_query = C(
         ConditionalOp.AND,
-        clauses=[
-            C(ConditionalOp.EQUALS, TYPE_DISCRIMINATOR_KEY, value=type.value),
-            ~C(ConditionalOp.EXISTS, "deleted_at"),
-        ],
+        clauses=[C(ConditionalOp.EQUALS, TYPE_DISCRIMINATOR_KEY, value=type.value)],
     )
     if query is not None:
         combined_query &= query
     # add id to sort as tiebreaker if not already present
     if sort and not any(s.field_key == "_id" for s in sort):
         sort = sort + [Sort(field="_id")]
-    compilation = CompilationInfo(root_limit=limit)
-    compiled_query = compile_to_os(compilation, combined_query)
-    compiled_sort = compile_to_os(compilation, sort or get_default_sort(combined_query))
-    return SearchQuery(
-        type=type,
-        limit=limit,
-        count=count,
-        after=after,
-        sort=compiled_sort,
-        query=compiled_query,
+    sort = sort or [Sort(field="_id")]
+    ctx = CompilationContext(root_limit=limit)
+    compiled_query = compile_os_conditional(ctx, combined_query)
+    compiled_sort = [compile_os_sort(ctx, s) for s in sort]
+    return OsSearch(
+        type=type, limit=limit, count=count, after=after, sort=compiled_sort, query=compiled_query
     )
 
 
-async def os_search(os_name: str, query: SearchQuery) -> dict:
+async def os_search(os_name: str, query: OsSearch) -> OsSearchResult:
     """
     Executes a search query against OpenSearch.
     """
-    return await os_client.search(index=os_name, body=query.to_dict())
+    logger.debug("os.search", os_name=os_name, query=query)
+    os_results = await os_client.search(index=os_name, body=query.to_dict())
+    total = os_results["hits"]["total"]["value"] if query.count else None
+    results = os_results["hits"]["hits"]
+    cursors = [encode_os_cursor(r, query.after, i) for i, r in enumerate(results)]
+    return OsSearchResult(total=total, results=results, cursors=cursors)
 
 
-def os_search_sync(os_name: str, query: SearchQuery) -> dict:
+def os_search_sync(os_name: str, query: OsSearch) -> dict:
     """
     Executes a search query against OpenSearch.
     """
