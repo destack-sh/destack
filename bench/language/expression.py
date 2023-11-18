@@ -12,7 +12,7 @@ from bench.utils.func import get_subclasses
 from bench.utils.utils import required_field
 
 if TYPE_CHECKING:
-    from bench.language import Field, ScopeNode
+    from bench.language import Field, HasFields, ScopeNode
     from bench.language.validation import ValidationHandler
 
 
@@ -55,7 +55,7 @@ def struct(cls: type[Struct] = None):
 
 class QueryEngine(enum.StrEnum):
     LOCAL = "LOCAL"
-    SERVER = "SERVER"
+    HOST = "HOST"
     OPENSEARCH = "OS"
     POSTGRES = "PG"
 
@@ -73,6 +73,8 @@ class ExpressionKind(enum.StrEnum):
 
 class ConditionalOp(enum.StrEnum):
     # logical
+    TRUE = "TRUE"
+    FALSE = "FALSE"
     NOT = "NOT"
     AND = "AND"
     OR = "OR"
@@ -156,14 +158,15 @@ class Expression(Struct):
 class FieldExpression(Expression):
     field: Field | FieldReference = required_field()
 
+    @property
     def _field_str(self) -> str:
-        if isinstance(self.field, Field):
+        if not isinstance(self.field, (UUID, str)):
             return self.field.py_ident
         else:
             return str(self.field)
 
     def _clear(self, scope: Optional["ScopeNode"] = None):
-        if not isinstance(self.field, UUID) and (
+        if not isinstance(self.field, (UUID, str)) and (
             scope is None or self.field.ck in scope._local_root_tree
         ):
             self._set_untracked("field", self.field.ck)
@@ -201,6 +204,7 @@ _OP_SIGN: dict[ConditionalOp, str] = {
 
 class ExpressionOps:
     # Conditionals
+    COND_STATIC = {ConditionalOp.TRUE, ConditionalOp.FALSE}
     COND_LOGICAL = {ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR}
     COND_EXACT = {
         ConditionalOp.EQUALS,
@@ -291,6 +295,18 @@ class Conditional(Expression):
                 else:
                     base &= clause
         return base
+
+
+@expression(ConditionalOp.TRUE, ConditionalOp.FALSE)
+class StaticConditional(Conditional):
+    def __invert__(self):
+        if self.op == ConditionalOp.TRUE:
+            return C(ConditionalOp.FALSE)
+        else:
+            return C(ConditionalOp.TRUE)
+
+    def __str__(self):
+        return self.op.name.lower()
 
 
 @expression(ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR)
@@ -391,6 +407,46 @@ EXPRESSION_KIND_BY_CLASS: dict[type[Expression], ExpressionKind] = {
 for super_t, kind in list(EXPRESSION_KIND_BY_CLASS.items()):
     for sub_t in get_subclasses(super_t):
         EXPRESSION_KIND_BY_CLASS[sub_t] = kind
+
+CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
+    "eq": ConditionalOp.EQUALS,
+    "ne": ConditionalOp.NOT_EQUALS,
+    "gt": ConditionalOp.GREATER_THAN,
+    "gte": ConditionalOp.GREATER_THAN_OR_EQUALS,
+    "lt": ConditionalOp.LESS_THAN,
+    "lte": ConditionalOp.LESS_THAN_OR_EQUALS,
+    "in": ConditionalOp.IN,
+    "nin": ConditionalOp.NOT_IN,
+}
+
+
+def coerce_conditional(
+    statement: "HasFields", expr: Optional[Conditional], kwargs: Optional[dict[str, Any]] = None
+) -> Optional[Conditional]:
+    """
+    Coerce a conditional expression from either the given expression or kwargs.
+    Useful for basic Django-style querying (with optional __<op>, but no relation support yet).
+    """
+    if expr is not None and kwargs:
+        raise TypeError(f"cannot specify both {expr} and {kwargs}")
+    if expr is not None:
+        return expr
+
+    clauses = []
+    for arg, value in kwargs.items():
+        if "__" in arg:
+            field_key, op = arg.split("__", 1)
+        else:
+            field_key, op = arg, ConditionalOp.EQUALS
+        field = statement.resolved_fields.get(field_key)
+        if not field:
+            raise TypeError(f"unknown field {field_key}")
+        if op not in field._supported_query_ops:
+            raise TypeError(f"unsupported comparison operand {op} for field {field!r}")
+        clauses.append(ComparisonConditional(op=op, field=field, value=value))
+    if not clauses:
+        return C(ConditionalOp.TRUE)
+    return Conditional.and_if_set(*clauses)
 
 
 # single-letter convenience constructors
@@ -606,7 +662,7 @@ SUPPORTED_OPS_BY_TYPE: dict[TypeTag | TypeHint | TypeStorageFormat, set[Conditio
     TypeStorageFormat.DATE: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
     TypeStorageFormat.KEYWORD: ExprOps.COND_EXACT,
     TypeStorageFormat.VECTOR: ExprOps.COND_VECTOR,
-    TypeTag.STRING: {ConditionalOp.MATCHES},
+    TypeTag.STRING: ExprOps.COND_EXACT | {ConditionalOp.MATCHES},
     TypeHint.NAME: {ConditionalOp.STARTS_WITH},
 }
 _EMPTY_SET = set()

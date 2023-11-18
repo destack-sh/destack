@@ -445,7 +445,7 @@ class HasCode(Node):
         try:
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
-            if session._should_autocommit_this_run:
+            if session._should_autocommit:
                 await self.session.commit()
         except BaseException as exception:
             session._tracer.run_exception(self, exception)
@@ -460,7 +460,7 @@ class HasCode(Node):
         try:
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
-            if session._should_autocommit_this_run:
+            if session._should_autocommit:
                 session.commit()
         except BaseException as exception:
             session._tracer.run_exception(self, exception)

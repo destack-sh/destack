@@ -161,6 +161,8 @@ input Conditional {
 }
 
 enum ConditionalOp {
+  TRUE
+  FALSE
   NOT
   AND
   OR

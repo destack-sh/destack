@@ -192,6 +192,7 @@ export enum ConditionalOp {
   Contains = "CONTAINS",
   Equals = "EQUALS",
   Exists = "EXISTS",
+  False = "FALSE",
   GreaterThan = "GREATER_THAN",
   GreaterThanOrEquals = "GREATER_THAN_OR_EQUALS",
   In = "IN",
@@ -206,6 +207,7 @@ export enum ConditionalOp {
   NotIn = "NOT_IN",
   Or = "OR",
   StartsWith = "STARTS_WITH",
+  True = "TRUE",
 }
 
 export type DeleteObjectInput = {

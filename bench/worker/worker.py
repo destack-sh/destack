@@ -614,6 +614,7 @@ class ModuleWorkerProcess(RuntimeHost):
         Actually runs the job, and updates the job with the result.
         """
 
+        statement = None
         try:
             # init i.e. prepare session and run
             job.started.set()
@@ -714,7 +715,12 @@ class ModuleWorkerProcess(RuntimeHost):
             # deactivate session
             self.module._deactivate_rec()
             # remove anonymous statement if needed
-            if not job.run_data.statement_id and "statement" in locals() and statement.parent:
+            if (
+                not job.run_data.statement_id
+                and statement
+                and statement.parent
+                and statement in self.module._local_tree  # may not exist if reset on error
+            ):
                 statement.parent.children.remove(statement, _trigger=_NodeChange.UpdateLists)
 
             job.terminated.set()
@@ -727,6 +733,7 @@ class ModuleWorkerProcess(RuntimeHost):
         await session.open()
         try:
             await statement(**inputs)
+            await session.commit()
         except BaseException as e:
             error = RunError(
                 kind=RunErrorKind.Runtime,
@@ -759,7 +766,7 @@ class ModuleWorkerProcess(RuntimeHost):
                     logger.error("worker.flush_dirty_runs.failed", runs=len(runs))
             await asyncio.sleep(interval)
 
-    async def commit_edits(self, edits: list[EditData], refresh_index: bool) -> bool:
+    async def commit_edits(self, edits: list[EditData], refresh_index: bool = False) -> bool:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
         self.log.debug("module.commit_edits", edits=edits)
         req = ReqWriteEditsPayload(

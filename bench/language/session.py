@@ -31,6 +31,7 @@ from bench.language.module import Module, Node
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.statement import Statement
 from bench.search.client import get_os_errors, os_client
+from bench.sql.client import get_pg_connection_pool
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
@@ -46,7 +47,7 @@ logger = structlog.get_logger(__name__)
 class RuntimeHost(abc.ABC):
     """Central Bench runtime server for synchronizing modules and sessions."""
 
-    async def commit_edits(self, edits: list["EditData"], refresh_index: bool) -> bool:
+    async def commit_edits(self, edits: list["EditData"]) -> bool:
         raise NotImplementedError
 
     async def push_session(self, session: "Session", runs: list["Run"]) -> bool:
@@ -124,7 +125,7 @@ class Session:
             root_run_value=root_run_value,
             global_run_value=global_run_value,
         )
-        self._pg_tx: psycopg.AsyncTransaction | None = None
+        self._pg_cursor: psycopg.AsyncCursor | None = None
 
         self._opened_at: Optional[datetime] = None
         self._closed_at: Optional[datetime] = None
@@ -183,77 +184,92 @@ class Session:
     def is_open(self) -> bool:
         return self._opened_at is not None and self._closed_at is None
 
-    @contextlib.asynccontextmanager
-    async def pg_cursor(self) -> psycopg.AsyncCursor:
-        raise NotImplementedError
+    @property
+    def pg_cursor(self) -> psycopg.AsyncCursor:
+        assert self._pg_cursor is not None, "pg_cursor is only available during session execution"
+        return self._pg_cursor
+
+    @property
+    def _should_autocommit(self):
+        # ensure edits are committed before we exit out of topmost run for error propagation
+        return self._editor.edits and len(self._tracer.stacktrace) == 1
 
     async def open(self):
         """Opens the session for execution and modification."""
         if self._opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
+
+        # prepare session
         self._opened_at = utcnow_with_tz()
         if _active_session.get() is not None:
             raise RuntimeError(f"another session is active: {_active_session.get()}")
         _active_session.set(self)
         await self._tracer.open()
+
+        # prepare local postgres
+        pg_pool = get_pg_connection_pool(self.module.pg_name)
+        pg_connection = await pg_pool.getconn(timeout=2)
+        self._pg_cursor = pg_connection.cursor()
+
         self._log.debug("session.open")
 
-    async def _do_commit(self, edits: list["EditData"], refresh_index: bool) -> bool:
-        """Flush any pending edits to the module"""
-        if not edits and not refresh_index:
-            return True  # skip if no edits and no index refresh
-        # TODO @Robustness: auto-split edits if not in atomic block and too large
-        success = await self.runtime.commit_edits(edits, refresh_index)
-        if not success:
-            self._failed_commit = True
-            self.module._reset_from_source()
-            if len(edits) > 10:
-                edits_str = f"{edits[:5]} ... {edits[-5:]}"
-            else:
-                edits_str = str(edits)
-            raise RuntimeError(f"failed to write {len(edits)} edits {edits_str}")
-        else:
-            self.module._apply_edits_to_source(edits)
-        self._log.debug("session.commit.done", editor=self._editor)
-        return success
-
-    @property
-    def _should_autocommit_this_run(self):
-        # ensure edits are committed before we exit out of topmost run for error propagation
-        return self._editor.edits and len(self._tracer.stacktrace) == 1
+    @_auto_async_to_sync
+    async def flush(self):
+        """Flushes local Postgres edits (ignores other edits)."""
+        raise NotImplementedError
 
     @_auto_async_to_sync
-    async def commit(self, refresh_index: bool = False):
-        """
-        Flushes all module edits.
-        If optimistic, this will return before the commit is complete (but will wait on close).
-        """
+    async def commit(self):
+        """Commits module edits."""
         edits = [e for e in self._editor.edits if e.mnt not in INTERP_NODE_TYPES]  # :InterpFilter
-        if not edits and not refresh_index:
-            return  # skip if no edits and no index refresh
+        if not edits:
+            return
         assert not self._failed_commit, f"session {self!r} is broken after failed commit"
 
         from bench.language.edit import EditBundle
 
         # nocheckin: 5. intercept and commit record edit through local database
-        self._log.debug("session.commit", editor=self._editor, refresh_index=refresh_index)
         edits = EditBundle(edits).compact()
+        self._log.debug("session.commit", edits=edits)
         self._editor.reset()
         self._tracer._new_statement_ids.clear()
-        await self._do_commit(edits, refresh_index)
+
+        try:
+            # commit module edits
+            if not await self.runtime.commit_edits(edits):
+                raise RuntimeError(f"failed to commit edits {edits}")
+            # commit local postgres edits
+            if self._pg_cursor:
+                await self._pg_cursor.connection.commit()
+                self._pg_cursor = None
+            self.module._apply_edits_to_source(edits)
+            self._log.debug("session.commit.done", edits=edits)
+        except Exception as e:
+            # unwind
+            self._log.exception("session.commit.failed", edits=edits, error=e)
+            self.module._reset_from_source()
+            self._failed_commit = True
+            raise RuntimeError(f"failed to write {len(edits)} edits {edits}") from e
+
         self._past_commits.append((len(edits), set(m.type for m in edits)))
 
-    @_auto_async_to_sync
     async def close(self):
         """Closes the session, commiting any edits and preventing further execution/edit."""
         if self._closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
         self._log.debug("session.close")
+
+        # close postgres
+        if self._pg_cursor:
+            pg_pool = get_pg_connection_pool(self.module.pg_name)
+            await pg_pool.putconn(self._pg_cursor.connection)
+            self._pg_cursor = None
+
+        # close session
         self._closed_at = utcnow_with_tz()
-        if not self._failed_commit:
-            await self.commit()
         _active_session.set(None)
         await self._tracer.close()
+
         if self.dangling:
             self._log.warn("session.close.dangling", dangling=self.dangling)
         self._log.debug("session.close.done")
