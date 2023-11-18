@@ -7,7 +7,14 @@ import structlog
 
 from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import MNT, SessionAccessLevel, new_dynamic_node_key
-from bench.language.expression import C, Conditional, ConditionalOp, QueryEngine, Sort
+from bench.language.expression import (
+    C,
+    Conditional,
+    ConditionalOp,
+    QueryEngine,
+    Sort,
+    coerce_conditional,
+)
 from bench.language.module import (
     _NC,
     NS,
@@ -162,31 +169,51 @@ class RecordBaseQuery:
     def _invalidate(self):
         self._result_cache = None
 
-    async def _execute(self, session: "Session") -> list[Record]:
+    async def _fetch(self, session: "Session") -> list[Record]:
+        """Fetches the result set for this query."""
         from bench.language import wire
         from bench.search.engine import compile_os_search, os_search
+        from bench.sql.engine import pg_select_records
 
         # nocheckin: 8. reroute record query through local DB if possible
         # force flush and index if there are any pending database edits
         #  (or previous edits that were already flushed but didn't refresh the index)
-        # TODO @Performance: force flush module for record search only if needed by query
         if session._editor.edits or session._past_commits:
-            await session.commit(refresh_index=True)
+            # nocheckin: turn this into a local PG flush only (only schema apply, not commit)
+            await session.commit()
 
         where = Conditional.and_if_set(
             self._query,
             C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
             & ~C(ConditionalOp.EXISTS, "deleted_at"),
         )
-        limit = self._first or LOCAL_RECORD_CACHE_LIMIT
-        logger.debug("record.query", query=self, where=where, limit=limit)
+        first = self._first or LOCAL_RECORD_CACHE_LIMIT
+        # prefer sql engine if possible, except for scored queries
+        required_engine = None
+        if where.is_scored:
+            required_engine = QueryEngine.OPENSEARCH
+        if required_engine and self._engine and self._engine != required_engine:
+            raise ValueError(f"cannot use {self._engine} with {self!r}")
+        target_engine = self._engine or required_engine or QueryEngine.POSTGRES
+        logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
 
-        # prefer sql engine if possible
-        search = compile_os_search(
-            type=DocumentType.RECORD, query=where, limit=limit, count=False, sort=self._sort
-        )
-        os_results = await os_search(self._database.module.os_name, search)
-        records_data = os_results.as_records()
+        if target_engine == QueryEngine.OPENSEARCH:
+            search = compile_os_search(
+                type=DocumentType.RECORD, query=where, limit=first, count=False, sort=self._sort
+            )
+            os_results = await os_search(self._database.module.os_name, search)
+            records_data = os_results.as_records()
+        elif target_engine == QueryEngine.POSTGRES:
+            records_data = await pg_select_records(
+                cur=session.pg_cursor,
+                database=self._database,
+                where=where,
+                sort=self._sort,
+                first=first,
+                skip=self._skip,
+            )
+        else:
+            raise ValueError(f"unexpected query engine {target_engine}")
 
         # turn into records
         records: list[Record] = []
@@ -201,18 +228,18 @@ class RecordBaseQuery:
 
     async def __aiter__(self):
         if self._result_cache is None:
-            await self._execute(self._database.session)
+            await self._fetch(self._database.session)
         return iter(self._result_cache)
 
     @_auto_async_to_sync
     async def tolist(self) -> list[Record]:
         if self._result_cache is None:
-            await self._execute(self._database.session)
+            await self._fetch(self._database.session)
         return self._result_cache
 
     def __iter__(self):
         if self._result_cache is None:
-            self._database.session.async_to_sync(self._execute)(self._database.session)
+            self._database.session.async_to_sync(self._fetch)(self._database.session)
         return iter(self._result_cache)
 
     def __len__(self):
@@ -221,16 +248,18 @@ class RecordBaseQuery:
         return self.count()
 
     @_auto_async_to_sync
-    async def get(self, query: Conditional) -> Record:
+    async def get(self, query: Conditional = None, **kwargs) -> Record:
         """Returns the unique result matching the query (errors otherwise)."""
+        query = coerce_conditional(self._database, query, kwargs)
         results = await self.filter(query).tolist()
         if len(results) == 1:
             return results[0]
         else:
             raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results}")
 
-    def filter(self, query: Conditional) -> "RecordBaseQuery":
+    def filter(self, query: Conditional = None, **kwargs) -> "RecordBaseQuery":
         """Adds a filter clause to the query."""
+        query = coerce_conditional(self._database, query, kwargs)
         copy = self.copy()
         copy._query = query & self._query if self._query else query
         return copy
@@ -277,7 +306,7 @@ class RecordBaseQuery:
                 return self.first(item.stop)
         elif isinstance(item, int):
             if self._result_cache is None:
-                self._database.session.async_to_sync(self._execute)(self._database.session)
+                self._database.session.async_to_sync(self._fetch)(self._database.session)
             if item < 0:
                 item += len(self._result_cache)
             if item >= len(self._result_cache):
@@ -289,8 +318,7 @@ class RecordBaseQuery:
     @_auto_async_to_sync
     async def count(self) -> int:
         """Returns the number of results."""
-        assert not self._first and not self._skip, "bounded count is deliberately not supported"
-        assert not self._sort, "sorted count is deliberately not supported"
+        assert not self._first and not self._skip and not self._sort, "cannot count with limits"
         if self._result_cache is not None:
             return len(self._result_cache)
         raise NotImplementedError("nocheckin")
@@ -455,11 +483,11 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
             if not self._parent.attached:
                 self._parent._local_root_tree.truncate(self._parent, MNT.RECORD)
 
-    def __getitem__(self, item: slice):
-        return RecordBaseQuery.__getitem__(self, item)
-
     def __contains__(self, obj: object) -> bool:
         return False  # lookup by id?
+
+    def get(self, conditional: Conditional = None, **kwargs) -> Record:
+        return RecordBaseQuery.get(self, conditional, **kwargs)
 
     #
     # Extra methods for record queries/expressions
@@ -473,6 +501,9 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
 
     def __aiter__(self):
         return RecordBaseQuery.__aiter__(self)
+
+    def __getitem__(self, item: slice):
+        return RecordBaseQuery.__getitem__(self, item)
 
 
 @node_component

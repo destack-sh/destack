@@ -26,12 +26,12 @@ def _get_connection_str(pg_name: str) -> str:
 _connection_pools: dict[str, AsyncConnectionPool] = {}
 
 
-def _get_connection_pool(pg_name: str) -> AsyncConnectionPool:
+def get_pg_connection_pool(pg_name: str) -> AsyncConnectionPool:
     if pg_name not in _connection_pools:
         _connection_pools[pg_name] = AsyncConnectionPool(
             _get_connection_str(pg_name),
             min_size=1,
-            max_size=5,
+            max_size=4,
             max_idle=60 * 60,
             reconnect_timeout=30,
             connection_class=psycopg.AsyncConnection,
@@ -45,7 +45,7 @@ async def async_pg_connection(
     pg_name: str, autocommit: bool = False
 ) -> psycopg.AsyncConnection[dict[str, Any]]:
     """Gets a psycopg (3) connection to the given database"""
-    pool = _get_connection_pool(pg_name)
+    pool = get_pg_connection_pool(pg_name)
     async with pool.connection() as conn:
         if conn.autocommit != autocommit:
             await conn.set_autocommit(autocommit)

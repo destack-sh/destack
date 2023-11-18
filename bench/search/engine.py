@@ -27,8 +27,10 @@ from bench.language.expression import (
     ComparisonConditional,
     CompoundConditional,
     ExistenceConditional,
+    FieldReference,
     QueryEngine,
     QueryEngineIncapableError,
+    StaticConditional,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
 from bench.language.packer import TYPENAME_SENTINEL
@@ -347,12 +349,20 @@ OS_CONDITIONAL_OP_BY_BENCH = {
 }
 
 
-def _compile_field_key(field: lang.Field) -> str:
-    return field._source_key  # nocheckin: compile :BuiltInFields
+def _compile_field_key(field: lang.Field | FieldReference) -> str:
+    if isinstance(field, lang.Field):
+        return field._source_key  # nocheckin: compile :BuiltInFields
+    else:
+        return field
 
 
 def compile_os_conditional(ctx: CompilationContext, cond: Conditional) -> dict[str, Any]:
-    if isinstance(cond, CompoundConditional):
+    if isinstance(cond, StaticConditional):
+        if cond.op == ConditionalOp.TRUE:
+            return {"match_all": {}}
+        else:
+            return {"match_none": {}}
+    elif isinstance(cond, CompoundConditional):
         clauses = [compile_os_conditional(ctx, c) for c in cond.clauses]
         return {"bool": {OS_CONDITIONAL_OP_BY_BENCH[cond.op]: clauses}}
     elif isinstance(cond, ComparisonConditional):
