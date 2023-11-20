@@ -7,8 +7,8 @@ from bench.language.module import (
     Node,
     NodeList,
     NRel,
+    binternal,
     nchildren,
-    ninternal,
     node,
     node_component,
     nparent,
@@ -26,7 +26,7 @@ class Tagging(HasValue, HasReference, Node):
     """An association between a tag and a statement (with optional value)."""
 
     parent: Union["File", "Statement", "Field"] | None = nparent(MNT.FILE, MNT.STATEMENT, MNT.FIELD)
-    key: str = ninternal()
+    key: str = binternal()
 
     @staticmethod
     def new(

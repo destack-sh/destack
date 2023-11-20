@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import cachetools
 
 if TYPE_CHECKING:
-    from bench.language.module import Node, NodeProperty
+    from bench.language.module import Node, Property
 
 
 class ValidationError(ValueError):
@@ -35,7 +35,7 @@ class ValidationHandler:
 
 
 class PropertyValidationHandler:
-    def __init__(self, subject: "Node", prop: "NodeProperty", handler: ValidationHandler):
+    def __init__(self, subject: "Node", prop: "Property", handler: ValidationHandler):
         self.subject = subject
         self.handler = handler
         self.prop = prop

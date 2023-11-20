@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Optional, Union
 from uuid import UUID
 
-from bench.language.const import MNT, ModuleNodeType, NodeReference, TypedNodeReference
-from bench.language.module import Node, ScopeNode, node_component, nproperty, nruntime
+from bench.language.const import MNT, NodeReference, NodeType, TypedNodeReference
+from bench.language.module import Node, ScopeNode, bproperty, bruntime, node_component
 from bench.language.reference import NodeVisitor
 from bench.language.validation import validate_is_str
 
@@ -14,8 +14,8 @@ from bench.language.validation import validate_is_str
 class HasText(Node):
     """Some instruction text with optional references."""
 
-    text: str | None = nproperty(default=None, validate=validate_is_str)
-    _text_parsed: Optional["Text"] = nruntime(default=None, copy=lambda v: deepcopy(v))
+    text: str | None = bproperty(default=None, validate=validate_is_str)
+    _text_parsed: Optional["Text"] = bruntime(default=None, copy=lambda v: deepcopy(v))
 
     @property
     def text_plain(self) -> Optional[str]:
@@ -173,7 +173,7 @@ def parse_text_html(text_raw: str) -> list[TextSpan]:
 
         # mention
         ck = UUID(match.group("ck"))
-        type = ModuleNodeType(match.group("type"))
+        type = NodeType(match.group("type"))
         path = match.group("path") or None
         spans.append(TextMention(reference=TypedNodeReference(type, ck), reference_path=path))
 

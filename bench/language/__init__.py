@@ -1,8 +1,15 @@
+from itertools import chain
+
+from ..utils.func import get_subclasses
 from .blob import Blob
 from .const import (
+    ConditionalOp,
     IssueType,
+    QueryEngine,
     ScheduleType,
     SessionAccessLevel,
+    SortMode,
+    SortOp,
     StatementType,
     TriggerType,
     TypeFlag,
@@ -17,19 +24,15 @@ from .expression import (
     Aggregation,
     C,
     Conditional,
-    ConditionalOp,
     E,
     Expression,
-    QueryEngine,
     S,
     Sort,
-    SortMode,
-    SortOp,
 )
 from .field import Field, HasFields, HasType, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
-from .module import Module, Node, ScopeNode
+from .module import Module, Node, ScopeNode, Struct
 from .reference import NodeVisitor
 from .run import HasRun, Run, RunError
 from .secret import Secret
@@ -88,6 +91,7 @@ __all__ = [
     "SortOp",
     "Statement",
     "StatementType",
+    "Struct",
     "Tagging",
     "Trigger",
     "TriggerType",
@@ -99,3 +103,13 @@ __all__ = [
     "View",
     "ViewLayout",
 ]
+
+# after all the imports, we can finalize
+
+# set reflected struct/node properties as static fields
+#  (can't do this before because dataclass needs the original class's fields)
+for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
+    for name, prop in cls.__properties__.items():
+        if prop.is_reflected:
+            setattr(cls, name, prop)
+            prop._as_field  # noqa ensure the reflected field works

@@ -7,7 +7,7 @@ from typing import Optional
 from uuid import UUID, uuid5
 
 from bench.language.builtin import symbolx_lib
-from bench.language.const import BENCH_UUID_NAMESPACE, ModuleNodeType, StatementType, TypeTag
+from bench.language.const import BENCH_UUID_NAMESPACE, NodeType, StatementType, TypeTag
 from bench.language.field import Field, Type
 from bench.language.file import File
 from bench.language.packer import pack_value, type_from_instance_type, unpack_value
@@ -154,7 +154,7 @@ reflect_struct = typing.dataclass_transform()(reflect_struct)
 # defined here to avoid import cycles
 
 
-reflect_enum("NodeType", "Type of a Bench node")(ModuleNodeType)
+reflect_enum("NodeType", "Type of a Bench node")(NodeType)
 reflect_enum("StatementType", "Type of a Statement")(StatementType)
 
 

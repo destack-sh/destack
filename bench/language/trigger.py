@@ -10,11 +10,11 @@ from bench.language.const import MNT, ScheduleType, TriggerType
 from bench.language.module import (
     Node,
     NodeList,
+    bproperty,
     nchildren,
     node,
     node_component,
     nparent,
-    nproperty,
 )
 from bench.language.validation import ValidationHandler, enum_validator
 from bench.utils.func import dict_minus
@@ -35,17 +35,17 @@ class Trigger(Node):
     """A trigger for a statement, possibly inside a flow."""
 
     parent: "Statement" = nparent(MNT.STATEMENT)
-    type: TriggerType = nproperty(is_required=True, validate=enum_validator(TriggerType))
-    active: bool = nproperty(default=True)
-    mapping: Optional[Mapping] = nproperty(default=None)
-    schedule_type: Optional[ScheduleType] = nproperty(
+    type: TriggerType = bproperty(is_required=True, validate=enum_validator(TriggerType))
+    active: bool = bproperty(default=True)
+    mapping: Optional[Mapping] = bproperty(default=None)
+    schedule_type: Optional[ScheduleType] = bproperty(
         default=None, validate=enum_validator(ScheduleType)
     )
-    timezone: Optional[str] = nproperty(default=pytz.utc.zone)
-    interval: Optional[int] = nproperty(default=None)
-    cron: Optional[str] = nproperty(default=None)
-    statement: Union["Statement", UUID, None] = nproperty(default=None)
-    scope: Union["Node", UUID, None] = nproperty(default=None)
+    timezone: Optional[str] = bproperty(default=pytz.utc.zone)
+    interval: Optional[int] = bproperty(default=None)
+    cron: Optional[str] = bproperty(default=None)
+    statement: Union["Statement", UUID, None] = bproperty(default=None)
+    scope: Union["Node", UUID, None] = bproperty(default=None)
 
     @staticmethod
     def new(

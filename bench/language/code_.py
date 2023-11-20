@@ -15,13 +15,12 @@ from uuid import UUID
 import structlog
 from more_itertools import first, last
 
-from bench.language import IssueType
 from bench.language.blob import Blob, BlobStatus
 from bench.language.builtin import symbolx_lib
-from bench.language.const import NodePath, TypeFlag
-from bench.language.expression import C, Conditional, ConditionalOp, Sort, SortMode, SortOp
+from bench.language.const import ConditionalOp, IssueType, NodePath, SortMode, SortOp, TypeFlag
+from bench.language.expression import C, Conditional, Sort
 from bench.language.field import TypedDict
-from bench.language.module import LookupBy, Node, ScopeNode, node_component, nruntime
+from bench.language.module import LookupBy, Node, ScopeNode, bruntime, node_component
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
@@ -71,12 +70,12 @@ def _install_package(name: str, timeout: int = 300, try_import: str = None) -> N
 
 @node_component
 class HasCode(Node):
-    _is_async: Optional[bool] = nruntime(default=None)
-    _parse: Optional[CodeParse] = nruntime(default=None)
-    _transform: Optional[CodeTransformation] = nruntime(default=None)
-    _statement_references: dict[str, "Statement"] | None = nruntime(default=None)
-    _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = nruntime(default=None)
-    _cached_exports: dict[str, Any] | None = nruntime(default=None)
+    _is_async: Optional[bool] = bruntime(default=None)
+    _parse: Optional[CodeParse] = bruntime(default=None)
+    _transform: Optional[CodeTransformation] = bruntime(default=None)
+    _statement_references: dict[str, "Statement"] | None = bruntime(default=None)
+    _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = bruntime(default=None)
+    _cached_exports: dict[str, Any] | None = bruntime(default=None)
 
     def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         self._parse = None

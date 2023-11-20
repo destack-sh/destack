@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Collection, Optional
 
-from bench.language.module import NS, Node, node_component, nproperty
+from bench.language.module import NS, Node, bproperty, node_component
 from bench.language.validation import ValidationHandler
 from bench.utils.proxy import proxy_value, unproxy_value
 
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 @node_component
 class HasValue(Node):
-    value: Any | None = nproperty(default_factory=dict, copy=deepcopy)
+    value: Any | None = bproperty(default_factory=dict, copy=deepcopy)
 
     @property
     def _type_of_value(self) -> Optional["HasFields"]:

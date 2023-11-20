@@ -14,7 +14,7 @@ import structlog
 
 from bench.language.cache import CacheAsync
 from bench.language.field import Field, HasFields, TypedDict, TypeTag
-from bench.language.module import Node, ScopeNode, node_component, nruntime
+from bench.language.module import Node, ScopeNode, bruntime, node_component
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
@@ -39,11 +39,11 @@ class ModelErrorType(enum.StrEnum):
 
 @node_component
 class HasModel(HasFields, Node):
-    _remote: bool = nruntime(default=False)
-    _endpoint_impl: typing.Optional[typing.Callable] = nruntime(default=None)
-    _compiler_impl: typing.Optional[typing.Callable] = nruntime(default=None)
-    _api_key: typing.Optional[str] = nruntime(default=None)
-    _has_vector_io: bool = nruntime(default=None)
+    _remote: bool = bruntime(default=False)
+    _endpoint_impl: typing.Optional[typing.Callable] = bruntime(default=None)
+    _compiler_impl: typing.Optional[typing.Callable] = bruntime(default=None)
+    _api_key: typing.Optional[str] = bruntime(default=None)
+    _has_vector_io: bool = bruntime(default=None)
 
     # we only cache models without vector inputs/outputs
 

@@ -13,6 +13,7 @@ from bench.language import (
     ConditionalOp,
     HasRun,
     Module,
+    QueryEngine,
     Sort,
     SortMode,
     SortOp,
@@ -28,8 +29,8 @@ from bench.language.expression import (
     CompoundConditional,
     ExistenceConditional,
     FieldReference,
-    QueryEngine,
     QueryEngineIncapableError,
+    S,
     StaticConditional,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
@@ -351,7 +352,10 @@ OS_CONDITIONAL_OP_BY_BENCH = {
 
 def _compile_field_key(field: lang.Field | FieldReference) -> str:
     if isinstance(field, lang.Field):
-        return field._source_key  # nocheckin: compile :BuiltInFields
+        if field.reflected:
+            return field.py_ident
+        else:
+            return field._source_key
     else:
         return field
 
@@ -480,8 +484,8 @@ def compile_os_search(
         combined_query &= query
     # add id to sort as tiebreaker if not already present
     if sort and not any(s.field_key == "_id" for s in sort):
-        sort = sort + [Sort(field="_id")]
-    sort = sort or [Sort(field="_id")]
+        sort = sort + [S(SortOp.ASCENDING, field="_id")]
+    sort = sort or [S(SortOp.ASCENDING, field="_id")]
     ctx = CompilationContext(root_limit=limit)
     compiled_query = compile_os_conditional(ctx, combined_query)
     compiled_sort = [compile_os_sort(ctx, s) for s in sort]

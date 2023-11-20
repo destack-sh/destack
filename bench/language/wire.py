@@ -18,13 +18,15 @@ from bench.language import File, IssueType, Module
 from bench.language.const import (
     MNT,
     BlobStatus,
+    ExpressionKind,
     IssueKind,
-    ModuleNodeType,
     NodeTrackingLevel,
+    NodeType,
     ProjectRegion,
     RunStatus,
     ScheduleType,
     SessionAccessLevel,
+    SortMode,
     StatementType,
     TextHeadingLevel,
     TriggerType,
@@ -41,11 +43,8 @@ from bench.language.expression import (
     CompoundConditional,
     Conditional,
     ExistenceConditional,
-    ExpressionKind,
     FieldExpression,
     Sort,
-    SortMode,
-    VectorConditional,
 )
 from bench.language.module import Node, NodeStatus, NodeTree, ScopeNode
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
@@ -331,7 +330,7 @@ class NodeData:
         return DATA_CLASS_BY_MNT[mnt]
 
     @property
-    def mnt(self) -> ModuleNodeType:
+    def mnt(self) -> NodeType:
         return MNT_BY_DATA_CLASS[type(self)]
 
     def equals_content(self, other: "NodeData") -> bool:
@@ -989,10 +988,8 @@ class ExpressionPacker(DataPacker[ExpressionData, lang.Expression]):
             return expr_cls(op=data.op, field=data.field, value=data.value)
         elif issubclass(expr_cls, ExistenceConditional):
             return expr_cls(op=data.op, field=data.field)
-        elif issubclass(expr_cls, VectorConditional):
-            return expr_cls(op=data.op, field=data.field, value=data.value)
         elif issubclass(expr_cls, Sort):
-            return expr_cls(field=data.field, mode=data.mode)
+            return expr_cls(op=data.op, field=data.field, mode=data.mode)
         else:
             raise NotImplementedError(f"unexpected expression class {expr_cls} ({data})")
 

@@ -18,6 +18,7 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 from strawberry_django.mutations.fields import _handle_exception
 
+import bench.language.const
 from bench import models
 from bench.language import expression as expr
 from bench.msg.messages import ClientOrigin
@@ -226,9 +227,9 @@ class ThingBatch(Iterable):
         return iter(self.things)
 
 
-SortOp = strawberry.enum(expr.SortOp)
-SortMode = strawberry.enum(expr.SortMode)
-ConditionalOp = strawberry.enum(expr.ConditionalOp)
+SortOp = strawberry.enum(bench.language.const.SortOp)
+SortMode = strawberry.enum(bench.language.const.SortMode)
+ConditionalOp = strawberry.enum(bench.language.const.ConditionalOp)
 
 
 @strawberry.input

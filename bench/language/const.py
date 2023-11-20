@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
 
 
-class ModuleNodeType(enum.StrEnum):
+class NodeType(enum.StrEnum):
     # source
     MODULE = "Module"
     FILE = "File"
@@ -43,9 +43,11 @@ class ModuleNodeType(enum.StrEnum):
         return MNT_CAPS_CASE[self]
 
 
-class StatementType(enum.StrEnum):
-    """The type of Bench statement."""
+class StructType(enum.StrEnum):
+    EXPRESSION = "Expression"
 
+
+class StatementType(enum.StrEnum):
     TAG = "tag"
     TEXT = "text"
     BLANK = "blank"
@@ -115,7 +117,7 @@ class SessionAccessLevel(enum.IntEnum):  # SessionAccessLevel
     Full = Delete
 
 
-MNT = ModuleNodeType
+MNT = NodeType
 MNT_CAPS_CASE: dict[MNT, str] = {mnt: to_all_caps(mnt) for mnt in MNT}
 INTERP_NODE_TYPES = {MNT.ISSUE, MNT.RESOLVED_FIELD}
 
@@ -367,3 +369,100 @@ class WorkerProfile(enum.StrEnum):
     LARGE = "LARGE"
     XLARGE_CPU = "XLARGE_CPU"
     XLARGE_MEM = "XLARGE_MEM"
+
+
+class ExpressionKind(enum.StrEnum):
+    CONDITIONAL = "CONDITIONAL"
+    SORT = "SORT"
+    AGGREGATION = "AGGREGATION"
+
+
+class ConditionalOp(enum.StrEnum):
+    # logical
+    TRUE = "TRUE"
+    FALSE = "FALSE"
+    NOT = "NOT"
+    AND = "AND"
+    OR = "OR"
+    # comparison
+    EQUALS = "EQUALS"
+    NOT_EQUALS = "NOT_EQUALS"
+    GREATER_THAN = "GREATER_THAN"
+    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
+    LESS_THAN = "LESS_THAN"
+    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
+    # string comparison
+    MATCHES = "MATCHES"
+    STARTS_WITH = "STARTS_WITH"
+    # containment
+    CONTAINS = "CONTAINS"
+    NOT_CONTAINS = "NOT_CONTAINS"
+    IN = "IN"
+    NOT_IN = "NOT_IN"
+    # existence
+    EXISTS = "EXISTS"
+    NOT_EXISTS = "DOES_NOT_EXIST"
+    # vector
+    NEAR = "NEAR"
+
+    @property
+    def sign(self) -> str | None:
+        return _CONDITIONAL_OP_SIGN.get(self)
+
+
+_CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
+    ConditionalOp.NOT: "~",
+    ConditionalOp.AND: "&",
+    ConditionalOp.OR: "|",
+    ConditionalOp.EQUALS: "==",
+    ConditionalOp.NOT_EQUALS: "!=",
+    ConditionalOp.GREATER_THAN: ">",
+    ConditionalOp.GREATER_THAN_OR_EQUALS: ">=",
+    ConditionalOp.LESS_THAN: "<",
+    ConditionalOp.LESS_THAN_OR_EQUALS: "<=",
+    ConditionalOp.MATCHES: "~=",
+    ConditionalOp.STARTS_WITH: "^=",
+    ConditionalOp.EXISTS: "?",
+    ConditionalOp.NOT_EXISTS: "?!",
+}
+
+
+class AggregationOp(enum.StrEnum):
+    # Single value
+    COUNT = "COUNT"
+    SUM = "SUM"
+    AVERAGE = "AVERAGE"
+    MIN = "MIN"
+    MAX = "MAX"
+    MEDIAN = "MEDIAN"
+    # Bucket value
+    HISTOGRAM = "HISTOGRAM"
+
+
+class SortOp(enum.StrEnum):
+    ASCENDING = "ASCENDING"
+    DESCENDING = "DESCENDING"
+
+
+class QueryEngine(enum.StrEnum):
+    LOCAL = "LOCAL"
+    HOST = "HOST"
+    OPENSEARCH = "OS"
+    POSTGRES = "PG"
+
+
+class SortMode(enum.StrEnum):
+    MAX = "MAX"
+    MIN = "MIN"
+    AVERAGE = "AVERAGE"
+    SUM = "SUM"
+    MEDIAN = "MEDIAN"
+
+
+if typing.TYPE_CHECKING:
+    ExpressionOp = ConditionalOp | AggregationOp | SortOp
+else:
+    ExpressionOp = enum.StrEnum(
+        "ExpressionOp",
+        {**ConditionalOp.__members__, **AggregationOp.__members__, **SortOp.__members__},
+    )

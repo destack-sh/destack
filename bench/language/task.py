@@ -10,7 +10,7 @@ import structlog
 from bench.language.const import MNT, IssueType, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.model import HasModel
-from bench.language.module import Node, ScopeNode, node_component, nruntime
+from bench.language.module import Node, ScopeNode, bruntime, node_component
 from bench.language.reference import NodeView
 
 from ..utils.func import describe_type
@@ -23,8 +23,8 @@ logger = structlog.get_logger(__name__)
 
 @node_component
 class HasTask(Node):
-    _root_models: list["HasModel"] | None = nruntime(default=None)
-    _randomize: bool = nruntime(default=False)
+    _root_models: list["HasModel"] | None = bruntime(default=None)
+    _randomize: bool = bruntime(default=False)
 
     @property
     def _is_async(self):

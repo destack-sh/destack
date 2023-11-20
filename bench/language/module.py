@@ -12,7 +12,16 @@ from datetime import datetime
 from importlib import import_module
 from itertools import chain
 from logging import Logger
-from typing import TYPE_CHECKING, Callable, ClassVar, Collection, Iterator, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Collection,
+    Iterator,
+    Optional,
+    Union,
+)
 from uuid import UUID, uuid4
 
 import structlog
@@ -21,12 +30,17 @@ from cachetools import cached
 from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
+    ConditionalOp,
+    ExpressionOp,
     IssueKind,
     IssueType,
     ModuleReference,
     NodePath,
     NodeTrackingLevel,
+    SortOp,
     StatementType,
+    StructType,
+    TypeTag,
     parse_absolute_node_reference,
     parse_node_path,
 )
@@ -50,7 +64,7 @@ from bench.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import File, Issue, NodeVisitor, Session
+    from bench.language import Conditional, Field, File, Issue, NodeVisitor, Session, Sort
     from bench.language.edit import EditData
     from bench.language.wire import NodeData
 
@@ -97,9 +111,170 @@ NRel = NodeRelationType
 UNSET = object()
 
 
+def _require_expr_op(op: ExpressionOp):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self: "_FieldExpressionBase", *args, **kwargs):
+            from bench.language.expression import _check_field_supports
+
+            _check_field_supports(self._as_field, op)
+            return func(self, *args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def _to_conditional(op: ConditionalOp, *args, **kwargs):
+    from bench.language.expression import C
+
+    return C(op, *args, **kwargs)
+
+
+class _FieldExpressionBase:
+    """
+    Base for field-like expressions on a field-like class.
+    We define this here to use it for Property and Field.
+    """
+
+    @property
+    def _as_field(self):
+        from bench.language.field import Field
+
+        assert isinstance(self, Field), f"{self!r} is not a Field"
+        return self
+
+        # basic support checks
+
+    def _strip_value(self: "Field", value: Any) -> Any:
+        from bench.language.field import Field
+
+        # probably don't want to do this here anymore (move to engines?)
+        # coerce to field to get its key
+        if self._as_field._effective_tag == TypeTag.ENUM and not isinstance(value, Field):
+            value = self.resolved_fields.get(value)
+        return value
+
+    # comparison
+
+    @_require_expr_op(ConditionalOp.EQUALS)
+    def equals(self, value: Any) -> "Conditional":
+        value = self._strip_value(value)
+        if value is None:
+            return self.not_exists()
+        return _to_conditional(ConditionalOp.EQUALS, self._as_field, value)
+
+    @_require_expr_op(ConditionalOp.NOT_EQUALS)
+    def not_equal(self, value: Any) -> "Conditional":
+        value = self._strip_value(value)
+        return _to_conditional(ConditionalOp.NOT_EQUALS, self._as_field, value)
+
+    @_require_expr_op(ConditionalOp.GREATER_THAN)
+    def greater_than(self, value: Any) -> "Conditional":
+        value = self._strip_value(value)
+        return _to_conditional(ConditionalOp.GREATER_THAN, self._as_field, value)
+
+    @_require_expr_op(ConditionalOp.GREATER_THAN_OR_EQUALS)
+    def greater_than_or_equals(self, value: Any) -> "Conditional":
+        value = self._strip_value(value)
+        return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self._as_field, value)
+
+    @_require_expr_op(ConditionalOp.LESS_THAN)
+    def less_than(self, value: Any) -> "Conditional":
+        value = self._strip_value(value)
+        return _to_conditional(ConditionalOp.LESS_THAN, self._as_field, value)
+
+    @_require_expr_op(ConditionalOp.LESS_THAN_OR_EQUALS)
+    def less_than_or_equals(self, value: Any) -> "Conditional":
+        value = self._strip_value(value)
+        return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self._as_field, value)
+
+    def __eq__(self, other):
+        if isinstance(self, Node) and isinstance(other, Node):
+            return Node.__eq__(self._as_field, other)  # imitate Field equality
+        return self.equals(other)
+
+    def __ne__(self, other):
+        if isinstance(self, Node) and isinstance(other, Node):
+            return Node.__ne__(self._as_field, other)
+        return self.not_equal(other)
+
+    __gt__ = greater_than
+    __ge__ = greater_than_or_equals
+    __lt__ = less_than
+    __le__ = less_than_or_equals
+
+    # string comparison
+
+    @_require_expr_op(ConditionalOp.STARTS_WITH)
+    def starts_with(self, value: str) -> "Conditional":
+        # :StartsWithHack
+        return _to_conditional(ConditionalOp.STARTS_WITH, self._as_field, value.lower())
+
+    @_require_expr_op(ConditionalOp.MATCHES)
+    def matches(self, value: str) -> "Conditional":
+        return _to_conditional(ConditionalOp.MATCHES, self._as_field, value)
+
+    # containment
+
+    @_require_expr_op(ConditionalOp.IN)
+    def in_(self, *values: list[Any]) -> "Conditional":
+        values = [self._strip_value(value) for value in values]
+        return _to_conditional(ConditionalOp.IN, self._as_field, values)
+
+    @_require_expr_op(ConditionalOp.NOT_IN)
+    def not_in(self, *values: list[Any]) -> "Conditional":
+        values = [self._strip_value(value) for value in values]
+        return _to_conditional(ConditionalOp.NOT_IN, self._as_field, values)
+
+    @_require_expr_op(ConditionalOp.CONTAINS)
+    def contains(self, value: Any) -> "Conditional":
+        value = self._strip_value(value)
+        return _to_conditional(ConditionalOp.CONTAINS, self._as_field, value)
+
+    @_require_expr_op(ConditionalOp.NOT_CONTAINS)
+    def not_contains(self, value: Any) -> "Conditional":
+        value = self._strip_value(value)
+        return _to_conditional(ConditionalOp.NOT_CONTAINS, self._as_field, value)
+
+    # existence
+
+    @_require_expr_op(ConditionalOp.EXISTS)
+    def exists(self) -> "Conditional":
+        return _to_conditional(ConditionalOp.EXISTS, self._as_field)
+
+    @_require_expr_op(ConditionalOp.NOT_EXISTS)
+    def not_exists(self) -> "Conditional":
+        return _to_conditional(ConditionalOp.NOT_EXISTS, self._as_field)
+
+    # knn
+
+    @_require_expr_op(ConditionalOp.NEAR)
+    def near(self, value: list[float], approximate: bool = True) -> "Conditional":
+        return _to_conditional(ConditionalOp.NEAR, self._as_field, value, approximate=approximate)
+
+    # sort
+
+    @_require_expr_op(SortOp.ASCENDING)
+    def asc(self) -> "Sort":
+        from bench.language.expression import Sort
+
+        return Sort(SortOp.ASCENDING, self._as_field)
+
+    ascending = asc
+
+    @_require_expr_op(SortOp.DESCENDING)
+    def desc(self) -> "Sort":
+        from bench.language.expression import Sort
+
+        return Sort(SortOp.DESCENDING, self._as_field)
+
+    descending = desc
+
+
 @dataclass
-class NodeProperty:
-    """A property of a module node."""
+class Property(_FieldExpressionBase):
+    """A property of a module node or struct."""
 
     name: str | None = None  # name from LHS of assignment
     component: type["Node"] | None = None  # source component class
@@ -110,6 +285,7 @@ class NodeProperty:
     is_internal: bool = False
     is_runtime: bool = False
     is_cru: bool = False
+    is_reflected: bool = False  # eventually all properties should be reflected, for now only some
     parent_mnts: tuple[MNT] | None = None
     ancestor_mnt: MNT | None = None
     default: typing.Any = UNSET
@@ -122,6 +298,15 @@ class NodeProperty:
     # for relations
     child_mnt: MNT | None = None
     children_flags: NodeRelationType = NodeRelationType.Default
+
+    @functools.cached_property
+    def _as_field(self) -> "Field":
+        assert self.is_reflected, f"{self!r} is not reflected"
+        from bench.language.packer import type_from_instance_type
+
+        field = type_from_instance_type(self.annotation, name=self.name)
+        field.reflected = True
+        return field
 
     def __post_init__(self):
         if (
@@ -156,9 +341,9 @@ class NodeProperty:
                     non_default.append(f"{k}={v}")
         attrs_str = ", ".join(non_default)
         attrs_str = f" ({attrs_str})" if attrs_str else ""
-        return f"<NodeProperty {self}{attrs_str}>"
+        return f"<{self.__class__.__name__} {self}{attrs_str}>"
 
-    def equals_type(self, other: "NodeProperty") -> bool:
+    def equals_type(self, other: "Property") -> bool:
         """Compares everything but the source component."""
         for k in dataclasses.fields(self):
             if k.name in ("component", "ignore_conflicts_with"):
@@ -197,52 +382,56 @@ class NodeProperty:
         return bool(self.parent_mnts) or self.child_mnt or self.ancestor_mnt
 
 
-def nproperty(
+def bproperty(
     *,
     default: typing.Any = UNSET,
     default_factory: Callable[[], typing.Any] = None,
     copy: Callable[[typing.Any], typing.Any] = None,
     validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
     is_required: bool = False,
+    reflect: bool = False,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
 ):
-    """Standard user facing node property."""
-    return NodeProperty(
+    """Standard user facing struct/node property."""
+    return Property(
         default=default,
         default_factory=default_factory,
         custom_copy=copy,
         custom_validate=validate,
         is_required=is_required,
+        is_reflected=reflect,
         ignore_conflicts_with=ignore_conflicts_with,
     )
 
 
-def ninternal(
+def binternal(
     *,
     default: typing.Any = UNSET,
     default_factory: Callable[[], typing.Any] = None,
     copy: Callable[[typing.Any], typing.Any] = None,
     is_cru: bool = False,
+    reflect: bool = False,
 ):
-    """Internal only, persisted node property."""
-    return NodeProperty(
+    """Internal only struct/node property."""
+    return Property(
         is_internal=True,
         is_required=True,
         default=default,
         default_factory=default_factory,
         custom_copy=copy,
         is_cru=is_cru,
+        is_reflected=reflect,
     )
 
 
-def nruntime(
+def bruntime(
     *,
     default: typing.Any = UNSET,
     default_factory: Callable[[], typing.Any] = None,
     copy: Callable[[typing.Any], typing.Any] = None,
 ) -> object:
-    """Internal only, non-persisted runtime node property."""
-    return NodeProperty(
+    """Internal runtime-only struct/node property (not persisted)."""
+    return Property(
         is_internal=True,
         is_runtime=True,
         is_required=False,
@@ -254,12 +443,12 @@ def nruntime(
 
 def nparent(*mnt: MNT):
     """The parent of a node, must be of one of the given types."""
-    return NodeProperty(parent_mnts=tuple(mnt), default=None, is_internal=True)
+    return Property(parent_mnts=tuple(mnt), default=None, is_internal=True)
 
 
 def nancestor(mnt: MNT):
     """Computed nearest ancestor of the given type."""
-    return NodeProperty(ancestor_mnt=mnt, default=None, is_internal=True)
+    return Property(ancestor_mnt=mnt, default=None, is_internal=True)
 
 
 def nchildren(
@@ -269,7 +458,7 @@ def nchildren(
     alias: str = None,
 ):
     """Computed read/write children or descendants of the given type."""
-    return NodeProperty(
+    return Property(
         child_mnt=mnt,
         children_flags=flags,
         is_internal=True,
@@ -289,7 +478,7 @@ class NodeStatus(enum.IntEnum):
 NS = NodeStatus
 
 
-class NodeMethod(enum.Enum):
+class ComponentMethod(enum.Enum):
     init = "init"
     clear = "clear"
     index = "index"
@@ -320,13 +509,15 @@ class NodeMethod(enum.Enum):
 
 
 # :NodeMethods
-_NODE_INNER_METHODS: list[str] = [m.inner for m in NodeMethod]
+_NODE_INNER_METHODS: list[str] = [m.inner for m in ComponentMethod]
 _FORBIDDEN_NODE_METHODS = (
-    [m.self for m in NodeMethod] + [m.rec for m in NodeMethod] + ["__post_init__", "__del__"]
+    [m.self for m in ComponentMethod]
+    + [m.rec for m in ComponentMethod]
+    + ["__post_init__", "__del__"]
 )
 _NODE_CLASS_BY_MNT: dict[MNT, type["NodeT"]] = {}
 _COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
-_COMPONENT_METHODS: dict[[NodeMethod, type["Node"]], typing.Any] = {}
+_COMPONENT_METHODS: dict[[ComponentMethod, type["Node"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
     "Node",
     "ScopeNode",
@@ -355,7 +546,7 @@ _concrete_component_methods: dict[str, list[typing.Any]] = {}
 
 
 def _get_component_methods(
-    components: list[type["Node"]], method: NodeMethod, concrete_key: str
+    components: list[type["Node"]], method: ComponentMethod, concrete_key: str
 ) -> list[typing.Any]:
     """Get the actually implemented methods in the given components in call order."""
     cache_key = f"{concrete_key}.{method.name}"
@@ -376,6 +567,103 @@ def _get_node_class(mnt: MNT):
     return _NODE_CLASS_BY_MNT[mnt]
 
 
+def _process_struct_base(
+    cls: Union[type["Node"], type["Struct"]], dynamic_components: tuple[type["Node"], ...] = ()
+) -> tuple[type["Node"], dict[str, Property]]:
+    properties: dict[str, Property] = {}
+    static_components: list[type["Node"]] = [cls]
+
+    # check that no forbidden methods are defined
+    CORE_TYPES = ("Struct", "Node", "ScopeNode")
+    if cls.__name__ not in CORE_TYPES:
+        for name in _FORBIDDEN_NODE_METHODS:
+            meth = getattr(cls, name, None)
+            good_meth = getattr(Node, name, getattr(ScopeNode, name, None))
+            if meth is not None and meth is not good_meth:
+                raise ValueError(f"forbidden method {name} defined in {cls}")
+
+    # collect static components from class hierarchy
+    for base in cls.__bases__:
+        if base.__name__ in ("Struct", "Node", "ABC"):
+            continue
+        if hasattr(base, "__properties__"):
+            static_components.append(base)
+            for gp in base.__static_components__:
+                if gp.__name__ not in CORE_TYPES and gp not in static_components:
+                    static_components.append(gp)
+    if cls.__name__ not in ("Struct", "Node"):
+        static_components.append(Node)
+
+    # collect properties from this
+    for name, prop in cls.__dict__.items():
+        if (
+            name.startswith("__")
+            or type(prop).__name__.startswith("_")
+            or inspect.ismethod(properties)
+            or inspect.isfunction(prop)
+            or isinstance(prop, property)
+            or isinstance(prop, classmethod)
+            or isinstance(prop, staticmethod)
+            or type(prop) == functools.cached_property
+        ):
+            continue  # ignore reserved names and non-fields
+        if not isinstance(prop, Property):
+            raise TypeError(f"{cls}.{name} is not a NodeProperty: {prop} ({type(prop)})")
+        prop.name = name
+        prop.component = cls
+        prop.annotation = cls.__annotations__.get(name, None)
+        properties[name] = prop
+
+    # collect properties from all components (static and dynamic, least to most specific)
+    cls.__properties__ = {**properties}  # copy own properties
+    for component in chain(reversed(static_components), reversed(dynamic_components)):
+        for name, prop in component.__properties__.items():
+            existing = properties.get(name, None)
+            if existing is None or name == "parent":  # override parent with more specific
+                # register all static and any non-runtime dynamic properties
+                if not prop.is_runtime or component not in dynamic_components:
+                    properties[name] = prop
+            elif not prop.equals_type(existing):
+                if existing.ignore_conflicts_with and any(
+                    issubclass(component, c) for c in existing.ignore_conflicts_with
+                ):
+                    continue
+                raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
+
+    # collect methods implemented in this class (specifically)
+    for meth_type in ComponentMethod:
+        meth = getattr(cls, meth_type.inner, None)
+        if meth is not None and not any(
+            meth is getattr(base, meth_type.inner, None) for base in cls.__bases__
+        ):
+            _COMPONENT_METHODS[(meth_type, cls)] = meth
+
+    # create class (map to dataclass)
+    for name, prop in properties.items():
+        if not prop.child_mnt and not hasattr(cls, name):  # may be inherited
+            continue
+        if prop.ancestor_mnt:
+            setattr(cls, name, _node_ancestor_prop(prop))
+            if name in cls.__annotations__:  # computed property doesn't need a dataclass field
+                del cls.__annotations__[name]
+        elif prop.child_mnt:
+            setattr(cls, name, dataclasses.field(default=None))
+        elif prop.default is not UNSET:
+            setattr(cls, name, dataclasses.field(default=prop.default))
+        elif prop.default_factory is not None:
+            setattr(cls, name, dataclasses.field(default_factory=prop.default_factory))
+        else:
+            setattr(cls, name, required_field())
+        if not prop.ancestor_mnt:
+            cls.__annotations__[name] = prop.annotation
+    cls = dataclass(cls, repr=False, eq=False)  # type: ignore
+    cls.__static_components__ = tuple(static_components)
+    cls.__dynamic_components__ = tuple(dynamic_components or ())
+    cls.__properties__ = frozendict(properties)
+
+    return cls, properties
+
+
 @typing.dataclass_transform()
 def node_component(
     cls: Optional[typing.Type] = None,
@@ -388,100 +676,12 @@ def node_component(
     """
 
     def decorate(cls):
-        properties: dict[str, NodeProperty] = {}
-        static_components: list[type["Node"]] = [cls]
-
-        # check that no forbidden methods are defined
-        CORE_TYPES = ("Node", "ScopeNode")
-        if cls.__name__ not in CORE_TYPES:
-            for name in _FORBIDDEN_NODE_METHODS:
-                meth = getattr(cls, name, None)
-                good_meth = getattr(Node, name, getattr(ScopeNode, name, None))
-                if meth is not None and meth is not good_meth:
-                    raise ValueError(f"forbidden method {name} defined in {cls}")
-
-        # collect static components from class hierarchy
-        for base in cls.__bases__:
-            if base.__name__ in ("Node", "ABC"):
-                continue
-            if hasattr(base, "__properties__"):
-                static_components.append(base)
-                for gp in base.__static_components__:
-                    if gp.__name__ not in CORE_TYPES and gp not in static_components:
-                        static_components.append(gp)
-        if cls.__name__ != "Node":
-            static_components.append(Node)
-
-        # collect properties from this
-        for name, prop in cls.__dict__.items():
-            if (
-                name.startswith("__")
-                or type(prop).__name__.startswith("_")
-                or inspect.ismethod(properties)
-                or inspect.isfunction(prop)
-                or isinstance(prop, property)
-                or isinstance(prop, classmethod)
-                or isinstance(prop, staticmethod)
-                or type(prop) == functools.cached_property
-            ):
-                continue  # ignore reserved names and non-fields
-            if not isinstance(prop, NodeProperty):
-                raise TypeError(f"{cls}.{name} is not a NodeProperty: {prop} ({type(prop)})")
-            prop.name = name
-            prop.component = cls
-            properties[name] = prop
-
-        # collect properties from all components (static and dynamic, least to most specific)
-        cls.__properties__ = {**properties}  # copy own properties
-        for component in chain(reversed(static_components), reversed(dynamic_components)):
-            for name, prop in component.__properties__.items():
-                existing = properties.get(name, None)
-                if existing is None or name == "parent":  # override parent with more specific
-                    # register all static and any non-runtime dynamic properties
-                    if not prop.is_runtime or component not in dynamic_components:
-                        properties[name] = prop
-                elif not prop.equals_type(existing):
-                    if existing.ignore_conflicts_with and any(
-                        issubclass(component, c) for c in existing.ignore_conflicts_with
-                    ):
-                        continue
-                    raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
-
-        # collect methods implemented in this class (specifically)
-        for meth_type in NodeMethod:
-            meth = getattr(cls, meth_type.inner, None)
-            if meth is not None and not any(
-                meth is getattr(base, meth_type.inner, None) for base in cls.__bases__
-            ):
-                _COMPONENT_METHODS[(meth_type, cls)] = meth
-
-        # create class (map to dataclass)
-        for name, prop in properties.items():
-            if not prop.child_mnt and not hasattr(cls, name):  # may be inherited
-                continue
-            if prop.ancestor_mnt:
-                setattr(cls, name, _node_ancestor_prop(prop))
-                if name in cls.__annotations__:  # computed property doesn't need a dataclass field
-                    del cls.__annotations__[name]
-            elif prop.child_mnt:
-                setattr(cls, name, dataclasses.field(default=None))
-            elif prop.default is not UNSET:
-                setattr(cls, name, dataclasses.field(default=prop.default))
-            elif prop.default_factory is not None:
-                setattr(cls, name, dataclasses.field(default_factory=prop.default_factory))
-            else:
-                setattr(cls, name, required_field())
-            if not prop.ancestor_mnt:
-                cls.__annotations__[name] = prop.annotation
-        cls = dataclass(cls, repr=False, eq=False)  # type: ignore
-        cls.__static_components__ = tuple(static_components)
-        cls.__dynamic_components__ = tuple(dynamic_components or ())
+        cls, properties = _process_struct_base(cls, dynamic_components)
         cls.__static_passthrough__ = passthrough
-
-        # register properties
+        # register node properties
         props = properties.values()
-        list_properties: dict[str, NodeProperty] = {}
-        list_properties_by_child: dict[MNT, list[NodeProperty]] = defaultdict(list)
+        list_properties: dict[str, Property] = {}
+        list_properties_by_child: dict[MNT, list[Property]] = defaultdict(list)
         for prop in properties.values():
             if prop.child_mnt:
                 if (
@@ -492,13 +692,11 @@ def node_component(
                     raise ValueError(f"{cls} is not ScopeNode for {prop}")
                 list_properties[prop.name] = prop
                 list_properties_by_child[prop.child_mnt].append(prop)
-        f = frozendict
-        cls.__properties__ = f(properties)
-        cls.__list_properties__ = f(list_properties)
-        cls.__list_properties_by_child__ = f(list_properties_by_child)
-        cls.__tracked_properties__ = f({p.name: p for p in props if not p.is_internal})
-        cls.__ancestor_properties__ = f({p.name: p for p in props if p.ancestor_mnt})
-        cls.__internal_properties__ = f({p.name: p for p in props if p.is_internal})
+        cls.__list_properties__ = frozendict(list_properties)
+        cls.__list_properties_by_child__ = frozendict(list_properties_by_child)
+        cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
+        cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_mnt})
+        cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
 
         # register as concrete node class for mnt
         if mnt:
@@ -514,6 +712,19 @@ def node_component(
         return decorate(cls)
 
     return decorate
+
+
+@typing.dataclass_transform()
+def struct(st: StructType):
+    """Register a struct class."""
+
+    def decorator(cls: type[Struct]):
+        if not issubclass(cls, Struct):
+            raise TypeError(f"struct {cls} must be a subclass of {Struct}")
+        cls, properties = _process_struct_base(cls)
+        return cls
+
+    return decorator
 
 
 def node(
@@ -532,7 +743,7 @@ def node(
 NodeT = typing.TypeVar("NodeT", bound="Node")
 
 
-def _node_ancestor_prop(prop: NodeProperty) -> property:
+def _node_ancestor_prop(prop: Property) -> property:
     """Computed ancestor property for ModuleNode instances."""
 
     def get(self: NodeT) -> Optional[NodeT]:
@@ -683,7 +894,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
     Base node list for custom implementation (right now just for database).
     """
 
-    def __init__(self, parent: "ScopeNode", property: NodeProperty):
+    def __init__(self, parent: "ScopeNode", property: Property):
         self._parent = parent
         self._property = property
 
@@ -767,7 +978,7 @@ class NodeList(NodeListBase[NodeT]):
     This is the primary way of adding, removing and accessing inline node relations.
     """
 
-    def __init__(self, parent: "ScopeNode", property: NodeProperty):
+    def __init__(self, parent: "ScopeNode", property: Property):
         super().__init__(parent, property)
         self._child_mnt: MNT = property.child_mnt
         self._flags = property.children_flags
@@ -1476,7 +1687,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
 
 def _make_self_method(
-    method: NodeMethod, wraps, from_status: NodeStatus = None, to_status: NodeStatus = None
+    method: ComponentMethod, wraps, from_status: NodeStatus = None, to_status: NodeStatus = None
 ):
     """Creates method that calls _method_inner for all components in call order"""
 
@@ -1506,7 +1717,7 @@ def _make_self_method(
     return self_method
 
 
-def _make_inner_dunder_method(method: NodeMethod):
+def _make_inner_dunder_method(method: ComponentMethod):
     """Creates method that proxies a builtin dunder method to the first _method_inner"""
 
     def inner_method(self: "Node", *args, **kwargs):
@@ -1524,6 +1735,23 @@ class _Passthrough(enum.StrEnum):
     Scope = "scope"
 
 
+@dataclass
+class Struct:
+    """
+    A non-node data structure, usually inside a node.
+    Will activate, track, etc. when we start using these in nodes.
+    """
+
+    def _clear(self, scope: Optional["ScopeNode"] = None):
+        pass
+
+    def _interp(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
+        pass
+
+    def _set_untracked(self, key: str, value: Any):
+        self.__dict__[key] = value
+
+
 @node_component
 class Node(abc.ABC):
     """
@@ -1535,31 +1763,31 @@ class Node(abc.ABC):
     mnt: ClassVar[MNT]  # set in @node decorator
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
-    __properties__: ClassVar[dict[str, NodeProperty]] = {}
-    __ancestor_properties__: ClassVar[dict[str, NodeProperty]] = {}
-    __list_properties__: ClassVar[dict[str, NodeProperty]] = {}
-    __list_properties_by_child__: ClassVar[dict[MNT, list[NodeProperty]]] = defaultdict(list)
-    __tracked_properties__: ClassVar[dict[str, NodeProperty]] = {}
-    __internal_properties__: ClassVar[dict[str, NodeProperty]] = {}
+    __properties__: ClassVar[dict[str, Property]] = {}
+    __ancestor_properties__: ClassVar[dict[str, Property]] = {}
+    __list_properties__: ClassVar[dict[str, Property]] = {}
+    __list_properties_by_child__: ClassVar[dict[MNT, list[Property]]] = defaultdict(list)
+    __tracked_properties__: ClassVar[dict[str, Property]] = {}
+    __internal_properties__: ClassVar[dict[str, Property]] = {}
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __has_scope__: ClassVar[bool] = False
 
-    id: UUID = ninternal(default=None)
-    ck: UUID = ninternal(default=None)
+    id: UUID = binternal(default=None, reflect=True)
+    ck: UUID = binternal(default=None, reflect=True)
     parent: Optional["Node"] = nparent()
     # prototype: Optional["Node"] / instance_of_ck: UUID
     module: Optional["Module"] = nancestor(MNT.MODULE)
 
-    created_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
-    updated_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
-    last_edited_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
-    last_changed_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
-    revision: int = ninternal(default=0, is_cru=True)
+    created_at: datetime = binternal(default_factory=utcnow_with_tz, is_cru=True, reflect=True)
+    updated_at: datetime = binternal(default_factory=utcnow_with_tz, is_cru=True, reflect=True)
+    last_edited_at: datetime = binternal(default_factory=utcnow_with_tz, is_cru=True, reflect=True)
+    last_changed_at: datetime = binternal(default_factory=utcnow_with_tz, is_cru=True, reflect=True)
+    revision: int = binternal(default=0, is_cru=True, reflect=True)
 
-    _session: Optional["Session"] = nruntime(default=None)
-    _status: NodeStatus = nruntime(default=None)
-    _track: NodeTrackingLevel = nruntime(default=NodeTrackingLevel.FULL)
-    _new: bool = nruntime(default=False)
+    _session: Optional["Session"] = bruntime(default=None)
+    _status: NodeStatus = bruntime(default=None)
+    _track: NodeTrackingLevel = bruntime(default=NodeTrackingLevel.FULL)
+    _new: bool = bruntime(default=False)
 
     def __post_init__(self):
         if self._session is None:
@@ -1768,11 +1996,11 @@ class Node(abc.ABC):
         """Called when this node is detached from a module."""
         pass
 
-    _call_inner = _make_inner_dunder_method(NodeMethod.call)
-    _iter_inner = _make_inner_dunder_method(NodeMethod.iter)
-    _aiter_inner = _make_inner_dunder_method(NodeMethod.aiter)
-    _len_inner = _make_inner_dunder_method(NodeMethod.len)
-    _getitem_inner = _make_inner_dunder_method(NodeMethod.getitem)
+    _call_inner = _make_inner_dunder_method(ComponentMethod.call)
+    _iter_inner = _make_inner_dunder_method(ComponentMethod.iter)
+    _aiter_inner = _make_inner_dunder_method(ComponentMethod.aiter)
+    _len_inner = _make_inner_dunder_method(ComponentMethod.len)
+    _getitem_inner = _make_inner_dunder_method(ComponentMethod.getitem)
 
     __call__ = _call_inner
     __iter__ = _iter_inner
@@ -1801,7 +2029,7 @@ class Node(abc.ABC):
 
         # run actual init methods
         for meth in _get_component_methods(
-            self._components, NodeMethod.init, self._concrete_cache_key
+            self._components, ComponentMethod.init, self._concrete_cache_key
         ):
             meth(self)
 
@@ -1821,27 +2049,27 @@ class Node(abc.ABC):
         if self._status >= NS.INTERP and self._session is not None:
             self._validate_self(self.__tracked_properties__.keys(), on_issue=on_issue_raise)
 
-    _clear_self = _make_self_method(NodeMethod.clear, _clear_inner, to_status=NS.SOURCE)
+    _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner, to_status=NS.SOURCE)
     _index_self = _make_self_method(
-        NodeMethod.index, _index_inner, from_status=NS.SOURCE, to_status=NS.INDEX
+        ComponentMethod.index, _index_inner, from_status=NS.SOURCE, to_status=NS.INDEX
     )
     _interp_self = _make_self_method(
-        NodeMethod.interp,
+        ComponentMethod.interp,
         _interp_inner,
         from_status=NS.INDEX,
         to_status=NS.INTERP,
     )
 
-    _visit_self = _make_self_method(NodeMethod.visit, _visit_inner)
-    _validate_self = _make_self_method(NodeMethod.validate, _validate_inner)
+    _visit_self = _make_self_method(ComponentMethod.visit, _visit_inner)
+    _validate_self = _make_self_method(ComponentMethod.validate, _validate_inner)
     _activate_self = _make_self_method(
-        NodeMethod.activate, _activate_inner, from_status=NS.INTERP, to_status=NS.ACTIVE
+        ComponentMethod.activate, _activate_inner, from_status=NS.INTERP, to_status=NS.ACTIVE
     )
     _deactivate_self = _make_self_method(
-        NodeMethod.deactivate, _deactivate_inner, from_status=NS.ACTIVE, to_status=NS.INTERP
+        ComponentMethod.deactivate, _deactivate_inner, from_status=NS.ACTIVE, to_status=NS.INTERP
     )
-    _attached_self = _make_self_method(NodeMethod.attached, _attached_inner)
-    _detached_self = _make_self_method(NodeMethod.detached, _detached_inner)
+    _attached_self = _make_self_method(ComponentMethod.attached, _attached_inner)
+    _detached_self = _make_self_method(ComponentMethod.detached, _detached_inner)
 
     def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "Node":
         """
@@ -1900,7 +2128,9 @@ class Node(abc.ABC):
         return self.session._log
 
 
-def _make_rec_method(method: NodeMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None):
+def _make_rec_method(
+    method: ComponentMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None
+):
     """Creates method that calls _method_self for self and all descendants"""
 
     @functools.wraps(wraps)
@@ -1929,10 +2159,10 @@ class ScopeNode(Node):
 
     __has_scope__: ClassVar[bool] = True
     issues: NodeList["Issue"] = nchildren(MNT.ISSUE, NRel.Cumulative)
-    _scopes_by_name: dict[str, "ScopeNode"] = nruntime(default_factory=dict)
-    _names_by_ident: dict[str, str] = nruntime(default_factory=dict)
+    _scopes_by_name: dict[str, "ScopeNode"] = bruntime(default_factory=dict)
+    _names_by_ident: dict[str, str] = bruntime(default_factory=dict)
     # the local tree is maintained at the local root (usually module, maybe a detached root node)
-    _local_tree: Union["NodeTree", "DetachedNodeTree", None] = nruntime(default=None)
+    _local_tree: Union["NodeTree", "DetachedNodeTree", None] = bruntime(default=None)
 
     @property
     def scope(self) -> "ScopeNode":
@@ -1947,22 +2177,22 @@ class ScopeNode(Node):
             self._local_tree.add(self)
 
     _clear_rec = _make_rec_method(
-        NodeMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
+        ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
     )
-    _index_rec = _make_rec_method(NodeMethod.index, Node._index_self)
+    _index_rec = _make_rec_method(ComponentMethod.index, Node._index_self)
     _interp_rec = _make_rec_method(
-        NodeMethod.interp, Node._interp_self, custom_kwargs=lambda n: dict(scope=n.scope)
+        ComponentMethod.interp, Node._interp_self, custom_kwargs=lambda n: dict(scope=n.scope)
     )
-    _visit_rec = _make_rec_method(NodeMethod.visit, Node._visit_self)
+    _visit_rec = _make_rec_method(ComponentMethod.visit, Node._visit_self)
     _validate_rec = _make_rec_method(
-        NodeMethod.validate,
+        ComponentMethod.validate,
         Node._validate_self,
         custom_kwargs=lambda n: dict(
             properties=n.__tracked_properties__.keys(), on_issue=on_issue_raise
         ),
     )
-    _activate_rec = _make_rec_method(NodeMethod.activate, Node._activate_self)
-    _deactivate_rec = _make_rec_method(NodeMethod.deactivate, Node._deactivate_self)
+    _activate_rec = _make_rec_method(ComponentMethod.activate, Node._activate_self)
+    _deactivate_rec = _make_rec_method(ComponentMethod.deactivate, Node._deactivate_self)
 
     def _get_scope(self, name: str, by: Optional[LookupBy]) -> Union["ScopeNode", None]:
         if by is None and name in self._scopes_by_name or by == LookupBy.Name:
@@ -2137,16 +2367,16 @@ class ModuleChange:
 @node(mnt=MNT.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
     parent: None = nparent()
-    name: str = ninternal()  # can't change this yet
-    committed: bool = ninternal(default=False)
+    name: str = binternal()  # can't change this yet
+    committed: bool = binternal(default=False)
     files: NodeList["File"] = nchildren(MNT.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
-    dependencies: dict[str, Union["Module", ModuleReference]] = nruntime(default_factory=dict)
-    builtins: list["File"] = nruntime(default_factory=list)
-    _lookup_cache: dict[str, NodeT] = nruntime(default_factory=dict)
-    _source: Optional[NodeTree] = nruntime(default=None)
-    _project_id: Optional[UUID] = nruntime(default=None)
-    _os_name: Optional[str] = nruntime(default=None)
-    _pg_name: Optional[str] = nruntime(default=None)
+    dependencies: dict[str, Union["Module", ModuleReference]] = bruntime(default_factory=dict)
+    builtins: list["File"] = bruntime(default_factory=list)
+    _lookup_cache: dict[str, NodeT] = bruntime(default_factory=dict)
+    _source: Optional[NodeTree] = bruntime(default=None)
+    _project_id: Optional[UUID] = bruntime(default=None)
+    _os_name: Optional[str] = bruntime(default=None)
+    _pg_name: Optional[str] = bruntime(default=None)
 
     def __str__(self):
         if self.issues:

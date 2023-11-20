@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
 from uuid import UUID
 
-from bench.language.const import INTERP_NODE_TYPES, MNT, IssueType, StatementReference
-from bench.language.expression import S, SortOp
-from bench.language.module import Node, ScopeNode, node_component, nproperty
+from bench.language.const import INTERP_NODE_TYPES, MNT, IssueType, SortOp, StatementReference
+from bench.language.expression import S
+from bench.language.module import Node, ScopeNode, bproperty, node_component
 from bench.utils.utils import identity
 
 if TYPE_CHECKING:
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class HasReference(Node):
     """A reference to another statement."""
 
-    reference: Union["Statement", StatementReference, None] = nproperty(default=None, copy=identity)
+    reference: Union["Statement", StatementReference, None] = bproperty(default=None, copy=identity)
 
     def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         if isinstance(self.reference, Node) and (
@@ -135,7 +135,6 @@ class NodeView:
         seen_by_ck: dict[UUID, Node] = {}
         for database in databases:
             # sort by ck for consistency
-            # nocheckin: revisit view records when we have proper databases
             records = (
                 await database.records.sort(S(SortOp.ASCENDING, field="ck")).first(limit).tolist()
             )

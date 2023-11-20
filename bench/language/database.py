@@ -6,31 +6,24 @@ from uuid import UUID
 import structlog
 
 from bench.language.builtin import _auto_async_to_sync
-from bench.language.const import MNT, SessionAccessLevel, new_dynamic_node_key
-from bench.language.expression import (
-    C,
-    Conditional,
-    ConditionalOp,
-    QueryEngine,
-    Sort,
-    coerce_conditional,
-)
+from bench.language.const import MNT, QueryEngine, SessionAccessLevel, new_dynamic_node_key
+from bench.language.expression import C, Conditional, Sort, coerce_conditional
 from bench.language.module import (
     _NC,
     NS,
     Node,
     NodeList,
     NodeListBase,
-    NodeProperty,
     NRel,
+    Property,
     ScopeNode,
     _ChangeEffect,
     _Passthrough,
+    bruntime,
     nchildren,
     node,
     node_component,
     nparent,
-    nruntime,
 )
 from bench.language.value import HasValue
 from bench.search.core import DocumentType
@@ -39,7 +32,7 @@ from bench.utils.func import describe_type
 from bench.utils.utils import flatten
 
 if typing.TYPE_CHECKING:
-    from bench.language import Field, Session, Statement, View
+    from bench.language import ConditionalOp, Field, Session, Statement, View
 
 logger = structlog.get_logger(__name__)
 
@@ -139,6 +132,8 @@ class RecordBaseQuery:
         args_strs = []
         for k in ("query", "sort", "include", "select", "distinct", "first", "skip"):
             v = getattr(self, f"_{k}")
+            if k == "query":
+                v = f"({v})" if v is not None else None
             if v is not None:
                 args_strs.append(f"{k}={v}")
         return f"{self._database} {', '.join(args_strs)}"
@@ -422,7 +417,7 @@ class RecordRelationToMany(RecordRelation):
 class RecordList(NodeListBase[Record], RecordBaseQuery):
     """A NodeList for remote records."""
 
-    def __init__(self, parent: "ScopeNode", property: NodeProperty):
+    def __init__(self, parent: "ScopeNode", property: Property):
         NodeListBase[Record].__init__(self, parent, property)
         RecordBaseQuery.__init__(self, parent)
 
@@ -510,7 +505,7 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
 class HasDatabase(Node):
     views: NodeList["View"] = nchildren(MNT.VIEW, NRel.Named | NRel.Ordered)
     records: NodeList[Record] = nchildren(MNT.RECORD, NRel.Remote, custom_list=RecordList)
-    _table: Optional[Table] = nruntime(default=None)
+    _table: Optional[Table] = bruntime(default=None)
 
     def _init_inner(self):
         # this runs before HasFields because of the ordering in
