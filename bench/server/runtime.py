@@ -13,17 +13,7 @@ from django.db import transaction
 from more_itertools import first
 
 from bench import models, settings
-from bench.language import (
-    C,
-    Conditional,
-    ConditionalOp,
-    Module,
-    SortOp,
-    Trigger,
-    TriggerType,
-    libs,
-    wire,
-)
+from bench.language import Module, SortOp, Trigger, TriggerType, libs, wire
 from bench.language.builtin import symbolx_lib
 from bench.language.cache import CacheAsync
 from bench.language.const import (
@@ -34,6 +24,7 @@ from bench.language.const import (
     SessionAccessLevel,
     parse_absolute_node_reference,
 )
+from bench.language.database import RecordQuery
 from bench.language.edit import EditData, EditKind, NodeTreeEditor
 from bench.language.expression import SCORE_KEY, S
 from bench.language.libs import DEFAULT_MODULES
@@ -86,11 +77,11 @@ from bench.msg.messages import (
     StartRunErrorType,
 )
 from bench.search import mirror
-from bench.search.core import DocumentType
-from bench.search.engine import compile_os_search, os_search, update_os_schema
+from bench.search.engine import update_os_schema
 from bench.server import search
 from bench.server.observer import WorkerObserver
 from bench.server.search import write_edits_to_os
+from bench.sql.client import async_pg_cursor
 from bench.sql.engine import update_pg_schema
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.monitoring import Monitored
@@ -647,7 +638,7 @@ class RuntimeHost:
         self.log.debug("module.write_edits", edits=edits, origins=origins)
 
         restored_edits = []
-        # expand restore edits to include all descendants from DB
+        # expand restore edits to include all descendants from DB (where soft deleted nodes retire)
         if any(e.kind == EditKind.RESTORE for e in edits):
             restored_roots = packer.unpack_nodes(
                 self.project_version,
@@ -665,8 +656,7 @@ class RuntimeHost:
         elif any(e.kind == EditKind.SOFT_DELETE for e in edits):
             pass  # TODO @Robustness: cascade soft delete to all descendants
 
-        # TODO @Performance: don't deepcopy module on edit?
-        # apply
+        # apply TODO @Performance: don't deepcopy module on edit?
         old_source = self.module._source.deepcopy()
         change = self.module._apply_edits(edits + restored_edits, old_source=old_source)
         schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
@@ -817,31 +807,28 @@ class RuntimeHost:
         """
         Search records in this module (for the frontend client).
         Full module state is needed to access the local database.
-         nocheckin: 8. reroute record query through local DB if possible
         """
         try:
-            query = wire.unpack_data(msg.p.query, self.module) if msg.p.query else None
-            query = Conditional.and_if_set(
-                query,
-                C(ConditionalOp.EQUALS, "statement_key", value=msg.p.statement_key),
-                ~C(ConditionalOp.EXISTS, "deleted_at"),
-            )
+            filter = wire.unpack_data(msg.p.query, self.module) if msg.p.query else None
             sort = [wire.unpack_data(s, self.module) for s in msg.p.sort] if msg.p.sort else None
-            if not sort and query.scored:
+            if not sort and filter.scored:
                 sort = [S(SortOp.DESCENDING, field=SCORE_KEY)]
-            search = compile_os_search(
-                type=DocumentType.RECORD,
-                limit=msg.p.limit,
-                count=msg.p.count,
-                after=msg.p.after,
+
+            database = self.module.resolve(msg.p.statement_ck)
+            query = RecordQuery(
+                database=database,
+                filter=filter,
                 sort=sort,
-                query=query,
+                first=msg.p.limit,
             )
-            os_results = await os_search(self.project_version.project.os_name, search)
+            async with async_pg_cursor(self.module.pg_name) as pg_cursor:
+                records_data, records_cursors, records_total = await query._do_fetch(
+                    pg_cursor=pg_cursor, count=msg.p.count, after=msg.p.after
+                )
             rep = RepSearchRecordsPayload(
-                records=os_results.as_records(),
-                cursors=os_results.cursors,
-                total=os_results.total,
+                records=records_data,
+                cursors=records_cursors,
+                total=records_total,
                 limit=msg.p.limit,
             )
         except Exception as e:

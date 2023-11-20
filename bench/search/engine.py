@@ -427,6 +427,7 @@ class OsSearch:
 
     type: DocumentType
     limit: int | None = None
+    skip: int | None = None
     count: bool = True
     after: Optional[str] = None
     sort: Optional[list[dict]] = None
@@ -450,6 +451,8 @@ class OsSearch:
                 search["from"] = after
             else:
                 raise ValueError("invalid cursor")
+        elif self.skip is not None:
+            search["from"] = self.skip
         return search
 
 
@@ -469,13 +472,16 @@ class OsSearchResult:
 
 
 def compile_os_search(
-    type: "DocumentType",
+    type: DocumentType,
     query: Optional[Conditional] = None,
     sort: Optional[list[Sort]] = None,
     limit: int | None = None,
+    skip: int | None = None,
     count: bool = True,
     after: Optional[str] = None,
-) -> OsSearch:
+):
+    if after and skip is not None:
+        raise ValueError("cannot specify both after and skip")
     combined_query = C(
         ConditionalOp.AND,
         clauses=[C(ConditionalOp.EQUALS, TYPE_DISCRIMINATOR_KEY, value=type.value)],
@@ -489,28 +495,58 @@ def compile_os_search(
     ctx = CompilationContext(root_limit=limit)
     compiled_query = compile_os_conditional(ctx, combined_query)
     compiled_sort = [compile_os_sort(ctx, s) for s in sort]
-    return OsSearch(
-        type=type, limit=limit, count=count, after=after, sort=compiled_sort, query=compiled_query
+    search = OsSearch(
+        type=type,
+        limit=limit,
+        count=count,
+        after=after,
+        skip=skip,
+        sort=compiled_sort,
+        query=compiled_query,
     )
+    return search
 
 
-async def os_search(os_name: str, query: OsSearch) -> OsSearchResult:
-    """
-    Executes a search query against OpenSearch.
-    """
-    logger.debug("os.search", os_name=os_name, query=query)
-    os_results = await os_client.search(index=os_name, body=query.to_dict())
-    total = os_results["hits"]["total"]["value"] if query.count else None
+async def os_search(
+    os_name: str,
+    type: "DocumentType",
+    filter: Optional[Conditional] = None,
+    sort: Optional[list[Sort]] = None,
+    limit: int | None = None,
+    skip: int | None = None,
+    count: bool = True,
+    after: Optional[str] = None,
+) -> OsSearchResult:
+    """Executes a search query against OpenSearch."""
+    search = compile_os_search(type, filter, sort, limit, skip, count, after)
+    logger.debug("os.search", os_name=os_name, search=search)
+    os_results = await os_client.search(index=os_name, body=search.to_dict())
+    total = os_results["hits"]["total"]["value"] if search.count else None
     results = os_results["hits"]["hits"]
-    cursors = [encode_os_cursor(r, query.after, i) for i, r in enumerate(results)]
+    cursors = [encode_os_cursor(r, search.after, i) for i, r in enumerate(results)]
     return OsSearchResult(total=total, results=results, cursors=cursors)
 
 
-def os_search_sync(os_name: str, query: OsSearch) -> dict:
+def os_search_sync(
+    os_name: str,
+    type: "DocumentType",
+    filter: Optional[Conditional] = None,
+    sort: Optional[list[Sort]] = None,
+    limit: int | None = None,
+    skip: int | None = None,
+    count: bool = True,
+    after: Optional[str] = None,
+) -> OsSearchResult:
     """
     Executes a search query against OpenSearch.
     """
-    return os_client_sync.search(index=os_name, body=query.to_dict())
+    search = compile_os_search(type, filter, sort, limit, skip, count, after)
+    logger.debug("os.search", os_name=os_name, search=search)
+    os_results = os_client_sync.search(index=os_name, body=search.to_dict())
+    total = os_results["hits"]["total"]["value"] if search.count else None
+    results = os_results["hits"]["hits"]
+    cursors = [encode_os_cursor(r, search.after, i) for i, r in enumerate(results)]
+    return OsSearchResult(total=total, results=results, cursors=cursors)
 
 
 def encode_os_cursor(record: dict[str, Any], after: Optional[str], i: int) -> str:

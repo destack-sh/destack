@@ -55,6 +55,7 @@ redis[hiredis]==4.5.4
 sentry-sdk[django]==1.31.0
 social-auth-app-django==5.0.0
 sqlalchemy[asyncio]==2.0.22
+sqlparse==0.4.4
 strawberry-graphql-django==0.16.0
 strawberry-graphql[channels,debug-server,opentelemetry]==0.204
 uvicorn==0.23.2

@@ -130,6 +130,7 @@ class Column(TableConstruct):
     is_primary_key: bool = False
     is_unique: bool = False
     is_nullable: bool = False
+    length: int | None = None
     default: str | None = None
     _table: Union["Table", None] = None
 
@@ -160,7 +161,10 @@ class Column(TableConstruct):
         return hash(self) == hash(other)
 
     def sql(self) -> str:
-        pg_type = POSTGRES_TYPE_BY_GENERIC_TYPE[self.type]
+        if self.type == ColumnType.STRING and self.length is not None:
+            pg_type = f"VARCHAR({self.length})"
+        else:
+            pg_type = POSTGRES_TYPE_BY_GENERIC_TYPE[self.type]
         if self.is_array:
             pg_type += "[]"
         parts = [self.name, pg_type]
@@ -330,8 +334,8 @@ BASE_RECORD_TABLE = Table(
         Column("created_by_id", ColumnType.UUID, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME),
         Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
-        Column("revision", ColumnType.INT),
-        Column("statement_key", ColumnType.UUID),
+        Column("revision", ColumnType.BIGINT),
+        Column("statement_key", ColumnType.STRING, length=16),
     ),
     constraints=(
         # ck + statement_key must be unique

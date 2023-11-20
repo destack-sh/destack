@@ -42,8 +42,19 @@ def _auto_async_to_sync(func=None):
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
+            # are we in an aysnc context?
             session = _active_session.get()
-            if session is None or session.current_run is None or session.current_run._is_async:
+            try:
+                asyncio.get_running_loop()
+                is_in_loop = True
+            except RuntimeError:
+                is_in_loop = False
+            if (
+                is_in_loop
+                and session is None
+                or session.current_run is None
+                or session.current_run._is_async
+            ):
                 return func(*args, **kwargs)
             else:
                 return session.async_to_sync(func)(*args, **kwargs)

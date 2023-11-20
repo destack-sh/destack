@@ -59,7 +59,7 @@ from bench.msg.messages import (
 )
 from bench.search import mirror
 from bench.search.core import DocumentType
-from bench.search.engine import compile_os_search, encode_os_cursor, os_search_sync
+from bench.search.engine import encode_os_cursor, os_search_sync
 from bench.server.search import write_runs_to_os
 
 if TYPE_CHECKING:
@@ -487,20 +487,19 @@ class SessionQuery:
 
         logger.debug("runs.search", project_id=project_id, query=query, sort=sort)
         # query id only and then fetch full run from DB
-        search = compile_os_search(
+        os_results = os_search_sync(
+            project.os_name,
             type=DocumentType.RUN,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
             after=after,
             sort=sort,
-            query=query,
+            filter=query,
         )
-        os_results = os_search_sync(project.os_name, search)
 
-        hits = os_results["hits"]["hits"]
-        logger.debug("runs.search.db", project_id=project_id, hits=len(hits))
+        logger.debug("runs.search.db", project_id=project_id, hits=len(os_results.results))
         edges = []
-        os_runs_ids = [r["_id"] for r in hits]
+        os_runs_ids = [r["_id"] for r in os_results.results]
         db_runs = models.Run.objects.filter(id__in=os_runs_ids).prefetch_related(
             "trigger", "trigger_user", "trigger_access_token"
         )
@@ -508,11 +507,11 @@ class SessionQuery:
             logger.warning("runs.search.db.missing", project_id=project_id, runs=os_runs_ids)
             # some runs have been deleted, we need to filter them out
             db_runs_ids = {str(r.id) for r in db_runs}
-            hits = [r for r in hits if r["_id"] in db_runs_ids]
+            [r for r in os_results.results if r["_id"] in db_runs_ids]
         del os_runs_ids
 
         logger.debug("runs.search.resolve", project_id=project_id, hits=len(db_runs))
-        for i, r in enumerate(hits[0:effective_limit]):
+        for i, r in enumerate(os_results.results[0:effective_limit]):
             cursor = encode_os_cursor(r, after, i)
             run = db_runs[i]
             edges.append(relay.Edge(node=run, cursor=cursor))
@@ -526,13 +525,12 @@ class SessionQuery:
         page_info = relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
-            has_next_page=len(hits) > effective_limit,
+            has_next_page=len(os_results.results) > effective_limit,
             has_previous_page=False,
         )
-        total_count = os_results["hits"]["total"]["value"] if count else None
-        logger.debug("runs.search.done", project_id=project_id, total_count=total_count)
+        logger.debug("runs.search.done", project_id=project_id, total_count=os_results.total)
         return ListConnectionWithTotalCount(
-            edges=edges, page_info=page_info, total_count=total_count
+            edges=edges, page_info=page_info, total_count=os_results.total
         )
 
     @strawberry_django.field
@@ -578,20 +576,19 @@ class SessionQuery:
                 query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
             )
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
-        search = compile_os_search(
+
+        results = os_search_sync(
+            project.os_name,
             type=DocumentType.LOG_ENTRY,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
             after=after,
             sort=sort,
-            query=query,
+            filter=query,
         )
 
-        results = os_search_sync(project.os_name, search)
-
-        hits = results["hits"]["hits"]
         edges = []
-        for i, r in enumerate(hits[0:effective_limit]):
+        for i, r in enumerate(results.results[0:effective_limit]):
             doc = mirror.LogEntry.from_dict(r["_source"], r["_id"])
             node = LogEntry.from_os(doc)
             cursor = encode_os_cursor(r, after, i)
@@ -600,12 +597,11 @@ class SessionQuery:
         page_info = relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
-            has_next_page=len(hits) > effective_limit,
+            has_next_page=len(results.results) > effective_limit,
             has_previous_page=False,
         )
-        total_count = results["hits"]["total"]["value"] if count else None
         return ListConnectionWithTotalCount(
-            edges=edges, page_info=page_info, total_count=total_count
+            edges=edges, page_info=page_info, total_count=results.total
         )
 
 

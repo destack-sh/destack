@@ -11,14 +11,13 @@ from uuid import UUID
 
 import msgpack
 
-import bench.language.secret
-import bench.language.view
 from bench import language as lang
 from bench.language import File, IssueType, Module
 from bench.language.const import (
     MNT,
     BlobStatus,
     ExpressionKind,
+    ExpressionOp,
     IssueKind,
     NodeTrackingLevel,
     NodeType,
@@ -822,12 +821,12 @@ class DatabaseViewData(NodeData, HasOrder, HasCrud):
     sort: Optional[list[Sort]] = None
 
 
-@node_packer(MNT.VIEW, DatabaseViewData, bench.language.view.View)
-class DatabaseViewPacker(NodePacker[DatabaseViewData, bench.language.view.View]):
+@node_packer(MNT.VIEW, DatabaseViewData, lang.View)
+class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.View]):
     PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
     REMAP: ClassVar[dict[str, str]] = {}
 
-    def pack(self, view: bench.language.view.View) -> "DatabaseViewData":
+    def pack(self, view: lang.View) -> "DatabaseViewData":
         return DatabaseViewData(
             id=view.id,
             ck=view.ck,
@@ -844,8 +843,8 @@ class DatabaseViewPacker(NodePacker[DatabaseViewData, bench.language.view.View])
 
     def unpack(
         self, view: DatabaseViewData, parent: lang.Statement, session: Optional[Session]
-    ) -> bench.language.view.View:
-        return bench.language.view.View(
+    ) -> lang.View:
+        return lang.View(
             id=view.id,
             ck=view.ck,
             name=view.name,
@@ -977,19 +976,20 @@ class ExpressionPacker(DataPacker[ExpressionData, lang.Expression]):
         )
 
     def unpack(self, data: ExpressionData, module: Module) -> lang.Expression:
-        expr_cls = EXPRESSION_CLASS_BY_OP[data.op]
+        op = ExpressionOp(data.op)
+        expr_cls = EXPRESSION_CLASS_BY_OP[op.value]
         if data.clauses is not None:
             clauses = [self.unpack(clause, module) for clause in data.clauses]
         else:
             clauses = None
         if issubclass(expr_cls, CompoundConditional):
-            return expr_cls(op=data.op, clauses=clauses)
+            return expr_cls(op=op, clauses=clauses)
         elif issubclass(expr_cls, ComparisonConditional):
-            return expr_cls(op=data.op, field=data.field, value=data.value)
+            return expr_cls(op=op, field=data.field, value=data.value)
         elif issubclass(expr_cls, ExistenceConditional):
-            return expr_cls(op=data.op, field=data.field)
+            return expr_cls(op=op, field=data.field)
         elif issubclass(expr_cls, Sort):
-            return expr_cls(op=data.op, field=data.field, mode=data.mode)
+            return expr_cls(op=op, field=data.field, mode=data.mode)
         else:
             raise NotImplementedError(f"unexpected expression class {expr_cls} ({data})")
 
@@ -1046,13 +1046,13 @@ class SecretData:
         return f"<Secret {self}>"
 
 
-@data_packer(SecretData, bench.language.secret.Secret)
-class SecretPacker(DataPacker[SecretData, bench.language.secret.Secret]):
-    def pack(self, object: bench.language.secret.Secret) -> SecretData:
+@data_packer(SecretData, lang.Secret)
+class SecretPacker(DataPacker[SecretData, lang.Secret]):
+    def pack(self, object: lang.Secret) -> SecretData:
         return SecretData(id=object.id, sha512=object.sha512, value=object.value)
 
-    def unpack(self, data: SecretData, module: Module) -> bench.language.secret.Secret:
-        return bench.language.secret.Secret(id=data.id, sha512=data.sha512, value=data.value)
+    def unpack(self, data: SecretData, module: Module) -> lang.Secret:
+        return lang.Secret(id=data.id, sha512=data.sha512, value=data.value)
 
 
 @dataclass
