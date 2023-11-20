@@ -7,10 +7,10 @@ from bench.language.module import (
     NRel,
     ScopeNode,
     _Passthrough,
+    bproperty,
     nchildren,
     node,
     nparent,
-    nproperty,
 )
 from bench.language.tagging import HasTags
 from bench.language.validation import validate_name
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 @node(mnt=MNT.FILE, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
     parent: Union["File", Module] = nparent(MNT.FILE, MNT.MODULE)
-    name: str | None = nproperty(validate=validate_name)
+    name: str | None = bproperty(validate=validate_name)
 
     children: NodeList[Union["File", "Statement"]] = nchildren(
         MNT.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped

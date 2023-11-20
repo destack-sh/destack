@@ -12,7 +12,7 @@ import structlog
 
 from bench.language.builtin import _auto_async_to_sync, active_session
 from bench.language.const import MNT, BlobStatus
-from bench.language.module import Module, Node, ninternal, node, nruntime
+from bench.language.module import Module, Node, binternal, bruntime, node
 from bench.language.validation import ValidationHandler, on_issue_raise
 
 logger = structlog.get_logger(__name__)
@@ -28,13 +28,13 @@ class Blob(Node):
     :BlobType
     """
 
-    sha512: str = ninternal()
-    content_length: int = ninternal()
-    content_type: str = ninternal()
-    name: str = ninternal()
-    status: BlobStatus = ninternal(default=BlobStatus.PREPARED)
+    sha512: str = binternal()
+    content_length: int = binternal()
+    content_type: str = binternal()
+    name: str = binternal()
+    status: BlobStatus = binternal(default=BlobStatus.PREPARED)
 
-    _cached_bytes: Optional[bytes] = nruntime(default=None)
+    _cached_bytes: Optional[bytes] = bruntime(default=None)
 
     def __str__(self):
         return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"

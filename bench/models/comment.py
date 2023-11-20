@@ -3,7 +3,7 @@ from typing import Optional
 
 from django.db import models
 
-from bench.language.const import ModuleNodeType
+from bench.language.const import NodeType
 from bench.models.utils import CrudModel, DetachedModuleNode, get_choices
 
 
@@ -11,7 +11,7 @@ class Comment(CrudModel, DetachedModuleNode):
     """A nested comment on a file or statement."""
 
     parent_ck = models.UUIDField()
-    parent_type = models.CharField(max_length=64, choices=get_choices(ModuleNodeType))
+    parent_type = models.CharField(max_length=64, choices=get_choices(NodeType))
     parent_comment = models.ForeignKey("Comment", on_delete=models.CASCADE, related_name="children")
     text = models.TextField()
 

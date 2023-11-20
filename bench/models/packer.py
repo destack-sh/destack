@@ -18,19 +18,13 @@ from django.db.models import F, Model, QuerySet
 
 from bench import models
 from bench.language import IssueType, StatementType, TypeHint, TypeTag, wire
-from bench.language.const import (
-    INTERP_NODE_TYPES,
-    BlobStatus,
-    IssueKind,
-    ModuleNodeType,
-    TriggerType,
-)
+from bench.language.const import INTERP_NODE_TYPES, BlobStatus, IssueKind, NodeType, TriggerType
 from bench.language.edit import MEK, MET, EditBundle, EditData
 from bench.language.module import NodeTree
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import flatten
 
-MNT = ModuleNodeType
+MNT = NodeType
 ParentsT = set[MNT]
 NodeDataT = TypeVar("NodeDataT", bound=wire.NodeData)
 NodeT = TypeVar("NodeT", bound=Model)

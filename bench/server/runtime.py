@@ -18,6 +18,7 @@ from bench.language import (
     Conditional,
     ConditionalOp,
     Module,
+    SortOp,
     Trigger,
     TriggerType,
     libs,
@@ -34,7 +35,7 @@ from bench.language.const import (
     parse_absolute_node_reference,
 )
 from bench.language.edit import EditData, EditKind, NodeTreeEditor
-from bench.language.expression import SCORE_KEY, Sort, SortOp
+from bench.language.expression import SCORE_KEY, S
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.packer import pack_value, unpack_value
@@ -827,7 +828,7 @@ class RuntimeHost:
             )
             sort = [wire.unpack_data(s, self.module) for s in msg.p.sort] if msg.p.sort else None
             if not sort and query.scored:
-                sort = [Sort(SortOp.DESCENDING, key=SCORE_KEY)]
+                sort = [S(SortOp.DESCENDING, field=SCORE_KEY)]
             search = compile_os_search(
                 type=DocumentType.RECORD,
                 limit=msg.p.limit,

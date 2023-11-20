@@ -33,8 +33,8 @@ from bench.api.utils import (
     to_uuid,
     to_uuids,
 )
-from bench.language import SortOp, wire
-from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES
+from bench.language import wire
+from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES, SortOp
 from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import MessagingError, NMessage, publish, request, subscribe, subscribe_many
 from bench.msg.messages import (

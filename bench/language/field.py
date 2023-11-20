@@ -21,7 +21,6 @@ from bench.language.const import (
     TypeTag,
     new_dynamic_node_key,
 )
-from bench.language.expression import FieldQueryOps
 from bench.language.module import (
     _NC,
     NS,
@@ -29,15 +28,16 @@ from bench.language.module import (
     NodeList,
     NRel,
     ScopeNode,
+    _FieldExpressionBase,
     _NodeChange,
+    binternal,
+    bproperty,
+    bruntime,
     get_node_id,
     nchildren,
-    ninternal,
     node,
     node_component,
     nparent,
-    nproperty,
-    nruntime,
 )
 from bench.language.reference import HasReference, NodeVisitor
 from bench.language.text import HasText
@@ -322,7 +322,7 @@ for hint in TypeHint:
 
 @node_component
 class HasType(Node):
-    key: str = ninternal(default=None)
+    key: str | None = binternal(default=None)
 
     @property
     def resolved_fields(self) -> Collection["ResolvedField"]:
@@ -372,13 +372,14 @@ class HasType(Node):
 
 
 @node(mnt=MNT.FIELD)
-class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
+class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
     parent: Union["Statement", None] = nparent(MNT.STATEMENT)
-    name: str | None = nproperty(default=None, validate=validate_name)
-    order_key: str | None = ninternal(default=None)
-    tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
-    hint: TypeHint | None = nproperty(default=None, validate=enum_validator(TypeHint))
-    flags: TypeFlag = nproperty(default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
+    name: str | None = bproperty(default=None, validate=validate_name)
+    order_key: str | None = binternal(default=None)
+    tag: TypeTag = bproperty(is_required=True, validate=enum_validator(TypeTag))
+    hint: TypeHint | None = bproperty(default=None, validate=enum_validator(TypeHint))
+    flags: TypeFlag = bproperty(default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
+    reflected: bool = bruntime(default=False)
 
     @staticmethod
     def new(
@@ -499,7 +500,7 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
         if self.tag == TypeTag.LITERAL and isinstance(other, str):
             return self.name == other or self.py_ident == other
 
-        return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
+        return _FieldExpressionBase.__eq__(self, other)  # override to avoid recursion
 
     @property
     def _type_of_value(self) -> "HasFields":
@@ -564,7 +565,7 @@ class Field(HasText, HasValue, HasReference, HasType, FieldQueryOps):
 @node(mnt=MNT.RESOLVED_FIELD)
 class ResolvedField(Field):
     parent: "Statement" = nparent(MNT.STATEMENT)
-    field: Field = ninternal()
+    field: Field = binternal()
 
     @property
     def field_ck(self) -> UUID:
@@ -613,7 +614,7 @@ class HasFields(HasType):
     resolved_fields: NodeList["ResolvedField"] = nchildren(
         MNT.RESOLVED_FIELD, NRel.Named | NRel.Keyed | NRel.Ordered, alias="f"
     )
-    _did_resolve_fields: bool = nruntime(default=False)
+    _did_resolve_fields: bool = bruntime(default=False)
 
     def _init_inner(self):
         if self.key is None:

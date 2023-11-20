@@ -22,13 +22,13 @@ from bench.language.module import (
     NRel,
     ScopeNode,
     _Passthrough,
+    binternal,
+    bproperty,
     nancestor,
     nchildren,
-    ninternal,
     node,
     node_component,
     nparent,
-    nproperty,
 )
 from bench.language.reference import HasReference
 from bench.language.run import HasRun
@@ -177,20 +177,20 @@ class Statement(ScopeNode, HasTags):
         MNT.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
-    type: StatementType = ninternal(default=StatementType.BLANK)
-    name: str | None = nproperty(default=None, validate=validate_name)
-    order_key: str | None = ninternal(default=None)
+    type: StatementType = binternal(default=StatementType.BLANK)
+    name: str | None = bproperty(default=None, validate=validate_name)
+    order_key: str | None = binternal(default=None)
 
-    reference: Union["Statement", StatementReference, None] = nproperty(default=None, copy=identity)
-    heading_level: Optional["TextHeadingLevel"] = nproperty(
+    reference: Union["Statement", StatementReference, None] = bproperty(default=None, copy=identity)
+    heading_level: Optional["TextHeadingLevel"] = bproperty(
         default=None, validate=enum_validator(TextHeadingLevel)
     )
-    text: str | None = nproperty(default=None, validate=validate_is_str)
-    key: str | None = ninternal(default=None)
-    code: str | None = nproperty(default=None, validate=validate_is_str)
-    value: Any | None = nproperty(default_factory=dict, copy=deepcopy)
-    versioned: bool = ninternal(default=True)
-    external_name: str | None = ninternal(default=None)  # for model, to be moved into value
+    text: str | None = bproperty(default=None, validate=validate_is_str)
+    key: str | None = binternal(default=None)
+    code: str | None = bproperty(default=None, validate=validate_is_str)
+    value: Any | None = bproperty(default_factory=dict, copy=deepcopy)
+    versioned: bool = binternal(default=True)
+    external_name: str | None = binternal(default=None)  # for model, to be moved into value
 
     @staticmethod
     def new(

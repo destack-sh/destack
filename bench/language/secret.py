@@ -4,7 +4,7 @@ from typing import Optional
 from bench.language import Node
 from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import MNT
-from bench.language.module import node, nproperty, nruntime
+from bench.language.module import bproperty, bruntime, node
 
 SecretValueT = typing.TypeVar("SecretValueT")
 
@@ -13,8 +13,8 @@ SecretValueT = typing.TypeVar("SecretValueT")
 class Secret(Node, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 
-    sha512: str = nproperty()
-    value: Optional[SecretValueT] = nruntime(default=None)
+    sha512: str = bproperty()
+    value: Optional[SecretValueT] = bruntime(default=None)
 
     def __str__(self):
         return f"{self.id} ({self.sha512[:8]})"

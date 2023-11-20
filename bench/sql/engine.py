@@ -7,14 +7,13 @@ import structlog
 from psycopg import sql
 
 import bench.language as lang
-from bench.language import ConditionalOp, HasDatabase, Module, wire
+from bench.language import ConditionalOp, HasDatabase, Module, QueryEngine, wire
 from bench.language.const import MNT, TypeStorageFormat
 from bench.language.expression import (
     ComparisonConditional,
     CompoundConditional,
     ExistenceConditional,
     FieldReference,
-    QueryEngine,
     QueryEngineIncapableError,
     StaticConditional,
 )
@@ -51,6 +50,10 @@ COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
 assert len(COLUMN_TYPE_BY_STORAGE_FORMAT) == len(TypeStorageFormat), "missing column type"
 
 
+def _to_value_column_name(field: lang.Field) -> str:
+    return f"value_{field._typed_key.replace('.', '_')}"
+
+
 def map_to_pg_column(field: lang.Field) -> Column:
     """Gets a column from a field. Later, there may be more than one column per field (?)."""
     column_type = COLUMN_TYPE_BY_STORAGE_FORMAT[field._storage_format]
@@ -58,7 +61,7 @@ def map_to_pg_column(field: lang.Field) -> Column:
         field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
     ) and column_type != ColumnType.JSON
     return Column(
-        name=field._source_key.replace(".", "_"),
+        name=_to_value_column_name(field),
         type=column_type,
         is_array=is_array,
     )
@@ -202,11 +205,15 @@ def sql_node_to_sql(node: SqlNode) -> sql.Composable:
 
 
 def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReference) -> SqlNode:
-    # nocheckin: compile :BuiltInFields refs (id, ck, created_at, last_edited_by_id, etc.)
-    if database.ephemeral:
-        return SqlJsonPath(path=["value", field._typed_key])
+    if isinstance(field, lang.Field):
+        if field.reflected:
+            return sql.Identifier(field.py_ident)
+        elif database.ephemeral:
+            return SqlJsonPath(path=["value", field._typed_key])
+        else:
+            return sql.Identifier(_to_value_column_name(field))
     else:
-        return sql.Identifier(field._source_key.replace(".", "_"))
+        return sql.Identifier(field)
 
 
 def compile_pg_conditional(

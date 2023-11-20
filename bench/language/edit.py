@@ -19,7 +19,7 @@ from uuid import UUID
 
 from more_itertools import first
 
-from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType, TypeFlag, TypeTag
+from bench.language.const import INTERP_NODE_TYPES, NodeType, TypeFlag, TypeTag
 from bench.language.module import UNSET, Module, Node, NodeTree, NRel
 from bench.language.text import Text, render_text_simple
 from bench.utils.serialize import from_dict
@@ -112,11 +112,11 @@ class EditType(enum.StrEnum):
         return _MODULE_EDIT_MAP[self][0]
 
     @property
-    def mnt(self) -> "ModuleNodeType":
+    def mnt(self) -> "NodeType":
         return _MODULE_EDIT_MAP[self][1]
 
     @staticmethod
-    def from_nt(mmk: "EditKind", nt: "ModuleNodeType") -> "EditType":
+    def from_nt(mmk: "EditKind", nt: "NodeType") -> "EditType":
         return EditType(f"{mmk.value}_{nt.value.upper()}")
 
 
@@ -133,7 +133,7 @@ class EditKind(enum.StrEnum):
 
 MET = EditType
 MEK = EditKind
-MNT = ModuleNodeType
+MNT = NodeType
 
 _MODULE_EDIT_MAP: dict[MET, tuple[MEK, MNT]] = {
     # Files
@@ -239,12 +239,12 @@ class Edit:
         return self.type.kind
 
     @property
-    def scope(self) -> ModuleNodeType:
+    def scope(self) -> NodeType:
         """The type of node that was edited. Usually the same as mnt except for truncate."""
         return self.node.mnt
 
     @property
-    def mnt(self) -> ModuleNodeType:
+    def mnt(self) -> NodeType:
         """The type of node that was edited."""
         return self.type.mnt
 
@@ -259,7 +259,7 @@ class EditData:
     input: Optional[dict[str, Any]] = None  # for GQL edits
     properties: Optional[list[str]] = None  # changed properties (by language name), see :Edit
     thing: Optional[Any] = None  # in-memory object that was mutated, not serialized
-    _node_mnt: Optional[ModuleNodeType] = None  # discriminator for 'union'
+    _node_mnt: Optional[NodeType] = None  # discriminator for 'union'
     _node: Optional[Any] = None  # the actual data, custom encode/decoded as union
 
     def encode_some_attrs(self):  # see serialize and :WireFormat
@@ -292,12 +292,12 @@ class EditData:
         return self.type.kind
 
     @property
-    def scope(self) -> ModuleNodeType:
+    def scope(self) -> NodeType:
         assert self._node_mnt is not None, f"mnt is not set on {self!r}"
         return self._node_mnt
 
     @property
-    def mnt(self) -> ModuleNodeType:
+    def mnt(self) -> NodeType:
         return self.type.mnt
 
     def to_kind(self, kind: EditKind) -> "EditData":
@@ -567,7 +567,7 @@ def diff_modules(
     new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():
-        if new_node.mnt == ModuleNodeType.MODULE:
+        if new_node.mnt == NodeType.MODULE:
             continue  # ignore module itself
         if new_node.id not in old_tree.nodes_by_id:
             editor.create(new_node)
@@ -576,7 +576,7 @@ def diff_modules(
             if not new_node.equals_content(old_node):
                 editor.update(new_node)
     for old_node in old_tree.walk_bfs():
-        if old_node.mnt == ModuleNodeType.MODULE:
+        if old_node.mnt == NodeType.MODULE:
             continue
         if old_node.id not in new_tree.nodes_by_id:
             editor.delete(old_node)
