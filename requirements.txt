@@ -420,7 +420,9 @@ sqlalchemy[asyncio]==2.0.22
     #   -r requirements.in
     #   alembic
 sqlparse==0.4.4
-    # via django
+    # via
+    #   -r requirements.in
+    #   django
 starlette==0.31.1
     # via strawberry-graphql
 strawberry-graphql[channels,debug-server,opentelemetry]==0.204.0

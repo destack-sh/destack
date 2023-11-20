@@ -3,10 +3,17 @@ import typing
 from typing import Optional
 from uuid import UUID
 
+import psycopg
 import structlog
 
 from bench.language.builtin import _auto_async_to_sync
-from bench.language.const import MNT, QueryEngine, SessionAccessLevel, new_dynamic_node_key
+from bench.language.const import (
+    MNT,
+    ConditionalOp,
+    QueryEngine,
+    SessionAccessLevel,
+    new_dynamic_node_key,
+)
 from bench.language.expression import C, Conditional, Sort, coerce_conditional
 from bench.language.module import (
     _NC,
@@ -29,10 +36,11 @@ from bench.language.value import HasValue
 from bench.search.core import DocumentType
 from bench.sql.core import EPHEMERAL_RECORD_TABLE, Table
 from bench.utils.func import describe_type
-from bench.utils.utils import flatten
+from bench.utils.utils import LOCAL, flatten
 
 if typing.TYPE_CHECKING:
-    from bench.language import ConditionalOp, Field, Session, Statement, View
+    from bench.language import Field, Session, Statement, View
+    from bench.language.wire import RecordData
 
 logger = structlog.get_logger(__name__)
 
@@ -104,11 +112,11 @@ class Record(HasValue, Node):
         self.value[key] = value
 
 
-class RecordBaseQuery:
+class RecordQuery:
     def __init__(
         self,
         database: "HasDatabase",
-        query: Conditional | None = None,
+        filter: Conditional | None = None,
         sort: list[Sort] = None,
         include: list["Field"] = None,
         select: list["Field"] = None,
@@ -118,7 +126,7 @@ class RecordBaseQuery:
         engine: Optional[QueryEngine] = None,
     ):
         self._database = database
-        self._query = query
+        self._filter = filter
         self._sort = sort
         self._include = include
         self._select = select
@@ -126,11 +134,12 @@ class RecordBaseQuery:
         self._first = first
         self._skip = skip
         self._engine = engine
-        self._result_cache: list[Record] | None = None
+        self._cached_records: list[Record] | None = None
+        self._cached_cursors: list[str] | None = None
 
     def __str__(self):
         args_strs = []
-        for k in ("query", "sort", "include", "select", "distinct", "first", "skip"):
+        for k in ("filter", "sort", "include", "select", "distinct", "first", "skip"):
             v = getattr(self, f"_{k}")
             if k == "query":
                 v = f"({v})" if v is not None else None
@@ -143,9 +152,9 @@ class RecordBaseQuery:
 
     def copy(self):
         """Clones the query (the properties are immutable)."""
-        return RecordBaseQuery(
+        return RecordQuery(
             database=self._database,
-            query=self._query,
+            filter=self._filter,
             sort=self._sort,
             include=self._include,
             select=self._select,
@@ -155,30 +164,25 @@ class RecordBaseQuery:
             engine=self._engine,
         )
 
-    def using(self, engine: QueryEngine) -> "RecordBaseQuery":
+    def using(self, engine: QueryEngine) -> "RecordQuery":
         """Forces use of a query engine."""
         copy = self.copy()
         copy._engine = engine
         return copy
 
     def _invalidate(self):
-        self._result_cache = None
+        self._cached_records = None
+        self._cached_cursors = None
 
-    async def _fetch(self, session: "Session") -> list[Record]:
-        """Fetches the result set for this query."""
-        from bench.language import wire
-        from bench.search.engine import compile_os_search, os_search
-        from bench.sql.engine import pg_select_records
-
-        # nocheckin: 8. reroute record query through local DB if possible
-        # force flush and index if there are any pending database edits
-        #  (or previous edits that were already flushed but didn't refresh the index)
-        if session._editor.edits or session._past_commits:
-            # nocheckin: turn this into a local PG flush only (only schema apply, not commit)
-            await session.commit()
+    async def _do_fetch(
+        self, pg_cursor: psycopg.AsyncCursor | None, count: bool = False, after: str = None
+    ) -> tuple[list["RecordData"], list[str], int | None]:
+        """Actually fetches the raw record results from some engine."""
+        from bench.search.engine import os_search
+        from bench.sql.engine import pg_count_records, pg_select_records
 
         where = Conditional.and_if_set(
-            self._query,
+            self._filter,
             C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
             & ~C(ConditionalOp.EXISTS, "deleted_at"),
         )
@@ -192,54 +196,77 @@ class RecordBaseQuery:
         target_engine = self._engine or required_engine or QueryEngine.POSTGRES
         logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
 
-        if target_engine == QueryEngine.OPENSEARCH:
-            search = compile_os_search(
-                type=DocumentType.RECORD, query=where, limit=first, count=False, sort=self._sort
+        if target_engine == QueryEngine.OPENSEARCH or not LOCAL:  # nocheckin
+            os_results = await os_search(
+                os_name=self._database.module.os_name,
+                type=DocumentType.RECORD,
+                filter=where,
+                limit=first,
+                skip=self._skip,
+                after=after,
+                count=count,
+                sort=self._sort,
             )
-            os_results = await os_search(self._database.module.os_name, search)
-            records_data = os_results.as_records()
+            return os_results.as_records(), os_results.cursors, os_results.total
         elif target_engine == QueryEngine.POSTGRES:
-            records_data = await pg_select_records(
-                cur=session.pg_cursor,
+            assert pg_cursor is not None, f"missing pg_cursor for {self!r}"
+            records, cursors = await pg_select_records(
+                cur=pg_cursor,
                 database=self._database,
                 where=where,
                 sort=self._sort,
+                after=after,
                 first=first,
                 skip=self._skip,
             )
+            if count:
+                count = await pg_count_records(cur=pg_cursor, database=self._database, where=where)
+            else:
+                count = None
+            return records, cursors, count
         else:
             raise ValueError(f"unexpected query engine {target_engine}")
 
-        # turn into records
+    async def _fetch(self, session: "Session") -> list[Record]:
+        """Fetches the result set for this query."""
+        from bench.language import wire
+
+        # force flush and index if there are any pending database edits
+        #  (or previous edits that were already flushed but didn't refresh the index)
+        if session._editor.edits or session._past_commits:
+            # nocheckin: turn this into a local PG flush only (only schema apply, not commit)
+            await session.commit()
+
+        records_data, self._cached_cursors, _ = await self._do_fetch(pg_cursor=session.pg_cursor)
         records: list[Record] = []
         for record_data in records_data:
             record: Record = wire.unpack_node_flat(record_data, self._database, session)
             record._activate_self(session)
             records.append(record)
 
-        self._result_cache = records
+        self._cached_records = records
         logger.debug("record.query.done", query=self, results=len(records))
         return records
 
     async def __aiter__(self):
-        if self._result_cache is None:
+        if self._cached_records is None:
             await self._fetch(self._database.session)
-        return iter(self._result_cache)
+        return iter(self._cached_records)
 
     @_auto_async_to_sync
     async def tolist(self) -> list[Record]:
-        if self._result_cache is None:
+        if self._cached_records is None:
             await self._fetch(self._database.session)
-        return self._result_cache
+        return self._cached_records
 
     def __iter__(self):
-        if self._result_cache is None:
+        if self._cached_records is None:
             self._database.session.async_to_sync(self._fetch)(self._database.session)
-        return iter(self._result_cache)
+        return iter(self._cached_records)
 
     def __len__(self):
-        if self._result_cache is not None:
-            return len(self._result_cache)
+        if self._cached_records is not None:
+            return len(self._cached_records)
         return self.count()
 
     @_auto_async_to_sync
@@ -252,14 +279,14 @@ class RecordBaseQuery:
         else:
             raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results}")
 
-    def filter(self, query: Conditional = None, **kwargs) -> "RecordBaseQuery":
+    def filter(self, query: Conditional = None, **kwargs) -> "RecordQuery":
         """Adds a filter clause to the query."""
         query = coerce_conditional(self._database, query, kwargs)
         copy = self.copy()
-        copy._query = query & self._query if self._query else query
+        copy._filter = query & self._filter if self._filter else query
         return copy
 
-    def sort(self, sort: list[Sort] | Sort) -> "RecordBaseQuery":
+    def sort(self, sort: list[Sort] | Sort) -> "RecordQuery":
         """Sorts the query results by the given sort criteria."""
         copy = self.copy()
         if not isinstance(sort, list):
@@ -267,31 +294,31 @@ class RecordBaseQuery:
         copy._sort = sort
         return copy
 
-    def select(self, *fields: "Field") -> "RecordBaseQuery":
+    def select(self, *fields: "Field") -> "RecordQuery":
         """Selects only the given fields in the results."""
         raise NotImplementedError("not yet supported")
 
-    def include(self, *fields: "Field") -> "RecordBaseQuery":
+    def include(self, *fields: "Field") -> "RecordQuery":
         """Includes the given related fields in the results."""
         raise NotImplementedError("not yet supported")
 
-    def distinct(self, *fields: "Field") -> "RecordBaseQuery":
+    def distinct(self, *fields: "Field") -> "RecordQuery":
         """Returns only distinct results."""
         raise NotImplementedError("not yet supported")
 
-    def first(self, count: int) -> "RecordBaseQuery":
+    def first(self, count: int) -> "RecordQuery":
         """Returns the first N results."""
         copy = self.copy()
         copy._first = count
         return copy
 
-    def skip(self, count: int) -> "RecordBaseQuery":
+    def skip(self, count: int) -> "RecordQuery":
         """Skips the first N results."""
         copy = self.copy()
         copy._skip = count
         return copy
 
-    def __getitem__(self, item: slice | int) -> typing.Union["RecordBaseQuery", Record]:
+    def __getitem__(self, item: slice | int) -> typing.Union["RecordQuery", Record]:
         if isinstance(item, slice):
             if item.stop is None:
                 return self.skip(item.start or 0)
@@ -300,13 +327,13 @@ class RecordBaseQuery:
             else:
                 return self.first(item.stop)
         elif isinstance(item, int):
-            if self._result_cache is None:
+            if self._cached_records is None:
                 self._database.session.async_to_sync(self._fetch)(self._database.session)
             if item < 0:
-                item += len(self._result_cache)
-            if item >= len(self._result_cache):
+                item += len(self._cached_records)
+            if item >= len(self._cached_records):
                 raise IndexError(f"index {item} out of range for {self!r} (got {len(self)})")
-            return self._result_cache[item]
+            return self._cached_records[item]
         else:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
@@ -314,9 +341,15 @@ class RecordBaseQuery:
     async def count(self) -> int:
         """Returns the number of results."""
         assert not self._first and not self._skip and not self._sort, "cannot count with limits"
-        if self._result_cache is not None:
-            return len(self._result_cache)
-        raise NotImplementedError("nocheckin")
+        if self._cached_records is not None:
+            return len(self._cached_records)
+        from bench.sql.engine import pg_count_records
+
+        return await pg_count_records(
+            cur=self._database.session.pg_cursor,
+            database=self._database,
+            where=self._filter,
+        )
 
     @_auto_async_to_sync
     async def update(self, **kwargs) -> int:
@@ -333,7 +366,7 @@ class RecordBaseQuery:
         # return the ids to delete in OS
         raise NotImplementedError("not yet supported")
 
-    def group_by(self, *fields: "Field") -> "RecordBaseQuery":
+    def group_by(self, *fields: "Field") -> "RecordQuery":
         """Groups the results by the given fields."""
         raise NotImplementedError
 
@@ -389,7 +422,7 @@ class RecordRelationToMany(RecordRelation):
         super().__init__(parent, field, type, reverse_field)
         self.value: list[Record] = []
 
-    def filter(self, query: Conditional) -> "RecordBaseQuery":
+    def filter(self, query: Conditional) -> "RecordQuery":
         raise NotImplementedError
 
     def create(self, **kwargs) -> "Record":
@@ -414,12 +447,12 @@ class RecordRelationToMany(RecordRelation):
         return self.count()
 
 
-class RecordList(NodeListBase[Record], RecordBaseQuery):
+class RecordList(NodeListBase[Record], RecordQuery):
     """A NodeList for remote records."""
 
     def __init__(self, parent: "ScopeNode", property: Property):
         NodeListBase[Record].__init__(self, parent, property)
-        RecordBaseQuery.__init__(self, parent)
+        RecordQuery.__init__(self, parent)
 
     def __str__(self):
         return f"from {self._parent._table.name}"
@@ -482,23 +515,23 @@ class RecordList(NodeListBase[Record], RecordBaseQuery):
         return False  # lookup by id?
 
     def get(self, conditional: Conditional = None, **kwargs) -> Record:
-        return RecordBaseQuery.get(self, conditional, **kwargs)
+        return RecordQuery.get(self, conditional, **kwargs)
 
     #
     # Extra methods for record queries/expressions
     #
 
     def __len__(self):
-        return RecordBaseQuery.__len__(self)
+        return RecordQuery.__len__(self)
 
     def __iter__(self):
-        return RecordBaseQuery.__iter__(self)
+        return RecordQuery.__iter__(self)
 
     def __aiter__(self):
-        return RecordBaseQuery.__aiter__(self)
+        return RecordQuery.__aiter__(self)
 
     def __getitem__(self, item: slice):
-        return RecordBaseQuery.__getitem__(self, item)
+        return RecordQuery.__getitem__(self, item)
 
 
 @node_component

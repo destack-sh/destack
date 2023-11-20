@@ -90,6 +90,7 @@ sentry-sdk[django]==1.31.0
 slack-sdk==3.23.0
 soundfile==0.12.1
 sqlalchemy[asyncio]==2.0.22
+sqlparse==0.4.4
 structlog==23.1.0
 tabulate==0.9.0
 tabulate==0.9.0

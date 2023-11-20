@@ -1,7 +1,10 @@
+import base64
 import enum
+import struct
 from dataclasses import dataclass
 from uuid import UUID
 
+import cachetools
 import psycopg
 import structlog
 from psycopg import sql
@@ -33,6 +36,7 @@ from bench.sql.core import (
     Table,
     get_record_table_name,
 )
+from bench.utils.utils import DEBUG, LOCAL
 
 logger = structlog.get_logger(__name__)
 
@@ -176,6 +180,17 @@ class PostgresJoinOp(enum.StrEnum):
     FULL_OUTER_JOIN = "FULL OUTER JOIN"
 
 
+class PostgresSortOp(enum.StrEnum):
+    ASC = "ASC"
+    DESC = "DESC"
+
+
+POSTGRES_SORT_OP_BY_BENCH: dict[lang.SortOp, PostgresSortOp] = {
+    lang.SortOp.ASCENDING: PostgresSortOp.ASC,
+    lang.SortOp.DESCENDING: PostgresSortOp.DESC,
+}
+
+
 class SqlException(Exception):
     pass
 
@@ -196,12 +211,10 @@ SqlNode = SqlExpression | SqlPrimitive | sql.SQL
 def sql_node_to_sql(node: SqlNode) -> sql.Composable:
     if isinstance(node, SqlExpression):
         return node.sql()
-    elif isinstance(node, SqlPrimitive):
-        return sql.Literal(node)
-    elif isinstance(node, sql.SQL):
+    elif isinstance(node, sql.Composable):
         return node
     else:
-        raise TypeError(f"unexpected node type: {node}")
+        return sql.Literal(node)
 
 
 def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReference) -> SqlNode:
@@ -227,12 +240,11 @@ def compile_pg_conditional(
         return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
     elif isinstance(cond, ComparisonConditional) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_field_ref(database, cond.field)
-        right = SqlPrimitive(cond.value)
+        right = sql.Literal(cond.value)
         return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
     elif isinstance(cond, ExistenceConditional):
-        return SqlLogical(
-            op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
-            operand=compile_pg_conditional(database, cond.condition),
+        return SqlUnary(
+            left=_compile_field_ref(database, cond.field), op=PG_CONDITIONAL_OP_BY_BENCH[cond.op]
         )
     raise QueryEngineIncapableError(QueryEngine.POSTGRES, cond, "unsupported conditional")
 
@@ -242,7 +254,7 @@ def compile_pg_sort(
     sort: lang.Sort,
 ) -> SqlNode:
     field_ref = _compile_field_ref(database, sort.field)
-    return sql.SQL("{} {}").format(field_ref, sql.SQL(sort.direction.value))
+    return sql.SQL("{} {}").format(field_ref, sql.SQL(POSTGRES_SORT_OP_BY_BENCH[sort.op]))
 
 
 def compile_pg_sorts(
@@ -280,20 +292,16 @@ class SqlCompound(SqlExpression):
     operands: list[SqlNode]
 
     def sql(self) -> sql.Composable:
-        return (
-            sql.SQL(" {} ")
-            .format(sql.SQL(self.op))
-            .join(*(sql_node_to_sql(o) for o in self.operands))
-        )
+        return sql.SQL(f" {self.op} ").join(sql_node_to_sql(o) for o in self.operands)
 
 
 @dataclass(frozen=True)
-class SqlLogical(SqlExpression):
+class SqlUnary(SqlExpression):
+    left: SqlNode
     op: PostgresConditionalOp
-    operand: SqlNode
 
     def sql(self) -> sql.Composable:
-        return sql.SQL("{} ({})").format(sql.SQL(self.op), sql_node_to_sql(self.operand))
+        return sql.SQL("{} {}").format(sql_node_to_sql(self.left), sql.SQL(self.op))
 
 
 @dataclass(frozen=True)
@@ -346,7 +354,7 @@ async def pg_select(
         first=first,
         skip=skip,
     )
-    logger.debug("pg.select_rows", table=table, query=statement.as_string(cur))
+    logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, statement))
     await _do_execute(cur, statement)
     return await cur.fetchall()
 
@@ -389,7 +397,7 @@ async def pg_count(
     )
     if where:
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
-    logger.debug("pg.count_rows", table=table, query=statement.as_string(cur))
+    logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, statement))
     await _do_execute(cur, statement)
     return (await cur.fetchone())["count"]
 
@@ -415,7 +423,7 @@ async def pg_insert(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.insert_rows", table=table, query=statement.as_string(cur))
+    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
     await _do_execute(cur, statement)
     if returning:
         return await cur.fetchall()
@@ -437,7 +445,7 @@ async def pg_exists(
     if where:
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     statement += sql.SQL(")")
-    logger.debug("pg.exists_rows", table=table, query=statement.as_string(cur))
+    logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
     await _do_execute(cur, statement)
     return (await cur.fetchone())["exists"]
 
@@ -467,7 +475,7 @@ async def pg_update(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.update_rows", table=table, query=statement.as_string(cur))
+    logger.debug("pg.update_rows", table=table, query=sql_to_str(cur, statement))
     await _do_execute(cur, statement)
     if returning:
         return await cur.fetchall()
@@ -491,7 +499,7 @@ async def pg_delete(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.delete_rows", table=table, query=statement.as_string(cur))
+    logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, statement))
     await _do_execute(cur, statement)
     if returning:
         return await cur.fetchall()
@@ -507,6 +515,42 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 #
 
 
+def pack_record_data(database: "HasDatabase", record: wire.RecordData) -> RowIn:
+    row = {
+        "id": record.id,
+        "ck": record.ck,
+        "created_at": record.created_at,
+        "updated_at": record.updated_at,
+        "last_edited_at": record.last_edited_at,
+        "revision": record.revision,
+        "statement_key": database.key,
+    }
+    if database.ephemeral:
+        row["statement_ck"] = database.ck
+        row["statement_id"] = database.id
+        row["value"] = record.value
+    else:
+        for field in database.fields:
+            row[_to_value_column_name(field)] = record.value.get(field._typed_key)
+    return row
+
+
+def unpack_record_data(database: "HasDatabase", row: RowOut) -> wire.RecordData:
+    if database.ephemeral:
+        value = row["value"]
+    else:
+        value = {k: row[_to_value_column_name(f)] for k, f in database._fields_by_key.items()}
+    return wire.RecordData(
+        id=row["id"],
+        ck=row["ck"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        last_edited_at=row["last_edited_at"],
+        revision=row["revision"],
+        value=value,
+    )
+
+
 async def pg_select_records(
     cur: psycopg.AsyncCursor,
     database: "HasDatabase",
@@ -515,8 +559,42 @@ async def pg_select_records(
     sort: list[lang.Sort] | None = None,
     first: int | None = None,
     skip: int | None = None,
-) -> list[wire.RecordData]:
-    raise NotImplementedError("nocheckin: pg.select_records")
+    after: str | None = None,
+) -> tuple[list[wire.RecordData], list[str]]:
+    """Executes a select query on the given database."""
+    if after:
+        if skip is not None:
+            raise ValueError("cannot specify both after and skip")
+        skip = int(decode_pg_cursor(after))
+    where = compile_pg_conditional(database, where) if where is not None else None
+    sort = compile_pg_sorts(database, sort) if sort is not None else None
+    rows = await pg_select(
+        cur=cur, table=database._table, where=where, order_by=sort, first=first, skip=skip
+    )
+    records_data = [unpack_record_data(database, row) for row in rows]
+    cursors = [encode_pg_cursor(i) for i in range(skip or 0, skip or 0 + len(records_data))]
+    return records_data, cursors
+
+
+async def pg_count_records(
+    cur: psycopg.AsyncCursor,
+    database: "HasDatabase",
+    *,
+    where: lang.Conditional | None = None,
+) -> int:
+    """Counts records matching the given query."""
+    where = compile_pg_conditional(database, where) if where is not None else None
+    return await pg_count(cur=cur, table=database._table, where=where)
+
+
+@cachetools.cached({})
+def encode_pg_cursor(i: int) -> str:
+    return base64.b64encode(struct.pack("q", i)).decode("ascii")
+
+
+@cachetools.cached({})
+def decode_pg_cursor(s: str) -> int:
+    return struct.unpack("q", base64.b64decode(s))[0]
 
 
 #
@@ -582,3 +660,18 @@ async def create_pg_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, 
             )
         else:
             raise RuntimeError(f"unexpected construct: {construct}")
+
+
+if DEBUG or LOCAL:
+
+    def sql_to_str(c: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
+        """Pretty print a psycopg3 SQL statement (use multiple lines and indent)."""
+        import sqlparse
+
+        s_str = s.as_string(c)
+        return "\n" + sqlparse.format(s_str, reindent=True, keyword_case="upper")
+
+else:
+
+    def sql_to_str(c: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
+        return s.as_string(c)

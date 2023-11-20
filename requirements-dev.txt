@@ -733,6 +733,7 @@ sqlalchemy[asyncio]==2.0.22
 sqlparse==0.4.4
     # via
     #   -c requirements.txt
+    #   -r requirements.in
     #   django
 starlette==0.31.1
     # via

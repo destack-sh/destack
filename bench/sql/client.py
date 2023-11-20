@@ -33,7 +33,7 @@ def get_pg_connection_pool(pg_name: str) -> AsyncConnectionPool:
             min_size=1,
             max_size=4,
             max_idle=60 * 60,
-            reconnect_timeout=30,
+            reconnect_timeout=10,
             connection_class=psycopg.AsyncConnection,
             kwargs={"row_factory": dict_row},
         )
