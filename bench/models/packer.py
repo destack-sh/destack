@@ -313,6 +313,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
             parent_id=None,
             created_at=module.created_at,
             updated_at=module.updated_at,
+            deleted_at=module.deleted_at,
             last_edited_at=module.last_edited_at,
             last_changed_at=module.last_changed_at,
             revision=-1,  # no revision for module
@@ -336,6 +337,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
             revision=file.revision,
             created_at=file.created_at,
             updated_at=file.updated_at,
+            deleted_at=file.deleted_at,
             last_edited_at=file.last_edited_at,
             last_changed_at=file.last_changed_at,
         )
@@ -353,6 +355,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
             parent_file_id=parent.id if isinstance(parent, models.File) else None,
             name=data.name,
             revision=data.revision,
+            deleted_at=data.deleted_at,
         )
 
 
@@ -387,6 +390,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             revision=statement.revision,
             created_at=statement.created_at,
             updated_at=statement.updated_at,
+            deleted_at=statement.deleted_at,
             last_edited_at=statement.last_edited_at,
             last_changed_at=statement.last_changed_at,
         )
@@ -413,6 +417,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             reference_ck=data.reference_ck,
             created_at=data.created_at,
             updated_at=data.updated_at,
+            deleted_at=data.deleted_at,
             last_edited_at=data.last_edited_at,
             last_changed_at=data.last_changed_at,
         )
@@ -437,6 +442,7 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
             revision=field.revision,
             created_at=field.created_at,
             updated_at=field.updated_at,
+            deleted_at=field.deleted_at,
             last_edited_at=field.last_edited_at,
             last_changed_at=field.last_changed_at,
         )
@@ -455,6 +461,7 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
             flags=data.flags,
             reference_ck=data.reference_ck,
             value=data.value,
+            deleted_at=data.deleted_at,
         )
 
 
@@ -477,6 +484,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
             revision=trigger.revision,
             created_at=trigger.created_at,
             updated_at=trigger.updated_at,
+            deleted_at=trigger.deleted_at,
             last_edited_at=trigger.last_edited_at,
             last_changed_at=trigger.last_changed_at,
         )
@@ -495,6 +503,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
             cron=data.cron,
             statement_ck=data.statement_ck,
             scope_ck=data.scope_ck,
+            deleted_at=data.deleted_at,
         )
 
 
@@ -511,6 +520,7 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
             revision=tagging.revision,
             created_at=tagging.created_at,
             updated_at=tagging.updated_at,
+            deleted_at=tagging.deleted_at,
             last_edited_at=tagging.last_edited_at,
             last_changed_at=tagging.last_changed_at,
         )
@@ -523,6 +533,7 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
             key=data.key,
             reference_ck=data.reference_ck,
             value=data.value,
+            deleted_at=data.deleted_at,
         )
 
 
@@ -538,6 +549,7 @@ class RecordPacker(NodePacker[wire.RecordData, models.Record]):
             revision=record.revision,
             created_at=record.created_at,
             updated_at=record.updated_at,
+            deleted_at=record.deleted_at,
             last_edited_at=record.last_edited_at,
             last_changed_at=record.last_edited_at,
         )
@@ -554,6 +566,7 @@ class RecordPacker(NodePacker[wire.RecordData, models.Record]):
             created_at=data.created_at,
             updated_at=data.updated_at,
             last_edited_at=data.last_edited_at,
+            deleted_at=data.deleted_at,
         )
 
 
