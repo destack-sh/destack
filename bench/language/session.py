@@ -37,8 +37,8 @@ from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Blob, HasFields, Secret, Trigger
-    from bench.language.edit import MET, EditData, NodeTreeEditor
+    from bench.language import Blob, HasDatabase, HasFields, Secret, Trigger
+    from bench.language.edit import MEK, EditData, EditType
     from bench.language.wire import LogEntryData
 
 logger = structlog.get_logger(__name__)
@@ -47,10 +47,10 @@ logger = structlog.get_logger(__name__)
 class RuntimeHost(abc.ABC):
     """Central Bench runtime server for synchronizing modules and sessions."""
 
-    async def commit_edits(self, edits: list["EditData"]) -> bool:
+    async def commit_edits(self, edits: list["EditData"]) -> None:
         raise NotImplementedError
 
-    async def push_session(self, session: "Session", runs: list["Run"]) -> bool:
+    async def push_session(self, session: "Session", runs: list["Run"]) -> None:
         raise NotImplementedError
 
     async def notify_logs_changed(self, logs: list["LogEntryData"]) -> None:
@@ -130,7 +130,6 @@ class Session:
         self._opened_at: Optional[datetime] = None
         self._closed_at: Optional[datetime] = None
         self._dangling_nodes_by_ck: dict[UUID, Node] = {}
-        self._past_commits: list[tuple[int, set[MET]]] = []
         self._failed_commit: bool = False
 
     def __str__(self):
@@ -192,7 +191,7 @@ class Session:
     @property
     def _should_autocommit(self):
         # ensure edits are committed before we exit out of topmost run for error propagation
-        return self._editor.edits and len(self._tracer.stacktrace) == 1
+        return self._tracer.has_edits and len(self._tracer.stacktrace) == 1
 
     async def open(self):
         """Opens the session for execution and modification."""
@@ -215,46 +214,60 @@ class Session:
 
     @_auto_async_to_sync
     async def flush(self):
-        """Flushes local Postgres edits (ignores other edits)."""
-        raise NotImplementedError
+        """Flushes edits"""
+        await self.flush_local()
+
+    @_auto_async_to_sync
+    async def flush_local(self):
+        """Flushes local Postgres edits (leaves other edits pending)."""
+        from bench.sql.engine import write_local_edits_to_pg
+
+        with self._tracer._tracing_lock:
+            _, local_edits = self._tracer.eat_edits(include_host=False)
+            await write_local_edits_to_pg(self.module, local_edits)
 
     @_auto_async_to_sync
     async def commit(self):
-        """Commits module edits."""
-        edits = [e for e in self._editor.edits if e.mnt not in INTERP_NODE_TYPES]  # :InterpFilter
-        if not edits:
-            return
+        """Commits module edits and syncs committed local edits to OS."""
+        from bench.sql.engine import write_local_edits_to_pg
+
         assert not self._failed_commit, f"session {self!r} is broken after failed commit"
 
-        from bench.language.edit import EditBundle
+        if not self._tracer._local_edits and not self._tracer._host_edits:
+            self._log.debug("session.commit.skip")
+            return  # nothing to commit
 
-        # nocheckin: 5. intercept and commit record edit through local database
-        edits = EditBundle(edits).compact()
-        self._log.debug("session.commit", edits=edits)
+        host_edits, local_edits = self._tracer.eat_edits(include_host=True)
+        self._log.debug("session.commit", host_edits=host_edits, local_edits=local_edits)
         self._editor.reset()
         self._tracer._new_statement_ids.clear()
 
+        # commit
         try:
-            # commit module edits
-            if not await self.runtime.commit_edits(edits):
-                raise RuntimeError(f"failed to commit edits {edits}")
-            # commit local postgres edits
-            if self._pg_cursor:
-                await self._pg_cursor.connection.commit()
-                self._pg_cursor = None
-            self.module._apply_edits_to_source(edits)
-            self._log.debug("session.commit.done", edits=edits)
+            # commit host edits
+            await self.runtime.commit_edits(host_edits)
+            # commit local edits
+            await write_local_edits_to_pg(self.pg_cursor, self.module, local_edits)
+            await self._pg_cursor.connection.commit()
+            self.module._apply_edits_to_source(host_edits)
+            self._log.debug("session.commit.done", host_edits=host_edits, local_edits=local_edits)
         except Exception as e:
-            # unwind
-            self._log.exception("session.commit.failed", edits=edits, error=e)
+            # 'unwind' module state, mark session as broken
+            self._log.exception(
+                "session.commit.failed", host_edits=host_edits, local_edits=local_edits, error=e
+            )
             self.module._reset_from_source()
             self._failed_commit = True
-            raise RuntimeError(f"failed to write {len(edits)} edits {edits}") from e
+            raise RuntimeError(
+                f"failed to write {len(host_edits)} host / {len(local_edits)} local edits {local_edits}"
+            ) from e
 
-        self._past_commits.append((len(edits), set(m.type for m in edits)))
+        # sync local edits to index
+        if self._tracer._changed_record_ids:
+            pass  # nocheckin: sync changed record ids from pg to os
 
     async def close(self):
-        """Closes the session, commiting any edits and preventing further execution/edit."""
+        """Closes the session, committing any edits and preventing further execution/edit."""
         if self._closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
         self._log.debug("session.close")
@@ -294,104 +307,22 @@ class Session:
         self._log.debug("session.write_logs.done", logs=len(logs))
 
 
-# TODO @Performance: improve performance of contextual stdout/stderr capture
+@dataclass(frozen=True)
+class EditEvent:
+    """Tiny edit representation to capture every edit event. Later coalesce into real Edits."""
 
-stderr_track: ContextVar[Callable[[str], None] | None] = ContextVar("stderr_track", default=None)
-stdout_track: ContextVar[Callable[[str], None] | None] = ContextVar("stdout_track", default=None)
-
-
-class _ContextRedirectedStream:
-    """Redirect stdout/stderr for dual-writing to context-specific track functions."""
-
-    def __init__(self, native, contextvar: ContextVar[Callable[[str], None]]):
-        self.native = native
-        self.contextvar = contextvar
-        self._just_saw_newline = False
-
-    def write(self, data: str) -> int:
-        ret = self.native.write(data)
-        track = self.contextvar.get()
-        if track and (data != "\n" or self._just_saw_newline):
-            # TODO @Robustness: figure out better way of collecting stdout/stderr
-            #  This is very hacky because we don't know who called print and want to skip
-            #  some of our own log messages. Unfortunately we can't just trivially
-            #  provide a custom 'print' since many libraries use the real 'print' internally (?)
-            if not ("[debug" in data or "[info" in data):
-                track(data)
-        self._just_saw_newline = data == "\n"
-        return ret
-
-    def flush(self) -> None:
-        self.native.flush()
-
-
-def _redirect_std_streams_if_needed():
-    """Redirect stdout/stderr to the current context's track functions if they are set."""
-    if not isinstance(sys.stdout, _ContextRedirectedStream):
-        sys.stdout = _ContextRedirectedStream(sys.stdout, stdout_track)
-    if not isinstance(sys.stderr, _ContextRedirectedStream):
-        sys.stderr = _ContextRedirectedStream(sys.stderr, stderr_track)
-
-
-class LogCollector:
-    def __init__(self, track: Callable[[LogEntry], None], stream: str, session: "Session"):
-        self.track = track
-        self.session = session
-        self.stream = stream
-        self.module_id = session.module.id
-
-    def _track(self, message: str) -> None:
-        active_run = _get_active_run()
-        if active_run:
-            statement = active_run.statement
-            run = active_run
-        else:
-            statement = None
-            run = None
-        log_entry = LogEntry(
-            id=UUIDT(),
-            module=self.session.module,
-            created_at=utcnow_with_tz(),
-            stream=self.stream,
-            session=self.session,
-            statement=statement,
-            run=run,
-            message=message,
-        )
-        self.track(log_entry)
-
-    def start(self):
-        _redirect_std_streams_if_needed()
-        if self.stream == "stderr":
-            stderr_track.set(self._track)
-        elif self.stream == "stdout":
-            stdout_track.set(self._track)
-        else:
-            raise ValueError(f"invalid stream: {self.stream}")
-
-    def stop(self):
-        if self.stream == "stderr":
-            stderr_track.set(None)
-        elif self.stream == "stdout":
-            stdout_track.set(None)
-        else:
-            raise ValueError(f"invalid stream: {self.stream}")
-
-
-SESSION_FLUSH_INTERVAL = 0.1
-LOG_CACHE_SIZE = 1000
-MAX_STACK_DEPTH = 8 if DEBUG else 16
-
-
-class PermissionError(Exception):
-    pass
+    type: EditType
+    node: Node
+    target: MNT | None
+    file_id: UUID | None = None
+    statement_id: UUID | None = None
+    properties: list[str] | None = None
 
 
 class SessionTracer:
     def __init__(
         self,
         session: Session,
-        editor: "NodeTreeEditor",
         root_run_id: UUID = None,
         root_run_value: dict = None,
         global_run_value: dict = None,
@@ -418,11 +349,17 @@ class SessionTracer:
         self.stdout_collector = LogCollector(self._track_log, "stdout", session)
         self.stderr_collector = LogCollector(self._track_log, "stderr", session)
         self.session = session
-        self.editor = editor
+        self.runs = {}
         self._stacktrace: list[Run] = []
         self._stacktrace_ancestors_cks: dict[UUID, Statement] = {}  # protect running statements
         self._tracing_lock = threading.Lock()
-        self.runs = {}
+        self._created_nodes: dict[UUID, Node] = {}  # by ck
+        self._updated_nodes: dict[UUID, list[str]] = {}  # props by ck
+        self._deleted_nodes: dict[UUID, Node] = {}  # by ck
+        self._changed_record_ids = set()
+        self._touched_databases: dict[UUID, "HasDatabase"] = {}
+        self._local_edits: list[EditEvent] = []
+        self._host_edits: list[EditEvent] = []
 
     def __str__(self):
         return f"{len(self.stacktrace)} stack, {len(self.runs)} runs"
@@ -434,7 +371,12 @@ class SessionTracer:
     def stacktrace(self):
         return self._stacktrace
 
+    @property
+    def has_edits(self) -> bool:
+        return len(self._local_edits) > 0 or len(self._host_edits) > 0
+
     def _update_stacktrace_ancestors(self):
+        """Maintains the stacktrace ancestors cache (using the current traced stacktrace)."""
         self._stacktrace_ancestors_cks.clear()
         for run in self._stacktrace:
             parent = run.statement
@@ -451,24 +393,57 @@ class SessionTracer:
         self._stacktrace.append(run)
         self._update_stacktrace_ancestors()
 
+    def eat_edits(self, *, include_host: bool) -> tuple[list[EditData] | None, list[EditData]]:
+        """
+        Converts the marked edits into proper edit data (for hosts and local)
+        Host edits = any module edits not in a localized node (like records).
+        Local edits = any record edits.
+        """
+        with self._tracing_lock:
+            local_edits: list[EditData] = []
+            for edit in self._local_edits:
+                pass
+            self._local_edits.clear()
+
+            host_edits: list[EditData] | None = [] if include_host else None
+            if include_host:
+                pass
+                self._host_edits.clear()
+
+        return host_edits, local_edits
+
+    def _edit(self, edit: EditEvent):
+        """Register an edit to a node (local or host)."""
+        if edit.type.mnt == MNT.RECORD:
+            self._local_edits.append(edit)
+            self._touched_databases[edit.node.parent.ck] = edit.node.parent
+        else:
+            self._host_edits.append(edit)
+
+            if edit.type.mnt == MNT.STATEMENT:
+                self._new_statement_ids.add(edit.node.id)
+
+        if edit.node.ck in self.session._dangling_nodes_by_ck:
+            del self.session._dangling_nodes_by_ck[edit.node.ck]
+
     #
     # Module
     # Edits are actually written to local source in session commit.
-    # We don't track interp edits here because they're manually handled in runtime.
+    # We have the :InterpFilter because interp edits are tracked in the runtime host only.
     #
 
-    # nocheckin: use mark and collect to track node changes
     def node_create(self, *nodes: Node):
         # :InterpFilter
-        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL]
-        if nodes and self.session.access_level < SessionAccessLevel.Create:
+        if (
+            any(n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL)
+            and self.session.access_level < SessionAccessLevel.Create
+        ):
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
-        self.editor.create_many(*nodes, apply=False)
-        for n in nodes:
-            if n.ck in self.session._dangling_nodes_by_ck:
-                del self.session._dangling_nodes_by_ck[n.ck]
-            if n.mnt == MNT.STATEMENT:
-                self._new_statement_ids.add(n.id)
+        with self._tracing_lock:  # do it
+            for n in nodes:
+                if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
+                    continue
+                self._edit(EditEvent(type=EditType.from_nt(MEK.CREATE, n.mnt), ck=n.ck))
 
     def node_create_preflight(self, *nodes: Node):
         # used to check permission before modifying state locally
@@ -480,15 +455,24 @@ class SessionTracer:
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
 
     def node_update(self, node: Node, properties: list[str]):
-        if node.mnt not in INTERP_NODE_TYPES and node._track & NTL.FULL:  # :InterpFilter
-            if self.session.access_level < SessionAccessLevel.Update:
-                raise PermissionError(f"{self.session!r} may not update {node!r}")
-            self.editor.update(node, properties=properties, apply=False)
+        if node.mnt in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
+            return
+        if self.session.access_level < SessionAccessLevel.Update:
+            raise PermissionError(f"{self.session!r} may not update {node!r}")
+
+        with self._tracing_lock:  # do it
+            if node.ck in self._created_nodes:
+                return  # ignore updates to newly created nodes
+            edit = EditEvent(
+                type=EditType.from_nt(MEK.UPDATE, node.mnt), node=node, properties=properties
+            )
+            self._edit(edit)
 
     def node_delete(self, *nodes: Node):
-        # :InterpFilter
-        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL]
-        if nodes and self.session.access_level < SessionAccessLevel.Delete:
+        if (
+            any(n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL)
+            and self.session.access_level < SessionAccessLevel.Delete
+        ):
             raise PermissionError(f"{self.session!r} may not delete {nodes!r}")
         # ensure node is not ancestor of any running statements
         if any(n.ck in self._stacktrace_ancestors_cks for n in nodes):
@@ -500,13 +484,23 @@ class SessionTracer:
                 raise RuntimeError(
                     f"cannot delete ancestor {ancestor!r} of running statement: {statement!r}"
                 )
-        self.editor.delete_many(*nodes, apply=False)
+
+        with self._tracing_lock:  # do it
+            for n in nodes:
+                # :InterpFilter
+                if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
+                    continue
+                self._edit(EditEvent(type=EditType.from_nt(MEK.DELETE, n.mnt), node=n))
 
     def node_truncate(self, node: Node, mnt: MNT):
-        if node.mnt not in INTERP_NODE_TYPES and node._track & NTL.FULL:  # :InterpFilter
-            if self.session.access_level < SessionAccessLevel.Delete:
-                raise PermissionError(f"{self.session!r} may not truncate {node!r}")
-            self.editor.truncate(node, mnt, apply=False)
+        if node.mnt in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
+            return
+        if self.session.access_level < SessionAccessLevel.Delete:
+            raise PermissionError(f"{self.session!r} may not truncate {node!r}")
+        if mnt == MNT.RECORD:
+            raise ValueError(f"cannot truncate records: {node!r}")
+        edit = EditEvent(type=EditType.from_nt(MEK.TRUNCATE, mnt), node=node, target=node.mnt)
+        self._host_edits.append(edit)
 
     #
     # Session
@@ -748,14 +742,11 @@ class SessionTracer:
         if any(r.statement_id in self._new_statement_ids for r in runs):
             await self.session.commit(refresh_index=False)
 
-        # push session
-        success = await self.session.runtime.push_session(self.session, runs)
-        if not success:
-            raise RuntimeError(f"failed to push session {self.session}")
-        # write logs
+        # update session
+        await self.session.runtime.push_session(self.session, runs)
         await self.session._write_logs(logs)
 
-    async def open(self, flush_interval: float = SESSION_FLUSH_INTERVAL):
+    async def open(self, flush_interval: float = 0.1):
         self.stdout_collector.start()
         self.stderr_collector.start()
 
@@ -775,6 +766,98 @@ class SessionTracer:
 
         self._flush_cancel.set()
         await self._flush(force=True, kill_pending_runs=True)  # commit pending edits
+
+
+# TODO @Performance: improve performance of contextual stdout/stderr capture
+
+stderr_track: ContextVar[Callable[[str], None] | None] = ContextVar("stderr_track", default=None)
+stdout_track: ContextVar[Callable[[str], None] | None] = ContextVar("stdout_track", default=None)
+
+
+class _ContextRedirectedStream:
+    """Redirect stdout/stderr for dual-writing to context-specific track functions."""
+
+    def __init__(self, native, contextvar: ContextVar[Callable[[str], None]]):
+        self.native = native
+        self.contextvar = contextvar
+        self._just_saw_newline = False
+
+    def write(self, data: str) -> int:
+        ret = self.native.write(data)
+        track = self.contextvar.get()
+        if track and (data != "\n" or self._just_saw_newline):
+            # TODO @Robustness: figure out better way of collecting stdout/stderr
+            #  This is very hacky because we don't know who called print and want to skip
+            #  some of our own log messages. Unfortunately we can't just trivially
+            #  provide a custom 'print' since many libraries use the real 'print' internally (?)
+            if not ("[debug" in data or "[info" in data):
+                track(data)
+        self._just_saw_newline = data == "\n"
+        return ret
+
+    def flush(self) -> None:
+        self.native.flush()
+
+
+def _redirect_std_streams_if_needed():
+    """Redirect stdout/stderr to the current context's track functions if they are set."""
+    if not isinstance(sys.stdout, _ContextRedirectedStream):
+        sys.stdout = _ContextRedirectedStream(sys.stdout, stdout_track)
+    if not isinstance(sys.stderr, _ContextRedirectedStream):
+        sys.stderr = _ContextRedirectedStream(sys.stderr, stderr_track)
+
+
+class LogCollector:
+    def __init__(self, track: Callable[[LogEntry], None], stream: str, session: "Session"):
+        self.track = track
+        self.session = session
+        self.stream = stream
+        self.module_id = session.module.id
+
+    def _track(self, message: str) -> None:
+        active_run = _get_active_run()
+        if active_run:
+            statement = active_run.statement
+            run = active_run
+        else:
+            statement = None
+            run = None
+        log_entry = LogEntry(
+            id=UUIDT(),
+            module=self.session.module,
+            created_at=utcnow_with_tz(),
+            stream=self.stream,
+            session=self.session,
+            statement=statement,
+            run=run,
+            message=message,
+        )
+        self.track(log_entry)
+
+    def start(self):
+        _redirect_std_streams_if_needed()
+        if self.stream == "stderr":
+            stderr_track.set(self._track)
+        elif self.stream == "stdout":
+            stdout_track.set(self._track)
+        else:
+            raise ValueError(f"invalid stream: {self.stream}")
+
+    def stop(self):
+        if self.stream == "stderr":
+            stderr_track.set(None)
+        elif self.stream == "stdout":
+            stdout_track.set(None)
+        else:
+            raise ValueError(f"invalid stream: {self.stream}")
+
+
+LOG_CACHE_SIZE = 1000
+MAX_STACK_DEPTH = 8 if DEBUG else 16
+
+
+class PermissionError(Exception):
+    pass
 
 
 # We track the active root in a contextvar but not children

@@ -12,6 +12,7 @@ from psycopg import sql
 import bench.language as lang
 from bench.language import ConditionalOp, HasDatabase, Module, QueryEngine, wire
 from bench.language.const import MNT, TypeStorageFormat
+from bench.language.edit import EditData, EditKind
 from bench.language.expression import (
     ComparisonConditional,
     CompoundConditional,
@@ -511,93 +512,6 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 
 
 #
-# Record API
-#
-
-
-def pack_record_data(database: "HasDatabase", record: wire.RecordData) -> RowIn:
-    row = {
-        "id": record.id,
-        "ck": record.ck,
-        "created_at": record.created_at,
-        "updated_at": record.updated_at,
-        "last_edited_at": record.last_edited_at,
-        "revision": record.revision,
-        "statement_key": database.key,
-    }
-    if database.ephemeral:
-        row["statement_ck"] = database.ck
-        row["statement_id"] = database.id
-        row["value"] = record.value
-    else:
-        for field in database.fields:
-            row[_to_value_column_name(field)] = record.value.get(field._typed_key)
-    return row
-
-
-def unpack_record_data(database: "HasDatabase", row: RowOut) -> wire.RecordData:
-    if database.ephemeral:
-        value = row["value"]
-    else:
-        value = {k: row[_to_value_column_name(f)] for k, f in database._fields_by_key.items()}
-    return wire.RecordData(
-        id=row["id"],
-        ck=row["ck"],
-        created_at=row["created_at"],
-        updated_at=row["updated_at"],
-        last_edited_at=row["last_edited_at"],
-        revision=row["revision"],
-        value=value,
-    )
-
-
-async def pg_select_records(
-    cur: psycopg.AsyncCursor,
-    database: "HasDatabase",
-    *,
-    where: lang.Conditional | None = None,
-    sort: list[lang.Sort] | None = None,
-    first: int | None = None,
-    skip: int | None = None,
-    after: str | None = None,
-) -> tuple[list[wire.RecordData], list[str]]:
-    """Executes a select query on the given database."""
-    if after:
-        if skip is not None:
-            raise ValueError("cannot specify both after and skip")
-        skip = int(decode_pg_cursor(after))
-    where = compile_pg_conditional(database, where) if where is not None else None
-    sort = compile_pg_sorts(database, sort) if sort is not None else None
-    rows = await pg_select(
-        cur=cur, table=database._table, where=where, order_by=sort, first=first, skip=skip
-    )
-    records_data = [unpack_record_data(database, row) for row in rows]
-    cursors = [encode_pg_cursor(i) for i in range(skip or 0, skip or 0 + len(records_data))]
-    return records_data, cursors
-
-
-async def pg_count_records(
-    cur: psycopg.AsyncCursor,
-    database: "HasDatabase",
-    *,
-    where: lang.Conditional | None = None,
-) -> int:
-    """Counts records matching the given query."""
-    where = compile_pg_conditional(database, where) if where is not None else None
-    return await pg_count(cur=cur, table=database._table, where=where)
-
-
-@cachetools.cached({})
-def encode_pg_cursor(i: int) -> str:
-    return base64.b64encode(struct.pack("q", i)).decode("ascii")
-
-
-@cachetools.cached({})
-def decode_pg_cursor(s: str) -> int:
-    return struct.unpack("q", base64.b64decode(s))[0]
-
-
-#
 # Migrations
 #
 
@@ -662,10 +576,156 @@ async def create_pg_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, 
             raise RuntimeError(f"unexpected construct: {construct}")
 
 
-if DEBUG or LOCAL:
+#
+# Record API
+#
 
+
+def pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
+    row = {
+        "id": record.id,
+        "ck": record.ck,
+        "created_at": record.created_at,
+        "updated_at": record.updated_at,
+        "last_edited_at": record.last_edited_at,
+        "revision": record.revision,
+        "statement_key": database.key,
+    }
+    if database.ephemeral:
+        row["statement_ck"] = database.ck
+        row["statement_id"] = database.id
+        row["value"] = record.value
+    else:
+        for field in database.fields:
+            row[_to_value_column_name(field)] = record.value.get(field._typed_key)
+    return row
+
+
+def unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
+    if database.ephemeral:
+        value = row["value"]
+    else:
+        value = {k: row[_to_value_column_name(f)] for k, f in database._fields_by_key.items()}
+    return wire.RecordData(
+        id=row["id"],
+        ck=row["ck"],
+        created_at=row["created_at"],
+        updated_at=row["updated_at"],
+        last_edited_at=row["last_edited_at"],
+        revision=row["revision"],
+        value=value,
+    )
+
+
+async def pg_select_records(
+    cur: psycopg.AsyncCursor,
+    database: "HasDatabase",
+    *,
+    where: lang.Conditional | None = None,
+    sort: list[lang.Sort] | None = None,
+    first: int | None = None,
+    skip: int | None = None,
+    after: str | None = None,
+) -> tuple[list[wire.RecordData], list[str]]:
+    """Executes a select query on the given database."""
+    if after:
+        if skip is not None:
+            raise ValueError("cannot specify both after and skip")
+        skip = int(decode_pg_cursor(after))
+    where = compile_pg_conditional(database, where) if where is not None else None
+    sort = compile_pg_sorts(database, sort) if sort is not None else None
+    rows = await pg_select(
+        cur=cur, table=database._table, where=where, order_by=sort, first=first, skip=skip
+    )
+    records_data = [unpack_record_row(database, row) for row in rows]
+    cursors = [encode_pg_cursor(i) for i in range(skip or 0, skip or 0 + len(records_data))]
+    return records_data, cursors
+
+
+async def pg_count_records(
+    cur: psycopg.AsyncCursor,
+    database: "HasDatabase",
+    *,
+    where: lang.Conditional | None = None,
+) -> int:
+    """Counts records matching the given query."""
+    where = compile_pg_conditional(database, where) if where is not None else None
+    return await pg_count(cur=cur, table=database._table, where=where)
+
+
+async def pg_exists_records(
+    cur: psycopg.AsyncCursor,
+    database: "HasDatabase",
+    *,
+    where: lang.Conditional | None = None,
+) -> bool:
+    """Checks if records matching the given query exist."""
+    where = compile_pg_conditional(database, where) if where is not None else None
+    return await pg_exists(cur=cur, table=database._table, where=where)
+
+
+async def pg_insert_records(
+    cur: psycopg.AsyncCursor,
+    database: "HasDatabase",
+    records: list[wire.RecordData],
+) -> None:
+    """Inserts records into the given database."""
+    rows = [pack_record_row(database, record) for record in records]
+    await pg_insert(cur=cur, table=database._table, rows=rows)
+
+
+@cachetools.cached({})
+def encode_pg_cursor(i: int) -> str:
+    return base64.b64encode(struct.pack("q", i)).decode("ascii")
+
+
+@cachetools.cached({})
+def decode_pg_cursor(s: str) -> int:
+    return struct.unpack("q", base64.b64decode(s))[0]
+
+
+async def write_local_edits_to_pg(
+    cur: psycopg.AsyncCursor,
+    module: Module,
+    edits: list[EditData],
+    *,
+    return_nodes: bool,
+    old_databases_by_id: dict[UUID, "HasDatabase"] | None = None,
+) -> list[wire.NodeData] | None:
+    """
+    Writes *local* edits to the database. Returns the updated nodes (i.e. records).
+    Pass in databases for statements that are no longer in the module (i.e. deleted record parent).
+    """
+    if not edits:
+        return []
+
+    async def _write_batch(
+        edit_kind: EditKind, database_id: UUID, batch: list[EditData]
+    ) -> list[wire.NodeData] | None:
+        database = module.lookup(database_id) or old_databases_by_id[database_id]
+        raise NotImplementedError("nocheckin _apply_current_batch")
+
+    current_op: tuple[EditKind, UUID] = edits[0].kind, edits[0].node.parent_id
+    current_batch: list[EditData] = []
+    changed_nodes: list[wire.NodeData] | None = [] if return_nodes else None
+    for edit in edits:
+        op = (edit.kind, edit.node.parent_id)
+        if current_op != op:
+            # new op, flush current batch
+            edit_kind, database_id = current_op
+            batch_nodes = await _write_batch(edit_kind, database_id, current_batch)
+            if return_nodes:
+                changed_nodes.extend(batch_nodes)
+            # start new batch
+            current_op = op
+            current_batch = [edit]
+        else:
+            current_batch.append(edit)
+
+
+if DEBUG or LOCAL:
+    # pretty print sql statements in dev mode
     def sql_to_str(c: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
-        """Pretty print a psycopg3 SQL statement (use multiple lines and indent)."""
         import sqlparse
 
         s_str = s.as_string(c)

@@ -33,7 +33,7 @@ from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.models import Project, ProjectVersion, packer
-from bench.models.packer import write_db_edits, write_session
+from bench.models.packer import write_host_db_edits, write_session
 from bench.models.user import loops_request
 from bench.msg import NMessage
 from bench.msg.core import VERSION, handle_reply, message_handler, nc_init, publish, request
@@ -82,8 +82,9 @@ from bench.server import search
 from bench.server.observer import WorkerObserver
 from bench.server.search import write_edits_to_os
 from bench.sql.client import async_pg_cursor
-from bench.sql.engine import update_pg_schema
+from bench.sql.engine import update_pg_schema, write_local_edits_to_pg
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.func import partition
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import sentry_capture
@@ -289,6 +290,7 @@ class RuntimeSupervisor(Monitored):
                 session=msg.p.session, runs=msg.p.runs, origins=(msg.p.client,)
             )
             success = True
+            error = None
         except Exception as e:
             sentry_capture(e)
             logger.error(
@@ -299,7 +301,8 @@ class RuntimeSupervisor(Monitored):
                 exc_info=True,
             )
             success = False
-        await msg.reply(RepWriteSessionPayload(success=success))
+            error = str(e)
+        await msg.reply(RepWriteSessionPayload(success=success, error=error))
 
     @message_handler
     async def pull_runs(self, msg: NMessage[ReqPullWorkerRunsPayload]) -> None:
@@ -608,7 +611,7 @@ class RuntimeHost:
             if node.mnt in INTERP_NODE_TYPES:
                 editor.create(node, apply=False)
         # write
-        await sync_to_async(write_db_edits)(
+        await sync_to_async(write_host_db_edits)(
             self.project_version,
             source=self.module._source,
             edits=editor.edits,
@@ -635,56 +638,66 @@ class RuntimeHost:
             return []  # bail
 
         start_time = time.time()
-        self.log.debug("module.write_edits", edits=edits, origins=origins)
+        host_edits, local_edits = partition(lambda e: e.mnt == MNT.RECORD, edits)
+        del edits  # refer explicitly to host/local edits
+        log = self.log.bind(edits=host_edits, local_edits=local_edits, origins=origins)
+        log.debug("module.write_edits")
 
-        restored_edits = []
+        cascade_edits = []
         # expand restore edits to include all descendants from DB (where soft deleted nodes retire)
-        if any(e.kind == EditKind.RESTORE for e in edits):
+        if any(e.kind == EditKind.RESTORE for e in host_edits):
             restored_roots = packer.unpack_nodes(
                 self.project_version,
                 self.module._source,
-                [e.node for e in edits if e.kind == EditKind.RESTORE],
+                [e.node for e in host_edits if e.kind == EditKind.RESTORE],
             )
             restored = await sync_to_async(packer.pack_node)(
                 *restored_roots, excluded=[models.Record, *INTERP_NODE_TYPES]
             )
-            restored_edits = self._new_editor().create_many(*restored.nodes_list()).edits
-            restored_edits = [
-                e for e in restored_edits if not any(e.node.id == r.id for r in restored_roots)
-            ]
-            logger.debug("module.write_edits.restore", edits=edits, internal=restored_edits)
-        elif any(e.kind == EditKind.SOFT_DELETE for e in edits):
-            pass  # TODO @Robustness: cascade soft delete to all descendants
+            restore_edits = self._new_editor().create_many(*restored.nodes_list()).edits
+            cascade_edits.extend(
+                e for e in restore_edits if not any(e.node.id == r.id for r in restored_roots)
+            )
+            log.debug("module.write_edits.restore", restored=restore_edits)
+        elif any(e.kind == EditKind.SOFT_DELETE for e in host_edits):
+            pass  # TODO @Robustness: cascade soft delete to all descendants (incl. local)
 
         # apply TODO @Performance: don't deepcopy module on edit?
         old_source = self.module._source.deepcopy()
-        change = self.module._apply_edits(edits + restored_edits, old_source=old_source)
+        change = self.module._apply_edits(host_edits + cascade_edits, old_source=old_source)
         schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
         try:
+            # apply host edits
             # for DB, turn restore 'CREATE' edits into 'RESTORE' (since they are already in DB)
-            restored_node_ids = {e.node.id for e in restored_edits}
+            cascaded_node_ids = {e.node.id for e in cascade_edits}
             db_edits = [
-                e.to_kind(EditKind.RESTORE) if e.node.id in restored_node_ids else e
+                e.to_kind(EditKind.RESTORE)
+                if e.node.id in cascaded_node_ids and e.kind == EditKind.CREATE
+                else e
                 for e in change.all_edits
             ]
-            self.log.debug("module.write_edits.apply", db_edits=db_edits)
-            edited_nodes = await sync_to_async(write_db_edits)(
+            log.debug("module.write_edits.apply", db_edits=db_edits)
+            edited_nodes = await sync_to_async(write_host_db_edits)(
                 self.project_version,
                 source=old_source,
                 edits=db_edits,
                 raise_on_apply_error=False,  # ignore missing interp nodes (until better edits)
             )
+            # apply local edits
             if schema_changed:
                 await update_pg_schema(self.project.pg_name, self.module)
-            # nocheckin: 5. intercept and commit record edit through local database
+            if local_edits:
+                async with async_pg_cursor(self.module.pg_name) as pg_cur:
+                    await write_local_edits_to_pg(pg_cur, self.module, local_edits)
         except Exception:
             # reset source & module from db on failure
-            self.log.error("module.write_edits.failed", exc_info=True, edits=edits)
+            log.error("module.write_edits.failed", exc_info=True)
             old_source = await sync_to_async(packer.pack_module)(
                 self.project_version, excluded=[models.Record, *INTERP_NODE_TYPES]
             )
             self.module._reset_from_source(wire.NodeTree(old_source.nodes))
             raise
+
         if change.includes(MNT.TRIGGER):
             await self._update_local_triggers()
 

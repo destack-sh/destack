@@ -110,7 +110,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
     wire.unpack_module(blank_module_data.nodes, session=None)
     new_module = wire.pack_module(module, exclude=set())
     edits = diff_modules(blank_module_data, new_module, project_id=project.id)
-    packer.write_db_edits(project_v, NodeTree(blank_module_data.nodes), edits, validate=False)
+    packer.write_host_db_edits(project_v, NodeTree(blank_module_data.nodes), edits, validate=False)
     project_v.commit()
 
     if sanity_check:

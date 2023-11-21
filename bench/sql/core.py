@@ -334,7 +334,7 @@ BASE_RECORD_TABLE = Table(
         Column("created_by_id", ColumnType.UUID, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME),
         Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
-        Column("revision", ColumnType.BIGINT),
+        Column("revision", ColumnType.BIGINT, default="0"),
         Column("statement_key", ColumnType.STRING, length=16),
     ),
     constraints=(

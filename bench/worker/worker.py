@@ -761,12 +761,10 @@ class ModuleWorkerProcess(RuntimeHost):
                 logger.debug("worker.flush_dirty_runs", runs=len(self._dirty_dangling_runs))
                 runs = list(self._dirty_dangling_runs.values())
                 self._dirty_dangling_runs = {}
-                success = await self.push_session(session=None, runs=runs)
-                if not success:
-                    logger.error("worker.flush_dirty_runs.failed", runs=len(runs))
+                await self.push_session(session=None, runs=runs)
             await asyncio.sleep(interval)
 
-    async def commit_edits(self, edits: list[EditData], refresh_index: bool = False) -> bool:
+    async def commit_edits(self, edits: list[EditData], refresh_index: bool = False) -> None:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
         self.log.debug("module.commit_edits", edits=edits)
         req = ReqWriteEditsPayload(
@@ -779,11 +777,12 @@ class ModuleWorkerProcess(RuntimeHost):
             NMessageType.WRITE_EDITS, req, RepWriteEditsPayload, retry=3
         )
         self.log.debug("module.commit_edits.done", edits=edits)
-        return rep.p.success
+        if not rep.p.success:
+            raise RuntimeError(f"failed to commit edits: {rep.p.error}")
 
     async def push_session(
         self, session: Optional["Session"], runs: list[Union["Run", wire.RunData]]
-    ) -> bool:
+    ) -> None:
         self.log.debug("session.write", session=session, runs=len(runs))
 
         session_data = wire.pack_data(session) if session else None
@@ -803,7 +802,8 @@ class ModuleWorkerProcess(RuntimeHost):
         rep: NMessage[RepWriteSessionPayload] = await request(
             NMessageType.WRITE_SESSION, req, RepWriteSessionPayload, retry=3
         )
-        return rep.p.success
+        if not rep.p.success:
+            raise RuntimeError(f"failed to write session: {rep.p.error}")
 
     async def notify_logs_changed(self, logs: list[wire.LogEntryData]) -> None:
         await publish(

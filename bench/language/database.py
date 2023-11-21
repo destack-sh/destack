@@ -36,7 +36,7 @@ from bench.language.value import HasValue
 from bench.search.core import DocumentType
 from bench.sql.core import EPHEMERAL_RECORD_TABLE, Table
 from bench.utils.func import describe_type
-from bench.utils.utils import LOCAL, flatten
+from bench.utils.utils import flatten
 
 if typing.TYPE_CHECKING:
     from bench.language import Field, Session, Statement, View
@@ -196,7 +196,7 @@ class RecordQuery:
         target_engine = self._engine or required_engine or QueryEngine.POSTGRES
         logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
 
-        if target_engine == QueryEngine.OPENSEARCH or not LOCAL:  # nocheckin
+        if target_engine == QueryEngine.OPENSEARCH:
             os_results = await os_search(
                 os_name=self._database.module.os_name,
                 type=DocumentType.RECORD,
@@ -233,9 +233,8 @@ class RecordQuery:
 
         # force flush and index if there are any pending database edits
         #  (or previous edits that were already flushed but didn't refresh the index)
-        if session._editor.edits or session._past_commits:
-            # nocheckin: turn this into a local PG flush only (only schema apply, not commit)
-            await session.commit()
+        if session._tracer._local_edits:
+            await session.flush_local()
 
         records_data, self._cached_cursors, _ = await self._do_fetch(pg_cursor=session.pg_cursor)
         records: list[Record] = []
