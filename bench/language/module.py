@@ -1781,6 +1781,7 @@ class Node(abc.ABC):
 
     created_at: datetime = binternal(default=None, is_cru=True, reflect=True)
     updated_at: datetime = binternal(default=None, is_cru=True, reflect=True)
+    deleted_at: datetime = binternal(default=None, is_cru=True, reflect=True)
     last_edited_at: datetime = binternal(default=None, is_cru=True, reflect=True)
     last_changed_at: datetime = binternal(default=None, is_cru=True, reflect=True)
     revision: int = binternal(default=0, is_cru=True, reflect=True)

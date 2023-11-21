@@ -345,6 +345,7 @@ class NodeData:
 class HasCrud:
     created_at: datetime
     updated_at: datetime
+    deleted_at: Optional[datetime]
     last_edited_at: datetime
     last_changed_at: Optional[datetime]
     revision: int
@@ -414,6 +415,7 @@ class ModulePacker(NodePacker[ModuleData, Module]):
             revision=module.revision,
             created_at=module.created_at,
             updated_at=module.updated_at,
+            deleted_at=module.deleted_at,
             last_edited_at=module.last_edited_at,
             last_changed_at=module.last_changed_at,
         )
@@ -432,6 +434,7 @@ class ModulePacker(NodePacker[ModuleData, Module]):
             revision=module.revision,
             created_at=module.created_at,
             updated_at=module.updated_at,
+            deleted_at=module.deleted_at,
             last_edited_at=module.last_edited_at,
             last_changed_at=module.last_changed_at,
             _status=NodeStatus.SOURCE,
@@ -464,6 +467,7 @@ class FilePacker(NodePacker[FileData, File]):
             revision=file.revision,
             created_at=file.created_at,
             updated_at=file.updated_at,
+            deleted_at=file.deleted_at,
             last_edited_at=file.last_edited_at,
             last_changed_at=file.last_changed_at,
         )
@@ -477,6 +481,7 @@ class FilePacker(NodePacker[FileData, File]):
             revision=file.revision,
             created_at=file.created_at,
             updated_at=file.updated_at,
+            deleted_at=file.deleted_at,
             last_edited_at=file.last_edited_at,
             last_changed_at=file.last_changed_at,
             _session=session,
@@ -530,6 +535,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             revision=statement.revision,
             created_at=statement.created_at,
             updated_at=statement.updated_at,
+            deleted_at=statement.deleted_at,
             last_edited_at=statement.last_edited_at,
             last_changed_at=statement.last_changed_at,
         )
@@ -557,6 +563,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             revision=statement.revision,
             created_at=statement.created_at,
             updated_at=statement.updated_at,
+            deleted_at=statement.deleted_at,
             last_edited_at=statement.last_edited_at,
             last_changed_at=statement.last_changed_at,
             _status=NodeStatus.SOURCE,
@@ -614,6 +621,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             revision=field.revision,
             created_at=field.created_at,
             updated_at=field.updated_at,
+            deleted_at=field.deleted_at,
             last_edited_at=field.last_edited_at,
             last_changed_at=field.last_changed_at,
         )
@@ -637,6 +645,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             revision=field.revision,
             created_at=field.created_at,
             updated_at=field.updated_at,
+            deleted_at=field.deleted_at,
             last_edited_at=field.last_edited_at,
             last_changed_at=field.last_changed_at,
             _status=NodeStatus.SOURCE,
@@ -663,7 +672,6 @@ class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
     PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
 
     def pack(self, resolved_field: lang.ResolvedField) -> "ResolvedFieldData":
-        FieldPacker.pack(self, resolved_field)
         return ResolvedFieldData(
             id=resolved_field.id,
             ck=resolved_field.ck,
@@ -714,6 +722,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             revision=trigger.revision,
             created_at=trigger.created_at,
             updated_at=trigger.updated_at,
+            deleted_at=trigger.deleted_at,
             last_edited_at=trigger.last_edited_at,
             last_changed_at=trigger.last_changed_at,
         )
@@ -737,6 +746,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             revision=trigger.revision,
             created_at=trigger.created_at,
             updated_at=trigger.updated_at,
+            deleted_at=trigger.deleted_at,
             last_edited_at=trigger.last_edited_at,
             last_changed_at=trigger.last_changed_at,
             _status=NodeStatus.SOURCE,
@@ -781,6 +791,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             revision=tagging.revision,
             created_at=tagging.created_at,
             updated_at=tagging.updated_at,
+            deleted_at=tagging.deleted_at,
             last_edited_at=tagging.last_edited_at,
             last_changed_at=tagging.last_changed_at,
         )
@@ -798,6 +809,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             revision=tagging.revision,
             created_at=tagging.created_at,
             updated_at=tagging.updated_at,
+            deleted_at=tagging.deleted_at,
             last_edited_at=tagging.last_edited_at,
             last_changed_at=tagging.last_changed_at,
             _status=NodeStatus.SOURCE,
@@ -811,7 +823,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
 
 
 @dataclass
-class DatabaseViewData(NodeData, HasOrder, HasCrud):
+class ViewData(NodeData, HasOrder, HasCrud):
     mnt: ClassVar[MNT] = MNT.VIEW
     PARENTS: ClassVar[ParentsT] = {MNT.FILE, MNT.STATEMENT}
 
@@ -821,13 +833,13 @@ class DatabaseViewData(NodeData, HasOrder, HasCrud):
     sort: Optional[list[Sort]] = None
 
 
-@node_packer(MNT.VIEW, DatabaseViewData, lang.View)
-class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.View]):
+@node_packer(MNT.VIEW, ViewData, lang.View)
+class ViewPacker(NodePacker[ViewData, lang.View]):
     PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
     REMAP: ClassVar[dict[str, str]] = {}
 
-    def pack(self, view: lang.View) -> "DatabaseViewData":
-        return DatabaseViewData(
+    def pack(self, view: lang.View) -> "ViewData":
+        return ViewData(
             id=view.id,
             ck=view.ck,
             order_key=view.order_key,
@@ -837,12 +849,13 @@ class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.View]):
             revision=view.revision,
             created_at=view.created_at,
             updated_at=view.updated_at,
+            deleted_at=view.deleted_at,
             last_edited_at=view.last_edited_at,
             last_changed_at=view.last_changed_at,
         )
 
     def unpack(
-        self, view: DatabaseViewData, parent: lang.Statement, session: Optional[Session]
+        self, view: ViewData, parent: lang.Statement, session: Optional[Session]
     ) -> lang.View:
         return lang.View(
             id=view.id,
@@ -854,6 +867,7 @@ class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.View]):
             revision=view.revision,
             created_at=view.created_at,
             updated_at=view.updated_at,
+            deleted_at=view.deleted_at,
             last_edited_at=view.last_edited_at,
             last_changed_at=view.last_changed_at,
             _status=NodeStatus.SOURCE,
@@ -890,6 +904,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             revision=record.revision,
             created_at=record.created_at,
             updated_at=record.updated_at,
+            deleted_at=record.deleted_at,
             last_edited_at=record.last_edited_at,
             last_changed_at=record.last_changed_at,
         )
@@ -905,6 +920,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             revision=record.revision,
             created_at=record.created_at,
             updated_at=record.updated_at,
+            deleted_at=record.deleted_at,
             last_edited_at=record.last_edited_at,
             last_changed_at=record.last_changed_at,
             _status=NodeStatus.SOURCE,
