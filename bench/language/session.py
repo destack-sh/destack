@@ -9,7 +9,16 @@ from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, Optional, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Awaitable,
+    Callable,
+    Coroutine,
+    Optional,
+    Union,
+    cast,
+)
 from uuid import UUID, uuid4
 
 import asgiref.sync
@@ -27,6 +36,7 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
+from bench.language.edit import MEK, EditData, EditKind, EditType
 from bench.language.module import Module, Node
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.statement import Statement
@@ -38,7 +48,6 @@ from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Blob, HasDatabase, HasFields, Secret, Trigger
-    from bench.language.edit import MEK, EditData, EditType
     from bench.language.wire import LogEntryData
 
 logger = structlog.get_logger(__name__)
@@ -97,7 +106,6 @@ class Session:
     ):
         from bench.language.blob import Blobs
         from bench.language.cache import CacheAsync, CacheSync
-        from bench.language.edit import NodeTreeEditor
 
         self.id = id or uuid4()
         self.module = module
@@ -117,10 +125,8 @@ class Session:
 
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._log = logger.bind(session=self)
-        self._editor = NodeTreeEditor(self.module._local_tree, module.project_id, module.id)
         self._tracer = SessionTracer(
             self,
-            editor=self._editor,
             root_run_id=root_run_id,
             root_run_value=root_run_value,
             global_run_value=global_run_value,
@@ -134,7 +140,7 @@ class Session:
 
     def __str__(self):
         status = "open" if self._opened_at else ("closed" if self._closed_at else "pending")
-        return f"{self.module.name} ({self.access_level.name}, {status}, {len(self._editor.edits)} pending edits)"
+        return f"{self.module.name} ({self.access_level.name}, {status}, {len(self._tracer._local_edits)} local edits, {len(self._tracer._host_edits)} host edits)"
 
     def __repr__(self):
         return f"<Session {self}>"
@@ -238,9 +244,8 @@ class Session:
             return  # nothing to commit
 
         host_edits, local_edits = self._tracer.eat_edits(include_host=True)
-        self._log.debug("session.commit", host_edits=host_edits, local_edits=local_edits)
-        self._editor.reset()
-        self._tracer._new_statement_ids.clear()
+        log = self._log.bind(host_edits=host_edits, local_edits=local_edits)
+        log.debug("session.commit")
 
         # commit
         try:
@@ -250,16 +255,14 @@ class Session:
             await write_local_edits_to_pg(self.pg_cursor, self.module, local_edits)
             await self._pg_cursor.connection.commit()
             self.module._apply_edits_to_source(host_edits)
-            self._log.debug("session.commit.done", host_edits=host_edits, local_edits=local_edits)
+            log.debug("session.commit.done")
         except Exception as e:
             # 'unwind' module state, mark session as broken
-            self._log.exception(
-                "session.commit.failed", host_edits=host_edits, local_edits=local_edits, error=e
-            )
+            log.exception("session.commit.failed", exc_info=True)
             self.module._reset_from_source()
             self._failed_commit = True
             raise RuntimeError(
-                f"failed to write {len(host_edits)} host / {len(local_edits)} local edits {local_edits}"
+                f"failed to write edits ({len(host_edits)} host, {len(local_edits)} local): {e}"
             ) from e
 
         # sync local edits to index
@@ -313,9 +316,7 @@ class EditEvent:
 
     type: EditType
     node: Node
-    target: MNT | None
-    file_id: UUID | None = None
-    statement_id: UUID | None = None
+    target: MNT | None = None
     properties: list[str] | None = None
 
 
@@ -334,7 +335,6 @@ class SessionTracer:
         self._flush_cancel: asyncio.Event | None = None
         self._flush_task: asyncio.Task | None = None
         self._root_run_id = root_run_id
-        self._new_statement_ids: set[UUID] = set()
 
         from bench.language.packer import unpack_value
 
@@ -353,11 +353,10 @@ class SessionTracer:
         self._stacktrace: list[Run] = []
         self._stacktrace_ancestors_cks: dict[UUID, Statement] = {}  # protect running statements
         self._tracing_lock = threading.Lock()
-        self._created_nodes: dict[UUID, Node] = {}  # by ck
-        self._updated_nodes: dict[UUID, list[str]] = {}  # props by ck
-        self._deleted_nodes: dict[UUID, Node] = {}  # by ck
+        self._created_nodes_ck: set[UUID] = set()
+        self._updated_nodes_event_by_ck: dict[UUID, int] = {}
         self._changed_record_ids = set()
-        self._touched_databases: dict[UUID, "HasDatabase"] = {}
+        self._touched_databases_by_id: dict[UUID, "HasDatabase"] = {}
         self._local_edits: list[EditEvent] = []
         self._host_edits: list[EditEvent] = []
 
@@ -395,33 +394,87 @@ class SessionTracer:
 
     def eat_edits(self, *, include_host: bool) -> tuple[list[EditData] | None, list[EditData]]:
         """
-        Converts the marked edits into proper edit data (for hosts and local)
+        Converts the edit events into proper edits (for hosts and local)
         Host edits = any module edits not in a localized node (like records).
         Local edits = any record edits.
         """
+        from bench.language import Record
+        from bench.language.wire import pack_node_flat
+
+        module = self.session.module
         with self._tracing_lock:
+            # create local edits
             local_edits: list[EditData] = []
-            for edit in self._local_edits:
-                pass
+            local_seen_cks: set[UUID] = set()
+            for event in self._local_edits:
+                node = cast(Record, event.node)
+                edit = EditData(
+                    type=event.type,
+                    project_version_id=module.id,
+                    file_id=node.parent.file.id,
+                    statement_id=node.parent.id,
+                    properties=event.properties,
+                )
+                edit.node = pack_node_flat(node)
+                if not include_host:  # not needed if including everything
+                    local_seen_cks.add(node.ck)
             self._local_edits.clear()
 
+            # create  host edits (if needed)
             host_edits: list[EditData] | None = [] if include_host else None
             if include_host:
-                pass
+                for event in self._host_edits:
+                    node = event.node
+                    file = module._local_tree.get_ancestor(node.ck, MNT.FILE)
+                    statement = module._local_tree.get_ancestor(node.ck, MNT.STATEMENT)
+                    edit = EditData(
+                        type=event.type,
+                        project_version_id=module.id,
+                        file_id=file.id if file else None,
+                        statement_id=statement.id if statement else None,
+                        properties=event.properties,
+                    )
+                    edit.node = pack_node_flat(node)
+                    host_edits.append(edit)
                 self._host_edits.clear()
+
+            # reset
+            if include_host:  # just clear all
+                self._created_nodes_ck.clear()
+                self._updated_nodes_event_by_ck.clear()
+            else:  # clear only local seen
+                self._created_nodes_ck.difference_update(local_seen_cks)
+                self._updated_nodes_event_by_ck = {
+                    ck: idx
+                    for ck, idx in self._updated_nodes_event_by_ck.items()
+                    if ck not in local_seen_cks
+                }
 
         return host_edits, local_edits
 
     def _edit(self, edit: EditEvent):
         """Register an edit to a node (local or host)."""
-        if edit.type.mnt == MNT.RECORD:
-            self._local_edits.append(edit)
-            self._touched_databases[edit.node.parent.ck] = edit.node.parent
-        else:
-            self._host_edits.append(edit)
+        is_local = edit.type.mnt == MNT.RECORD
+        edits = self._local_edits if is_local else self._host_edits
 
-            if edit.type.mnt == MNT.STATEMENT:
-                self._new_statement_ids.add(edit.node.id)
+        if edit.type.kind == EditKind.CREATE:
+            self._created_nodes_ck.add(edit.node.ck)
+        elif edit.type.kind == EditKind.UPDATE:
+            if edit.node.ck in self._created_nodes_ck:
+                return  # ignore updates to newly created nodes
+            # merge with previous update if there is one
+            update_idx = self._updated_nodes_event_by_ck.get(edit.node.ck)
+            if update_idx is not None:
+                for prop in edit.properties:
+                    if prop not in edits[update_idx].properties:
+                        edits[update_idx].properties.append(prop)
+                return  # merged, ignore this edit
+            else:  # remember update event index
+                self._updated_nodes_event_by_ck[edit.node.ck] = len(edits)
+        edits.append(edit)
+
+        if edit.type.mnt == MNT.RECORD:
+            self._touched_databases_by_id[edit.node.parent_id] = edit.node.parent
 
         if edit.node.ck in self.session._dangling_nodes_by_ck:
             del self.session._dangling_nodes_by_ck[edit.node.ck]
@@ -430,6 +483,8 @@ class SessionTracer:
     # Module
     # Edits are actually written to local source in session commit.
     # We have the :InterpFilter because interp edits are tracked in the runtime host only.
+    #
+    # NOTE: We don't support restore/soft-delete/move in sessions (yet).
     #
 
     def node_create(self, *nodes: Node):
@@ -461,7 +516,7 @@ class SessionTracer:
             raise PermissionError(f"{self.session!r} may not update {node!r}")
 
         with self._tracing_lock:  # do it
-            if node.ck in self._created_nodes:
+            if node.ck in self._created_nodes_ck:
                 return  # ignore updates to newly created nodes
             edit = EditEvent(
                 type=EditType.from_nt(MEK.UPDATE, node.mnt), node=node, properties=properties
@@ -739,7 +794,7 @@ class SessionTracer:
 
         # force commit module as well if a new statement was run
         #  (since we need those field mappings, lest OS errors)
-        if any(r.statement_id in self._new_statement_ids for r in runs):
+        if any(r.statement_ck in self._created_nodes_ck for r in runs):
             await self.session.commit(refresh_index=False)
 
         # update session

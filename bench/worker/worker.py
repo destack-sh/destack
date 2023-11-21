@@ -761,7 +761,10 @@ class ModuleWorkerProcess(RuntimeHost):
                 logger.debug("worker.flush_dirty_runs", runs=len(self._dirty_dangling_runs))
                 runs = list(self._dirty_dangling_runs.values())
                 self._dirty_dangling_runs = {}
-                await self.push_session(session=None, runs=runs)
+                try:
+                    await self.push_session(session=None, runs=runs)
+                except Exception as e:
+                    logger.error("worker.flush_dirty_runs.failed", exc_info=e, runs=runs)
             await asyncio.sleep(interval)
 
     async def commit_edits(self, edits: list[EditData], refresh_index: bool = False) -> None:

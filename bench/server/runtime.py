@@ -590,6 +590,7 @@ class RuntimeHost:
 
     async def _publish_edits(self, edits: list[EditData], origins: tuple[ClientOrigin, ...] = None):
         edits = [get_api_edit_from_internal(e) for e in edits]
+        self.log.debug("module.publish_edits", edits=edits)
         await publish(
             NMessageType.MODULE_CHANGED,
             ModuleChangedPayload(
@@ -663,6 +664,7 @@ class RuntimeHost:
             pass  # TODO @Robustness: cascade soft delete to all descendants (incl. local)
 
         # apply TODO @Performance: don't deepcopy module on edit?
+        edited_nodes: list[wire.NodeData] = []
         old_source = self.module._source.deepcopy()
         change = self.module._apply_edits(host_edits + cascade_edits, old_source=old_source)
         schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
@@ -677,18 +679,23 @@ class RuntimeHost:
                 for e in change.all_edits
             ]
             log.debug("module.write_edits.apply", db_edits=db_edits)
-            edited_nodes = await sync_to_async(write_host_db_edits)(
-                self.project_version,
-                source=old_source,
-                edits=db_edits,
-                raise_on_apply_error=False,  # ignore missing interp nodes (until better edits)
-            )
+            if db_edits:
+                edited_host_nodes = await sync_to_async(write_host_db_edits)(
+                    self.project_version,
+                    source=old_source,
+                    edits=db_edits,
+                    raise_on_apply_error=False,  # ignore missing interp nodes (until better edits)
+                )
+                edited_nodes.extend(edited_host_nodes)
             # apply local edits
             if schema_changed:
                 await update_pg_schema(self.project.pg_name, self.module)
             if local_edits:
                 async with async_pg_cursor(self.module.pg_name) as pg_cur:
-                    await write_local_edits_to_pg(pg_cur, self.module, local_edits)
+                    edited_local_nodes = await write_local_edits_to_pg(
+                        pg_cur, self.module, local_edits, return_nodes=True
+                    )
+                edited_nodes.extend(edited_local_nodes)
         except Exception:
             # reset source & module from db on failure
             log.error("module.write_edits.failed", exc_info=True)

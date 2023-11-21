@@ -35,8 +35,10 @@ class HasValue(Node):
         # pack this value if it couldn't be packed in deactivate/detach
         #  (e.g. the type wasn't available on instantiation)
         assert self._type_of_value is not None, f"missing type for {self!r}"
-        is_packed = self._type_of_value.resolved_fields and any(
-            self.value.get(k.py_ident) for k in self._type_of_value.resolved_fields
+        is_packed = (
+            self._type_of_value.resolved_fields
+            and self.value
+            and any(self.value.get(k.py_ident) for k in self._type_of_value.resolved_fields)
         )
         if is_packed and self.module:
             from bench.language.packer import check_type, pack_value

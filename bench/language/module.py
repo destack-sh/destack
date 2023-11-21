@@ -489,6 +489,7 @@ class ComponentMethod(enum.Enum):
     deactivate = "deactivate"
     attached = "attached"
     detached = "detached"
+    updated = "updated"
     call = "call"
     iter = "iter"
     aiter = "aiter"
@@ -1778,10 +1779,10 @@ class Node(abc.ABC):
     # prototype: Optional["Node"] / instance_of_ck: UUID
     module: Optional["Module"] = nancestor(MNT.MODULE)
 
-    created_at: datetime = binternal(default_factory=utcnow_with_tz, is_cru=True, reflect=True)
-    updated_at: datetime = binternal(default_factory=utcnow_with_tz, is_cru=True, reflect=True)
-    last_edited_at: datetime = binternal(default_factory=utcnow_with_tz, is_cru=True, reflect=True)
-    last_changed_at: datetime = binternal(default_factory=utcnow_with_tz, is_cru=True, reflect=True)
+    created_at: datetime = binternal(default=None, is_cru=True, reflect=True)
+    updated_at: datetime = binternal(default=None, is_cru=True, reflect=True)
+    last_edited_at: datetime = binternal(default=None, is_cru=True, reflect=True)
+    last_changed_at: datetime = binternal(default=None, is_cru=True, reflect=True)
     revision: int = binternal(default=0, is_cru=True, reflect=True)
 
     _session: Optional["Session"] = bruntime(default=None)
@@ -1799,6 +1800,12 @@ class Node(abc.ABC):
         if self.ck is None:
             self.ck = uuid4()
             self._new = True
+            # init cru timestamps
+            now = utcnow_with_tz()
+            self.created_at = now
+            self.updated_at = now
+            self.last_edited_at = now
+            self.last_changed_at = now
         if self._session and self._new and not self.parent:
             self._session._dangling_nodes_by_ck[self.ck] = self
         if self.id is None and self.attached:
@@ -1871,17 +1878,19 @@ class Node(abc.ABC):
             return super().__setattr__(key, value)
         elif key in self.__tracked_properties__:
             prev = getattr(self, key)
-            super().__setattr__(key, value)
+            self.__dict__[key] = value
             try:
                 self._validate_self([key], on_issue=on_issue_raise)
             except ValidationError as e:  # reset on error
-                super().__setattr__(key, prev)
+                self.__dict__[key] = prev
                 raise e
             if self.attached:
                 self._session._tracer.node_update(self, [key])
+                self._updated_self((key,))
             return
         elif key in self.__dict__:
-            return super().__setattr__(key, value)
+            self.__dict__[key] = value
+            return
 
         # try first full passthrough target (if any)
         for target, mode in self._passthrough_targets:
@@ -1996,6 +2005,10 @@ class Node(abc.ABC):
         """Called when this node is detached from a module."""
         pass
 
+    def _updated_inner(self, properties: Collection[str]) -> None:
+        """Called when this node is updated."""
+        pass
+
     _call_inner = _make_inner_dunder_method(ComponentMethod.call)
     _iter_inner = _make_inner_dunder_method(ComponentMethod.iter)
     _aiter_inner = _make_inner_dunder_method(ComponentMethod.aiter)
@@ -2070,6 +2083,7 @@ class Node(abc.ABC):
     )
     _attached_self = _make_self_method(ComponentMethod.attached, _attached_inner)
     _detached_self = _make_self_method(ComponentMethod.detached, _detached_inner)
+    _updated_self = _make_self_method(ComponentMethod.updated, _updated_inner)
 
     def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "Node":
         """
@@ -2175,6 +2189,10 @@ class ScopeNode(Node):
             else:
                 self._local_tree = NodeTree()
             self._local_tree.add(self)
+
+    def _updated_inner(self, properties: Collection[str]) -> None:
+        if "name" in properties:
+            _ChangeEffect._collect(self.parent, self.parent, [self], _NC.Full)._effect(_NC.Full)
 
     _clear_rec = _make_rec_method(
         ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)

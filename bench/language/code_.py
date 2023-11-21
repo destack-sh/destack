@@ -397,7 +397,7 @@ class HasCode(Node):
             def _test_sync(*args, **kwargs):
                 self.current_run.value.test = True
                 ret = callable(*args, **kwargs)
-                self.session.commit()  # force any write errors to appear immediately
+                self.session.commit()  # force commit errors to appear immediately
                 return ret
 
             return _test_sync
@@ -405,7 +405,7 @@ class HasCode(Node):
 
             async def _test_async(*args, **kwargs):
                 self.current_run.value.test = True
-                ret = await callable(*args, **kwargs)  # force any errors to appear immediately
+                ret = await callable(*args, **kwargs)  # force commit errors to appear immediately
                 await self.session.commit()
                 return ret
 
