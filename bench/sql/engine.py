@@ -2,12 +2,14 @@ import base64
 import enum
 import struct
 from dataclasses import dataclass
+from typing import Collection, cast
 from uuid import UUID
 
 import cachetools
 import psycopg
 import structlog
 from psycopg import sql
+from psycopg.types.json import Jsonb
 
 import bench.language as lang
 from bench.language import ConditionalOp, HasDatabase, Module, QueryEngine, wire
@@ -37,6 +39,7 @@ from bench.sql.core import (
     Table,
     get_record_table_name,
 )
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL
 
 logger = structlog.get_logger(__name__)
@@ -241,8 +244,18 @@ def compile_pg_conditional(
         return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
     elif isinstance(cond, ComparisonConditional) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_field_ref(database, cond.field)
-        right = sql.Literal(cond.value)
-        return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
+        if cond.op in (PostgresConditionalOp.IN, PostgresConditionalOp.NOT_IN):
+            # map to ANY() construct, IN/NOT IN doesn't work in psycopg
+            right = sql.SQL("ANY({})").format(sql.Literal(cond.value))
+            op = (
+                PostgresConditionalOp.EQ
+                if cond.op == PostgresConditionalOp.IN
+                else PostgresConditionalOp.NEQ
+            )
+            return SqlComparison(left=left, op=op, right=right)
+        else:
+            right = sql.Literal(cond.value)
+            return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
     elif isinstance(cond, ExistenceConditional):
         return SqlUnary(
             left=_compile_field_ref(database, cond.field), op=PG_CONDITIONAL_OP_BY_BENCH[cond.op]
@@ -408,11 +421,13 @@ async def pg_insert(
     table: Table,
     rows: list[RowIn],
     *,
-    returning: list[Column] | None = None,
+    returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Inserts into the given table."""
     values = (
-        sql.SQL("(") + sql.SQL(", ").join(sql_node_to_sql(v) for v in row.values()) + sql.SQL(")")
+        sql.SQL("(")
+        + sql.SQL(", ").join(sql_node_to_sql(row[c.name]) for c in table.columns)
+        + sql.SQL(")")
         for row in rows
     )
     statement = sql.SQL("INSERT INTO {table} ({fields}) VALUES {values}").format(
@@ -457,11 +472,12 @@ async def pg_update(
     *,
     where: SqlNode | None = None,
     values: RowIn | list[RowIn],
-    returning: list[Column] | None = None,
+    returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Updates the given table."""
     if isinstance(values, dict):
         values = [values]
+    # nocheckin: fix pg_update for bulk updates (use proper values or whatever)
     statement = sql.SQL("UPDATE {table} SET {fields}").format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(
@@ -487,7 +503,7 @@ async def pg_delete(
     table: Table,
     *,
     where: SqlNode | None = None,
-    returning: list[Column] | None = None,
+    returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Deletes from the given table."""
 
@@ -586,18 +602,22 @@ def pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
         "id": record.id,
         "ck": record.ck,
         "created_at": record.created_at,
+        "created_by_id": None,
         "updated_at": record.updated_at,
+        "deleted_at": None,
         "last_edited_at": record.last_edited_at,
+        "last_edited_by_id": None,
         "revision": record.revision,
         "statement_key": database.key,
     }
     if database.ephemeral:
         row["statement_ck"] = database.ck
         row["statement_id"] = database.id
-        row["value"] = record.value
+        row["value"] = Jsonb(record.value)
     else:
         for field in database.fields:
             row[_to_value_column_name(field)] = record.value.get(field._typed_key)
+    assert len(row) == len(database._table.columns), f"unexpected row: {row.keys()} for {database}"
     return row
 
 
@@ -612,7 +632,10 @@ def unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
         created_at=row["created_at"],
         updated_at=row["updated_at"],
         last_edited_at=row["last_edited_at"],
+        last_changed_at=row["last_edited_at"],
         revision=row["revision"],
+        parent_id=row["statement_id"],
+        parent_key=row["statement_key"],
         value=value,
     )
 
@@ -653,27 +676,6 @@ async def pg_count_records(
     return await pg_count(cur=cur, table=database._table, where=where)
 
 
-async def pg_exists_records(
-    cur: psycopg.AsyncCursor,
-    database: "HasDatabase",
-    *,
-    where: lang.Conditional | None = None,
-) -> bool:
-    """Checks if records matching the given query exist."""
-    where = compile_pg_conditional(database, where) if where is not None else None
-    return await pg_exists(cur=cur, table=database._table, where=where)
-
-
-async def pg_insert_records(
-    cur: psycopg.AsyncCursor,
-    database: "HasDatabase",
-    records: list[wire.RecordData],
-) -> None:
-    """Inserts records into the given database."""
-    rows = [pack_record_row(database, record) for record in records]
-    await pg_insert(cur=cur, table=database._table, rows=rows)
-
-
 @cachetools.cached({})
 def encode_pg_cursor(i: int) -> str:
     return base64.b64encode(struct.pack("q", i)).decode("ascii")
@@ -689,7 +691,7 @@ async def write_local_edits_to_pg(
     module: Module,
     edits: list[EditData],
     *,
-    return_nodes: bool,
+    return_nodes: bool = False,
     old_databases_by_id: dict[UUID, "HasDatabase"] | None = None,
 ) -> list[wire.NodeData] | None:
     """
@@ -699,28 +701,81 @@ async def write_local_edits_to_pg(
     if not edits:
         return []
 
-    async def _write_batch(
+    async def _write_edit_batch(
         edit_kind: EditKind, database_id: UUID, batch: list[EditData]
     ) -> list[wire.NodeData] | None:
         database = module.lookup(database_id) or old_databases_by_id[database_id]
-        raise NotImplementedError("nocheckin _apply_current_batch")
+        if edit_kind == EditKind.CREATE:
+            records = cast(list[wire.RecordData], [edit.node for edit in batch])
+            rows = [pack_record_row(database, record) for record in records]
+            _ = await pg_insert(cur=cur, table=database._table, rows=rows)
+            return records
+        elif edit_kind in (EditKind.UPDATE, EditKind.MOVE, EditKind.SOFT_DELETE, EditKind.RESTORE):
+            properties = batch[0].properties  # not strictly correct (should be set)
+            assert properties, f"no properties for {edit_kind} on {batch}"
+            records_ids = [edit.node.id for edit in batch]
+            now = utcnow_with_tz()
+            if edit_kind in (EditKind.UPDATE, EditKind.MOVE):
+                # update cru info
+                records = cast(list[wire.RecordData], [edit.node for edit in batch])
+                rows = [pack_record_row(database, record) for record in records]
+                # keep only properties touched in the edit
+                rows = [{k: row[k] for k in properties} for row in rows]
+                for row in rows:
+                    row["revision"] = sql.SQL("revision + 1")
+                    row["updated_at"] = now
+                    row["last_edited_at"] = now
+            else:
+                # set/unset deleted_at
+                if edit_kind == EditKind.SOFT_DELETE:
+                    rows = [{"id": id, "deleted_at": now} for id in records_ids]
+                else:
+                    rows = [{"id": id, "deleted_at": None} for id in records_ids]
+            where = SqlComparison(
+                sql.Identifier("id"),
+                PostgresConditionalOp.EQ,
+                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
+            )
+            rows = await pg_update(
+                cur=cur,
+                table=database._table,
+                where=where,
+                values=rows,
+                returning=database._table.columns if return_nodes else None,
+            )
+            return [unpack_record_row(database, row) for row in rows] if return_nodes else None
+        elif edit_kind == EditKind.DELETE:
+            records_ids = [edit.node.id for edit in batch]
+            where = SqlComparison(
+                sql.Identifier("id"),
+                PostgresConditionalOp.EQ,
+                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
+            )
+            await pg_delete(cur=cur, table=database._table, where=where)
+        else:
+            raise RuntimeError(f"unexpected edit kind: {edit_kind} for {batch}")
 
     current_op: tuple[EditKind, UUID] = edits[0].kind, edits[0].node.parent_id
     current_batch: list[EditData] = []
-    changed_nodes: list[wire.NodeData] | None = [] if return_nodes else None
+    changed_nodes: list[wire.NodeData] = []
     for edit in edits:
         op = (edit.kind, edit.node.parent_id)
         if current_op != op:
             # new op, flush current batch
             edit_kind, database_id = current_op
-            batch_nodes = await _write_batch(edit_kind, database_id, current_batch)
-            if return_nodes:
-                changed_nodes.extend(batch_nodes)
+            batch_nodes = await _write_edit_batch(edit_kind, database_id, current_batch)
+            changed_nodes.extend(batch_nodes)
             # start new batch
             current_op = op
             current_batch = [edit]
         else:
             current_batch.append(edit)
+
+    # flush last batch
+    edit_kind, database_id = current_op
+    batch_nodes = await _write_edit_batch(edit_kind, database_id, current_batch)
+    changed_nodes.extend(batch_nodes)
+    return changed_nodes
 
 
 if DEBUG or LOCAL:
@@ -729,7 +784,7 @@ if DEBUG or LOCAL:
         import sqlparse
 
         s_str = s.as_string(c)
-        return "\n" + sqlparse.format(s_str, reindent=True, keyword_case="upper")
+        return "\n" + sqlparse.format(s_str, reindent=True, keyword_case="upper") + "\n"
 
 else:
 

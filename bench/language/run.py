@@ -193,8 +193,12 @@ class Run:
             return pack_value(self.value, run_value, ignore_array=True, ignore_outer=True)
 
     @property
-    def statement_id(self):
+    def statement_id(self) -> Optional[UUID]:
         return self.statement.id if self.statement else None
+
+    @property
+    def statement_ck(self) -> Optional[UUID]:
+        return self.statement.ck if self.statement else None
 
     @property
     def active(self) -> bool:

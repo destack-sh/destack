@@ -107,9 +107,15 @@ class RecordRestoreInput(RecordInput, strawberry_django.NodeInput):
 class RecordMutation:
     @bench_edit(MET.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
+        # records are written to the local pg database (not via Django), so need to set CRU fields
+        # not great but won't matter soon with the new edits system :)
+        now = utcnow_with_tz()
         record = models.Record(
             id=UUID(input.id.node_id),
             ck=input.ck,
+            created_at=now,
+            updated_at=now,
+            last_edited_at=now,
             statement_id=UUID(input.statement_id.node_id),
             statement_ck=input.statement_ck,
             statement_key=input.statement_key,
@@ -119,20 +125,53 @@ class RecordMutation:
 
     @bench_edit(MET.UPDATE_RECORD)
     def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=UUID(input.id.node_id))
-        record.value = input.value
+        # copy pasta because it doesn't matter and these no longer exist in the DB
+        now = utcnow_with_tz()
+        record = models.Record(
+            id=UUID(input.id.node_id),
+            ck=None,
+            created_at=now,
+            updated_at=now,
+            last_edited_at=now,
+            statement_id=UUID(input.statement_id.node_id),
+            statement_ck=None,
+            statement_key=None,
+            value=input.value,
+        )
         return record
 
     @bench_edit(MET.SOFT_DELETE_RECORD)
     def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=UUID(input.id.node_id))
-        record.deleted_at = utcnow_with_tz()
+        # copy pasta because it doesn't matter and these no longer exist in the DB
+        now = utcnow_with_tz()
+        record = models.Record(
+            id=UUID(input.id.node_id),
+            ck=None,
+            created_at=now,
+            updated_at=now,
+            last_edited_at=now,
+            statement_id=UUID(input.statement_id.node_id),
+            statement_ck=None,
+            statement_key=None,
+            value=None,
+        )
         return record
 
     @bench_edit(MET.RESTORE_RECORD)
     def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
-        record = models.Record._base_manager.get(id=UUID(input.id.node_id))
-        record.deleted_at = None
+        # copy pasta because it doesn't matter and these no longer exist in the DB
+        now = utcnow_with_tz()
+        record = models.Record(
+            id=UUID(input.id.node_id),
+            ck=None,
+            created_at=now,
+            updated_at=now,
+            last_edited_at=now,
+            statement_id=UUID(input.statement_id.node_id),
+            statement_ck=None,
+            statement_key=None,
+            value=None,
+        )
         return record
 
     @bench_edit(MET.DELETE_RECORD)
