@@ -866,7 +866,7 @@ REMAP_PROPERTIES: dict[tuple[MNT, str], list[str]] = {
 
 
 @transaction.atomic
-def write_db_edits(
+def write_host_db_edits(
     project_v: models.ProjectVersion,
     source: NodeTree,
     edits: list[EditData],
@@ -875,8 +875,7 @@ def write_db_edits(
     raise_on_apply_error: bool = True,
 ) -> list[NodeDataT]:
     """
-    Writes module edits to the database.
-    If apply, also mutates a COPY of the module tree. Yeah, this is inefficient...
+    Writes module edits to the database. Returns the changed nodes (that still exist in the DB).
     """
 
     edits = EditBundle(edits)

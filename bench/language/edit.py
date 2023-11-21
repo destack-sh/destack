@@ -483,36 +483,6 @@ class EditBundle:
     def __repr__(self):
         return f"<EditBundle {self}>"
 
-    # TODO @Performance: edit compaction & batching can be much smarter
-    #  But we may also want to record these in full as events... compact before write only?
-    def compact(self) -> list[Edit | EditData]:
-        """
-        Compact simple edits into fewer semantically identical edits.
-
-        Reduces:
-         1. Successive updates to same object merged into the last update
-         2. Successive deletes of same object merged into the last delete
-        Not implemented yet:
-         3. Delete after create to nothing
-         4. Create then updated merged into a single create
-        """
-        reduced_inverse = []
-        seen_ops: dict[tuple[MET, UUID], Edit | EditData] = {}
-
-        for edit in reversed(self.edits):
-            key = (edit.type, edit.node.id)
-            if key in seen_ops:
-                if edit.type.kind == MEK.UPDATE:
-                    # merge properties
-                    seen_ops[key].properties.extend(edit.properties)
-                    seen_ops[key].properties = list(set(seen_ops[key].properties))
-                continue
-            seen_ops[key] = edit
-            reduced_inverse.append(edit)
-
-        reduced = list(reversed(reduced_inverse))
-        return reduced
-
     def batched(self) -> Iterator[tuple[MET, list[EditData]]]:
         """
         Batch consecutive edits by type in order of appearance.

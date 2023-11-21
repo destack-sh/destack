@@ -7,6 +7,7 @@ import secrets
 import string
 from asyncio import CancelledError
 from collections import OrderedDict
+from itertools import filterfalse, tee
 from typing import (
     Any,
     Collection,
@@ -52,6 +53,11 @@ def next_or_none(iterator: Iterable[Any]) -> Any | None:
         return next(iterator)
     except StopIteration:
         return None
+
+
+def partition(pred, iterable) -> tuple[list[Any], list[Any]]:
+    t1, t2 = tee(iterable)
+    return list(filterfalse(pred, t1)), list(filter(pred, t2))
 
 
 nextn = next_or_none

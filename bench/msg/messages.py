@@ -392,6 +392,7 @@ class ReqWriteSessionPayload(Payload):
 @payload(NMessageType.WRITE_SESSION_REP)
 class RepWriteSessionPayload(Payload):
     success: bool
+    error: Optional[str] = None
 
 
 @dataclass
