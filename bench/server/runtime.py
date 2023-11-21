@@ -842,7 +842,7 @@ class RuntimeHost:
                 first=msg.p.limit,
             )
             async with async_pg_cursor(self.module.pg_name) as pg_cursor:
-                records_data, records_cursors, records_total = await query._do_fetch(
+                records_data, records_cursors, records_total, engine = await query._do_fetch(
                     pg_cursor=pg_cursor, count=msg.p.count, after=msg.p.after
                 )
             rep = RepSearchRecordsPayload(
@@ -850,12 +850,13 @@ class RuntimeHost:
                 cursors=records_cursors,
                 total=records_total,
                 limit=msg.p.limit,
+                engine=engine,
             )
         except Exception as e:
             sentry_capture(e)
             logger.error("records.search.failed", req=msg.p, exc_info=True)
             rep = RepSearchRecordsPayload(
-                records=None, cursors=None, total=None, limit=msg.p.limit, error=str(e)
+                records=None, cursors=None, total=None, limit=msg.p.limit, error=str(e), engine=None
             )
         await msg.reply(rep)
 

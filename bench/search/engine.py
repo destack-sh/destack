@@ -34,7 +34,6 @@ from bench.language.expression import (
     StaticConditional,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
-from bench.language.packer import TYPENAME_SENTINEL
 from bench.search import core as os
 from bench.search import mirror
 from bench.search.client import os_client, os_client_sync
@@ -113,7 +112,7 @@ class StaticFieldMapper(FieldMapper):
 
 class StructFieldMapper(FieldMapper):
     def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
-        subfields = {TYPENAME_SENTINEL: os.Field(os.FT.KEYWORD)}
+        subfields = {TYPE_DISCRIMINATOR_KEY: os.Field(os.FT.KEYWORD)}
         if isinstance(type.reference, lang.Statement) and type.reference.issues:
             # bail out early if there are issues from a reference
             # (these don't get reported up to every reference but we still can't map it)
@@ -180,7 +179,7 @@ register_mapper(
         properties={
             **mirror.Blob.__fields__,
             "id": os.Field(os.FT.KEYWORD),
-            TYPENAME_SENTINEL: os.Field(os.FT.KEYWORD),
+            TYPE_DISCRIMINATOR_KEY: os.Field(os.FT.KEYWORD),
         },
     ),
     tags=[TypeTag.BLOB],
@@ -192,7 +191,7 @@ register_mapper(
         properties={
             **mirror.Secret.__fields__,
             "id": os.Field(os.FT.KEYWORD),
-            TYPENAME_SENTINEL: os.Field(os.FT.KEYWORD),
+            TYPE_DISCRIMINATOR_KEY: os.Field(os.FT.KEYWORD),
         },
     ),
     tags=[TypeTag.STRING, TypeTag.NUMBER],

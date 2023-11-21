@@ -1,6 +1,6 @@
 import enum
 import hashlib
-from dataclasses import dataclass, is_dataclass, replace
+from dataclasses import dataclass, field, is_dataclass, replace
 from datetime import datetime
 from itertools import chain
 from typing import ClassVar, Union
@@ -292,6 +292,7 @@ class Table(Construct):
 
     name: str
     columns: tuple[Column, ...]
+    columns_by_name: dict[str, Column] = field(init=False)
     constraints: tuple[Constraint, ...] = ()
     indexes: tuple[Index, ...] = ()
 
@@ -300,6 +301,11 @@ class Table(Construct):
             if construct._table is not None:
                 raise ValueError(f"{construct} is already attached to {construct._table}")
             construct._table = self
+        self.columns_by_name = {}
+        for column in self.columns:
+            if column.name in self.columns_by_name:
+                raise ValueError(f"column {column.name} is already defined in {self}")
+            self.columns_by_name[column.name] = column
 
     def __str__(self):
         columns_str = ", ".join(f"{c.name} {c.type}" for c in self.columns)

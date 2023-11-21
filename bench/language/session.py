@@ -140,7 +140,11 @@ class Session:
 
     def __str__(self):
         status = "open" if self._opened_at else ("closed" if self._closed_at else "pending")
-        return f"{self.module.name} ({self.access_level.name}, {status}, {len(self._tracer._local_edits)} local edits, {len(self._tracer._host_edits)} host edits)"
+        return (
+            f"{self.module.name} ({self.access_level.name}, {status}, "
+            f"{len(self._tracer._local_edits)} local edits, {len(self._tracer._host_edits)} host edits, {len(self._tracer._changed_record_ids)} touched records"
+            f")"
+        )
 
     def __repr__(self):
         return f"<Session {self}>"
@@ -239,7 +243,7 @@ class Session:
 
         assert not self._failed_commit, f"session {self!r} is broken after failed commit"
 
-        if not self._tracer._local_edits and not self._tracer._host_edits:
+        if not self._tracer.has_edits:
             self._log.debug("session.commit.skip")
             return  # nothing to commit
 
@@ -250,9 +254,11 @@ class Session:
         # commit
         try:
             # commit host edits
-            await self.runtime.commit_edits(host_edits)
+            if host_edits:
+                await self.runtime.commit_edits(host_edits)
             # commit local edits
-            await write_local_edits_to_pg(self.pg_cursor, self.module, local_edits)
+            if local_edits:
+                await write_local_edits_to_pg(self.pg_cursor, self.module, local_edits)
             await self._pg_cursor.connection.commit()
             self.module._apply_edits_to_source(host_edits)
             log.debug("session.commit.done")
@@ -268,6 +274,8 @@ class Session:
         # sync local edits to index
         if self._tracer._changed_record_ids:
             pass  # nocheckin: sync changed record ids from pg to os
+            self._tracer._changed_record_ids.clear()
+            self._tracer._touched_databases_by_id.clear()
 
     async def close(self):
         """Closes the session, committing any edits and preventing further execution/edit."""
@@ -372,7 +380,11 @@ class SessionTracer:
 
     @property
     def has_edits(self) -> bool:
-        return len(self._local_edits) > 0 or len(self._host_edits) > 0
+        return (
+            len(self._local_edits) > 0
+            or len(self._host_edits) > 0
+            or len(self._changed_record_ids) > 0
+        )
 
     def _update_stacktrace_ancestors(self):
         """Maintains the stacktrace ancestors cache (using the current traced stacktrace)."""
@@ -498,7 +510,7 @@ class SessionTracer:
             for n in nodes:
                 if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
-                self._edit(EditEvent(type=EditType.from_nt(MEK.CREATE, n.mnt), ck=n.ck))
+                self._edit(EditEvent(type=EditType.from_nt(MEK.CREATE, n.mnt), node=n))
 
     def node_create_preflight(self, *nodes: Node):
         # used to check permission before modifying state locally

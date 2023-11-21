@@ -52,7 +52,7 @@ class Blob(Node):
     @_auto_async_to_sync
     async def download(self) -> bytes:
         """Read the object from the remote storage."""
-        get_url = await self.aget_url()
+        get_url = await self.get_url()
         # download file from url
         async with aiohttp.ClientSession() as session:
             async with session.get(get_url) as response:
@@ -73,12 +73,12 @@ class Blob(Node):
 
     @_auto_async_to_sync
     async def text(self) -> str:
-        content = self._cached_bytes or await self.adownload()
+        content = self._cached_bytes or await self.download()
         return content.decode()
 
     @_auto_async_to_sync
     async def lines(self) -> list[str]:
-        content = self._cached_bytes or await self.adownload()
+        content = self._cached_bytes or await self.download()
         return content.decode().splitlines()
 
     @_auto_async_to_sync

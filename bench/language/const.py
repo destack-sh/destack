@@ -405,10 +405,6 @@ class ConditionalOp(enum.StrEnum):
     # vector
     NEAR = "NEAR"
 
-    @property
-    def sign(self) -> str | None:
-        return _CONDITIONAL_OP_SIGN.get(self)
-
 
 _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
     ConditionalOp.NOT: "~",
