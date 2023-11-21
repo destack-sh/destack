@@ -5,6 +5,8 @@ from uuid import UUID
 
 import psycopg
 import structlog
+from psycopg import sql
+from psycopg.types.json import Jsonb
 
 from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import (
@@ -14,7 +16,13 @@ from bench.language.const import (
     SessionAccessLevel,
     new_dynamic_node_key,
 )
-from bench.language.expression import C, Conditional, Sort, coerce_conditional
+from bench.language.expression import (
+    TYPE_DISCRIMINATOR_KEY,
+    C,
+    Conditional,
+    Sort,
+    coerce_conditional,
+)
 from bench.language.module import (
     _NC,
     NS,
@@ -35,6 +43,7 @@ from bench.language.module import (
 from bench.language.value import HasValue
 from bench.search.core import DocumentType
 from bench.sql.core import EPHEMERAL_RECORD_TABLE, Table
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import flatten
 
@@ -150,6 +159,15 @@ class RecordQuery:
     def __repr__(self):
         return f"<RecordQuery {self}>"
 
+    @property
+    def _combined_filter(self) -> Conditional:
+        """Combines the custom with the default filter"""
+        return Conditional.and_if_set(
+            self._filter,
+            C(ConditionalOp.EQUALS, "statement_key", value=self._database.key),
+            ~C(ConditionalOp.EXISTS, "deleted_at"),
+        )
+
     def copy(self):
         """Clones the query (the properties are immutable)."""
         return RecordQuery(
@@ -176,16 +194,12 @@ class RecordQuery:
 
     async def _do_fetch(
         self, pg_cursor: psycopg.AsyncCursor | None, count: bool = False, after: str = None
-    ) -> tuple[list["RecordData"], list[str], int | None]:
+    ) -> tuple[list["RecordData"], list[str], int | None, QueryEngine]:
         """Actually fetches the raw record results from some engine."""
         from bench.search.engine import os_search
-        from bench.sql.engine import pg_count_records, pg_select_records
+        from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_records
 
-        where = Conditional.and_if_set(
-            self._filter,
-            C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
-            & ~C(ConditionalOp.EXISTS, "deleted_at"),
-        )
+        where = self._combined_filter
         first = self._first or LOCAL_RECORD_CACHE_LIMIT
         # prefer sql engine if possible, except for scored queries
         required_engine = None
@@ -207,7 +221,7 @@ class RecordQuery:
                 count=count,
                 sort=self._sort,
             )
-            return os_results.as_records(), os_results.cursors, os_results.total
+            return os_results.as_records(), os_results.cursors, os_results.total, target_engine
         elif target_engine == QueryEngine.POSTGRES:
             assert pg_cursor is not None, f"missing pg_cursor for {self!r}"
             records, cursors = await pg_select_records(
@@ -220,10 +234,14 @@ class RecordQuery:
                 skip=self._skip,
             )
             if count:
-                count = await pg_count_records(cur=pg_cursor, database=self._database, where=where)
+                count = await pg_count(
+                    cur=pg_cursor,
+                    table=self._database._table,
+                    where=compile_pg_conditional(self._database, where),
+                )
             else:
                 count = None
-            return records, cursors, count
+            return records, cursors, count, target_engine
         else:
             raise ValueError(f"unexpected query engine {target_engine}")
 
@@ -231,12 +249,9 @@ class RecordQuery:
         """Fetches the result set for this query."""
         from bench.language import wire
 
-        # force flush and index if there are any pending database edits
-        #  (or previous edits that were already flushed but didn't refresh the index)
         if session._tracer._local_edits:
-            await session.flush_local()
-
-        records_data, self._cached_cursors, _ = await self._do_fetch(pg_cursor=session.pg_cursor)
+            await session.flush_local()  # for flush any local edits
+        records_data, self._cached_cursors, _, _ = await self._do_fetch(pg_cursor=session.pg_cursor)
         records: list[Record] = []
         for record_data in records_data:
             record: Record = wire.unpack_node_flat(record_data, self._database, session)
@@ -342,32 +357,73 @@ class RecordQuery:
         assert not self._first and not self._skip and not self._sort, "cannot count with limits"
         if self._cached_records is not None:
             return len(self._cached_records)
-        from bench.sql.engine import pg_count_records
+        from bench.sql.engine import compile_pg_conditional, pg_count
 
-        return await pg_count_records(
-            cur=self._database.session.pg_cursor,
-            database=self._database,
-            where=self._filter,
+        where = None
+        if self._filter:
+            where = compile_pg_conditional(self._database, self._filter)
+        return await pg_count(
+            cur=self._database.session.pg_cursor, database=self._database, where=where
         )
 
     @_auto_async_to_sync
-    async def update(self, **kwargs) -> int:
+    async def update(self, **values) -> int:
         """Updates all results with the given values."""
+        from bench.language.packer import pack_value_flat
+        from bench.sql.engine import compile_pg_conditional, pg_update
 
-        self._database.session.check_access(SessionAccessLevel.Update)
-        # return the full updated values to update in OS
-        raise NotImplementedError("not yet supported")
+        session = self._database.session
+        session.check_access(SessionAccessLevel.Update)
+        if session._tracer._local_edits:
+            await session.flush_local()
+
+        # 'serialize' values (probably need a better way here to retain some native types?)
+        values = pack_value_flat(values, self._database)
+        if TYPE_DISCRIMINATOR_KEY in values:  # not stored in database (implicit in statement_key)
+            del values[TYPE_DISCRIMINATOR_KEY]
+        # update values alongside :LocalRecordCru
+        if self._database.ephemeral:  # set within generic 'value' JSONB column
+            values = {"value": sql.SQL("value || {}").format(sql.Literal(Jsonb(values)))}
+        now = utcnow_with_tz()
+        values["revision"] = sql.SQL("revision + 1")
+        values["updated_at"] = now
+        values["last_edited_at"] = now
+        updated_rows = await pg_update(
+            cur=session.pg_cursor,
+            table=self._database._table,
+            where=compile_pg_conditional(self._database, self._combined_filter),
+            values=values,
+            returning=[self._database._table.columns_by_name["id"]],
+        )
+        updated_records_ids = {r["id"] for r in updated_rows}
+        # mark the changed records for OS sync
+        session._tracer._changed_record_ids.update(updated_records_ids)
+        session._tracer._touched_databases_by_id[self._database.id] = self._database
+        return len(updated_rows)
 
     @_auto_async_to_sync
     async def delete(self) -> int:
         """Deletes all results."""
-        self._database.session.check_access(SessionAccessLevel.Delete)
-        # return the ids to delete in OS
-        raise NotImplementedError("not yet supported")
+        from bench.sql.engine import compile_pg_conditional, pg_delete
 
-    def group_by(self, *fields: "Field") -> "RecordQuery":
-        """Groups the results by the given fields."""
-        raise NotImplementedError
+        session = self._database.session
+        session.check_access(SessionAccessLevel.Delete)
+        if session._tracer._local_edits:
+            await session.flush_local()
+        where = Conditional.and_if_set(
+            self._filter, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
+        )
+        deleted_rows = await pg_delete(
+            cur=session.pg_cursor,
+            table=self._database._table,
+            where=compile_pg_conditional(self._database, where),
+            returning=[self._database._table.columns_by_name["id"]],
+        )
+        deleted_records_ids = {r["id"] for r in deleted_rows}
+        # mark the changed records for OS sync
+        session._tracer._changed_record_ids.update(deleted_records_ids)
+        session._tracer._touched_databases_by_id[self._database.id] = self._database
+        return len(deleted_rows)
 
 
 class RelationType(enum.StrEnum):
@@ -503,12 +559,10 @@ class RecordList(NodeListBase[Record], RecordQuery):
                 self._parent._local_root_tree.remove(node)
         node.parent = None
 
-    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
+    @_auto_async_to_sync
+    async def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
         if _delete:
-            if self._parent._session:
-                self._parent._session._tracer.node_truncate(self._parent, MNT.RECORD)
-            if not self._parent.attached:
-                self._parent._local_root_tree.truncate(self._parent, MNT.RECORD)
+            await RecordQuery.filter(self).delete()
 
     def __contains__(self, obj: object) -> bool:
         return False  # lookup by id?

@@ -26,6 +26,7 @@ from more_itertools import first
 
 from bench.language.blob import Blob
 from bench.language.const import BlobStatus, TypeFlag, TypeHint, TypeTag
+from bench.language.expression import TYPE_DISCRIMINATOR_KEY
 from bench.language.field import (
     PRIMITIVE_TYPES,
     TYPE_TAG_BY_TYPE_HINT,
@@ -221,7 +222,6 @@ def walk_value(
         yield from walk_value(value[k], subtype, get_k=get_k)
 
 
-TYPENAME_SENTINEL = "__typename"  # :TypeSentinel
 OMITTED_SENTINEL = "__omitted"  # :OmittedSentinel
 BLOB_TYPENAME = "Blob"
 SECRET_TYPENAME = "Secret"
@@ -654,7 +654,7 @@ class BlobMapper(TypeMapper):
 
     def pack_value(self, type: HasType, value: Any) -> Any:
         return {
-            TYPENAME_SENTINEL: BLOB_TYPENAME,
+            TYPE_DISCRIMINATOR_KEY: BLOB_TYPENAME,
             "id": str(value.id),
             "name": value.name,
             "content_type": value.content_type,
@@ -682,7 +682,7 @@ class SecretMapper(TypeMapper):
 
     def pack_value(self, type: HasType, value: Any) -> Any:
         return {
-            TYPENAME_SENTINEL: SECRET_TYPENAME,
+            TYPE_DISCRIMINATOR_KEY: SECRET_TYPENAME,
             "id": str(value.id),
             "sha512": value.sha512,
         }
@@ -721,7 +721,7 @@ class StructMapper(TypeMapper):
         return TypedDict(value, type) if not isinstance(value, TypedDict) else value
 
     def pack_value(self, type: HasType, value: Any) -> Any:
-        return {TYPENAME_SENTINEL: type.key, **value}
+        return {TYPE_DISCRIMINATOR_KEY: type.key, **value}
 
     def render_python(self, type: HasType, value: Any) -> str:
         # render parts as python

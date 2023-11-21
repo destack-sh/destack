@@ -477,7 +477,7 @@ async def pg_update(
     """Updates the given table."""
     if isinstance(values, dict):
         values = [values]
-    # nocheckin: fix pg_update for bulk updates (use proper values or whatever)
+    # nocheckin: fix pg_update for list of values
     statement = sql.SQL("UPDATE {table} SET {fields}").format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(
@@ -666,17 +666,6 @@ async def pg_select_records(
     return records_data, cursors
 
 
-async def pg_count_records(
-    cur: psycopg.AsyncCursor,
-    database: "HasDatabase",
-    *,
-    where: lang.Conditional | None = None,
-) -> int:
-    """Counts records matching the given query."""
-    where = compile_pg_conditional(database, where) if where is not None else None
-    return await pg_count(cur=cur, table=database._table, where=where)
-
-
 @cachetools.cached({})
 def encode_pg_cursor(i: int) -> str:
     return base64.b64encode(struct.pack("q", i)).decode("ascii")
@@ -717,7 +706,7 @@ async def write_local_edits_to_pg(
             records_ids = [edit.node.id for edit in batch]
             now = utcnow_with_tz()
             if edit_kind in (EditKind.UPDATE, EditKind.MOVE):
-                # update cru info
+                # update cru info :LocalRecordCru
                 records = cast(list[wire.RecordData], [edit.node for edit in batch])
                 rows = [pack_record_row(database, record) for record in records]
                 # keep only properties touched in the edit

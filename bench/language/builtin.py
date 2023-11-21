@@ -51,7 +51,7 @@ def _auto_async_to_sync(func=None):
                 is_in_loop = False
             if (
                 is_in_loop
-                and session is None
+                or session is None
                 or session.current_run is None
                 or session.current_run._is_async
             ):

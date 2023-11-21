@@ -11,6 +11,7 @@ from uuid import UUID
 from bench.language.const import (
     ModuleReference,
     ProjectRegion,
+    QueryEngine,
     SessionAccessLevel,
     TriggerType,
     WorkerProfile,
@@ -402,12 +403,14 @@ class ReqSearch(abc.ABC, Payload):
     after: Optional[str] = None
     limit: Optional[int] = None
     count: bool = False
+    engine: Optional[QueryEngine] = None
 
 
 @dataclass
 class RepSearch(abc.ABC):
     total: Optional[int]
     limit: int
+    engine: Optional[QueryEngine]
     error: Optional[str] = None
 
 

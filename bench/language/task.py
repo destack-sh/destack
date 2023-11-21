@@ -69,7 +69,7 @@ class HasTask(Node):
                 "deepgram.lib.audio.nova-2"
             )
             if inputs.get("file"):  # replace file with url to blob
-                inputs["url"] = await inputs["file"].aget_url()
+                inputs["url"] = await inputs["file"].get_url()
                 del inputs["file"]
         else:
             passthrough_model = None

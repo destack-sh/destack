@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from uuid import UUID
 
 from bench.language.const import (
+    _CONDITIONAL_OP_SIGN,
     AggregationOp,
     ConditionalOp,
     ExpressionKind,
@@ -193,7 +194,7 @@ class CompoundConditional(Conditional):
     clauses: list[Conditional] = bproperty(is_required=True)
 
     def __str__(self):
-        return f" {self.op.sign} ".join(str(q) for q in self.clauses)
+        return f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses)
 
     def __invert__(self):
         if self.op == ConditionalOp.NOT:
@@ -244,13 +245,13 @@ class ComparisonConditional(FieldExpression, Conditional):
 
     def __str__(self):
         value_str = str(self.value)
-        return f"{self._field_str}{self.op.sign}{value_str}"
+        return f"{self._field_str}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
 
 
 @expression(ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS)
 class ExistenceConditional(FieldExpression, Conditional):
     def __str__(self):
-        return f"{self._field_str}{self.op.sign}"
+        return f"{self._field_str}{_CONDITIONAL_OP_SIGN[self.op]}"
 
     def __invert__(self):
         if self.op == ConditionalOp.EXISTS:
