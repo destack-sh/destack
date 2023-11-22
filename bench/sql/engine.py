@@ -226,7 +226,7 @@ def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReferen
         if field.reflected:
             return sql.Identifier(field.py_ident)
         elif database.ephemeral:
-            return SqlJsonPath(path=["value", field._typed_key])
+            return SqlJsonPath(sql.Identifier("value"), [field._typed_key])
         else:
             return sql.Identifier(_to_value_column_name(field))
     else:
@@ -268,7 +268,9 @@ def compile_pg_sort(
     sort: lang.Sort,
 ) -> SqlNode:
     field_ref = _compile_field_ref(database, sort.field)
-    return sql.SQL("{} {}").format(field_ref, sql.SQL(POSTGRES_SORT_OP_BY_BENCH[sort.op]))
+    return sql.SQL("{} {}").format(
+        sql_node_to_sql(field_ref), sql.SQL(POSTGRES_SORT_OP_BY_BENCH[sort.op])
+    )
 
 
 def compile_pg_sorts(
@@ -280,10 +282,14 @@ def compile_pg_sorts(
 
 @dataclass(frozen=True)
 class SqlJsonPath(SqlExpression):
+    field: SqlNode
     path: list[str]
 
     def sql(self) -> sql.Composable:
-        return sql.SQL("->").join(sql.Literal(p) for p in self.path)
+        return sql.SQL("{}->{}").format(
+            sql_node_to_sql(self.field),
+            sql.SQL("->").join(sql.Literal(p) for p in self.path),
+        )
 
 
 @dataclass(frozen=True)
@@ -752,7 +758,7 @@ async def write_local_edits_to_pg(
                 columns=[table.primary_key, *(table.columns_by_name[k] for k in properties)],
                 returning=table.columns if return_nodes else None,
             )
-            return [unpack_record_row(database, row) for row in rows] if return_nodes else None
+            return [unpack_record_row(database, row) for row in rows] if return_nodes else []
         elif edit_kind in (EditKind.SOFT_DELETE, EditKind.RESTORE):
             records_ids = [edit.node.id for edit in batch]
             now = utcnow_with_tz()
@@ -772,7 +778,7 @@ async def write_local_edits_to_pg(
                 values=row,
                 returning=table.columns if return_nodes else None,
             )
-            return [unpack_record_row(database, row) for row in rows] if return_nodes else None
+            return [unpack_record_row(database, row) for row in rows] if return_nodes else []
         elif edit_kind == EditKind.DELETE:
             records_ids = [edit.node.id for edit in batch]
             where = SqlComparison(
@@ -781,9 +787,11 @@ async def write_local_edits_to_pg(
                 sql.SQL("ANY({})").format(sql.Literal(records_ids)),
             )
             await pg_delete(cur=cur, table=table, where=where)
+            return []
         else:
             raise RuntimeError(f"unexpected edit kind: {edit_kind} for {batch}")
 
+    # batch operations by edit kind and database
     current_op: tuple[EditKind, UUID] = edits[0].kind, edits[0].node.parent_id
     current_batch: list[EditData] = []
     changed_nodes: list[wire.NodeData] = []
@@ -804,7 +812,7 @@ async def write_local_edits_to_pg(
     edit_kind, database_id = current_op
     batch_nodes = await _write_edit_batch(edit_kind, database_id, current_batch)
     changed_nodes.extend(batch_nodes)
-    return changed_nodes
+    return changed_nodes if return_nodes else None
 
 
 if DEBUG or LOCAL:

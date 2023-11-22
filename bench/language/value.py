@@ -29,7 +29,7 @@ class HasValue(Node):
                 on_issue(self, f"invalid value: {e}", ["value"])
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
-        pass  # TODO @Broken: visit referenced nodes :NodesAsValues
+        pass  # TODO @Broken: visit referenced nodes :NodesAsValues ?
 
     def _attached_inner(self) -> None:
         # pack this value if it couldn't be packed in deactivate/detach

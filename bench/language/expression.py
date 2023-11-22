@@ -65,13 +65,13 @@ class FieldExpression(Expression):
         else:
             return str(self.field)
 
-    def _clear(self, scope: Optional["ScopeNode"] = None):
+    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         if not isinstance(self.field, (UUID, str)) and (
             scope is None or self.field.ck in scope._local_root_tree
         ):
             self._set_untracked("field", self.field.ck)
 
-    def _interp(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
         resolved = self.field
         if isinstance(self.field, UUID):
             resolved = scope.lookup(self.field)

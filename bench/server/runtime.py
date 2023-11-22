@@ -32,6 +32,7 @@ from bench.language.model import ModelError, ModelErrorType
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
+from bench.language.validation import on_issue_raise
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_host_db_edits, write_session
 from bench.models.user import loops_request
@@ -823,7 +824,7 @@ class RuntimeHost:
     async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
         """
         Search records in this module (for the frontend client).
-        Full module state is needed to access the local database.
+        (Full module state is needed to query the local database).
         """
         try:
             filter = wire.unpack_data(msg.p.query, self.module) if msg.p.query else None
@@ -838,16 +839,17 @@ class RuntimeHost:
                 sort=sort,
                 first=msg.p.limit,
             )
+            query._interp_self(database, on_issue=on_issue_raise)
             async with async_pg_cursor(self.module.pg_name) as pg_cursor:
-                records_data, records_cursors, records_total, engine = await query._do_fetch(
+                fetched = await query._do_fetch(
                     pg_cursor=pg_cursor, count=msg.p.count, after=msg.p.after
                 )
             rep = RepSearchRecordsPayload(
-                records=records_data,
-                cursors=records_cursors,
-                total=records_total,
+                records=fetched.records,
+                cursors=fetched.cursors,
+                total=fetched.total,
                 limit=msg.p.limit,
-                engine=engine,
+                engine=fetched.engine,
             )
         except Exception as e:
             sentry_capture(e)

@@ -19,6 +19,8 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
 
+from .validation import ValidationHandler
+
 if typing.TYPE_CHECKING:
     from bench.language import Statement
     from bench.language.task import TaskCompiler
@@ -54,7 +56,7 @@ class HasModel(HasFields, Node):
         self._compiler_impl = None
         self._has_vector_io = False
 
-    def _interp_inner(self, scope: ScopeNode) -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
         if ALLOW_KEY_FROM_ENV:

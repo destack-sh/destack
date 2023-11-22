@@ -99,7 +99,8 @@ export enum TypeStorageFormat {
   RELATION = "rel",
 }
 
-export const NATIVELY_SORTABLE_STORAGE_FORMATS = [
+export const SORTABLE_STORAGE_FORMATS = [
+  TypeStorageFormat.STRING,
   TypeStorageFormat.DOUBLE,
   TypeStorageFormat.LONG,
   TypeStorageFormat.DATE,
@@ -159,7 +160,7 @@ export const SECRET_TYPENAME = "Secret";
 export function canSort(field: Pick<Field, "tag" | "hint" | "flags">): boolean {
   const storageFormat = getStorageFormat(field.tag, field.hint, field.flags);
   if (storageFormat == null) return false;
-  if (NATIVELY_SORTABLE_STORAGE_FORMATS.includes(storageFormat)) return true;
+  if (SORTABLE_STORAGE_FORMATS.includes(storageFormat)) return true;
   return false;
 }
 import {

@@ -45,6 +45,7 @@ from bench.language.validation import (
     ValidationHandler,
     enum_validator,
     flag_validator,
+    on_issue_raise,
     validate_name,
 )
 from bench.language.value import HasValue
@@ -75,9 +76,7 @@ class TypeError(TypeError):
             value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
 
         if isinstance(expected, Field) and not expected.resolved_fields:
-            expected_str = (
-                f"field '{expected.py_ident}' ({expected._type_str}, from {expected.parent!r})"
-            )
+            expected_str = f"field '{expected.py_ident}' ({expected._type_str})"
         else:
             expected_fields_str = ", ".join(
                 f"'{f.py_ident}' ({f._type_str})" for f in expected.resolved_fields
@@ -601,7 +600,7 @@ class ResolvedField(Field):
             field=field,
             _status=NS.SOURCE,
         )
-        resolved_field._interp_self(for_parent)
+        resolved_field._interp_self(for_parent, on_issue=on_issue_raise)
         return resolved_field
 
 
@@ -624,10 +623,12 @@ class HasFields(HasType):
         self.resolved_fields.clear(_trigger=_NC.UpdateLists)
         self._did_resolve_fields = False
 
-    def _interp_inner(self, scope: ScopeNode) -> None:
-        self._resolve_fields([])
+    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
+        self._resolve_fields([], on_issue)
 
-    def _resolve_fields(self: "HasFields", path: list[HasType]) -> None:
+    def _resolve_fields(
+        self: "HasFields", path: list[HasType], on_issue: "ValidationHandler"
+    ) -> None:
         """
         Resolves (and inlines) field references and unions.
         """
@@ -637,7 +638,7 @@ class HasFields(HasType):
         if any(f.id == self.id for f in path):
             # circular panic
             path = "->".join(n.name for n in path + [self])
-            self._on_issue(type=IssueType.CIRCULAR_UNION, subject=self, path=path)
+            on_issue(type=IssueType.CIRCULAR_UNION, subject=self, path=path)
             self._did_resolve_fields = True
             return
 
@@ -647,7 +648,7 @@ class HasFields(HasType):
         for field in self.fields:
             # try to resolve reference or skip this field
             if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
-                HasReference._interp_inner(field, self)  # resolve reference
+                HasReference._interp_inner(field, self, field.scope._on_issue)  # resolve ref
                 if not isinstance(field.reference, Node):
                     continue  # interp error, ignore
 
@@ -655,7 +656,7 @@ class HasFields(HasType):
                 if not isinstance(field.reference, Node):
                     continue  # validation error, ignore
                 # inline fields from union-ed type to resolved fields
-                field.reference._resolve_fields(path)
+                field.reference._resolve_fields(path, on_issue)
                 for child in field.reference.resolved_fields:
                     if child.flags & TypeFlag.IS_CONFIG:
                         continue  # ignore config fields
@@ -664,9 +665,7 @@ class HasFields(HasType):
                     if existing is None:
                         resolved_fields.append(ResolvedField.from_field(self, child))
                     elif not existing.equals_type(child):
-                        self._on_issue(
-                            self=IssueType.MISMATCHED_UNION, subject=self, other=existing
-                        )
+                        on_issue(self=IssueType.MISMATCHED_UNION, subject=self, other=existing)
             else:
                 # just a normal field
                 resolved_fields.append(ResolvedField.from_field(self, field))

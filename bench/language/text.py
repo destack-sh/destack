@@ -7,7 +7,7 @@ from uuid import UUID
 from bench.language.const import MNT, NodeReference, NodeType, TypedNodeReference
 from bench.language.module import Node, ScopeNode, bproperty, bruntime, node_component
 from bench.language.reference import NodeVisitor
-from bench.language.validation import validate_is_str
+from bench.language.validation import ValidationHandler, validate_is_str
 
 
 @node_component
@@ -36,7 +36,7 @@ class HasText(Node):
     def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         self._text_parsed = None
 
-    def _interp_inner(self, scope: ScopeNode) -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
         if self.text is None:
             return
 

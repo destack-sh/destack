@@ -742,7 +742,7 @@ class ModuleWorkerProcess(RuntimeHost):
         await session.open()
         try:
             await statement(**inputs)
-            await session.commit()
+            # we autocommit at the end of the top-level run
         except BaseException as e:
             error = RunError(
                 kind=RunErrorKind.Runtime,
