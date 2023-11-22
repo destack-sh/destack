@@ -584,6 +584,7 @@ async def sync_pg_databases_to_os(
             ops.clear()
 
     for database, record_ids in record_ids_by_db:
+        logger.debug("os.sync_pg_databases_to_os.db", database=database, records=len(record_ids))
         if record_ids is None:
             # update entire table if record_ids is None
             records_data = await pg_select(cur=pg_cursor, table=database._table)

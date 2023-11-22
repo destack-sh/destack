@@ -241,9 +241,8 @@ class Session:
         """Flushes local Postgres edits (leaves other edits pending)."""
         from bench.sql.engine import write_local_edits_to_pg
 
-        with self._tracer._tracing_lock:
-            _, local_edits = self._tracer.eat_edits(include_host=False)
-            await write_local_edits_to_pg(self.module, local_edits)
+        _, local_edits = self._tracer.eat_edits(include_host=False)
+        await write_local_edits_to_pg(self.pg_cursor, self.module, local_edits)
 
     @_auto_async_to_sync
     async def commit(self):

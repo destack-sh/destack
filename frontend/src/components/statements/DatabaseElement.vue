@@ -89,8 +89,12 @@ function removeSort(sort: { field: string }) {
 }
 const sort: Ref<Sort[] | null> = computed(() => {
   if (properties.sorts == null || properties.sorts.length == 0) {
-    // default to sort by created at
-    return [{ field: "created_at", order: SortOp.Descending }];
+    if (inlineQuery.value != null) {
+      return null;
+    } else {
+      // default to sort by created at if no active search
+      return [{ field: "created_at", order: SortOp.Descending }];
+    }
   }
   return properties.sorts;
 });
@@ -115,6 +119,7 @@ const {
   fetchMore,
 } = useQuery(RECORD_SEARCH_QUERY, toValueRef(searchQueryVariables), {
   enabled: computed(() => !module.loading.value && props.visible) as any, // the vue composable typing is all fucked up
+  fetchPolicy: "network-only", // don't cache
 });
 const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
 const totalCount = computed(() => recordsFetchedResult.value?.searchRecords.totalCount);
