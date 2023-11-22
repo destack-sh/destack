@@ -695,7 +695,6 @@ def unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
         last_changed_at=row["last_edited_at"],
         revision=row["revision"],
         parent_id=row["statement_id"],
-        parent_key=row["statement_key"],
         value=value,
     )
 

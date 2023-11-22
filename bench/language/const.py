@@ -43,6 +43,11 @@ class NodeType(enum.StrEnum):
         return MNT_CAPS_CASE[self]
 
 
+# local = only stored in user Bench, not host
+LOCAL_NODE_TYPES = (NodeType.RECORD,)
+HOST_NODE_TYPES = (nt for nt in NodeType if nt not in LOCAL_NODE_TYPES)
+
+
 class StructType(enum.StrEnum):
     EXPRESSION = "Expression"
 

@@ -23,7 +23,7 @@ from bench.api.utils import (
     ThingBatch,
 )
 from bench.language import wire
-from bench.models import ModuleAccessLevel, packer
+from bench.models import ModuleAccessLevel
 from bench.msg import NMessage
 from bench.msg.core import request
 from bench.msg.messages import NMessageType, RepSearchRecordsPayload, ReqSearchRecordsPayload
@@ -31,24 +31,38 @@ from bench.search import mirror
 from bench.utils.dt import utcnow_with_tz
 
 
-@strawberry_django.type(models.Record)
+@strawberry.type
 class Record(HasCrud, Revisioned, relay.Node):
+    id: relay.NodeID[UUID]
     ck: UUID
     value: JSON
 
     @staticmethod
-    def from_os(record: mirror.Record) -> models.Record:
-        return models.Record(
+    def from_os(record: mirror.Record) -> "Record":
+        return Record(
             id=record.id,
             ck=record.ck,
             value=record.value,
-            statement_id=record.statement_id,
-            statement_ck=record.statement_ck,
             revision=record.revision,
             created_at=record.created_at,
             created_by=None,
             updated_at=record.updated_at,
             deleted_at=record.deleted_at if record.deleted_at != "-" else None,
+            last_edited_at=record.last_edited_at,
+            last_edited_by=None,
+        )
+
+    @staticmethod
+    def from_wire(record: wire.RecordData) -> "Record":
+        return Record(
+            id=record.id,
+            ck=record.ck,
+            value=record.value,
+            revision=record.revision,
+            created_at=record.created_at,
+            created_by=None,
+            updated_at=record.updated_at,
+            deleted_at=record.deleted_at,
             last_edited_at=record.last_edited_at,
             last_edited_by=None,
         )
@@ -105,76 +119,80 @@ class RecordRestoreInput(RecordInput, strawberry_django.NodeInput):
 
 @strawberry.type
 class RecordMutation:
-    @bench_edit(MET.CREATE_RECORD)
+    @bench_edit(MET.CREATE_RECORD, return_transform=Record.from_wire)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         # records are written to the local pg database (not via Django), so need to set CRU fields
         # not great but won't matter soon with the new edits system :)
         now = utcnow_with_tz()
-        record = models.Record(
+        record = wire.RecordData(
             id=UUID(input.id.node_id),
             ck=input.ck,
             created_at=now,
             updated_at=now,
+            deleted_at=None,
+            parent_id=UUID(input.statement_id.node_id),
             last_edited_at=now,
-            statement_id=UUID(input.statement_id.node_id),
-            statement_ck=input.statement_ck,
-            statement_key=input.statement_key,
+            last_changed_at=now,
+            revision=0,
             value=input.value,
         )
         return record
 
-    @bench_edit(MET.UPDATE_RECORD)
+    @bench_edit(MET.UPDATE_RECORD, return_transform=Record.from_wire)
     def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
         # copy pasta because it doesn't matter and these no longer exist in the DB
         now = utcnow_with_tz()
-        record = models.Record(
+        record = wire.RecordData(
             id=UUID(input.id.node_id),
             ck=None,
             created_at=now,
             updated_at=now,
+            deleted_at=None,
+            parent_id=UUID(input.statement_id.node_id),
             last_edited_at=now,
-            statement_id=UUID(input.statement_id.node_id),
-            statement_ck=None,
-            statement_key=None,
+            last_changed_at=now,
+            revision=0,
             value=input.value,
         )
         return record
 
-    @bench_edit(MET.SOFT_DELETE_RECORD)
+    @bench_edit(MET.SOFT_DELETE_RECORD, return_transform=Record.from_wire)
     def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
         # copy pasta because it doesn't matter and these no longer exist in the DB
         now = utcnow_with_tz()
-        record = models.Record(
+        record = wire.RecordData(
             id=UUID(input.id.node_id),
             ck=None,
-            created_at=now,
+            created_at=None,
             updated_at=now,
+            deleted_at=None,
+            parent_id=UUID(input.statement_id.node_id),
             last_edited_at=now,
-            statement_id=UUID(input.statement_id.node_id),
-            statement_ck=None,
-            statement_key=None,
+            last_changed_at=now,
+            revision=0,
             value=None,
         )
         return record
 
-    @bench_edit(MET.RESTORE_RECORD)
+    @bench_edit(MET.RESTORE_RECORD, return_transform=Record.from_wire)
     def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
         # copy pasta because it doesn't matter and these no longer exist in the DB
         now = utcnow_with_tz()
-        record = models.Record(
+        record = wire.RecordData(
             id=UUID(input.id.node_id),
             ck=None,
-            created_at=now,
+            created_at=None,
             updated_at=now,
+            deleted_at=None,
+            parent_id=UUID(input.statement_id.node_id),
             last_edited_at=now,
-            statement_id=UUID(input.statement_id.node_id),
-            statement_ck=None,
-            statement_key=None,
+            last_changed_at=now,
+            revision=0,
             value=None,
         )
         return record
 
-    @bench_edit(MET.DELETE_RECORD)
+    @bench_edit(MET.DELETE_RECORD, return_transform=Record.from_wire)
     def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
         raise NotImplementedError
 
@@ -216,7 +234,7 @@ class RecordQuery:
         )
         rep: NMessage[RepSearchRecordsPayload] = await request(NMessageType.SEARCH_RECORDS, req)
         if rep.p.records is not None:
-            records = [packer.unpack_node_flat(r, statement) for r in rep.p.records]
+            records = [Record.from_wire(r) for r in rep.p.records]
             edges = []
             for cursor, record in zip(rep.p.cursors, records):
                 node = Record.from_os(record)

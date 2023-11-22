@@ -26,7 +26,7 @@ from bench.language import (
     wire,
 )
 from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
-from bench.language.edit import MET, MNT
+from bench.language.edit import MET
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     ComparisonConditional,
@@ -235,7 +235,6 @@ SEARCH_SEMANTIC_EDIT_TYPES = {
     MET.TRUNCATE_RESOLVED_FIELDS,
     MET.CREATE_RESOLVED_FIELD,
 }
-BENCH_LOCAL_MNTS = (MNT.RECORD,)
 
 
 async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict") -> None:

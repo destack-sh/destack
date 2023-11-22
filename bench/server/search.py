@@ -5,13 +5,14 @@ from asgiref.sync import sync_to_async
 
 from bench import models
 from bench.language import wire
+from bench.language.const import LOCAL_NODE_TYPES
 from bench.language.edit import MEK, EditData
-from bench.models.packer import collect_node
+from bench.models.packer import HOST_MODEL_TYPES, collect_node
 from bench.search import core as os
 from bench.search import mirror
 from bench.search.client import get_os_errors, os_client, os_client_sync
 from bench.search.core import IndexType
-from bench.search.engine import BENCH_LOCAL_MNTS, DOCUMENTS_BY_INDEX, update_os_schema
+from bench.search.engine import DOCUMENTS_BY_INDEX, update_os_schema
 
 logger = structlog.get_logger(__name__)
 
@@ -246,9 +247,6 @@ def create_local_os_index(project: models.Project, *, upsert: bool) -> None:
     log.info("os.create_user.done", username=project.os_username)
 
 
-BENCH_LOCAL_MODELS = (models.Record,)
-
-
 async def write_edits_to_os(
     project_v: models.ProjectVersion, edits: list[EditData], *, refresh: bool = False
 ) -> None:
@@ -284,7 +282,7 @@ async def write_edits_to_os(
         ops.clear()
 
     for edit in edits:
-        index = project.os_name if edit.type.mnt in BENCH_LOCAL_MNTS else os.GLOBAL_INDEX_NAME
+        index = project.os_name if edit.type.mnt in LOCAL_NODE_TYPES else os.GLOBAL_INDEX_NAME
         if not mirror.has_mirror(edit.thing):
             continue  # ignore
         elif edit.type.kind in (MEK.CREATE, MEK.UPDATE, MEK.MOVE, MEK.SOFT_DELETE, MEK.RESTORE):
@@ -316,7 +314,7 @@ async def write_module_to_os(
     nodes: Iterable[models.ModuleNode] | Generator[models.ModuleNode, None, None],
     *,
     wipe: bool,
-    update_mappings: bool = True,
+    update_schema: bool = True,
     wait: bool = False,
 ):
     """
@@ -328,14 +326,17 @@ async def write_module_to_os(
     if wipe:
         await delete_module_in_os(project_v)
 
-    if update_mappings:
+    if update_schema:
         await update_os_schema_from_db(project_v)  # can we only do this sometimes? when?
 
     project: models.Project = project_v.project
     for node in nodes:
         if not mirror.has_mirror(node):
             continue
-        index = project.os_name if isinstance(node, BENCH_LOCAL_MODELS) else os.GLOBAL_INDEX_NAME
+        if type(node) in HOST_MODEL_TYPES:
+            index = os.GLOBAL_INDEX_NAME
+        else:
+            index = project.os_name
         ops.append({"index": {"_index": index, "_id": str(node.id)}})
         ops.append(mirror.mirror_node(project_v, node).to_dict())
 
@@ -354,7 +355,7 @@ async def write_module_to_os_from_db(
 ) -> None:
     nodes = await sync_to_async(collect_node)(project_v)
     await write_module_to_os(
-        project_v, nodes.visited.values(), wipe=wipe, update_mappings=update_mappings
+        project_v, nodes.visited.values(), wipe=wipe, update_schema=update_mappings
     )
 
 
