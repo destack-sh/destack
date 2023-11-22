@@ -368,9 +368,16 @@ async def _do_execute(
     cur: psycopg.AsyncCursor, query: sql.Composed, params: Sequence | Mapping | None = None
 ) -> None:
     try:
-        # nocheckin: use params for pg insert & update
-        #  (also to reduce logging clutter for large queries)
         await cur.execute(query, params)
+    except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+        raise SqlUnknownConstruct(str(e)) from e
+
+
+async def _do_execute_many(
+    cur: psycopg.AsyncCursor, query: sql.Composed, params: Sequence | Mapping | None = None
+) -> None:
+    try:
+        await cur.executemany(query, params)
     except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
         raise SqlUnknownConstruct(str(e)) from e
 
@@ -385,6 +392,7 @@ async def pg_select(
     order_by: SqlNode | None = None,
     first: int | None = None,
     skip: int | None = None,
+    params: Sequence | Mapping | None = None,
 ) -> list[dict[str, any]]:
     """Selects from the given table."""
     columns = columns or table.columns
@@ -398,7 +406,7 @@ async def pg_select(
         skip=skip,
     )
     logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, statement)
+    await _do_execute(cur, statement, params)
     return await cur.fetchall()
 
 
@@ -445,35 +453,6 @@ async def pg_count(
     return (await cur.fetchone())["count"]
 
 
-async def pg_insert(
-    cur: psycopg.AsyncCursor,
-    table: Table,
-    rows: list[RowIn],
-    *,
-    returning: Collection[Column] | None = None,
-) -> list[RowOut] | None:
-    """Inserts into the given table."""
-    values = (
-        sql.SQL("(")
-        + sql.SQL(", ").join(sql_node_to_sql(row[c.name]) for c in table.columns)
-        + sql.SQL(")")
-        for row in rows
-    )
-    statement = sql.SQL("INSERT INTO {table} ({fields}) VALUES {values}").format(
-        table=sql.Identifier(table.name),
-        fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
-        values=sql.SQL(", ").join(values),
-    )
-    if returning:
-        statement += sql.SQL(" RETURNING {}").format(
-            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
-        )
-    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, statement)
-    if returning:
-        return await cur.fetchall()
-
-
 async def pg_exists(
     cur: psycopg.AsyncCursor,
     table: Table,
@@ -493,6 +472,30 @@ async def pg_exists(
     logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
     await _do_execute(cur, statement)
     return (await cur.fetchone())["exists"]
+
+
+async def pg_insert(
+    cur: psycopg.AsyncCursor,
+    table: Table,
+    rows: list[RowIn],
+    *,
+    returning: Collection[Column] | None = None,
+) -> list[RowOut] | None:
+    """Inserts into the given table."""
+    statement = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
+        table=sql.Identifier(table.name),
+        fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
+        values=sql.SQL(", ".join(["%s"] * len(table.columns))),
+    )
+    if returning:
+        statement += sql.SQL(" RETURNING {}").format(
+            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+        )
+    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
+    values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
+    await _do_execute_many(cur, statement, values)
+    if returning:
+        return await cur.fetchall()
 
 
 async def pg_update_static(
@@ -531,26 +534,16 @@ async def pg_update_list(
     values: list[RowIn],
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
+    """Updates the given table with a list of values (corresponding to rows)."""
     assert any(c.is_primary_key for c in columns), f"no primary key in {columns}"
     table_name = sql.Identifier(table.name)
-    statement = sql.SQL(
-        "UPDATE {table} SET {fields_set} FROM (VALUES {values}) AS t ({fields})"
-    ).format(
+    # basically, just pipeline update single with executemany
+    statement = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
         table=table_name,
-        values=sql.SQL(", ").join(
-            sql.SQL("(")
-            + sql.SQL(", ").join(sql_node_to_sql(row[c.name]) for c in columns)
-            + sql.SQL(")")
-            for row in values
+        pk=sql.Identifier(table.primary_key.name),
+        values=sql.SQL(", ".join(["{} = %s"] * len(columns))).format(
+            *(sql.Identifier(c.name) for c in columns)
         ),
-        fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in columns),
-        fields_set=sql.SQL(", ").join(
-            sql.SQL("{} = t.{}").format(sql.Identifier(c.name), sql.Identifier(c.name))
-            for c in columns
-        ),
-    )
-    statement += sql.SQL(" WHERE {table}.{pk} = t.{pk}").format(
-        table=table_name, pk=sql.Identifier(table.primary_key.name)
     )
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
@@ -558,8 +551,11 @@ async def pg_update_list(
                 sql.SQL("{}.{}").format(table_name, sql.Identifier(c.name)) for c in returning
             )
         )
-    logger.debug("pg.update_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, statement)
+    logger.debug("pg.update_rows", table=table, query=sql_to_str(cur, statement), rows=len(values))
+    values = [
+        (*(row.get(c.name) for c in columns), row.get(table.primary_key.name)) for row in values
+    ]
+    await _do_execute_many(cur, statement, values)
     if returning:
         return await cur.fetchall()
 
@@ -745,6 +741,8 @@ async def write_local_edits_to_pg(
     """
     Writes *local* edits to the database. Returns the updated nodes (i.e. records).
     Pass in databases for statements that are no longer in the module (i.e. deleted record parent).
+    TODO @Performance: use psycopg3 pipelining to batch local edits
+     see https://www.psycopg.org/psycopg3/docs/advanced/pipeline.html
     """
     if not edits:
         return []

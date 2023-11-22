@@ -597,11 +597,14 @@ async def sync_pg_databases_to_os(
                 continue
             # otherwise update only the given record ids
             where = SqlComparison(
-                sql.Identifier("id"),
-                PostgresConditionalOp.EQ,
-                sql.SQL("ANY({})").format(sql.Literal(list(record_ids))),
+                sql.Identifier("id"), PostgresConditionalOp.EQ, sql.SQL("ANY(%(updated_ids)s)")
             )
-            records_data = await pg_select(cur=pg_cursor, table=database._table, where=where)
+            records_data = await pg_select(
+                cur=pg_cursor,
+                table=database._table,
+                where=where,
+                params={"updated_ids": list(record_ids)},
+            )
             records_data = [unpack_record_row(database, row) for row in records_data]
             records_by_id = {r.id: r for r in records_data}
             missing_ids = record_ids - records_by_id.keys()

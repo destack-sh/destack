@@ -414,9 +414,9 @@ class RecordQuery:
         )
         if TYPE_DISCRIMINATOR_KEY in values:  # not stored in database (implicit in statement_key)
             del values[TYPE_DISCRIMINATOR_KEY]
-        # update values alongside :LocalRecordCru
-        if self._database.ephemeral:  # set within generic 'value' JSONB column
+        if self._database.ephemeral:  # lift into generic 'value' JSONB column
             values = {"value": sql.SQL("value || {}").format(sql.Literal(Jsonb(values)))}
+        # update values alongside :LocalRecordCru
         now = utcnow_with_tz()
         values["revision"] = sql.SQL("revision + 1")
         values["updated_at"] = now

@@ -260,7 +260,7 @@ class Session:
         host_edits, local_edits = self._tracer.eat_edits(include_host=True)
         log = self._log.bind(
             host_edits=host_edits,
-            local_edits_preview=local_edits[40:],
+            local_edits_preview=local_edits[:16],
             local_edits_len=len(local_edits),
         )
         log.debug("session.commit")
