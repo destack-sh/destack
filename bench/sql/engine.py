@@ -2,7 +2,7 @@ import base64
 import enum
 import struct
 from dataclasses import dataclass
-from typing import Collection, cast
+from typing import Collection, Mapping, Sequence, cast
 from uuid import UUID
 
 import cachetools
@@ -12,7 +12,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 import bench.language as lang
-from bench.language import ConditionalOp, HasDatabase, Module, QueryEngine, wire
+from bench.language import ConditionalOp, Field, HasDatabase, Module, QueryEngine, wire
 from bench.language.const import MNT, TypeStorageFormat
 from bench.language.edit import EditData, EditKind
 from bench.language.expression import (
@@ -56,6 +56,18 @@ COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
     TypeStorageFormat.OBJECT: ColumnType.JSON,
 }
 assert len(COLUMN_TYPE_BY_STORAGE_FORMAT) == len(TypeStorageFormat), "missing column type"
+
+CAST_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, str] = {
+    TypeStorageFormat.STRING: "text",
+    TypeStorageFormat.DOUBLE: "float",
+    TypeStorageFormat.LONG: "bigint",
+    TypeStorageFormat.VECTOR: "float[]",
+    TypeStorageFormat.BINARY: "bytea",
+    TypeStorageFormat.DATE: "timestamptz",
+    TypeStorageFormat.BOOLEAN: "boolean",
+    TypeStorageFormat.KEYWORD: "text",
+    TypeStorageFormat.OBJECT: "jsonb",
+}
 
 
 def _to_value_column_name(field: lang.Field) -> str:
@@ -244,18 +256,25 @@ def compile_pg_conditional(
         return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
     elif isinstance(cond, ComparisonConditional) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_field_ref(database, cond.field)
-        if cond.op in (PostgresConditionalOp.IN, PostgresConditionalOp.NOT_IN):
-            # map to ANY() construct, IN/NOT IN doesn't work in psycopg
+        if isinstance(cond.field, Field):  # add explicit cast to LHS if possible
+            pg_type = CAST_TYPE_BY_STORAGE_FORMAT[cond.field._storage_format]
+            left = sql.SQL("({})::{}").format(sql_node_to_sql(left), sql.SQL(pg_type))
+        # map IN to ANY() construct (IN/NOT IN doesn't work in psycopg)
+        if cond.op in (ConditionalOp.IN, ConditionalOp.NOT_IN):
             right = sql.SQL("ANY({})").format(sql.Literal(cond.value))
             op = (
                 PostgresConditionalOp.EQ
-                if cond.op == PostgresConditionalOp.IN
+                if cond.op == ConditionalOp.IN
                 else PostgresConditionalOp.NEQ
             )
             return SqlComparison(left=left, op=op, right=right)
+
+        if cond.op == ConditionalOp.STARTS_WITH:
+            right = sql.SQL("{} || '%'").format(sql.Literal(cond.value))
         else:
             right = sql.Literal(cond.value)
-            return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
+
+        return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
     elif isinstance(cond, ExistenceConditional):
         return SqlUnary(
             left=_compile_field_ref(database, cond.field), op=PG_CONDITIONAL_OP_BY_BENCH[cond.op]
@@ -345,9 +364,13 @@ RowIn = dict[str, SqlPrimitive | SqlExpression]
 RowOut = dict[str, SqlPrimitive]
 
 
-async def _do_execute(cur: psycopg.AsyncCursor, query: sql.Composed) -> None:
+async def _do_execute(
+    cur: psycopg.AsyncCursor, query: sql.Composed, params: Sequence | Mapping | None = None
+) -> None:
     try:
-        await cur.execute(query)
+        # nocheckin: use params for pg insert & update
+        #  (also to reduce logging clutter for large queries)
+        await cur.execute(query, params)
     except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
         raise SqlUnknownConstruct(str(e)) from e
 

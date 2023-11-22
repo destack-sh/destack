@@ -355,6 +355,8 @@ class EditEvent:
     node: Node
     target: MNT | None = None
     properties: list[str] | None = None
+    file_id: UUID | None = None
+    statement_id: UUID | None = None
 
 
 class SessionTracer:
@@ -475,13 +477,11 @@ class SessionTracer:
             if include_host:
                 for event in self._host_edits:
                     node = event.node
-                    file = module._local_tree.get_ancestor(node.ck, MNT.FILE)
-                    statement = module._local_tree.get_ancestor(node.ck, MNT.STATEMENT)
                     edit = EditData(
                         type=event.type,
                         project_version_id=module.id,
-                        file_id=file.id if file else None,
-                        statement_id=statement.id if statement else None,
+                        file_id=event.file_id,
+                        statement_id=event.statement_id,
                         properties=event.properties,
                     )
                     edit.node = pack_node_flat(node)
@@ -502,10 +502,24 @@ class SessionTracer:
 
         return host_edits, local_edits
 
-    def _edit(self, edit: EditEvent):
+    def _edit(self, kind: EditKind, node: Node, properties: list[str] = None, target: MNT = None):
         """Register an edit to a node (local or host)."""
+        is_local = node.mnt == MNT.RECORD
+        if not is_local:
+            tree = self.session.module._local_tree
+            file = tree.get_ancestor(node.ck, MNT.FILE)
+            statement = tree.get_ancestor(node.ck, MNT.STATEMENT)
+        else:
+            file, statement = None, None
+        edit = EditEvent(
+            type=EditType.from_nt(kind, target or node.mnt),
+            node=node,
+            properties=properties,
+            file_id=file.id if file else None,
+            statement_id=statement.id if statement else None,
+            target=target,
+        )
         assert not self.session._closed_at, f"cannot {edit!r} in closed session {self.session!r}"
-        is_local = edit.type.mnt == MNT.RECORD
         edits = self._local_edits if is_local else self._host_edits
 
         if edit.type.kind == EditKind.CREATE:
@@ -541,7 +555,7 @@ class SessionTracer:
             for n in nodes:
                 if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
-                self._edit(EditEvent(type=EditType.from_nt(MEK.CREATE, n.mnt), node=n))
+                self._edit(EditKind.CREATE, node=n)
 
     def node_create_preflight(self, *nodes: Node):
         # used to check permission before modifying state locally
@@ -561,10 +575,7 @@ class SessionTracer:
         with self._tracing_lock:  # do it
             if node.ck in self._created_nodes_ck:
                 return  # ignore updates to newly created nodes
-            edit = EditEvent(
-                type=EditType.from_nt(MEK.UPDATE, node.mnt), node=node, properties=properties
-            )
-            self._edit(edit)
+            self._edit(EditKind.UPDATE, node=node, properties=properties)
 
     def node_delete(self, *nodes: Node):
         if (
@@ -588,7 +599,7 @@ class SessionTracer:
                 # :InterpFilter
                 if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
-                self._edit(EditEvent(type=EditType.from_nt(MEK.DELETE, n.mnt), node=n))
+                self._edit(EditKind.DELETE, node=n)
 
     def node_truncate(self, node: Node, mnt: MNT):
         if node.mnt in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
@@ -597,8 +608,7 @@ class SessionTracer:
             raise PermissionError(f"{self.session!r} may not truncate {node!r}")
         if mnt == MNT.RECORD:
             raise ValueError(f"cannot truncate records: {node!r}")
-        edit = EditEvent(type=EditType.from_nt(MEK.TRUNCATE, mnt), node=node, target=node.mnt)
-        self._host_edits.append(edit)
+        self._edit(MEK.TRUNCATE, node, target=mnt)
 
     #
     # Session
@@ -844,7 +854,7 @@ class SessionTracer:
         # force commit module as well if a new statement was run
         #  (since we need those field mappings, lest OS errors)
         if any(r.statement_ck in self._created_nodes_ck for r in runs):
-            await self.session.commit(refresh_index=False)
+            await self.session.commit()
 
         # update session
         await self.session.runtime.push_session(self.session, runs)
