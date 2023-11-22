@@ -355,7 +355,6 @@ class FieldPacker(CrudThingPacker, Packer[models.Field, Field, wire.FieldData]):
 @document(os.DocumentType.RECORD)
 class Record(CrudThing, os.Document):
     ck: UUID = os.field(os.FT.KEYWORD)
-    project_id: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     statement_key: Optional[str] = os.field(os.FT.KEYWORD)
@@ -372,7 +371,6 @@ class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordDat
         return Record(
             id=node.id,
             ck=node.ck,
-            project_id=project_v.project_id,
             project_version_id=project_v.id,
             statement_id=node.statement_id,
             statement_ck=node.statement_ck,
@@ -397,6 +395,7 @@ class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordDat
             revision=node.revision,
             created_at=node.created_at,
             updated_at=node.updated_at,
+            deleted_at=node.deleted_at,
             last_edited_at=node.last_edited_at,
             last_changed_at=None,
         )
@@ -419,7 +418,7 @@ class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordDat
             created_at=data.created_at,
             created_by_id=None,
             updated_at=data.updated_at,
-            deleted_at=None,
+            deleted_at=data.deleted_at,
             last_edited_at=data.last_edited_at,
             last_edited_by_id=None,
         )

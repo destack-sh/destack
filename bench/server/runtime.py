@@ -245,9 +245,7 @@ class RuntimeSupervisor(Monitored):
         # TODO @Security!: check if msg origin has write access to module
         runtime = await self._prepare_runtime_host(msg.p.module_id)
         try:
-            edited_nodes = await runtime.write_edits(
-                msg.p.edits, origins=(msg.p.client,), refresh_index=msg.p.refresh_index
-            )
+            edited_nodes = await runtime.write_edits(msg.p.edits, origins=(msg.p.client,))
             success = True
             error = None
         except Exception as e:
@@ -626,7 +624,6 @@ class RuntimeHost:
         self,
         edits: list[EditData],
         origins: tuple[ClientOrigin] = None,
-        refresh_index: bool = False,
     ) -> list[wire.NodeData]:
         """
         Writes the edits to the source of truth (DB) and locally,
@@ -716,7 +713,7 @@ class RuntimeHost:
         # mirror
         if schema_changed:
             await update_os_schema(self.project.os_name, self.module)
-        await write_edits_to_os(self.project_version, edits=change.all_edits, refresh=refresh_index)
+        await write_edits_to_os(self.project_version, edits=change.all_edits + local_edits)
 
         duration = time.time() - start_time
         self.log.debug("module.write_edits.done", duration=duration, edited_nodes=len(edited_nodes))

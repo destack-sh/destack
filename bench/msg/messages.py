@@ -338,7 +338,6 @@ class ReqWriteEditsPayload(Payload):
     module_id: UUID
     edits: list[EditData]
     client: ClientOrigin
-    refresh_index: bool = False
 
 
 @payload(NMessageType.WRITE_EDITS_REP)

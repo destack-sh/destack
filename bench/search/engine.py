@@ -3,14 +3,18 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, NamedTuple, Optional, Union
+from uuid import UUID
 
+import psycopg
 import structlog
+from psycopg import sql
 
 from bench import language as lang
 from bench.language import (
     C,
     Conditional,
     ConditionalOp,
+    HasDatabase,
     HasRun,
     Module,
     QueryEngine,
@@ -558,3 +562,58 @@ def encode_os_cursor(record: dict[str, Any], after: Optional[str], i: int) -> st
         if not isinstance(after, int):
             raise ValueError("invalid cursor")
         return base64.b64encode(json.dumps(after + i).encode()).decode("utf-8")
+
+
+async def sync_pg_databases_to_os(
+    module: Module,
+    pg_cursor: psycopg.AsyncCursor,
+    record_ids_by_db: list[tuple["HasDatabase", set[UUID] | None]],
+) -> None:
+    """Synchronizes local PG databases to OpenSearch. Mirror only the given record ids if given."""
+    from bench.sql.engine import PostgresConditionalOp, SqlComparison, pg_select, unpack_record_row
+
+    log = logger.bind(module=module, databases=(r[0] for r in record_ids_by_db))
+    log.debug("os.sync_pg_databases_to_os")
+    os_name = module.os_name
+    ops: list[dict[str, Any]] = []
+
+    async def _flush():
+        if ops:
+            log.debug("os.sync_pg_databases_to_os.flush", ops=len(ops))
+            await os_client.bulk(body=ops)
+            ops.clear()
+
+    for database, record_ids in record_ids_by_db:
+        if record_ids is None:
+            # update entire table if record_ids is None
+            records_data = await pg_select(cur=pg_cursor, table=database._table)
+            records_data = [unpack_record_row(database, row) for row in records_data]
+            # delete table by query
+            await os_client.delete_by_query(
+                index=os_name, body={"query": {"term": {"statement_key": database.key}}}
+            )
+        else:
+            if not record_ids:
+                continue
+            # otherwise update only the given record ids
+            where = SqlComparison(
+                sql.Identifier("id"),
+                PostgresConditionalOp.EQ,
+                sql.SQL("ANY({})").format(sql.Literal(list(record_ids))),
+            )
+            records_data = await pg_select(cur=pg_cursor, table=database._table, where=where)
+            records_data = [unpack_record_row(database, row) for row in records_data]
+            records_by_id = {r.id: r for r in records_data}
+            missing_ids = record_ids - records_by_id.keys()
+            # delete missing ids
+            for deleted_record_id in missing_ids:
+                ops.append({"delete": {"_index": os_name, "_id": str(deleted_record_id)}})
+
+        # upsert records
+        for record_data in records_data:
+            record_mirror = mirror.unpack_node_flat(module, record_data, database)
+            ops.append({"index": {"_index": os_name, "_id": str(record_data.id)}})
+            ops.append(record_mirror.to_dict())
+
+    await _flush()
+    log.debug("os.sync_pg_databases_to_os.done")

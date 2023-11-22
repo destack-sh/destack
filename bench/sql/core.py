@@ -7,6 +7,7 @@ from typing import ClassVar, Union
 from uuid import UUID, uuid5
 
 import psycopg
+from more_itertools import first
 
 from bench.language.const import BENCH_UUID_NAMESPACE
 
@@ -138,6 +139,7 @@ class Column(TableConstruct):
         args_str = ", ".join(
             f"{name}={self.__dict__[name]}"
             for name in ("is_array", "is_primary_key", "is_unique", "is_nullable", "default")
+            if self.__dict__[name]
         )
         table_name = self._table.name if self._table else None
         return f"{table_name or '<detached>'}.{self.name} ({self.type}) [{args_str}])"
@@ -272,7 +274,7 @@ class Index(TableConstruct):
         return hash(self) == hash(other)
 
     def sql(self) -> str:
-        parts = [self.name, self.type]
+        parts = [self.name, f"ON {self._table.name}", f"USING {self.type}"]
         if self.expression is not None:
             parts.append(f"({self.expression})")
         else:
@@ -293,6 +295,7 @@ class Table(Construct):
     name: str
     columns: tuple[Column, ...]
     columns_by_name: dict[str, Column] = field(init=False)
+    primary_key: Column | None = field(init=False)
     constraints: tuple[Constraint, ...] = ()
     indexes: tuple[Index, ...] = ()
 
@@ -306,6 +309,7 @@ class Table(Construct):
             if column.name in self.columns_by_name:
                 raise ValueError(f"column {column.name} is already defined in {self}")
             self.columns_by_name[column.name] = column
+        self.primary_key = first((c for c in self.columns if c.is_primary_key), None)
 
     def __str__(self):
         columns_str = ", ".join(f"{c.name} {c.type}" for c in self.columns)
@@ -349,6 +353,10 @@ BASE_RECORD_TABLE = Table(
             "unique_statement_key_ck", ConstraintType.UNIQUE, columns=["ck", "statement_key"]
         ),
     ),
+    indexes=(
+        # for fetching all records of a 'database'
+        Index("statement_key_deleted_at", IndexType.BTREE, columns=["statement_key", "deleted_at"]),
+    ),
 )
 # 'hufflepuff' table for ephemeral 'tables' without real tables
 EPHEMERAL_RECORD_TABLE = Table(
@@ -359,6 +367,8 @@ EPHEMERAL_RECORD_TABLE = Table(
         Column("statement_id", ColumnType.UUID),
         Column("value", ColumnType.JSON, is_nullable=True),
     ),
+    constraints=(*(c.clone() for c in BASE_RECORD_TABLE.constraints),),
+    indexes=(*(i.clone() for i in BASE_RECORD_TABLE.indexes),),
 )
 
 

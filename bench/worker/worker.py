@@ -3,13 +3,22 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import timedelta
 from functools import partial
-from typing import Any, Optional, Union
+from typing import Any, Collection, Optional, Union
 from uuid import UUID
 
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import Blob, Module, Run, RunError, Secret, Statement, wire
+from bench.language import (
+    Blob,
+    HasDatabase,
+    Module,
+    Run,
+    RunError,
+    Secret,
+    Statement,
+    wire,
+)
 from bench.language.builtin import symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
@@ -19,7 +28,7 @@ from bench.language.const import (
     RunStatus,
     SessionAccessLevel,
 )
-from bench.language.edit import EditData
+from bench.language.edit import EditData, EditType
 from bench.language.libs import DEFAULT_DEPENDENCIES, DEFAULT_MODULES
 from bench.language.model import ModelError
 from bench.language.module import _NodeChange
@@ -812,6 +821,29 @@ class ModuleWorkerProcess(RuntimeHost):
         await publish(
             NMessageType.LOGS_CHANGED,
             LogsChangedPayload(project_id=self.project_id, module_id=self.module_id, logs=logs),
+        )
+
+    async def notify_databases_changed(self, databases: Collection["HasDatabase"]) -> None:
+        edits = [
+            EditData(
+                type=EditType.BUMP_STATEMENT,
+                project_version_id=self.module.id,
+                file_id=database.file.id,
+                statement_id=database.id,
+                revision=database.revision,
+                properties=None,
+            )
+            for database in databases
+        ]
+        self.log.debug("module.publish_edits", edits=edits)
+        await publish(
+            NMessageType.MODULE_CHANGED,
+            ModuleChangedPayload(
+                project_id=self.project_id,
+                module_id=self.module_id,
+                edits=edits,
+                origins=[self.node.client],
+            ),
         )
 
     async def download_blob(self, blob: "Blob") -> str:

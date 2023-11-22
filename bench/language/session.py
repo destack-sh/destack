@@ -3,7 +3,7 @@ import asyncio
 import contextlib
 import sys
 import threading
-from collections import deque
+from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from dataclasses import dataclass
@@ -14,6 +14,7 @@ from typing import (
     Any,
     Awaitable,
     Callable,
+    Collection,
     Coroutine,
     Optional,
     Union,
@@ -56,13 +57,16 @@ logger = structlog.get_logger(__name__)
 class RuntimeHost(abc.ABC):
     """Central Bench runtime server for synchronizing modules and sessions."""
 
-    async def commit_edits(self, edits: list["EditData"]) -> None:
+    async def commit_edits(self, edits: Collection["EditData"]) -> None:
         raise NotImplementedError
 
-    async def push_session(self, session: "Session", runs: list["Run"]) -> None:
+    async def push_session(self, session: "Session", runs: Collection["Run"]) -> None:
         raise NotImplementedError
 
-    async def notify_logs_changed(self, logs: list["LogEntryData"]) -> None:
+    async def notify_logs_changed(self, logs: Collection["LogEntryData"]) -> None:
+        raise NotImplementedError
+
+    async def notify_databases_changed(self, databases: Collection["HasDatabase"]) -> None:
         raise NotImplementedError
 
     async def download_blob(self, blob: "Blob") -> str:
@@ -142,7 +146,7 @@ class Session:
         status = "open" if self._opened_at else ("closed" if self._closed_at else "pending")
         return (
             f"{self.module.name} ({self.access_level.name}, {status}, "
-            f"{len(self._tracer._local_edits)} local edits, {len(self._tracer._host_edits)} host edits, {len(self._tracer._changed_record_ids)} touched records"
+            f"{len(self._tracer._local_edits)} local edits, {len(self._tracer._host_edits)} host edits"
             f")"
         )
 
@@ -239,6 +243,7 @@ class Session:
     @_auto_async_to_sync
     async def commit(self):
         """Commits module edits and syncs committed local edits to OS."""
+        from bench.search.engine import sync_pg_databases_to_os
         from bench.sql.engine import write_local_edits_to_pg
 
         assert not self._failed_commit, f"session {self!r} is broken after failed commit"
@@ -247,8 +252,13 @@ class Session:
             self._log.debug("session.commit.skip")
             return  # nothing to commit
 
+        touched_databases_by_id = {**self._tracer._touched_databases_by_id}
         host_edits, local_edits = self._tracer.eat_edits(include_host=True)
-        log = self._log.bind(host_edits=host_edits, local_edits=local_edits)
+        log = self._log.bind(
+            host_edits=host_edits,
+            local_edits_preview=local_edits[40:],
+            local_edits_len=len(local_edits),
+        )
         log.debug("session.commit")
 
         # commit
@@ -258,7 +268,12 @@ class Session:
                 await self.runtime.commit_edits(host_edits)
             # commit local edits
             if local_edits:
-                await write_local_edits_to_pg(self.pg_cursor, self.module, local_edits)
+                await write_local_edits_to_pg(
+                    self.pg_cursor,
+                    self.module,
+                    local_edits,
+                    old_databases_by_id=touched_databases_by_id,
+                )
             await self._pg_cursor.connection.commit()
             self.module._apply_edits_to_source(host_edits)
             log.debug("session.commit.done")
@@ -271,11 +286,20 @@ class Session:
                 f"failed to write edits ({len(host_edits)} host, {len(local_edits)} local): {e}"
             ) from e
 
-        # sync local edits to index
-        if self._tracer._changed_record_ids:
-            pass  # nocheckin: sync changed record ids from pg to os
-            self._tracer._changed_record_ids.clear()
+        # manually ensure locally changed records are synced & notified
+        if self._tracer._changed_record_ids_by_db_id:
+            # sync local edits to index
+            log.debug("session.commit.index")
+            changed_records: list[tuple["HasDatabase", set[UUID]]] = [
+                (self._tracer._touched_databases_by_id[db_id], record_ids)
+                for db_id, record_ids in self._tracer._changed_record_ids_by_db_id.items()
+            ]
+            await sync_pg_databases_to_os(self.module, self.pg_cursor, changed_records)
+            self._tracer._changed_record_ids_by_db_id.clear()
             self._tracer._touched_databases_by_id.clear()
+
+            # publish local edits
+            await self.runtime.notify_databases_changed(touched_databases_by_id.values())
 
     async def close(self):
         """Closes the session, committing any edits and preventing further execution/edit."""
@@ -363,7 +387,7 @@ class SessionTracer:
         self._tracing_lock = threading.Lock()
         self._created_nodes_ck: set[UUID] = set()
         self._updated_nodes_event_by_ck: dict[UUID, int] = {}
-        self._changed_record_ids = set()
+        self._changed_record_ids_by_db_id: dict[UUID, set[UUID]] = defaultdict(set)
         self._touched_databases_by_id: dict[UUID, "HasDatabase"] = {}
         self._local_edits: list[EditEvent] = []
         self._host_edits: list[EditEvent] = []
@@ -383,7 +407,7 @@ class SessionTracer:
         return (
             len(self._local_edits) > 0
             or len(self._host_edits) > 0
-            or len(self._changed_record_ids) > 0
+            or len(self._changed_record_ids_by_db_id) > 0
         )
 
     def _update_stacktrace_ancestors(self):
@@ -403,6 +427,14 @@ class SessionTracer:
     def _stacktrace_push(self, run: Run) -> None:
         self._stacktrace.append(run)
         self._update_stacktrace_ancestors()
+
+    #
+    # Module
+    # Edits are actually written to local source in session commit.
+    # We have the :InterpFilter because interp edits are tracked in the runtime host only.
+    #
+    # NOTE: We don't support restore/soft-delete/move in sessions (yet).
+    #
 
     def eat_edits(self, *, include_host: bool) -> tuple[list[EditData] | None, list[EditData]]:
         """
@@ -430,9 +462,10 @@ class SessionTracer:
                 edit.node = pack_node_flat(node)
                 if not include_host:  # not needed if including everything
                     local_seen_cks.add(node.ck)
+                local_edits.append(edit)
             self._local_edits.clear()
 
-            # create  host edits (if needed)
+            # create host edits (if needed)
             host_edits: list[EditData] | None = [] if include_host else None
             if include_host:
                 for event in self._host_edits:
@@ -486,26 +519,18 @@ class SessionTracer:
         edits.append(edit)
 
         if edit.type.mnt == MNT.RECORD:
+            self._changed_record_ids_by_db_id[edit.node.parent_id].add(edit.node.id)
             self._touched_databases_by_id[edit.node.parent_id] = edit.node.parent
 
         if edit.node.ck in self.session._dangling_nodes_by_ck:
             del self.session._dangling_nodes_by_ck[edit.node.ck]
 
-    #
-    # Module
-    # Edits are actually written to local source in session commit.
-    # We have the :InterpFilter because interp edits are tracked in the runtime host only.
-    #
-    # NOTE: We don't support restore/soft-delete/move in sessions (yet).
-    #
+    def _records_changed(self, database: "HasDatabase", record_ids: Collection[UUID]):
+        self._touched_databases_by_id[database.id] = database
+        self._changed_record_ids_by_db_id[database.id].update(record_ids)
 
     def node_create(self, *nodes: Node):
-        # :InterpFilter
-        if (
-            any(n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL)
-            and self.session.access_level < SessionAccessLevel.Create
-        ):
-            raise PermissionError(f"{self.session!r} may not create {nodes!r}")
+        # assumes you've called node_create_preflight first (to check permission)
         with self._tracing_lock:  # do it
             for n in nodes:
                 if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
