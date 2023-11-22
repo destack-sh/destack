@@ -44,8 +44,7 @@ from .trigger import HasTriggers, Trigger
 from .value import HasValue
 from .view import View
 
-# NOTE! that all these imports are auto-imported as prelude in user code.
-#  (maybe we should factor that out...)
+# NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
     "A",
     "Aggregation",
@@ -112,4 +111,4 @@ for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
     for name, prop in cls.__properties__.items():
         if prop.is_reflected:
             setattr(cls, name, prop)
-            prop._as_field  # noqa ensure the reflected field works
+            prop._as_field  # noqa ensure the reflected field works (and cache it)

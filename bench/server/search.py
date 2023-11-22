@@ -257,6 +257,7 @@ async def write_edits_to_os(
     All regular DB edit come this way.
     """
     project: models.Project = project_v.project
+    logger.debug("os.write_edits", project_version=project_v, edits=edits)
     if not edits:
         if refresh:
             # just refresh the index
@@ -292,8 +293,7 @@ async def write_edits_to_os(
         elif not mirror.has_mirror(edit.thing):
             continue  # ignore
         elif edit.type.kind != MEK.DELETE:
-            mirrored = mirror.mirror_node(project_v, edit.thing)
-            mirrored_data = mirrored.to_dict()
+            mirrored_data = mirror.mirror_node(project_v, edit.thing).to_dict()
             # TODO @Robustness: limit OS edit to changed properties?
             #  (partial update is not supported in index operation)
             ops.append({"index": {"_index": index, "_id": str(edit.thing.id)}})

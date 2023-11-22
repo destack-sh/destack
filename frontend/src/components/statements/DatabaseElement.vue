@@ -125,10 +125,14 @@ const loading = computed(
 
 const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
 
-// auto refetch when bumped (1s is the OS indexing delay)
+// auto refetch when bumped and using OS engine (1s is the OS indexing delay)
 const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 10000 });
 useEditListener([EditType.BumpStatement], props.statement.id, () => {
-  refetchDebounced();
+  if (inlineQuery.value != null) {
+    refetchDebounced();
+  } else {
+    refetch();
+  }
 });
 // trigger refetch (debounced) once if just created to autoload if the database was duplicated
 onMounted(() => {

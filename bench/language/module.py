@@ -795,6 +795,7 @@ class _NodeChange(enum.IntFlag):
     UpdateLists = 2**0
     Detach = 2**1
     Attach = 2**2
+    Tach = Detach | Attach
     Full = UpdateLists | Detach | Attach
 
 

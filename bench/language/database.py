@@ -369,8 +369,8 @@ class RecordQuery:
     @_auto_async_to_sync
     async def update(self, **values) -> int:
         """Updates all results with the given values."""
-        from bench.language.packer import pack_value_flat
-        from bench.sql.engine import compile_pg_conditional, pg_update
+        from bench.language.packer import pack_value
+        from bench.sql.engine import compile_pg_conditional, pg_update_static
 
         session = self._database.session
         session.check_access(SessionAccessLevel.Update)
@@ -378,7 +378,9 @@ class RecordQuery:
             await session.flush_local()
 
         # 'serialize' values (probably need a better way here to retain some native types?)
-        values = pack_value_flat(values, self._database)
+        values = pack_value(
+            values, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f._typed_key)
+        )
         if TYPE_DISCRIMINATOR_KEY in values:  # not stored in database (implicit in statement_key)
             del values[TYPE_DISCRIMINATOR_KEY]
         # update values alongside :LocalRecordCru
@@ -388,7 +390,7 @@ class RecordQuery:
         values["revision"] = sql.SQL("revision + 1")
         values["updated_at"] = now
         values["last_edited_at"] = now
-        updated_rows = await pg_update(
+        updated_rows = await pg_update_static(
             cur=session.pg_cursor,
             table=self._database._table,
             where=compile_pg_conditional(self._database, self._combined_filter),
@@ -396,9 +398,7 @@ class RecordQuery:
             returning=[self._database._table.columns_by_name["id"]],
         )
         updated_records_ids = {r["id"] for r in updated_rows}
-        # mark the changed records for OS sync
-        session._tracer._changed_record_ids.update(updated_records_ids)
-        session._tracer._touched_databases_by_id[self._database.id] = self._database
+        session._tracer._records_changed(self._database, updated_records_ids)  # mark for OS sync
         return len(updated_rows)
 
     @_auto_async_to_sync
@@ -420,9 +420,7 @@ class RecordQuery:
             returning=[self._database._table.columns_by_name["id"]],
         )
         deleted_records_ids = {r["id"] for r in deleted_rows}
-        # mark the changed records for OS sync
-        session._tracer._changed_record_ids.update(deleted_records_ids)
-        session._tracer._touched_databases_by_id[self._database.id] = self._database
+        session._tracer._records_changed(self._database, deleted_records_ids)  # mark for OS sync
         return len(deleted_rows)
 
 
@@ -515,7 +513,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, not part of regular tree
 
-    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
+    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Tach) -> None:
         assert isinstance(node, Record), f"cannot append {node!r} to {self!r}"
         node.parent = self._parent
         if node.id is None and self._parent.attached:
@@ -534,7 +532,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
         if _create and self._parent._session and self._parent.attached:
             self._parent.session._tracer.node_create(node)
 
-    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
+    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Tach) -> None:
         nodes = flatten(nodes)
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
@@ -551,7 +549,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
         if _create and self._parent._session and self._parent.attached:
             self._parent.session._tracer.node_create(*nodes)
 
-    def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
+    def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Tach) -> None:
         if _delete:
             if self._parent._session:
                 self._parent._session._tracer.node_delete(self, node)
@@ -560,7 +558,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
         node.parent = None
 
     @_auto_async_to_sync
-    async def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
+    async def clear(self, _delete: bool = True, _trigger: _NC = _NC.Tach) -> None:
         if _delete:
             await RecordQuery.filter(self).delete()
 

@@ -103,7 +103,7 @@ async def update_pg_schema(pg_name: str, module: Module) -> None:
     async with async_pg_cursor(pg_name, autocommit=False) as cur:
         # get missing constructs (diff existing and current)
         try:
-            existing_constructs = await get_stored_pg_constructs(cur)
+            existing_constructs = await pg_get_stored_constructs(cur)
         except SqlUnknownConstruct:
             # TODO @Robustness @Architecture: figure out some simple Migration system
             # does not exist yet, will be created below
@@ -115,11 +115,11 @@ async def update_pg_schema(pg_name: str, module: Module) -> None:
         }
         if missing_constructs:
             # create missing constructs
-            await create_pg_constructs(cur, missing_constructs)
+            await pg_create_constructs(cur, missing_constructs)
             # and remember the state
             new_constructs = {**existing_constructs}
             new_constructs.update(missing_constructs)  # retain all old constructs (for now)
-            await replace_stored_pg_constructs(cur, new_constructs)
+            await pg_replace_stored_constructs(cur, new_constructs)
 
 
 class PostgresConditionalOp(enum.StrEnum):
@@ -466,24 +466,20 @@ async def pg_exists(
     return (await cur.fetchone())["exists"]
 
 
-async def pg_update(
+async def pg_update_static(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
     where: SqlNode | None = None,
-    values: RowIn | list[RowIn],
+    values: RowIn,
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
-    """Updates the given table."""
-    if isinstance(values, dict):
-        values = [values]
-    # nocheckin: fix pg_update for list of values
-    statement = sql.SQL("UPDATE {table} SET {fields}").format(
+    """Updates the given table with static values."""
+    statement = sql.SQL("UPDATE {table} SET {values}").format(
         table=sql.Identifier(table.name),
-        fields=sql.SQL(", ").join(
+        values=sql.SQL(", ").join(
             sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
-            for row in values
-            for k, v in row.items()
+            for k, v in values.items()
         ),
     )
     if where:
@@ -491,6 +487,47 @@ async def pg_update(
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+        )
+    logger.debug("pg.update_rows", table=table, query=sql_to_str(cur, statement))
+    await _do_execute(cur, statement)
+    if returning:
+        return await cur.fetchall()
+
+
+async def pg_update_list(
+    cur: psycopg.AsyncCursor,
+    table: Table,
+    *,
+    columns: list[Column],
+    values: list[RowIn],
+    returning: Collection[Column] | None = None,
+) -> list[RowOut] | None:
+    assert any(c.is_primary_key for c in columns), f"no primary key in {columns}"
+    table_name = sql.Identifier(table.name)
+    statement = sql.SQL(
+        "UPDATE {table} SET {fields_set} FROM (VALUES {values}) AS t ({fields})"
+    ).format(
+        table=table_name,
+        values=sql.SQL(", ").join(
+            sql.SQL("(")
+            + sql.SQL(", ").join(sql_node_to_sql(row[c.name]) for c in columns)
+            + sql.SQL(")")
+            for row in values
+        ),
+        fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in columns),
+        fields_set=sql.SQL(", ").join(
+            sql.SQL("{} = t.{}").format(sql.Identifier(c.name), sql.Identifier(c.name))
+            for c in columns
+        ),
+    )
+    statement += sql.SQL(" WHERE {table}.{pk} = t.{pk}").format(
+        table=table_name, pk=sql.Identifier(table.primary_key.name)
+    )
+    if returning:
+        statement += sql.SQL(" RETURNING {}").format(
+            sql.SQL(", ").join(
+                sql.SQL("{}.{}").format(table_name, sql.Identifier(c.name)) for c in returning
+            )
         )
     logger.debug("pg.update_rows", table=table, query=sql_to_str(cur, statement))
     await _do_execute(cur, statement)
@@ -532,7 +569,7 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 #
 
 
-async def get_stored_pg_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, ConstructInfo]:
+async def pg_get_stored_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, ConstructInfo]:
     """Gets the current constructs in the given database (through the CONSTRUCT_TABLE)."""
     rows = await pg_select(cur, CONSTRUCT_TABLE)
     construct_infos = [
@@ -547,7 +584,7 @@ async def get_stored_pg_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, Const
     return {c.id: c for c in construct_infos}
 
 
-async def replace_stored_pg_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
+async def pg_replace_stored_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
     """Replaces the STORED constructs in construct table (data only, no definitions)."""
     await pg_truncate(cur, CONSTRUCT_TABLE)
     rows = [
@@ -562,34 +599,27 @@ async def replace_stored_pg_constructs(cur: psycopg.AsyncCursor, constructs: dic
     await pg_insert(cur, CONSTRUCT_TABLE, rows)
 
 
-async def create_pg_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
+async def pg_create_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
     """Creates the given constructs in the given database (not an upsert!)."""
     for construct in constructs.values():
         # TODO @Performance: batch pg construct creation where possible
         if isinstance(construct, Table):
-            await cur.execute(sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(construct.name)))
+            statement = sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(construct.name))
         elif isinstance(construct, Column):
-            await cur.execute(
-                sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
-                    sql.Identifier(construct.table.name), sql.SQL(construct.sql())
-                )
+            statement = sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
+                sql.Identifier(construct.table.name), sql.SQL(construct.sql())
             )
         elif isinstance(construct, Index):
-            await cur.execute(
-                sql.SQL("CREATE INDEX {} on {}").format(
-                    sql.SQL(construct.sql()),
-                    sql.Identifier(construct.table.name),
-                )
-            )
+            statement = sql.SQL("CREATE INDEX {}").format(sql.SQL(construct.sql()))
         elif isinstance(construct, Constraint):
-            await cur.execute(
-                sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
-                    sql.Identifier(construct.table.name),
-                    sql.SQL(construct.sql()),
-                )
+            statement = sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
+                sql.Identifier(construct.table.name),
+                sql.SQL(construct.sql()),
             )
         else:
             raise RuntimeError(f"unexpected construct: {construct}")
+        logger.debug("pg.create_construct", construct=construct, query=sql_to_str(cur, statement))
+        await _do_execute(cur, statement)
 
 
 #
@@ -695,43 +725,52 @@ async def write_local_edits_to_pg(
         edit_kind: EditKind, database_id: UUID, batch: list[EditData]
     ) -> list[wire.NodeData] | None:
         database = module.lookup(database_id) or old_databases_by_id[database_id]
+        table = database._table
         if edit_kind == EditKind.CREATE:
             records = cast(list[wire.RecordData], [edit.node for edit in batch])
             rows = [pack_record_row(database, record) for record in records]
-            _ = await pg_insert(cur=cur, table=database._table, rows=rows)
+            _ = await pg_insert(cur=cur, table=table, rows=rows)
             return records
-        elif edit_kind in (EditKind.UPDATE, EditKind.MOVE, EditKind.SOFT_DELETE, EditKind.RESTORE):
+        elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
             properties = batch[0].properties  # not strictly correct (should be set)
             assert properties, f"no properties for {edit_kind} on {batch}"
+            now = utcnow_with_tz()
+            # update cru info :LocalRecordCru
+            records = cast(list[wire.RecordData], [edit.node for edit in batch])
+            rows = [pack_record_row(database, record) for record in records]
+            # keep only properties touched in the edit
+            rows = [{k: row[k] for k in properties} for row in rows]
+            for record, row in zip(records, rows):
+                row["id"] = record.id
+                row["revision"] = sql.SQL("revision + 1")
+                row["updated_at"] = now
+                row["last_edited_at"] = now
+            rows = await pg_update_list(
+                cur=cur,
+                table=table,
+                values=rows,
+                columns=[table.primary_key, *(table.columns_by_name[k] for k in properties)],
+                returning=table.columns if return_nodes else None,
+            )
+            return [unpack_record_row(database, row) for row in rows] if return_nodes else None
+        elif edit_kind in (EditKind.SOFT_DELETE, EditKind.RESTORE):
             records_ids = [edit.node.id for edit in batch]
             now = utcnow_with_tz()
-            if edit_kind in (EditKind.UPDATE, EditKind.MOVE):
-                # update cru info :LocalRecordCru
-                records = cast(list[wire.RecordData], [edit.node for edit in batch])
-                rows = [pack_record_row(database, record) for record in records]
-                # keep only properties touched in the edit
-                rows = [{k: row[k] for k in properties} for row in rows]
-                for row in rows:
-                    row["revision"] = sql.SQL("revision + 1")
-                    row["updated_at"] = now
-                    row["last_edited_at"] = now
+            if edit_kind == EditKind.SOFT_DELETE:
+                row = {"deleted_at": now}
             else:
-                # set/unset deleted_at
-                if edit_kind == EditKind.SOFT_DELETE:
-                    rows = [{"id": id, "deleted_at": now} for id in records_ids]
-                else:
-                    rows = [{"id": id, "deleted_at": None} for id in records_ids]
+                row = {"deleted_at": None}
             where = SqlComparison(
                 sql.Identifier("id"),
                 PostgresConditionalOp.EQ,
                 sql.SQL("ANY({})").format(sql.Literal(records_ids)),
             )
-            rows = await pg_update(
+            rows = await pg_update_static(
                 cur=cur,
-                table=database._table,
+                table=table,
                 where=where,
-                values=rows,
-                returning=database._table.columns if return_nodes else None,
+                values=row,
+                returning=table.columns if return_nodes else None,
             )
             return [unpack_record_row(database, row) for row in rows] if return_nodes else None
         elif edit_kind == EditKind.DELETE:
@@ -741,7 +780,7 @@ async def write_local_edits_to_pg(
                 PostgresConditionalOp.EQ,
                 sql.SQL("ANY({})").format(sql.Literal(records_ids)),
             )
-            await pg_delete(cur=cur, table=database._table, where=where)
+            await pg_delete(cur=cur, table=table, where=where)
         else:
             raise RuntimeError(f"unexpected edit kind: {edit_kind} for {batch}")
 
