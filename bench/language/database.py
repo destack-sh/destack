@@ -388,11 +388,12 @@ class RecordQuery:
             return len(self._cached_records)
         from bench.sql.engine import compile_pg_conditional, pg_count
 
-        where = None
-        if self._filter:
-            where = compile_pg_conditional(self._database, self._filter)
+        if self._database.session._tracer._local_edits:
+            await self._database.session.flush_local()
+
+        where = compile_pg_conditional(self._database, self._combined_filter)
         return await pg_count(
-            cur=self._database.session.pg_cursor, database=self._database, where=where
+            cur=self._database.session.pg_cursor, table=self._database._table, where=where
         )
 
     @_auto_async_to_sync

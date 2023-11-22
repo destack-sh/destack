@@ -208,8 +208,7 @@ class _FieldExpressionBase:
 
     @_require_expr_op(ConditionalOp.STARTS_WITH)
     def starts_with(self, value: str) -> "Conditional":
-        # :StartsWithHack
-        return _to_conditional(ConditionalOp.STARTS_WITH, self._as_field, value.lower())
+        return _to_conditional(ConditionalOp.STARTS_WITH, self._as_field, value)
 
     @_require_expr_op(ConditionalOp.MATCHES)
     def matches(self, value: str) -> "Conditional":
@@ -885,7 +884,9 @@ class _ChangeEffect:
             for _node in self.affected:
                 _node._index_self()
             for _node in self.affected:
-                _node._interp_self(_node.scope, on_issue=_node.scope._on_issue)
+                _node._interp_self(
+                    _node.scope, on_issue=_node.scope._on_issue if _node.scope else on_issue_raise
+                )
                 if self.prev_session and self.prev_status == NS.ACTIVE:
                     _node._attached_self()
                     _node._activate_self(self.prev_session)

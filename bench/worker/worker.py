@@ -776,15 +776,10 @@ class ModuleWorkerProcess(RuntimeHost):
                     logger.error("worker.flush_dirty_runs.failed", exc_info=e, runs=runs)
             await asyncio.sleep(interval)
 
-    async def commit_edits(self, edits: list[EditData], refresh_index: bool = False) -> None:
+    async def commit_edits(self, edits: list[EditData]) -> None:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
         self.log.debug("module.commit_edits", edits=edits)
-        req = ReqWriteEditsPayload(
-            module_id=self.module_id,
-            edits=edits,
-            client=self.node.client,
-            refresh_index=refresh_index,
-        )
+        req = ReqWriteEditsPayload(module_id=self.module_id, edits=edits, client=self.node.client)
         rep: NMessage[RepWriteEditsPayload] = await request(
             NMessageType.WRITE_EDITS, req, RepWriteEditsPayload, retry=3
         )
