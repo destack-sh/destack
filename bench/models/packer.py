@@ -18,8 +18,15 @@ from django.db.models import F, Model, QuerySet
 
 from bench import models
 from bench.language import IssueType, StatementType, TypeHint, TypeTag, wire
-from bench.language.const import INTERP_NODE_TYPES, BlobStatus, IssueKind, NodeType, TriggerType
-from bench.language.edit import MEK, MET, EditBundle, EditData
+from bench.language.const import (
+    HOST_NODE_TYPES,
+    INTERP_NODE_TYPES,
+    BlobStatus,
+    IssueKind,
+    NodeType,
+    TriggerType,
+)
+from bench.language.edit import MEK, EditBundle, EditData
 from bench.language.module import NodeTree
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import flatten
@@ -92,7 +99,7 @@ DEFAULT_PACK_FILTERS = [
     (models.Trigger, lambda qs: qs.filter(deleted_at__isnull=True)),
 ]
 DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
-DEFAULT_EXCLUDED = (models.Record,)
+DEFAULT_EXCLUDED = ()
 
 # registered packers
 # some node models correspond to multiple actual module node / node data types
@@ -227,7 +234,7 @@ def pack_node(
     excluded: Collection[type[ModelT]] = DEFAULT_EXCLUDED,
 ) -> _Packed:
     """Pack a node and its descendants"""
-    # nocheckin: 6. update pack_node with local records (no longer in our main DB)
+    # nocheckin: 6. update/refactor pack_node usage sites with local records (e.g. snapshot, paste)
     visited = collect_node(*models, filter=filter, excluded=excluded)
     nodes = {node.id: pack_node_flat(node) for node in visited.visited.values()}
     roots = [nodes[node.id] for node in visited.roots]
@@ -235,7 +242,7 @@ def pack_node(
     return _Packed(roots, nodes, visited.visited_by_parent)
 
 
-def unpack_nodes_ptree(
+def unpack_nodes_tree(
     nodes: list[NodeDataT], parent: Optional[NodeT] = None, pre_unpacked: dict[UUID, NodeT] = None
 ) -> NodeTree:
     """Unpack a node and its descendants"""
@@ -368,8 +375,6 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
             models.Trigger.objects.filter(statement__in=nodes),
-            # for records, we only include versioned database's records
-            models.Record.objects.filter(statement_key__in=[n.key for n in nodes if n.versioned]),
         ]
 
     def pack(self, statement: models.Statement) -> wire.StatementData:
@@ -533,39 +538,6 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
             key=data.key,
             reference_ck=data.reference_ck,
             value=data.value,
-            deleted_at=data.deleted_at,
-        )
-
-
-@node_packer(MNT.RECORD, wire.RecordData, models.Record)
-class RecordPacker(NodePacker[wire.RecordData, models.Record]):
-    def pack(self, record: models.Record) -> wire.RecordData:
-        return wire.RecordData(
-            id=record.id,
-            ck=record.ck,
-            parent_id=record.statement_id,
-            parent_key=record.statement_key,
-            value=record.value,
-            revision=record.revision,
-            created_at=record.created_at,
-            updated_at=record.updated_at,
-            deleted_at=record.deleted_at,
-            last_edited_at=record.last_edited_at,
-            last_changed_at=record.last_edited_at,
-        )
-
-    def unpack(self, data: wire.RecordData, parent: models.Statement) -> models.Record:
-        return models.Record(
-            id=data.id,
-            ck=data.ck,
-            statement_id=parent.id,
-            statement_ck=parent.ck,
-            statement_key=parent.key,
-            value=data.value,
-            revision=data.revision,
-            created_at=data.created_at,
-            updated_at=data.updated_at,
-            last_edited_at=data.last_edited_at,
             deleted_at=data.deleted_at,
         )
 
@@ -898,28 +870,26 @@ def write_host_db_edits(
     for met, batch in edits.batched_apply(
         source, project_v.project_id, project_v.id, raise_on_error=raise_on_apply_error
     ):
+        if met.mnt in (MNT.RECORD,):  # can't do local edits in host..
+            raise RuntimeError(f"unexpected host edit {met}: {batch!r}")
         if met.kind == MEK.TRUNCATE:
             # remove children of a certain type by scope
-            if met == MET.TRUNCATE_RECORDS:
-                statement_keys = [typing.cast(wire.StatementData, e.node).key for e in batch]
-                models.Record.objects.filter(statement_key__in=statement_keys).delete()
-            else:
-                # this is a bit unwieldy...
-                statement_ids = [e.statement_id for e in batch if e.statement_id is not None]
-                file_ids = [e.file_id for e in batch if e.file_id is not None]
-                model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
-                if statement_ids:
-                    if hasattr(model_cls, "statement"):
-                        model_cls.objects.filter(statement_id__in=statement_ids).delete()
-                    else:
-                        model_cls.objects.filter(parent_statement_id__in=statement_ids).delete()
-                elif file_ids:
-                    if hasattr(model_cls, "file"):
-                        model_cls.objects.filter(file_id__in=file_ids).delete()
-                    else:
-                        model_cls.objects.filter(parent_file_id__in=file_ids).delete()
+            # this is a bit unwieldy...
+            statement_ids = [e.statement_id for e in batch if e.statement_id is not None]
+            file_ids = [e.file_id for e in batch if e.file_id is not None]
+            model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
+            if statement_ids:
+                if hasattr(model_cls, "statement"):
+                    model_cls.objects.filter(statement_id__in=statement_ids).delete()
                 else:
-                    model_cls.objects.filter(project_version_id=project_v.id).delete()
+                    model_cls.objects.filter(parent_statement_id__in=statement_ids).delete()
+            elif file_ids:
+                if hasattr(model_cls, "file"):
+                    model_cls.objects.filter(file_id__in=file_ids).delete()
+                else:
+                    model_cls.objects.filter(parent_file_id__in=file_ids).delete()
+            else:
+                model_cls.objects.filter(project_version_id=project_v.id).delete()
 
         elif met.kind == MEK.CREATE:
             # create nodes
@@ -1028,3 +998,6 @@ def write_session(
 
 
 INTERP_MODEL_TYPES = tuple(BASE_MODEL_CLASS_BY_MNT[mnt] for mnt in INTERP_NODE_TYPES)
+HOST_MODEL_TYPES = tuple(
+    BASE_MODEL_CLASS_BY_MNT[mnt] for mnt in HOST_NODE_TYPES if mnt in BASE_MODEL_CLASS_BY_MNT
+)

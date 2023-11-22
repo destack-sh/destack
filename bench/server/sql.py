@@ -93,7 +93,3 @@ async def update_pg_schema_from_db(project_v: models.ProjectVersion) -> None:
     logger.info("pg.update_mappings", project_version=repr(project_v))
     module, project = await interp_module(project_v.id)
     await update_pg_schema(project.pg_name, module)
-
-
-async def copy_pg_records_from_legacy(project: models.Project) -> None:
-    raise NotImplementedError  # nocheckin: 9. copy records from legacy

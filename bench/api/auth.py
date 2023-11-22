@@ -20,6 +20,7 @@ from strawberry_django.fields.types import OperationInfo, OperationMessage
 
 from bench import models
 from bench.api.utils import get_param_from_info, get_user_from_info
+from bench.language import wire
 from bench.models import (
     ModuleAccessLevel,
     Organization,
@@ -159,12 +160,14 @@ def get_default_project_access(project: models.Project) -> Optional[ModuleAccess
 
 
 def has_module_node_access(
-    info: Info, node: models.ModuleNode, level: models.ModuleAccessLevel
+    info: Info, node: models.ModuleNode | wire.RecordData, level: models.ModuleAccessLevel
 ) -> Optional[ModuleAccessInfo]:
     """
     Get node-level access info for the given user.
     Right now this is the same as project-level access.
     """
+    if isinstance(node, wire.RecordData):
+        node = models.Statement._base_manager.get(id=node.parent_id)
     root = node
     while root.parent:
         root = root.parent
@@ -432,7 +435,7 @@ def IsUser(
 # Path: bench/api/record.py
 def IsOwner(
     target: CheckTarget = CheckTarget.RETVAL,
-    map: Optional[Callable[[_OtherT], models.Record]] = None,
+    map: Optional[Callable[[_OtherT], models.AccessToken]] = None,
 ):
     def _check_is_owner(info: Info, owner: models.User | models.Organization):
         requesting_user = get_user_from_info(info)

@@ -1,7 +1,7 @@
 import functools
 import inspect
 from inspect import Signature
-from typing import Any, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence
 
 import strawberry
 import structlog
@@ -13,6 +13,7 @@ from bench import models
 from bench.api.auth import has_module_node_access
 from bench.api.type import MET, PMT
 from bench.api.utils import get_client_origin_from_info, wrap_exceptions
+from bench.language import wire
 from bench.language.edit import MEK, MNT, EditData
 from bench.models import ModuleAccessLevel, packer
 from bench.msg import NMessageType
@@ -42,6 +43,7 @@ def bench_edit(
     skip_auth_check: bool = False,
     register: bool = True,
     extensions: Optional[Sequence[object]] = None,
+    return_transform: Callable[[Any], Any] = None,
 ):
     """
     A wrapper for a Bench module edit, applied via the runtime host. This will be ripped out soon.
@@ -113,6 +115,8 @@ def bench_edit(
                 ret = ret.__class__(**{things_key: things})
             else:
                 ret = things[0]
+            if return_transform:
+                ret = return_transform(ret)
             return ret
 
         # add info to wrapped_edit function signature if missing
@@ -145,7 +149,10 @@ def _add_info_parameter(original: callable, wrapped: callable):
 
 
 def map_edit_from_api(
-    type: MET, input: Any, thing: models.CrudNode, project_v: models.ProjectVersion
+    type: MET,
+    input: Any,
+    thing: models.CrudNode | wire.RecordData,
+    project_v: models.ProjectVersion,
 ) -> EditData:
     """
     Remap/create API multiplayer edit for other clients and internals.
@@ -158,7 +165,7 @@ def map_edit_from_api(
         input=input_to_gql_jsonable(input),
         thing=thing,
     )
-    edit.node = packer.pack_node_flat(thing)
+    edit.node = packer.pack_node_flat(thing) if not isinstance(thing, wire.NodeData) else thing
     # guesstimate changed properties
     edit.properties = [
         k for k in input.__dict__.keys() if k in edit._node.__dict__ and k not in ("id", "ck")
@@ -172,9 +179,12 @@ def map_edit_from_api(
     elif isinstance(thing, models.Statement):
         edit.file_id = thing.file_id
         edit.statement_id = thing.id
-    elif isinstance(thing, (models.Field, models.Record, models.Tagging, models.Trigger)):
+    elif isinstance(thing, (models.Field, models.Tagging, models.Trigger)):
         edit.file_id = thing.statement.file_id
         edit.statement_id = thing.statement_id
+    elif isinstance(thing, wire.RecordData):
+        edit.file_id = None  # ?
+        edit.statement_id = thing.parent_id
     else:
         raise TypeError(f"thing is not a project thing: {thing}")
     return edit

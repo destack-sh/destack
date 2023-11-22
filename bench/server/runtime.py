@@ -118,9 +118,7 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
             .aget()
         )
         project_version = project_version.head
-    module = await sync_to_async(packer.pack_module)(
-        project_version, excluded=[models.Record, *INTERP_NODE_TYPES]
-    )
+    module = await sync_to_async(packer.pack_module)(project_version, excluded=INTERP_NODE_TYPES)
     if project_version.committed:
         _cached_modules[ref] = module, project_version.project
     return module, project_version.project
@@ -651,7 +649,7 @@ class RuntimeHost:
                 [e.node for e in host_edits if e.kind == EditKind.RESTORE],
             )
             restored = await sync_to_async(packer.pack_node)(
-                *restored_roots, excluded=[models.Record, *INTERP_NODE_TYPES]
+                *restored_roots, excluded=INTERP_NODE_TYPES
             )
             restore_edits = self._new_editor().create_many(*restored.nodes_list()).edits
             cascade_edits.extend(
@@ -698,7 +696,7 @@ class RuntimeHost:
             # reset source & module from db on failure
             log.error("module.write_edits.failed", exc_info=True)
             old_source = await sync_to_async(packer.pack_module)(
-                self.project_version, excluded=[models.Record, *INTERP_NODE_TYPES]
+                self.project_version, excluded=INTERP_NODE_TYPES
             )
             self.module._reset_from_source(wire.NodeTree(old_source.nodes))
             raise
@@ -748,7 +746,7 @@ class RuntimeHost:
             target=self.project_version,
             nodes=models.Statement.objects.filter(id__in=source_ids),
             keep_cks=False,
-            excluded=(*packer.INTERP_MODEL_TYPES, models.Record),
+            excluded=packer.INTERP_MODEL_TYPES,
             target_ids=target_ids,
             target_cks=target_cks,
             copy_revisions=False,

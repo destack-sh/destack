@@ -880,7 +880,6 @@ class RecordData(NodeData, HasCrud):
     mnt: ClassVar[MNT] = MNT.RECORD
     PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
 
-    parent_key: str
     value: Optional[typing.Any] = None
 
     def __str__(self):
@@ -899,7 +898,6 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             id=record.id,
             ck=record.ck,
             parent_id=record.parent_id,
-            parent_key=record.parent.key,
             value=record._raw_value(),
             revision=record.revision,
             created_at=record.created_at,
