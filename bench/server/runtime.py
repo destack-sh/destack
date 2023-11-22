@@ -829,7 +829,7 @@ class RuntimeHost:
         try:
             filter = wire.unpack_data(msg.p.query, self.module) if msg.p.query else None
             sort = [wire.unpack_data(s, self.module) for s in msg.p.sort] if msg.p.sort else None
-            if not sort and filter.scored:
+            if not sort and filter.is_scored:
                 sort = [S(SortOp.DESCENDING, field=SCORE_KEY)]
 
             database = self.module.resolve(msg.p.statement_ck)

@@ -5,7 +5,7 @@ from asgiref.sync import sync_to_async
 
 from bench import models
 from bench.language import wire
-from bench.language.edit import MEK, MNT, EditData
+from bench.language.edit import MEK, EditData
 from bench.models.packer import collect_node
 from bench.search import core as os
 from bench.search import mirror
@@ -285,21 +285,18 @@ async def write_edits_to_os(
 
     for edit in edits:
         index = project.os_name if edit.type.mnt in BENCH_LOCAL_MNTS else os.GLOBAL_INDEX_NAME
-        if edit.type.kind == MEK.TRUNCATE and edit.mnt == MNT.RECORD:
-            await _flush()  # unfortunately can't be batched with the other operations
-            os_client_sync.delete_by_query(
-                index=index, body={"query": {"term": {"statement_key": edit.node.key}}}
-            )
-        elif not mirror.has_mirror(edit.thing):
+        if not mirror.has_mirror(edit.thing):
             continue  # ignore
-        elif edit.type.kind != MEK.DELETE:
+        elif edit.type.kind in (MEK.CREATE, MEK.UPDATE, MEK.MOVE, MEK.SOFT_DELETE, MEK.RESTORE):
             mirrored_data = mirror.mirror_node(project_v, edit.thing).to_dict()
             # TODO @Robustness: limit OS edit to changed properties?
             #  (partial update is not supported in index operation)
             ops.append({"index": {"_index": index, "_id": str(edit.thing.id)}})
             ops.append(mirrored_data)
-        else:
+        elif edit.type.kind == MEK.DELETE:
             ops.append({"delete": {"_index": index, "_id": str(edit.thing.id)}})
+        else:
+            raise ValueError(f"unexpected edit type: {edit!r}")
 
     await _flush()  # flush all remaining edits
 

@@ -202,9 +202,9 @@ class RecordQuery:
         Convenient for using RecordQuery with just deserialized parts,
          but of course RecordQuery isn't a node or struct or such.
         """
-        if self._filter:
+        if self._filter is not None:
             self._filter._interp_self(scope, on_issue)
-        if self._sort:
+        if self._sort is not None:
             for sort in self._sort:
                 sort._interp_self(scope, on_issue)
 
@@ -241,7 +241,9 @@ class RecordQuery:
                 count=count,
                 sort=self._sort,
             )
-            return os_results.as_records(), os_results.cursors, os_results.total, target_engine
+            return _RecordFetchResult(
+                os_results.as_records(), os_results.cursors, os_results.total, target_engine
+            )
         elif target_engine == QueryEngine.POSTGRES:
             assert pg_cursor is not None, f"missing pg_cursor for {self!r}"
             records, cursors = await pg_select_records(
