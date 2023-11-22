@@ -143,7 +143,12 @@ class Session:
         self._failed_commit: bool = False
 
     def __str__(self):
-        status = "open" if self._opened_at else ("closed" if self._closed_at else "pending")
+        if self._closed_at:
+            status = "closed"
+        elif self._opened_at:
+            status = "open"
+        else:
+            status = "not opened"
         return (
             f"{self.module.name} ({self.access_level.name}, {status}, "
             f"{len(self._tracer._local_edits)} local edits, {len(self._tracer._host_edits)} host edits"
@@ -295,6 +300,7 @@ class Session:
                 for db_id, record_ids in self._tracer._changed_record_ids_by_db_id.items()
             ]
             await sync_pg_databases_to_os(self.module, self.pg_cursor, changed_records)
+            await self.pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
             self._tracer._changed_record_ids_by_db_id.clear()
             self._tracer._touched_databases_by_id.clear()
 
@@ -499,6 +505,7 @@ class SessionTracer:
 
     def _edit(self, edit: EditEvent):
         """Register an edit to a node (local or host)."""
+        assert not self.session._closed_at, f"cannot {edit!r} in closed session {self.session!r}"
         is_local = edit.type.mnt == MNT.RECORD
         edits = self._local_edits if is_local else self._host_edits
 
@@ -633,6 +640,8 @@ class SessionTracer:
         #  these values may be written even if invalid
         from bench.language.packer import check_type, pack_value
 
+        assert not self.session._closed_at, f"cannot run {statement!r} in session {self.session!r}"
+
         run = self._create_run(
             statement=statement,
             inputs=pack_value(inputs, statement, is_output=False, none_if_invalid=True),
@@ -656,6 +665,8 @@ class SessionTracer:
     def run_exit(self, statement: "Statement", outputs):
         from bench.language.packer import check_type
 
+        assert not self.session._closed_at, f"cannot run {statement!r} in session {self.session!r}"
+
         # post-run validation
         try:
             check_type(outputs, statement, is_output=True)
@@ -676,6 +687,7 @@ class SessionTracer:
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
 
     def run_exception(self, statement: "Statement", exception: BaseException):
+        assert not self.session._closed_at, f"cannot run {statement!r} in session {self.session!r}"
         with self._tracing_lock:
             run = self.pop_stacktrace()
             assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
@@ -698,6 +710,7 @@ class SessionTracer:
         generated_in: UUID,
         duration: float,
     ):
+        assert not self.session._closed_at, f"cannot run {statement!r} in session {self.session!r}"
         run = self._create_run(statement=statement, trace=True)
         run.terminated_at = utcnow_with_tz()
         run.inputs = _pack_and_truncate_value(
@@ -815,7 +828,7 @@ class SessionTracer:
             return  # skip if nothing to commit
 
         self.session._log.debug(
-            "trace.flush", logs=len(self._pending_logs), runs=len(self._pending_runs)
+            "trace.flush", runs=len(self._pending_runs), logs=len(self._pending_logs)
         )
         with self._tracing_lock:
             runs = list(self._pending_runs.values())

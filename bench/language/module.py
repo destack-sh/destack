@@ -579,8 +579,8 @@ def _process_struct_base(
     if cls.__name__ not in CORE_TYPES:
         for name in _FORBIDDEN_NODE_METHODS:
             meth = getattr(cls, name, None)
-            good_meth = getattr(Node, name, getattr(ScopeNode, name, None))
-            if meth is not None and meth is not good_meth:
+            good_meths = (getattr(cls, name, None) for cls in (Struct, Node, ScopeNode))
+            if meth is not None and meth not in good_meths:
                 raise ValueError(f"forbidden method {name} defined in {cls}")
 
     # collect static components from class hierarchy
@@ -806,7 +806,7 @@ _NC = _NodeChange
 class _ChangeEffect:
     """
     The effect of a change in nodes.
-    TODO @Performance: use mark dirty in to batch change effects
+    TODO @Performance: optimize change effects (batch, lazy/mark dirty?, reduce impact radius)
     """
 
     prev_session: Optional["Session"]
@@ -885,7 +885,7 @@ class _ChangeEffect:
             for _node in self.affected:
                 _node._index_self()
             for _node in self.affected:
-                _node._interp_self(_node.scope)
+                _node._interp_self(_node.scope, on_issue=_node.scope._on_issue)
                 if self.prev_session and self.prev_status == NS.ACTIVE:
                     _node._attached_self()
                     _node._activate_self(self.prev_session)
@@ -1702,7 +1702,7 @@ def _make_self_method(
             if self._status == NS.SOURCE and to_status > NS.INDEX:
                 self._index_self()
             if self._status == NS.INDEX and to_status > NS.INTERP:
-                self._interp_self(self)
+                self._interp_self(self, on_issue=self.scope._on_issue)
             if from_status <= to_status <= self._status or from_status >= to_status >= self._status:
                 return  # nothing to do
             if self._status < from_status:
@@ -1744,11 +1744,25 @@ class Struct:
     Will activate, track, etc. when we start using these in nodes.
     """
 
-    def _clear(self, scope: Optional["ScopeNode"] = None):
+    __static_components__: ClassVar[tuple[type["Node"], ...]] = []
+
+    @property
+    def _components(self) -> tuple[type["Node"], ...]:
+        return self.__static_components__
+
+    @property
+    def _concrete_cache_key(self) -> str:
+        """Identifier for dynamic components"""
+        return type(self).__name__
+
+    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         pass
 
-    def _interp(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
         pass
+
+    _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner)
+    _interp_self = _make_self_method(ComponentMethod.interp, _interp_inner)
 
     def _set_untracked(self, key: str, value: Any):
         self.__dict__[key] = value
@@ -1962,7 +1976,7 @@ class Node(abc.ABC):
         """Index this node."""
         pass
 
-    def _interp_inner(self, scope: "ScopeNode") -> None:
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler") -> None:
         """Interpret this node."""
         pass
 
@@ -2201,7 +2215,11 @@ class ScopeNode(Node):
     )
     _index_rec = _make_rec_method(ComponentMethod.index, Node._index_self)
     _interp_rec = _make_rec_method(
-        ComponentMethod.interp, Node._interp_self, custom_kwargs=lambda n: dict(scope=n.scope)
+        ComponentMethod.interp,
+        Node._interp_self,
+        custom_kwargs=lambda n: dict(
+            scope=n.scope, on_issue=n.scope._on_issue if n.scope else on_issue_raise
+        ),
     )
     _visit_rec = _make_rec_method(ComponentMethod.visit, Node._visit_self)
     _validate_rec = _make_rec_method(

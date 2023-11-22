@@ -21,6 +21,7 @@ from bench.language.const import ConditionalOp, IssueType, NodePath, SortMode, S
 from bench.language.expression import C, Conditional, Sort
 from bench.language.field import TypedDict
 from bench.language.module import LookupBy, Node, ScopeNode, bruntime, node_component
+from bench.language.validation import ValidationHandler
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
@@ -84,7 +85,7 @@ class HasCode(Node):
         self._callable_wrapped = None
         self._cached_exports = None
 
-    def _interp_inner(self, scope: ScopeNode) -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
         self._parse = _parse_code(self.code)
         self._proxied = self.path in (
             "symbolx.lib.builtins.send_email",
@@ -101,7 +102,7 @@ class HasCode(Node):
         # check if code is exportable if marked as such
         if self._export:
             if len(self.fields) > 0:
-                self._on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
+                on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
 
     def _deactivate_inner(self) -> None:
         self._callable_wrapped = None  # locals are bound to session

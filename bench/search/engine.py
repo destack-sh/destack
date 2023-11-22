@@ -572,7 +572,7 @@ async def sync_pg_databases_to_os(
     """Synchronizes local PG databases to OpenSearch. Mirror only the given record ids if given."""
     from bench.sql.engine import PostgresConditionalOp, SqlComparison, pg_select, unpack_record_row
 
-    log = logger.bind(module=module, databases=(r[0] for r in record_ids_by_db))
+    log = logger.bind(module=module, databases=[r[0] for r in record_ids_by_db])
     log.debug("os.sync_pg_databases_to_os")
     os_name = module.os_name
     ops: list[dict[str, Any]] = []

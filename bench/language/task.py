@@ -14,6 +14,7 @@ from bench.language.module import Node, ScopeNode, bruntime, node_component
 from bench.language.reference import NodeView
 
 from ..utils.func import describe_type
+from .validation import ValidationHandler
 
 if TYPE_CHECKING:
     from bench.language import Run, Statement
@@ -34,14 +35,14 @@ class HasTask(Node):
         self._root_models = None
         self._randomize = False
 
-    def _interp_inner(self, scope: ScopeNode) -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
         from bench.language.builtin import symbolx_lib
 
         randomize_tag = symbolx_lib.resolve(".builtins.randomize")
         self._randomize = randomize_tag in self.tags
 
         if not any(f.flags & TypeFlag.IS_OUTPUT for f in self.resolved_fields):
-            self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
+            on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task feasibility
         #  - check if task is possible given the fields, models & available statements
 

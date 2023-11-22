@@ -32,7 +32,6 @@ from bench.language.module import (
     NRel,
     Property,
     ScopeNode,
-    _ChangeEffect,
     _Passthrough,
     bruntime,
     nchildren,
@@ -40,6 +39,7 @@ from bench.language.module import (
     node_component,
     nparent,
 )
+from bench.language.validation import ValidationHandler
 from bench.language.value import HasValue
 from bench.search.core import DocumentType
 from bench.sql.core import EPHEMERAL_RECORD_TABLE, Table
@@ -121,6 +121,17 @@ class Record(HasValue, Node):
         self.value[key] = value
 
 
+_RecordFetchResult = typing.NamedTuple(
+    "_RecordFetchResult",
+    [
+        ("records", list["RecordData"]),
+        ("cursors", list[str]),
+        ("total", int | None),
+        ("engine", QueryEngine),
+    ],
+)
+
+
 class RecordQuery:
     def __init__(
         self,
@@ -133,6 +144,7 @@ class RecordQuery:
         first: int = None,
         skip: int = None,
         engine: Optional[QueryEngine] = None,
+        cache: bool = True,
     ):
         self._database = database
         self._filter = filter
@@ -143,6 +155,7 @@ class RecordQuery:
         self._first = first
         self._skip = skip
         self._engine = engine
+        self._cache = cache
         self._cached_records: list[Record] | None = None
         self._cached_cursors: list[str] | None = None
 
@@ -180,13 +193,20 @@ class RecordQuery:
             first=self._first,
             skip=self._skip,
             engine=self._engine,
+            # cache is deliberately not copied
         )
 
-    def using(self, engine: QueryEngine) -> "RecordQuery":
-        """Forces use of a query engine."""
-        copy = self.copy()
-        copy._engine = engine
-        return copy
+    def _interp_self(self, scope: "ScopeNode", on_issue: "ValidationHandler") -> None:
+        """
+        Interprets the Bench parts of the query.
+        Convenient for using RecordQuery with just deserialized parts,
+         but of course RecordQuery isn't a node or struct or such.
+        """
+        if self._filter:
+            self._filter._interp_self(scope, on_issue)
+        if self._sort:
+            for sort in self._sort:
+                sort._interp_self(scope, on_issue)
 
     def _invalidate(self):
         self._cached_records = None
@@ -194,7 +214,7 @@ class RecordQuery:
 
     async def _do_fetch(
         self, pg_cursor: psycopg.AsyncCursor | None, count: bool = False, after: str = None
-    ) -> tuple[list["RecordData"], list[str], int | None, QueryEngine]:
+    ) -> _RecordFetchResult:
         """Actually fetches the raw record results from some engine."""
         from bench.search.engine import os_search
         from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_records
@@ -208,8 +228,8 @@ class RecordQuery:
         if required_engine and self._engine and self._engine != required_engine:
             raise ValueError(f"cannot use {self._engine} with {self!r}")
         target_engine = self._engine or required_engine or QueryEngine.POSTGRES
-        logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
 
+        logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
         if target_engine == QueryEngine.OPENSEARCH:
             os_results = await os_search(
                 os_name=self._database.module.os_name,
@@ -241,7 +261,7 @@ class RecordQuery:
                 )
             else:
                 count = None
-            return records, cursors, count, target_engine
+            return _RecordFetchResult(records, cursors, count, target_engine)
         else:
             raise ValueError(f"unexpected query engine {target_engine}")
 
@@ -250,38 +270,45 @@ class RecordQuery:
         from bench.language import wire
 
         if session._tracer._local_edits:
-            await session.flush_local()  # for flush any local edits
-        records_data, self._cached_cursors, _, _ = await self._do_fetch(pg_cursor=session.pg_cursor)
+            await session.flush_local()  # first flush any local edits
+        fetched = await self._do_fetch(pg_cursor=session.pg_cursor)
         records: list[Record] = []
-        for record_data in records_data:
+        for record_data in fetched.records:
             record: Record = wire.unpack_node_flat(record_data, self._database, session)
             record._activate_self(session)
             records.append(record)
 
-        self._cached_records = records
+        if self._cache:
+            self._cached_records = records
         logger.debug("record.query.done", query=self, results=len(records))
         return records
 
     async def __aiter__(self):
         if self._cached_records is None:
-            await self._fetch(self._database.session)
+            return iter(await self._fetch(self._database.session))
         return iter(self._cached_records)
 
     @_auto_async_to_sync
     async def tolist(self) -> list[Record]:
         if self._cached_records is None:
-            await self._fetch(self._database.session)
+            return await self._fetch(self._database.session)
         return self._cached_records
 
     def __iter__(self):
         if self._cached_records is None:
-            self._database.session.async_to_sync(self._fetch)(self._database.session)
+            return iter(self._database.session.async_to_sync(self._fetch)(self._database.session))
         return iter(self._cached_records)
 
     def __len__(self):
         if self._cached_records is not None:
             return len(self._cached_records)
         return self.count()
+
+    def using(self, engine: QueryEngine) -> "RecordQuery":
+        """Forces use of a query engine."""
+        copy = self.copy()
+        copy._engine = engine
+        return copy
 
     @_auto_async_to_sync
     async def get(self, query: Conditional = None, **kwargs) -> Record:
@@ -369,7 +396,7 @@ class RecordQuery:
     @_auto_async_to_sync
     async def update(self, **values) -> int:
         """Updates all results with the given values."""
-        from bench.language.packer import pack_value
+        from bench.language.packer import check_type, pack_value
         from bench.sql.engine import compile_pg_conditional, pg_update_static
 
         session = self._database.session
@@ -378,6 +405,7 @@ class RecordQuery:
             await session.flush_local()
 
         # 'serialize' values (probably need a better way here to retain some native types?)
+        check_type(values, self._database)
         values = pack_value(
             values, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f._typed_key)
         )
@@ -505,7 +533,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
 
     def __init__(self, parent: "ScopeNode", property: Property):
         NodeListBase[Record].__init__(self, parent, property)
-        RecordQuery.__init__(self, parent)
+        RecordQuery.__init__(self, parent, cache=False)  # don't cache the root list
 
     def __str__(self):
         return f"from {self._parent._table.name}"
@@ -513,7 +541,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, not part of regular tree
 
-    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Tach) -> None:
+    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Tach):
         assert isinstance(node, Record), f"cannot append {node!r} to {self!r}"
         node.parent = self._parent
         if node.id is None and self._parent.attached:
@@ -526,8 +554,8 @@ class RecordList(NodeListBase[Record], RecordQuery):
                 # detached record nodes are temporarily hoisted into inline tree :TempRecordTree
                 self._parent._local_root_tree.add(node)
         # update affected nodes
-        if _trigger:
-            _ChangeEffect._collect(None, self._parent, [node], _trigger)._effect(_trigger)
+        if _trigger:  # manually trigger ChangeEffect
+            node._attached_inner()
         # 'create' node in session
         if _create and self._parent._session and self._parent.attached:
             self._parent.session._tracer.node_create(node)
@@ -544,7 +572,8 @@ class RecordList(NodeListBase[Record], RecordQuery):
                 self._parent._local_root_tree.add_many(nodes)  # :TempRecordTree
         # update affected nodes
         if _trigger:
-            _ChangeEffect._collect(None, self._parent, nodes, _trigger)._effect(_trigger)
+            for n in nodes:
+                n._attached_inner()
         # 'create' nodes in session
         if _create and self._parent._session and self._parent.attached:
             self._parent.session._tracer.node_create(*nodes)
@@ -600,7 +629,7 @@ class HasDatabase(Node):
     def _clear_inner(self, scope: Optional["ScopeNode"]) -> None:
         self._table = None
 
-    def _interp_inner(self, scope: "ScopeNode") -> None:
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler") -> None:
         from bench.sql.engine import map_to_pg_table
 
         self._table = map_to_pg_table(self) if not self.ephemeral else EPHEMERAL_RECORD_TABLE
