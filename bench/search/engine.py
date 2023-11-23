@@ -133,17 +133,17 @@ class StructFieldMapper(FieldMapper):
 
 class VectorFieldMapper(FieldMapper):
     def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
-        # see https://aws.amazon.com/blogs/big-data/choose-the-k-nn-algorithm-for-your-billion-scale-use-case-with-opensearch/
         # see https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#construction-parameters
-        # ideally we would use the Lucene engine with byte vectors here, but it only goes to 1024 dims
         method = os.KnnMethod(
-            # assumes normalized vectors with a :FixedEmbeddingDimension
+            # assumes byte-quantized vectors with <= 1024 dimensions
             name=os.KnnMethodName.HNSW,
-            engine=os.KnnEngine.NMSLIB,
-            space_type=os.KnnSpaceType.DOT_PRODUCT,
-            parameters=os.HnswParameters(ef_construction=512, m=64),
+            engine=os.KnnEngine.LUCENE,
+            space_type=os.KnnSpaceType.L2,
+            parameters=os.HnswParameters(ef_construction=128, m=24),
         )
-        return os.Field(os.FT.KNN_VECTOR, dimension=type.dimensions, method=method)
+        return os.Field(
+            os.FT.KNN_VECTOR, dimension=type.dimensions, method=method, data_type="byte"
+        )
 
 
 # string

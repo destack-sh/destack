@@ -6,8 +6,8 @@ from django.db import transaction
 from bench import models
 from bench.models import Project
 from bench.server.sql import (
-    copy_pg_records_from_legacy,
     create_local_pg_database,
+    delete_local_pg_database,
     update_pg_schema_from_db,
 )
 
@@ -52,8 +52,8 @@ class Command(BaseCommand):
                 project_v.project = project  # 'preloaded' project
                 project_v.project.owner  # noqa why do we need to load this again?
                 async_to_sync(update_pg_schema_from_db)(project_v)
-        elif action == "copy_records_from_legacy":
+        elif action == "delete":
             for project in projects:
-                async_to_sync(copy_pg_records_from_legacy)(project)
+                async_to_sync(delete_local_pg_database)(project)
         else:
             raise ValueError("Unknown action")

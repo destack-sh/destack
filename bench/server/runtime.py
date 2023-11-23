@@ -637,7 +637,7 @@ class RuntimeHost:
         start_time = time.time()
         host_edits, local_edits = partition(lambda e: e.mnt == MNT.RECORD, edits)
         del edits  # refer explicitly to host/local edits
-        log = self.log.bind(edits=host_edits, local_edits=local_edits, origins=origins)
+        log = self.log.bind(host_edits=host_edits, local_edits=local_edits, origins=origins)
         log.debug("module.write_edits")
 
         cascade_edits = []
