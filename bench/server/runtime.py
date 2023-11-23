@@ -22,6 +22,7 @@ from bench.language.const import (
     ModuleReference,
     RunStatus,
     SessionAccessLevel,
+    StatementType,
     parse_absolute_node_reference,
 )
 from bench.language.database import RecordQuery
@@ -83,7 +84,7 @@ from bench.server import search
 from bench.server.observer import WorkerObserver
 from bench.server.search import write_edits_to_os
 from bench.sql.client import async_pg_cursor
-from bench.sql.engine import update_pg_schema, write_local_edits_to_pg
+from bench.sql.engine import SqlUndefinedConstruct, update_pg_schema, write_local_edits_to_pg
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import partition
 from bench.utils.monitoring import Monitored
@@ -663,7 +664,7 @@ class RuntimeHost:
         edited_nodes: list[wire.NodeData] = []
         old_source = self.module._source.deepcopy()
         change = self.module._apply_edits(host_edits + cascade_edits, old_source=old_source)
-        schema_changed = change.includes(MNT.FIELD) or change.includes(MNT.RESOLVED_FIELD)
+        schema_changed = change.includes(MNT.FIELD, MNT.RESOLVED_FIELD, StatementType.DATABASE)
         try:
             # apply host edits
             # for DB, turn restore 'CREATE' edits into 'RESTORE' (since they are already in DB)
@@ -827,7 +828,7 @@ class RuntimeHost:
         try:
             filter = wire.unpack_data(msg.p.query, self.module) if msg.p.query else None
             sort = [wire.unpack_data(s, self.module) for s in msg.p.sort] if msg.p.sort else None
-            if not sort and filter.is_scored:
+            if not sort and filter is not None and filter.is_scored:
                 sort = [S(SortOp.DESCENDING, field=SCORE_KEY)]
 
             database = self.module.resolve(msg.p.statement_ck)
@@ -838,6 +839,7 @@ class RuntimeHost:
                 first=msg.p.limit,
             )
             query._interp_self(database, on_issue=on_issue_raise)
+            self.log.debug("records.search", query=query)
             async with async_pg_cursor(self.module.pg_name) as pg_cursor:
                 fetched = await query._do_fetch(
                     pg_cursor=pg_cursor, count=msg.p.count, after=msg.p.after
@@ -849,9 +851,18 @@ class RuntimeHost:
                 limit=msg.p.limit,
                 engine=fetched.engine,
             )
+            self.log.debug(
+                "records.search.done", records=len(fetched.records), engine=fetched.engine
+            )
+        except SqlUndefinedConstruct as e:
+            # not created yet... should wait in UI?
+            self.log.warn("records.search.undefined", database=msg.p.statement_ck, e=e)
+            rep = RepSearchRecordsPayload(
+                records=[], cursors=[], total=0, limit=msg.p.limit, engine=None
+            )
         except Exception as e:
             sentry_capture(e)
-            logger.error("records.search.failed", req=msg.p, exc_info=True)
+            self.log.error("records.search.failed", req=msg.p, exc_info=True)
             rep = RepSearchRecordsPayload(
                 records=None, cursors=None, total=None, limit=msg.p.limit, error=str(e), engine=None
             )

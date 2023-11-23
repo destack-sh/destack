@@ -6,7 +6,6 @@ from uuid import UUID
 import psycopg
 import structlog
 from psycopg import sql
-from psycopg.types.json import Jsonb
 
 from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import (
@@ -16,13 +15,7 @@ from bench.language.const import (
     SessionAccessLevel,
     new_dynamic_node_key,
 )
-from bench.language.expression import (
-    TYPE_DISCRIMINATOR_KEY,
-    C,
-    Conditional,
-    Sort,
-    coerce_conditional,
-)
+from bench.language.expression import C, Conditional, Sort, coerce_conditional
 from bench.language.module import (
     _NC,
     NS,
@@ -397,10 +390,13 @@ class RecordQuery:
         )
 
     @_auto_async_to_sync
-    async def update(self, **values) -> int:
+    async def update(self, **value) -> int:
         """Updates all results with the given values."""
         from bench.language.packer import check_type, pack_value
-        from bench.sql.engine import compile_pg_conditional, pg_update_static
+        from bench.sql.engine import compile_pg_conditional, pg_update_static, pg_wrap_record_value
+
+        if not value:
+            raise ValueError(f"no values given to update {self!r}")
 
         session = self._database.session
         session.check_access(SessionAccessLevel.Update)
@@ -408,24 +404,21 @@ class RecordQuery:
             await session.flush_local()
 
         # 'serialize' values (probably need a better way here to retain some native types?)
-        check_type(values, self._database)
-        values = pack_value(
-            values, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f._typed_key)
+        check_type(value, self._database)
+        value = pack_value(
+            value, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f._typed_key)
         )
-        if TYPE_DISCRIMINATOR_KEY in values:  # not stored in database (implicit in statement_key)
-            del values[TYPE_DISCRIMINATOR_KEY]
-        if self._database.ephemeral:  # lift into generic 'value' JSONB column
-            values = {"value": sql.SQL("value || {}").format(sql.Literal(Jsonb(values)))}
+        value = pg_wrap_record_value(self._database, value)
         # update values alongside :LocalRecordCru
         now = utcnow_with_tz()
-        values["revision"] = sql.SQL("revision + 1")
-        values["updated_at"] = now
-        values["last_edited_at"] = now
+        value["revision"] = sql.SQL("revision + 1")
+        value["updated_at"] = now
+        value["last_edited_at"] = now
         updated_rows = await pg_update_static(
             cur=session.pg_cursor,
             table=self._database._table,
             where=compile_pg_conditional(self._database, self._combined_filter),
-            static_values=values,
+            static_value=value,
             returning=[self._database._table.columns_by_name["id"]],
         )
         updated_records_ids = {r["id"] for r in updated_rows}

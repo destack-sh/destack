@@ -136,7 +136,10 @@ _s(
     (HasDatabase, HasFields, HasText),
     IdentT.VARIABLE,
     tag=TypeTag.STRUCT,
-    passthrough=(("records", _Passthrough.Full),),
+    passthrough=(
+        ("records", _Passthrough.Full),
+        ("resolved_fields", _Passthrough.Scope),
+    ),
 )
 _s(StatementType.REFERENCE, (HasReference, HasText), IdentT.VARIABLE)
 _s(StatementType.GROUP, (HasText,), IdentT.VARIABLE, passthrough=(("children", _Passthrough.Full),))
