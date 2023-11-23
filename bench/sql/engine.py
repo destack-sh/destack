@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 
 import bench.language as lang
 from bench.language import ConditionalOp, Field, HasDatabase, Module, QueryEngine, wire
-from bench.language.const import MNT, TypeStorageFormat
+from bench.language.const import MNT, TypeFlag, TypeStorageFormat
 from bench.language.edit import EditData, EditKind
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -74,9 +74,13 @@ CAST_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, str] = {
 }
 
 
-def get_value_column_name(field: lang.Field) -> str:
-    # nocheckin: handle array/non-array fields as pg columns
-    return f"value_{field._typed_key.replace('.', '_').replace('-', '_')}".lower()
+def get_value_column_name(typed_key: str, is_array: bool) -> str:
+    typed_key = typed_key.replace(".", "_").replace("-", "_").lower()
+    return f"value_{typed_key}"
+
+
+def get_field_column_name(field: lang.Field) -> str:
+    return get_value_column_name(field._typed_key, bool(field.flags & TypeFlag.IS_ARRAY))
 
 
 def map_to_pg_column(field: lang.Field) -> Column:
@@ -86,7 +90,7 @@ def map_to_pg_column(field: lang.Field) -> Column:
         field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
     ) and column_type != ColumnType.JSON
     return Column(
-        name=get_value_column_name(field),
+        name=get_field_column_name(field),
         type=column_type,
         is_array=is_array,
         is_nullable=True,
@@ -253,7 +257,7 @@ def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReferen
         elif database.ephemeral:
             return SqlJsonPath(sql.Identifier("value"), [field._typed_key])
         else:
-            return sql.Identifier(get_value_column_name(field))
+            return sql.Identifier(get_field_column_name(field))
     else:
         return sql.Identifier(field)
 
@@ -716,7 +720,7 @@ def pg_pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowI
         row["value"] = Jsonb(record.value)
     else:
         for field in database.resolved_fields:
-            column_name = get_value_column_name(field)
+            column_name = get_field_column_name(field)
             value = record.value.get(field._typed_key)
             row[column_name] = pg_wrap_record_field_value(database, field, value)
     assert len(row) == len(
@@ -744,7 +748,7 @@ def pg_wrap_record_value(database: "HasDatabase", value: dict) -> dict:
         for field in database.resolved_fields:
             v = value.get(field._typed_key, UNSET)
             if v is not UNSET:
-                column_name = get_value_column_name(field)
+                column_name = get_field_column_name(field)
                 value_columned[column_name] = pg_wrap_record_field_value(database, field, v)
         value = value_columned
     return value
@@ -754,7 +758,7 @@ def pg_unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordDat
     if database.ephemeral:
         value = row["value"]
     else:
-        value = {f._typed_key: row[get_value_column_name(f)] for f in database.resolved_fields}
+        value = {f._typed_key: row[get_field_column_name(f)] for f in database.resolved_fields}
     return wire.RecordData(
         id=row["id"],
         ck=row["ck"],
@@ -848,7 +852,7 @@ async def write_local_edits_to_pg(
                 # keep only properties touched in the edit
                 row = {"id": record.id}
                 for field in database.resolved_fields:  # all 'value' fields are considered changed
-                    column_name = get_value_column_name(field)
+                    column_name = get_field_column_name(field)
                     value = record.value.get(field._typed_key)
                     row[column_name] = pg_wrap_record_field_value(database, field, value)
                 row_values.append(row)

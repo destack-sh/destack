@@ -2,7 +2,7 @@
 import { useElementRefs } from "@/composables/useGrid";
 import { BlobStatus, type Field } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
-import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/blob";
+import { humanizeBytes, useObjects, type BlobRecord } from "@/state/blob";
 import { TypeFlag } from "@/state/module";
 import { useRelativeDropZone } from "@/utils/drop";
 import { ArrowUpTrayIcon, DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
@@ -12,13 +12,13 @@ import { useNotifications } from "@/state/notifications";
 
 const props = defineProps<{
   type: Field;
-  modelValue: ObjectRecord[];
+  modelValue: BlobRecord[];
   readonly?: boolean;
   active?: boolean;
   preview?: boolean;
 }>();
 const emit = defineEmits<{
-  (e: "update:modelValue", value: ObjectRecord[]): void;
+  (e: "update:modelValue", value: BlobRecord[]): void;
   (e: "dropFiles", p: "above" | "below", v: File[]): void;
 }>();
 
@@ -57,7 +57,7 @@ function onDrop(files: File[] | { type: string; id: string } | null) {
 async function doUpload(file: File | null) {
   if (file == null || bench.projectId == null) return;
   ongoingUploads.value++;
-  function onUpdate(val: ObjectRecord | null) {
+  function onUpdate(val: BlobRecord | null) {
     if (val == null) return;
     // if single, replace value
     if (!isArray.value) {
@@ -78,7 +78,7 @@ async function doUpload(file: File | null) {
   ongoingUploads.value--;
 }
 
-async function open(file: ObjectRecord) {
+async function open(file: BlobRecord) {
   if (file.status != BlobStatus.Available) return;
   // open file (in new tab)
   try {
@@ -95,7 +95,7 @@ async function open(file: ObjectRecord) {
   }
 }
 
-function remove(file: ObjectRecord) {
+function remove(file: BlobRecord) {
   const fileIndex = props.modelValue.findIndex((f) => f.id == file.id);
   emit(
     "update:modelValue",

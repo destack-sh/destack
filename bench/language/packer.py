@@ -860,7 +860,7 @@ def unpack_value_flat(
     session = session or type._session
     if scope is None:
         raise ValueError(f"cannot unpack without scope: {type!r}")
-    # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
+    # we longer coerce list/non-list values (doesn't work with real databases) :NoArrayCoercion
     mapping = get_type_mapper_by_type(type)
     try:
         if type.flags & TypeFlag.IS_ARRAYABLE:  # keep as is
@@ -868,16 +868,10 @@ def unpack_value_flat(
                 return mapping.unpack_value(type, scope, session, value)
             else:
                 return [mapping.unpack_value(type, scope, session, v) for v in value]
-        elif type.flags & TypeFlag.IS_ARRAY and not ignore_array:  # promote to array
-            if not isinstance(value, list):
-                value = [value]
-            else:
-                return [mapping.unpack_value(type, scope, session, v) for v in value]
-        else:  # trim to element
-            if isinstance(value, list):
-                value = value[0]
-            else:
-                return mapping.unpack_value(type, scope, session, value)
+        elif type.flags & TypeFlag.IS_ARRAY and not ignore_array:  # must be list
+            return [mapping.unpack_value(type, scope, session, v) for v in value]
+        else:  # must be element
+            return mapping.unpack_value(type, scope, session, value)
     except (KeyError, ValueError, TypeError):
         logger.warning(
             "unpack.failed", exc_info=True, value=value, type=type, scope=scope, session=session
