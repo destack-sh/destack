@@ -44,13 +44,13 @@ function makeBlob(blob: Blob, status?: BlobStatus): BlobRecord {
     sha512: blob.sha512,
     status: status ?? blob.status,
   } as BlobRecord;
-  if (!isValidObjectRecord(record)) {
+  if (!isValidBlobRecord(record)) {
     throw new Error("invalid object record");
   }
   return record;
 }
 
-export function isValidObjectRecord(obj: any): boolean {
+export function isValidBlobRecord(obj: any): boolean {
   if (obj?.__typename != BLOB_TYPENAME) {
     return false;
   }

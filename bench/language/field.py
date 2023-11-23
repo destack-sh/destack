@@ -547,10 +547,14 @@ class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
 
     @property
     def _typed_key(self) -> str:
+        is_array = bool(self.flags & TypeFlag.IS_ARRAY or self.flags & TypeFlag.IS_ARRAYABLE)
         if self._storage_format == TypeStorageFormat.VECTOR:
-            return f"{self.key}-{self._storage_format.value}{self.dimensions}"
+            typed_key = f"{self.key}-{self._storage_format.value}{self.dimensions}"
         else:
-            return f"{self.key}-{self._storage_format.value}"
+            typed_key = f"{self.key}-{self._storage_format.value}"
+        if is_array:
+            typed_key += "-arr"
+        return typed_key
 
     @property
     def _source_key(self) -> str:

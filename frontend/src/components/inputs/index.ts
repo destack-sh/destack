@@ -1,5 +1,5 @@
 import { TypeHint, TypeTag } from "@/gql/graphql";
-import { isValidObjectRecord } from "@/state/blob";
+import { isValidBlobRecord } from "@/state/blob";
 import { TypeFlag, type Field } from "@/state/module";
 import { isValidSecretRecord } from "@/state/secret";
 
@@ -34,50 +34,34 @@ export function registerInterface(id: string, value: Omit<ValueInterface, "id">)
   interfaces[id] = { ...value, id };
 }
 
-// We automatically coerce to/from arrays as needed so we can smoothly
-//  switch between array and non-array types without having to store everything
-//  as an array upfront.  :ArrayCoercion
+// We no longer auto-coerce to/from arrays as needed because of real databases. :NoArrayCoercion
 
-function fromArray(value: any) {
-  if (Array.isArray(value)) {
-    return value[0];
+function toArray(type: Field, value: any): any[] {
+  const isArray = Array.isArray(value);
+  const shouldArray = type.flags & TypeFlag.IS_ARRAY || type.flags & TypeFlag.IS_ARRAYABLE;
+  if (shouldArray) {
+    return isArray ? value : [];
   } else {
-    return value;
+    return isArray ? [] : [value];
   }
 }
 
-function toArrayAsFlagged(type: Field, value: any) {
-  if (Array.isArray(value)) {
-    if (!(type.flags & TypeFlag.IS_ARRAY)) {
-      return value.slice(0, 1);
-    } else {
-      return value;
-    }
-  } else if (value != null) {
-    return [value];
-  }
-  return [];
-}
-
-function toArrayIfFlagged(type: Field, value: any) {
-  if (type.flags & TypeFlag.IS_ARRAY) {
-    if (Array.isArray(value)) {
-      return value;
-    } else {
-      return [value];
-    }
+function coerceToScalarOrArray(type: Field, value: any): any[] | any {
+  /* Coerce OUTPUT values as needed for the storage format */
+  const isArray = Array.isArray(value);
+  const shouldArray = type.flags & TypeFlag.IS_ARRAY || type.flags & TypeFlag.IS_ARRAYABLE;
+  if (shouldArray) {
+    return isArray ? value : [value];
   } else {
-    return fromArray(value);
+    return isArray ? value[0] : value;
   }
 }
 
 function coerceToBoolean(type: Field, value: any) {
-  value = fromArray(value);
   return typeof value == "boolean" ? value : false;
 }
 
 function coerceToString(type: Field, value: any) {
-  value = fromArray(value);
   if (typeof value == "number") {
     value = value.toString();
   }
@@ -85,7 +69,6 @@ function coerceToString(type: Field, value: any) {
 }
 
 function coerceToDatetime(type: Field, value: any) {
-  value = fromArray(value);
   if (typeof value == "number") {
     value = new Date(value);
   }
@@ -95,8 +78,8 @@ function coerceToDatetime(type: Field, value: any) {
   }
   return typeof value == "string" ? value : null;
 }
+
 function coerceToNumber(type: Field, value: any) {
-  value = fromArray(value);
   if (typeof value == "string") {
     value = Number.parseFloat(value.trim());
   }
@@ -182,16 +165,16 @@ registerInterface("boolean.thumbs", {
 // type reference
 registerInterface("enum", {
   tags: [TypeTag.Enum],
-  read: (t, v) => toArrayAsFlagged(t, v),
-  write: (t, v) => toArrayIfFlagged(t, v),
+  read: (t, v) => toArray(t, v),
+  write: (t, v) => coerceToScalarOrArray(t, v),
   supportsList: true,
   minWidth: 200,
   grow: 1.0,
 });
 registerInterface("struct", {
   tags: [TypeTag.Struct],
-  read: (t, v) => toArrayAsFlagged(t, v),
-  write: (t, v) => toArrayIfFlagged(t, v),
+  read: (t, v) => toArray(t, v),
+  write: (t, v) => coerceToScalarOrArray(t, v),
   supportsList: true,
   minWidth: 200,
   grow: 1.0,
@@ -199,8 +182,8 @@ registerInterface("struct", {
 // file
 registerInterface("file", {
   tags: [TypeTag.Blob],
-  read: (t, v) => toArrayAsFlagged(t, v).filter(isValidObjectRecord),
-  write: (t, v) => toArrayIfFlagged(t, v),
+  read: (t, v) => toArray(t, v).filter(isValidBlobRecord),
+  write: (t, v) => coerceToScalarOrArray(t, v),
   supportsList: true,
   minWidth: 200,
   grow: 1.0,

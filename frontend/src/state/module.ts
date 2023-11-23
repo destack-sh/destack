@@ -480,12 +480,17 @@ function _useModule(moduleOrProjectId: Ref<string | null>) {
       tag = STATEMENT_TYPE_TAGS[reference.type] as TypeTag;
     }
     const storageFormat = getStorageFormat(tag, field.hint ?? undefined, field.flags);
+    let typedKey: string;
     if (tag == TypeTag.Vector) {
       const dimension = field.value?.dimension ?? DEFAULT_EMBEDDING_DIMENSION;
-      return `${field.key}-${storageFormat}${dimension}`;
+      typedKey = `${field.key}-${storageFormat}${dimension}`;
     } else {
-      return `${field.key}-${storageFormat}`;
+      typedKey = `${field.key}-${storageFormat}`;
     }
+    if (field.flags & TypeFlag.IS_ARRAY || field.flags & TypeFlag.IS_ARRAYABLE) {
+      typedKey += "-arr";
+    }
+    return typedKey;
   }
 
   function effectiveTypeOf(field: Field): Field {
