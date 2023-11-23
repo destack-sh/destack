@@ -92,8 +92,7 @@ const sort: Ref<Sort[] | null> = computed(() => {
     if (inlineQuery.value != null) {
       return null;
     } else {
-      // default to sort by created at if no active search
-      return [{ field: "created_at", order: SortOp.Descending }];
+      return null;
     }
   }
   return properties.sorts;

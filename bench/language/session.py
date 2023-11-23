@@ -239,7 +239,12 @@ class Session:
     @_auto_async_to_sync
     async def flush_local(self):
         """Flushes local Postgres edits (leaves other edits pending)."""
-        from bench.sql.engine import write_local_edits_to_pg
+        from bench.sql.engine import update_pg_schema, write_local_edits_to_pg
+
+        # if the schema changed, also flush PG schema
+        if self._tracer._schema_changed:
+            await update_pg_schema(self.module.pg_name, self.module)
+            self._tracer._schema_changed = False
 
         _, local_edits = self._tracer.eat_edits(include_host=False)
         await write_local_edits_to_pg(self.pg_cursor, self.module, local_edits)
@@ -292,6 +297,7 @@ class Session:
 
         # manually ensure locally changed records are synced & notified
         if self._tracer._changed_record_ids_by_db_id:
+            # TODO @Robustness: repair index in case of local PG/OS sync failures
             # sync local edits to index
             log.debug("session.commit.index")
             changed_records: list[tuple["HasDatabase", set[UUID]]] = [
@@ -299,7 +305,6 @@ class Session:
                 for db_id, record_ids in self._tracer._changed_record_ids_by_db_id.items()
             ]
             await sync_pg_databases_to_os(self.module, self.pg_cursor, changed_records)
-            await self.pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
             self._tracer._changed_record_ids_by_db_id.clear()
             self._tracer._touched_databases_by_id.clear()
 
@@ -315,6 +320,7 @@ class Session:
         # close postgres
         if self._pg_cursor:
             pg_pool = get_pg_connection_pool(self.module.pg_name)
+            await self.pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
             await pg_pool.putconn(self._pg_cursor.connection)
             self._pg_cursor = None
 
@@ -398,6 +404,7 @@ class SessionTracer:
         self._touched_databases_by_id: dict[UUID, "HasDatabase"] = {}
         self._local_edits: list[EditEvent] = []
         self._host_edits: list[EditEvent] = []
+        self._schema_changed: bool = False
 
     def __str__(self):
         return f"{len(self.stacktrace)} stack, {len(self.runs)} runs"
@@ -553,6 +560,8 @@ class SessionTracer:
         # assumes you've called node_create_preflight first (to check permission)
         with self._tracing_lock:  # do it
             for n in nodes:
+                if n.mnt == MNT.FIELD or n.mnt == MNT.RESOLVED_FIELD:
+                    self._schema_changed = True
                 if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
                 self._edit(EditKind.CREATE, node=n)
@@ -567,6 +576,8 @@ class SessionTracer:
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
 
     def node_update(self, node: Node, properties: list[str]):
+        if node.mnt == MNT.FIELD or node.mnt == MNT.RESOLVED_FIELD:
+            self._schema_changed = True
         if node.mnt in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
             return
         if self.session.access_level < SessionAccessLevel.Update:
@@ -596,6 +607,8 @@ class SessionTracer:
 
         with self._tracing_lock:  # do it
             for n in nodes:
+                if n.mnt == MNT.FIELD or n.mnt == MNT.RESOLVED_FIELD:
+                    self._schema_changed = True
                 # :InterpFilter
                 if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
