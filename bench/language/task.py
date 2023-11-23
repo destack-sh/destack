@@ -64,6 +64,7 @@ class HasTask(Node):
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
+            # nocheckin: replace embedding model & quantize to bytes
             passthrough_model: "Statement" = self.session.module.resolve("openai.lib.text.ada")
         elif self.path == "symbolx.lib.builtins.transcribe":
             passthrough_model: "Statement" = self.session.module.resolve(

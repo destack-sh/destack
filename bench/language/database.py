@@ -425,7 +425,7 @@ class RecordQuery:
             cur=session.pg_cursor,
             table=self._database._table,
             where=compile_pg_conditional(self._database, self._combined_filter),
-            values=values,
+            static_values=values,
             returning=[self._database._table.columns_by_name["id"]],
         )
         updated_records_ids = {r["id"] for r in updated_rows}
@@ -639,8 +639,8 @@ class HasDatabase(Node):
 
     @property
     def ephemeral(self) -> bool:
-        # basically whether this should be 1:1 a real database table or just virtual
-        return True  # nocheckin: 10. make database non-ephemeral by default
+        # basically whether this should be 1:1 a real database table or just virtual (ephemeral)
+        return False
 
     @staticmethod
     def _derive_key(instance: "HasDatabase") -> str | None:

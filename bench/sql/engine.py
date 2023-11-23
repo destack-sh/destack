@@ -2,6 +2,7 @@ import base64
 import enum
 import struct
 from dataclasses import dataclass
+from itertools import chain
 from typing import Collection, Mapping, Sequence, cast
 from uuid import UUID
 
@@ -37,6 +38,7 @@ from bench.sql.core import (
     Index,
     SqlPrimitive,
     Table,
+    TableConstruct,
     get_record_table_name,
 )
 from bench.utils.dt import utcnow_with_tz
@@ -70,8 +72,9 @@ CAST_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, str] = {
 }
 
 
-def _to_value_column_name(field: lang.Field) -> str:
-    return f"value_{field._typed_key.replace('.', '_')}"
+def get_value_column_name(field: lang.Field) -> str:
+    # nocheckin: handle array/non-array fields as pg columns
+    return f"value_{field._typed_key.replace('.', '_').replace('-', '_')}".lower()
 
 
 def map_to_pg_column(field: lang.Field) -> Column:
@@ -81,9 +84,10 @@ def map_to_pg_column(field: lang.Field) -> Column:
         field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
     ) and column_type != ColumnType.JSON
     return Column(
-        name=_to_value_column_name(field),
+        name=get_value_column_name(field),
         type=column_type,
         is_array=is_array,
+        is_nullable=True,
     )
 
 
@@ -112,26 +116,30 @@ async def update_pg_schema(pg_name: str, module: Module) -> None:
     tables = (*INTERNAL_TABLES, *(s._table for s in databases if s._table))
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))
 
-    async with async_pg_cursor(pg_name, autocommit=False) as cur:
-        # get missing constructs (diff existing and current)
-        try:
-            existing_constructs = await pg_get_stored_constructs(cur)
-        except SqlUnknownConstruct:
-            # TODO @Robustness @Architecture: figure out some simple Migration system
-            # does not exist yet, will be created below
-            await cur.connection.rollback()
-            existing_constructs = {}
-        current_constructs: dict[UUID, Construct] = {c.id: c for t in tables for c in t.walk()}
-        missing_constructs = {
-            id: c for id, c in current_constructs.items() if id not in existing_constructs
-        }
-        if missing_constructs:
-            # create missing constructs
-            await pg_create_constructs(cur, missing_constructs)
-            # and remember the state
-            new_constructs = {**existing_constructs}
-            new_constructs.update(missing_constructs)  # retain all old constructs (for now)
-            await pg_replace_stored_constructs(cur, new_constructs)
+    try:
+        async with async_pg_cursor(pg_name, autocommit=False) as cur:
+            # get missing constructs (diff existing and current)
+            try:
+                existing_constructs = await pg_get_stored_constructs(cur)
+            except SqlUnknownConstruct:
+                # TODO @Robustness @Architecture: figure out some simple Migration system
+                # does not exist yet, will be created below
+                await cur.connection.rollback()
+                existing_constructs = {}
+            current_constructs: dict[UUID, Construct] = {c.id: c for t in tables for c in t.walk()}
+            missing_constructs = {
+                id: c for id, c in current_constructs.items() if id not in existing_constructs
+            }
+            if missing_constructs:
+                # create missing constructs
+                await pg_create_constructs(cur, missing_constructs)
+                # and remember the state
+                new_constructs = {**existing_constructs}
+                new_constructs.update(missing_constructs)  # retain all old constructs (for now)
+                await pg_replace_stored_constructs(cur, new_constructs)
+    except Exception as e:
+        log.exception("pg.update_schema.failed", e=e)
+        raise RuntimeError(f"failed to update {pg_name} schema: {e}") from e
 
 
 class PostgresConditionalOp(enum.StrEnum):
@@ -240,7 +248,7 @@ def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReferen
         elif database.ephemeral:
             return SqlJsonPath(sql.Identifier("value"), [field._typed_key])
         else:
-            return sql.Identifier(_to_value_column_name(field))
+            return sql.Identifier(get_value_column_name(field))
     else:
         return sql.Identifier(field)
 
@@ -365,21 +373,27 @@ RowOut = dict[str, SqlPrimitive]
 
 
 async def _do_execute(
-    cur: psycopg.AsyncCursor, query: sql.Composed, params: Sequence | Mapping | None = None
+    cur: psycopg.AsyncCursor,
+    resource: Table | str,
+    query: sql.Composed,
+    params: Sequence | Mapping | None = None,
 ) -> None:
     try:
         await cur.execute(query, params)
     except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
-        raise SqlUnknownConstruct(str(e)) from e
+        raise SqlUnknownConstruct(f"{e} ({resource!r})") from e
 
 
 async def _do_execute_many(
-    cur: psycopg.AsyncCursor, query: sql.Composed, params: Sequence | Mapping | None = None
+    cur: psycopg.AsyncCursor,
+    resource: Table | str,
+    query: sql.Composed,
+    params: Sequence | Mapping | None = None,
 ) -> None:
     try:
         await cur.executemany(query, params)
     except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
-        raise SqlUnknownConstruct(str(e)) from e
+        raise SqlUnknownConstruct(f"{e} ({resource!r})") from e
 
 
 async def pg_select(
@@ -406,7 +420,7 @@ async def pg_select(
         skip=skip,
     )
     logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, statement, params)
+    await _do_execute(cur, table, statement, params)
     return await cur.fetchall()
 
 
@@ -449,7 +463,7 @@ async def pg_count(
     if where:
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, statement)
+    await _do_execute(cur, table, statement)
     return (await cur.fetchone())["count"]
 
 
@@ -470,7 +484,7 @@ async def pg_exists(
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     statement += sql.SQL(")")
     logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, statement)
+    await _do_execute(cur, table, statement)
     return (await cur.fetchone())["exists"]
 
 
@@ -493,7 +507,7 @@ async def pg_insert(
         )
     logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
     values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
-    await _do_execute_many(cur, statement, values)
+    await _do_execute_many(cur, table, statement, values)
     if returning:
         return await cur.fetchall()
 
@@ -503,7 +517,7 @@ async def pg_update_static(
     table: Table,
     *,
     where: SqlNode | None = None,
-    values: RowIn,
+    static_values: RowIn,
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Updates the given table with static values."""
@@ -511,7 +525,7 @@ async def pg_update_static(
         table=sql.Identifier(table.name),
         values=sql.SQL(", ").join(
             sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
-            for k, v in values.items()
+            for k, v in static_values.items()
         ),
     )
     if where:
@@ -520,8 +534,8 @@ async def pg_update_static(
         statement += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.update_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, statement)
+    logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, statement))
+    await _do_execute(cur, table, statement)
     if returning:
         return await cur.fetchall()
 
@@ -530,19 +544,26 @@ async def pg_update_list(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
-    columns: list[Column],
-    values: list[RowIn],
+    static_values: RowIn,
+    dynamic_columns: list[Column],
+    dynamic_values: list[RowIn],
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Updates the given table with a list of values (corresponding to rows)."""
-    assert any(c.is_primary_key for c in columns), f"no primary key in {columns}"
+    assert any(c.is_primary_key for c in dynamic_columns), f"no primary key in {dynamic_columns}"
     table_name = sql.Identifier(table.name)
-    # basically, just pipeline update single with executemany
     statement = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
         table=table_name,
         pk=sql.Identifier(table.primary_key.name),
-        values=sql.SQL(", ".join(["{} = %s"] * len(columns))).format(
-            *(sql.Identifier(c.name) for c in columns)
+        # join fixed and dynamic values
+        values=sql.SQL(", ").join(
+            chain(
+                (
+                    sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
+                    for k, v in static_values.items()
+                ),
+                (sql.SQL("{} = %s").format(sql.Identifier(c.name)) for c in dynamic_columns),
+            ),
         ),
     )
     if returning:
@@ -551,11 +572,17 @@ async def pg_update_list(
                 sql.SQL("{}.{}").format(table_name, sql.Identifier(c.name)) for c in returning
             )
         )
-    logger.debug("pg.update_rows", table=table, query=sql_to_str(cur, statement), rows=len(values))
-    values = [
-        (*(row.get(c.name) for c in columns), row.get(table.primary_key.name)) for row in values
+    logger.debug(
+        "pg.update_rows.list",
+        table=table,
+        query=sql_to_str(cur, statement),
+        rows=len(dynamic_values),
+    )
+    dynamic_values = [
+        (*(row.get(c.name) for c in dynamic_columns), row.get(table.primary_key.name))
+        for row in dynamic_values
     ]
-    await _do_execute_many(cur, statement, values)
+    await _do_execute_many(cur, table, statement, dynamic_values)
     if returning:
         return await cur.fetchall()
 
@@ -579,7 +606,7 @@ async def pg_delete(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
     logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, statement)
+    await _do_execute(cur, table, statement)
     if returning:
         return await cur.fetchall()
 
@@ -601,6 +628,7 @@ async def pg_get_stored_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, Const
         ConstructInfo(
             id=row["id"],
             kind=ConstructKind(row["kind"]),
+            table_name=row["table_name"],
             name=row["name"],
             hash=row["hash"],
         )
@@ -616,6 +644,7 @@ async def pg_replace_stored_constructs(cur: psycopg.AsyncCursor, constructs: dic
         {
             "id": construct.id,
             "kind": construct.kind.value,
+            "table_name": construct.table.name if isinstance(construct, TableConstruct) else None,
             "name": construct.name,
             "hash": construct.hash,
         }
@@ -644,7 +673,7 @@ async def pg_create_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, 
         else:
             raise RuntimeError(f"unexpected construct: {construct}")
         logger.debug("pg.create_construct", construct=construct, query=sql_to_str(cur, statement))
-        await _do_execute(cur, statement)
+        await _do_execute(cur, "schema", statement)
 
 
 #
@@ -671,7 +700,7 @@ def pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
         row["value"] = Jsonb(record.value)
     else:
         for field in database.fields:
-            row[_to_value_column_name(field)] = record.value.get(field._typed_key)
+            row[get_value_column_name(field)] = record.value.get(field._typed_key)
     assert len(row) == len(database._table.columns), f"unexpected row: {row.keys()} for {database}"
     return row
 
@@ -680,7 +709,7 @@ def unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
     if database.ephemeral:
         value = row["value"]
     else:
-        value = {k: row[_to_value_column_name(f)] for k, f in database._fields_by_key.items()}
+        value = {f._typed_key: row[get_value_column_name(f)] for f in database.resolved_fields}
     return wire.RecordData(
         id=row["id"],
         ck=row["ck"],
@@ -690,7 +719,7 @@ def unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
         last_edited_at=row["last_edited_at"],
         last_changed_at=row["last_edited_at"],
         revision=row["revision"],
-        parent_id=row["statement_id"],
+        parent_id=database.id,
         value=value,
     )
 
@@ -747,35 +776,50 @@ async def write_local_edits_to_pg(
     if not edits:
         return []
 
-    async def _write_edit_batch(
+    async def _write_record_edit_batch(
         edit_kind: EditKind, database_id: UUID, batch: list[EditData]
     ) -> list[wire.NodeData] | None:
         database = module.lookup(database_id) or old_databases_by_id[database_id]
         table = database._table
+        materialized_value_columns = tuple(c for c in table.columns if c.name.startswith("value_"))
         if edit_kind == EditKind.CREATE:
             records = cast(list[wire.RecordData], [edit.node for edit in batch])
             rows = [pack_record_row(database, record) for record in records]
             _ = await pg_insert(cur=cur, table=table, rows=rows)
             return records
         elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
-            properties = batch[0].properties  # not strictly correct (should be set)
-            assert properties, f"no properties for {edit_kind} on {batch}"
-            now = utcnow_with_tz()
-            # update cru info :LocalRecordCru
+            properties = batch[0].properties  # not strictly correct (should be set of all in batch)
+            # expand value properties for materialized tables
+            if not database.ephemeral and "value" in properties:
+                properties = (
+                    *(p for p in properties if p != "value"),
+                    *(c.name for c in materialized_value_columns),
+                )
             records = cast(list[wire.RecordData], [edit.node for edit in batch])
-            rows = [pack_record_row(database, record) for record in records]
-            # keep only properties touched in the edit
-            rows = [{k: row[k] for k in properties} for row in rows]
-            for record, row in zip(records, rows):
-                row["id"] = record.id
-                row["revision"] = sql.SQL("revision + 1")
-                row["updated_at"] = now
-                row["last_edited_at"] = now
+            now = utcnow_with_tz()
+            row_values = []
+            for record in records:
+                # keep only properties touched in the edit
+                row = {"id": record.id}
+                for field in database.resolved_fields:  # all 'value' fields are considered changed
+                    column_name = get_value_column_name(field)
+                    row[column_name] = record.value.get(field._typed_key)
+                row_values.append(row)
+            # and update cru info :LocalRecordCru
+            fixed_values = {
+                "revision": sql.SQL("revision + 1"),
+                "updated_at": now,
+                "last_edited_at": now,
+            }
             rows = await pg_update_list(
                 cur=cur,
                 table=table,
-                values=rows,
-                columns=[table.primary_key, *(table.columns_by_name[k] for k in properties)],
+                static_values=fixed_values,
+                dynamic_columns=[
+                    table.primary_key,
+                    *(table.columns_by_name[k] for k in properties),
+                ],
+                dynamic_values=row_values,
                 returning=table.columns if return_nodes else None,
             )
             return [unpack_record_row(database, row) for row in rows] if return_nodes else []
@@ -795,7 +839,7 @@ async def write_local_edits_to_pg(
                 cur=cur,
                 table=table,
                 where=where,
-                values=row,
+                static_values=row,
                 returning=table.columns if return_nodes else None,
             )
             return [unpack_record_row(database, row) for row in rows] if return_nodes else []
@@ -820,7 +864,7 @@ async def write_local_edits_to_pg(
         if current_op != op:
             # new op, flush current batch
             edit_kind, database_id = current_op
-            batch_nodes = await _write_edit_batch(edit_kind, database_id, current_batch)
+            batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
             changed_nodes.extend(batch_nodes)
             # start new batch
             current_op = op
@@ -830,7 +874,7 @@ async def write_local_edits_to_pg(
 
     # flush last batch
     edit_kind, database_id = current_op
-    batch_nodes = await _write_edit_batch(edit_kind, database_id, current_batch)
+    batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
     changed_nodes.extend(batch_nodes)
     return changed_nodes if return_nodes else None
 

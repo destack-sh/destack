@@ -3,7 +3,7 @@ import hashlib
 from dataclasses import dataclass, field, is_dataclass, replace
 from datetime import datetime
 from itertools import chain
-from typing import ClassVar, Union
+from typing import TYPE_CHECKING, ClassVar, Union
 from uuid import UUID, uuid5
 
 import psycopg
@@ -46,6 +46,7 @@ class ConstructInfo:
 
     id: UUID
     kind: ConstructKind
+    table_name: str | None
     name: str
     hash: int
 
@@ -53,7 +54,9 @@ class ConstructInfo:
 @dataclass
 class Construct:
     kind: ClassVar[ConstructKind]
-    name: str
+
+    if TYPE_CHECKING:
+        name: str  # defined in subclasses as either property or field
 
     def sql(self) -> str:
         raise NotImplementedError
@@ -82,6 +85,10 @@ class TableConstruct(Construct):
         return self._table
 
     @property
+    def table_name(self) -> str:
+        return self.table.name
+
+    @property
     def _table(self) -> Union["Table", None]:
         raise NotImplementedError
 
@@ -89,7 +96,7 @@ class TableConstruct(Construct):
     def id(self) -> UUID:
         return uuid5(BENCH_UUID_NAMESPACE, f"{self.kind.value}:{self._table.name}.{self.name}")
 
-    def clone(self):
+    def clone(self) -> "TableConstruct":
         """Deep copy this table construct without the table reference."""
         return replace(self, _table=None)
 
@@ -199,7 +206,7 @@ class Constraint(TableConstruct):
 
     kind: ClassVar[ConstructKind] = ConstructKind.CONSTRAINT
 
-    name: str
+    inner_name: str
     type: ConstraintType
     columns: list[str] | None = None
     condition: str | None = None
@@ -217,6 +224,10 @@ class Constraint(TableConstruct):
 
     def __eq__(self, other):
         return hash(self) == hash(other)
+
+    @property
+    def name(self):
+        return f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
         parts = [self.name, self.type]
@@ -246,7 +257,7 @@ class Index(TableConstruct):
 
     kind: ClassVar[ConstructKind] = ConstructKind.INDEX
 
-    name: str
+    inner_name: str
     type: IndexType
     columns: list[str]
     expression: str | None = None
@@ -272,6 +283,10 @@ class Index(TableConstruct):
 
     def __eq__(self, other):
         return hash(self) == hash(other)
+
+    @property
+    def name(self):
+        return f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
         parts = [self.name, f"ON {self._table.name}", f"USING {self.type}"]
@@ -338,11 +353,11 @@ BASE_RECORD_TABLE = Table(
     columns=(
         Column("id", ColumnType.UUID, is_primary_key=True),
         Column("ck", ColumnType.UUID),
-        Column("created_at", ColumnType.DATETIME),
-        Column("updated_at", ColumnType.DATETIME),
+        Column("created_at", ColumnType.DATETIME, default="now()"),
+        Column("updated_at", ColumnType.DATETIME, default="now()"),
         Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
         Column("created_by_id", ColumnType.UUID, is_nullable=True),
-        Column("last_edited_at", ColumnType.DATETIME),
+        Column("last_edited_at", ColumnType.DATETIME, default="now()"),
         Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
         Column("revision", ColumnType.BIGINT, default="0"),
         Column("statement_key", ColumnType.STRING, length=16),
@@ -350,7 +365,7 @@ BASE_RECORD_TABLE = Table(
     constraints=(
         # ck + statement_key must be unique
         Constraint(
-            "unique_statement_key_ck", ConstraintType.UNIQUE, columns=["ck", "statement_key"]
+            "unique_ck_statement_key", ConstraintType.UNIQUE, columns=["ck", "statement_key"]
         ),
     ),
     indexes=(
@@ -373,6 +388,7 @@ EPHEMERAL_RECORD_TABLE = Table(
 
 
 def get_record_table_name(statement_ck: UUID) -> str:
+    """First 16 hex digits without dashes."""
     return f"record_{str(statement_ck).replace('-', '')}"
 
 
@@ -392,6 +408,7 @@ CONSTRUCT_TABLE = Table(
     columns=(
         Column("id", ColumnType.UUID, is_primary_key=True),
         Column("kind", ColumnType.STRING),
+        Column("table_name", ColumnType.STRING, is_nullable=True),
         Column("name", ColumnType.STRING),
         Column("hash", ColumnType.BIGINT),
     ),
@@ -468,7 +485,6 @@ class PostgresColumnType(enum.StrEnum):
     TIME = "time"
     TIMESTAMP = "timestamp"
     UUID = "uuid"
-    VECTOR = "vector"
     XML = "xml"
 
 
@@ -482,6 +498,6 @@ POSTGRES_TYPE_BY_GENERIC_TYPE = {
     ColumnType.DATETIME: PostgresColumnType.TIMESTAMP,
     ColumnType.JSON: PostgresColumnType.JSONB,
     ColumnType.BINARY: PostgresColumnType.BYTEA,
-    ColumnType.VECTOR: PostgresColumnType.VECTOR,
+    ColumnType.VECTOR: PostgresColumnType.BYTEA,
     ColumnType.UUID: PostgresColumnType.UUID,
 }

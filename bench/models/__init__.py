@@ -1,6 +1,5 @@
 from django.db.models import Q
 
-from .database import Record
 from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import Blob, BlobStatus
@@ -52,7 +51,6 @@ __all__ = [
     "ProjectVersion",
     "ProjectVisibility",
     "Q",
-    "Record",
     "Blob",
     "BlobStatus",
     "ResolvedField",

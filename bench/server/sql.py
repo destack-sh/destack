@@ -93,3 +93,20 @@ async def update_pg_schema_from_db(project_v: models.ProjectVersion) -> None:
     logger.info("pg.update_mappings", project_version=repr(project_v))
     module, project = await interp_module(project_v.id)
     await update_pg_schema(project.pg_name, module)
+
+
+async def delete_local_pg_database(project: models.Project) -> None:
+    """
+    Deletes the local Postgres database and corresponding roles/user for a project.
+    """
+    log = logger.bind(pg_name=project.pg_name)
+    log.info("pg.delete_db")
+
+    # connect to default database and drop the database
+    async with async_pg_cursor("postgres", autocommit=True) as cur:
+        log.info("pg.delete_db.drop", username=project.pg_username)
+        await cur.execute(
+            sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(project.pg_name))
+        )
+
+    log.info("pg.delete_db.done")

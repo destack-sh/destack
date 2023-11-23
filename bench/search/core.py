@@ -128,6 +128,7 @@ class Field:
     analyzer: typing.Optional["Analyzer"] = None
     can_set_directly: bool | None = True
     dimension: int | None = None  # for knn_vector
+    data_type: typing.Optional[str] = None  # for knn_vector
     method: typing.Optional["KnnMethod"] = None  # for knn_vector
     _annotation: typing.Optional[Any] = None  # type annotation on the LHS of a field in a document
 
@@ -196,6 +197,8 @@ class Field:
             d["analyzer"] = self.analyzer.value
         if self.dimension is not None:
             d["dimension"] = self.dimension
+        if self.data_type is not None:
+            d["data_type"] = self.data_type
         if self.method is not None:
             d["method"] = self.method.to_dict()
         return d
