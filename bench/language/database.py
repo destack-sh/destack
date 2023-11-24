@@ -374,33 +374,40 @@ class RecordQuery:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
     @_auto_async_to_sync
-    async def count(self) -> int:
-        """Returns the number of results."""
-        assert not self._first and not self._skip and not self._sort, "cannot count with limits"
-        if self._cached_records is not None:
-            return len(self._cached_records)
+    async def count(self, query: Conditional = None, **kwargs) -> int:
+        """Returns the number of results. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_count
+
+        assert not self._first and not self._skip and not self._sort, "cannot count with limits"
+        query = coerce_conditional(self._database, query, kwargs)
 
         if self._database.session._tracer._local_edits:
             await self._database.session.flush_local()
 
-        where = compile_pg_conditional(self._database, self._combined_filter)
+        where = compile_pg_conditional(self._database, query & self._combined_filter)
         return await pg_count(
             cur=self._database.session.pg_cursor, table=self._database._table, where=where
         )
 
     @_auto_async_to_sync
-    async def exists(self) -> int:
-        """Whether any results exist."""
-        assert not self._first and not self._skip and not self._sort, "cannot exists with limits"
-        if self._cached_records is not None:
-            return bool(self._cached_records)
+    async def exists(self, query: Conditional = None, **kwargs) -> bool:
+        """Whether any results exist. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_exists
+
+        query = coerce_conditional(self._database, query, kwargs, return_none_if_empty=True)
+
+        assert not self._first and not self._skip and not self._sort, "cannot exists with limits"
+        if query is None and self._cached_records is not None:
+            return bool(self._cached_records)
 
         if self._database.session._tracer._local_edits:
             await self._database.session.flush_local()
 
-        where = compile_pg_conditional(self._database, self._combined_filter)
+        if query is None:
+            query = self._combined_filter
+        else:
+            query = query & self._combined_filter
+        where = compile_pg_conditional(self._database, query)
         return await pg_exists(
             cur=self._database.session.pg_cursor, table=self._database._table, where=where
         )

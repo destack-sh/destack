@@ -293,7 +293,10 @@ CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
 
 
 def coerce_conditional(
-    statement: "HasFields", expr: Optional[Conditional], kwargs: Optional[dict[str, Any]] = None
+    statement: "HasFields",
+    expr: Optional[Conditional],
+    kwargs: Optional[dict[str, Any]] = None,
+    return_none_if_empty: bool = False,
 ) -> Optional[Conditional]:
     """
     Coerce a conditional expression from either the given expression or kwargs.
@@ -320,7 +323,10 @@ def coerce_conditional(
         _check_field_supports(field, op)
         clauses.append(ComparisonConditional(op=op, field=field, value=value))
     if not clauses:
-        return C(ConditionalOp.TRUE)
+        if return_none_if_empty:
+            return None
+        else:
+            return C(ConditionalOp.TRUE)
     return Conditional.and_if_set(*clauses)
 
 
