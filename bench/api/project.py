@@ -233,6 +233,7 @@ class ProjectMutation:
         project = models.Project.objects.get(id=input.id.node_id)
         check_module_access(info, project, ModuleAccessLevel.Manage)
         project.visibility = input.visibility
+        # TODO @Broken: update project infra permissions on visibility change
         project.save()
         return project
 

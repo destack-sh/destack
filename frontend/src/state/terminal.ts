@@ -3,7 +3,7 @@ import { useBenchState } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, ref, toRef } from "vue";
+import { computed, ref, toRef, type Ref, watchEffect } from "vue";
 
 export type TerminalRun = {
   text?: string;
@@ -60,15 +60,24 @@ function _useTerminal() {
       neverUnsubscribe: true, // shared composable
     }
   );
-  const terminalRuns = computed(() =>
-    runs.value?.map((r) => ({
+  const pendingRuns: Ref<Run[]> = ref([]);
+  const terminalRuns = computed(() => {
+    const terminalRuns = [...(runs.value ?? [])];
+    // add pending runs to the top of the list
+    for (const run of pendingRuns.value) {
+      //  (pending runs and terminal runs may overlap briefly)
+      if (!terminalRuns.some((r) => r.id == run.id)) {
+        terminalRuns.unshift(run);
+      }
+    }
+    return terminalRuns.map((r) => ({
       code: r.value[codeKey.value ?? ""] ?? r.value["code"],
       scope: r.value[scopeKey.value ?? ""] ?? r.value["scope"],
       generatedFrom: r.value[generatedFromKey.value ?? ""] ?? r.value["generated_from"],
       generatedIn: r.value[generatedInKey.value ?? ""] ?? r.value["generated_in"],
       run: r,
-    }))
-  );
+    }));
+  });
 
   function runTextToCode(
     text: string,
@@ -107,7 +116,7 @@ function _useTerminal() {
     }
   ) {
     /** Runs code inside the terminal, raising if the run fails to complete */
-    return session.run(code, {
+    const { run, firstResult, finalResult } = session.run(code, {
       scope: options.scope,
       rootValue: {
         name: "terminal",
@@ -120,6 +129,11 @@ function _useTerminal() {
       accessLevel: options.accessLevel,
       tags: options.tags,
     });
+    pendingRuns.value = [...pendingRuns.value, run];
+    firstResult.then(() => {
+      pendingRuns.value = pendingRuns.value.filter((r) => r.id != run.id);
+    });
+    return { run, firstResult, finalResult };
   }
 
   return {

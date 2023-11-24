@@ -77,7 +77,7 @@ const { inlineQuery } = useDatabaseInlineSearch(fields, toRef(properties, "inlin
 function addSort(field: Field, order: SortOp) {
   if (properties.sorts == null) properties.sorts = [];
   // replace or append sort
-  const oldIndex = properties.sorts.findIndex((s) => s.field == field.key);
+  const oldIndex = properties.sorts.findIndex((s) => s.field == field.ck);
   if (oldIndex >= 0) {
     properties.sorts.splice(oldIndex, 1, { field: field.ck, order });
   } else {
