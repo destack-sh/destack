@@ -407,8 +407,7 @@ function deleteRecordField(recordId: string, key: string) {
   if (record == null) throw new Error("record not found: " + recordId);
   const oldValue = record?.value;
   const newValue = { ...oldValue };
-  // TODO @Robustness: figure out better way to clear field in opensearch backend (maybe update by query?)
-  newValue[key] = [];
+  newValue[key] = null;
   ops.symbol.updateRecord(null, props.statement.id, recordId, oldValue, newValue);
 }
 
