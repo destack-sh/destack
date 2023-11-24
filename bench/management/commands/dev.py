@@ -40,6 +40,7 @@ class Command(BaseCommand):
                     "WORKER_SET_ID": str(project.worker_set.id),
                     "WORKER_NODE_ID": "local",
                     "WORKER_PROJECT_ID": str(project.id),
+                    "WORKER_MODULE_ID": str(project.head_id),
                     "LOCAL_PG_NAME": project.pg_name,
                     "LOCAL_PG_USERNAME": project.pg_username,
                     "LOCAL_PG_PASSWORD": project.pg_password,

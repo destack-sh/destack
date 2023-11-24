@@ -155,7 +155,7 @@ defineExpose({
       <div
         v-for="{ run, code, scope, generatedFrom, generatedIn } in visibleHistory"
         :key="run.id"
-        class="opacity-150 border-l-4 border-t border-orange-900/[15%] py-1.5 transition-colors"
+        class="opacity-150 w-full border-l-4 border-t border-orange-900/[15%] py-1.5 transition-colors"
         :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"
       >
         <div class="mx-auto flex flex-col" :style="{ ...panel.contentWidthAsMaxWidth }">

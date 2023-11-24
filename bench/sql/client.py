@@ -20,7 +20,10 @@ PG_PASSWORD = get_from_env("LOCAL_PG_PASSWORD", alt="USER_PG_PASSWORD")
 
 @functools.cache
 def _get_connection_str(pg_name: str) -> str:
-    return f"postgresql://{PG_USERNAME}:{PG_PASSWORD}@{PG_HOST}:{PG_PORT}/{pg_name}"
+    username, password = PG_USERNAME, PG_PASSWORD
+    if PG_NAME and pg_name != PG_NAME:
+        username, password = GLOBAL_RO_USERNAME, GLOBAL_RO_PASSWORD
+    return f"postgresql://{username}:{password}@{PG_HOST}:{PG_PORT}/{pg_name}"
 
 
 _connection_pools: dict[str, AsyncConnectionPool] = {}
