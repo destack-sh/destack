@@ -390,6 +390,22 @@ class RecordQuery:
         )
 
     @_auto_async_to_sync
+    async def exists(self) -> int:
+        """Whether any results exist."""
+        assert not self._first and not self._skip and not self._sort, "cannot exists with limits"
+        if self._cached_records is not None:
+            return bool(self._cached_records)
+        from bench.sql.engine import compile_pg_conditional, pg_exists
+
+        if self._database.session._tracer._local_edits:
+            await self._database.session.flush_local()
+
+        where = compile_pg_conditional(self._database, self._combined_filter)
+        return await pg_exists(
+            cur=self._database.session.pg_cursor, table=self._database._table, where=where
+        )
+
+    @_auto_async_to_sync
     async def update(self, **value) -> int:
         """Updates all results with the given values."""
         from bench.language.packer import check_type, pack_value
