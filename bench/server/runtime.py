@@ -679,7 +679,7 @@ class RuntimeHost:
             )
             log.debug("module.write_edits.restore", restored=restore_edits)
         elif any(e.kind == EditKind.SOFT_DELETE for e in host_edits):
-            pass  # TODO @Robustness: cascade soft delete to all descendants (incl. local)
+            pass  # TODO @Robustness: cascade soft delete to all? descendants (incl. local)
 
         # apply TODO @Performance: don't deepcopy module on edit?
         edited_nodes: list[wire.NodeData] = []
