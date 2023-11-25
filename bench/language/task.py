@@ -64,7 +64,6 @@ class HasTask(Node):
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
-            # nocheckin: replace embedding model & quantize to bytes
             passthrough_model: "Statement" = self.session.module.resolve("openai.lib.text.ada")
         elif self.path == "symbolx.lib.builtins.transcribe":
             passthrough_model: "Statement" = self.session.module.resolve(
@@ -78,11 +77,7 @@ class HasTask(Node):
             if mode == "auto":
                 mode = "fast"
             if mode == "fast":
-                models = [
-                    "openai.lib.chat.gpt4-turbo",
-                    "anthropic.lib.text.claude-instant-1",
-                    "openai.lib.chat.gpt3-turbo",
-                ]
+                models = ["anthropic.lib.text.claude-instant-1", "openai.lib.chat.gpt3-turbo"]
             else:
                 models = ["openai.lib.chat.gpt4-turbo", "anthropic.lib.text.claude-2"]
             models = [self.session.module.resolve(m) for m in models]

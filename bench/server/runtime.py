@@ -13,12 +13,22 @@ from django.db import transaction
 from more_itertools import first
 
 from bench import models, settings
-from bench.language import Module, SortOp, Trigger, TriggerType, libs, wire
+from bench.language import (
+    HasDatabase,
+    Module,
+    SortOp,
+    Statement,
+    Trigger,
+    TriggerType,
+    libs,
+    wire,
+)
 from bench.language.builtin import symbolx_lib
 from bench.language.cache import CacheAsync
 from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
+    ConditionalOp,
     ModuleReference,
     RunStatus,
     SessionAccessLevel,
@@ -27,7 +37,7 @@ from bench.language.const import (
 )
 from bench.language.database import RecordQuery
 from bench.language.edit import EditData, EditKind, NodeTreeEditor
-from bench.language.expression import SCORE_KEY, S
+from bench.language.expression import SCORE_KEY, C, S
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.packer import pack_value, unpack_value
@@ -81,10 +91,15 @@ from bench.msg.messages import (
 from bench.search import mirror
 from bench.search.engine import update_os_schema
 from bench.server import search
-from bench.server.observer import WorkerObserver
+from bench.server.k8 import WorkerObserver
 from bench.server.search import write_edits_to_os
 from bench.sql.client import async_pg_cursor
-from bench.sql.engine import SqlUndefinedConstruct, update_pg_schema, write_local_edits_to_pg
+from bench.sql.engine import (
+    SqlUndefinedConstruct,
+    duplicate_records_in_pg,
+    update_pg_schema,
+    write_local_edits_to_pg,
+)
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import partition
 from bench.utils.monitoring import Monitored
@@ -547,6 +562,12 @@ class RuntimeHost:
         return f"<{self.__class__.__name__} {self}"
 
     @property
+    def committed(self):
+        # nocheckin: no writes if committed?
+        # nocheckin: remove runtime host after some time if not used and it's committed?
+        return self.project_version.committed
+
+    @property
     def client(self) -> ClientOrigin:
         return ClientOrigin("runtime-host", self.server_id, None)
 
@@ -730,20 +751,20 @@ class RuntimeHost:
         origins: tuple[ClientOrigin] = None,
     ):
         # get copy
-        # TODO @Broken: include records in paste
-        #  (probably as a second step because there may be >>k, and so we can optimize PG copy)
         same_module = source_module_id == self.module_id
         if same_module:
-            source = self.project_version
+            source_project_v = self.project_version
         else:
-            source = await ProjectVersion.objects.aget(id=source_module_id)
+            source_project_v = await ProjectVersion.objects.select_related("project").aget(
+                id=source_module_id
+            )
         # extend default filter to exclude template tags
         template_key = symbolx_lib.resolve(".builtins.template").key
         filter = packer.DEFAULT_PACK_FILTER.extend(
             (models.Tagging, lambda qs: qs.exclude(key=template_key))
         )
         copy = await sync_to_async(models.ProjectVersion.objects.pack_copy)(
-            source=source,
+            source=source_project_v,
             target=self.project_version,
             nodes=models.Statement.objects.filter(id__in=source_ids),
             keep_cks=False,
@@ -770,6 +791,44 @@ class RuntimeHost:
         #  (and if we include the origin, the frontend will auto-ignore its own edits;
         #   this is faster and easier with the current API edit/load mechanism)
 
+        # paste versioned databases (with new cks)
+        target_databases: list["HasDatabase"] = [
+            s
+            for s in self.module._nodes
+            if isinstance(s, Statement)
+            and s.type == StatementType.DATABASE
+            and s.versioned
+            and s.id in copy.target_ids_reversed
+        ]
+        if not target_databases:
+            return  # nothing to do
+        if same_module:
+            source_module = self.module
+        else:
+            # unfortunately we need the whole source module even though we just need a small part
+            source_module, _ = await read_module(source_module_id)
+            source_module = await sync_to_async(Module.make)(
+                source=source_module.nodes,
+                project_id=source_project_v.project_id,
+                os_name=source_project_v.project.os_name,
+                pg_name=source_project_v.project.pg_name,
+            )
+        async with async_pg_cursor(source_project_v.project.pg_name) as source_cur, async_pg_cursor(
+            self.project.pg_name
+        ) as target_cur:
+            for target_database in target_databases:
+                source_database_ck = copy.target_cks_reversed[target_database.ck]
+                source_database = source_module.resolve(source_database_ck)
+                await duplicate_records_in_pg(
+                    source_cur=source_cur,
+                    source_database=source_database,
+                    target_cur=target_cur,
+                    target_database=target_database,
+                    where=C(ConditionalOp.NOT_EXISTS, "deleted_at"),
+                    keep_cks=False,
+                    copy_revisions=False,
+                )
+
     async def write_session(
         self,
         session: Optional[wire.SessionData],
@@ -787,38 +846,93 @@ class RuntimeHost:
             ),
         )
 
-    async def snapshot(self, name: str | None, tag: str | None, description: str | None) -> None:
-        """Snapshot the module and publish a corresponding project change."""
-
-        # insert new head between parents and head
-        @transaction.atomic
-        def _do_snapshot():
-            snapshot = models.ProjectVersion.objects.create(
-                id=uuid4(),
-                ck=self.project.id,
-                project=self.project,
-                name=name,
-                tag=tag,
-                description=description,
-                committed_at=utcnow_with_tz(),
-            )
-            snapshot.parents.set(self.project_version.parents.all())
-            self.project_version.parents.set([snapshot])
-
-            # actually copy into new version
-            models.ProjectVersion.objects.copy(
-                source=self.project_version,
-                target=snapshot,
-                keep_cks=True,
-                copy_revisions=True,
-                include_interp=True,
-            )
-
-        await sync_to_async(_do_snapshot)()
-        await publish(
-            NMessageType.PROJECT_CHANGED,
-            ProjectChangedPayload(project_id=self.project.id, origins=[self.client]),
+    def _do_snapshot_host(
+        self, name: str | None, tag: str | None, description: str | None
+    ) -> models.ProjectVersion:
+        """Snapshots all host Bench nodes (excluding local records)."""
+        snapshot = models.ProjectVersion.objects.create(
+            id=uuid4(),
+            ck=self.project.id,
+            project=self.project,
+            name=name,
+            tag=tag,
+            description=description,
+            committed_at=utcnow_with_tz(),
         )
+
+        # actually copy into new version
+        models.ProjectVersion.objects.copy(
+            source=self.project_version,
+            target=snapshot,
+            keep_cks=True,
+            copy_revisions=True,
+            include_interp=True,
+        )
+        return snapshot
+
+    def _do_insert_snapshot(self, snapshot: models.ProjectVersion):
+        # insert new head between parents and head
+        snapshot.parents.set(self.project_version.parents.all())
+        self.project_version.parents.set([snapshot])
+
+    async def snapshot(self, name: str | None, tag: str | None, description: str | None) -> None:
+        """
+        Snapshot the module and publish a corresponding project change.
+        Records from versioned local databases are also copied into the snapshot.
+        TODO @UX: warn if large databases are snapshotted implicitly ('versioned')
+        """
+
+        # make snapshot (host)
+        logger.info("module.snapshot", module=self.module, name=name, tag=tag)
+        snapshot = await sync_to_async(self._do_snapshot_host)(
+            name=name, tag=tag, description=description
+        )
+
+        try:
+            # get snapshot module (to get Database instances, probably can be more efficient...)
+            target_module, _ = await read_module(snapshot.id)
+            target_module = await sync_to_async(Module.make)(
+                source=target_module.nodes,
+                project_id=self.project.id,
+                os_name=self.project.os_name,
+                pg_name=self.project.pg_name,
+            )
+            logger.debug("module.snapshot.clone", snapshot=snapshot, target_module=target_module)
+
+            # copy local records from source databases into target (the snapshot)
+            # (later we'll probably also add non-versioned ids to 'back up' here)
+            target_databases: list["HasDatabase"] = [
+                s
+                for s in target_module._nodes
+                if isinstance(s, Statement) and s.type == StatementType.DATABASE and s.versioned
+            ]
+            async with async_pg_cursor(self.module.pg_name, autocommit=False) as pg_cursor:
+                for target_database in target_databases:
+                    source_database = self.module.resolve(target_database.ck)
+                    await duplicate_records_in_pg(
+                        source_cur=pg_cursor,
+                        source_database=source_database,
+                        target_cur=pg_cursor,
+                        target_database=target_database,
+                        where=C(ConditionalOp.NOT_EXISTS, "deleted_at"),
+                        keep_cks=True,
+                        copy_revisions=True,
+                    )
+                await pg_cursor.connection.commit()
+
+            # insert snapshot into project
+            await sync_to_async(self._do_insert_snapshot)(snapshot)
+        except Exception:
+            # rollback
+            logger.error("module.snapshot.failed", snapshot=snapshot, exc_info=True)
+            await models.ProjectVersion.objects.filter(id=snapshot.id).adelete()
+            raise
+        finally:
+            # always notify (we did create a snapshot, so it's possible someone read it)
+            await publish(
+                NMessageType.PROJECT_CHANGED,
+                ProjectChangedPayload(project_id=self.project.id, origins=[self.client]),
+            )
 
     async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
         """

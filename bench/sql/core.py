@@ -346,6 +346,15 @@ class Table(Construct):
     def walk(self) -> tuple[Construct, ...]:
         return self, *self.columns, *self.constraints, *self.indexes
 
+    def columns_include(self, other: "Table") -> bool:
+        """Returns True if the columns are equal, ignoring order."""
+        for column in self.columns_by_name:
+            if column not in other.columns_by_name:
+                return False
+            if self.columns_by_name[column].type != other.columns_by_name[column].type:
+                return False
+        return True
+
 
 # template for actual record tables
 BASE_RECORD_TABLE = Table(

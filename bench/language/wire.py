@@ -10,6 +10,7 @@ from typing import Any, ClassVar, Optional
 from uuid import UUID
 
 import msgpack
+import structlog
 
 from bench import language as lang
 from bench.language import File, IssueType, Module
@@ -60,6 +61,7 @@ from bench.utils.serialize import from_dict, to_dict
 #  Maybe we can also auto-generate some of the model packers, though that mapping is less 1:1.
 #
 
+logger = structlog.get_logger(__name__)
 
 ParentsT = set[MNT]
 NodeDataT = typing.TypeVar("NodeDataT", bound="NodeData")
@@ -242,9 +244,10 @@ def unpack_node(
             if parent is not None and data_node.parent_id == parent.id:
                 node_parent = parent
             else:
-                raise ValueError(
+                logger.warn(
                     f"node {data_node!r} parent {data_node.parent_id} not found in unpacked {unpacked_tree!r}"
                 )
+                continue  # can happen if there was a race condition in delete cascade and create
         else:
             node_parent = unpacked_tree.nodes_by_id[data_node.parent_id]
         node = packer.unpack(data_node, node_parent, session)
