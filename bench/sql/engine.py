@@ -4,7 +4,7 @@ import struct
 from dataclasses import dataclass
 from itertools import chain
 from typing import Any, Collection, Mapping, Sequence, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import cachetools
 import psycopg
@@ -25,7 +25,7 @@ from bench.language.expression import (
     QueryEngineIncapableError,
     StaticConditional,
 )
-from bench.language.module import UNSET
+from bench.language.module import UNSET, get_node_id
 from bench.sql.client import async_pg_cursor
 from bench.sql.core import (
     BASE_RECORD_TABLE,
@@ -403,7 +403,7 @@ async def _do_execute(
     try:
         await cur.execute(query, params)
     except psycopg.errors.Error as e:
-        raise _wrap_error(resource, query, e)
+        raise _wrap_error(resource, query, e) from e
 
 
 async def _do_execute_many(
@@ -416,7 +416,7 @@ async def _do_execute_many(
     try:
         await cur.executemany(query, params, returning=returning)
     except psycopg.errors.Error as e:
-        raise _wrap_error(resource, query, e)
+        raise _wrap_error(resource, query, e) from e
 
 
 async def pg_select(
@@ -925,6 +925,50 @@ async def write_local_edits_to_pg(
     batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
     changed_nodes.extend(batch_nodes)
     return changed_nodes if return_nodes else None
+
+
+async def duplicate_records_in_pg(
+    source_cur: psycopg.AsyncCursor,
+    source_database: "HasDatabase",
+    target_cur: psycopg.AsyncCursor,
+    target_database: "HasDatabase",
+    *,
+    keep_cks: bool,
+    where: lang.Conditional,
+    copy_revisions: bool,
+    return_nodes: bool = False,
+) -> list[wire.RecordData] | None:
+    """Duplicates records across databases."""
+    source_table = source_database._table
+    target_table = target_database._table
+    if source_database.ephemeral or target_database.ephemeral:
+        raise ValueError(f"cannot duplicate ephemeral: {source_database!r}->{target_database!r}")
+    if not target_table.columns_include(source_table):
+        raise ValueError(f"target {target_table!r} is not superset of source {source_table!r}")
+    target_module_id = target_database.module.id
+
+    # TODO @Performance: duplicate records within same database directly in postgres
+    where = where & lang.C(ConditionalOp.EQUALS, "statement_key", source_database.key)
+    log = logger.bind(source=source_database, target=target_database, where=where)
+    log.debug("pg.duplicate_records", copy_revisions=copy_revisions, keep_cks=keep_cks)
+    record_rows = await pg_select(
+        cur=source_cur, table=source_table, where=compile_pg_conditional(source_database, where)
+    )
+    if record_rows:
+        for record_row in record_rows:
+            if not keep_cks:
+                record_row["ck"] = uuid4()
+            record_row["id"] = get_node_id(target_module_id, ck=record_row["ck"])
+            record_row["statement_key"] = target_database.key
+            if not copy_revisions:
+                record_row["revision"] = 0
+        await pg_insert(cur=target_cur, table=target_table, rows=record_rows)
+    log.debug("pg.duplicate_records.done", rows=len(record_rows))
+
+    if return_nodes:
+        return [pg_unpack_record_row(target_database, row) for row in record_rows]
+    else:
+        return None
 
 
 if DEBUG or LOCAL:

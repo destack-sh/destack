@@ -234,7 +234,6 @@ def pack_node(
     excluded: Collection[type[ModelT]] = DEFAULT_EXCLUDED,
 ) -> _Packed:
     """Pack a node and its descendants"""
-    # nocheckin: 6. update/refactor pack_node usage sites with local records (e.g. snapshot, paste)
     visited = collect_node(*models, filter=filter, excluded=excluded)
     nodes = {node.id: pack_node_flat(node) for node in visited.visited.values()}
     roots = [nodes[node.id] for node in visited.roots]

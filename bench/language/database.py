@@ -339,7 +339,7 @@ class RecordQuery:
         raise NotImplementedError("not yet supported")
 
     def distinct(self, *fields: "Field") -> "RecordQuery":
-        """Returns only distinct results."""
+        """Returns results with distinct values in the given fields."""
         raise NotImplementedError("not yet supported")
 
     def first(self, count: int) -> "RecordQuery":
