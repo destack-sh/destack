@@ -589,7 +589,7 @@ class ResolvedField(Field):
         if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
             raise RuntimeError(f"unresolved reference {field.reference} in {field!r}")
         ck = uuid.uuid5(for_parent.ck, field.ck.hex)
-        id = get_node_id(field.module.id, ck) if field.module else None
+        id = get_node_id(for_parent.module.id, ck) if for_parent.module else None
         resolved_field = ResolvedField(
             id=id,
             ck=ck,

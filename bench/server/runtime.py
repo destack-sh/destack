@@ -563,8 +563,6 @@ class RuntimeHost:
 
     @property
     def committed(self):
-        # nocheckin: no writes if committed?
-        # nocheckin: remove runtime host after some time if not used and it's committed?
         return self.project_version.committed
 
     @property
@@ -603,9 +601,10 @@ class RuntimeHost:
         await self._reset_interp_state()
         await update_os_schema(self.project.os_name, self.module)
         await update_pg_schema(self.project.pg_name, self.module)
-        await self._update_local_triggers()
-        self.tasks.start(self.process_time_triggers_forever())
-        self.ready.set()
+        if not self.committed:  # module is only active at head...?
+            await self._update_local_triggers()
+            self.tasks.start(self.process_time_triggers_forever())
+            self.ready.set()
 
     async def _publish_edits(self, edits: list[EditData], origins: tuple[ClientOrigin, ...] = None):
         edits = [get_api_edit_from_internal(e) for e in edits]
@@ -622,6 +621,7 @@ class RuntimeHost:
 
     async def _reset_interp_state(self):
         """Resets, stores and broadcasts the module's interp nodes."""
+        self.log.debug("module.reset_interp_state")
         # gather interp changes (reset to 0)
         editor = self._new_editor()
         module_data = wire.pack_node_flat(self.module)
