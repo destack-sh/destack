@@ -4,7 +4,7 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench import models
-from bench.language import wire
+from bench.language import Module, wire
 from bench.language.const import LOCAL_NODE_TYPES
 from bench.language.edit import MEK, EditData
 from bench.models.packer import HOST_MODEL_TYPES, collect_node
@@ -248,18 +248,18 @@ def create_local_os_index(project: models.Project, *, upsert: bool) -> None:
 
 
 async def write_edits_to_os(
-    project_v: models.ProjectVersion, edits: list[EditData], *, refresh: bool = False
+    module: Module, edits: list[EditData], *, refresh: bool = False
 ) -> None:
     """
     Writes/mirrors any relevant edit to OpenSearch.
     All regular DB edit come this way.
     """
-    project: models.Project = project_v.project
-    logger.debug("os.write_edits", project_version=project_v, edits=edits)
+    log = logger.bind(module=module, edits=edits)
+    log.debug("os.write_edits")
     if not edits:
         if refresh:
             # just refresh the index
-            os_client_sync.indices.refresh(index=project.os_name)
+            os_client_sync.indices.refresh(index=module.os_name)
         return  # nothing to do
 
     # mut state
@@ -267,14 +267,7 @@ async def write_edits_to_os(
 
     async def _flush():
         if ops:
-            logger.debug(
-                "os.write_edits",
-                project_version=project_v,
-                index=project.os_name,
-                edit=len(edits),
-                operations=len(ops),
-            )
-            # TODO @Performance: consider bulking OS refreshes in edit somehow
+            log.debug("os.write_edits.flush", operations=len(ops))
             ret = await os_client.bulk(ops, refresh="" if refresh else False)
             if ret.get("errors"):
                 raise RuntimeError(f"failed to write edit to OpenSearch: {get_os_errors(ret)}")
@@ -282,17 +275,22 @@ async def write_edits_to_os(
         ops.clear()
 
     for edit in edits:
-        index = project.os_name if edit.type.mnt in LOCAL_NODE_TYPES else os.GLOBAL_INDEX_NAME
-        if not mirror.has_mirror(edit.thing):
+        index = module.os_name if edit.type.mnt in LOCAL_NODE_TYPES else os.GLOBAL_INDEX_NAME
+        node = edit.thing or edit.node  # local nodes don't have a model thing, only data node
+        if not mirror.has_mirror(node):
             continue  # ignore
         elif edit.type.kind in (MEK.CREATE, MEK.UPDATE, MEK.MOVE, MEK.SOFT_DELETE, MEK.RESTORE):
-            mirrored_data = mirror.mirror_node(project_v, edit.thing).to_dict()
-            # TODO @Robustness: limit OS edit to changed properties?
-            #  (partial update is not supported in index operation)
-            ops.append({"index": {"_index": index, "_id": str(edit.thing.id)}})
+            if isinstance(node, models.ModuleNode):
+                mirrored_data = mirror.mirror_node(module, node).to_dict()
+            elif isinstance(node, wire.NodeData):
+                parent = module.resolve(node.parent_id)
+                mirrored_data = mirror.unpack_node_flat(module, node, parent).to_dict()
+            else:
+                raise ValueError(f"unexpected node type: {node!r}")
+            ops.append({"index": {"_index": index, "_id": str(node.id)}})
             ops.append(mirrored_data)
         elif edit.type.kind == MEK.DELETE:
-            ops.append({"delete": {"_index": index, "_id": str(edit.thing.id)}})
+            ops.append({"delete": {"_index": index, "_id": str(node.id)}})
         else:
             raise ValueError(f"unexpected edit type: {edit!r}")
 

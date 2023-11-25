@@ -637,7 +637,7 @@ class RuntimeHost:
             edits=editor.edits,
             raise_on_apply_error=False,
         )
-        await write_edits_to_os(self.project_version, edits=editor.edits)
+        await write_edits_to_os(self.module, edits=editor.edits)
         # broadcast
         await self._publish_edits(editor.edits, origins=(self.client,))
 
@@ -734,7 +734,7 @@ class RuntimeHost:
         # mirror
         if schema_changed:
             await update_os_schema(self.project.os_name, self.module)
-        await write_edits_to_os(self.project_version, edits=change.all_edits + local_edits)
+        await write_edits_to_os(self.module, edits=change.all_edits + local_edits)
 
         duration = time.time() - start_time
         self.log.debug("module.write_edits.done", duration=duration, edited_nodes=len(edited_nodes))
