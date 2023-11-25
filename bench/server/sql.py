@@ -7,6 +7,8 @@ from bench.sql.engine import update_pg_schema
 
 logger = structlog.get_logger(__name__)
 
+USER_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES"
+
 
 async def create_local_pg_database(project: models.Project, *, upsert: bool) -> None:
     """
@@ -42,18 +44,17 @@ async def create_local_pg_database(project: models.Project, *, upsert: bool) -> 
             log.info("pg.create_db.create_owner.already_exists", username=project.pg_username)
         # grant full regular CRUD access to 'owner' user (no trigger or such)
         log.info("pg.create_db.create_owner.grant")
-        # revoke all privileges first (in case of upsert)
-        if exists:
-            await cur.execute(
-                sql.SQL("REVOKE ALL ON SCHEMA PUBLIC FROM {}").format(
-                    sql.Identifier(project.pg_username)
-                )
-            )
         # grant new
         await cur.execute(
-            sql.SQL(
-                "GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES ON ALL TABLES IN SCHEMA public TO {}"
-            ).format(
+            sql.SQL("GRANT {} ON ALL TABLES IN SCHEMA public TO {}").format(
+                sql.SQL(USER_PRIVILEGES),
+                sql.Identifier(project.pg_username),
+            )
+        )
+        # alter default privileges (to apply to all new tables)
+        await cur.execute(
+            sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT {} ON TABLES TO {}").format(
+                sql.SQL(USER_PRIVILEGES),
                 sql.Identifier(project.pg_username),
             )
         )
