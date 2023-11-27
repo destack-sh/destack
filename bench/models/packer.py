@@ -9,6 +9,7 @@ from __future__ import annotations
 import abc
 import typing
 from collections import defaultdict
+from datetime import datetime
 from typing import Collection, Optional, TypeVar
 from uuid import UUID
 
@@ -68,8 +69,8 @@ PackFilter = typing.Callable[[QuerySet[ModelT]], QuerySet[ModelT]]
 
 
 class PackMultiFilter:
-    def __init__(self, filters: list[tuple[typing.Type[ModelT], PackFilter]]):
-        self.filters: dict[typing.Type[ModelT], list[PackFilter]] = defaultdict(list)
+    def __init__(self, filters: Collection[tuple[typing.Type[ModelT], PackFilter]]):
+        self.filters: dict[typing.Type[ModelT], Collection[PackFilter]] = defaultdict(list)
         for type, filter in filters:
             self.filters[type].append(filter)
 
@@ -91,14 +92,36 @@ class PackMultiFilter:
         return qs
 
 
-DEFAULT_PACK_FILTERS = [
-    (models.File, lambda qs: qs.filter(deleted_at__isnull=True)),
-    (models.Statement, lambda qs: qs.filter(deleted_at__isnull=True)),
-    (models.Field, lambda qs: qs.filter(deleted_at__isnull=True)),
-    (models.Tagging, lambda qs: qs.filter(deleted_at__isnull=True)),
-    (models.Trigger, lambda qs: qs.filter(deleted_at__isnull=True)),
-]
-DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
+NODE_MODELS: tuple[typing.Type[ModelT], ...] = (
+    models.File,
+    models.Statement,
+    models.Field,
+    models.Trigger,
+    models.Tagging,
+)
+
+
+def get_default_pack_filters(
+    deleted_at: Optional[None, datetime, Collection[datetime]]
+) -> PackMultiFilter:
+    if deleted_at is None:
+        filters = tuple(
+            (model, lambda qs: qs.filter(deleted_at__isnull=True)) for model in NODE_MODELS
+        )
+    elif isinstance(deleted_at, datetime):
+        filters = tuple(
+            (model, lambda qs: qs.filter(deleted_at=deleted_at)) for model in NODE_MODELS
+        )
+    elif isinstance(deleted_at, list):
+        filters = tuple(
+            (model, lambda qs: qs.filter(deleted_at__in=deleted_at)) for model in NODE_MODELS
+        )
+    else:
+        raise ValueError(f"invalid deleted_at: {deleted_at}")
+    return PackMultiFilter(filters)
+
+
+DEFAULT_PACK_FILTER = get_default_pack_filters(deleted_at=None)
 DEFAULT_EXCLUDED = ()
 
 # registered packers
@@ -308,7 +331,7 @@ def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
 @node_packer(MNT.MODULE, wire.ModuleData, models.ProjectVersion)
 class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
     def walk(self, nodes: list[models.ProjectVersion], tree: PackContext) -> list[QuerySet[Model]]:
-        return [models.File.objects.filter(project_version__in=nodes)]
+        return [models.File._base_manager.filter(project_version__in=nodes)]
 
     def pack(self, module: models.ProjectVersion) -> wire.ModuleData:
         return wire.ModuleData(
@@ -330,8 +353,8 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
 class FilePacker(NodePacker[wire.FileData, models.File]):
     def walk(self, nodes: list[models.File], tree: PackContext) -> list[QuerySet[Model]]:
         return [
-            models.Statement.objects.filter(file__in=nodes),
-            models.Issue.objects.filter(parent_file__in=nodes),
+            models.Statement._base_manager.filter(file__in=nodes),
+            models.Issue._base_manager.filter(parent_file__in=nodes),
         ]
 
     def pack(self, file: models.File) -> wire.FileData:
@@ -369,11 +392,11 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
 class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: "PackContext") -> list[QuerySet[Model]]:
         return [
-            models.Issue.objects.filter(parent_statement__in=nodes),
-            models.ResolvedField.objects.filter(statement__in=nodes),
-            models.Field.objects.filter(statement__in=nodes),
-            models.Tagging.objects.filter(statement__in=nodes),
-            models.Trigger.objects.filter(statement__in=nodes),
+            models.Issue._base_manager.filter(parent_statement__in=nodes),
+            models.ResolvedField._base_manager.filter(statement__in=nodes),
+            models.Field._base_manager.filter(statement__in=nodes),
+            models.Tagging._base_manager.filter(statement__in=nodes),
+            models.Trigger._base_manager.filter(statement__in=nodes),
         ]
 
     def pack(self, statement: models.Statement) -> wire.StatementData:
@@ -879,16 +902,16 @@ def write_host_db_edits(
             model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
             if statement_ids:
                 if hasattr(model_cls, "statement"):
-                    model_cls.objects.filter(statement_id__in=statement_ids).delete()
+                    model_cls._base_manager.filter(statement_id__in=statement_ids).delete()
                 else:
-                    model_cls.objects.filter(parent_statement_id__in=statement_ids).delete()
+                    model_cls._base_manager.filter(parent_statement_id__in=statement_ids).delete()
             elif file_ids:
                 if hasattr(model_cls, "file"):
-                    model_cls.objects.filter(file_id__in=file_ids).delete()
+                    model_cls._base_manager.filter(file_id__in=file_ids).delete()
                 else:
-                    model_cls.objects.filter(parent_file_id__in=file_ids).delete()
+                    model_cls._base_manager.filter(parent_file_id__in=file_ids).delete()
             else:
-                model_cls.objects.filter(project_version_id=project_v.id).delete()
+                model_cls._base_manager.filter(project_version_id=project_v.id).delete()
 
         elif met.kind == MEK.CREATE:
             # create nodes
@@ -896,7 +919,7 @@ def write_host_db_edits(
             model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
             model_cls.objects.bulk_create(nodes)
             # reload nodes (e.g., for revisions)
-            nodes = model_cls.objects.filter(id__in=[e.node.id for e in batch])
+            nodes = model_cls._base_manager.filter(id__in=[e.node.id for e in batch])
             for e, node in zip(batch, nodes):
                 e.node = pack_node_flat(node)
                 e.thing = node  # keep node model for downstream indexing in opensearch
@@ -906,11 +929,13 @@ def write_host_db_edits(
             # update nodes in place
             nodes = unpack_nodes(project_v, source, [e.node for e in batch])
             model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
-            if met.kind in (MEK.SOFT_DELETE, MEK.RESTORE):
-                # manually update deleted_at since it's not in node data (for now?)
-                deleted_at = now if met.kind == MEK.SOFT_DELETE else None
+            if met.kind == MEK.SOFT_DELETE:
                 for node in nodes:
-                    node.deleted_at = deleted_at
+                    node.deleted_at = node.deleted_at or now
+                cru_properties = ["deleted_at"]
+            elif met.kind == MEK.RESTORE:
+                for node in nodes:
+                    node.deleted_at = None
                 cru_properties = ["deleted_at"]
             else:
                 for node in nodes:
@@ -944,7 +969,7 @@ def write_host_db_edits(
                         f"failed to update {len(nodes)} {model_cls} ({properties}, got {num_updated})"
                     )
             # reload nodes (e.g., for revisions)
-            nodes = model_cls.objects.filter(id__in=[e.node.id for e in batch])
+            nodes = model_cls._base_manager.filter(id__in=[e.node.id for e in batch])
             for e, node in zip(batch, nodes):
                 e.node = pack_node_flat(node)
                 e.thing = node  # keep node model for downstream indexing in opensearch

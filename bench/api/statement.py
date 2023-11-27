@@ -322,7 +322,6 @@ class StatementMutation:
     def restore_statement(self, input: StatementRestoreInput) -> Statement | OperationInfo:
         # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)
-        statement.deleted_at = None
         return statement
 
     @bench_edit(MET.DELETE_STATEMENT)
@@ -366,8 +365,6 @@ class StatementMutation:
         statement_ids = [UUID(i.node_id) for i in input.ids]
         # imitate Statement.restore but for a batch
         statements = models.Statement._base_manager.filter(id__in=statement_ids)
-        for statement in statements:
-            statement.deleted_at = None
         return StatementBatch(statements=list(statements))
 
     @bench_edit(MET.MOVE_STATEMENT, batch=True, register=False)
@@ -730,7 +727,6 @@ class SymbolMutation:
     @bench_edit(MET.RESTORE_FIELD)
     def restore_field(self, input: FieldRestoreInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
-        field.deleted_at = None
         return field
 
     @bench_edit(MET.CREATE_TAGGING)
@@ -764,7 +760,6 @@ class SymbolMutation:
     @bench_edit(MET.RESTORE_TAGGING)
     def restore_tagging(self, input: TaggingRestoreInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
-        tagging.deleted_at = None
         return tagging
 
     @bench_edit(MET.CREATE_TRIGGER)
@@ -812,5 +807,4 @@ class SymbolMutation:
     @bench_edit(MET.RESTORE_TRIGGER)
     def restore_trigger(self, input: TriggerRestoreInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
-        trigger.deleted_at = None
         return trigger

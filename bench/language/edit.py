@@ -5,6 +5,7 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 """
 import enum
 from dataclasses import dataclass, replace
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -22,6 +23,7 @@ from more_itertools import first
 from bench.language.const import INTERP_NODE_TYPES, NodeType, TypeFlag, TypeTag
 from bench.language.module import UNSET, Module, Node, NodeTree, NRel
 from bench.language.text import Text, render_text_simple
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.serialize import from_dict
 from bench.utils.utils import format_python, omit_empty
 
@@ -117,7 +119,7 @@ class EditType(enum.StrEnum):
 
     @staticmethod
     def from_nt(mmk: "EditKind", nt: "NodeType") -> "EditType":
-        return EditType(f"{mmk.value}_{nt.value.upper()}")
+        return EditType(f"{mmk.value}_{nt.caps_name}")
 
 
 class EditKind(enum.StrEnum):
@@ -142,7 +144,7 @@ _MODULE_EDIT_MAP: dict[MET, tuple[MEK, MNT]] = {
     MET.SOFT_DELETE_FILE: (MEK.SOFT_DELETE, MNT.FILE),
     MET.RESTORE_FILE: (MEK.RESTORE, MNT.FILE),
     MET.RENAME_FILE: (MEK.UPDATE, MNT.FILE),
-    MET.MOVE_FILE: (MEK.UPDATE, MNT.FILE),
+    MET.MOVE_FILE: (MEK.MOVE, MNT.FILE),
     MET.UPDATE_FILE: (MEK.UPDATE, MNT.FILE),
     MET.DELETE_FILE: (MEK.DELETE, MNT.FILE),
     # Statements
@@ -152,7 +154,7 @@ _MODULE_EDIT_MAP: dict[MET, tuple[MEK, MNT]] = {
     MET.SOFT_DELETE_STATEMENT: (MEK.SOFT_DELETE, MNT.STATEMENT),
     MET.RESTORE_STATEMENT: (MEK.RESTORE, MNT.STATEMENT),
     MET.MORPH_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
-    MET.MOVE_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
+    MET.MOVE_STATEMENT: (MEK.MOVE, MNT.STATEMENT),
     MET.RENAME_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
     MET.UPDATE_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
     MET.DELETE_STATEMENT: (MEK.DELETE, MNT.STATEMENT),
@@ -185,7 +187,7 @@ _MODULE_EDIT_MAP: dict[MET, tuple[MEK, MNT]] = {
     MET.RENAME_FIELD: (MEK.UPDATE, MNT.FIELD),
     MET.UPDATE_FIELD_TEXT: (MEK.UPDATE, MNT.FIELD),
     MET.UPDATE_FIELD_TYPE: (MEK.UPDATE, MNT.FIELD),
-    MET.MOVE_FIELD: (MEK.UPDATE, MNT.FIELD),
+    MET.MOVE_FIELD: (MEK.MOVE, MNT.FIELD),
     MET.DELETE_FIELD: (MEK.DELETE, MNT.FIELD),
     MET.SOFT_DELETE_FIELD: (MEK.SOFT_DELETE, MNT.FIELD),
     MET.RESTORE_FIELD: (MEK.RESTORE, MNT.FIELD),
@@ -323,12 +325,7 @@ def pack_node_flat_if_needed(node: Union[Node, "NodeData"]) -> "NodeData":
 
 
 class NodeTreeEditor:
-    """
-    Create any apply edits to a module node tree.
-    TODO @Cleanup: split module mutator into edit creation and application
-     also @Performance: pre-filter edits to track
-      (e.g. to exclude interp edits in worker, see :InterpFilter)
-    """
+    """Create edits to a module node tree."""
 
     def __init__(
         self,
@@ -355,9 +352,7 @@ class NodeTreeEditor:
     def reset(self):
         self.edits = []
 
-    def _do(
-        self, type: MET, node: "NodeData", apply: bool = True, properties: list[str] = None
-    ) -> "NodeTreeEditor":
+    def _make_edit(self, type: MET, node: "NodeData", properties: list[str] = None) -> "EditData":
         from bench.language import wire
 
         if isinstance(node, wire.StatementData):
@@ -389,86 +384,67 @@ class NodeTreeEditor:
         )
         edit.node = node
         self.edits.append(edit)
-        if apply:
-            self.apply(edit)
-        return self
+        return edit
 
-    def apply(self, edit: EditData, raise_on_error: bool = True):
-        try:
-            if edit.type.kind in (MEK.CREATE, MEK.RESTORE):
-                self.tree.add(edit.node)
-            elif edit.type.kind in (MEK.UPDATE, MEK.MOVE):
-                self.tree.replace(edit.node)
-            elif edit.type.kind in (MEK.DELETE, MEK.SOFT_DELETE):
-                self.tree.remove(edit.node)
-            elif edit.type.kind == MEK.TRUNCATE:
-                self.tree.truncate(edit.node, edit.mnt)
-            else:
-                raise ValueError(f"unexpected edit kind {edit}")
-        except Exception as e:
-            if raise_on_error:
-                raise ValueError(f"failed to apply {edit} to {self.tree!r}") from e
+    def _pack_node_flat_if_needed(self, node: Union[Node, "NodeData"]) -> "NodeData":
+        from bench.language import wire
 
-    def apply_all(self, edits: list[EditData], raise_on_error: bool = True):
-        for e in edits:
-            self.apply(e, raise_on_error=raise_on_error)
+        if isinstance(node, wire.NodeData):
+            return replace(node)  # shallow copy
+        else:
+            return wire.pack_node_flat(node)
 
-    def truncate(
-        self, node: Union["NodeData", Node], mnt: MNT, apply: bool = True
-    ) -> "NodeTreeEditor":
-        node = pack_node_flat_if_needed(node)
-        mmt = MET(f"TRUNCATE_{mnt.caps_name}S")
-        self._do(mmt, node, apply=apply)
-        return self
+    def truncate(self, node: Union["NodeData", Node], mnt: MNT) -> "EditData":
+        return self._make_edit(
+            EditType(f"TRUNCATE_{mnt.caps_name}S"), node=self._pack_node_flat_if_needed(node)
+        )
 
-    def create_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
-        for obj in nodes:
-            self.create(obj, apply=apply)
-        return self
+    def create_many(self, *nodes: Union["NodeData", Node]) -> list["EditData"]:
+        return [self.create(node) for node in nodes]
 
-    def create(self, node: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
-        from bench.language.wire import MNT_BY_DATA_CLASS
+    def create(self, node: Union["NodeData", Node]) -> "EditData":
+        return self._make_edit(
+            MET.from_nt(MEK.CREATE, node.mnt), node=self._pack_node_flat_if_needed(node)
+        )
 
-        node = pack_node_flat_if_needed(node)
-        mnt = MNT_BY_DATA_CLASS[type(node)]
-        mmt = MET(f"CREATE_{mnt.caps_name}")
-        self._do(mmt, node, apply=apply)
-        return self
-
-    def update_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
-        for obj in nodes:
-            self.update(obj, apply=apply)
-        return self
-
-    def update(
-        self, node: Union["NodeData", Node], apply: bool = True, properties: list[str] = None
-    ) -> "NodeTreeEditor":
-        from bench.language.wire import MNT_BY_DATA_CLASS
-
+    def update(self, node: Union["NodeData", Node], properties: list[str] = None) -> "EditData":
         assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
+        return self._make_edit(
+            type=MET.from_nt(MEK.UPDATE, node.mnt),
+            node=self._pack_node_flat_if_needed(node),
+            properties=properties,
+        )
 
-        node = pack_node_flat_if_needed(node)
-        mnt = MNT_BY_DATA_CLASS[type(node)]
-        mmt = MET(f"UPDATE_{mnt.caps_name}")
-        self._do(mmt, node, apply=apply, properties=properties)
-        return self
+    def move(self, node: Union["NodeData", Node]) -> "EditData":
+        return self._make_edit(
+            type=MET.from_nt(MEK.MOVE, node.mnt), node=self._pack_node_flat_if_needed(node)
+        )
 
-    def delete_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
-        for obj in nodes:
-            self.delete(obj, apply=apply)
-        return self
+    def soft_delete_many(
+        self, *nodes: Union["NodeData", Node], deleted_at: datetime | None = None
+    ) -> list["EditData"]:
+        return [self.soft_delete(node, deleted_at) for node in nodes]
 
-    def delete(self, node: Union["NodeData", Node], apply: bool = True) -> "NodeTreeEditor":
-        from bench.language.wire import MNT_BY_DATA_CLASS
+    def soft_delete(
+        self, node: Union["NodeData", Node], deleted_at: datetime | None = None
+    ) -> "EditData":
+        # sneakily convert soft delete into hard delete for interp types
+        if node.mnt in INTERP_NODE_TYPES:
+            return self.delete(node)
+        node = self._pack_node_flat_if_needed(node)
+        node.deleted_at = deleted_at or utcnow_with_tz()
+        return self._make_edit(type=MET.from_nt(MEK.SOFT_DELETE, node.mnt), node=node)
 
-        node = pack_node_flat_if_needed(node)
-        mnt = MNT_BY_DATA_CLASS[type(node)]
-        mmt = MET(f"DELETE_{mnt.caps_name}")
-        self._do(mmt, node, apply=apply)
-        return self
+    def restore(self, node: Union["NodeData", Node]) -> "EditData":
+        node = self._pack_node_flat_if_needed(node)
+        node.deleted_at = None
+        return self._make_edit(type=MET.from_nt(MEK.RESTORE, node.mnt), node=node)
 
-    def bundle(self) -> "EditBundle":
-        return EditBundle(self.edits)
+    def delete(self, node: Union["NodeData", Node]) -> "EditData":
+        return self._make_edit(
+            type=MET.from_nt(MEK.DELETE, node.mnt),
+            node=self._pack_node_flat_if_needed(node),
+        )
 
 
 class EditBundle:
@@ -507,7 +483,6 @@ class EditBundle:
         tree: NodeTree,
         project_id: UUID,
         module_id: UUID,
-        apply: bool = True,
         raise_on_error: bool = True,
     ) -> Iterator[tuple[MET, list[EditData]]]:
         """
@@ -516,12 +491,13 @@ class EditBundle:
         (there may be multiple batches of the same type).
         """
 
-        if not apply:
-            yield from self.batched()
-            return
-        editor = NodeTreeEditor(tree, project_id, module_id)
         for type, batch in self.batched():
-            editor.apply_all(batch, raise_on_error=raise_on_error)
+            for edit in batch:
+                try:
+                    tree.apply_edit(edit)
+                except ValueError:
+                    if raise_on_error:
+                        raise
             yield type, batch
 
 
