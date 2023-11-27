@@ -479,11 +479,7 @@ class EditBundle:
             yield current_type, current_batch
 
     def batched_apply(
-        self,
-        tree: NodeTree,
-        project_id: UUID,
-        module_id: UUID,
-        raise_on_error: bool = True,
+        self, tree: NodeTree, raise_on_error: bool = True
     ) -> Iterator[tuple[MET, list[EditData]]]:
         """
         Batch consecutive edits by type in order of appearance
@@ -492,13 +488,13 @@ class EditBundle:
         """
 
         for type, batch in self.batched():
+            yield type, batch
             for edit in batch:
                 try:
                     tree.apply_edit(edit)
                 except ValueError:
                     if raise_on_error:
                         raise
-            yield type, batch
 
 
 def diff_modules(

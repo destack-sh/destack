@@ -303,7 +303,8 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       // after delete focus next statement above
       if (panel.value == null) return;
       panel.value?.blurElement();
-      await ops.statement.batchSoftDelete(panel.value?.selectedElementIds);
+      const selectedRoots = file.value?.getSelectedRoots();
+      await ops.statement.batchSoftDelete(selectedRoots?.map((s) => s?.id) ?? []);
     },
   });
 

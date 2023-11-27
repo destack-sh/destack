@@ -689,17 +689,23 @@ class RuntimeHost:
                 if not any(e.node.id == r.id for r in soft_deleted_roots)
             ]
             cascade_edits.extend(soft_delete_edits)
-            log.debug("runtime.write_edits.soft_delete", soft_deleted=soft_delete_edits)
+            log.debug(
+                "runtime.write_edits.soft_delete",
+                soft_deleted=soft_delete_edits,
+                deleted_at=deleted_at,
+            )
         if any(e.kind == EditKind.RESTORE for e in host_edits):
             # cascade restore from DB (use uniform deleted_at to select nodes)
             restored_roots = [e.node for e in host_edits if e.kind == EditKind.RESTORE]
             restored_roots = packer.unpack_nodes(
                 self.project_version, self.module._source, restored_roots
             )
+            deleted_at = [None, *(r.deleted_at for r in restored_roots)]
+            assert not all(d is None for d in deleted_at), f"no deleted_at found in {host_edits!r}"
             restored = await sync_to_async(packer.pack_node)(
                 *restored_roots,
                 excluded=INTERP_NODE_TYPES,
-                filter=get_default_pack_filters([None, *(r.deleted_at for r in restored_roots)]),
+                filter=get_default_pack_filters(deleted_at),
             )
             editor = self._edit(old_source)
             for node in restored.nodes_list():
@@ -708,7 +714,7 @@ class RuntimeHost:
                 if not any(node.id == r.id for r in restored_roots):
                     restore_edits.append(restore_edit)
             cascade_edits.extend(restore_edits)
-            log.debug("runtime.write_edits.restore", restored=restore_edits)
+            log.debug("runtime.write_edits.restore", restored=restore_edits, deleted_at=deleted_at)
 
         # apply
         edited_nodes: list[wire.NodeData] = []
@@ -811,7 +817,8 @@ class RuntimeHost:
         # apply copy as edits
         editor = self._edit()
         for node in copy.nodes_by_id.values():
-            editor.create(node)
+            edit = editor.create(node)
+            editor.tree.apply_edit(edit)
         await self.write_edits(editor.edits)
         # we don't include origins because we use the edit publishing to get the results
         #  (and if we include the origin, the frontend will auto-ignore its own edits;

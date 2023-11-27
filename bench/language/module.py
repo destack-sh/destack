@@ -108,6 +108,8 @@ class NodeRelationType(enum.IntFlag):
 
 NRel = NodeRelationType
 
+FLATTENED_RELATIONS = ((MNT.MODULE, MNT.FILE), (MNT.FILE, MNT.STATEMENT))
+
 UNSET = object()
 
 
