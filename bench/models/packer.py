@@ -16,6 +16,7 @@ from uuid import UUID
 import structlog
 from django.db import transaction
 from django.db.models import F, Model, QuerySet
+from django.db.models.expressions import RawSQL
 
 from bench import models
 from bench.language import IssueType, StatementType, TypeHint, TypeTag, wire
@@ -205,15 +206,49 @@ class _PackedCopy(typing.NamedTuple):
 
 
 def collect_node(
-    *roots: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER, excluded: Collection[ModelT] = None
+    *roots: ModelT,
+    filter: PackFilter = DEFAULT_PACK_FILTER,
+    excluded: Collection[ModelT] = None,
+    recurse_flat_root: bool = True,
 ) -> _VisitedTree:
-    """Collect a node and its descendants"""
+    """
+    Collect a node and its descendants.
+    If the roots are at a flattened level (e.g. file), we also collect their descendants.
+    """
     visited_by_id: dict[UUID, NodeT] = {}
     visited_by_node_t: dict[typing.Type[NodeT], list[UUID]] = defaultdict(list)
     visited_by_parent: dict[UUID, list[NodeT]] = defaultdict(list)
     ctx = PackContext()
-
     to_pack: list[ModelT] = [*roots]
+
+    if recurse_flat_root:
+        # collect descendants at the root level
+        for root in roots:
+            root_mnt = MNT_BY_BASE_MODEL_CLASS[type(root)]
+            if root_mnt not in (MNT.FILE, MNT.STATEMENT) or excluded and type(root) in excluded:
+                continue
+            # queryset for recursive parent_<mnt>_id descendants
+            query = """
+            WITH RECURSIVE descendants(id, parent_{type}_id) AS (
+                SELECT id, parent_{type}_id
+                FROM bench_{type}
+                WHERE id = ANY(%s)
+                UNION ALL
+                SELECT bench_{type}.id, bench_{type}.parent_{type}_id
+                FROM bench_{type}
+                INNER JOIN descendants ON descendants.id = bench_{type}.parent_{type}_id
+            )
+            SELECT DISTINCT id
+             FROM descendants
+            """.format(
+                type=root_mnt.value.lower()
+            )
+            qs = BASE_MODEL_CLASS_BY_MNT[root_mnt]._base_manager.filter(
+                id__in=RawSQL(query, ([root.id],))
+            )
+            qs = filter(qs)
+            to_pack.extend(qs)
+
     while to_pack:
         # assemble different packers and nodes by type
         packers: dict[NodePacker, list[ModelT]] = defaultdict(list)
@@ -305,12 +340,14 @@ def unpack_nodes(
     unpacked_nodes = []
     ancestors_by_id = {project_v.id: project_v}
     for node in nodes:
-        ancestors = module.get_ancestors(node.parent_id, include_self=True)
-        for ancestor in reversed(ancestors):
-            if ancestor.id not in ancestors_by_id:
-                parent = ancestors_by_id.get(ancestor.parent_id)
-                unpacked = unpack_node_flat(ancestor, parent)
-                ancestors_by_id[ancestor.id] = unpacked
+        if node.parent_id not in ancestors_by_id:
+            # ancestor may already be unpacked
+            ancestors = module.get_ancestors(node.parent_id, include_self=True)
+            for ancestor in reversed(ancestors):
+                if ancestor.id not in ancestors_by_id:
+                    parent = ancestors_by_id.get(ancestor.parent_id)
+                    unpacked = unpack_node_flat(ancestor, parent)
+                    ancestors_by_id[ancestor.id] = unpacked
         node = unpack_node_flat(node, ancestors_by_id[node.parent_id])
         unpacked_nodes.append(node)
     return unpacked_nodes
@@ -889,9 +926,7 @@ def write_host_db_edits(
     now = utcnow_with_tz()
     edited_nodes: list[NodeDataT] = []
 
-    for met, batch in edits.batched_apply(
-        source, project_v.project_id, project_v.id, raise_on_error=raise_on_apply_error
-    ):
+    for met, batch in edits.batched_apply(source, raise_on_error=raise_on_apply_error):
         if met.mnt in (MNT.RECORD,):  # can't do local edits in host..
             raise RuntimeError(f"unexpected host edit {met}: {batch!r}")
         if met.kind == MEK.TRUNCATE:

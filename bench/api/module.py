@@ -12,6 +12,7 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_module_node_access
 from bench.api.utils import ModuleNode
+from bench.language.module import FLATTENED_RELATIONS
 from bench.models import ModuleAccessLevel, packer
 from bench.models.packer import MNT_BY_BASE_MODEL_CLASS
 
@@ -113,10 +114,6 @@ def _inline_fragments(
 
 
 ALLOWED_EXTERNAL_RELATIONS = {models.Project, models.User}
-FLATTENED_RELATIONS = {
-    (models.ProjectVersion, models.File),
-    (models.File, models.Statement),
-}
 
 
 def read_module_node_by_id(info: Info, id: GlobalID) -> Optional[ModuleNode] | OperationInfo:
@@ -154,7 +151,7 @@ def read_module_node(
     excluded = MNT_BY_BASE_MODEL_CLASS.keys() - included
 
     # collect them
-    tree = packer.collect_node(node, excluded=excluded)
+    tree = packer.collect_node(node, excluded=excluded, recurse_flat_root=False)
     logger.debug(
         "module.read_node.resolve",
         id=node.id,
@@ -225,7 +222,10 @@ def _resolve_node(
         elif django_field.one_to_many or django_field.many_to_many:
             related = []
             # for flattened relations get all descendants (of same type)
-            if (type(n), django_field.related_model) in FLATTENED_RELATIONS:
+            if (
+                MNT_BY_BASE_MODEL_CLASS[type(n)],
+                MNT_BY_BASE_MODEL_CLASS[django_field.related_model],
+            ) in FLATTENED_RELATIONS:
                 # collect descendants of same type
                 remaining = children.get(n.id, [])
                 while remaining:

@@ -2,6 +2,7 @@ import functools
 import inspect
 from inspect import Signature
 from typing import Any, Callable, Optional, Sequence
+from uuid import UUID
 
 import strawberry
 import structlog
@@ -105,8 +106,9 @@ def bench_edit(
                 raise RuntimeError(f"failed to write edits: {rep.p.error}")
 
             # use returned nodes as return value (assuming their values, ignore any other new nodes)
-            edited_nodes = [n for n in rep.p.nodes if n.mnt == type.mnt]
-            for updated_node, thing in zip(edited_nodes, things):
+            edited_nodes_by_id: dict[UUID, wire.NodeData] = {n.id: n for n in rep.p.nodes}
+            for thing in things:
+                updated_node = edited_nodes_by_id[thing.id]
                 for key in updated_node.__dict__.keys():
                     if hasattr(thing, key) and getattr(thing, key) != getattr(updated_node, key):
                         thing.__dict__[key] = getattr(updated_node, key)
