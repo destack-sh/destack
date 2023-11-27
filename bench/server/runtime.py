@@ -40,7 +40,7 @@ from bench.language.edit import EditData, EditKind, NodeTreeEditor
 from bench.language.expression import SCORE_KEY, C, S
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
-from bench.language.module import NodeTree
+from bench.language.module import NodeTree, walk_bfs
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
@@ -816,13 +816,13 @@ class RuntimeHost:
 
         # apply copy as edits
         editor = self._edit()
-        for node in copy.nodes_by_id.values():
+        for node in walk_bfs(copy.nodes_by_id.values()):
             edit = editor.create(node)
             editor.tree.apply_edit(edit)
-        await self.write_edits(editor.edits)
         # we don't include origins because we use the edit publishing to get the results
         #  (and if we include the origin, the frontend will auto-ignore its own edits;
         #   this is faster and easier with the current API edit/load mechanism)
+        await self.write_edits(editor.edits, origins=None)
 
         # paste versioned databases (with new cks)
         target_databases: list["HasDatabase"] = [
