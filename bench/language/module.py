@@ -1232,6 +1232,20 @@ class NodeList(NodeListBase[NodeT]):
 NT = typing.TypeVar("NT")
 
 
+def walk_bfs(nodes: Collection[NT]) -> Iterator[NT]:
+    """Walks nodes in BFS order."""
+    node_ids = {n.id for n in nodes}
+    nodes_by_parent_id = defaultdict(list)
+    for node in nodes:
+        nodes_by_parent_id[node.parent_id].append(node)
+
+    queue = deque(n for n in nodes if n.parent_id not in node_ids)
+    while queue:
+        node = queue.popleft()
+        yield node
+        queue.extend(nodes_by_parent_id[node.id])
+
+
 class NodeTreeBase(abc.ABC, typing.Generic[NT]):
     @property
     def nodes(self) -> Collection[NT]:

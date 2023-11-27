@@ -882,7 +882,8 @@ export function useStatementOps() {
     targetCks: string[],
     targetFileId: string,
     targetParentIds: (string | null)[],
-    targetOrderKeys: string[]
+    targetOrderKeys: string[],
+    targetRootIds: string[]
   ) {
     await ops.perform({
       type: "statement.batchPaste",
@@ -897,10 +898,10 @@ export function useStatementOps() {
         });
       },
       undo: async () => {
-        return await batchSoftDeleteStatementMut({ ids: targetIds });
+        return await batchSoftDeleteStatementMut({ ids: targetRootIds });
       },
       redo: async () => {
-        return await batchRestoreStatementMut({ ids: targetIds });
+        return await batchRestoreStatementMut({ ids: targetRootIds });
       },
     });
   }

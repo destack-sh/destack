@@ -9,6 +9,7 @@ from __future__ import annotations
 import abc
 import typing
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Collection, Optional, TypeVar
 from uuid import UUID
@@ -193,7 +194,8 @@ class _Packed(typing.NamedTuple):
         return list(self.nodes_by_id.values())
 
 
-class _PackedCopy(typing.NamedTuple):
+@dataclass
+class _PackedCopy:
     roots: list[NodeDataT]
     nodes_by_id: dict[UUID, NodeDataT]
     target_ids: dict[UUID, UUID]
@@ -340,16 +342,16 @@ def unpack_nodes(
     unpacked_nodes = []
     ancestors_by_id = {project_v.id: project_v}
     for node in nodes:
-        if node.parent_id not in ancestors_by_id:
-            # ancestor may already be unpacked
+        if node.parent_id not in ancestors_by_id:  # ancestor may already be unpacked
             ancestors = module.get_ancestors(node.parent_id, include_self=True)
             for ancestor in reversed(ancestors):
                 if ancestor.id not in ancestors_by_id:
                     parent = ancestors_by_id.get(ancestor.parent_id)
                     unpacked = unpack_node_flat(ancestor, parent)
                     ancestors_by_id[ancestor.id] = unpacked
-        node = unpack_node_flat(node, ancestors_by_id[node.parent_id])
-        unpacked_nodes.append(node)
+        node_model = unpack_node_flat(node, ancestors_by_id[node.parent_id])
+        unpacked_nodes.append(node_model)
+        ancestors_by_id[node.id] = node_model
     return unpacked_nodes
 
 

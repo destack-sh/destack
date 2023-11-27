@@ -654,13 +654,15 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       component.pasting = true;
 
       // do the paste
+      const targetRootIds = sourceStatements.filter((s) => !s.parentInCopy).map((s) => targetIds[s.id]);
       await ops.statement.batchPaste(
         sourceIds,
         sourceIds.map((id) => targetIds[id]),
         sourceCks.map((ck) => targetCks[ck]),
         file.value?.file.id,
         targetParentIds,
-        targetOrderKeys
+        targetOrderKeys,
+        targetRootIds
       );
       component.pasting = false;
       console.log("pasted " + sourceStatements.length + " statements");
