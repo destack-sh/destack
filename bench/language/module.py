@@ -1249,7 +1249,7 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
         """Clear the tree"""
         raise NotImplementedError
 
-    def add(self, node: "Node"):
+    def add(self, node: "NT"):
         """Add a node to the tree (error if node already exists)"""
         raise NotImplementedError
 
@@ -1258,7 +1258,7 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
         for node in nodes:
             self.add(node)
 
-    def update(self, node: "Node"):
+    def update(self, node: "NT"):
         """Updates the node in this tree (must exist)"""
         raise NotImplementedError
 
@@ -1271,7 +1271,7 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
     def add_tree(self, tree: "DetachedNodeTree"):
         raise NotImplementedError
 
-    def remove(self, node: "Node"):
+    def remove(self, node: "NT"):
         """Remove a node from the tree (incl. all descendants if recursive)"""
         raise NotImplementedError
 
@@ -1287,12 +1287,29 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
         prefilter: bool = False,
         include_self: bool = False,
     ) -> list["NT"]:
-        """Gets all children descendants as filtered in BFS order"""
+        """Gets all descendants as filtered in BFS order"""
+        raise NotImplementedError
+
+    def collect_descendants(self, nodes: Collection[NT]) -> list["NT"]:
+        """Gets all descendants in BFS order"""
         raise NotImplementedError
 
     def get_ancestor(self, node_id_or_ck: UUID, mnt: MNT | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
         raise NotImplementedError
+
+    def apply_edit(self, edit: "EditData"):
+        """Applies a list of edits to the tree"""
+        from bench.language.edit import EditKind
+
+        if edit.kind in (EditKind.CREATE, EditKind.RESTORE):
+            self.add(edit.node)
+        elif edit.kind in (EditKind.UPDATE, EditKind.MOVE):  # move not yet supported
+            self.update(edit.node)
+        elif edit.kind in (EditKind.DELETE, EditKind.SOFT_DELETE):
+            self.remove(edit.node)
+        else:
+            raise ValueError(f"unexpected edit: {edit!r}")
 
 
 class NodeTree(NodeTreeBase[NT]):
@@ -1352,25 +1369,25 @@ class NodeTree(NodeTreeBase[NT]):
 
     def update(self, node: NT):
         """Updates a node in this tree (must exist)"""
-        if node.id not in self.nodes_by_id:
+        existing = self.nodes_by_id.get(node.id)
+        if existing is None:
             raise ValueError(f"node {node!r} does not exist in {self!r}")
         self.nodes_by_id[node.id] = node
         self.nodes_by_ck[node.ck] = node
+        if existing.parent_id is not None:
+            self.node_id_by_parent_id[existing.parent_id].remove(existing.id)
         if node.parent_id is not None:
             if node.parent_id not in self.node_id_by_parent_id:
                 self.node_id_by_parent_id[node.parent_id] = []
-            self.node_id_by_parent_id[node.parent_id].append(node.id)
+            if node.id not in self.node_id_by_parent_id[node.parent_id]:
+                self.node_id_by_parent_id[node.parent_id].append(node.id)
 
     def replace(self, node: NT):
         """Upsert a node in the tree (replace if node already exists)"""
         old_node = self.nodes_by_id.get(node.id)
         if old_node is not None and old_node.parent_id is not None:
             self.node_id_by_parent_id[old_node.parent_id].remove(node.id)
-        self.nodes_by_id[node.id] = node
-        self.nodes_by_ck[node.ck] = node
-        if node.parent_id not in self.node_id_by_parent_id:
-            self.node_id_by_parent_id[node.parent_id] = []
-        self.node_id_by_parent_id[node.parent_id].append(node.id)
+        self.update(node)
 
     def remove(self, node: NT):
         """Remove a node from the tree (incl. all descendants if recursive)"""
@@ -1528,6 +1545,20 @@ class NodeTree(NodeTreeBase[NT]):
             descendants = [n for n in descendants if n.mnt == mnt]
         return descendants
 
+    def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
+        """Gets all descendants in BFS order"""
+        descendants_by_ck: dict[UUID, NT] = {}
+        children = deque(nodes)
+        while children:
+            child = children.popleft()
+            if child.ck not in descendants_by_ck:
+                descendants_by_ck[child.ck] = child
+                if child.id in self.node_id_by_parent_id:
+                    children.extend(
+                        self.nodes_by_id[n] for n in self.node_id_by_parent_id[child.id]
+                    )
+        return descendants_by_ck.values()
+
     def get_ancestor(self, node_id_or_ck: UUID, mnt: MNT | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
         if node_id_or_ck in self.nodes_by_id:
@@ -1576,7 +1607,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
     def __init__(self):
         self.nodes_by_ck: dict[UUID, "Node"] = {}
-        self.node_ck_by_parent_ck: dict[UUID, list[Node]] = defaultdict(list)
+        self.nodes_by_parent_ck: dict[UUID, list[Node]] = defaultdict(list)
 
     def __str__(self):
         return f"{len(self.nodes_by_ck)} nodes"
@@ -1601,7 +1632,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
     def clear(self):
         """Clear the tree"""
         self.nodes_by_ck.clear()
-        self.node_ck_by_parent_ck.clear()
+        self.nodes_by_parent_ck.clear()
 
     def add(self, node: "Node"):
         """Add a node to the tree (error if node already exists)"""
@@ -1609,30 +1640,33 @@ class DetachedNodeTree(NodeTreeBase[NT]):
             raise ValueError(f"node {node!r} (ck={node.ck}) already exists in {self!r}")
         self.nodes_by_ck[node.ck] = node
         if node.parent is not None:
-            self.node_ck_by_parent_ck[node.parent.ck].append(node)
+            self.nodes_by_parent_ck[node.parent.ck].append(node)
 
     def update(self, node: "Node"):
         """Updates the node in this tree (must exist)"""
-        if node.ck not in self.nodes_by_ck:
+        existing = self.nodes_by_ck.get(node.ck)
+        if existing is None:
             raise ValueError(f"node {node!r} (ck={node.ck}) does not exist in {self!r}")
         self.nodes_by_ck[node.ck] = node
-        if node.parent is not None:
-            self.node_ck_by_parent_ck[node.parent.ck].append(node)
+        if existing.parent is not None and existing.parent in self.nodes_by_parent_ck:
+            self.nodes_by_parent_ck[existing.parent_id].remove(existing)
+        if node.parent is not None and node not in self.nodes_by_parent_ck[node.parent.ck]:
+            self.nodes_by_parent_ck[node.parent.ck].append(node)
 
     def add_tree(self, tree: "DetachedNodeTree"):
         assert type(self) == type(tree), f"cannot add {tree!r} to {self!r}"
         self.nodes_by_ck.update(tree.nodes_by_ck)
-        for parent_ck, children in tree.node_ck_by_parent_ck.items():
-            self.node_ck_by_parent_ck[parent_ck].extend(children)
+        for parent_ck, children in tree.nodes_by_parent_ck.items():
+            self.nodes_by_parent_ck[parent_ck].extend(children)
 
     def remove(self, node: "Node"):
         """Remove a node from the tree (incl. all descendants if recursive)"""
         descendants = self.get_descendants(node.ck, recursive=True, include_self=True)
         for descendant in descendants:
-            if descendant.ck in self.node_ck_by_parent_ck:
-                self.node_ck_by_parent_ck.pop(descendant.ck)
-            if descendant.parent and descendant.parent.ck in self.node_ck_by_parent_ck:
-                self.node_ck_by_parent_ck[descendant.parent.ck].remove(descendant)
+            if descendant.ck in self.nodes_by_parent_ck:
+                self.nodes_by_parent_ck.pop(descendant.ck)
+            if descendant.parent and descendant.parent.ck in self.nodes_by_parent_ck:
+                self.nodes_by_parent_ck[descendant.parent.ck].remove(descendant)
             if descendant.ck in self.nodes_by_ck:
                 self.nodes_by_ck.pop(descendant.ck)
 
@@ -1640,10 +1674,10 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         """Remove all descendants of a node"""
         descendants = self.get_descendants(node.ck, mnt, recursive=True)
         for descendant in descendants:
-            if descendant.ck in self.node_ck_by_parent_ck:
-                self.node_ck_by_parent_ck.pop(descendant.ck)
-            if descendant.parent and descendant.parent.ck in self.node_ck_by_parent_ck:
-                self.node_ck_by_parent_ck[descendant.parent.ck].remove(descendant)
+            if descendant.ck in self.nodes_by_parent_ck:
+                self.nodes_by_parent_ck.pop(descendant.ck)
+            if descendant.parent and descendant.parent.ck in self.nodes_by_parent_ck:
+                self.nodes_by_parent_ck[descendant.parent.ck].remove(descendant)
             self.nodes_by_ck.pop(descendant.ck)
 
     def get_descendants(
@@ -1657,7 +1691,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         """Gets all children descendants as filtered in BFS order"""
         children = [
             child
-            for child in self.node_ck_by_parent_ck.get(node_id_or_ck, [])
+            for child in self.nodes_by_parent_ck.get(node_id_or_ck, [])
             if not mnt or not prefilter or child.mnt == mnt
         ]
         descendants = []
@@ -1666,7 +1700,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         descendants.extend(children)
         if recursive:
             for child in children:
-                if child.ck not in self.node_ck_by_parent_ck:
+                if child.ck not in self.nodes_by_parent_ck:
                     continue
                 descendants.extend(
                     self.get_descendants(child.ck, mnt, prefilter=prefilter, recursive=True)
@@ -1674,6 +1708,18 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         if not prefilter and mnt:
             descendants = [n for n in descendants if n.mnt == mnt]
         return descendants
+
+    def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
+        """Gets all descendants in BFS order"""
+        descendants_by_ck: dict[UUID, NT] = {}
+        children = deque(nodes)
+        while children:
+            child = children.popleft()
+            if child.ck not in descendants_by_ck:
+                descendants_by_ck[child.ck] = child
+                if child.ck in self.nodes_by_parent_ck:
+                    children.extend(self.nodes_by_parent_ck[child.ck])
+        return descendants_by_ck.values()
 
     def get_ancestor(self, node_id_or_ck: UUID, mnt: MNT | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
@@ -2576,7 +2622,8 @@ class Module(ScopeNode):
         if prev_session:
             self.module._deactivate_self()
 
-        self.module._clear_rec()
+        if self.module._tree.nodes:  # may be force-reset (_rec methods wouldn't work)
+            self.module._clear_rec()
         self.module._tree.clear()
         _ = unpack_node(self._source, parent=self, session=None, exclude=INTERP_NODE_TYPES)
         self.module._interp_rec()
@@ -2586,12 +2633,15 @@ class Module(ScopeNode):
 
     def _apply_edits_to_source(self, edits: list["EditData"]) -> None:
         """Applies the edits directly to the source without any interp."""
-        from bench.language.edit import NodeTreeEditor
 
-        editor = NodeTreeEditor(self._source, self._project_id, self.id)
-        # errors are fine here since e.g. a deleted issue's parent may have disappeared
-        #  (we could filter that, but it's easier this way since it's more explicit for clients)
-        editor.apply_all(edits, raise_on_error=False)
+        for edit in edits:
+            try:
+                self._source.apply_edit(edit)
+            except ValueError as e:
+                if edit.mnt not in INTERP_NODE_TYPES:
+                    raise ValueError(f"failed to apply edit {edit!r} to {self!r}") from e
+                # interp errors are fine here since e.g. a deleted issue's parent may have disappeared
+                #  (we could filter that, but it's easier not to, the edits are explicit for clients)
 
     def _compute_change(
         self,
@@ -2625,12 +2675,11 @@ class Module(ScopeNode):
                     logger.warning(f"node {node!r} not found in old source for {self!r}")
                     continue
                 # recover parent info from old source
-                old_node = old_source.nodes_by_ck[node.ck]
-                old_editor.delete(old_node, apply=False)
+                old_editor.delete(old_source.nodes_by_ck[node.ck])
         new_editor = NodeTreeEditor(self._source, self._project_id, self.id)
         for node in added:
             if node.mnt in INTERP_NODE_TYPES:
-                new_editor.create(node, apply=False)
+                new_editor.create(node)
 
         return ModuleChange(
             source_edits=source_edits,

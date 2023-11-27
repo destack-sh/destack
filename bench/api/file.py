@@ -113,7 +113,6 @@ class FileMutation:
     def restore_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)
-        file.deleted_at = None
         return file
 
     @bench_edit(MET.MOVE_FILE)

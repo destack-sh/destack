@@ -40,12 +40,13 @@ from bench.language.edit import EditData, EditKind, NodeTreeEditor
 from bench.language.expression import SCORE_KEY, C, S
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
+from bench.language.module import NodeTree
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.language.validation import on_issue_raise
 from bench.models import Project, ProjectVersion, packer
-from bench.models.packer import write_host_db_edits, write_session
+from bench.models.packer import get_default_pack_filters, write_host_db_edits, write_session
 from bench.models.user import loops_request
 from bench.msg import NMessage
 from bench.msg.core import VERSION, handle_reply, message_handler, nc_init, publish, request
@@ -229,6 +230,7 @@ class RuntimeSupervisor(Monitored):
     async def _prepare_runtime_host(self, module_id: UUID) -> "RuntimeHost":
         runtime = self.runtimes.get(module_id)
         if runtime is None:
+            logger.info("runtime.prepare", module_id=module_id)
             # start language worker if not already started
             project_version = await ProjectVersion.objects.select_related(
                 "project", "project__user", "project__organization"
@@ -583,28 +585,37 @@ class RuntimeHost:
     def project_id(self) -> UUID:
         return self.project.id
 
-    def _new_editor(self) -> NodeTreeEditor:
+    def _edit(self, source: NodeTree | None = None) -> NodeTreeEditor:
         return NodeTreeEditor(
-            self.module._source.deepcopy(), project_id=self.project_id, module_id=self.module_id
+            source or self.module._source.deepcopy(),
+            project_id=self.project_id,
+            module_id=self.module_id,
         )
 
     async def run(self) -> None:
         # fetch and interp module
         assert not self.ready.is_set(), "runtime already started"
-        source, project = await read_module(self.module_ref)
-        self.module = await sync_to_async(Module.make)(
-            source=source.nodes,
-            project_id=project.id,
-            os_name=project.os_name,
-            pg_name=project.pg_name,
-        )
-        await self._reset_interp_state()
-        await update_os_schema(self.project.os_name, self.module)
-        await update_pg_schema(self.project.pg_name, self.module)
-        if not self.committed:  # module is only active at head...?
-            await self._update_local_triggers()
-            self.tasks.start(self.process_time_triggers_forever())
-            self.ready.set()
+
+        try:
+            source, project = await read_module(self.module_ref)
+            self.module = await sync_to_async(Module.make)(
+                source=source.nodes,
+                project_id=project.id,
+                os_name=project.os_name,
+                pg_name=project.pg_name,
+            )
+            await self._reset_interp_state()
+            await update_os_schema(self.project.os_name, self.module)
+            await update_pg_schema(self.project.pg_name, self.module)
+            if not self.committed:  # module is only active at head...?
+                await self._update_local_triggers()
+                self.tasks.start(self.process_time_triggers_forever())
+        except Exception as e:
+            sentry_capture(e)
+            logger.error("runtime.start.failed", exc_info=True)
+            raise
+
+        self.ready.set()
 
     async def _publish_edits(self, edits: list[EditData], origins: tuple[ClientOrigin, ...] = None):
         edits = [get_api_edit_from_internal(e) for e in edits]
@@ -621,15 +632,15 @@ class RuntimeHost:
 
     async def _reset_interp_state(self):
         """Resets, stores and broadcasts the module's interp nodes."""
-        self.log.debug("module.reset_interp_state")
+        self.log.debug("runtime.reset_interp_state")
         # gather interp changes (reset to 0)
-        editor = self._new_editor()
+        editor = self._edit()
         module_data = wire.pack_node_flat(self.module)
         for mnt in INTERP_NODE_TYPES:
-            editor.truncate(module_data, mnt, apply=False)
+            editor.truncate(module_data, mnt)
         for node in self.module._nodes:
             if node.mnt in INTERP_NODE_TYPES:
-                editor.create(node, apply=False)
+                editor.create(node)
         # write
         await sync_to_async(write_host_db_edits)(
             self.project_version,
@@ -651,7 +662,7 @@ class RuntimeHost:
          publishes the complete changes and then mirrors them into the search index.
         This is the main point of entry for ALL edits (frontend, workers, etc.);
          but record edits may bypass this and write directly to the local DB via the worker.
-        TODO @Robustness: support two-phase commit for record edit :TwoPhaseCommit
+        TODO @Robustness: support two-phase commit for host/local edit :TwoPhaseCommit
         """
         if not edits:
             return []  # bail
@@ -660,49 +671,60 @@ class RuntimeHost:
         host_edits, local_edits = partition(lambda e: e.mnt == MNT.RECORD, edits)
         del edits  # refer explicitly to host/local edits
         log = self.log.bind(host_edits=host_edits, local_edits=local_edits, origins=origins)
-        log.debug("module.write_edits")
+        log.debug("runtime.write_edits")
+        old_source = self.module._source.deepcopy()  # TODO @Performance: don't deepcopy on edit?
 
-        cascade_edits = []
-        # expand restore edits to include all descendants from DB (where soft deleted nodes retire)
+        # cascade soft delete/restore edits against affected descendant nodes in DB
+        cascade_edits, soft_delete_edits, restore_edits = [], [], []
+        if any(e.kind == EditKind.SOFT_DELETE for e in host_edits):
+            # cascade soft deletes through local tree (set uniform deleted_at for restore)
+            soft_deleted_roots = [e.node for e in host_edits if e.kind == EditKind.SOFT_DELETE]
+            deleted_at = first(
+                (n.deleted_at for n in soft_deleted_roots if n.deleted_at), utcnow_with_tz()
+            )
+            soft_deleted = self.module._local_tree.collect_descendants(soft_deleted_roots)
+            soft_delete_edits = [
+                e
+                for e in self._edit().soft_delete_many(*soft_deleted, deleted_at=deleted_at)
+                if not any(e.node.id == r.id for r in soft_deleted_roots)
+            ]
+            cascade_edits.extend(soft_delete_edits)
+            log.debug("runtime.write_edits.soft_delete", soft_deleted=soft_delete_edits)
         if any(e.kind == EditKind.RESTORE for e in host_edits):
+            # cascade restore from DB (use uniform deleted_at to select nodes)
+            restored_roots = [e.node for e in host_edits if e.kind == EditKind.RESTORE]
             restored_roots = packer.unpack_nodes(
-                self.project_version,
-                self.module._source,
-                [e.node for e in host_edits if e.kind == EditKind.RESTORE],
+                self.project_version, self.module._source, restored_roots
             )
             restored = await sync_to_async(packer.pack_node)(
-                *restored_roots, excluded=INTERP_NODE_TYPES
+                *restored_roots,
+                excluded=INTERP_NODE_TYPES,
+                filter=get_default_pack_filters([None, *(r.deleted_at for r in restored_roots)]),
             )
-            restore_edits = self._new_editor().create_many(*restored.nodes_list()).edits
-            cascade_edits.extend(
-                e for e in restore_edits if not any(e.node.id == r.id for r in restored_roots)
-            )
-            log.debug("module.write_edits.restore", restored=restore_edits)
-        elif any(e.kind == EditKind.SOFT_DELETE for e in host_edits):
-            pass  # TODO @Robustness: cascade soft delete to all? descendants (incl. local)
+            editor = self._edit(old_source)
+            for node in restored.nodes_list():
+                restore_edit = editor.restore(node)
+                old_source.apply_edit(restore_edit)
+                if not any(node.id == r.id for r in restored_roots):
+                    restore_edits.append(restore_edit)
+            cascade_edits.extend(restore_edits)
+            log.debug("runtime.write_edits.restore", restored=restore_edits)
 
-        # apply TODO @Performance: don't deepcopy module on edit?
+        # apply
         edited_nodes: list[wire.NodeData] = []
-        old_source = self.module._source.deepcopy()
-        change = self.module._apply_edits(host_edits + cascade_edits, old_source=old_source)
-        schema_changed = change.includes(MNT.FIELD, MNT.RESOLVED_FIELD, StatementType.DATABASE)
         try:
-            # apply host edits
-            # for DB, turn restore 'CREATE' edits into 'RESTORE' (since they are already in DB)
-            cascaded_node_ids = {e.node.id for e in cascade_edits}
-            db_edits = [
-                e.to_kind(EditKind.RESTORE)
-                if e.node.id in cascaded_node_ids and e.kind == EditKind.CREATE
-                else e
-                for e in change.all_edits
-            ]
-            log.debug("module.write_edits.apply", db_edits=db_edits)
-            if db_edits:
+            # apply edits to source directly (in memory)
+            #  (restore edits were already applied above)
+            host_change = self.module._apply_edits(host_edits + restore_edits, old_source)
+            schema_changed = host_change.includes(
+                MNT.FIELD, MNT.RESOLVED_FIELD, StatementType.DATABASE
+            )
+            db_edits = list(reversed(soft_delete_edits)) + host_change.all_edits  # (deletes first)
+            # apply host edits (cascade deletes as well, they're implicit/not needed in NodeTree)
+            log.debug("runtime.write_edits.apply", db_edits=db_edits)
+            if host_change.all_edits:
                 edited_host_nodes = await sync_to_async(write_host_db_edits)(
-                    self.project_version,
-                    source=old_source,
-                    edits=db_edits,
-                    raise_on_apply_error=False,  # ignore missing interp nodes (until better edits)
+                    self.project_version, old_source, db_edits, raise_on_apply_error=False
                 )
                 edited_nodes.extend(edited_host_nodes)
             # apply local edits
@@ -716,28 +738,32 @@ class RuntimeHost:
                 edited_nodes.extend(edited_local_nodes)
         except Exception:
             # reset source & module from db on failure
-            log.error("module.write_edits.failed", exc_info=True)
+            log.error("runtime.write_edits.failed", exc_info=True)
             old_source = await sync_to_async(packer.pack_module)(
                 self.project_version, excluded=INTERP_NODE_TYPES
             )
-            self.module._reset_from_source(wire.NodeTree(old_source.nodes))
+            old_source = wire.NodeTree(old_source.nodes)
+            self.module._reset_from_source(old_source)
             raise
 
-        if change.includes(MNT.TRIGGER):
+        if host_change.includes(MNT.TRIGGER):
             await self._update_local_triggers()
 
         # broadcast (source from user, interp from runtime)
-        await self._publish_edits(change.source_edits, origins=(*(origins or ()), self.client))
-        if change.interp_edits:
-            await self._publish_edits(change.interp_edits, origins=(self.client,))
+        await self._publish_edits(host_change.source_edits, origins=(*(origins or ()), self.client))
+        if host_change.interp_edits:
+            await self._publish_edits(host_change.interp_edits, origins=(self.client,))
 
         # mirror
         if schema_changed:
             await update_os_schema(self.project.os_name, self.module)
-        await write_edits_to_os(self.module, edits=change.all_edits + local_edits)
+        os_edits = host_change.all_edits + local_edits + cascade_edits
+        await write_edits_to_os(self.module, edits=os_edits)
 
         duration = time.time() - start_time
-        self.log.debug("module.write_edits.done", duration=duration, edited_nodes=len(edited_nodes))
+        self.log.debug(
+            "runtime.write_edits.done", duration=duration, edited_nodes=len(edited_nodes)
+        )
         return edited_nodes
 
     async def paste_nodes(
@@ -783,7 +809,7 @@ class RuntimeHost:
                 node.order_key = target_order_keys.get(node.id, node.order_key)
 
         # apply copy as edits
-        editor = self._new_editor()
+        editor = self._edit()
         for node in copy.nodes_by_id.values():
             editor.create(node)
         await self.write_edits(editor.edits)
@@ -883,7 +909,7 @@ class RuntimeHost:
         """
 
         # make snapshot (host)
-        logger.info("module.snapshot", module=self.module, name=name, tag=tag)
+        logger.info("runtime.snapshot", module=self.module, name=name, tag=tag)
         snapshot = await sync_to_async(self._do_snapshot_host)(
             name=name, tag=tag, description=description
         )
@@ -897,7 +923,7 @@ class RuntimeHost:
                 os_name=self.project.os_name,
                 pg_name=self.project.pg_name,
             )
-            logger.debug("module.snapshot.clone", snapshot=snapshot, target_module=target_module)
+            logger.debug("runtime.snapshot.clone", snapshot=snapshot, target_module=target_module)
 
             # copy local records from source databases into target (the snapshot)
             # (later we'll probably also add non-versioned ids to 'back up' here)
@@ -924,7 +950,7 @@ class RuntimeHost:
             await sync_to_async(self._do_insert_snapshot)(snapshot)
         except Exception:
             # rollback
-            logger.error("module.snapshot.failed", snapshot=snapshot, exc_info=True)
+            logger.error("runtime.snapshot.failed", snapshot=snapshot, exc_info=True)
             await models.ProjectVersion.objects.filter(id=snapshot.id).adelete()
             raise
         finally:

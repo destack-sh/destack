@@ -249,15 +249,22 @@ async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict"
     inputs_mappings: dict[str, os.Field] = {}
     outputs_mappings: dict[str, os.Field] = {}
 
+    def _map_to_os_field_safe(field: lang.Field) -> os.Field | None:
+        try:
+            return map_to_os_field(field)
+        except LookupError:
+            logger.warning("os.update_mappings.field_mapping_failed", field=field)
+            return None
+
     # get library mappings
     for lib in libs.DEFAULT_MODULES.values():
         for node in lib._nodes:
             if HasRun in node._components:
                 for field in node.resolved_fields:
                     if field.flags & TypeFlag.IS_OUTPUT:
-                        outputs_mappings[field._typed_key] = map_to_os_field(field)
+                        outputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
                     else:
-                        inputs_mappings[field._typed_key] = map_to_os_field(field)
+                        inputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
     # ensure library vectors are not indexed (would be pointless waste of resources)
     for field in (*inputs_mappings.values(), *outputs_mappings.values()):
         for f in field.walk():
@@ -267,7 +274,7 @@ async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict"
     # and 'static' value mappings (hard-coded)
     for value_type in (libs.symbolx_lib.resolve(".reflect.RunMetadata"),):
         for field in value_type.resolved_fields:
-            value_mappings[field._typed_key] = map_to_os_field(field)
+            value_mappings[field._typed_key] = _map_to_os_field_safe(field)
 
     # add dynamic user mappings
     for node in module._nodes:
@@ -278,14 +285,14 @@ async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict"
         elif node.type == lang.StatementType.DATABASE:
             # all fields go into Record.value
             for field in node.resolved_fields:
-                value_mappings[field._typed_key] = map_to_os_field(field)
+                value_mappings[field._typed_key] = _map_to_os_field_safe(field)
         elif node.type in RUNNABLE_STATEMENT_TYPES:
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in node.resolved_fields:
                 if field.flags & TypeFlag.IS_OUTPUT:
-                    outputs_mappings[field._typed_key] = map_to_os_field(field)
+                    outputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
                 else:
-                    inputs_mappings[field._typed_key] = map_to_os_field(field)
+                    inputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
 
     # actually update mappings
     mappings = {}

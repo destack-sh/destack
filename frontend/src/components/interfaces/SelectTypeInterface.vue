@@ -95,11 +95,7 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
         refType = TypeTag.Struct;
       } else if (statement.type == StatementType.Choice) {
         refType = TypeTag.Enum;
-      } else if (statement.type == StatementType.Database) {
-        refType = TypeTag.Struct;
-      } else {
-        refType = TypeTag.Function;
-      }
+      } // ignore functions and databases for now, too confusing
       if (!props.refTypes.includes(refType as TypeTag)) continue;
     }
 
