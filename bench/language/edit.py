@@ -512,16 +512,16 @@ def diff_modules(
         if new_node.mnt == NodeType.MODULE:
             continue  # ignore module itself
         if new_node.id not in old_tree.nodes_by_id:
-            editor.create(new_node)
+            old_tree.apply_edit(editor.create(new_node))
         else:
             old_node = old_tree.nodes_by_id[new_node.id]
             if not new_node.equals_content(old_node):
-                editor.update(new_node)
+                old_tree.apply_edit(editor.update(new_node))
     for old_node in old_tree.walk_bfs():
         if old_node.mnt == NodeType.MODULE:
             continue
         if old_node.id not in new_tree.nodes_by_id:
-            editor.delete(old_node)
+            old_tree.apply_edit(editor.delete(old_node))
     # sort into delete -> create -> update
     edits = [
         *(e for e in editor.edits if e.type.kind == MEK.DELETE),
