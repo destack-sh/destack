@@ -668,6 +668,11 @@ class RuntimeHost:
             return []  # bail
 
         start_time = time.time()
+        # bump revisions for updated nodes to simulate write to DB, which bumps 'for real'
+        # (annoying but revisions are needed for diffing in apply_edits)
+        for edit in edits:
+            if edit.kind in (EditKind.UPDATE, EditKind.MOVE):
+                edit.revision = edit.node.revision = edit.node.revision + 1
         host_edits, local_edits = partition(lambda e: e.node_type == NodeType.RECORD, edits)
         del edits  # refer explicitly to host/local edits
         log = self.log.bind(host_edits=host_edits, local_edits=local_edits, origins=origins)
