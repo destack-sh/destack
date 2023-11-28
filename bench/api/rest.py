@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import json
 import threading
 from dataclasses import dataclass
@@ -177,7 +178,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
                 status=rep.p.run.status,
                 inputs=rep.p.run.inputs,
                 outputs=rep.p.run.outputs,
-                error=rep.p.run.error,
+                error=dataclasses.asdict(rep.p.run.error) if rep.p.run.error else None,
                 value=rep.p.run.value,
             )
             logger.info("rest.run.done", response=response)
