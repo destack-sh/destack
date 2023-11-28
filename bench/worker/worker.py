@@ -557,6 +557,7 @@ class ModuleWorkerProcess(RuntimeHost):
     async def _do_make_job(self, job: MakeJob) -> None:
         """Actually update the module with the given edits."""
 
+        old_source = self.module._source.deepcopy()
         try:
             # apply edits
             now = utcnow_with_tz()
@@ -564,8 +565,10 @@ class ModuleWorkerProcess(RuntimeHost):
             self.module._apply_edits(edits)
             duration = utcnow_with_tz() - now
             self.log.info("worker.make", edits=edits, duration=duration.total_seconds())
-        except ModelError as e:
+        except Exception as e:
             self.log.error("worker.make.error", job=job, exc_info=e)
+            # revert edits
+            self.module._reset_from_source(old_source)
 
     def add_run(
         self,
