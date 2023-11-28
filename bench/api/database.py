@@ -213,7 +213,7 @@ class RecordQuery:
         limit: Optional[int] = None,
         count: Optional[bool] = None,
     ) -> ListConnectionWithTotalCount[Record]:
-        statement = await models.Statement.objects.aget(id=statement_id.node_id)
+        statement = await models.Statement._base_manager.aget(id=statement_id.node_id)
         access = await sync_to_async(check_module_node_access)(
             info, statement, ModuleAccessLevel.Read
         )
@@ -233,18 +233,19 @@ class RecordQuery:
             count=count or False,
         )
         rep: NMessage[RepSearchRecordsPayload] = await request(NMessageType.SEARCH_RECORDS, req)
+        cursors = rep.p.cursors[:effective_limit] if rep.p.cursors else None
         if rep.p.records is not None:
-            records = [Record.from_wire(r) for r in rep.p.records]
+            records = [Record.from_wire(r) for r in rep.p.records[:effective_limit]]
             edges = []
-            for cursor, record in zip(rep.p.cursors, records):
+            for cursor, record in zip(cursors, records):
                 node = Record.from_os(record)
                 edge = relay.Edge(node=node, cursor=cursor)
                 edges.append(edge)
         else:
             edges = []
         page_info = PageInfo(
-            start_cursor=rep.p.cursors[0] if rep.p.cursors else None,
-            end_cursor=rep.p.cursors[-1] if rep.p.cursors else None,
+            start_cursor=cursors[0] if cursors else None,
+            end_cursor=cursors[-1] if cursors else None,
             has_next_page=bool(rep.p.records) and len(rep.p.records) > effective_limit,
             has_previous_page=False,
         )

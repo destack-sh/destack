@@ -267,7 +267,7 @@ class StatementBatch(ThingBatch):
 class StatementMutation:
     @bench_edit(EditType.CREATE_STATEMENT)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
-        file = models.File.objects.get(id=input.file_id.node_id)
+        file = models.File._base_manager.get(id=input.file_id.node_id)
         parent_statement = (
             models.Statement.objects.filter(id=input.parent_id.node_id).first()
             if input.parent_id
@@ -296,7 +296,7 @@ class StatementMutation:
 
     @bench_edit(EditType.MORPH_STATEMENT)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.type = input.type
         statement.name = input.name
         statement.key = input.key
@@ -308,13 +308,13 @@ class StatementMutation:
 
     @bench_edit(EditType.RENAME_STATEMENT)
     def rename_statement(self, input: StatementRenameInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.name = input.name
         return statement
 
     @bench_edit(EditType.SOFT_DELETE_STATEMENT)
     def soft_delete_statement(self, input: StatementSoftDeleteInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.deleted_at = utcnow_with_tz()
         return statement
 
@@ -330,7 +330,7 @@ class StatementMutation:
 
     @bench_edit(EditType.MOVE_STATEMENT)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.file_id = UUID(input.file_id.node_id)
         parent_statement = (
             models.Statement.objects.filter(id=input.parent_id.node_id).first()
@@ -624,7 +624,7 @@ class FieldRestoreInput(strawberry_django.NodeInput):
 class SymbolMutation:
     @bench_edit(EditType.UPDATE_STATEMENT_TEXT)
     def update_statement_text(self, input: StatementUpdateTextInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.text = input.text
         return statement
 
@@ -632,7 +632,7 @@ class SymbolMutation:
     def update_statement_heading_level(
         self, input: StatementUpdateHeadingLevelInput
     ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.heading_level = input.heading_level
         return statement
 
@@ -640,19 +640,19 @@ class SymbolMutation:
     def update_statement_reference(
         self, input: StatementUpdateReferenceInput
     ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.reference_ck = input.reference_ck
         return statement
 
     @bench_edit(EditType.UPDATE_SYMBOL_CODE)
     def update_symbol_code(self, input: SymbolUpdateCodeInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.code = input.code
         return statement
 
     @bench_edit(EditType.UPDATE_SYMBOL_VALUE)
     def update_symbol_value(self, input: SymbolUpdateValueInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.value = input.value
         return statement
 
@@ -676,7 +676,7 @@ class SymbolMutation:
 
     @bench_edit(EditType.UPDATE_FIELD)
     def update_field(self, input: FieldUpdateInput) -> Field | OperationInfo:
-        field = models.Field.objects.get(id=input.id.node_id)
+        field = models.Field._base_manager.get(id=input.id.node_id)
         field.name = input.name
         field.text = input.text
         field.tag = input.tag
@@ -688,19 +688,19 @@ class SymbolMutation:
 
     @bench_edit(EditType.RENAME_FIELD)
     def update_field_name(self, input: FieldRenameInput) -> Field | OperationInfo:
-        field = models.Field.objects.get(id=input.id.node_id)
+        field = models.Field._base_manager.get(id=input.id.node_id)
         field.name = input.name
         return field
 
     @bench_edit(EditType.UPDATE_FIELD_TEXT)
     def update_field_text(self, input: FieldUpdateTextInput) -> Field | OperationInfo:
-        field = models.Field.objects.get(id=input.id.node_id)
+        field = models.Field._base_manager.get(id=input.id.node_id)
         field.text = input.text
         return field
 
     @bench_edit(EditType.UPDATE_FIELD_TYPE)
     def update_field_type(self, input: FieldUpdateTypeInput) -> Field | OperationInfo:
-        field = models.Field.objects.get(id=input.id.node_id)
+        field = models.Field._base_manager.get(id=input.id.node_id)
         field.tag = input.tag
         field.hint = input.hint
         field.flags = input.flags
@@ -709,7 +709,7 @@ class SymbolMutation:
 
     @bench_edit(EditType.MOVE_FIELD)
     def move_field(self, input: FieldMoveInput) -> Field | OperationInfo:
-        field = models.Field.objects.get(id=input.id.node_id)
+        field = models.Field._base_manager.get(id=input.id.node_id)
         field.order_key = input.order_key
         return field
 
@@ -726,7 +726,7 @@ class SymbolMutation:
 
     @bench_edit(EditType.RESTORE_FIELD)
     def restore_field(self, input: FieldRestoreInput) -> Field | OperationInfo:
-        field = models.Field.objects.get(id=input.id.node_id)
+        field = models.Field._base_manager.get(id=input.id.node_id)
         return field
 
     @bench_edit(EditType.CREATE_TAGGING)

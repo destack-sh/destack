@@ -57,8 +57,12 @@ const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 
+type GRecord<K extends keyof any, V> = globalThis.Record<K, V>;
 const fields = useFields(toRef(props, "statement"));
 const { allFields, selfFields, inheritedFields, moveFieldTo } = fields;
+const fieldsTypedKeyByCk: Ref<GRecord<string, string>> = toValueRef(
+  computed(() => Object.fromEntries(allFields.value.map((f) => [f.ck, module.getTypedKey(f) as string])))
+);
 
 const properties = useElementPanelSettings<DatabaseStatementProperties>(toRef(props, "statement"), {
   inlineQuery: undefined,
@@ -129,7 +133,7 @@ const loading = computed(
 
 const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
 
-// auto refetch when bumped and using OS engine (1s is the OS indexing delay)
+// auto refetch when bumped and using OS query engine (1s is the OS indexing delay)
 const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 10000 });
 useEditListener([EditType.BumpStatement], props.statement.id, () => {
   if (inlineQuery.value != null) {
@@ -256,9 +260,7 @@ watch(
     }
 
     // update if changed (only trigger DOM update if necessary)
-    console.log("database.recalculate", widths, heights);
     if (widths.some((w, i) => w != columnWidths.value[i]) || heights.some((h, i) => h != rowHeights.value[i])) {
-      console.log("database.update", widths, heights);
       columnWidths.value = widths;
       rowHeights.value = heights;
     }
@@ -269,20 +271,27 @@ watch(
 const gridBounding = useElementBounding(gridRef);
 const innerGridBounding = useElementBounding(innerGridRef);
 const gridScroll = useScroll(gridRef);
-const gridScrollOffsetX = computed(() => gridScroll.x.value);
-const isHeaderRowFloating = computed(() => {
-  // sticky the header to the top if the grid is partially visible (top of editor viewport)
-  const editorTop = panel.pos.value.top + appearance.panelHeaderHeight;
-  return gridBounding.top.value < editorTop && gridBounding.bottom.value - minRowHeight * 2 > editorTop;
-});
-const gridOverhangLeft = computed(() => {
-  // how much the grid overhangs the left of the editor
-  return Math.max(panel.pos.value.left - innerGridBounding.left.value, 0);
-});
-const gridOverhangRight = computed(() => {
-  // how much the grid overhangs the right of the editor
-  return Math.max(innerGridBounding.right.value - (panel.pos.value.left + panel.size.value.width), 0);
-});
+const gridScrollOffsetX = toValueRef(computed(() => gridScroll.x.value));
+const isHeaderRowFloating = toValueRef(
+  computed(() => {
+    return false; // TODO @UX: re-enable sticky database element header (currently janky when scrolling, also seems to hurt @Performance)
+    // sticky the header to the top if the grid is partially visible (top of editor viewport)
+    // const editorTop = panel.pos.value.top + appearance.panelHeaderHeight;
+    // return gridBounding.top.value < editorTop && gridBounding.bottom.value - minRowHeight * 2 > editorTop;
+  })
+);
+const gridOverhangLeft = toValueRef(
+  computed(() => {
+    // how much the grid overhangs the left of the editor
+    return Math.max(panel.pos.value.left - innerGridBounding.left.value, 0);
+  })
+);
+const gridOverhangRight = toValueRef(
+  computed(() => {
+    // how much the grid overhangs the right of the editor
+    return Math.max(innerGridBounding.right.value - (panel.pos.value.left + panel.size.value.width), 0);
+  })
+);
 
 // navigation
 useActiveScroll(gridRef);
@@ -294,7 +303,7 @@ onStartTyping((e) => {
   if (cell != null && cell.rowId != "") {
     const field = allFields.value.find((f) => f.key == cell.column);
     if (field == null) return;
-    deleteRecordField(cell.rowId, module.getTypedKey(field) as string);
+    deleteRecordField(cell.rowId, fieldsTypedKeyByCk.value[field.ck]);
     nextTick(() => (cell.ref as unknown as { edit?: () => void }).edit?.());
   }
 });
@@ -555,7 +564,7 @@ defineExpose({
         <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
         <div
           class="z-[1] flex flex-row self-start border-b border-t border-amber-900/[12%]"
-          :class="[(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-white']"
+          :class="[!isHeaderRowFloating || (focused && !editing) ? '' : 'bg-white']"
           :style="{
             position: isHeaderRowFloating ? 'fixed' : 'absolute',
             left: isHeaderRowFloating
@@ -684,19 +693,19 @@ defineExpose({
             <!-- TODO @Cleanup: not sure why the Boolean(properties.wrapColumns) is needed, but wrapColumns is an object otherwise?  -->
             <ValueInterface
               :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
-              :model-value="record.value?.[module.getTypedKey(field) as string]"
-              @update:model-value="(val) => writeRecordField(record.id, module.getTypedKey(field) as string, val)"
+              :model-value="record.value?.[fieldsTypedKeyByCk[field.ck]]"
+              @update:model-value="(val) => writeRecordField(record.id, fieldsTypedKeyByCk[field.ck], val)"
               :type="module.effectiveTypeOf(field)"
-              :readonly="readonly"
-              :active="editing || focused"
+              :readonly="false"
+              :active="focused || editing"
               :wrap="Boolean(properties.wrapColumns)"
               debounced
-              :supports-drop="!readonly"
-              @navigate-left="grid.navigateLeft(record.id, field.key as string)"
-              @navigate-right="grid.navigateRight(record.id, field.key as string)"
-              @navigate-up="grid.navigateUp(record.id, field.key as string)"
-              @navigate-down="grid.navigateDown(record.id, field.key as string)"
-              @delete-self="deleteRecordField(record.id, module.getTypedKey(field) as string)"
+              :supports-drop="false"
+              @navigate-left="() => grid.navigateLeft(record.id, field.key as string)"
+              @navigate-right="() => grid.navigateRight(record.id, field.key as string)"
+              @navigate-up="() => grid.navigateUp(record.id, field.key as string)"
+              @navigate-down="() => grid.navigateDown(record.id, field.key as string)"
+              @delete-self="() => deleteRecordField(record.id, fieldsTypedKeyByCk[field.ck])"
               class="scroll-hidden h-full w-full border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
             />
