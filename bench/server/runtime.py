@@ -708,7 +708,7 @@ class RuntimeHost:
                 filter=get_default_pack_filters(deleted_at),
             )
             editor = self._edit(old_source)
-            for node in walk_bfs(restored.nodes_list()):
+            for node in walk_bfs(restored.nodes_by_id.values()):
                 restore_edit = editor.restore(node)
                 old_source.apply_edit(restore_edit)
                 if not any(node.id == r.id for r in restored_roots):
@@ -817,8 +817,7 @@ class RuntimeHost:
         # apply copy as edits
         editor = self._edit()
         for node in walk_bfs(copy.nodes_by_id.values()):
-            edit = editor.create(node)
-            editor.tree.apply_edit(edit)
+            editor.tree.apply_edit(editor.create(node))
         # we don't include origins because we use the edit publishing to get the results
         #  (and if we include the origin, the frontend will auto-ignore its own edits;
         #   this is faster and easier with the current API edit/load mechanism)
