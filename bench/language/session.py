@@ -135,7 +135,8 @@ class Session:
             root_run_value=root_run_value,
             global_run_value=global_run_value,
         )
-        self._pg_cursor: psycopg.AsyncCursor | None = None
+        self._primary_pg_cursor: psycopg.AsyncCursor | None = None
+        self._foreign_pg_cursors: dict[str, psycopg.AsyncCursor] = {}
 
         self._opened_at: Optional[datetime] = None
         self._closed_at: Optional[datetime] = None
@@ -204,8 +205,20 @@ class Session:
 
     @property
     def pg_cursor(self) -> psycopg.AsyncCursor:
-        assert self._pg_cursor is not None, "pg_cursor is only available during session execution"
-        return self._pg_cursor
+        assert (
+            self._primary_pg_cursor is not None
+        ), "pg_cursor is only available during session execution"
+        return self._primary_pg_cursor
+
+    async def pg_cursor_to(self, module: Module) -> psycopg.AsyncCursor:
+        if module == self.module:
+            return self.pg_cursor
+        if module.pg_name not in self._foreign_pg_cursors:
+            logger.debug("session.open_foreign_pg", module=module)
+            pg_pool = get_pg_connection_pool(module.pg_name)
+            pg_connection = await pg_pool.getconn(timeout=3)
+            self._foreign_pg_cursors[module.pg_name] = pg_connection.cursor()
+        return self._foreign_pg_cursors[module.pg_name]
 
     @property
     def _should_autocommit(self):
@@ -227,7 +240,7 @@ class Session:
         # prepare local postgres
         pg_pool = get_pg_connection_pool(self.module.pg_name)
         pg_connection = await pg_pool.getconn(timeout=2)
-        self._pg_cursor = pg_connection.cursor()
+        self._primary_pg_cursor = pg_connection.cursor()
 
         self._log.debug("session.open")
 
@@ -278,12 +291,12 @@ class Session:
             # commit local edits
             if local_edits:
                 await write_local_edits_to_pg(
-                    self.pg_cursor,
-                    self.module,
-                    local_edits,
+                    cur=self.pg_cursor,
+                    module=self.module,
+                    edits=local_edits,
                     old_databases_by_id=touched_databases_by_id,
                 )
-            await self._pg_cursor.connection.commit()
+            await self._primary_pg_cursor.connection.commit()
             self.module._apply_edits_to_source(host_edits)
             log.debug("session.commit.done")
         except Exception as e:
@@ -317,12 +330,17 @@ class Session:
             raise RuntimeError(f"session already closed {self}")
         self._log.debug("session.close")
 
-        # close postgres
-        if self._pg_cursor:
-            pg_pool = get_pg_connection_pool(self.module.pg_name)
+        # close postgres connections
+        if self._primary_pg_cursor:
             await self.pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
-            await pg_pool.putconn(self._pg_cursor.connection)
-            self._pg_cursor = None
+            pg_pool = get_pg_connection_pool(self.module.pg_name)
+            await pg_pool.putconn(self._primary_pg_cursor.connection)
+            self._primary_pg_cursor = None
+        if self._foreign_pg_cursors:
+            for pg_name, pg_cursor in self._foreign_pg_cursors.items():
+                await pg_cursor.connection.rollback()
+                pg_pool = get_pg_connection_pool(pg_name)
+                await pg_pool.putconn(pg_cursor.connection)
 
         # close session
         self._closed_at = utcnow_with_tz()

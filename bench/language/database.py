@@ -41,7 +41,7 @@ from bench.utils.func import describe_type
 from bench.utils.utils import flatten
 
 if typing.TYPE_CHECKING:
-    from bench.language import Field, Session, Statement, View
+    from bench.language import Field, Statement, View
     from bench.language.wire import RecordData  # noqa: F401
 
 logger = structlog.get_logger(__name__)
@@ -167,7 +167,7 @@ class RecordQuery:
 
     @property
     def _combined_filter(self) -> Conditional:
-        """Combines the custom with the default filter"""
+        """Combines the custom with the default filter for this database."""
         return Conditional.and_if_set(
             self._filter,
             C(ConditionalOp.EQUALS, "statement_key", value=self._database.key),
@@ -186,7 +186,7 @@ class RecordQuery:
             first=self._first,
             skip=self._skip,
             engine=self._engine,
-            # cache is deliberately not copied
+            # cache is not copied on purpose as it shouldn't propagate
         )
 
     def _interp_self(self, scope: "ScopeNode", on_issue: "ValidationHandler") -> None:
@@ -260,13 +260,14 @@ class RecordQuery:
         else:
             raise ValueError(f"unexpected query engine {target_engine}")
 
-    async def _fetch(self, session: "Session") -> list[Record]:
+    async def _fetch(self) -> list[Record]:
         """Fetches the result set for this query."""
         from bench.language import wire
 
+        session = self._database.session
         if session._tracer._local_edits:
             await session.flush_local()  # first flush any local edits
-        fetched = await self._do_fetch(pg_cursor=session.pg_cursor)
+        fetched = await self._do_fetch(pg_cursor=await self._database._get_pg_cursor())
         records: list[Record] = []
         for record_data in fetched.records:
             record: Record = wire.unpack_node_flat(record_data, self._database, session)
@@ -280,18 +281,18 @@ class RecordQuery:
 
     async def __aiter__(self):
         if self._cached_records is None:
-            return iter(await self._fetch(self._database.session))
+            return iter(await self._fetch())
         return iter(self._cached_records)
 
     @_auto_async_to_sync
     async def tolist(self) -> list[Record]:
         if self._cached_records is None:
-            return await self._fetch(self._database.session)
+            return await self._fetch()
         return self._cached_records
 
     def __iter__(self):
         if self._cached_records is None:
-            return iter(self._database.session.async_to_sync(self._fetch)(self._database.session))
+            return iter(self._database.session.async_to_sync(self._fetch)())
         return iter(self._cached_records)
 
     def __len__(self):
@@ -364,7 +365,7 @@ class RecordQuery:
                 return self.first(item.stop)
         elif isinstance(item, int):
             if self._cached_records is None:
-                self._database.session.async_to_sync(self._fetch)(self._database.session)
+                self._database.session.async_to_sync(self._fetch)()
             if item < 0:
                 item += len(self._cached_records)
             if item >= len(self._cached_records):
@@ -386,7 +387,7 @@ class RecordQuery:
 
         where = compile_pg_conditional(self._database, query & self._combined_filter)
         return await pg_count(
-            cur=self._database.session.pg_cursor, table=self._database._table, where=where
+            cur=await self._database._get_pg_cursor(), table=self._database._table, where=where
         )
 
     @_auto_async_to_sync
@@ -409,7 +410,7 @@ class RecordQuery:
             query = query & self._combined_filter
         where = compile_pg_conditional(self._database, query)
         return await pg_exists(
-            cur=self._database.session.pg_cursor, table=self._database._table, where=where
+            cur=await self._database._get_pg_cursor(), table=self._database._table, where=where
         )
 
     @_auto_async_to_sync
@@ -438,7 +439,7 @@ class RecordQuery:
         value["updated_at"] = now
         value["last_edited_at"] = now
         updated_rows = await pg_update_static(
-            cur=session.pg_cursor,
+            cur=await self._database._get_pg_cursor(),
             table=self._database._table,
             where=compile_pg_conditional(self._database, self._combined_filter),
             static_value=value,
@@ -461,7 +462,7 @@ class RecordQuery:
             self._filter, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
         )
         deleted_rows = await pg_delete(
-            cur=session.pg_cursor,
+            cur=await self._database._get_pg_cursor(),
             table=self._database._table,
             where=compile_pg_conditional(self._database, where),
             returning=[self._database._table.columns_by_name["id"]],
@@ -651,7 +652,13 @@ class HasDatabase(Node):
     def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler") -> None:
         from bench.sql.engine import map_to_pg_table
 
-        self._table = map_to_pg_table(self) if not self.ephemeral else EPHEMERAL_RECORD_TABLE
+        if self.ephemeral:
+            self._table = EPHEMERAL_RECORD_TABLE
+        else:
+            self._table = map_to_pg_table(self)
+
+    async def _get_pg_cursor(self) -> psycopg.AsyncCursor:
+        return await self.session.pg_cursor_to(module=self.module)
 
     @property
     def ephemeral(self) -> bool:
