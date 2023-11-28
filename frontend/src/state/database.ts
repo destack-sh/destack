@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { ConditionalOp, TypeHint, TypeTag, type Conditional, StatementType } from "@/gql/graphql";
+import { ConditionalOp, TypeHint, TypeTag, type Conditional, StatementType, QueryEngine } from "@/gql/graphql";
 import { useCurrentModule } from "@/state/module";
 import type { useFields } from "@/state/statement";
 import { TypeStorageFormat, getStorageFormat } from "@/state/type";
@@ -18,6 +18,7 @@ export const RECORD_SEARCH_QUERY = graphql(/* GraphQL */ `
   ) {
     searchRecords(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit, count: $count) {
       totalCount
+      engine
       pageInfo {
         hasNextPage
         hasPreviousPage
@@ -41,7 +42,7 @@ export const RECORD_SEARCH_QUERY = graphql(/* GraphQL */ `
 
 export function useDatabaseInlineSearch(
   fields: ReturnType<typeof useFields>,
-  query: Ref<string | undefined>,
+  textQuery: Ref<string | undefined>,
   options?: { debounceMs?: number }
 ) {
   const module = useCurrentModule();
@@ -62,14 +63,14 @@ export function useDatabaseInlineSearch(
   // update search query on inline query change
   const inlineQuery: Ref<Conditional | undefined> = ref(undefined);
   function getInlineQuery() {
-    if ((query.value ?? "").trim().length == 0) return undefined;
+    if ((textQuery.value ?? "").trim().length == 0) return undefined;
     const subclauses = [
       ...stringFields.value.map(
         (f) =>
           ({
             op: ConditionalOp.Matches,
             field: "value." + module.getTypedKey(f),
-            value: query.value,
+            value: textQuery.value,
           } as Conditional)
       ),
       ...nameFields.value.map(
@@ -77,7 +78,7 @@ export function useDatabaseInlineSearch(
           ({
             op: ConditionalOp.StartsWith,
             field: "value." + module.getTypedKey(f),
-            value: query.value?.toLowerCase(), // :StartsWithHack
+            value: textQuery.value?.toLowerCase(), // :StartsWithHack
           } as Conditional)
       ),
     ];
@@ -85,7 +86,7 @@ export function useDatabaseInlineSearch(
     for (const enumField of enumFields.value) {
       const matchingMembers = module
         .statementOf(enumField.referenceCk)
-        ?.fields.filter((m) => m.name?.toLowerCase().startsWith(query.value?.toLowerCase() ?? ""));
+        ?.fields.filter((m) => m.name?.toLowerCase().startsWith(textQuery.value?.toLowerCase() ?? ""));
       if (matchingMembers == null || matchingMembers.length == 0) continue;
       subclauses.push({
         field: "value." + module.getTypedKey(enumField),
@@ -97,15 +98,19 @@ export function useDatabaseInlineSearch(
     if (subclauses.length == 0) return undefined; // TODO @UX: indicate inline search is not possible if no plausible subclauses
     return { op: ConditionalOp.Or, clauses: subclauses } as Conditional;
   }
+  const queryEngine = computed(() => {
+    if (textQuery.value != null) return QueryEngine.Opensearch;
+    else return QueryEngine.Postgres;
+  });
 
   // update inline query on query change
   function updateInlineQuery() {
     inlineQuery.value = getInlineQuery();
   }
   const updateInlineQueryDebounced = useDebounceFn(updateInlineQuery, options?.debounceMs ?? 100);
-  watch(() => [query.value, stringFields.value, nameFields.value, enumFields.value], updateInlineQueryDebounced, {
+  watch(() => [textQuery.value, stringFields.value, nameFields.value, enumFields.value], updateInlineQueryDebounced, {
     immediate: true,
   });
 
-  return { inlineQuery };
+  return { inlineQuery, queryEngine };
 }

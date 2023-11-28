@@ -1166,7 +1166,7 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): ClientConnection!
-  searchRecords(statementId: GlobalID!, query: Conditional = null, sort: [Sort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RecordConnection!
+  searchRecords(statementId: GlobalID!, query: Conditional = null, sort: [Sort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RecordQueryConnection!
   systemInfo: SystemInfo!
   me: User
   user(
@@ -1234,6 +1234,13 @@ type Query {
   ): Secret
 }
 
+enum QueryEngine {
+  LOCAL
+  HOST
+  OPENSEARCH
+  POSTGRES
+}
+
 type Record implements HasCrud & Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -1246,16 +1253,6 @@ type Record implements HasCrud & Node {
   revision: Int!
   ck: UUID!
   value: JSON!
-}
-
-"""A connection to a list of items."""
-type RecordConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [RecordEdge!]!
-  totalCount: Int
 }
 
 input RecordCreateInput {
@@ -1282,6 +1279,17 @@ type RecordEdge {
 }
 
 union RecordOperationInfo = Record | OperationInfo
+
+"""A connection to a list of items resolved with a query engine."""
+type RecordQueryConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [RecordEdge!]!
+  totalCount: Int
+  engine: QueryEngine
+}
 
 input RecordRestoreInput {
   statementId: GlobalID!

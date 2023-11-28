@@ -33,6 +33,7 @@ from bench.language.expression import (
     CompoundConditional,
     ExistenceConditional,
     FieldReference,
+    QueryEngineError,
     QueryEngineIncapableError,
     S,
     StaticConditional,
@@ -516,6 +517,12 @@ def compile_os_search(
     return search
 
 
+def _wrap_os_error(
+    e: Exception, expr: lang.Expression | list[lang.Expression]
+) -> QueryEngineError | Exception:
+    return QueryEngineError(QueryEngine.OPENSEARCH, expr, str(e))
+
+
 async def os_search(
     os_name: str,
     type: "DocumentType",
@@ -529,7 +536,10 @@ async def os_search(
     """Executes a search query against OpenSearch."""
     search = compile_os_search(type, filter, sort, limit, skip, count, after)
     logger.debug("os.search", os_name=os_name, search=search)
-    os_results = await os_client.search(index=os_name, body=search.to_dict())
+    try:
+        os_results = await os_client.search(index=os_name, body=search.to_dict())
+    except Exception as e:
+        raise _wrap_os_error(e, [filter, sort]) from e
     total = os_results["hits"]["total"]["value"] if search.count else None
     results = os_results["hits"]["hits"]
     cursors = [encode_os_cursor(r, search.after, i) for i, r in enumerate(results)]
@@ -551,7 +561,10 @@ def os_search_sync(
     """
     search = compile_os_search(type, filter, sort, limit, skip, count, after)
     logger.debug("os.search", os_name=os_name, search=search)
-    os_results = os_client_sync.search(index=os_name, body=search.to_dict())
+    try:
+        os_results = os_client_sync.search(index=os_name, body=search.to_dict())
+    except Exception as e:
+        raise _wrap_os_error(e, [filter, sort]) from e
     total = os_results["hits"]["total"]["value"] if search.count else None
     results = os_results["hits"]["hits"]
     cursors = [encode_os_cursor(r, search.after, i) for i, r in enumerate(results)]

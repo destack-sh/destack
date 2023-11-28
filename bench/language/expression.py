@@ -31,9 +31,13 @@ if TYPE_CHECKING:
 #
 
 
-class QueryEngineIncapableError(Exception):
-    def __init__(self, engine: QueryEngine, expr: Expression, reason: str):
-        super().__init__(f"query engine {engine.value} is incapable of {expr}: {reason}")
+class QueryEngineError(Exception):
+    def __init__(self, engine: QueryEngine, expr: Expression | list[Expression], reason: str):
+        super().__init__(f"query engine {engine.value} failed on {expr!r}: {reason}")
+
+
+class QueryEngineIncapableError(QueryEngineError):
+    pass
 
 
 FieldReference = UUID | str  # str as an alias for fields that we don't have reflected yet
@@ -47,7 +51,7 @@ class Expression(Struct):
         return self.__class__.__name__
 
     def __repr__(self):
-        return f"{self.kind}({self})"
+        return f"{self.__class__.__name__}({self})"
 
     @property
     def kind(self) -> ExpressionKind:

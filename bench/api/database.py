@@ -17,7 +17,7 @@ from bench.api.type import EditType
 from bench.api.utils import (
     Conditional,
     HasCrud,
-    ListConnectionWithTotalCount,
+    QueryConnectionWithTotalCount,
     Revisioned,
     Sort,
     ThingBatch,
@@ -212,7 +212,7 @@ class RecordQuery:
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
-    ) -> ListConnectionWithTotalCount[Record]:
+    ) -> QueryConnectionWithTotalCount[Record]:
         statement = await models.Statement._base_manager.aget(id=statement_id.node_id)
         access = await sync_to_async(check_module_node_access)(
             info, statement, ModuleAccessLevel.Read
@@ -233,7 +233,7 @@ class RecordQuery:
             count=count or False,
         )
         rep: NMessage[RepSearchRecordsPayload] = await request(NMessageType.SEARCH_RECORDS, req)
-        cursors = rep.p.cursors[:effective_limit] if rep.p.cursors else None
+        cursors = rep.p.cursors[:effective_limit] if rep.p.cursors is not None else None
         if rep.p.records is not None:
             records = [Record.from_wire(r) for r in rep.p.records[:effective_limit]]
             edges = []
@@ -249,6 +249,6 @@ class RecordQuery:
             has_next_page=bool(rep.p.records) and len(rep.p.records) > effective_limit,
             has_previous_page=False,
         )
-        return ListConnectionWithTotalCount(
-            edges=edges, page_info=page_info, total_count=rep.p.total
+        return QueryConnectionWithTotalCount(
+            edges=edges, page_info=page_info, total_count=rep.p.total, engine=rep.p.engine
         )

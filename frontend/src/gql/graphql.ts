@@ -1497,7 +1497,7 @@ export type Query = {
   projectVersionByTag?: Maybe<ProjectVersion>;
   run?: Maybe<Run>;
   searchLogs: LogEntryConnection;
-  searchRecords: RecordConnection;
+  searchRecords: RecordQueryConnection;
   searchRuns: RunConnection;
   secret?: Maybe<Secret>;
   session?: Maybe<Session>;
@@ -1651,6 +1651,13 @@ export type QueryUsersArgs = {
   last?: InputMaybe<Scalars["Int"]["input"]>;
 };
 
+export enum QueryEngine {
+  Host = "HOST",
+  Local = "LOCAL",
+  Opensearch = "OPENSEARCH",
+  Postgres = "POSTGRES",
+}
+
 export type Record = HasCrud &
   Node & {
     __typename?: "Record";
@@ -1666,16 +1673,6 @@ export type Record = HasCrud &
     updatedAt: Scalars["DateTime"]["output"];
     value: Scalars["JSON"]["output"];
   };
-
-/** A connection to a list of items. */
-export type RecordConnection = {
-  __typename?: "RecordConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<RecordEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  totalCount?: Maybe<Scalars["Int"]["output"]>;
-};
 
 export type RecordCreateInput = {
   ck: Scalars["UUID"]["input"];
@@ -1701,6 +1698,17 @@ export type RecordEdge = {
 };
 
 export type RecordOperationInfo = OperationInfo | Record;
+
+/** A connection to a list of items resolved with a query engine. */
+export type RecordQueryConnection = {
+  __typename?: "RecordQueryConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<RecordEdge>;
+  engine?: Maybe<QueryEngine>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  totalCount?: Maybe<Scalars["Int"]["output"]>;
+};
 
 export type RecordRestoreInput = {
   id: Scalars["GlobalID"]["input"];
@@ -3303,8 +3311,9 @@ export type SearchRecordsQueryVariables = Exact<{
 export type SearchRecordsQuery = {
   __typename?: "Query";
   searchRecords: {
-    __typename?: "RecordConnection";
+    __typename?: "RecordQueryConnection";
     totalCount?: number | null;
+    engine?: QueryEngine | null;
     pageInfo: {
       __typename?: "PageInfo";
       hasNextPage: boolean;
@@ -10563,6 +10572,7 @@ export const SearchRecordsDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                { kind: "Field", name: { kind: "Name", value: "engine" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "pageInfo" },
