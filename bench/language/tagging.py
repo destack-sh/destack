@@ -2,7 +2,7 @@ import typing
 from typing import Union
 
 from bench.language.builtin import symbolx_lib
-from bench.language.const import MNT, StatementType
+from bench.language.const import NodeType, StatementType
 from bench.language.module import (
     Node,
     NodeList,
@@ -21,11 +21,13 @@ if typing.TYPE_CHECKING:
     from bench.language import Field, File, HasFields, Statement
 
 
-@node(mnt=MNT.TAGGING)
+@node(node_type=NodeType.TAGGING)
 class Tagging(HasValue, HasReference, Node):
     """An association between a tag and a statement (with optional value)."""
 
-    parent: Union["File", "Statement", "Field"] | None = nparent(MNT.FILE, MNT.STATEMENT, MNT.FIELD)
+    parent: Union["File", "Statement", "Field"] | None = nparent(
+        NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
+    )
     key: str = binternal()
 
     @staticmethod
@@ -61,7 +63,7 @@ class Tagging(HasValue, HasReference, Node):
         node: "Tagging", props: dict, for_parent: Union["File", "Statement", "Field"] = None
     ) -> tuple[str, dict, dict]:
         assert node.reference is not None, f"missing reference for {node!r}"
-        if isinstance(node.reference, Node) and node.reference.mnt == MNT.STATEMENT:
+        if isinstance(node.reference, Node) and node.reference.node_type == NodeType.STATEMENT:
             reference = node.reference.name
         else:
             reference = node.reference
@@ -85,4 +87,4 @@ class Tagging(HasValue, HasReference, Node):
 
 @node_component
 class HasTags(Node):
-    tags: NodeList["Tagging"] = nchildren(MNT.TAGGING, NRel.Keyed)
+    tags: NodeList["Tagging"] = nchildren(NodeType.TAGGING, NRel.Keyed)

@@ -2,10 +2,9 @@ import enum
 
 import strawberry
 
-from bench.language.edit import MET
+from bench.language.edit import EditType
 
-EditType = strawberry.enum(MET)
-MET = EditType
+EditType = strawberry.enum(EditType)
 
 
 class ProjectMutationType(enum.StrEnum):

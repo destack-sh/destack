@@ -1,5 +1,4 @@
 import dataclasses
-import enum
 import typing
 import uuid
 from dataclasses import dataclass
@@ -10,9 +9,9 @@ import structlog
 
 from bench.language.builtin import symbolx_lib
 from bench.language.const import (
-    MNT,
     RESERVED_TYPE_TAGS,
     IssueType,
+    NodeType,
     StatementReference,
     StatementType,
     TypeFlag,
@@ -104,36 +103,6 @@ Vector = typing.NewType("Vector", list[float])
 Json = typing.NewType("Json", dict)
 Key = typing.NewType("Key", str)
 RichText = typing.NewType("RichText", str)
-
-
-@dataclass
-class XYPoint:
-    """The value of an OpenSearch/GeoJSON-compatible geo_point field."""
-
-    x: float
-    y: float
-
-
-class XYShapeType(enum.StrEnum):
-    """The type in an OpenSearch-compatible geo_shape field."""
-
-    POINT = "point"
-    LINE_STRING = "line_string"
-    POLYGON = "polygon"
-    MULTI_POINT = "multi_point"
-    MULTI_LINE_STRING = "multi_line_string"
-    MULTI_POLYGON = "multi_polygon"
-    GEOMETRY_COLLECTION = "geometry_collection"
-    ENVELOPE = "envelope"
-
-
-@dataclass
-class XYShape:
-    """The value of an OpenSearch-compatible geo_shape field."""
-
-    type: XYShapeType
-    coordinates: typing.Union[list[float], list[list[float]]]
-
 
 TYPE_TAG_BY_TYPE_HINT = {
     # string
@@ -370,9 +339,9 @@ class HasType(Node):
         )
 
 
-@node(mnt=MNT.FIELD)
+@node(node_type=NodeType.FIELD)
 class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
-    parent: Union["Statement", None] = nparent(MNT.STATEMENT)
+    parent: Union["Statement", None] = nparent(NodeType.STATEMENT)
     name: str | None = bproperty(default=None, validate=validate_name)
     order_key: str | None = binternal(default=None)
     tag: TypeTag = bproperty(is_required=True, validate=enum_validator(TypeTag))
@@ -423,7 +392,9 @@ class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
             kwargs["tag"] = TypeTag.NUMBER
         elif type is bool:
             kwargs["tag"] = TypeTag.BOOLEAN
-        elif isinstance(type, Node) and type.mnt == MNT.STATEMENT or isinstance(type, str):
+        elif (
+            isinstance(type, Node) and type.node_type == NodeType.STATEMENT or isinstance(type, str)
+        ):
             kwargs["tag"] = TypeTag.TYPE_REFERENCE
             kwargs["reference"] = type
         else:
@@ -565,9 +536,9 @@ class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
         return None  # for FieldQueryOps
 
 
-@node(mnt=MNT.RESOLVED_FIELD)
+@node(node_type=NodeType.RESOLVED_FIELD)
 class ResolvedField(Field):
-    parent: "Statement" = nparent(MNT.STATEMENT)
+    parent: "Statement" = nparent(NodeType.STATEMENT)
     field: Field = binternal()
 
     @property
@@ -612,10 +583,10 @@ class ResolvedField(Field):
 class HasFields(HasType):
     """A node with fields"""
 
-    fields: NodeList["Field"] = nchildren(MNT.FIELD, NRel.Named | NRel.Scoped | NRel.Ordered)
+    fields: NodeList["Field"] = nchildren(NodeType.FIELD, NRel.Named | NRel.Scoped | NRel.Ordered)
 
     resolved_fields: NodeList["ResolvedField"] = nchildren(
-        MNT.RESOLVED_FIELD, NRel.Named | NRel.Keyed | NRel.Ordered, alias="f"
+        NodeType.RESOLVED_FIELD, NRel.Named | NRel.Keyed | NRel.Ordered, alias="f"
     )
     _did_resolve_fields: bool = bruntime(default=False)
 
@@ -675,7 +646,7 @@ class HasFields(HasType):
                 resolved_fields.append(ResolvedField.from_field(self, field))
 
         # add any special inlined fields
-        if self.mnt == MNT.STATEMENT and self.type == StatementType.TASK:
+        if self.node_type == NodeType.STATEMENT and self.type == StatementType.TASK:
             run_config = symbolx_lib.resolve(".reflect.TaskRunConfig")
             resolved_fields.extend(ResolvedField.from_field(self, f) for f in run_config.fields)
 

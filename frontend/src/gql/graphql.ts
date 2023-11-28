@@ -285,7 +285,6 @@ export enum EditType {
   UpdateSymbolValue = "UPDATE_SYMBOL_VALUE",
   UpdateSymbolText = "UPDATE_SYMBOL_text",
   UpdateTagging = "UPDATE_TAGGING",
-  UpdateTaggingMetadata = "UPDATE_TAGGING_METADATA",
   UpdateTrigger = "UPDATE_TRIGGER",
 }
 

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Literal, Optional, Union
 
 import structlog
 
-from bench.language.const import MNT, IssueType, TypeFlag
+from bench.language.const import IssueType, NodeType, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.model import HasModel
 from bench.language.module import Node, ScopeNode, bruntime, node_component
@@ -84,10 +84,10 @@ class HasTask(Node):
 
         # do task
         view = NodeView(self.module)
-        seen_from_node = view.view_node(self, ancestors_up_to=MNT.FILE, max_distance=5)
+        seen_from_node = view.view_node(self, ancestors_up_to=NodeType.FILE, max_distance=5)
         await view.view_records(seen_from_node.values(), limit=10)
         seen_from_value = view.view_value(inputs, self, is_output=False)
-        view.view_node(seen_from_value.values(), ancestors_up_to=MNT.FILE, max_distance=2)
+        view.view_node(seen_from_value.values(), ancestors_up_to=NodeType.FILE, max_distance=2)
         await view.view_records(seen_from_value.values(), limit=10)
 
         self.session._tracer.run_enter(self, is_async=True, inputs=inputs)

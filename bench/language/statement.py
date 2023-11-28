@@ -6,7 +6,7 @@ from uuid import UUID
 
 from bench.language.code_ import HasCode
 from bench.language.const import (
-    MNT,
+    NodeType,
     StatementReference,
     StatementType,
     TextHeadingLevel,
@@ -115,7 +115,12 @@ _s(
     tag=TypeTag.ENUM,
     passthrough=(("fields", _Passthrough.Full),),
 )
-_s(StatementType.TASK, (HasTask, HasRun, HasFields, HasText), IdentT.METHOD, tag=TypeTag.FUNCTION)
+_s(
+    StatementType.TASK,
+    (HasTask, HasRun, HasFields, HasText),
+    IdentT.METHOD,
+    tag=TypeTag.FUNCTION,
+)
 _s(
     StatementType.CODE,
     (HasCode, HasRun, HasTriggers, HasFields, HasText),
@@ -123,7 +128,12 @@ _s(
     tag=TypeTag.FUNCTION,
 )
 _s(StatementType.FLOW, (HasRun, HasFields, HasText), IdentT.METHOD, tag=TypeTag.FUNCTION)
-_s(StatementType.MODEL, (HasModel, HasRun, HasFields, HasText), IdentT.METHOD, tag=TypeTag.FUNCTION)
+_s(
+    StatementType.MODEL,
+    (HasModel, HasRun, HasFields, HasText),
+    IdentT.METHOD,
+    tag=TypeTag.FUNCTION,
+)
 _s(
     StatementType.VARIABLE,
     (HasValue, HasFields, HasText),
@@ -167,17 +177,17 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node]] = tuple(
 
 
 @node(
-    MNT.STATEMENT,
+    NodeType.STATEMENT,
     passthrough=(("children", _Passthrough.Scope),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
 class Statement(ScopeNode, HasTags):
     """A Bench statement."""
 
-    file: Optional["File"] = nancestor(MNT.FILE)
-    parent: Union["Statement", "File"] = nparent(MNT.STATEMENT, MNT.FILE)
+    file: Optional["File"] = nancestor(NodeType.FILE)
+    parent: Union["Statement", "File"] = nparent(NodeType.STATEMENT, NodeType.FILE)
     children: NodeList["Statement"] = nchildren(
-        MNT.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
+        NodeType.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
     type: StatementType = binternal(default=StatementType.BLANK)

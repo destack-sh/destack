@@ -74,7 +74,6 @@ class EditType(enum.StrEnum):
     SOFT_DELETE_TAGGING = "SOFT_DELETE_TAGGING"
     RESTORE_TAGGING = "RESTORE_TAGGING"
     MOVE_TAGGING = "MOVE_TAGGING"
-    UPDATE_TAGGING_METADATA = "UPDATE_TAGGING_METADATA"
     # Triggers
     CREATE_TRIGGER = "CREATE_TRIGGER"
     UPDATE_TRIGGER = "UPDATE_TRIGGER"
@@ -114,7 +113,7 @@ class EditType(enum.StrEnum):
         return _MODULE_EDIT_MAP[self][0]
 
     @property
-    def mnt(self) -> "NodeType":
+    def node_type(self) -> "NodeType":
         return _MODULE_EDIT_MAP[self][1]
 
     @staticmethod
@@ -133,82 +132,77 @@ class EditKind(enum.StrEnum):
     BUMP = "BUMP"
 
 
-MET = EditType
-MEK = EditKind
-MNT = NodeType
-
-_MODULE_EDIT_MAP: dict[MET, tuple[MEK, MNT]] = {
+_MODULE_EDIT_MAP: dict[EditType, tuple[EditKind, NodeType]] = {
     # Files
-    MET.BUMP_FILE: (MEK.BUMP, MNT.FILE),
-    MET.CREATE_FILE: (MEK.CREATE, MNT.FILE),
-    MET.SOFT_DELETE_FILE: (MEK.SOFT_DELETE, MNT.FILE),
-    MET.RESTORE_FILE: (MEK.RESTORE, MNT.FILE),
-    MET.RENAME_FILE: (MEK.UPDATE, MNT.FILE),
-    MET.MOVE_FILE: (MEK.MOVE, MNT.FILE),
-    MET.UPDATE_FILE: (MEK.UPDATE, MNT.FILE),
-    MET.DELETE_FILE: (MEK.DELETE, MNT.FILE),
+    EditType.BUMP_FILE: (EditKind.BUMP, NodeType.FILE),
+    EditType.CREATE_FILE: (EditKind.CREATE, NodeType.FILE),
+    EditType.SOFT_DELETE_FILE: (EditKind.SOFT_DELETE, NodeType.FILE),
+    EditType.RESTORE_FILE: (EditKind.RESTORE, NodeType.FILE),
+    EditType.RENAME_FILE: (EditKind.UPDATE, NodeType.FILE),
+    EditType.MOVE_FILE: (EditKind.MOVE, NodeType.FILE),
+    EditType.UPDATE_FILE: (EditKind.UPDATE, NodeType.FILE),
+    EditType.DELETE_FILE: (EditKind.DELETE, NodeType.FILE),
     # Statements
-    MET.BUMP_STATEMENT: (MEK.BUMP, MNT.STATEMENT),
-    MET.PASTE_STATEMENT: (MEK.CREATE, MNT.STATEMENT),
-    MET.CREATE_STATEMENT: (MEK.CREATE, MNT.STATEMENT),
-    MET.SOFT_DELETE_STATEMENT: (MEK.SOFT_DELETE, MNT.STATEMENT),
-    MET.RESTORE_STATEMENT: (MEK.RESTORE, MNT.STATEMENT),
-    MET.MORPH_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
-    MET.MOVE_STATEMENT: (MEK.MOVE, MNT.STATEMENT),
-    MET.RENAME_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
-    MET.UPDATE_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
-    MET.DELETE_STATEMENT: (MEK.DELETE, MNT.STATEMENT),
-    MET.UPDATE_STATEMENT_TEXT: (MEK.UPDATE, MNT.STATEMENT),
-    MET.UPDATE_STATEMENT_FLAGS: (MEK.UPDATE, MNT.STATEMENT),
-    MET.UPDATE_STATEMENT_HEADING_LEVEL: (MEK.UPDATE, MNT.STATEMENT),
-    MET.UPDATE_STATEMENT_REFERENCE: (MEK.UPDATE, MNT.STATEMENT),
-    MET.UPDATE_SYMBOL_text: (MEK.UPDATE, MNT.STATEMENT),
-    MET.UPDATE_SYMBOL_CODE: (MEK.UPDATE, MNT.STATEMENT),
-    MET.UPDATE_SYMBOL_MODIFIER: (MEK.UPDATE, MNT.STATEMENT),
-    MET.UPDATE_SYMBOL_LANGUAGE: (MEK.UPDATE, MNT.STATEMENT),
-    MET.UPDATE_SYMBOL_VALUE: (MEK.UPDATE, MNT.STATEMENT),
+    EditType.BUMP_STATEMENT: (EditKind.BUMP, NodeType.STATEMENT),
+    EditType.PASTE_STATEMENT: (EditKind.CREATE, NodeType.STATEMENT),
+    EditType.CREATE_STATEMENT: (EditKind.CREATE, NodeType.STATEMENT),
+    EditType.SOFT_DELETE_STATEMENT: (EditKind.SOFT_DELETE, NodeType.STATEMENT),
+    EditType.RESTORE_STATEMENT: (EditKind.RESTORE, NodeType.STATEMENT),
+    EditType.MORPH_STATEMENT: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.MOVE_STATEMENT: (EditKind.MOVE, NodeType.STATEMENT),
+    EditType.RENAME_STATEMENT: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.UPDATE_STATEMENT: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.DELETE_STATEMENT: (EditKind.DELETE, NodeType.STATEMENT),
+    EditType.UPDATE_STATEMENT_TEXT: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.UPDATE_STATEMENT_FLAGS: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.UPDATE_STATEMENT_HEADING_LEVEL: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.UPDATE_STATEMENT_REFERENCE: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.UPDATE_SYMBOL_text: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.UPDATE_SYMBOL_CODE: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.UPDATE_SYMBOL_MODIFIER: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.UPDATE_SYMBOL_LANGUAGE: (EditKind.UPDATE, NodeType.STATEMENT),
+    EditType.UPDATE_SYMBOL_VALUE: (EditKind.UPDATE, NodeType.STATEMENT),
     # Taggings
-    MET.CREATE_TAGGING: (MEK.CREATE, MNT.TAGGING),
-    MET.UPDATE_TAGGING: (MEK.UPDATE, MNT.TAGGING),
-    MET.DELETE_TAGGING: (MEK.DELETE, MNT.TAGGING),
-    MET.SOFT_DELETE_TAGGING: (MEK.SOFT_DELETE, MNT.TAGGING),
-    MET.RESTORE_TAGGING: (MEK.RESTORE, MNT.TAGGING),
-    MET.MOVE_TAGGING: (MEK.UPDATE, MNT.TAGGING),
-    MET.UPDATE_TAGGING_METADATA: (MEK.UPDATE, MNT.TAGGING),
+    EditType.CREATE_TAGGING: (EditKind.CREATE, NodeType.TAGGING),
+    EditType.UPDATE_TAGGING: (EditKind.UPDATE, NodeType.TAGGING),
+    EditType.DELETE_TAGGING: (EditKind.DELETE, NodeType.TAGGING),
+    EditType.SOFT_DELETE_TAGGING: (EditKind.SOFT_DELETE, NodeType.TAGGING),
+    EditType.RESTORE_TAGGING: (EditKind.RESTORE, NodeType.TAGGING),
+    EditType.MOVE_TAGGING: (EditKind.UPDATE, NodeType.TAGGING),
     # Triggers
-    MET.CREATE_TRIGGER: (MEK.CREATE, MNT.TRIGGER),
-    MET.UPDATE_TRIGGER: (MEK.UPDATE, MNT.TRIGGER),
-    MET.DELETE_TRIGGER: (MEK.DELETE, MNT.TRIGGER),
-    MET.SOFT_DELETE_TRIGGER: (MEK.SOFT_DELETE, MNT.TRIGGER),
-    MET.RESTORE_TRIGGER: (MEK.RESTORE, MNT.TRIGGER),
+    EditType.CREATE_TRIGGER: (EditKind.CREATE, NodeType.TRIGGER),
+    EditType.UPDATE_TRIGGER: (EditKind.UPDATE, NodeType.TRIGGER),
+    EditType.DELETE_TRIGGER: (EditKind.DELETE, NodeType.TRIGGER),
+    EditType.SOFT_DELETE_TRIGGER: (EditKind.SOFT_DELETE, NodeType.TRIGGER),
+    EditType.RESTORE_TRIGGER: (EditKind.RESTORE, NodeType.TRIGGER),
     # Fields
-    MET.CREATE_FIELD: (MEK.CREATE, MNT.FIELD),
-    MET.UPDATE_FIELD: (MEK.UPDATE, MNT.FIELD),
-    MET.RENAME_FIELD: (MEK.UPDATE, MNT.FIELD),
-    MET.UPDATE_FIELD_TEXT: (MEK.UPDATE, MNT.FIELD),
-    MET.UPDATE_FIELD_TYPE: (MEK.UPDATE, MNT.FIELD),
-    MET.MOVE_FIELD: (MEK.MOVE, MNT.FIELD),
-    MET.DELETE_FIELD: (MEK.DELETE, MNT.FIELD),
-    MET.SOFT_DELETE_FIELD: (MEK.SOFT_DELETE, MNT.FIELD),
-    MET.RESTORE_FIELD: (MEK.RESTORE, MNT.FIELD),
+    EditType.CREATE_FIELD: (EditKind.CREATE, NodeType.FIELD),
+    EditType.UPDATE_FIELD: (EditKind.UPDATE, NodeType.FIELD),
+    EditType.RENAME_FIELD: (EditKind.UPDATE, NodeType.FIELD),
+    EditType.UPDATE_FIELD_TEXT: (EditKind.UPDATE, NodeType.FIELD),
+    EditType.UPDATE_FIELD_TYPE: (EditKind.UPDATE, NodeType.FIELD),
+    EditType.MOVE_FIELD: (EditKind.MOVE, NodeType.FIELD),
+    EditType.DELETE_FIELD: (EditKind.DELETE, NodeType.FIELD),
+    EditType.SOFT_DELETE_FIELD: (EditKind.SOFT_DELETE, NodeType.FIELD),
+    EditType.RESTORE_FIELD: (EditKind.RESTORE, NodeType.FIELD),
     # Records
-    MET.TRUNCATE_RECORDS: (MEK.TRUNCATE, MNT.RECORD),
-    MET.CREATE_RECORD: (MEK.CREATE, MNT.RECORD),
-    MET.UPDATE_RECORD: (MEK.UPDATE, MNT.RECORD),
-    MET.DELETE_RECORD: (MEK.DELETE, MNT.RECORD),
-    MET.SOFT_DELETE_RECORD: (MEK.SOFT_DELETE, MNT.RECORD),
-    MET.RESTORE_RECORD: (MEK.RESTORE, MNT.RECORD),
+    EditType.TRUNCATE_RECORDS: (EditKind.TRUNCATE, NodeType.RECORD),
+    EditType.CREATE_RECORD: (EditKind.CREATE, NodeType.RECORD),
+    EditType.UPDATE_RECORD: (EditKind.UPDATE, NodeType.RECORD),
+    EditType.DELETE_RECORD: (EditKind.DELETE, NodeType.RECORD),
+    EditType.SOFT_DELETE_RECORD: (EditKind.SOFT_DELETE, NodeType.RECORD),
+    EditType.RESTORE_RECORD: (EditKind.RESTORE, NodeType.RECORD),
     # Interp
-    MET.TRUNCATE_ISSUES: (MEK.TRUNCATE, MNT.ISSUE),
-    MET.CREATE_ISSUE: (MEK.CREATE, MNT.ISSUE),
-    MET.DELETE_ISSUE: (MEK.DELETE, MNT.ISSUE),
-    MET.TRUNCATE_RESOLVED_FIELDS: (MEK.TRUNCATE, MNT.RESOLVED_FIELD),
-    MET.CREATE_RESOLVED_FIELD: (MEK.CREATE, MNT.RESOLVED_FIELD),
-    MET.DELETE_RESOLVED_FIELD: (MEK.DELETE, MNT.RESOLVED_FIELD),
+    EditType.TRUNCATE_ISSUES: (EditKind.TRUNCATE, NodeType.ISSUE),
+    EditType.CREATE_ISSUE: (EditKind.CREATE, NodeType.ISSUE),
+    EditType.DELETE_ISSUE: (EditKind.DELETE, NodeType.ISSUE),
+    EditType.TRUNCATE_RESOLVED_FIELDS: (EditKind.TRUNCATE, NodeType.RESOLVED_FIELD),
+    EditType.CREATE_RESOLVED_FIELD: (EditKind.CREATE, NodeType.RESOLVED_FIELD),
+    EditType.DELETE_RESOLVED_FIELD: (EditKind.DELETE, NodeType.RESOLVED_FIELD),
 }
 
 # assert that all edits are in the map
-assert set(MET) == set(_MODULE_EDIT_MAP.keys()), "not all edits are mapped"
+assert set(EditType) == set(_MODULE_EDIT_MAP.keys()), "not all edits are mapped"
 
 
 @dataclass
@@ -219,7 +213,7 @@ class Edit:
      also track Edit.edited_by (for Run to enable undo)
     """
 
-    type: MET
+    type: EditType
     module: "Module"
     node: "Node"  # the node that was edited
     revision: Optional[int] = None  # server revision of node after edit is accepted
@@ -242,18 +236,18 @@ class Edit:
 
     @property
     def scope(self) -> NodeType:
-        """The type of node that was edited. Usually the same as mnt except for truncate."""
-        return self.node.mnt
+        """The type of node that was edited. Usually the same as node_type except for truncate."""
+        return self.node.node_type
 
     @property
-    def mnt(self) -> NodeType:
+    def node_type(self) -> NodeType:
         """The type of node that was edited."""
-        return self.type.mnt
+        return self.type.node_type
 
 
 @dataclass
 class EditData:
-    type: MET
+    type: EditType
     project_version_id: UUID
     file_id: Optional[UUID] = None
     statement_id: Optional[UUID] = None
@@ -261,7 +255,7 @@ class EditData:
     input: Optional[dict[str, Any]] = None  # for GQL edits
     properties: Optional[list[str]] = None  # changed properties (by language name), see :Edit
     thing: Optional[Any] = None  # in-memory object that was mutated, not serialized
-    _node_mnt: Optional[NodeType] = None  # discriminator for 'union'
+    _node_type: Optional[NodeType] = None  # discriminator for 'union'
     _node: Optional[Any] = None  # the actual data, custom encode/decoded as union
 
     def encode_some_attrs(self):  # see serialize and :WireFormat
@@ -274,7 +268,7 @@ class EditData:
 
         _node = data.get("_node")
         if _node is not None:
-            _data_cls = wire.DATA_CLASS_BY_MNT[data["_node_mnt"]]
+            _data_cls = wire.DATA_CLASS_BY_NODE_TYPE[data["_node_type"]]
             _node = from_dict(_data_cls, _node)
         return {"_node": _node}
 
@@ -286,7 +280,7 @@ class EditData:
     def node(self, node: "NodeData"):
         from bench.language import wire
 
-        self._node_mnt = wire.MNT_BY_DATA_CLASS[type(node)]
+        self._node_type = wire.NODE_TYPE_BY_DATA_CLASS[type(node)]
         self._node = node
 
     @property
@@ -295,19 +289,19 @@ class EditData:
 
     @property
     def scope(self) -> NodeType:
-        assert self._node_mnt is not None, f"mnt is not set on {self!r}"
-        return self._node_mnt
+        assert self._node_type is not None, f"node_type is not set on {self!r}"
+        return self._node_type
 
     @property
-    def mnt(self) -> NodeType:
-        return self.type.mnt
+    def node_type(self) -> NodeType:
+        return self.type.node_type
 
     def to_kind(self, kind: EditKind) -> "EditData":
-        new_type = EditType.from_nt(kind, self.mnt)
+        new_type = EditType.from_nt(kind, self.node_type)
         return replace(self, type=new_type)
 
     def __str__(self):
-        data_str = f"{self.node.mnt} {self.node.id} " if self.node else ""
+        data_str = f"{self.node.node_type} {self.node.id} " if self.node else ""
         properties_str = (" [" + ", ".join(self.properties) + "]") if self.properties else ""
         return f"{self.type} {data_str}{self.revision}{properties_str}"
 
@@ -352,12 +346,14 @@ class NodeTreeEditor:
     def reset(self):
         self.edits = []
 
-    def _make_edit(self, type: MET, node: "NodeData", properties: list[str] = None) -> "EditData":
+    def _make_edit(
+        self, type: EditType, node: "NodeData", properties: list[str] = None
+    ) -> "EditData":
         from bench.language import wire
 
         if isinstance(node, wire.StatementData):
             statement_id = node.id
-            file_id = self.file_id or self.tree.get_ancestor(node.parent_id, MNT.FILE).id
+            file_id = self.file_id or self.tree.get_ancestor(node.parent_id, NodeType.FILE).id
         elif isinstance(node, wire.FileData):
             statement_id = None
             file_id = node.id
@@ -368,12 +364,12 @@ class NodeTreeEditor:
             if self.statement_id:
                 statement_id = self.statement_id
             else:
-                statement = self.tree.get_ancestor(node.parent_id, MNT.STATEMENT)
+                statement = self.tree.get_ancestor(node.parent_id, NodeType.STATEMENT)
                 statement_id = statement.id if statement else None
             if self.file_id:
                 file_id = self.file_id
             else:
-                file_id = self.tree.get_ancestor(node.parent_id, MNT.FILE).id
+                file_id = self.tree.get_ancestor(node.parent_id, NodeType.FILE).id
         edit = EditData(
             type=type,
             project_version_id=self.module_id,
@@ -394,9 +390,9 @@ class NodeTreeEditor:
         else:
             return wire.pack_node_flat(node)
 
-    def truncate(self, node: Union["NodeData", Node], mnt: MNT) -> "EditData":
+    def truncate(self, node: Union["NodeData", Node], node_type: NodeType) -> "EditData":
         return self._make_edit(
-            EditType(f"TRUNCATE_{mnt.caps_name}S"), node=self._pack_node_flat_if_needed(node)
+            EditType(f"TRUNCATE_{node_type.caps_name}S"), node=self._pack_node_flat_if_needed(node)
         )
 
     def create_many(self, *nodes: Union["NodeData", Node]) -> list["EditData"]:
@@ -404,20 +400,22 @@ class NodeTreeEditor:
 
     def create(self, node: Union["NodeData", Node]) -> "EditData":
         return self._make_edit(
-            MET.from_nt(MEK.CREATE, node.mnt), node=self._pack_node_flat_if_needed(node)
+            EditType.from_nt(EditKind.CREATE, node.node_type),
+            node=self._pack_node_flat_if_needed(node),
         )
 
     def update(self, node: Union["NodeData", Node], properties: list[str] = None) -> "EditData":
         assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
         return self._make_edit(
-            type=MET.from_nt(MEK.UPDATE, node.mnt),
+            type=EditType.from_nt(EditKind.UPDATE, node.node_type),
             node=self._pack_node_flat_if_needed(node),
             properties=properties,
         )
 
     def move(self, node: Union["NodeData", Node]) -> "EditData":
         return self._make_edit(
-            type=MET.from_nt(MEK.MOVE, node.mnt), node=self._pack_node_flat_if_needed(node)
+            type=EditType.from_nt(EditKind.MOVE, node.node_type),
+            node=self._pack_node_flat_if_needed(node),
         )
 
     def soft_delete_many(
@@ -429,20 +427,22 @@ class NodeTreeEditor:
         self, node: Union["NodeData", Node], deleted_at: datetime | None = None
     ) -> "EditData":
         # sneakily convert soft delete into hard delete for interp types
-        if node.mnt in INTERP_NODE_TYPES:
+        if node.node_type in INTERP_NODE_TYPES:
             return self.delete(node)
         node = self._pack_node_flat_if_needed(node)
         node.deleted_at = deleted_at or utcnow_with_tz()
-        return self._make_edit(type=MET.from_nt(MEK.SOFT_DELETE, node.mnt), node=node)
+        return self._make_edit(
+            type=EditType.from_nt(EditKind.SOFT_DELETE, node.node_type), node=node
+        )
 
     def restore(self, node: Union["NodeData", Node]) -> "EditData":
         node = self._pack_node_flat_if_needed(node)
         node.deleted_at = None
-        return self._make_edit(type=MET.from_nt(MEK.RESTORE, node.mnt), node=node)
+        return self._make_edit(type=EditType.from_nt(EditKind.RESTORE, node.node_type), node=node)
 
     def delete(self, node: Union["NodeData", Node]) -> "EditData":
         return self._make_edit(
-            type=MET.from_nt(MEK.DELETE, node.mnt),
+            type=EditType.from_nt(EditKind.DELETE, node.node_type),
             node=self._pack_node_flat_if_needed(node),
         )
 
@@ -459,13 +459,13 @@ class EditBundle:
     def __repr__(self):
         return f"<EditBundle {self}>"
 
-    def batched(self) -> Iterator[tuple[MET, list[EditData]]]:
+    def batched(self) -> Iterator[tuple[EditType, list[EditData]]]:
         """
         Batch consecutive edits by type in order of appearance.
         """
 
         current_batch: list[EditData] = []
-        current_type: MET | None = None
+        current_type: EditType | None = None
 
         for edit in self.edits:
             if edit.type != current_type:
@@ -480,7 +480,7 @@ class EditBundle:
 
     def batched_apply(
         self, tree: NodeTree, raise_on_error: bool = True
-    ) -> Iterator[tuple[MET, list[EditData]]]:
+    ) -> Iterator[tuple[EditType, list[EditData]]]:
         """
         Batch consecutive edits by type in order of appearance
          AND optionally concurrently apply them to the given module tree.
@@ -509,7 +509,7 @@ def diff_modules(
     new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():
-        if new_node.mnt == NodeType.MODULE:
+        if new_node.node_type == NodeType.MODULE:
             continue  # ignore module itself
         if new_node.id not in old_tree.nodes_by_id:
             old_tree.apply_edit(editor.create(new_node))
@@ -518,15 +518,15 @@ def diff_modules(
             if not new_node.equals_content(old_node):
                 old_tree.apply_edit(editor.update(new_node))
     for old_node in old_tree.walk_bfs():
-        if old_node.mnt == NodeType.MODULE:
+        if old_node.node_type == NodeType.MODULE:
             continue
         if old_node.id not in new_tree.nodes_by_id:
             old_tree.apply_edit(editor.delete(old_node))
     # sort into delete -> create -> update
     edits = [
-        *(e for e in editor.edits if e.type.kind == MEK.DELETE),
-        *(e for e in editor.edits if e.type.kind == MEK.CREATE),
-        *(e for e in editor.edits if e.type.kind == MEK.UPDATE),
+        *(e for e in editor.edits if e.type.kind == EditKind.DELETE),
+        *(e for e in editor.edits if e.type.kind == EditKind.CREATE),
+        *(e for e in editor.edits if e.type.kind == EditKind.UPDATE),
     ]
     return edits
 
@@ -577,15 +577,15 @@ def render(
                     file = None
                     statement = None
                 for n in descendants:
-                    if n.ck in seen_node_cks or n.mnt in INTERP_NODE_TYPES:
+                    if n.ck in seen_node_cks or n.node_type in INTERP_NODE_TYPES:
                         continue
                     seen_node_cks.add(n.ck)
                     edit = Edit(
-                        type=EditType(f"CREATE_{n.mnt.caps_name}"),
+                        type=EditType(f"CREATE_{n.node_type.caps_name}"),
                         module=n.module,
                         node=n,
-                        file=file or tree.get_ancestor(n.ck, MNT.FILE),
-                        statement=statement or tree.get_ancestor(n.ck, MNT.STATEMENT),
+                        file=file or tree.get_ancestor(n.ck, NodeType.FILE),
+                        statement=statement or tree.get_ancestor(n.ck, NodeType.STATEMENT),
                     )
                     edits.append(edit)
         edits = EditBundle(edits)
@@ -731,11 +731,11 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
             if node.parent and node.parent.ck in nodes_by_ck:
                 attach_to_prop = first(
                     p
-                    for p in node.parent.__list_properties_by_child__[node.mnt]
+                    for p in node.parent.__list_properties_by_child__[node.node_type]
                     if not p.children_flags & NRel.Flat
                 )
                 parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
-                if node.mnt in (MNT.RECORD, MNT.TAGGING, MNT.TRIGGER):
+                if node.node_type in (NodeType.RECORD, NodeType.TAGGING, NodeType.TRIGGER):
                     op = _Op(parent_str, _OpType.CREATE, [init_node])
                 else:
                     op = _Op(parent_str, _OpType.APPEND, [init_node])
@@ -771,7 +771,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         for node in nodes:
             n, init_name, init_args, init_kwargs = node
             # inline record value (see Record.new)
-            if n.mnt == MNT.RECORD:
+            if n.node_type == NodeType.RECORD:
                 from bench.language.packer import render_value
 
                 kwargs_str = _sep(

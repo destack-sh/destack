@@ -29,13 +29,13 @@ from bench.language.const import (
     NodeType,
     TriggerType,
 )
-from bench.language.edit import MEK, EditBundle, EditData
+from bench.language.edit import EditBundle, EditData, EditKind
 from bench.language.module import NodeTree
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import flatten
 
-MNT = NodeType
-ParentsT = set[MNT]
+NodeType = NodeType
+ParentsT = set[NodeType]
 NodeDataT = TypeVar("NodeDataT", bound=wire.NodeData)
 NodeT = TypeVar("NodeT", bound=Model)
 DataT = TypeVar("DataT")
@@ -130,11 +130,11 @@ DEFAULT_EXCLUDED = ()
 # some node models correspond to multiple actual module node / node data types
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
 _node_packers_by_node: dict[typing.Type[NodeT], NodePacker] = {}
-BASE_MODEL_CLASS_BY_MNT: dict[MNT, typing.Type[Model]] = {}
-MNT_BY_BASE_MODEL_CLASS: dict[typing.Type[Model], MNT] = {}
+BASE_MODEL_CLASS_BY_NODE_TYPE: dict[NodeType, typing.Type[Model]] = {}
+NODE_TYPE_BY_MODEL_CLASS: dict[typing.Type[Model], NodeType] = {}
 
 
-def node_packer(t: MNT, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT]):
+def node_packer(t: NodeType, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT]):
     """Decorator to register a node packer for a given type"""
 
     def decorator(cls: "NodePacker"):
@@ -149,11 +149,13 @@ def node_packer(t: MNT, data_t: typing.Type[NodeDataT], node_t: typing.Type[Node
         packer = cls()
         _node_packers_by_data[data_t] = packer
         _node_packers_by_node[node_t] = packer
-        if t not in BASE_MODEL_CLASS_BY_MNT:
-            BASE_MODEL_CLASS_BY_MNT[t] = node_t
-            MNT_BY_BASE_MODEL_CLASS[node_t] = t
-        elif not issubclass(node_t, BASE_MODEL_CLASS_BY_MNT[t]):  # type: ignore
-            raise ValueError(f"model {node_t} is not a subclass of {BASE_MODEL_CLASS_BY_MNT[t]}")
+        if t not in BASE_MODEL_CLASS_BY_NODE_TYPE:
+            BASE_MODEL_CLASS_BY_NODE_TYPE[t] = node_t
+            NODE_TYPE_BY_MODEL_CLASS[node_t] = t
+        elif not issubclass(node_t, BASE_MODEL_CLASS_BY_NODE_TYPE[t]):  # type: ignore
+            raise ValueError(
+                f"model {node_t} is not a subclass of {BASE_MODEL_CLASS_BY_NODE_TYPE[t]}"
+            )
         return cls
 
     return decorator
@@ -226,10 +228,14 @@ def collect_node(
     if recurse_flat_root:
         # collect descendants at the root level
         for root in roots:
-            root_mnt = MNT_BY_BASE_MODEL_CLASS[type(root)]
-            if root_mnt not in (MNT.FILE, MNT.STATEMENT) or excluded and type(root) in excluded:
+            root_node_type = NODE_TYPE_BY_MODEL_CLASS[type(root)]
+            if (
+                root_node_type not in (NodeType.FILE, NodeType.STATEMENT)
+                or excluded
+                and type(root) in excluded
+            ):
                 continue
-            # queryset for recursive parent_<mnt>_id descendants
+            # queryset for recursive parent_<node_type>_id descendants
             query = """
             WITH RECURSIVE descendants(id, parent_{type}_id) AS (
                 SELECT id, parent_{type}_id
@@ -243,9 +249,9 @@ def collect_node(
             SELECT DISTINCT id
              FROM descendants
             """.format(
-                type=root_mnt.value.lower()
+                type=root_node_type.value.lower()
             )
-            qs = BASE_MODEL_CLASS_BY_MNT[root_mnt]._base_manager.filter(
+            qs = BASE_MODEL_CLASS_BY_NODE_TYPE[root_node_type]._base_manager.filter(
                 id__in=RawSQL(query, ([root.id],))
             )
             qs = filter(qs)
@@ -367,7 +373,7 @@ def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
     return packer.unpack(data, parent)
 
 
-@node_packer(MNT.MODULE, wire.ModuleData, models.ProjectVersion)
+@node_packer(NodeType.MODULE, wire.ModuleData, models.ProjectVersion)
 class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
     def walk(self, nodes: list[models.ProjectVersion], tree: PackContext) -> list[QuerySet[Model]]:
         return [models.File._base_manager.filter(project_version__in=nodes)]
@@ -388,7 +394,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
         )
 
 
-@node_packer(MNT.FILE, wire.FileData, models.File)
+@node_packer(NodeType.FILE, wire.FileData, models.File)
 class FilePacker(NodePacker[wire.FileData, models.File]):
     def walk(self, nodes: list[models.File], tree: PackContext) -> list[QuerySet[Model]]:
         return [
@@ -427,7 +433,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
         )
 
 
-@node_packer(MNT.STATEMENT, wire.StatementData, models.Statement)
+@node_packer(NodeType.STATEMENT, wire.StatementData, models.Statement)
 class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: "PackContext") -> list[QuerySet[Model]]:
         return [
@@ -489,7 +495,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
         )
 
 
-@node_packer(MNT.FIELD, wire.FieldData, models.Field)
+@node_packer(NodeType.FIELD, wire.FieldData, models.Field)
 class FieldPacker(NodePacker[wire.FieldData, models.Field]):
     def pack(self, field: models.Field) -> wire.FieldData:
         return wire.FieldData(
@@ -531,7 +537,7 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
         )
 
 
-@node_packer(MNT.TRIGGER, wire.TriggerData, models.Trigger)
+@node_packer(NodeType.TRIGGER, wire.TriggerData, models.Trigger)
 class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
     def pack(self, trigger: models.Trigger) -> wire.TriggerData:
         return wire.TriggerData(
@@ -573,7 +579,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
         )
 
 
-@node_packer(MNT.TAGGING, wire.TaggingData, models.Tagging)
+@node_packer(NodeType.TAGGING, wire.TaggingData, models.Tagging)
 class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
     def pack(self, tagging: models.Tagging) -> wire.TaggingData:
         return wire.TaggingData(
@@ -606,7 +612,7 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
 # interp module data
 
 
-@node_packer(MNT.ISSUE, wire.IssueData, models.Issue)
+@node_packer(NodeType.ISSUE, wire.IssueData, models.Issue)
 class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
     def pack(self, issue: models.Issue) -> wire.IssueData:
         return wire.IssueData(
@@ -647,7 +653,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
         )
 
 
-@node_packer(MNT.RESOLVED_FIELD, wire.ResolvedFieldData, models.ResolvedField)
+@node_packer(NodeType.RESOLVED_FIELD, wire.ResolvedFieldData, models.ResolvedField)
 class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedField]):
     def pack(self, resolved_field: models.ResolvedField) -> wire.ResolvedFieldData:
         return wire.ResolvedFieldData(
@@ -902,12 +908,12 @@ class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
         )
 
 
-REMAP_PROPERTIES: dict[tuple[MNT, str], list[str]] = {
-    (MNT.FILE, "parent_id"): ["parent_file_id", "project_version_id"],
-    (MNT.STATEMENT, "parent_id"): ["parent_statement_id", "file_id", "project_version_id"],
-    (MNT.FIELD, "parent_id"): ["statement_id", "project_version_id"],
-    (MNT.TRIGGER, "parent_id"): ["statement_id", "project_version_id"],
-    (MNT.TAGGING, "parent_id"): ["statement_id", "project_version_id"],
+REMAP_PROPERTIES: dict[tuple[NodeType, str], list[str]] = {
+    (NodeType.FILE, "parent_id"): ["parent_file_id", "project_version_id"],
+    (NodeType.STATEMENT, "parent_id"): ["parent_statement_id", "file_id", "project_version_id"],
+    (NodeType.FIELD, "parent_id"): ["statement_id", "project_version_id"],
+    (NodeType.TRIGGER, "parent_id"): ["statement_id", "project_version_id"],
+    (NodeType.TAGGING, "parent_id"): ["statement_id", "project_version_id"],
 }
 
 
@@ -928,15 +934,15 @@ def write_host_db_edits(
     now = utcnow_with_tz()
     edited_nodes: list[NodeDataT] = []
 
-    for met, batch in edits.batched_apply(source, raise_on_error=raise_on_apply_error):
-        if met.mnt in (MNT.RECORD,):  # can't do local edits in host..
-            raise RuntimeError(f"unexpected host edit {met}: {batch!r}")
-        if met.kind == MEK.TRUNCATE:
+    for edit_type, batch in edits.batched_apply(source, raise_on_error=raise_on_apply_error):
+        if edit_type.node_type in (NodeType.RECORD,):  # can't do local edits in host..
+            raise RuntimeError(f"unexpected host edit {edit_type}: {batch!r}")
+        if edit_type.kind == EditKind.TRUNCATE:
             # remove children of a certain type by scope
             # this is a bit unwieldy...
             statement_ids = [e.statement_id for e in batch if e.statement_id is not None]
             file_ids = [e.file_id for e in batch if e.file_id is not None]
-            model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
+            model_cls = BASE_MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
             if statement_ids:
                 if hasattr(model_cls, "statement"):
                     model_cls._base_manager.filter(statement_id__in=statement_ids).delete()
@@ -950,10 +956,10 @@ def write_host_db_edits(
             else:
                 model_cls._base_manager.filter(project_version_id=project_v.id).delete()
 
-        elif met.kind == MEK.CREATE:
+        elif edit_type.kind == EditKind.CREATE:
             # create nodes
             nodes = unpack_nodes(project_v, source, [e.node for e in batch])
-            model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
+            model_cls = BASE_MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
             model_cls.objects.bulk_create(nodes)
             # reload nodes (e.g., for revisions)
             nodes = model_cls._base_manager.filter(id__in=[e.node.id for e in batch])
@@ -962,15 +968,20 @@ def write_host_db_edits(
                 e.thing = node  # keep node model for downstream indexing in opensearch
             edited_nodes.extend(e.node for e in batch)
 
-        elif met.kind in (MEK.UPDATE, MEK.MOVE, MEK.SOFT_DELETE, MEK.RESTORE):
+        elif edit_type.kind in (
+            EditKind.UPDATE,
+            EditKind.MOVE,
+            EditKind.SOFT_DELETE,
+            EditKind.RESTORE,
+        ):
             # update nodes in place
             nodes = unpack_nodes(project_v, source, [e.node for e in batch])
-            model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
-            if met.kind == MEK.SOFT_DELETE:
+            model_cls = BASE_MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
+            if edit_type.kind == EditKind.SOFT_DELETE:
                 for node in nodes:
                     node.deleted_at = node.deleted_at or now
                 cru_properties = ["deleted_at"]
-            elif met.kind == MEK.RESTORE:
+            elif edit_type.kind == EditKind.RESTORE:
                 for node in nodes:
                     node.deleted_at = None
                 cru_properties = ["deleted_at"]
@@ -983,16 +994,21 @@ def write_host_db_edits(
             nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
             for e, node in zip(batch, nodes):
                 properties = ";".join(
-                    flatten(*(REMAP_PROPERTIES.get((met.mnt, p), [p]) for p in e.properties or ()))
+                    flatten(
+                        *(
+                            REMAP_PROPERTIES.get((edit_type.node_type, p), [p])
+                            for p in e.properties or ()
+                        )
+                    )
                 )
                 nodes_by_props[properties].append(node)
             # batch update
             for properties, nodes in nodes_by_props.items():
                 properties = [p for p in properties.split(";") if p]
                 # need to remap properties since edit data uses language names (see :Edit)
-                properties = wire.remap_properties(met.mnt, properties)
+                properties = wire.remap_properties(edit_type.node_type, properties)
                 # validate changed properties (records have no validation)
-                if validate and met.mnt != MNT.RECORD:
+                if validate and edit_type.node_type != NodeType.RECORD:
                     unchanged_properties = [
                         f.name for f in model_cls._meta.fields if f.name not in properties
                     ]
@@ -1012,8 +1028,8 @@ def write_host_db_edits(
                 e.thing = node  # keep node model for downstream indexing in opensearch
             edited_nodes.extend(e.node for e in batch)
 
-        elif met.kind == MEK.DELETE:
-            model_cls = BASE_MODEL_CLASS_BY_MNT[met.mnt]
+        elif edit_type.kind == EditKind.DELETE:
+            model_cls = BASE_MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
             model_cls._base_manager.filter(id__in=[e.node.id for e in batch]).delete()
 
     return edited_nodes
@@ -1058,7 +1074,11 @@ def write_session(
     write_session_to_os(project_v, session, runs)
 
 
-INTERP_MODEL_TYPES = tuple(BASE_MODEL_CLASS_BY_MNT[mnt] for mnt in INTERP_NODE_TYPES)
+INTERP_MODEL_TYPES = tuple(
+    BASE_MODEL_CLASS_BY_NODE_TYPE[node_type] for node_type in INTERP_NODE_TYPES
+)
 HOST_MODEL_TYPES = tuple(
-    BASE_MODEL_CLASS_BY_MNT[mnt] for mnt in HOST_NODE_TYPES if mnt in BASE_MODEL_CLASS_BY_MNT
+    BASE_MODEL_CLASS_BY_NODE_TYPE[node_type]
+    for node_type in HOST_NODE_TYPES
+    if node_type in BASE_MODEL_CLASS_BY_NODE_TYPE
 )

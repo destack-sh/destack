@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
 from uuid import UUID
 
-from bench.language.const import INTERP_NODE_TYPES, MNT, IssueType, SortOp, StatementReference
+from bench.language.const import INTERP_NODE_TYPES, IssueType, NodeType, SortOp, StatementReference
 from bench.language.expression import S
 from bench.language.module import Node, ScopeNode, bproperty, node_component
 from bench.language.validation import ValidationHandler
@@ -83,9 +83,9 @@ class NodeView:
     def view_node(
         self,
         origin: Node | Collection[Node],
-        ancestors_up_to: MNT,
+        ancestors_up_to: NodeType,
         max_distance: int,
-        exclude: set[MNT] = INTERP_NODE_TYPES,
+        exclude: set[NodeType] = INTERP_NODE_TYPES,
     ) -> dict[UUID, Node]:
         """Collects the entire inline lineage including references up to max_distance"""
         origins = [origin] if isinstance(origin, Node) else list(origin)
@@ -96,7 +96,7 @@ class NodeView:
         seen_by_ck: dict[UUID, Node] = {}
         for origin in origins:
             parent = origin
-            while parent is not None and parent.mnt != ancestors_up_to:
+            while parent is not None and parent.node_type != ancestors_up_to:
                 seen_by_ck[parent.ck] = parent
                 parent = parent.parent
 
@@ -131,7 +131,7 @@ class NodeView:
 
         databases = []
         for node in nodes:
-            if node.mnt == MNT.STATEMENT and HasDatabase in node._components:
+            if node.node_type == NodeType.STATEMENT and HasDatabase in node._components:
                 databases.append(node)
         seen_by_ck: dict[UUID, Node] = {}
         for database in databases:

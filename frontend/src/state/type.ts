@@ -152,8 +152,6 @@ export type TypeStorageInfo = {
   sortable: boolean;
 };
 
-export const TYPENAME_SENTINEL = "__typename"; // :TypeSentinel
-export const OMITTED_SENTINEL = "__omitted"; // :OmittedSentinel
 export const BLOB_TYPENAME = "Blob";
 export const SECRET_TYPENAME = "Secret";
 

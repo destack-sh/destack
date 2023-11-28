@@ -19,7 +19,7 @@ from bench.language import Blob, HasRun, HasText, Module, Run, RunError, render
 from bench.language.builtin import anthropic_lib, deepgram_lib, openai_lib, symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
-    MNT,
+    NodeType,
     RunStatus,
     TypeFlag,
     TypeHint,
@@ -1061,7 +1061,7 @@ for name, module in DEFAULT_MODULES.items():
     assert module.name == name
 
     # assign stable cks / versioned ids
-    nodes = [n for n in module._walk_rec() if n.mnt not in INTERP_NODE_TYPES]
+    nodes = [n for n in module._walk_rec() if n.node_type not in INTERP_NODE_TYPES]
     node_by_path: dict[str, Node] = {}
     target_cks: dict[UUID, UUID] = {}
     for node in nodes:
@@ -1098,7 +1098,7 @@ for name, module in DEFAULT_MODULES.items():
     # patch references
     for node in nodes:
         # TODO @Broken: use same reference patching as in wire (and share with hot reload, etc.)
-        if node.mnt == MNT.STATEMENT and HasText in node._components:
+        if node.node_type == NodeType.STATEMENT and HasText in node._components:
             # only patching text here is fine since we clear after all ids/cks are updated
             # and only in-text references are not automatically updated
             node.text = patch_text_html(node.text, target_cks)
@@ -1128,7 +1128,7 @@ for name, module in DEFAULT_MODULES.items():
 
     # manually 'deactivate session' for module since we're outside a session
     for node in module._nodes:
-        if node.mnt == MNT.STATEMENT and HasDatabase in node._components:
+        if node.node_type == NodeType.STATEMENT and HasDatabase in node._components:
             for record in node.records:
                 record._set_untracked("value", record._raw_value(_force=True))
 

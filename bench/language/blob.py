@@ -11,7 +11,7 @@ import requests
 import structlog
 
 from bench.language.builtin import _auto_async_to_sync, active_session
-from bench.language.const import MNT, BlobStatus
+from bench.language.const import BlobStatus, NodeType
 from bench.language.module import Module, Node, binternal, bruntime, node
 from bench.language.validation import ValidationHandler, on_issue_raise
 
@@ -21,7 +21,7 @@ BLOB_HASH_LENGTH = 128  # 512 bits
 BLOB_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 
 
-@node(MNT.BLOB)
+@node(NodeType.BLOB)
 class Blob(Node):
     """
     A proxy to a remotely stored object behaving like a Python file on demand.

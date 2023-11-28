@@ -29,7 +29,6 @@ from cachetools import cached
 
 from bench.language.const import (
     INTERP_NODE_TYPES,
-    MNT,
     ConditionalOp,
     ExpressionOp,
     IssueKind,
@@ -37,6 +36,7 @@ from bench.language.const import (
     ModuleReference,
     NodePath,
     NodeTrackingLevel,
+    NodeType,
     SortOp,
     StatementType,
     StructType,
@@ -108,7 +108,7 @@ class NodeRelationType(enum.IntFlag):
 
 NRel = NodeRelationType
 
-FLATTENED_RELATIONS = ((MNT.MODULE, MNT.FILE), (MNT.FILE, MNT.STATEMENT))
+FLATTENED_RELATIONS = ((NodeType.MODULE, NodeType.FILE), (NodeType.FILE, NodeType.STATEMENT))
 
 UNSET = object()
 
@@ -287,8 +287,8 @@ class Property(_FieldExpressionBase):
     is_runtime: bool = False
     is_cru: bool = False
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
-    parent_mnts: tuple[MNT] | None = None
-    ancestor_mnt: MNT | None = None
+    parent_node_types: tuple[NodeType] | None = None
+    ancestor_node_type: NodeType | None = None
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
     list_type: type["NodeListBase"] | None = None
@@ -297,7 +297,7 @@ class Property(_FieldExpressionBase):
     # for manual handling in dynamic nodes
     ignore_conflicts_with: tuple[type["Node"], ...] | None = None
     # for relations
-    child_mnt: MNT | None = None
+    child_node_type: NodeType | None = None
     children_flags: NodeRelationType = NodeRelationType.Default
 
     @functools.cached_property
@@ -317,7 +317,7 @@ class Property(_FieldExpressionBase):
             and self.default_factory is None
         ):
             raise ValueError(f"missing default for {self}")
-        if self.child_mnt and (self.default is not UNSET or self.default_factory is not None):
+        if self.child_node_type and (self.default is not UNSET or self.default_factory is not None):
             raise ValueError(f"cannot set default for {self}")
 
     def __str__(self):
@@ -380,7 +380,7 @@ class Property(_FieldExpressionBase):
 
     @property
     def is_relation(self) -> bool:
-        return bool(self.parent_mnts) or self.child_mnt or self.ancestor_mnt
+        return bool(self.parent_node_types) or self.child_node_type or self.ancestor_node_type
 
 
 def bproperty(
@@ -442,25 +442,25 @@ def bruntime(
     )
 
 
-def nparent(*mnt: MNT):
+def nparent(*node_type: NodeType):
     """The parent of a node, must be of one of the given types."""
-    return Property(parent_mnts=tuple(mnt), default=None, is_internal=True)
+    return Property(parent_node_types=tuple(node_type), default=None, is_internal=True)
 
 
-def nancestor(mnt: MNT):
+def nancestor(node_type: NodeType):
     """Computed nearest ancestor of the given type."""
-    return Property(ancestor_mnt=mnt, default=None, is_internal=True)
+    return Property(ancestor_node_type=node_type, default=None, is_internal=True)
 
 
 def nchildren(
-    mnt: MNT,
+    node_type: NodeType,
     flags: NRel = NRel.Default,
     custom_list: type["NodeListBase"] = None,
     alias: str = None,
 ):
     """Computed read/write children or descendants of the given type."""
     return Property(
-        child_mnt=mnt,
+        child_node_type=node_type,
         children_flags=flags,
         is_internal=True,
         is_required=True,
@@ -517,7 +517,7 @@ _FORBIDDEN_NODE_METHODS = (
     + [m.rec for m in ComponentMethod]
     + ["__post_init__", "__del__"]
 )
-_NODE_CLASS_BY_MNT: dict[MNT, type["NodeT"]] = {}
+_NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
 _COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 _COMPONENT_METHODS: dict[[ComponentMethod, type["Node"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
@@ -562,11 +562,11 @@ def _get_component_methods(
     return _concrete_component_methods[cache_key]
 
 
-def _get_node_class(mnt: MNT):
-    if len(_NODE_CLASS_BY_MNT) < len(MNT):
+def _get_node_class(node_type: NodeType):
+    if len(_NODE_CLASS_BY_NODE_TYPE) < len(NodeType):
         m = import_module("bench.language")
-        getattr(m, mnt)  # noqa check that the node class is defined
-    return _NODE_CLASS_BY_MNT[mnt]
+        getattr(m, node_type)  # noqa check that the node class is defined
+    return _NODE_CLASS_BY_NODE_TYPE[node_type]
 
 
 def _process_struct_base(
@@ -642,13 +642,13 @@ def _process_struct_base(
 
     # create class (map to dataclass)
     for name, prop in properties.items():
-        if not prop.child_mnt and not hasattr(cls, name):  # may be inherited
+        if not prop.child_node_type and not hasattr(cls, name):  # may be inherited
             continue
-        if prop.ancestor_mnt:
+        if prop.ancestor_node_type:
             setattr(cls, name, _node_ancestor_prop(prop))
             if name in cls.__annotations__:  # computed property doesn't need a dataclass field
                 del cls.__annotations__[name]
-        elif prop.child_mnt:
+        elif prop.child_node_type:
             setattr(cls, name, dataclasses.field(default=None))
         elif prop.default is not UNSET:
             setattr(cls, name, dataclasses.field(default=prop.default))
@@ -656,7 +656,7 @@ def _process_struct_base(
             setattr(cls, name, dataclasses.field(default_factory=prop.default_factory))
         else:
             setattr(cls, name, required_field())
-        if not prop.ancestor_mnt:
+        if not prop.ancestor_node_type:
             cls.__annotations__[name] = prop.annotation
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
     cls.__static_components__ = tuple(static_components)
@@ -669,12 +669,12 @@ def _process_struct_base(
 @typing.dataclass_transform()
 def node_component(
     cls: Optional[typing.Type] = None,
-    mnt: MNT = None,
+    node_type: NodeType = None,
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
 ):
     """
-    Mark a class as a node component (or concrete node for a MNT).
+    Mark a class as a node component (or concrete node for a NodeType).
     """
 
     def decorate(cls):
@@ -683,29 +683,31 @@ def node_component(
         # register node properties
         props = properties.values()
         list_properties: dict[str, Property] = {}
-        list_properties_by_child: dict[MNT, list[Property]] = defaultdict(list)
+        list_properties_by_child: dict[NodeType, list[Property]] = defaultdict(list)
         for prop in properties.values():
-            if prop.child_mnt:
+            if prop.child_node_type:
                 if (
                     cls.__name__ != "ScopeNode"
                     and not issubclass(cls, ScopeNode)
-                    and mnt is not None
+                    and node_type is not None
                 ):
                     raise ValueError(f"{cls} is not ScopeNode for {prop}")
                 list_properties[prop.name] = prop
-                list_properties_by_child[prop.child_mnt].append(prop)
+                list_properties_by_child[prop.child_node_type].append(prop)
         cls.__list_properties__ = frozendict(list_properties)
         cls.__list_properties_by_child__ = frozendict(list_properties_by_child)
         cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
-        cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_mnt})
+        cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_node_type})
         cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
 
-        # register as concrete node class for mnt
-        if mnt:
-            cls.mnt = mnt
-            if mnt in _NODE_CLASS_BY_MNT:
-                raise ValueError(f"node class conflict for {mnt}: {cls}, {_NODE_CLASS_BY_MNT[mnt]}")
-            _NODE_CLASS_BY_MNT[mnt] = cls
+        # register as concrete node class for node_type
+        if node_type:
+            cls.node_type = node_type
+            if node_type in _NODE_CLASS_BY_NODE_TYPE:
+                raise ValueError(
+                    f"node class conflict for {node_type}: {cls}, {_NODE_CLASS_BY_NODE_TYPE[node_type]}"
+                )
+            _NODE_CLASS_BY_NODE_TYPE[node_type] = cls
         _COMPONENT_CLASS_BY_NAME[cls.__name__] = cls
 
         return cls
@@ -730,13 +732,13 @@ def struct(st: StructType):
 
 
 def node(
-    mnt: MNT,
+    node_type: NodeType,
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
 ):
     def decorate(cls):
         return node_component(
-            cls, mnt=mnt, passthrough=passthrough, dynamic_components=dynamic_components
+            cls, node_type=node_type, passthrough=passthrough, dynamic_components=dynamic_components
         )
 
     return decorate
@@ -751,7 +753,7 @@ def _node_ancestor_prop(prop: Property) -> property:
     def get(self: NodeT) -> Optional[NodeT]:
         parent = self  # include self in search
         while parent is not None:
-            if parent.mnt == prop.ancestor_mnt:
+            if parent.node_type == prop.ancestor_node_type:
                 return parent
             parent = parent.parent
         return None
@@ -813,7 +815,7 @@ class _ChangeEffect:
     prev_session: Optional["Session"]
     prev_status: Optional[NS]
     level: _NC
-    affected_mnts: set[MNT] | None
+    affected_node_types: set[NodeType] | None
     ancestors: list["Node"] | None
     affected: list["Node"] | None
 
@@ -829,7 +831,7 @@ class _ChangeEffect:
         assert from_parent or to_parent, f"cannot create update on {changed!r} without parent"
 
         # collect ancestors to update their affected node lists
-        affected_mnts = set([n.mnt for n in changed])
+        affected_node_types = set([n.node_type for n in changed])
         ancestors = []
         if level >= _NC.UpdateLists:
             parent = from_parent
@@ -853,14 +855,14 @@ class _ChangeEffect:
                         )
                     )
             # filter out interp types
-            affected_nodes = [n for n in affected_nodes if n.mnt not in INTERP_NODE_TYPES]
+            affected_nodes = [n for n in affected_nodes if n.node_type not in INTERP_NODE_TYPES]
         else:
             affected_nodes = None
 
         return _ChangeEffect(
             prev_session=to_parent._session if to_parent else None,
             prev_status=to_parent._status if to_parent else None,
-            affected_mnts=affected_mnts,
+            affected_node_types=affected_node_types,
             ancestors=ancestors,
             affected=affected_nodes,
             level=level,
@@ -871,7 +873,7 @@ class _ChangeEffect:
         if level & _NC.UpdateLists:
             for ancestor in self.ancestors:
                 for prop in ancestor.__list_properties__.values():
-                    if prop.child_mnt in self.affected_mnts:
+                    if prop.child_node_type in self.affected_node_types:
                         getattr(ancestor, prop.name)._update(ancestor)
 
         if level & _NC.Detach:
@@ -914,7 +916,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         """Creates a new node in the list."""
         if len(args) == 1 and isinstance(args[0], Node):
             raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
-        node_cls = _NODE_CLASS_BY_MNT[self._property.child_mnt]
+        node_cls = _NODE_CLASS_BY_NODE_TYPE[self._property.child_node_type]
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
             node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NS.SOURCE)
@@ -985,7 +987,7 @@ class NodeList(NodeListBase[NodeT]):
 
     def __init__(self, parent: "ScopeNode", property: Property):
         super().__init__(parent, property)
-        self._child_mnt: MNT = property.child_mnt
+        self._child_node_type: NodeType = property.child_node_type
         self._flags = property.children_flags
         self._nodes: list[NodeT] = []
 
@@ -1034,21 +1036,21 @@ class NodeList(NodeListBase[NodeT]):
             # all matching children of parent's descendants
             #  e.g. Module->Issue, File->Issue, ... -> all issues
             self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_mnt, recursive=True, prefilter=False
+                scope.ck, self._child_node_type, recursive=True, prefilter=False
             )
             assert not self._flags & NRel.Ordered, f"cannot order cumulative {self}"
         elif self._flags & NRel.Flat:
             # all matching descendants of matching children of parent
             #  e.g. Module->File, File->File, ... -> all files
             self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_mnt, recursive=True, prefilter=True
+                scope.ck, self._child_node_type, recursive=True, prefilter=True
             )
             if self._flags & NRel.Ordered:
                 self._nodes = _sort_nested_ordered_list(self._parent.ck, self._nodes)
         else:
             # only matching children of parent
             self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_mnt, recursive=False
+                scope.ck, self._child_node_type, recursive=False
             )
             if self._flags & NRel.Ordered:
                 self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
@@ -1190,7 +1192,7 @@ class NodeList(NodeListBase[NodeT]):
         if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
             return self.get(obj) is not None
         elif isinstance(obj, Node):
-            if obj.mnt != self._property.child_mnt:
+            if obj.node_type != self._property.child_node_type:
                 raise TypeError(f"{self!r} cannot contain {obj!r}")
             return obj in self._nodes
         else:
@@ -1291,14 +1293,14 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
         """Remove a node from the tree (incl. all descendants if recursive)"""
         raise NotImplementedError
 
-    def truncate(self, node: NT, mnt: MNT):
+    def truncate(self, node: NT, node_type: NodeType):
         """Remove all descendants of a node"""
         raise NotImplementedError
 
     def get_descendants(
         self,
         node_id_or_ck: UUID,
-        mnt: MNT | None = None,
+        node_type: NodeType | None = None,
         recursive: bool = False,
         prefilter: bool = False,
         include_self: bool = False,
@@ -1310,7 +1312,9 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
         """Gets all descendants in BFS order"""
         raise NotImplementedError
 
-    def get_ancestor(self, node_id_or_ck: UUID, mnt: MNT | None = None) -> Optional["NT"]:
+    def get_ancestor(
+        self, node_id_or_ck: UUID, node_type: NodeType | None = None
+    ) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
         raise NotImplementedError
 
@@ -1418,9 +1422,9 @@ class NodeTree(NodeTreeBase[NT]):
             if descendant.parent_id in self.node_id_by_parent_id:
                 self.node_id_by_parent_id[descendant.parent_id].remove(descendant.id)
 
-    def truncate(self, node: NT, mnt: MNT, recursive: bool = True):
+    def truncate(self, node: NT, node_type: NodeType, recursive: bool = True):
         """Truncate descendants of a node"""
-        descendants = self.get_descendants(node.id, mnt, recursive=recursive)
+        descendants = self.get_descendants(node.id, node_type, recursive=recursive)
         for descendant in descendants:
             if descendant.id in self.node_id_by_parent_id:
                 self.node_id_by_parent_id.pop(descendant.id)
@@ -1438,7 +1442,7 @@ class NodeTree(NodeTreeBase[NT]):
     def add_tree(self, tree: Union["NodeTree", "DetachedNodeTree"]):
         if isinstance(tree, DetachedNodeTree):
             for node in tree.nodes_by_ck.values():
-                if node.mnt != MNT.RECORD:  # remove hoisted records :TempRecordTree
+                if node.node_type != NodeType.RECORD:  # remove hoisted records :TempRecordTree
                     self.add(node)
         else:
             self.nodes_by_id.update(tree.nodes_by_id)
@@ -1528,7 +1532,7 @@ class NodeTree(NodeTreeBase[NT]):
     def get_descendants(
         self,
         node_id_or_ck: UUID,
-        mnt: MNT | None = None,
+        node_type: NodeType | None = None,
         recursive: bool = False,
         prefilter: bool = False,
         include_self: bool = False,
@@ -1543,7 +1547,7 @@ class NodeTree(NodeTreeBase[NT]):
         children = [
             self.nodes_by_id[child_id]
             for child_id in self.node_id_by_parent_id.get(node_id, [])
-            if not mnt or not prefilter or self.nodes_by_id[child_id].mnt == mnt
+            if not node_type or not prefilter or self.nodes_by_id[child_id].node_type == node_type
         ]
 
         descendants = []
@@ -1555,10 +1559,10 @@ class NodeTree(NodeTreeBase[NT]):
                 if child.id not in self.node_id_by_parent_id:
                     continue
                 descendants.extend(
-                    self.get_descendants(child.id, mnt, prefilter=prefilter, recursive=True)
+                    self.get_descendants(child.id, node_type, prefilter=prefilter, recursive=True)
                 )
-        if not prefilter and mnt:
-            descendants = [n for n in descendants if n.mnt == mnt]
+        if not prefilter and node_type:
+            descendants = [n for n in descendants if n.node_type == node_type]
         return descendants
 
     def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
@@ -1575,7 +1579,9 @@ class NodeTree(NodeTreeBase[NT]):
                     )
         return descendants_by_ck.values()
 
-    def get_ancestor(self, node_id_or_ck: UUID, mnt: MNT | None = None) -> Optional["NT"]:
+    def get_ancestor(
+        self, node_id_or_ck: UUID, node_type: NodeType | None = None
+    ) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
         if node_id_or_ck in self.nodes_by_id:
             node_id = node_id_or_ck
@@ -1585,7 +1591,7 @@ class NodeTree(NodeTreeBase[NT]):
             raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
         node = self.nodes_by_id.get(node_id)
         while node:
-            if not mnt or node.mnt == mnt:
+            if not node_type or node.node_type == node_type:
                 return node
             if node.parent_id is None:
                 return None
@@ -1595,7 +1601,7 @@ class NodeTree(NodeTreeBase[NT]):
     def get_ancestors(
         self,
         node_id: UUID,
-        mnt: MNT | None = None,
+        node_type: NodeType | None = None,
         include_self: bool = False,
     ) -> list["NT"]:
         """Finds all ancestors of the given type"""
@@ -1606,7 +1612,7 @@ class NodeTree(NodeTreeBase[NT]):
         if include_self:
             ancestors.append(node)
         while node:
-            if not mnt or node.mnt == mnt:
+            if not node_type or node.node_type == node_type:
                 ancestors.append(node)
             if node.parent_id is None:
                 break
@@ -1686,9 +1692,9 @@ class DetachedNodeTree(NodeTreeBase[NT]):
             if descendant.ck in self.nodes_by_ck:
                 self.nodes_by_ck.pop(descendant.ck)
 
-    def truncate(self, node: "Node", mnt: MNT):
+    def truncate(self, node: "Node", node_type: NodeType):
         """Remove all descendants of a node"""
-        descendants = self.get_descendants(node.ck, mnt, recursive=True)
+        descendants = self.get_descendants(node.ck, node_type, recursive=True)
         for descendant in descendants:
             if descendant.ck in self.nodes_by_parent_ck:
                 self.nodes_by_parent_ck.pop(descendant.ck)
@@ -1699,7 +1705,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
     def get_descendants(
         self,
         node_id_or_ck: UUID,
-        mnt: MNT | None = None,
+        node_type: NodeType | None = None,
         recursive: bool = False,
         prefilter: bool = False,
         include_self: bool = False,
@@ -1708,7 +1714,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         children = [
             child
             for child in self.nodes_by_parent_ck.get(node_id_or_ck, [])
-            if not mnt or not prefilter or child.mnt == mnt
+            if not node_type or not prefilter or child.node_type == node_type
         ]
         descendants = []
         if include_self:
@@ -1719,10 +1725,10 @@ class DetachedNodeTree(NodeTreeBase[NT]):
                 if child.ck not in self.nodes_by_parent_ck:
                     continue
                 descendants.extend(
-                    self.get_descendants(child.ck, mnt, prefilter=prefilter, recursive=True)
+                    self.get_descendants(child.ck, node_type, prefilter=prefilter, recursive=True)
                 )
-        if not prefilter and mnt:
-            descendants = [n for n in descendants if n.mnt == mnt]
+        if not prefilter and node_type:
+            descendants = [n for n in descendants if n.node_type == node_type]
         return descendants
 
     def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
@@ -1737,13 +1743,15 @@ class DetachedNodeTree(NodeTreeBase[NT]):
                     children.extend(self.nodes_by_parent_ck[child.ck])
         return descendants_by_ck.values()
 
-    def get_ancestor(self, node_id_or_ck: UUID, mnt: MNT | None = None) -> Optional["NT"]:
+    def get_ancestor(
+        self, node_id_or_ck: UUID, node_type: NodeType | None = None
+    ) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
         node = self.nodes_by_ck.get(node_id_or_ck)
         if node is None:
             raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
         while node:
-            if not mnt or node.mnt == mnt:
+            if not node_type or node.node_type == node_type:
                 return node
             if node.parent is None:
                 return None
@@ -1752,7 +1760,10 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
 
 def _make_self_method(
-    method: ComponentMethod, wraps, from_status: NodeStatus = None, to_status: NodeStatus = None
+    method: ComponentMethod,
+    wraps,
+    from_status: NodeStatus = None,
+    to_status: NodeStatus = None,
 ):
     """Creates method that calls _method_inner for all components in call order"""
 
@@ -1839,13 +1850,13 @@ class Node(abc.ABC):
     The id is derived from the module id, so it's only assigned when the node is attached.
     """
 
-    mnt: ClassVar[MNT]  # set in @node decorator
+    node_type: ClassVar[NodeType]  # set in @node decorator
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __properties__: ClassVar[dict[str, Property]] = {}
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __list_properties__: ClassVar[dict[str, Property]] = {}
-    __list_properties_by_child__: ClassVar[dict[MNT, list[Property]]] = defaultdict(list)
+    __list_properties_by_child__: ClassVar[dict[NodeType, list[Property]]] = defaultdict(list)
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
@@ -1855,7 +1866,7 @@ class Node(abc.ABC):
     ck: UUID = binternal(default=None, reflect=True)
     parent: Optional["Node"] = nparent()
     # prototype: Optional["Node"] / instance_of_ck: UUID
-    module: Optional["Module"] = nancestor(MNT.MODULE)
+    module: Optional["Module"] = nancestor(NodeType.MODULE)
 
     created_at: datetime = binternal(default=None, is_cru=True, reflect=True)
     updated_at: datetime = binternal(default=None, is_cru=True, reflect=True)
@@ -2251,7 +2262,7 @@ class ScopeNode(Node):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
     __has_scope__: ClassVar[bool] = True
-    issues: NodeList["Issue"] = nchildren(MNT.ISSUE, NRel.Cumulative)
+    issues: NodeList["Issue"] = nchildren(NodeType.ISSUE, NRel.Cumulative)
     _scopes_by_name: dict[str, "ScopeNode"] = bruntime(default_factory=dict)
     _names_by_ident: dict[str, str] = bruntime(default_factory=dict)
     # the local tree is maintained at the local root (usually module, maybe a detached root node)
@@ -2370,7 +2381,7 @@ class ScopeNode(Node):
         self,
         path: Union["NodePath", UUID, str],
         by: Optional[LookupBy] = None,
-        node_t: MNT | StatementType | typing.Type[NodeT] | None = None,
+        node_t: NodeType | StatementType | typing.Type[NodeT] | None = None,
     ) -> NodeT | None:
         """
         Lookup the symbol either by path or id. If path is a string, it can be
@@ -2450,29 +2461,29 @@ class ModuleChange:
     added: list[Node]
     updated: list[Node]
     removed: list[Node]
-    touched_types: set[MNT | StatementType] = dataclasses.field(init=False)
+    touched_types: set[NodeType | StatementType] = dataclasses.field(init=False)
     all_edits: list["EditData"] = dataclasses.field(init=False)
 
     def __post_init__(self):
-        self.touched_types = {n.mnt for n in self.touched} | {
-            n.type for n in self.touched if n.mnt == MNT.STATEMENT
+        self.touched_types = {n.node_type for n in self.touched} | {
+            n.type for n in self.touched if n.node_type == NodeType.STATEMENT
         }
         self.all_edits = self.source_edits + self.interp_edits
 
-    def includes(self, *mnts: MNT | StatementType) -> bool:
-        return any(nt in self.touched_types for nt in mnts)
+    def includes(self, *node_types: NodeType | StatementType) -> bool:
+        return any(nt in self.touched_types for nt in node_types)
 
     @property
     def touched(self) -> typing.Iterable[Node]:
         return chain(self.added, self.updated, self.removed)
 
 
-@node(mnt=MNT.MODULE, passthrough=(("files", _Passthrough.Full),))
+@node(node_type=NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
     parent: None = nparent()
     name: str = binternal()  # can't change this yet
     committed: bool = binternal(default=False)
-    files: NodeList["File"] = nchildren(MNT.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
+    files: NodeList["File"] = nchildren(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
     dependencies: dict[str, Union["Module", ModuleReference]] = bruntime(default_factory=dict)
     builtins: list["File"] = bruntime(default_factory=list)
     _lookup_cache: dict[str, NodeT] = bruntime(default_factory=dict)
@@ -2547,7 +2558,7 @@ class Module(ScopeNode):
         self,
         path: Union["NodePath", UUID, str],
         by: Optional[LookupBy] = None,
-        node_t: MNT | typing.Type[NodeT] | None = None,
+        node_t: NodeType | typing.Type[NodeT] | None = None,
     ) -> NodeT | None:
         if path in self._lookup_cache:
             return self._lookup_cache[path]
@@ -2654,7 +2665,7 @@ class Module(ScopeNode):
             try:
                 self._source.apply_edit(edit)
             except ValueError as e:
-                if edit.mnt not in INTERP_NODE_TYPES:
+                if edit.node_type not in INTERP_NODE_TYPES:
                     raise ValueError(f"failed to apply edit {edit!r} to {self!r}") from e
                 # interp errors are fine here since e.g. a deleted issue's parent may have disappeared
                 #  (we could filter that, but it's easier not to, the edits are explicit for clients)
@@ -2673,7 +2684,7 @@ class Module(ScopeNode):
         for n in new_nodes.values():
             if n.ck in old_source.nodes_by_ck:
                 if (
-                    n.mnt not in INTERP_NODE_TYPES
+                    n.node_type not in INTERP_NODE_TYPES
                     and n.revision != old_source.nodes_by_ck[n.ck].revision
                 ):
                     updated.append(n)
@@ -2685,7 +2696,7 @@ class Module(ScopeNode):
         old_editor = NodeTreeEditor(old_source, self._project_id, self.id)
         for node in removed:
             # :InterpEditFilter
-            if node.mnt in INTERP_NODE_TYPES:
+            if node.node_type in INTERP_NODE_TYPES:
                 if node.ck not in old_source.nodes_by_ck:
                     # need to investigate
                     logger.warning(f"node {node!r} not found in old source for {self!r}")
@@ -2694,7 +2705,7 @@ class Module(ScopeNode):
                 old_editor.delete(old_source.nodes_by_ck[node.ck])
         new_editor = NodeTreeEditor(self._source, self._project_id, self.id)
         for node in added:
-            if node.mnt in INTERP_NODE_TYPES:
+            if node.node_type in INTERP_NODE_TYPES:
                 new_editor.create(node)
 
         return ModuleChange(

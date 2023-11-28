@@ -6,7 +6,7 @@ import { SECRET_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
 
 export type SecretRecord = {
-  __typename: typeof SECRET_TYPENAME;
+  _type: typeof SECRET_TYPENAME;
   id: string;
   name?: string | null;
   sha512: string;
@@ -24,7 +24,7 @@ export function toSecretId(id: string) {
 
 function makeSecretRecord(secret: Secret): SecretRecord {
   const record = {
-    __typename: SECRET_TYPENAME,
+    _type: SECRET_TYPENAME,
     id: toSecretDataId(secret.id),
     name: secret.name ?? null,
     sha512: secret.sha512,
@@ -36,7 +36,7 @@ function makeSecretRecord(secret: Secret): SecretRecord {
 }
 
 export function isValidSecretRecord(obj: any): boolean {
-  if (obj?.__typename != SECRET_TYPENAME) {
+  if (obj?._type != SECRET_TYPENAME) {
     return false;
   }
   // check required field types

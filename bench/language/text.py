@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Optional, Union
 from uuid import UUID
 
-from bench.language.const import MNT, NodeReference, NodeType, TypedNodeReference
+from bench.language.const import NodeReference, NodeType, TypedNodeReference
 from bench.language.module import Node, ScopeNode, bproperty, bruntime, node_component
 from bench.language.reference import NodeVisitor
 from bench.language.validation import ValidationHandler, validate_is_str
@@ -173,7 +173,7 @@ def parse_text_html(text_raw: str) -> list[TextSpan]:
 
         # mention
         ck = UUID(match.group("ck"))
-        type = NodeType(match.group("type"))
+        type = NodeType(match.group("type").upper())
         path = match.group("path") or None
         spans.append(TextMention(reference=TypedNodeReference(type, ck), reference_path=path))
 
@@ -196,7 +196,7 @@ def render_text_html(text_spans: list[TextSpan]) -> str:
         if isinstance(span, TextMention):
             if isinstance(span.reference, Node):
                 ref = TEXT_MENTION_TEMPLATE.format(
-                    type=span.reference.mnt, ck=span.reference.ck, path=""
+                    type=span.reference.node_type, ck=span.reference.ck, path=""
                 )
             else:
                 ref = TEXT_MENTION_TEMPLATE.format(
@@ -242,8 +242,10 @@ def parse_text_multi(text_raw: str) -> list[TextSpan]:
             spans.append(TextPlain(text=text_raw[last_end : match.start()]))
 
         ident = match.group("ident") or UUID(match.group("ck"))
-        mnt = match.group("type") or MNT.STATEMENT
-        spans.append(TextMention(reference=TypedNodeReference(mnt, ident), reference_path=None))
+        node_type = match.group("type") or NodeType.STATEMENT
+        spans.append(
+            TextMention(reference=TypedNodeReference(node_type, ident), reference_path=None)
+        )
 
         last_end = match.end()
 

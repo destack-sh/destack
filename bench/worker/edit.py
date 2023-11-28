@@ -7,7 +7,7 @@ from uuid import UUID
 
 from strawberry.utils.str_converters import to_camel_case
 
-from bench.language.edit import MNT, EditData
+from bench.language.edit import EditData, NodeType
 
 MAX_RECORD_MUTATIONS_PER_BATCH = 15
 
@@ -39,7 +39,7 @@ def get_api_edit_from_internal(edit: EditData) -> EditData:
 
 
 # extra fields in API edits that are not in internal module data
-_EXTRA_FIELDS_BY_SCOPE = {MNT.FILE: {"parent_id": None, "directory": False}}
+_EXTRA_FIELDS_BY_SCOPE = {NodeType.FILE: {"parent_id": None, "directory": False}}
 
 
 def get_gql_input_from_edit(edit: EditData) -> Optional[dict]:
@@ -53,7 +53,7 @@ def get_gql_input_from_edit(edit: EditData) -> Optional[dict]:
     input_cls = INPUT_CLASS_BY_TYPE.get(edit.type)
     if input_cls is None:
         return None
-    extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(edit.type.mnt, {})
+    extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(edit.type.node_type, {})
     input_args = {}
     for field in fields(input_cls):
         if field.name == "project_version_id":
@@ -113,18 +113,18 @@ def _map_id_field(key: str, value: UUID, edit: EditData):
     # so we check against the edit file id... this should be fine?
     from strawberry.relay import GlobalID
 
-    if key == "parent_id" and edit.type.mnt == MNT.STATEMENT:
+    if key == "parent_id" and edit.type.node_type == NodeType.STATEMENT:
         if value == edit.file_id:
             type_name = "File"
         else:
             type_name = "Statement"
-    elif key == "parent_id" and edit.type.mnt == MNT.FILE:
+    elif key == "parent_id" and edit.type.node_type == NodeType.FILE:
         # same as above
         if value == edit.project_version_id:
             type_name = "ProjectVersion"
         else:
             type_name = "File"
     else:
-        type_name = edit.type.mnt
+        type_name = edit.type.node_type.camel_name
     value = GlobalID(type_name, str(value))
     return value

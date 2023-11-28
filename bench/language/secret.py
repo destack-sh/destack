@@ -3,13 +3,13 @@ from typing import Optional
 
 from bench.language import Node
 from bench.language.builtin import _auto_async_to_sync
-from bench.language.const import MNT
+from bench.language.const import NodeType
 from bench.language.module import bproperty, bruntime, node
 
 SecretValueT = typing.TypeVar("SecretValueT")
 
 
-@node(MNT.SECRET)
+@node(NodeType.SECRET)
 class Secret(Node, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 

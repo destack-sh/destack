@@ -561,7 +561,7 @@ class ModuleWorkerProcess(RuntimeHost):
         try:
             # apply edits
             now = utcnow_with_tz()
-            edits = [e for e in job.edits if e.mnt not in INTERP_NODE_TYPES]
+            edits = [e for e in job.edits if e.node_type not in INTERP_NODE_TYPES]
             self.module._apply_edits(edits)
             duration = utcnow_with_tz() - now
             self.log.info("worker.make", edits=edits, duration=duration.total_seconds())

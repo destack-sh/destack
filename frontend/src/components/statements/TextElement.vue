@@ -95,7 +95,7 @@ const quickActions = computed(() => {
     label: "Assist",
     description: "Draft this for me",
     icon: SparklesIcon,
-    fat: true,
+    fat: false, // too distracting
     action: () => {
       emit("launchAssist", "Continue from here");
     },

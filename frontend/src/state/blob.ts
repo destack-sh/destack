@@ -8,7 +8,7 @@ export const OBJECT_TYPETAGS = [TypeTag.Blob];
 
 // :BlobType
 export type BlobRecord = {
-  __typename: typeof BLOB_TYPENAME;
+  _type: typeof BLOB_TYPENAME;
   id: string;
   name?: string | null;
   content_length: number;
@@ -36,7 +36,7 @@ export function toBlobId(id: string) {
 
 function makeBlob(blob: Blob, status?: BlobStatus): BlobRecord {
   const record = {
-    __typename: BLOB_TYPENAME,
+    _type: BLOB_TYPENAME,
     id: toObjectDataId(blob.id),
     name: blob.name ?? null,
     content_length: blob.contentLength,
@@ -51,7 +51,7 @@ function makeBlob(blob: Blob, status?: BlobStatus): BlobRecord {
 }
 
 export function isValidBlobRecord(obj: any): boolean {
-  if (obj?.__typename != BLOB_TYPENAME) {
+  if (obj?._type != BLOB_TYPENAME) {
     return false;
   }
   // check required field types
