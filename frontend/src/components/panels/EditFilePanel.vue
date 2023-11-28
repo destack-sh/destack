@@ -42,6 +42,7 @@ const ops = useOperations();
 const window = useWindowSize();
 
 // file state
+const isPendingCreate = computed(() => ops.state.hasInflightLike({ types: ["file.create"] }));
 
 const {
   result: file,
@@ -66,12 +67,17 @@ const {
   `),
   () => ({
     fileId: getNodeIdFromCk(bench.projectVersionId as string, panel.value.fileCk, "File"),
-  })
+  }),
+  {
+    enabled: computed(() => !isPendingCreate.value), // cheeky hack to avoid race condition if file is slow in backend
+  }
 );
 const fileHeader = computed(() => useFragment(FileHeaderType, file.value?.file) ?? undefined);
+const isLoading = computed(() => fileLoading.value || (isPendingCreate.value && file.value == null));
 const isDeleted = computed(() => fileHeader.value?.deletedAt != null);
 const isOtherVersion = computed(
   () =>
+    !isPendingCreate.value &&
     bench.projectVersionId != null &&
     fileHeader.value != null &&
     fileHeader.value?.projectVersion?.id != bench.projectVersionId
@@ -121,36 +127,6 @@ const fileState: Ref<FileState | null> = computed(() => {
   } as FileState;
 });
 const context: Ref<NavigationContext | null> = provideFileState(fileState);
-
-const WAIT_FOR_COMPLETE_LOAD = false;
-const statementsLoaded = ref(false); // first time that all statements are loaded (subsequent loads are ignored)
-watchEffect(() => {
-  if (statementsLoaded.value || fileLoading.value) return;
-  if (WAIT_FOR_COMPLETE_LOAD) {
-    if (Object.keys(statementsComponents.value).length == statements.value.length) {
-      for (const statement of statements.value) {
-        if (statementsComponents.value[statement.id].loading) {
-          return;
-        }
-      }
-    }
-  }
-
-  statementsLoaded.value = true;
-  panel.value.stopEditingElement(); // reset editing element on load
-  if (panel.value.focused && panel.value.activeStatementCk != null) {
-    // focus active statement
-    statementsComponents.value[panel.value.activeStatementCk]?.focus();
-    // scroll into view
-    nextTick(() => {
-      statementsComponents.value[panel.value.activeStatementCk as string]?.$el?.parentNode?.scrollIntoView({
-        behavior: "instant",
-        block: "center",
-        inline: "center",
-      });
-    });
-  }
-});
 
 // navigation
 
@@ -501,7 +477,7 @@ defineExpose({
     />
     <!-- Loading / status -->
     <div
-      v-if="fileLoading || !statementsLoaded"
+      v-if="isLoading"
       class="flex h-full w-full flex-col items-center justify-center"
       :style="{
         width: props.panel.size.value?.width + 'px',
@@ -510,14 +486,13 @@ defineExpose({
     >
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
     </div>
-    <PanelStatusNotice :thing="fileHeader" name="file" :loading="fileLoading" :error="fileError" @restore="restore" />
+    <PanelStatusNotice :thing="fileHeader" name="file" :loading="isLoading" :error="fileError" @restore="restore" />
     <!-- File main content -->
     <!-- (bottom padding is in last StatementAddArea) -->
     <div
       ref="mainContentRef"
       class="relative flex flex-col bg-white"
-      v-if="!fileLoading && fileHeader"
-      v-show="statementsLoaded"
+      v-if="!isLoading && fileHeader"
       @mousedown="startDragSelectMaybe"
       @mousemove="updateDragSelectMaybe"
       @mouseup="stopDragSelect"
@@ -579,7 +554,6 @@ defineExpose({
           :rendered-depth="positioned.renderedDepth"
           :ancestors="positioned.ancestors.map((ancestorId) => (context?.statementsById[ancestorId] as Statement))"
           :standalone="false"
-          :shown="statementsLoaded"
           :is-group-start="positioned.isGroupStart"
           :is-group-middle="positioned.isGroupMiddle"
           :is-group-end="positioned.isGroupEnd"

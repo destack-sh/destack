@@ -83,7 +83,7 @@ class FilePasteInput:
 class FileMutation:
     @bench_edit(MET.CREATE_FILE)
     def create_file(self, input: FileCreateInput) -> File | OperationInfo:
-        id = input.id.node_id if input.id else None
+        id = UUID(input.id.node_id) if input.id else None
         return models.File(
             id=id,
             ck=input.ck,

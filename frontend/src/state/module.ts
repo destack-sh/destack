@@ -166,7 +166,7 @@ function _useModuleFlat(moduleOrProjectId: Ref<string | null>, options?: { cache
     const statementsByParentId: GRecord<string, InterpStatement[]> = {};
     const filesById: GRecord<string, InterpFile> = {};
     const fieldsById: GRecord<string, Field> = {};
-    const idByCk: GRecord<string, string> = {}; // not comprehensive (does not include all module object types)
+    const idByCk: GRecord<string, string> = {}; // not comprehensive yet (does not include all module object types)
 
     // TODO @Cleanup: type module objects more correctly (file/statements/issues)
     for (const file of module.value.module.files.map((f) => useFragment(InterpFileType, f))) {

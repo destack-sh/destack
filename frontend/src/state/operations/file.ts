@@ -10,7 +10,6 @@ import {
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { EditRegistry } from "@/state/sync";
-import { useMutation } from "@vue/apollo-composable";
 
 export function useFileOps() {
   const ops = useOperationsStore();
@@ -115,7 +114,6 @@ export function useFileOps() {
           return; // error;
         }
         // extend ProjectVersion.files array with (ref to) new file
-        // must ensure that all relevant fields are present or weird things happen
         cache.modify({
           id: cache.identify(data.createFile?.projectVersion),
           fields: {
