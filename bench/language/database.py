@@ -9,8 +9,8 @@ from psycopg import sql
 
 from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import (
-    MNT,
     ConditionalOp,
+    NodeType,
     QueryEngine,
     SessionAccessLevel,
     new_dynamic_node_key,
@@ -50,9 +50,9 @@ LOCAL_RECORD_CACHE_LIMIT = 2048
 RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 
-@node(mnt=MNT.RECORD, passthrough=(("value", _Passthrough.Full),))
+@node(node_type=NodeType.RECORD, passthrough=(("value", _Passthrough.Full),))
 class Record(HasValue, Node):
-    parent: "Statement" = nparent(MNT.STATEMENT)
+    parent: "Statement" = nparent(NodeType.STATEMENT)
 
     @staticmethod
     def new(
@@ -635,8 +635,8 @@ class RecordList(NodeListBase[Record], RecordQuery):
 
 @node_component
 class HasDatabase(Node):
-    views: NodeList["View"] = nchildren(MNT.VIEW, NRel.Named | NRel.Ordered)
-    records: NodeList[Record] = nchildren(MNT.RECORD, NRel.Remote, custom_list=RecordList)
+    views: NodeList["View"] = nchildren(NodeType.VIEW, NRel.Named | NRel.Ordered)
+    records: NodeList[Record] = nchildren(NodeType.RECORD, NRel.Remote, custom_list=RecordList)
     _table: Optional[Table] = bruntime(default=None)
 
     def _init_inner(self):

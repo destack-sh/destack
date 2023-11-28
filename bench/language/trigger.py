@@ -6,7 +6,7 @@ from uuid import UUID
 import pytz
 from croniter import croniter
 
-from bench.language.const import MNT, ScheduleType, TriggerType
+from bench.language.const import NodeType, ScheduleType, TriggerType
 from bench.language.module import (
     Node,
     NodeList,
@@ -30,11 +30,11 @@ TRIGGER_INTERVAL_ABS_MAX = 60 * 60 * 24 * 365  # seconds :MaxTriggerInterval
 TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 
-@node(mnt=MNT.TRIGGER)
+@node(node_type=NodeType.TRIGGER)
 class Trigger(Node):
     """A trigger for a statement, possibly inside a flow."""
 
-    parent: "Statement" = nparent(MNT.STATEMENT)
+    parent: "Statement" = nparent(NodeType.STATEMENT)
     type: TriggerType = bproperty(is_required=True, validate=enum_validator(TriggerType))
     active: bool = bproperty(default=True)
     mapping: Optional[Mapping] = bproperty(default=None)
@@ -119,7 +119,7 @@ class Trigger(Node):
 
 @node_component
 class HasTriggers(Node):
-    triggers: NodeList[Trigger] = nchildren(MNT.TRIGGER)
+    triggers: NodeList[Trigger] = nchildren(NodeType.TRIGGER)
 
 
 class TriggerScheduleIterator:

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language import IssueType
-from bench.language.const import MNT, IssueKind
+from bench.language.const import IssueKind, NodeType
 from bench.language.module import Node, bproperty, node, nparent
 from bench.language.validation import enum_validator
 
@@ -59,9 +59,9 @@ class BenchError(ValueError):
         self.issue = issue
 
 
-@node(mnt=MNT.ISSUE)
+@node(node_type=NodeType.ISSUE)
 class Issue(Node):
-    parent: Union["Statement", "File", None] = nparent(MNT.STATEMENT, MNT.FILE)
+    parent: Union["Statement", "File", None] = nparent(NodeType.STATEMENT, NodeType.FILE)
     type: IssueType = bproperty(is_required=True, validate=enum_validator(IssueType))
     kind: IssueKind = bproperty(default=None, validate=enum_validator(IssueKind))
     message: str = bproperty(default=None)

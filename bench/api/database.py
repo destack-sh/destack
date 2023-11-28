@@ -13,7 +13,7 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_module_node_access
 from bench.api.sync import bench_edit
-from bench.api.type import MET
+from bench.api.type import EditType
 from bench.api.utils import (
     Conditional,
     HasCrud,
@@ -119,7 +119,7 @@ class RecordRestoreInput(RecordInput, strawberry_django.NodeInput):
 
 @strawberry.type
 class RecordMutation:
-    @bench_edit(MET.CREATE_RECORD, return_transform=Record.from_wire)
+    @bench_edit(EditType.CREATE_RECORD, return_transform=Record.from_wire)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         # records are written to the local pg database (not via Django), so need to set CRU fields
         # not great but won't matter soon with the new edits system :)
@@ -138,7 +138,7 @@ class RecordMutation:
         )
         return record
 
-    @bench_edit(MET.UPDATE_RECORD, return_transform=Record.from_wire)
+    @bench_edit(EditType.UPDATE_RECORD, return_transform=Record.from_wire)
     def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
         # copy pasta because it doesn't matter and these no longer exist in the DB
         now = utcnow_with_tz()
@@ -156,7 +156,7 @@ class RecordMutation:
         )
         return record
 
-    @bench_edit(MET.SOFT_DELETE_RECORD, return_transform=Record.from_wire)
+    @bench_edit(EditType.SOFT_DELETE_RECORD, return_transform=Record.from_wire)
     def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
         # copy pasta because it doesn't matter and these no longer exist in the DB
         now = utcnow_with_tz()
@@ -174,7 +174,7 @@ class RecordMutation:
         )
         return record
 
-    @bench_edit(MET.RESTORE_RECORD, return_transform=Record.from_wire)
+    @bench_edit(EditType.RESTORE_RECORD, return_transform=Record.from_wire)
     def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
         # copy pasta because it doesn't matter and these no longer exist in the DB
         now = utcnow_with_tz()
@@ -192,7 +192,7 @@ class RecordMutation:
         )
         return record
 
-    @bench_edit(MET.DELETE_RECORD, return_transform=Record.from_wire)
+    @bench_edit(EditType.DELETE_RECORD, return_transform=Record.from_wire)
     def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
         raise NotImplementedError
 

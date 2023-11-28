@@ -11,7 +11,7 @@ from django.db import transaction
 from bench import models
 from bench.language import wire
 from bench.language.builtin import symbolx_lib
-from bench.language.const import INTERP_NODE_TYPES, MNT
+from bench.language.const import INTERP_NODE_TYPES, NodeType
 from bench.language.edit import diff_modules
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.module import NodeTree
@@ -149,7 +149,9 @@ def _sanity_check_diff(
     other_module_bytes = Path(other_module_path).read_bytes()
     other_module_data = wire.deserialize_module(other_module_bytes)
     diff = diff_modules(new_module, other_module_data, project_id=project_id)
-    diff = [e for e in diff if e.mnt not in INTERP_NODE_TYPES and e.mnt != MNT.RECORD]
+    diff = [
+        e for e in diff if e.node_type not in INTERP_NODE_TYPES and e.node_type != NodeType.RECORD
+    ]
 
     if diff:
         # get exact diff for debugging

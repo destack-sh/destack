@@ -27,9 +27,9 @@ from bench.language.builtin import symbolx_lib
 from bench.language.cache import CacheAsync
 from bench.language.const import (
     INTERP_NODE_TYPES,
-    MNT,
     ConditionalOp,
     ModuleReference,
+    NodeType,
     RunStatus,
     SessionAccessLevel,
     StatementType,
@@ -636,10 +636,10 @@ class RuntimeHost:
         # gather interp changes (reset to 0)
         editor = self._edit()
         module_data = wire.pack_node_flat(self.module)
-        for mnt in INTERP_NODE_TYPES:
-            editor.truncate(module_data, mnt)
+        for node_type in INTERP_NODE_TYPES:
+            editor.truncate(module_data, node_type)
         for node in self.module._nodes:
-            if node.mnt in INTERP_NODE_TYPES:
+            if node.node_type in INTERP_NODE_TYPES:
                 editor.create(node)
         # write
         await sync_to_async(write_host_db_edits)(
@@ -668,7 +668,7 @@ class RuntimeHost:
             return []  # bail
 
         start_time = time.time()
-        host_edits, local_edits = partition(lambda e: e.mnt == MNT.RECORD, edits)
+        host_edits, local_edits = partition(lambda e: e.node_type == NodeType.RECORD, edits)
         del edits  # refer explicitly to host/local edits
         log = self.log.bind(host_edits=host_edits, local_edits=local_edits, origins=origins)
         log.debug("runtime.write_edits")
@@ -723,7 +723,7 @@ class RuntimeHost:
             #  (restore edits were already applied above)
             host_change = self.module._apply_edits(host_edits + restore_edits, old_source)
             schema_changed = host_change.includes(
-                MNT.FIELD, MNT.RESOLVED_FIELD, StatementType.DATABASE
+                NodeType.FIELD, NodeType.RESOLVED_FIELD, StatementType.DATABASE
             )
             db_edits = list(reversed(soft_delete_edits)) + host_change.all_edits  # (deletes first)
             # apply host edits (cascade deletes as well, they're implicit/not needed in NodeTree)
@@ -752,7 +752,7 @@ class RuntimeHost:
             self.module._reset_from_source(old_source)
             raise
 
-        if host_change.includes(MNT.TRIGGER):
+        if host_change.includes(NodeType.TRIGGER):
             await self._update_local_triggers()
 
         # broadcast (source from user, interp from runtime)

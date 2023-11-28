@@ -12,10 +12,10 @@ from strawberry.types import Info
 
 from bench import models
 from bench.api.auth import has_module_node_access
-from bench.api.type import MET, PMT
+from bench.api.type import PMT, EditType
 from bench.api.utils import get_client_origin_from_info, wrap_exceptions
 from bench.language import wire
-from bench.language.edit import MEK, MNT, EditData
+from bench.language.edit import EditData, EditKind, NodeType
 from bench.models import ModuleAccessLevel, packer
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
@@ -38,7 +38,7 @@ class BatchEditInput:
 
 
 def bench_edit(
-    type: MET | PMT,
+    type: EditType | PMT,
     *,
     batch: bool = False,
     skip_auth_check: bool = False,
@@ -113,7 +113,7 @@ def bench_edit(
                     if hasattr(thing, key) and getattr(thing, key) != getattr(updated_node, key):
                         thing.__dict__[key] = getattr(updated_node, key)
             if batch:  # restore batch wrapper (convert to kwargs)
-                things_key = "statements" if type.mnt == MNT.STATEMENT else "records"
+                things_key = "statements" if type.node_type == NodeType.STATEMENT else "records"
                 ret = ret.__class__(**{things_key: things})
             else:
                 ret = things[0]
@@ -137,7 +137,7 @@ def _register_edit(type, func):
 
 
 def _add_info_parameter(original: callable, wrapped: callable):
-    """Adds an 'info' parameter to a wrapped function signature if missing."""
+    """Adds an 'info' Parameter to a wrapped function signature if missing."""
     if "info" not in wrapped.__annotations__:
         wrapped.__annotations__["info"] = Info
         original_signature = Signature.from_callable(original)
@@ -151,7 +151,7 @@ def _add_info_parameter(original: callable, wrapped: callable):
 
 
 def map_edit_from_api(
-    type: MET,
+    type: EditType,
     input: Any,
     thing: models.CrudNode | wire.RecordData,
     project_v: models.ProjectVersion,
@@ -161,7 +161,7 @@ def map_edit_from_api(
     Returns both the internal and API edits to publish.
     """
     edit = EditData(
-        type=MET(type.kind + "_" + type.mnt.caps_name),
+        type=EditType(type.kind + "_" + type.node_type.caps_name),
         project_version_id=project_v.id,
         revision=thing.revision,
         input=input_to_gql_jsonable(input),
@@ -172,7 +172,7 @@ def map_edit_from_api(
     edit.properties = [
         k for k in input.__dict__.keys() if k in edit._node.__dict__ and k not in ("id", "ck")
     ]
-    if edit.kind in (MEK.SOFT_DELETE, MEK.RESTORE):
+    if edit.kind in (EditKind.SOFT_DELETE, EditKind.RESTORE):
         edit.properties.append("deleted_at")  # not part of input
     # map source file/statement
     if isinstance(thing, models.File):

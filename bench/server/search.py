@@ -6,7 +6,7 @@ from asgiref.sync import sync_to_async
 from bench import models
 from bench.language import Module, wire
 from bench.language.const import LOCAL_NODE_TYPES
-from bench.language.edit import MEK, EditData
+from bench.language.edit import EditData, EditKind
 from bench.models.packer import HOST_MODEL_TYPES, collect_node
 from bench.search import core as os
 from bench.search import mirror
@@ -275,11 +275,17 @@ async def write_edits_to_os(
         ops.clear()
 
     for edit in edits:
-        index = module.os_name if edit.type.mnt in LOCAL_NODE_TYPES else os.GLOBAL_INDEX_NAME
+        index = module.os_name if edit.type.node_type in LOCAL_NODE_TYPES else os.GLOBAL_INDEX_NAME
         node = edit.thing or edit.node  # local nodes don't have a model thing, only data node
         if not mirror.has_mirror(node):
             continue  # ignore
-        elif edit.type.kind in (MEK.CREATE, MEK.UPDATE, MEK.MOVE, MEK.SOFT_DELETE, MEK.RESTORE):
+        elif edit.type.kind in (
+            EditKind.CREATE,
+            EditKind.UPDATE,
+            EditKind.MOVE,
+            EditKind.SOFT_DELETE,
+            EditKind.RESTORE,
+        ):
             if isinstance(node, models.ModuleNode):
                 mirrored_data = mirror.mirror_node(module, node).to_dict()
             elif isinstance(node, wire.NodeData):
@@ -289,7 +295,7 @@ async def write_edits_to_os(
                 raise ValueError(f"unexpected node type: {node!r}")
             ops.append({"index": {"_index": index, "_id": str(node.id)}})
             ops.append(mirrored_data)
-        elif edit.type.kind == MEK.DELETE:
+        elif edit.type.kind == EditKind.DELETE:
             ops.append({"delete": {"_index": index, "_id": str(node.id)}})
         else:
             raise ValueError(f"unexpected edit type: {edit!r}")

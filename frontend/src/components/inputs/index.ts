@@ -69,14 +69,13 @@ function coerceToString(type: Field, value: any) {
 }
 
 function coerceToDatetime(type: Field, value: any) {
-  if (typeof value == "number") {
-    value = new Date(value);
-  }
+  if (typeof value != "string") return null;
+  // expected format is YYYY-MM-DDTHH:MM:SS
   // strip timezone
-  if (typeof value == "string" && value.endsWith("+00:00")) {
-    value = value.slice(0, -6);
-  }
-  return typeof value == "string" ? value : null;
+  value = value.replace(/(\.\d+)?(Z|[+-]\d{2}:\d{2})$/, "");
+  // strip milliseconds
+  value = value.replace(/\.\d+$/, "");
+  return value;
 }
 
 function coerceToNumber(type: Field, value: any) {

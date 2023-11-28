@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from bench.language.const import MNT
+from bench.language.const import NodeType
 from bench.language.module import (
     Module,
     NodeList,
@@ -20,16 +20,16 @@ if TYPE_CHECKING:
     from bench.language.statement import Statement
 
 
-@node(mnt=MNT.FILE, passthrough=(("statements", _Passthrough.Full),))
+@node(node_type=NodeType.FILE, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
-    parent: Union["File", Module] = nparent(MNT.FILE, MNT.MODULE)
+    parent: Union["File", Module] = nparent(NodeType.FILE, NodeType.MODULE)
     name: str | None = bproperty(validate=validate_name)
 
     children: NodeList[Union["File", "Statement"]] = nchildren(
-        MNT.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
+        NodeType.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
     )
     statements: NodeList["Statement"] = nchildren(
-        MNT.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named
+        NodeType.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named
     )
 
     @staticmethod

@@ -29,15 +29,15 @@ import structlog
 from bench.language.builtin import _active_session, _auto_async_to_sync, symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
-    MNT,
     NTL,
+    NodeType,
     RunStatus,
     SessionAccessLevel,
     TriggerType,
     TypeFlag,
     TypeTag,
 )
-from bench.language.edit import MEK, EditData, EditKind, EditType
+from bench.language.edit import EditData, EditKind, EditType
 from bench.language.module import Module, Node
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.statement import Statement
@@ -359,7 +359,7 @@ class EditEvent:
 
     type: EditType
     node: Node
-    target: MNT | None = None
+    target: NodeType | None = None
     properties: list[str] | None = None
     file_id: UUID | None = None
     statement_id: UUID | None = None
@@ -509,17 +509,19 @@ class SessionTracer:
 
         return host_edits, local_edits
 
-    def _edit(self, kind: EditKind, node: Node, properties: list[str] = None, target: MNT = None):
+    def _edit(
+        self, kind: EditKind, node: Node, properties: list[str] = None, target: NodeType = None
+    ):
         """Register an edit to a node (local or host)."""
-        is_local = node.mnt == MNT.RECORD
+        is_local = node.node_type == NodeType.RECORD
         if not is_local:
             tree = self.session.module._local_tree
-            file = tree.get_ancestor(node.ck, MNT.FILE)
-            statement = tree.get_ancestor(node.ck, MNT.STATEMENT)
+            file = tree.get_ancestor(node.ck, NodeType.FILE)
+            statement = tree.get_ancestor(node.ck, NodeType.STATEMENT)
         else:
             file, statement = None, None
         edit = EditEvent(
-            type=EditType.from_nt(kind, target or node.mnt),
+            type=EditType.from_nt(kind, target or node.node_type),
             node=node,
             properties=properties,
             file_id=file.id if file else None,
@@ -545,7 +547,7 @@ class SessionTracer:
                 self._updated_nodes_event_by_ck[edit.node.ck] = len(edits)
         edits.append(edit)
 
-        if edit.type.mnt == MNT.RECORD:
+        if edit.type.node_type == NodeType.RECORD:
             self._changed_record_ids_by_db_id[edit.node.parent_id].add(edit.node.id)
             self._touched_databases_by_id[edit.node.parent_id] = edit.node.parent
 
@@ -560,9 +562,9 @@ class SessionTracer:
         # assumes you've called node_create_preflight first (to check permission)
         with self._tracing_lock:  # do it
             for n in nodes:
-                if n.mnt == MNT.FIELD or n.mnt == MNT.RESOLVED_FIELD:
+                if n.node_type == NodeType.FIELD or n.node_type == NodeType.RESOLVED_FIELD:
                     self._schema_changed = True
-                if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
+                if n.node_type in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
                 self._edit(EditKind.CREATE, node=n)
 
@@ -570,15 +572,15 @@ class SessionTracer:
         # used to check permission before modifying state locally
         # (only for create since this is the only edit fired 'after' making an irreversible change)
         if (
-            any(n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL)
+            any(n for n in nodes if n.node_type not in INTERP_NODE_TYPES and n._track & NTL.FULL)
             and self.session.access_level < SessionAccessLevel.Create
         ):
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
 
     def node_update(self, node: Node, properties: list[str]):
-        if node.mnt == MNT.FIELD or node.mnt == MNT.RESOLVED_FIELD:
+        if node.node_type == NodeType.FIELD or node.node_type == NodeType.RESOLVED_FIELD:
             self._schema_changed = True
-        if node.mnt in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
+        if node.node_type in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
             return
         if self.session.access_level < SessionAccessLevel.Update:
             raise PermissionError(f"{self.session!r} may not update {node!r}")
@@ -590,7 +592,7 @@ class SessionTracer:
 
     def node_delete(self, *nodes: Node):
         if (
-            any(n for n in nodes if n.mnt not in INTERP_NODE_TYPES and n._track & NTL.FULL)
+            any(n for n in nodes if n.node_type not in INTERP_NODE_TYPES and n._track & NTL.FULL)
             and self.session.access_level < SessionAccessLevel.Delete
         ):
             raise PermissionError(f"{self.session!r} may not delete {nodes!r}")
@@ -607,21 +609,21 @@ class SessionTracer:
 
         with self._tracing_lock:  # do it
             for n in nodes:
-                if n.mnt == MNT.FIELD or n.mnt == MNT.RESOLVED_FIELD:
+                if n.node_type == NodeType.FIELD or n.node_type == NodeType.RESOLVED_FIELD:
                     self._schema_changed = True
                 # :InterpFilter
-                if n.mnt in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
+                if n.node_type in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
                 self._edit(EditKind.DELETE, node=n)
 
-    def node_truncate(self, node: Node, mnt: MNT):
-        if node.mnt in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
+    def node_truncate(self, node: Node, node_type: NodeType):
+        if node.node_type in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
             return
         if self.session.access_level < SessionAccessLevel.Delete:
             raise PermissionError(f"{self.session!r} may not truncate {node!r}")
-        if mnt == MNT.RECORD:
+        if node_type == NodeType.RECORD:
             raise ValueError(f"cannot truncate records: {node!r}")
-        self._edit(MEK.TRUNCATE, node, target=mnt)
+        self._edit(EditKind.TRUNCATE, node, target=node_type)
 
     #
     # Session

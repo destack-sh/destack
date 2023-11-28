@@ -18,29 +18,34 @@ BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
 
 class NodeType(enum.StrEnum):
     # source
-    MODULE = "Module"
-    FILE = "File"
-    STATEMENT = "Statement"
-    TRIGGER = "Trigger"
-    TAGGING = "Tagging"
-    FIELD = "Field"
-    RECORD = "Record"
-    VIEW = "View"
+    MODULE = "MODULE"
+    FILE = "FILE"
+    STATEMENT = "STATEMENT"
+    TRIGGER = "TRIGGER"
+    TAGGING = "TAGGING"
+    FIELD = "FIELD"
+    RECORD = "RECORD"
+    VIEW = "VIEW"
     # interp
-    ISSUE = "Issue"
-    RESOLVED_FIELD = "ResolvedField"
+    ISSUE = "ISSUE"
+    RESOLVED_FIELD = "RESOLVED_FIELD"
     # user
-    COMMENT = "Comment"
-    ACCESS = "Access"
+    COMMENT = "COMMENT"
+    ACCESS = "ACCESS"
     # remote
-    BLOB = "Blob"
-    SECRET = "Secret"
+    BLOB = "BLOB"
+    SECRET = "SECRET"
     # session
-    RUN = "Run"
+    SESSION = "SESSION"
+    RUN = "RUN"
 
     @property
     def caps_name(self):
-        return MNT_CAPS_CASE[self]
+        return NODE_TYPE_CAPS_CASE[self]
+
+    @property
+    def camel_name(self):
+        return NODE_TYPE_CAMEL_CASE[self]
 
 
 # local = only stored in user Bench, not host
@@ -122,9 +127,14 @@ class SessionAccessLevel(enum.IntEnum):  # SessionAccessLevel
     Full = Delete
 
 
-MNT = NodeType
-MNT_CAPS_CASE: dict[MNT, str] = {mnt: to_all_caps(mnt) for mnt in MNT}
-INTERP_NODE_TYPES = {MNT.ISSUE, MNT.RESOLVED_FIELD}
+NodeType = NodeType
+NODE_TYPE_CAPS_CASE: dict[NodeType, str] = {
+    node_type: to_all_caps(node_type) for node_type in NodeType
+}
+NODE_TYPE_CAMEL_CASE: dict[NodeType, str] = {
+    node_type: to_pyidentifier(node_type, IdentifierType.TYPE) for node_type in NodeType
+}
+INTERP_NODE_TYPES = {NodeType.ISSUE, NodeType.RESOLVED_FIELD}
 
 ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
@@ -132,7 +142,7 @@ ModuleReference = typing.NamedTuple(
 NodePath = NamedTuple("NodePath", [("path", str), ("name", str)])
 StatementReference = typing.Union["Statement", NodePath, UUID]
 NodeReference = typing.Union["Node", NodePath, UUID]
-TypedNodeReference = NamedTuple("TypedNodeReference", [("type", MNT), ("ref", UUID)])
+TypedNodeReference = NamedTuple("TypedNodeReference", [("type", NodeType), ("ref", UUID)])
 NODE_REFERENCE_REGEX = re.compile(
     r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?\.(?P<path>[\w.\- ]+)"
 )

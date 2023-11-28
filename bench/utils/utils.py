@@ -129,7 +129,7 @@ def to_pyidentifier(name: str, type: IdentifierType) -> str:
 
 
 def to_all_caps(name: str) -> str:
-    # transform SomethingNice into SOMETHING_NICE
+    # transform somethingNice into SOMETHING_NICE
     # if it's already all caps, leave it alone
     # ignore non-alphanumeric characters and capitalize the next character
     name = re.sub(r"[^a-zA-Z0-9]", " ", name)

@@ -17,7 +17,7 @@ from bench.api.interp import Issue, IssueKind, IssueType, ResolvedField
 from bench.api.type import ProjectMutationType
 from bench.api.utils import asafe_subscription, to_global_id, to_uuid
 from bench.language import edit, wire
-from bench.language.edit import MEK, MNT
+from bench.language.edit import EditKind, NodeType
 from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload
@@ -44,7 +44,7 @@ class ProjectChange(Change):
     # individual edits are not needed for now
 
 
-EditType = strawberry.enum(sync.MET)
+EditType = strawberry.enum(sync.EditType)
 
 
 @strawberry.type
@@ -73,15 +73,15 @@ async def unpack_module_edits(
     for e in edits:
         # :RawMutations
         if isinstance(e.node, (wire.IssueData, wire.ResolvedFieldData)):
-            if e.kind == MEK.DELETE:
-                model_cls = models.Issue if e.mnt == MNT.ISSUE else models.ResolvedField
+            if e.kind == EditKind.DELETE:
+                model_cls = models.Issue if e.node_type == NodeType.ISSUE else models.ResolvedField
                 data = model_cls(id=e.node.id, ck=e.node.ck)
                 # fill non-id/ck fields with non-None defaults
                 #  (obviously hacky but we'll get edits 2.0 soon)
-                if e.mnt == MNT.RESOLVED_FIELD:
+                if e.node_type == NodeType.RESOLVED_FIELD:
                     data.order_key = "a0"
                     data.field_ck = UUID("00000000-0000-0000-0000-000000000000")
-                elif e.mnt == MNT.ISSUE:
+                elif e.node_type == NodeType.ISSUE:
                     data.kind = IssueKind.Notice
                     data.type = IssueType.INTERNAL
                     data.message = ""
@@ -97,7 +97,7 @@ async def unpack_module_edits(
         else:  # ignore other data types
             data = None
 
-        properties = wire.remap_properties(e.type.mnt, e.properties)
+        properties = wire.remap_properties(e.type.node_type, e.properties)
         properties = [to_camel_case(p) for p in properties] if properties is not None else None
         unpacked_edit = Edit(
             type=e.type,

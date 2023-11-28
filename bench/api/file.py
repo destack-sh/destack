@@ -10,7 +10,7 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.sync import bench_edit
 from bench.api.utils import HasCrud, ModuleNode, Revisioned
-from bench.language.edit import MET
+from bench.language.edit import EditType
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
@@ -81,7 +81,7 @@ class FilePasteInput:
 
 @strawberry.type
 class FileMutation:
-    @bench_edit(MET.CREATE_FILE)
+    @bench_edit(EditType.CREATE_FILE)
     def create_file(self, input: FileCreateInput) -> File | OperationInfo:
         id = UUID(input.id.node_id) if input.id else None
         return models.File(
@@ -92,36 +92,36 @@ class FileMutation:
             parent_file_id=input.parent_id.node_id if input.parent_id else None,
         )
 
-    @bench_edit(MET.UPDATE_FILE)
+    @bench_edit(EditType.UPDATE_FILE)
     def update_file(self, input: FileUpdateInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.name = input.name
         file.parent_file_id = input.parent_id.node_id if input.parent_id else None
         return file
 
-    @bench_edit(MET.DELETE_FILE)
+    @bench_edit(EditType.DELETE_FILE)
     def delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         raise NotImplementedError
 
-    @bench_edit(MET.SOFT_DELETE_FILE)
+    @bench_edit(EditType.SOFT_DELETE_FILE)
     def soft_delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.deleted_at = utcnow_with_tz()
         return file
 
-    @bench_edit(MET.RESTORE_FILE)
+    @bench_edit(EditType.RESTORE_FILE)
     def restore_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)
         return file
 
-    @bench_edit(MET.MOVE_FILE)
+    @bench_edit(EditType.MOVE_FILE)
     def move_file(self, input: FileMoveInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.parent_file_id = input.parent_id.node_id if input.parent_id else None
         return file
 
-    @bench_edit(MET.RENAME_FILE)
+    @bench_edit(EditType.RENAME_FILE)
     def rename_file(self, input: FileRenameInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.name = input.name

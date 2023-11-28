@@ -26,7 +26,7 @@ from bench.language import (
     wire,
 )
 from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
-from bench.language.edit import MET
+from bench.language.edit import EditType
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     ComparisonConditional,
@@ -228,12 +228,12 @@ DOCUMENTS_BY_INDEX = {
     IndexType.LOCAL: [mirror.Record, mirror.Session, mirror.Run, mirror.LogEntry],
 }
 SEARCH_SEMANTIC_EDIT_TYPES = {
-    MET.CREATE_FIELD,
-    MET.UPDATE_FIELD,
-    MET.UPDATE_FIELD_TYPE,
-    MET.DELETE_FIELD,
-    MET.TRUNCATE_RESOLVED_FIELDS,
-    MET.CREATE_RESOLVED_FIELD,
+    EditType.CREATE_FIELD,
+    EditType.UPDATE_FIELD,
+    EditType.UPDATE_FIELD_TYPE,
+    EditType.DELETE_FIELD,
+    EditType.TRUNCATE_RESOLVED_FIELDS,
+    EditType.CREATE_RESOLVED_FIELD,
 }
 
 

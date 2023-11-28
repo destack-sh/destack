@@ -35,6 +35,7 @@ const secretSync = syncProperty({
     props.modelValue; // trigger reactivity
     secretValue.value = null;
     hidden.value = true;
+    inputRef.value?.blur();
   },
   write: writeSecretValue,
   debounceMs: 1000,

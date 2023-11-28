@@ -14,7 +14,7 @@ from bench.api.auth import check_module_node_access
 from bench.api.utils import ModuleNode
 from bench.language.module import FLATTENED_RELATIONS
 from bench.models import ModuleAccessLevel, packer
-from bench.models.packer import MNT_BY_BASE_MODEL_CLASS
+from bench.models.packer import NODE_TYPE_BY_MODEL_CLASS
 
 logger = structlog.get_logger(__name__)
 
@@ -78,7 +78,7 @@ def _add_field_name(name: str):
 
 
 def _collect_fields():
-    for model in packer.MNT_BY_BASE_MODEL_CLASS.keys():
+    for model in packer.NODE_TYPE_BY_MODEL_CLASS.keys():
         for field in model._meta.fields:
             _add_field_name(field.name)
             # and related name if any
@@ -148,7 +148,7 @@ def read_module_node(
         base_model = _BASE_MODEL_BY_FIELD_NAME.get(field.name)
         if base_model and base_model not in included:
             included.add(base_model)
-    excluded = MNT_BY_BASE_MODEL_CLASS.keys() - included
+    excluded = NODE_TYPE_BY_MODEL_CLASS.keys() - included
 
     # collect them
     tree = packer.collect_node(node, excluded=excluded, recurse_flat_root=False)
@@ -199,7 +199,7 @@ def _resolve_node(
         django_field = n._meta.get_field(py_name)
         # error on invalid relations to models outside the module tree
         if (
-            django_field.related_model not in packer.MNT_BY_BASE_MODEL_CLASS
+            django_field.related_model not in packer.NODE_TYPE_BY_MODEL_CLASS
             and django_field.related_model not in ALLOWED_EXTERNAL_RELATIONS
         ):
             raise ValueError(
@@ -223,8 +223,8 @@ def _resolve_node(
             related = []
             # for flattened relations get all descendants (of same type)
             if (
-                MNT_BY_BASE_MODEL_CLASS[type(n)],
-                MNT_BY_BASE_MODEL_CLASS[django_field.related_model],
+                NODE_TYPE_BY_MODEL_CLASS[type(n)],
+                NODE_TYPE_BY_MODEL_CLASS[django_field.related_model],
             ) in FLATTENED_RELATIONS:
                 # collect descendants of same type
                 remaining = children.get(n.id, [])

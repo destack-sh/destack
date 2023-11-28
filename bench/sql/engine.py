@@ -14,7 +14,7 @@ from psycopg.types.json import Jsonb
 
 import bench.language as lang
 from bench.language import ConditionalOp, Field, HasDatabase, Module, QueryEngine, wire
-from bench.language.const import MNT, TypeFlag, TypeStorageFormat
+from bench.language.const import NodeType, TypeFlag, TypeStorageFormat
 from bench.language.edit import EditData, EditKind
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -117,7 +117,7 @@ async def update_pg_schema(pg_name: str, module: Module) -> None:
     databases: list[lang.Statement] = [
         s
         for s in module._nodes
-        if s.mnt == MNT.STATEMENT and HasDatabase in s._components and not s.ephemeral
+        if s.node_type == NodeType.STATEMENT and HasDatabase in s._components and not s.ephemeral
     ]
     tables = (*INTERNAL_TABLES, *(s._table for s in databases if s._table))
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))
