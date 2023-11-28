@@ -99,7 +99,8 @@ export function useDatabaseInlineSearch(
     return { op: ConditionalOp.Or, clauses: subclauses } as Conditional;
   }
   const queryEngine = computed(() => {
-    if (textQuery.value != null) return QueryEngine.Opensearch;
+    // :QueryEngineSelection
+    if ((textQuery.value ?? "").length > 0) return QueryEngine.Opensearch;
     else return QueryEngine.Postgres;
   });
 

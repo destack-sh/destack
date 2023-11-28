@@ -216,7 +216,7 @@ class RecordQuery:
         first = self._first or LOCAL_RECORD_CACHE_LIMIT
         # prefer sql engine if possible, except for scored queries
         required_engine = None
-        if where.is_scored:
+        if where.is_scored:  # :QueryEngineSelection
             required_engine = QueryEngine.OPENSEARCH
         if required_engine and self._engine and self._engine != required_engine:
             raise ValueError(f"cannot use {self._engine} with {self!r}")
