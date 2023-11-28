@@ -34,6 +34,7 @@ import { useOperations } from "@/state/operations";
 import { useCurrentSessions } from "@/state/session";
 import { STATEMENT_TYPE_LABELS, useFieldsState } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
+import { toValueRef } from "@/utils/functools";
 import {
   ArrowPathRoundedSquareIcon,
   ArrowsPointingOutIcon,
@@ -82,20 +83,19 @@ const module = useCurrentModule();
 const ops = useOperations();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
-const isActive = computed(() => nav?.value?.panel.activeStatementCk == statement.value?.ck);
-const isFocused = computed(() => isActive.value && (nav?.value?.panel.focused ?? false));
-const isEditing = computed(() => isFocused.value && (nav?.value?.panel.editing ?? false));
-const isSelected = computed(() => nav?.value?.panel.isSelected(statement.value));
-const isInSelection = computed(() => isSelected.value && (nav?.value?.panel.selectedElementIds?.length ?? 0) > 1);
-const isAnySelection = computed(() => nav?.value?.panel.hasSelection);
-const isHighlighted = computed(
-  () =>
-    (isFocused.value && !isEditing.value && !isAnySelection.value) ||
-    isSelected.value ||
-    isAncestorHighlight.value ||
-    dragOver.value ||
-    actionPopoverRef.value?.open
+const containerRef = ref<HTMLElement | null>(null);
+const containerBounding = useElementBounding(containerRef);
+const innerWrapperRef = ref<HTMLElement | null>(null);
+const { focused: inContainerFocused } = useFocusWithin(containerRef);
+const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
+const isActive = toValueRef(computed(() => nav?.value?.panel.activeStatementCk == statement.value?.ck));
+const isFocused = toValueRef(computed(() => isActive.value && (nav?.value?.panel.focused ?? false)));
+const isEditing = toValueRef(computed(() => isFocused.value && (nav?.value?.panel.editing ?? false)));
+const isSelected = toValueRef(computed(() => nav?.value?.panel.isSelected(statement.value)));
+const isInSelection = toValueRef(
+  computed(() => isSelected.value && (nav?.value?.panel.selectedElementIds?.length ?? 0) > 1)
 );
+const isAnySelection = toValueRef(computed(() => nav?.value?.panel.hasSelection));
 const canContentFold = computed(
   () =>
     statement.value.type != StatementType.Blank &&
@@ -125,34 +125,6 @@ function toggleContentFold(descendants?: boolean) {
     (panel.panel.value as EditFilePanel).toggleStatementContentFolded(statement.value);
   }
 }
-
-// highlighting
-const INDENT_OFFSET_X = 28;
-// ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
-// (this is a bit ugly but will also disappear with :NestedStatementRendering)
-const ancestorHighlightDepth = computed(() => {
-  const highlightedAncestorIdx = ancestors.value.findIndex(
-    (s) => nav?.value?.panel.activeStatementCk == s.ck || nav?.value?.panel.selectedElementIds.includes(s.id)
-  );
-  if (highlightedAncestorIdx > -1) {
-    // subtract any group ancestors
-    return (
-      highlightedAncestorIdx -
-      ancestors.value.slice(0, highlightedAncestorIdx).filter((s) => s.type == StatementType.Group).length
-    );
-  }
-  return -1;
-});
-const isAncestorHighlight = computed(() => !nav?.value?.panel.editing && ancestorHighlightDepth.value > -1);
-const contentOffsetX = computed(() => props.renderedDepth * INDENT_OFFSET_X);
-const highlightOffsetX = computed(() =>
-  isAncestorHighlight.value ? ancestorHighlightDepth.value * INDENT_OFFSET_X : contentOffsetX.value
-);
-const containerRef = ref<HTMLElement | null>(null);
-const containerBounding = useElementBounding(containerRef);
-const innerWrapperRef = ref<HTMLElement | null>(null);
-const { focused: inContainerFocused } = useFocusWithin(containerRef);
-const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
 
 // manage interfaces
 // TODO @Performance: don't instantiate inactive statement parts components
@@ -502,6 +474,39 @@ async function onDrop(thing: any[] | { type: string; id: string } | null) {
   }
 }
 
+// highlighting
+const INDENT_OFFSET_X = 28;
+// ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
+// (this is a bit ugly but will also disappear with :NestedStatementRendering)
+const ancestorHighlightDepth = computed(() => {
+  const highlightedAncestorIdx = ancestors.value.findIndex(
+    (s) => nav?.value?.panel.activeStatementCk == s.ck || nav?.value?.panel.selectedElementIds.includes(s.id)
+  );
+  if (highlightedAncestorIdx > -1) {
+    // subtract any group ancestors
+    return (
+      highlightedAncestorIdx -
+      ancestors.value.slice(0, highlightedAncestorIdx).filter((s) => s.type == StatementType.Group).length
+    );
+  }
+  return -1;
+});
+const isAncestorHighlight = computed(() => !nav?.value?.panel.editing && ancestorHighlightDepth.value > -1);
+const contentOffsetX = computed(() => props.renderedDepth * INDENT_OFFSET_X);
+const highlightOffsetX = computed(() =>
+  isAncestorHighlight.value ? ancestorHighlightDepth.value * INDENT_OFFSET_X : contentOffsetX.value
+);
+const isHighlighted = toValueRef(
+  computed(
+    () =>
+      (isFocused.value && !isEditing.value && !isAnySelection.value) ||
+      isSelected.value ||
+      isAncestorHighlight.value ||
+      dragOver.value ||
+      actionPopoverRef.value?.open
+  )
+);
+
 // actions
 const hasStandaloneEditor = computed(() => STATEMENT_STANDALONE_TYPES.includes(statement.value.type));
 const canHaveText = computed(() => iface.value?.elements.some((e) => e.id == "text"));
@@ -724,7 +729,9 @@ defineExpose({
     @click="onClickContainer"
     @contextmenu.prevent="showActionsPopover"
   >
-    <!-- Group border wrapper (too many wrappers... see :NestedStatementRendering) -->
+    <!-- TODO @Performance!: fix statement redraw on every statement focus change -->
+    <!-- {{ console.log("redraw statement", props.statement.type, props.statement.ck) }} -->
+    <!-- TODO @UX: group border wrapper (ugly, stupid, too many wrappers... see :NestedStatementRendering) -->
     <!--  (can't put this in outer wrapper because of padding, same with main inner wrapper right below) -->
     <div
       :class="{

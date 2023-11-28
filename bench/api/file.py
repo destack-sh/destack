@@ -94,7 +94,7 @@ class FileMutation:
 
     @bench_edit(EditType.UPDATE_FILE)
     def update_file(self, input: FileUpdateInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
+        file = models.File._base_manager.get(id=input.id.node_id)
         file.name = input.name
         file.parent_file_id = input.parent_id.node_id if input.parent_id else None
         return file
@@ -105,7 +105,7 @@ class FileMutation:
 
     @bench_edit(EditType.SOFT_DELETE_FILE)
     def soft_delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
+        file = models.File._base_manager.get(id=input.id.node_id)
         file.deleted_at = utcnow_with_tz()
         return file
 
@@ -117,12 +117,12 @@ class FileMutation:
 
     @bench_edit(EditType.MOVE_FILE)
     def move_file(self, input: FileMoveInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
+        file = models.File._base_manager.get(id=input.id.node_id)
         file.parent_file_id = input.parent_id.node_id if input.parent_id else None
         return file
 
     @bench_edit(EditType.RENAME_FILE)
     def rename_file(self, input: FileRenameInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
+        file = models.File._base_manager.get(id=input.id.node_id)
         file.name = input.name
         return file

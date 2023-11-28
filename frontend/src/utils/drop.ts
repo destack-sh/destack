@@ -1,3 +1,4 @@
+import { toValueRef } from "@/utils/functools";
 import { useEventListener, useMouseInElement } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
 
@@ -96,7 +97,7 @@ export function useRelativeDropZone(
   const inRightHalf = computed(() => position.elementX.value > position.elementWidth.value / 2);
 
   return {
-    isOverDropZone: computed(() => enabled?.value && isOverDropZone.value),
+    isOverDropZone: toValueRef(computed(() => enabled?.value && isOverDropZone.value)),
     position,
     inTopHalf,
     inBottomHalf,
