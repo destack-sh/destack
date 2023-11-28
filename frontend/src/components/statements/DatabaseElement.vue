@@ -6,7 +6,7 @@ import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useActiveScroll } from "@/composables/useScroll";
-import { SortOp, EditType, type Sort, type SearchRecordsQueryVariables } from "@/gql/graphql";
+import { SortOp, EditType, type Sort, type SearchRecordsQueryVariables, QueryEngine } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
 import { useCurrentModule, type Field, newNodeIdentity, type Statement, type Record } from "@/state/module";
@@ -76,7 +76,7 @@ onMounted(() => {
   }
 });
 
-const { inlineQuery } = useDatabaseInlineSearch(fields, toRef(properties, "inlineQuery"));
+const { inlineQuery, queryEngine } = useDatabaseInlineSearch(fields, toRef(properties, "inlineQuery"));
 
 function addSort(field: Field, order: SortOp) {
   if (properties.sorts == null) properties.sorts = [];
@@ -92,13 +92,7 @@ function removeSort(sort: { field: string }) {
   properties.sorts = properties.sorts?.filter((s) => !s.field.includes(sort.field));
 }
 const sort: Ref<Sort[] | null> = computed(() => {
-  if (properties.sorts == null || properties.sorts.length == 0) {
-    if (inlineQuery.value != null) {
-      return null;
-    } else {
-      return null;
-    }
-  }
+  if (properties.sorts == null || properties.sorts.length == 0) return null;
   return properties.sorts;
 });
 
@@ -109,7 +103,7 @@ const searchQueryVariables: Ref<SearchRecordsQueryVariables> = computed(
       statementId: props.statement.id,
       after: null as string | null,
       query: inlineQuery.value,
-      sort: sort.value,
+      sort: queryEngine.value == QueryEngine.Opensearch ? null : sort.value, // OS is used for ranked searches where we don't need to sort (?)
       limit: PAGE_SIZE,
       count: true,
     } as SearchRecordsQueryVariables)
@@ -134,9 +128,9 @@ const loading = computed(
 const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
 
 // auto refetch when bumped and using OS query engine (1s is the OS indexing delay)
-const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 10000 });
+const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 5000 });
 useEditListener([EditType.BumpStatement], props.statement.id, () => {
-  if (inlineQuery.value != null) {
+  if (queryEngine.value == QueryEngine.Opensearch) {
     refetchDebounced();
   } else {
     refetch();

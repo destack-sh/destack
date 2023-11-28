@@ -20,6 +20,7 @@ from strawberry_django.mutations.fields import _handle_exception
 
 import bench.language.const
 from bench import models
+from bench.language import const
 from bench.language import expression as expr
 from bench.msg.messages import ClientOrigin
 from bench.utils.func import try_from_uuid
@@ -30,10 +31,21 @@ if typing.TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
+QueryEngine = strawberry.enum(const.QueryEngine)
+
 
 @strawberry.type(name="Connection", description="A connection to a list of items.")
 class ListConnectionWithTotalCount(relay.ListConnection[relay.NodeType]):
     total_count: Optional[int] = strawberry.field()
+
+
+@strawberry.type(
+    name="QueryConnection",
+    description="A connection to a list of items resolved with a query engine.",
+)
+class QueryConnectionWithTotalCount(relay.ListConnection[relay.NodeType]):
+    total_count: Optional[int] = strawberry.field()
+    engine: Optional[QueryEngine] = strawberry.field()
 
 
 @strawberry.type

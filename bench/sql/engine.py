@@ -381,7 +381,9 @@ RowIn = dict[str, SqlPrimitive | SqlExpression]
 RowOut = dict[str, SqlPrimitive]
 
 
-def _wrap_error(resource: Table | str, query: sql.Composed, e: psycopg.errors.Error) -> Exception:
+def _wrap_pg_error(
+    resource: Table | str, query: sql.Composed, e: psycopg.errors.Error
+) -> Exception:
     if isinstance(e, (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn)):
         wrapped_t = SqlUndefinedConstruct
     else:
@@ -403,7 +405,7 @@ async def _do_execute(
     try:
         await cur.execute(query, params)
     except psycopg.errors.Error as e:
-        raise _wrap_error(resource, query, e) from e
+        raise _wrap_pg_error(resource, query, e) from e
 
 
 async def _do_execute_many(
@@ -416,7 +418,7 @@ async def _do_execute_many(
     try:
         await cur.executemany(query, params, returning=returning)
     except psycopg.errors.Error as e:
-        raise _wrap_error(resource, query, e) from e
+        raise _wrap_pg_error(resource, query, e) from e
 
 
 async def pg_select(
