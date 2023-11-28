@@ -708,7 +708,7 @@ class RuntimeHost:
                 filter=get_default_pack_filters(deleted_at),
             )
             editor = self._edit(old_source)
-            for node in restored.nodes_list():
+            for node in walk_bfs(restored.nodes_list()):
                 restore_edit = editor.restore(node)
                 old_source.apply_edit(restore_edit)
                 if not any(node.id == r.id for r in restored_roots):
