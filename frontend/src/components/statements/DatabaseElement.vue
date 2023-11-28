@@ -256,7 +256,9 @@ watch(
     }
 
     // update if changed (only trigger DOM update if necessary)
+    console.log("database.recalculate", widths, heights);
     if (widths.some((w, i) => w != columnWidths.value[i]) || heights.some((h, i) => h != rowHeights.value[i])) {
+      console.log("database.update", widths, heights);
       columnWidths.value = widths;
       rowHeights.value = heights;
     }

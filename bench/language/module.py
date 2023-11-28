@@ -544,22 +544,16 @@ def _sort_components_in_call_order(
     return sorted_components
 
 
-_concrete_component_methods: dict[str, list[typing.Any]] = {}
-
-
+@cached(cache={}, key=lambda components, method, concrete_key: f"{concrete_key}.{method.name}")
 def _get_component_methods(
     components: list[type["Node"]], method: ComponentMethod, concrete_key: str
 ) -> list[typing.Any]:
     """Get the actually implemented methods in the given components in call order."""
-    cache_key = f"{concrete_key}.{method.name}"
-    if cache_key not in _concrete_component_methods:
-        methods = []
-        for component in _sort_components_in_call_order(components):
-            if _COMPONENT_METHODS.get((method, component), None) is not None:
-                methods.append(getattr(component, method.inner))
-        _concrete_component_methods[cache_key] = methods
-
-    return _concrete_component_methods[cache_key]
+    methods = []
+    for component in _sort_components_in_call_order(components):
+        if _COMPONENT_METHODS.get((method, component), None) is not None:
+            methods.append(getattr(component, method.inner))
+    return methods
 
 
 def _get_node_class(node_type: NodeType):
@@ -2517,7 +2511,7 @@ class Module(ScopeNode):
 
     @property
     def attached(self) -> bool:
-        return True  # root is always "attached"
+        return True  # module = root, so is always "attached"
 
     @property
     def path(self) -> str:
