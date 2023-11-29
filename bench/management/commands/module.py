@@ -1,7 +1,7 @@
+import asyncio
 from pathlib import Path
 
 import structlog
-from asgiref.sync import async_to_sync
 from django.core.management import BaseCommand, CommandParser
 from django.db import transaction
 
@@ -44,6 +44,8 @@ class Command(BaseCommand):
         create: bool = None,
         **options,
     ):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         owner_slug, project_slug = module.split("/")
         try:
             project = models.Project.objects.get_by_slug(owner_slug, project_slug)
@@ -148,8 +150,10 @@ class Command(BaseCommand):
                 )
                 create_models_bfs(unpacked.walk_bfs_batched(), exclude=[project_v.id])
                 if project.head_id == project_v.id:  # write head to OS
-                    async_to_sync(update_os_schema_from_db)(project_v)
-                    async_to_sync(write_module_to_os)(project_v, unpacked.walk_bfs(), wipe=True)
+                    loop.run_until_complete(update_os_schema_from_db(project_v))
+                    loop.run_until_complete(
+                        write_module_to_os(project_v, unpacked.walk_bfs(), wipe=True)
+                    )
 
             # set parents to previous version
             for version in project.versions.exclude(tag=None).order_by("-tag"):
@@ -171,3 +175,4 @@ class Command(BaseCommand):
                 Path("manage.py").touch()
         else:
             raise ValueError(f"unknown action: {action}")
+        loop.close()
