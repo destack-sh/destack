@@ -45,6 +45,7 @@ from bench.language.secret import Secret
 from bench.language.session import Session
 from bench.language.statement import Statement
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
+from bench.utils.func import try_to_uuid
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
@@ -604,7 +605,10 @@ class VectorTypeMapper(StaticPyTypeMapper):
 @dataclass
 class NodeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
-        return issubclass(py_type, Node)
+        return inspect.isclass(py_type) and issubclass(py_type, Node)
+
+    def is_instance_value(self, type: HasType, value: Any) -> bool:
+        return isinstance(value, Node)
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
         hint = {Statement: TypeHint.STATEMENT, Field: TypeHint.FIELD}.get(py_type)
@@ -615,10 +619,11 @@ class NodeMapper(TypeMapper):
     def unpack_value(
         self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
     ) -> Any:
-        raise NotImplementedError(":NodesAsValues not yet supported")
+        # TODO @Architecture: unify values with errors or silent ignore on error (e.g. missing reference)
+        return scope.lookup(try_to_uuid(value)) or value
 
     def pack_value(self, type: HasType, value: Any) -> Any:
-        raise NotImplementedError(":NodesAsValues not yet supported")
+        return str(value.ck) if isinstance(value, Node) else value
 
     def render_python(self, type: HasType, value: Any) -> str:
         return value.py_ident
@@ -1086,6 +1091,7 @@ register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN
 register_mapper(VectorTypeMapper(), tags=[TypeTag.VECTOR])
 register_mapper(BlobMapper(), tags=[TypeTag.BLOB])
 register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
+register_mapper(NodeMapper(), tags=[TypeTag.NODE])
 register_mapper(StructMapper(), tags=[TypeTag.STRUCT])
 register_mapper(FunctionMapper(), tags=[TypeTag.FUNCTION])
 register_mapper(JsonMapper(), tags=[TypeTag.JSON])

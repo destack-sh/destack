@@ -58,6 +58,7 @@ COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
     TypeStorageFormat.BOOLEAN: ColumnType.BOOLEAN,
     TypeStorageFormat.KEYWORD: ColumnType.STRING,
     TypeStorageFormat.OBJECT: ColumnType.JSON,
+    TypeStorageFormat.RELATION: ColumnType.UUID,
 }
 assert len(COLUMN_TYPE_BY_STORAGE_FORMAT) == len(TypeStorageFormat), "missing column type"
 
@@ -71,6 +72,7 @@ CAST_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, str] = {
     TypeStorageFormat.BOOLEAN: "boolean",
     TypeStorageFormat.KEYWORD: "text",
     TypeStorageFormat.OBJECT: "jsonb",
+    TypeStorageFormat.RELATION: "uuid",
 }
 
 

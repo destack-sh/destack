@@ -24,6 +24,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import CodeInput from "@/components/inputs/CodeInput.vue";
 import RichTextInput from "@/components/inputs/RichTextInput.vue";
 import DatetimeInput from "@/components/inputs/DatetimeInput.vue";
+import NodeInput from "@/components/inputs/NodeInput.vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInput,
@@ -41,6 +42,7 @@ const INTERFACES: Record<string, any> = {
   file: FileInput,
   secret: SecretInput,
   vector: VectorInput,
+  node: NodeInput,
 };
 
 const props = defineProps<{

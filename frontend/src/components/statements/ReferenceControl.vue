@@ -33,9 +33,7 @@ const selectingReference = ref(false);
 const query = ref("");
 const resolvedReference = computed(() => module.statementOf(props.statement.referenceCk));
 const referenceIcon = computed(() =>
-  resolvedReference.value == null
-    ? null
-    : getStatementIconSolid(resolvedReference.value?.type, resolvedReference.value?.tag)
+  resolvedReference.value == null ? null : getStatementIconSolid(resolvedReference.value?.type)
 );
 
 onStartTyping(() => {

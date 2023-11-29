@@ -166,7 +166,7 @@ register_mapper(
     ),
     hints=[TypeHint.NAME, TypeHint.EMAIL],
 )
-register_mapper(os.Field(os.FT.KEYWORD), hints=[TypeHint.UUID, TypeHint.KEY])
+register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.NODE], hints=[TypeHint.UUID, TypeHint.KEY])
 register_mapper(os.Field(os.FT.DATE), hints=[TypeHint.DATE, TypeHint.DATETIME])
 # number
 register_mapper(os.Field(os.FT.DOUBLE), tags=[TypeTag.NUMBER], hints=[TypeHint.DURATION])
@@ -302,7 +302,7 @@ async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict"
         ("inputs", inputs_mappings),
         ("outputs", outputs_mappings),
     ):
-        sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items()}
+        sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items() if v is not None}
         mappings[key] = {"type": "object", "dynamic": dynamic, "properties": sub_mappings}
 
     await os_client.indices.put_mapping(index=os_name, body={"properties": mappings})

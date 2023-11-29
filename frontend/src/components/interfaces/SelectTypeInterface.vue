@@ -211,7 +211,7 @@ const flagButtons: FlagButton[] = [
 // constraint list & secret flags to UX-sensible types
 // (internally we could support any permutation)
 const NONNULL_TAGS = [TypeTag.Boolean];
-const LISTABLE_TAGS = [TypeTag.Blob, TypeTag.TypeReference, TypeTag.Struct, TypeTag.Enum];
+const LISTABLE_TAGS = [TypeTag.Blob, TypeTag.TypeReference, TypeTag.Struct, TypeTag.Enum, TypeTag.Node];
 const LISTABLE_HINTS = [
   TypeHint.Name,
   TypeHint.Email,

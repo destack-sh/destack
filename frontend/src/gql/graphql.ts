@@ -2341,6 +2341,7 @@ export type TriggerUpdateInput = {
 
 export enum TypeHint {
   Audio = "AUDIO",
+  Blob = "BLOB",
   Checkbox = "CHECKBOX",
   Code = "CODE",
   Date = "DATE",
@@ -2349,6 +2350,7 @@ export enum TypeHint {
   Email = "EMAIL",
   Embedding = "EMBEDDING",
   Field = "FIELD",
+  File = "FILE",
   Float = "FLOAT",
   Html = "HTML",
   Image = "IMAGE",
@@ -2358,6 +2360,7 @@ export enum TypeHint {
   Name = "NAME",
   Phone = "PHONE",
   Rating = "RATING",
+  Record = "RECORD",
   RichText = "RICH_TEXT",
   Run = "RUN",
   Secret = "SECRET",

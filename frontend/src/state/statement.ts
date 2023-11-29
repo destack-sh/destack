@@ -383,11 +383,11 @@ export const STATEMENT_ICONS_SOLID: Record<StatementType, any> = {
   [StatementType.View]: EyeIconSolid,
 };
 
-export function getStatementIconOutline(type: StatementType, tag?: TypeTag | null) {
+export function getStatementIconOutline(type: StatementType) {
   return STATEMENT_ICONS_OUTLINE[type];
 }
 
-export function getStatementIconSolid(type: StatementType, tag?: TypeTag | null) {
+export function getStatementIconSolid(type: StatementType) {
   return STATEMENT_ICONS_SOLID[type];
 }
 
