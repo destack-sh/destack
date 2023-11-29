@@ -389,6 +389,7 @@ SUPPORTED_OPS_BY_TYPE: dict[TypeTag | TypeHint | TypeStorageFormat, set[Conditio
     TypeStorageFormat.DATE: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
     TypeStorageFormat.KEYWORD: ExprOps.COND_EXACT,
     TypeStorageFormat.VECTOR: ExprOps.COND_VECTOR,
+    TypeStorageFormat.RELATION: ExprOps.COND_EXACT,
     TypeTag.STRING: ExprOps.COND_EXACT | ExprOps.COND_RANGE | {ConditionalOp.MATCHES},
     TypeHint.NAME: {ConditionalOp.STARTS_WITH},
 }

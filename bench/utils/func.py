@@ -27,7 +27,7 @@ from bench.utils.utils import sentry_capture
 logger = structlog.get_logger(__name__)
 
 
-def try_from_uuid(id: UUID | str) -> UUID | str:
+def try_to_uuid(id: UUID | str) -> UUID | str:
     if isinstance(id, UUID):
         return id
     try:

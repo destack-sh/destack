@@ -147,8 +147,9 @@ class Command(BaseCommand):
                     module_data.nodes, pre_unpacked={project_v.id: project_v}
                 )
                 create_models_bfs(unpacked.walk_bfs_batched(), exclude=[project_v.id])
-                async_to_sync(update_os_schema_from_db)(project_v)
-                async_to_sync(write_module_to_os)(project_v, unpacked.walk_bfs(), wipe=True)
+                if project.head_id == project_v.id:  # write head to OS
+                    async_to_sync(update_os_schema_from_db)(project_v)
+                    async_to_sync(write_module_to_os)(project_v, unpacked.walk_bfs(), wipe=True)
 
             # set parents to previous version
             for version in project.versions.exclude(tag=None).order_by("-tag"):

@@ -197,6 +197,15 @@ registerInterface("vector", {
   grow: 0.5,
   inline: true,
 });
+// node
+registerInterface("node", {
+  tags: [TypeTag.Node],
+  read: (t, v) => toArray(t, v),
+  write: (t, v) => coerceToScalarOrArray(t, v),
+  supportsList: true,
+  minWidth: 200,
+  grow: 1.0,
+});
 
 export function getInterface(type: Field): ValueInterface | undefined {
   let filtered = Object.values(interfaces);

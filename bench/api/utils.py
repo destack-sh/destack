@@ -23,7 +23,7 @@ from bench import models
 from bench.language import const
 from bench.language import expression as expr
 from bench.msg.messages import ClientOrigin
-from bench.utils.func import try_from_uuid
+from bench.utils.func import try_to_uuid
 from bench.utils.utils import DEBUG, LOCAL, sentry_capture
 
 if typing.TYPE_CHECKING:
@@ -253,7 +253,7 @@ class Conditional:
 
     def to_bench(self) -> expr.Conditional:
         clauses = [q.to_bench() for q in self.clauses] if self.clauses else None
-        return expr.C(self.op, clauses=clauses, field=try_from_uuid(self.field), value=self.value)
+        return expr.C(self.op, clauses=clauses, field=try_to_uuid(self.field), value=self.value)
 
 
 @strawberry.input
@@ -263,4 +263,4 @@ class Sort:
     mode: Optional[SortMode] = None
 
     def to_bench(self) -> expr.Sort:
-        return expr.S(self.order, field=try_from_uuid(self.field), mode=self.mode)
+        return expr.S(self.order, field=try_to_uuid(self.field), mode=self.mode)

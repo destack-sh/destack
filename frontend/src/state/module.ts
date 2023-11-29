@@ -417,6 +417,19 @@ function _useModule(moduleOrProjectId: Ref<string | null>) {
     }
     return allStatements;
   });
+  const namedStatements = computed(() => {
+    return Object.values(idx.value?.statementsById ?? {}).filter((s) => s.name != null && s.name.length > 0);
+  });
+  const allFiles = computed(() => {
+    const allFiles = Object.values(idx.value?.filesById ?? {});
+    for (const dependencyIndex of dependenciesIndex.value) {
+      allFiles.push(...Object.values(dependencyIndex.filesById));
+    }
+    return allFiles;
+  });
+  const namedFiles = computed(() => {
+    return Object.values(idx.value?.filesById ?? {}).filter((f) => f.name != null && f.name.length > 0);
+  });
 
   function statementsLike(filter: Ref<StatementFilter> | StatementFilter) {
     const filterRef = isRef(filter) ? filter : ref(filter);
@@ -553,6 +566,9 @@ function _useModule(moduleOrProjectId: Ref<string | null>) {
     issuesIn,
     statementsLike,
     allStatements,
+    allFiles,
+    namedStatements,
+    namedFiles,
     tags,
     tagsByKey,
     getDescendantsOf: descendantsOf,

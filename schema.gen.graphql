@@ -1869,7 +1869,6 @@ enum TypeHint {
   HTML
   CODE
   KEY
-  SECRET
   INTEGER
   FLOAT
   SLIDER
@@ -1882,9 +1881,13 @@ enum TypeHint {
   IMAGE
   VIDEO
   AUDIO
+  FILE
   STATEMENT
+  RECORD
   FIELD
   RUN
+  SECRET
+  BLOB
 }
 
 enum TypeTag {

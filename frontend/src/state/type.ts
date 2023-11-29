@@ -7,7 +7,7 @@ export const TYPETAG_KEYWORD: Partial<Record<TypeTag, string>> = {
   [TypeTag.Boolean]: "boolean",
   [TypeTag.String]: "text",
   [TypeTag.Number]: "number",
-  [TypeTag.Blob]: "file",
+  [TypeTag.Blob]: "blob",
   [TypeTag.Vector]: "vector",
   [TypeTag.Json]: "json",
   [TypeTag.Literal]: "literal",
@@ -30,7 +30,6 @@ export const TYPEHINT_KEYWORD: Partial<Record<TypeHint, string>> = {
   [TypeHint.Code]: "code",
   [TypeHint.Key]: "key",
   [TypeHint.Phone]: "phone",
-  [TypeHint.Secret]: "secret",
   // number
   [TypeHint.Integer]: "integer",
   [TypeHint.Float]: "float",
@@ -46,6 +45,12 @@ export const TYPEHINT_KEYWORD: Partial<Record<TypeHint, string>> = {
   [TypeHint.Video]: "video",
   // vector
   [TypeHint.Embedding]: "embedding",
+  // node
+  [TypeHint.File]: "file",
+  [TypeHint.Statement]: "statement",
+  [TypeHint.Run]: "run",
+  [TypeHint.Secret]: "secret",
+  [TypeHint.Blob]: "blob",
 };
 export const SUPPORTED_TYPEHINTS: Partial<Record<TypeHint, TypeTag>> = {
   // string
@@ -70,6 +75,9 @@ export const SUPPORTED_TYPEHINTS: Partial<Record<TypeHint, TypeTag>> = {
   // <only file for now>
   // vector
   [TypeHint.Embedding]: TypeTag.Vector,
+  // node
+  [TypeHint.File]: TypeTag.Node,
+  [TypeHint.Statement]: TypeTag.Node,
 };
 export const TYPEHINT_BY_KEYWORD: Record<string, TypeHint> = reverseRecord(TYPEHINT_KEYWORD);
 
@@ -117,6 +125,7 @@ const STORAGE_FORMAT_BY_TYPE_TAG: Partial<{ [key in TypeTag]: TypeStorageFormat 
   STRUCT: TypeStorageFormat.OBJECT,
   ENUM: TypeStorageFormat.KEYWORD,
   LITERAL: TypeStorageFormat.KEYWORD,
+  NODE: TypeStorageFormat.RELATION,
 };
 
 const STORAGE_FORMAT_BY_TYPE_HINT: Partial<{ [key in TypeHint]: TypeStorageFormat }> = {
@@ -195,6 +204,7 @@ export const ICONS_BY_TAG_OUTLINE: Partial<Record<TypeTag, any>> = {
   [TypeTag.Blob]: DocumentIcon,
   [TypeTag.Struct]: getStatementIconOutline(StatementType.Class),
   [TypeTag.Enum]: getStatementIconOutline(StatementType.Choice),
+  [TypeTag.Node]: CodeBracketIcon,
 };
 export const ICONS_BY_HINT_OUTLINE: Partial<Record<TypeHint, any>> = {
   // string

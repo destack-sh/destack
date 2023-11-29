@@ -182,6 +182,12 @@ class ViewLayout(enum.StrEnum):
     TABLE = "table"
 
 
+# TODO @Architecture: simplify the TypeTag/TypeHint/TypeFlag/TypeStorageFormat mess
+#  (should probably? just be type + flags with display hints in metadata)
+#  IS_ARRAYABLE -> real unions of X | list[X] or whatever
+#  IS_UNION_WITH -> inherit? from type (could remain flag, though that's not great)
+
+
 class TypeTag(enum.StrEnum):
     """The Bench primitive type of a field/type."""
 
@@ -220,7 +226,6 @@ class TypeHint(enum.StrEnum):
     HTML = "html"
     CODE = "code"
     KEY = "key"
-    SECRET = "secret"
     # number
     INTEGER = "integer"
     FLOAT = "float"
@@ -233,14 +238,18 @@ class TypeHint(enum.StrEnum):
     THUMBS = "thumbs"
     # vector
     EMBEDDING = "embedding"
-    # file
+    # blob
     IMAGE = "image"
     VIDEO = "video"
     AUDIO = "audio"
-    # node :NodesAsValues
+    # node (relation)
+    FILE = "file"
     STATEMENT = "statement"
+    RECORD = "record"  # for relations
     FIELD = "field"
-    RUN = "run"
+    RUN = "run"  # not used yet
+    SECRET = "secret"  # not used as a node yet
+    BLOB = "blob"  # not used as a node yet
 
 
 class TypeFlag(enum.IntFlag):
@@ -282,6 +291,7 @@ class TypeStorageFormat(enum.StrEnum):
     DATE = "date"
     KEYWORD = "key"
     OBJECT = "obj"
+    RELATION = "rel"
 
 
 class BlobStatus(enum.StrEnum):

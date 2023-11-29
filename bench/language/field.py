@@ -97,6 +97,7 @@ PRIMITIVE_TYPES = [
     TypeTag.STRING,
     TypeTag.BLOB,
     TypeTag.VECTOR,
+    TypeTag.NODE,
 ]
 DEFAULT_EMBEDDING_DIMENSION = 384  # currently only support :FixedEmbeddingDimension
 Vector = typing.NewType("Vector", list[float])
@@ -135,9 +136,12 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.VIDEO: TypeTag.BLOB,
     TypeHint.AUDIO: TypeTag.BLOB,
     # node
+    TypeHint.FILE: TypeTag.NODE,
     TypeHint.STATEMENT: TypeTag.NODE,
     TypeHint.FIELD: TypeTag.NODE,
     TypeHint.RUN: TypeTag.NODE,
+    TypeHint.RECORD: TypeTag.NODE,
+    TypeHint.BLOB: TypeTag.NODE,
     # embedding
     TypeHint.EMBEDDING: TypeTag.VECTOR,
 }
@@ -152,6 +156,7 @@ STORAGE_FORMAT_BY_TYPE_TAG = {
     TypeTag.STRUCT: TypeStorageFormat.OBJECT,
     TypeTag.ENUM: TypeStorageFormat.KEYWORD,
     TypeTag.LITERAL: TypeStorageFormat.KEYWORD,
+    TypeTag.NODE: TypeStorageFormat.RELATION,
 }
 STORAGE_FORMAT_BY_TYPE_HINT = {
     # for special types that are not the same as their type tag
