@@ -1070,6 +1070,9 @@ class NodeList(NodeListBase[NodeT]):
         change = _ChangeEffect._collect(None, self._parent, [_node], _trigger)
         # update parent after updating ids (the above walks tree, which is changed here)
         _node.parent = self._parent
+        # validate node now that it has a parent (while in session)
+        if self._parent._session is not None:
+            _node._validate_self(_node.__tracked_properties__.keys(), on_issue=on_issue_raise)
 
         # index node into parent scope
         if isinstance(_node, ScopeNode) and _node._local_tree is not None:
@@ -2471,6 +2474,10 @@ class ModuleChange:
     def touched(self) -> typing.Iterable[Node]:
         return chain(self.added, self.updated, self.removed)
 
+    @staticmethod
+    def empty() -> "ModuleChange":
+        return ModuleChange([], [], [], [], [])
+
 
 @node(node_type=NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
@@ -2617,6 +2624,9 @@ class Module(ScopeNode):
         TODO @Performance @UX: :HotReload patch edits directly?
         """
         assert self._source is not None, f"cannot apply edits to {self!r} without source"
+
+        if not edits:
+            return ModuleChange.empty()
 
         # update source
         old_source = old_source if old_source is not None else self._source.copy()

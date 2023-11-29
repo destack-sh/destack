@@ -761,7 +761,10 @@ class RuntimeHost:
             await self._update_local_triggers()
 
         # broadcast (source from user, interp from runtime)
-        await self._publish_edits(host_change.source_edits, origins=(*(origins or ()), self.client))
+        if host_change.source_edits:
+            await self._publish_edits(
+                host_change.source_edits, origins=(*(origins or ()), self.client)
+            )
         if host_change.interp_edits:
             await self._publish_edits(host_change.interp_edits, origins=(self.client,))
 
