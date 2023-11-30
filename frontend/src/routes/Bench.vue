@@ -24,8 +24,6 @@ import {
   PANEL_INSTANCE_TYPES,
   prettifySlug,
   PROJECT_ACCESS_LEVEL_NAME,
-  projectAccessGt,
-  projectAccessLt,
   provideBenchVersioning,
   useBenchPersistence,
   useBenchState,
@@ -475,12 +473,12 @@ onBeforeUnmount(() => {
                 class="flex h-full items-center justify-between rounded-sm bg-white p-1 text-left hover:bg-orange-100 focus:outline-none"
                 :class="{ 'bg-orange-100 focus:bg-orange-100': open }"
               >
-                <span class="truncate text-sm font-bold">{{ props.project }}</span>
+                <span class="truncate text-sm">{{ props.project }}</span>
               </PopoverButton>
             </template>
           </ProjectPopover>
           <!-- While loading, imitate project button -->
-          <span v-else class="truncate p-1 text-sm font-bold">
+          <span v-else class="truncate p-1 text-sm">
             {{ props.project }}
           </span>
           <!-- Show ids for debugging (if enabled) -->

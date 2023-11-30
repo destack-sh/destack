@@ -539,9 +539,8 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
     def unpack_value(
         self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
     ) -> Any:
-        if isinstance(value, self.py_type):
-            return value
-        value = self.py_type.fromisoformat(value)
+        if not isinstance(value, self.py_type):
+            value = self.py_type.fromisoformat(value)
         # add UTC if no timezone is specified
         if isinstance(value, datetime) and value.tzinfo is None:
             value = value.replace(tzinfo=pytz.utc)

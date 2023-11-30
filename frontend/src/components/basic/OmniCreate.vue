@@ -2,18 +2,13 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { DocumentPlusIcon, SparklesIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { DocumentPlusIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
 import { PlusCircleIcon } from "@heroicons/vue/24/solid";
 import { computed } from "vue";
 
 const actions = useActions();
 const addables = computed(() =>
   [
-    {
-      name: "New Bench",
-      to: { name: "CreateBench" },
-      icon: SparklesIcon,
-    },
     {
       name: "New file",
       action: () => {

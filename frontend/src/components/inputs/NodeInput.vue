@@ -10,10 +10,9 @@ import {
 } from "@/state/module";
 import { computed, type Ref, ref } from "vue";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { getEnumColor, getStatementIconSolid } from "@/state/statement";
+import { getStatementIconSolid } from "@/state/statement";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { TypeHint } from "@/gql/graphql";
-import { getStatementIconOutline } from "@/state/statement";
 import { CodeBracketIcon } from "@heroicons/vue/24/outline";
 
 const props = defineProps<{
