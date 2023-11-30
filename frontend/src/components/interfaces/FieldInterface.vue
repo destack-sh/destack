@@ -20,7 +20,7 @@ import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { SortOp, TypeTag } from "@/gql/graphql";
 import { canSort } from "@/state/type";
-import type { Field } from "@/state/module";
+import { useCurrentModule, type Field } from "@/state/module";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 
@@ -36,7 +36,6 @@ const props = defineProps<{
   isEnum?: boolean;
   isView?: boolean;
   hideOutline?: boolean;
-  hideType?: boolean;
   hideText?: boolean;
   orientation?: "horizontal" | "vertical";
   statementId?: string;
@@ -65,6 +64,10 @@ const text: Ref<string> = ref(props.modelValue?.text ?? "");
 const editing = ref(false);
 const editingType = ref(false);
 const hasText = computed(() => text.value.length > 0);
+const module = useCurrentModule();
+const runtimeType = computed(() =>
+  props.modelValue?.referenceCk == null ? null : module.statementOf(props.modelValue?.referenceCk)
+);
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -274,12 +277,13 @@ defineExpose({
       @mouseup="buttonRef?.setAttribute('draggable', 'false')"
     >
       <!-- Inner div so we can keep the button at the right height without the items-center below centering everything vertically -->
-      <!-- And measure the inner preview ref size correctly -->
+      <!-- (and measure the inner preview ref size correctly) -->
       <div class="flex max-w-full flex-row items-baseline">
+        <!-- Type signature (type + name) -->
         <div
           ref="previewRef"
-          class="relative flex max-w-full flex-row items-center rounded-sm text-left"
-          :class="[isEnum || !hideOutline ? 'bg-amber-100 px-2 py-0.5 ring-1 ring-inset ring-amber-600/[15%]' : '']"
+          class="flex max-w-full flex-row items-center rounded-sm text-left"
+          :class="[isEnum || !hideOutline ? 'bg-amber-100 py-0.5 pr-2 ring-1 ring-inset ring-amber-600/[15%]' : '']"
         >
           <!-- :EnumStyle -->
           <svg
@@ -291,13 +295,16 @@ defineExpose({
           >
             <rect rx="2" ry="2" width="5" height="6" />
           </svg>
+          <TypePreview v-else :type="value" class="absolute left-1.5" />
           <span
-            class="mr-1.5 max-w-full truncate text-gray-900"
+            class="ml-7 max-w-full truncate text-gray-900"
             :class="[inlined ? 'underline decoration-fuchsia-300 underline-offset-4' : '', isEnum ? 'ml-4 ' : '']"
             >{{ value.name }}</span
           >
-          <TypePreview v-if="!isEnum && !hideType" :type="value" :hide-icon="value.referenceCk != null" />
+          <!-- Type reference name -->
+          <span v-if="value.referenceCk" class="ml-1.5 text-gray-400">{{ runtimeType?.name }}</span>
         </div>
+        <!-- Text -->
         <AnnotatedText
           v-if="text && !hideText"
           :model-value="text"
@@ -321,24 +328,6 @@ defineExpose({
       >
         <!-- Name & type -->
         <div class="relative flex max-w-full flex-row items-center justify-between gap-2">
-          <!-- Name -->
-          <EditableSpan
-            ref="nameRef"
-            regex="name"
-            v-model="name"
-            @update:model-value="nameSync.onLocalWrite"
-            :readonly="readonly"
-            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900/[12%] p-1 text-gray-900 focus:bg-orange-100"
-            @navigate-right="typeButtonRef?.focus()"
-            @navigate-down="textRef?.focus()"
-            @enter="close(false), emit('enter')"
-            @enter-left="close(false), emit('enter')"
-            @enter-right="close(false), emit('enter')"
-          />
-          <!-- Name placeholder -->
-          <span v-if="!value.name" class="absolute left-[5px] top-[5px] text-gray-400" @click="nameRef?.focus"
-            >{{ tupleName }} name</span
-          >
           <!-- Type popover -->
           <FadeTransition>
             <div v-if="!isEnum" class="relative">
@@ -354,14 +343,14 @@ defineExpose({
                 @keydown.enter.stop.prevent="editingType = true"
               >
                 <!-- No idea why but this needs to be set absolutely or the icons are too high -->
-                <TypePreview class="absolute top-0.5" :type="value" hide-reference />
+                <TypePreview class="top-0.5" :type="value" />
               </button>
               <!-- Popover position is also pinned -->
               <div
                 v-if="editingType"
                 ref="typeEditablePopoverRef"
                 class="z-10 flex w-80 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-                :class="typePopoverPin.pinned.value ? '' : 'absolute -left-1 -top-10'"
+                :class="typePopoverPin.pinned.value ? '' : 'absolute -right-1 -top-10'"
               >
                 <div class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="editingType = false" />
                 <SelectTypeInterface
@@ -388,6 +377,24 @@ defineExpose({
               </svg>
             </div>
           </FadeTransition>
+          <!-- Name -->
+          <EditableSpan
+            ref="nameRef"
+            regex="name"
+            v-model="name"
+            @update:model-value="nameSync.onLocalWrite"
+            :readonly="readonly"
+            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900/[12%] p-1 text-gray-900 focus:bg-orange-100"
+            @navigate-right="typeButtonRef?.focus()"
+            @navigate-down="textRef?.focus()"
+            @enter="close(false), emit('enter')"
+            @enter-left="close(false), emit('enter')"
+            @enter-right="close(false), emit('enter')"
+          />
+          <!-- Name placeholder -->
+          <span v-if="!value.name" class="absolute left-[5px] top-[5px] text-gray-400" @click="nameRef?.focus"
+            >{{ tupleName }} name</span
+          >
         </div>
         <!-- Text -->
         <span

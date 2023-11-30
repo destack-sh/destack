@@ -590,7 +590,7 @@ defineExpose({
                 is-view
                 hide-outline
                 orientation="horizontal"
-                class="h-full w-full border border-transparent bg-amber-100 p-1 text-gray-400 focus-within:border-amber-900 focus-within:border-opacity-[15%] focus-within:bg-amber-200 hover:bg-amber-200"
+                class="h-full w-full border border-transparent bg-amber-100 py-1 pr-1 text-gray-700 focus-within:border-amber-900 focus-within:border-opacity-[15%] focus-within:bg-amber-200 hover:bg-amber-200"
                 :model-value="field"
                 @update:model-value="(node: any) => updateField(field.key, node)"
                 @navigate-left="grid.navigateLeft('', field.key as string)"
