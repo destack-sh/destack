@@ -20,7 +20,7 @@ import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { SortOp, TypeTag } from "@/gql/graphql";
 import { canSort } from "@/state/type";
-import { useCurrentModule, type Field } from "@/state/module";
+import { useCurrentModule, type Field, TypeFlag } from "@/state/module";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 
@@ -301,6 +301,9 @@ defineExpose({
             :class="[inlined ? 'underline decoration-fuchsia-300 underline-offset-4' : '', isEnum ? 'ml-4 ' : '']"
             >{{ value.name }}</span
           >
+          <!-- Type flags (obviously not pretty, like everything else...) -->
+          <span v-if="!(value.flags & TypeFlag.IS_OPTIONAL)" class="ml-0.5 text-gray-700">!</span>
+          <span v-if="value.flags & TypeFlag.IS_ARRAY" class="ml-0.5 text-gray-700">[]</span>
           <!-- Type reference name -->
           <span v-if="value.referenceCk" class="ml-1.5 text-gray-400">{{ runtimeType?.name }}</span>
         </div>

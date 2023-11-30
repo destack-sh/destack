@@ -99,7 +99,7 @@ defineExpose({
     <span
       v-for="node in selectedNodes"
       :key="node.ck"
-      class="inline-flex items-center gap-x-1 rounded-sm px-1.5 text-gray-900 hover:cursor-pointer hover:bg-amber-100"
+      class="inline-flex items-center gap-x-1 rounded-sm text-gray-900 hover:cursor-pointer hover:bg-amber-100"
     >
       <component :is="getNodeIcon(node)" class="h-4 w-4 text-orange-600" />
       <span class="underline decoration-gray-300 underline-offset-4">
