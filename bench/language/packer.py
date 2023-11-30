@@ -21,6 +21,7 @@ from typing import (
 )
 from uuid import UUID
 
+import pytz
 import structlog
 from more_itertools import first
 
@@ -540,9 +541,16 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
     ) -> Any:
         if isinstance(value, self.py_type):
             return value
-        return self.py_type.fromisoformat(value)
+        value = self.py_type.fromisoformat(value)
+        # add UTC if no timezone is specified
+        if isinstance(value, datetime) and value.tzinfo is None:
+            value = value.replace(tzinfo=pytz.utc)
+        return value
 
     def pack_value(self, type: HasType, value: Any) -> str:
+        # convert to UTC if no timezone is specified
+        if isinstance(value, datetime) and value.tzinfo is None:
+            value = value.replace(tzinfo=pytz.utc)
         return value.isoformat()
 
     def render_python(self, type: HasType, value: Any) -> str:
