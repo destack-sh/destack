@@ -149,7 +149,7 @@ defineExpose({
       v-for="(file, i) in modelValue"
       tabindex="-1"
       :key="file.id"
-      class="group/file flex flex-row items-center gap-1.5 rounded-sm hover:cursor-pointer focus:bg-orange-100 focus:outline-none"
+      class="group/file flex flex-row items-center rounded-sm hover:cursor-pointer focus:bg-orange-100 focus:outline-none"
       @click.stop="open(file)"
       @keydown.enter.stop.prevent="open(file)"
       @keydown.right.stop.prevent="
@@ -164,7 +164,7 @@ defineExpose({
         class="h-4 w-4 flex-shrink-0 text-gray-700"
         :class="file.status == BlobStatus.Uploading ? 'animate-spin' : ''"
       />
-      <span class="flex flex-row items-baseline gap-1.5">
+      <span class="ml-1 flex flex-row items-baseline gap-1">
         <span class="truncate text-gray-900 underline-offset-4 group-hover/file:underline">{{ file.name }}</span>
         <span class="text-xs text-gray-400">{{ humanizeBytes(file?.content_length) }}</span>
       </span>

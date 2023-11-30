@@ -170,7 +170,7 @@ defineExpose({
             >
               <component :is="getNodeIcon(node)" class="h-4 w-4 text-orange-600" />
               <span class="truncate">{{ node.name }}</span>
-              <span class="ml-auto text-gray-400">{{ node.path }}</span>
+              <span class="ml-auto text-xs text-gray-400">{{ node.path }}</span>
             </li>
           </div>
         </ComboboxOption>

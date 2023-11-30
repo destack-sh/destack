@@ -354,10 +354,15 @@ defineExpose({
             selected ? 'text-orange-600' : '',
           ]"
         >
-          <div class="flex items-baseline justify-between">
-            <TypePreview :type="ref" show-type-name hide-flags />
+          <div class="flex max-w-full flex-row gap-1.5 whitespace-nowrap">
+            <TypePreview :type="ref" class="mt-0.5" />
+            <span>{{
+              ref.referenceCk != null
+                ? module.statementOf(ref.referenceCk)?.name
+                : renderBuiltinType(ref.tag, ref.hint ?? null)
+            }}</span>
             <!-- Source -->
-            <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
+            <span class="ml-auto truncate text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
               {{ ref.referenceCk == null ? "(builtin)" : module.pathOf(ref.referenceCk, { roffset: 1 }) }}
             </span>
           </div>

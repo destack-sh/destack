@@ -103,7 +103,7 @@ defineExpose({
       @click="open"
       @keydown.enter.exact.prevent="open"
     >
-      <TypePreview :type="value" :hide-icon="hideIcon || value.referenceCk != null" hide-flags />
+      <TypePreview :type="value" :hide-icon="hideIcon" />
     </button>
     <!-- Prevent scroll and capture click outside -->
     <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close" />
