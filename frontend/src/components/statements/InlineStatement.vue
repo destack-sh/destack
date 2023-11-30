@@ -599,6 +599,13 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   });
   actions.push({
     groupId: "edit-core",
+    label: "Copy",
+    icon: Square2StackIcon,
+    disabled: props.readonly,
+    action: () => magic.copy(),
+  });
+  actions.push({
+    groupId: "edit-core",
     label: "Duplicate",
     icon: Square2StackIcon,
     disabled: props.readonly,

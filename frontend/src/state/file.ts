@@ -693,7 +693,6 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       label: "Copy",
       icon: DocumentDuplicateIcon,
       hideInline: true,
-      hideInMenu: !bench.readonly,
       action: () => {
         copy(getSelectedRoots());
       },
@@ -853,6 +852,12 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     }
   }
 
+  async function copy() {
+    if (nav == null) throw new Error("nav context not provided");
+    if (statement.value == null) return;
+    nav?.value?.copy([statement.value as StatementHeader]);
+  }
+
   async function duplicate() {
     if (nav == null) throw new Error("nav context not provided");
     if (statement.value == null) return;
@@ -884,6 +889,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   return {
     insertBelow,
     insertAbove,
+    copy,
     duplicate,
     delete: delete_,
     moveFocusUp,

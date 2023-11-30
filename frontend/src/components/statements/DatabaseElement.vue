@@ -732,7 +732,7 @@ defineExpose({
         </button>
         <!-- Load more/loading -->
         <button
-          v-if="pageInfo?.hasNextPage"
+          v-if="pageInfo?.hasNextPage || loading"
           ref="loadMoreRef"
           class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900/[12%] px-1 py-1 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
           :class="[loading ? 'text-gray-400' : 'text-gray-300 ']"
