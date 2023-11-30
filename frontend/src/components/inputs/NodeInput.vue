@@ -34,18 +34,26 @@ const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IS_ARRAY));
 const selectedNodes: Ref<NodeBase[]> = computed(
   () => (props.modelValue?.map((v) => module.nodeOf(v)).filter((v) => v != null) as NodeBase[]) ?? []
 );
-const nodes: Ref<NodeBase[]> = computed(() => {
+const nodes: Ref<(NodeBase & { path?: string })[]> = computed(() => {
+  if (props.preview) return [];
   if (props.type.hint == TypeHint.Statement) {
-    return module.namedStatements.value as NodeBase[];
+    return (module.namedStatements.value as NodeBase[]).map((n) => ({
+      ...n,
+      path: module.pathOf(n.id, { roffset: 1 }),
+    }));
   } else if (props.type.hint == TypeHint.File) {
-    return module.namedFiles.value as NodeBase[];
+    return (module.namedFiles.value as NodeBase[]).map((n) => ({
+      ...n,
+      path: module.pathOf(n.id, { roffset: 1 }),
+    }));
   } else {
     throw new Error("unexpected node type hint");
   }
 });
-const missingNodes: Ref<NodeBase[]> = computed(
-  () => nodes.value // too many, don't filter
-);
+const missingNodes: Ref<(NodeBase & { path?: string })[]> = computed(() => {
+  if (props.preview) return [];
+  return nodes.value.filter((m) => !props.modelValue?.find((v) => v == m.ck));
+});
 const query = ref("");
 const uf = new uFuzzy({ intraMode: 0 });
 const filteredNodes = computed(() => {
@@ -158,13 +166,12 @@ defineExpose({
             ]"
           >
             <li
-              class="mx-1 flex w-fit flex-row items-center gap-1.5 px-1.5 py-0.5"
+              class="mx-1 flex w-full max-w-full flex-row items-center gap-1.5 whitespace-nowrap px-1.5 py-0.5"
               :class="[active ? 'bg-amber-100' : '']"
             >
               <component :is="getNodeIcon(node)" class="h-4 w-4 text-orange-600" />
-              <span class="">
-                {{ node.name }}
-              </span>
+              <span class="truncate">{{ node.name }}</span>
+              <span class="ml-auto text-gray-400">{{ node.path }}</span>
             </li>
           </div>
         </ComboboxOption>
