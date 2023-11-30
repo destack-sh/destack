@@ -163,10 +163,7 @@ defineExpose({
               >
                 <div class="flex items-baseline justify-between">
                   <span class="flex flex-row items-center">
-                    <component
-                      :is="getStatementIconSolid(reference.type, reference.tag)"
-                      class="h-4 w-4 text-orange-600"
-                    />
+                    <component :is="getStatementIconSolid(reference.type)" class="h-4 w-4 text-orange-600" />
                     <span class="ml-1 font-semibold text-orange-600">{{ reference.name }}</span>
                   </span>
                   <!-- Source -->

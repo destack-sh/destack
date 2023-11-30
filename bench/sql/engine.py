@@ -748,13 +748,13 @@ def pg_wrap_record_value(database: "HasDatabase", value: dict) -> dict:
     if database.ephemeral:  # lift into generic 'value' JSONB column
         value = {"value": sql.SQL("value || {}").format(sql.Literal(Jsonb(value)))}
     else:  # remap typed keys to column names
-        value_columned = {}
+        value_columnized = {}
         for field in database.resolved_fields:
             v = value.get(field._typed_key, UNSET)
             if v is not UNSET:
                 column_name = get_field_column_name(field)
-                value_columned[column_name] = pg_wrap_record_field_value(database, field, v)
-        value = value_columned
+                value_columnized[column_name] = pg_wrap_record_field_value(database, field, v)
+        value = value_columnized
     return value
 
 
@@ -842,7 +842,9 @@ async def write_local_edits_to_pg(
             _ = await pg_insert(cur=cur, table=table, rows=rows)
             return records
         elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
-            properties = batch[0].properties  # not strictly correct (should be set of all in batch)
+            properties = batch[
+                0
+            ].properties  # not strictly correct (should be union of all in batch)
             # expand value properties for materialized tables
             if not database.ephemeral and "value" in properties:
                 properties = (
