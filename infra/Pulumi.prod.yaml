@@ -5,9 +5,9 @@ config:
   bench:BETTERSTACK_SECRET:
     secure: AAABAMcwUhrDe9/PMrDDQk9hpHE5QnHFfGG4gdUBTjnOTB+eIKH0syhoPvnBh0In4KlQ2yF4Syc=
   bench:BROWSERLESS_API_KEY:
-    secure: AAABABNc0SjKu+3KCV8ZdBgvLuuf/tOZg4IdpuEXgCJThrGr+WBNhxM/PZ2XMa5z28/ISK1t+5Eocx5Rk0KY/9SnuVjv6G6SR/B9UMFn9QEulcz8
+    secure: AAABAPHDsqwb8sZZZnuupmI/xgSabdHyQzTMB3d1gOaGfQpEwrvbGxphr/BXvsmWzmoPATG+Ue5l23GzAOOjUiu8lHU=
   bench:DEEPGRAM_API_KEY:
-    secure: AAABAMaS98BXKRt0ujUxm5961DJVyKU5hE8qHfk0rVO8nZ1XpIE54gYqI6+qdYU3CqKTZyvYpR60hz4rKwJqbIlWf/vsSOBe
+    secure: AAABANzJubkeeMQeUHaAfddP51ITzPDJwV7biQd8kOCo5C0Tjrsg/sM0+DRH8vnKP7s0ELnCKeKfBerciIGPttSctp8EbcAA
   bench:LOOPS_API_KEY:
     secure: AAABALugbjvj+BJBfVwXcSB2vq9oCmiWncVZ5V6k1xNKaIkCCLIJa/+VmPsidbPSTLYJpnROIzaSD6MGabTWDA==
   bench:LOOPS_USER_TRANSACTIONAL_ID: cloo304uv01ebjq0olzfb0dfu
