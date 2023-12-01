@@ -2,6 +2,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Collection, Optional
 
 from bench.language.module import NS, Node, bproperty, node_component
+from bench.language.text import Text
 from bench.language.validation import ValidationHandler
 from bench.utils.proxy import proxy_value, unproxy_value
 
@@ -29,7 +30,16 @@ class HasValue(Node):
                 on_issue(self, f"invalid value: {e}", ["value"])
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
-        pass  # TODO @Broken: visit referenced nodes :NodesAsValues ?
+        if self.value:  # :VisitValue
+            from bench.language.packer import walk_value
+
+            for n in walk_value(self.value, self._type_of_value):  # :VisitValue
+                if isinstance(n, Node):
+                    visitor.visit_reference(n)
+                elif isinstance(n, Text):
+                    for mention in n.mentions:
+                        if isinstance(mention.reference, Node):
+                            visitor.visit_reference(mention.reference)
 
     def _attached_inner(self) -> None:
         # pack this value if it couldn't be packed in deactivate/detach

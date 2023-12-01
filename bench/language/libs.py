@@ -31,7 +31,7 @@ from bench.language.field import Field, HasFields, Key, Vector
 from bench.language.model import HasModel, ModelError, ModelErrorType
 from bench.language.module import Node, NodeList, ScopeNode, get_node_id
 from bench.language.packer import map_value, pack_value_flat, render_value
-from bench.language.reference import NodeView
+from bench.language.reference import Projection
 from bench.language.reflect import (
     _derive_constant_key,
     _model_compilers,
@@ -69,11 +69,6 @@ class Cache:
 
 @x_tag("randomize", "Seed every run randomly", file=_symbolx_builtins)
 class Randomize:
-    pass
-
-
-@x_tag("mend", "Attempt to auto-correct on error", file=_symbolx_builtins)
-class Mend:
     pass
 
 
@@ -271,10 +266,10 @@ class BaseTextTaskCompiler(TaskCompiler):
             return pack_value_flat(value, type, *args, **kwargs)
 
     async def _render_context(
-        self, task: Statement, view: NodeView, *, exclude_output: bool
+        self, task: Statement, projection: Projection, *, exclude_output: bool
     ) -> str:
         """Model-friendly string describing the entire task context."""
-        rendered = render(*view.nodes, recursive=False)
+        rendered = render(*projection.nodes, recursive=False)
         return rendered
 
     def _render_error(self, error: RunError | TaskError) -> str:
@@ -304,7 +299,7 @@ class BaseTextTaskCompiler(TaskCompiler):
     async def _prepare_text_prompt(
         self,
         task: Statement,
-        view: NodeView,
+        projection: Projection,
         inputs: dict,
         previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],
@@ -316,7 +311,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         ]
 
         # module context
-        context_str = await self._render_context(task, view, exclude_output=True)
+        context_str = await self._render_context(task, projection, exclude_output=True)
         if context_str:
             messages.append(
                 f"The definition of task '{task.name}':\n {context_str}"
@@ -667,7 +662,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
     async def compile(
         self,
         task: Statement,
-        view: NodeView,
+        projection: Projection,
         inputs: dict,
         previous_results: list[TaskError | Run],
         nonce: Optional[str],
@@ -682,7 +677,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         ]
 
         # module context
-        context_str = await self._render_context(task, view, exclude_output=True)
+        context_str = await self._render_context(task, projection, exclude_output=True)
         messages.append(
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
@@ -806,12 +801,12 @@ class OpenAITextCompiler(BaseTextTaskCompiler):
     async def compile(
         self,
         task: Statement,
-        view: NodeView,
+        projection: Projection,
         inputs: dict,
         previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],
     ) -> OpenAIChatInput:
-        prompt = await self._prepare_text_prompt(task, view, inputs, previous_results, nonce)
+        prompt = await self._prepare_text_prompt(task, projection, inputs, previous_results, nonce)
         messages = [OpenAIChatMessage(role=OpenAIChatRole.user, content=prompt)]
 
         # settings
@@ -985,12 +980,12 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
     async def compile(
         self,
         task: Statement,
-        view: NodeView,
+        projection: Projection,
         inputs: dict,
         previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],
     ) -> AnthropicTextInput:
-        prompt = await self._prepare_text_prompt(task, view, inputs, previous_results, nonce)
+        prompt = await self._prepare_text_prompt(task, projection, inputs, previous_results, nonce)
         prompt = f"{anthropic.HUMAN_PROMPT}: {prompt}{anthropic.AI_PROMPT}"
 
         # settings

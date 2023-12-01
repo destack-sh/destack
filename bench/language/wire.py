@@ -35,7 +35,6 @@ from bench.language.const import (
     WorkerProfile,
     WorkerSetStatus,
 )
-from bench.language.database import HasDatabase
 from bench.language.expression import (
     EXPRESSION_CLASS_BY_OP,
     ComparisonConditional,
@@ -198,29 +197,16 @@ def unpack_module(
 def pack_node(
     root: NodeT, exclude: set[NodeType] | None = None
 ) -> tuple[NodeDataT, list[NodeDataT]]:
-    """Pack a node and all its descendants"""
+    """Pack a node and all its inline descendants"""
     exclude = exclude or tuple()
     packed: dict[UUID, NodeDataT] = OrderedDict()
 
-    # walk and pack until nothing is left to pack
     to_pack = root._local_root_tree.get_descendants(root.ck, include_self=True, recursive=True)
-    while to_pack:
-        next_pack = []
-        for node in to_pack:
-            if node.node_type in exclude:
-                continue
-            packer = _node_packers_by_node[type(node)]
-            packed[node.id] = packer.pack(node)
-
-            # records are not part of regular node tree :NodeViews
-            if (
-                node.node_type == NodeType.STATEMENT
-                and HasDatabase in node._components
-                and node.versioned
-                and NodeType.RECORD not in exclude
-            ):
-                next_pack.extend(node.records)
-        to_pack = next_pack
+    for node in to_pack:
+        if node.node_type in exclude:
+            continue
+        packer = _node_packers_by_node[type(node)]
+        packed[node.id] = packer.pack(node)
 
     return packed[root.id], list(packed.values())
 
@@ -231,7 +217,7 @@ def unpack_node(
     session: Optional[Session],
     exclude: set[NodeType] | None = None,
 ) -> NodeT:
-    """Unpack a node and all its descendants and index them"""
+    """Unpack a node and all its inline descendants and index them"""
     exclude = exclude or tuple()
     unpacked_tree = NodeTree()
 

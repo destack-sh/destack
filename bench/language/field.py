@@ -38,7 +38,7 @@ from bench.language.module import (
     node_component,
     nparent,
 )
-from bench.language.reference import HasReference, NodeVisitor
+from bench.language.reference import HasReference
 from bench.language.text import HasText
 from bench.language.validation import (
     ValidationHandler,
@@ -485,10 +485,6 @@ class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
 
     def _init_inner(self):
         self.key = self.key or new_dynamic_node_key(self.ck)
-
-    def _visit_inner(self, visitor: NodeVisitor) -> None:
-        if isinstance(self.reference, Node):
-            visitor.visit_reference(self.reference)
 
     def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
         if self.hint is not None:

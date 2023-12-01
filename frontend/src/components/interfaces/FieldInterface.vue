@@ -302,7 +302,11 @@ defineExpose({
             >{{ value.name }}</span
           >
           <!-- Type flags (obviously not pretty, like everything else...) -->
-          <span v-if="!(value.flags & TypeFlag.IS_OPTIONAL)" class="ml-0.5 text-gray-700">!</span>
+          <span
+            v-if="value.tag != TypeTag.Literal && value.tag != TypeTag.Boolean && !(value.flags & TypeFlag.IS_OPTIONAL)"
+            class="ml-0.5 text-gray-700"
+            >!</span
+          >
           <span v-if="value.flags & TypeFlag.IS_ARRAY" class="ml-0.5 text-gray-700">[]</span>
           <!-- Type reference name -->
           <span v-if="value.referenceCk" class="ml-1.5 text-gray-400">{{ runtimeType?.name }}</span>

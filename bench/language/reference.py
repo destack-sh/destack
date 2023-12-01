@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
 from uuid import UUID
 
-from bench.language.const import INTERP_NODE_TYPES, IssueType, NodeType, SortOp, StatementReference
+from bench.language.const import IssueType, NodeType, SortOp, StatementReference
 from bench.language.expression import S
 from bench.language.module import Node, ScopeNode, bproperty, node_component
 from bench.language.validation import ValidationHandler
@@ -61,15 +61,15 @@ class NodeVisitor:
         self._reference_by_ck[node.ck] = node
 
 
-class NodeView:
+class Projection:
     """
-    A view into a (partial?) module graph, composed of multiple viewports.
-    TODO @Architecture: unified node view walking :NodeViews
-    This is not quite right, but we haven't figured out 'federated' tree walking yet.
-     - How do we filter and level of detail across descendants and references?
-     - How and when do we inline out-of-line descendants (like Records or Comments)?
-        (esp. considering there may be thousands of records, need to fetch async)
+    A projection into a module tree (with inline nodes and out-of-line as needed).
+    'Projecting' is not quite right / complete yet, consider:
+     - How do we filter and LoD this?
+     - When do we inline out-of-line descendants (like Comments or local Records)?
+        (esp. considering some out-of-line nodes would need to be fetched async)
      - How do we alias shadowed and anonymous nodes?
+     - How do we make projections reproducible and inspectable in the editor?
     """
 
     def __init__(self, scope: ScopeNode):
@@ -81,14 +81,10 @@ class NodeView:
         return self._nodes_by_ck.values()
 
     def view_node(
-        self,
-        origin: Node | Collection[Node],
-        ancestors_up_to: NodeType,
-        max_distance: int,
-        exclude: set[NodeType] = INTERP_NODE_TYPES,
+        self, origin: Node | Collection[Node], ancestors_up_to: NodeType, max_distance: int
     ) -> dict[UUID, Node]:
         """Collects the entire inline lineage including references up to max_distance"""
-        origins = [origin] if isinstance(origin, Node) else list(origin)
+        origins = (origin,) if isinstance(origin, Node) else tuple(origin)
         if not origins:
             return {}
 
@@ -116,7 +112,7 @@ class NodeView:
             _walk_node_descendants_dfs(origin, 0)
         # walk references
         for i in range(max_distance):
-            new_references = [ref for ref in visitor.references if ref.ck not in seen_by_ck]
+            new_references = tuple(ref for ref in visitor.references if ref.ck not in seen_by_ck)
             if not new_references:
                 break
             for ref in new_references:
@@ -151,9 +147,9 @@ class NodeView:
 
         seen_by_ck: dict[UUID, Node] = {}
 
-        for n in walk_value(value, type, is_output):
+        for n in walk_value(value, type, is_output):  # :VisitValue
             # there's definitely a more efficient way to do this
-            # also see HasValue._visit_inner and :NodesAsValues
+            # also see HasValue._visit_inner
             if isinstance(n, Node):
                 seen_by_ck[n.ck] = n
             elif isinstance(n, Text):
