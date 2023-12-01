@@ -507,11 +507,13 @@ class SessionQuery:
             logger.warning("runs.search.db.missing", project_id=project_id, runs=os_runs_ids)
             # some runs have been deleted, we need to filter them out
             db_runs_ids = {str(r.id) for r in db_runs}
-            [r for r in os_results.results if r["_id"] in db_runs_ids]
+            os_runs = [r for r in os_results.results if r["_id"] in db_runs_ids]
+        else:
+            os_runs = os_results.results
         del os_runs_ids
 
         logger.debug("runs.search.resolve", project_id=project_id, hits=len(db_runs))
-        for i, r in enumerate(os_results.results[0:effective_limit]):
+        for i, r in enumerate(os_runs[0:effective_limit]):
             cursor = encode_os_cursor(r, after, i)
             run = db_runs[i]
             edges.append(relay.Edge(node=run, cursor=cursor))
