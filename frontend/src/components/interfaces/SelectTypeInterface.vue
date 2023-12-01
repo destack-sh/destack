@@ -7,10 +7,11 @@ import { ANY_FIELD, makeField } from "@/state/statement";
 import { ICONS_BY_TAG_OUTLINE, renderBuiltinType, SUPPORTED_TYPEHINTS } from "@/state/type";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { ExclamationCircleIcon, ListBulletIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
-import { computed, onMounted, ref, watch, type Ref } from "vue";
+import { computed, onMounted, ref, watch, type Ref, nextTick } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { useBenchState } from "@/state/bench";
 import { ufSort } from "@/utils/search";
+import { useElementRefs } from "@/composables/useGrid";
 
 const props = defineProps<{
   modelValue?: Field;
@@ -146,6 +147,7 @@ const filteredTypes = computed(() => {
   const filteredTypes = idxs?.map((idx) => availableTypes.value[idx]) ?? [];
   return filteredTypes;
 });
+const optionRefs = useElementRefs<InstanceType<typeof ComboboxOption>>(filteredTypes);
 
 function writeValue(type: Field) {
   let newFlags = TypeFlag.ZERO;
@@ -260,11 +262,11 @@ function renderField(node: Field): string | undefined | null {
 
 // use 'combobox id' as a stable id
 
-function toComboId(type: Field) {
-  return `${type.tag}.${type.hint ?? ""}.${type.referenceCk ?? ""}.${type.flags}`;
+function toSignatureId(type: Field) {
+  return `${type.tag}.${type.hint ?? ""}.${type.referenceCk ?? ""}`;
 }
 
-function findByComboId(id: string) {
+function findBySignatureId(id: string) {
   if (id.startsWith("freeform-")) {
     const tag = Object.values(TypeTag).find((t) => t.toLowerCase() == id.slice("freeform-".length).toLowerCase());
     if (!tag) {
@@ -277,12 +279,17 @@ function findByComboId(id: string) {
       name: query.value,
     });
   }
-  return availableTypes.value.find((t) => toComboId(t) == id);
+  return availableTypes.value.find((t) => toSignatureId(t) == id);
 }
 
 // focus input once mounted
 onMounted(() => {
   inputRef.value?.$el.focus();
+  // scroll selected option into view
+  nextTick(() => {
+    const selectedOption = optionRefs.getRef(toSignatureId(value.value));
+    selectedOption?.$el.scrollIntoView({ block: "nearest" });
+  });
 });
 
 const appearance = useAppearance();
@@ -296,11 +303,12 @@ defineExpose({
 <template>
   <Combobox
     as="div"
-    :model-value="toComboId(value)"
-    @update:model-value="(id: any) => writeValue(findByComboId(id) ?? value)"
+    :model-value="toSignatureId(value)"
+    @update:model-value="(id: any) => writeValue(findBySignatureId(id) ?? value)"
     @keydown.ctrl.r.exact.prevent.stop="toggleFlag(TypeFlag.IS_OPTIONAL)"
-    @keydown.ctrl.a.exact.prevent.stop="toggleFlag(TypeFlag.IS_ARRAY)"
+    @keydown.ctrl.o.exact.prevent.stop="toggleFlag(TypeFlag.IS_OPTIONAL)"
     @keydown.ctrl.m.exact.prevent.stop="toggleFlag(TypeFlag.IS_ARRAY)"
+    @keydown.ctrl.l.exact.prevent.stop="toggleFlag(TypeFlag.IS_ARRAY)"
   >
     <!-- Flags -->
     <div v-if="!props.hideFlags" class="mb-2 flex flex-row justify-around">
@@ -334,7 +342,7 @@ defineExpose({
         'text-md placeholder:text-md': !appearance.textSmall,
       }"
       @change="query = $event.target.value"
-      :display-value="(el: any) => props.modelValue == null ? '' : renderField(findByComboId(el) ?? value) ?? ''"
+      :display-value="(el: any) => ''"
       placeholder="Search types"
       spellcheck="false"
       @keydown.enter.prevent.stop="emit('escape')"
@@ -346,7 +354,13 @@ defineExpose({
       :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
     >
       <!-- Options -->
-      <ComboboxOption v-for="ref in filteredTypes" :key="ref.id" :value="toComboId(ref)" v-slot="{ active, selected }">
+      <ComboboxOption
+        v-for="ref in filteredTypes"
+        :ref="(r: any) => optionRefs.registerRef(toSignatureId(ref), r)"
+        :key="ref.id"
+        :value="toSignatureId(ref)"
+        v-slot="{ active, selected }"
+      >
         <li
           :class="[
             'relative cursor-default select-none px-1 py-[3px] text-gray-900',
