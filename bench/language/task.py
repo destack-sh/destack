@@ -11,7 +11,7 @@ from bench.language.const import IssueType, NodeType, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.model import HasModel
 from bench.language.module import Node, ScopeNode, bruntime, node_component
-from bench.language.reference import NodeView
+from bench.language.reference import Projection
 
 from ..utils.func import describe_type
 from .validation import ValidationHandler
@@ -83,12 +83,14 @@ class HasTask(Node):
             models = [self.session.module.resolve(m) for m in models]
 
         # do task
-        view = NodeView(self.module)
-        seen_from_node = view.view_node(self, ancestors_up_to=NodeType.FILE, max_distance=5)
-        await view.view_records(seen_from_node.values(), limit=10)
-        seen_from_value = view.view_value(inputs, self, is_output=False)
-        view.view_node(seen_from_value.values(), ancestors_up_to=NodeType.FILE, max_distance=2)
-        await view.view_records(seen_from_value.values(), limit=10)
+        projection = Projection(self.module)
+        seen_from_node = projection.view_node(self, ancestors_up_to=NodeType.FILE, max_distance=5)
+        await projection.view_records(seen_from_node.values(), limit=10)
+        seen_from_value = projection.view_value(inputs, self, is_output=False)
+        projection.view_node(
+            seen_from_value.values(), ancestors_up_to=NodeType.FILE, max_distance=2
+        )
+        await projection.view_records(seen_from_value.values(), limit=10)
 
         self.session._tracer.run_enter(self, is_async=True, inputs=inputs)
         try:
@@ -102,7 +104,7 @@ class HasTask(Node):
                 if not isinstance(outputs, TypedDict):
                     outputs = TypedDict(outputs, self, is_output=True)
             else:
-                outputs = await run_task(self, view, inputs, nonce, models)
+                outputs = await run_task(self, projection, inputs, nonce, models)
             if self.session._should_autocommit:
                 await self.session.commit()
         except BaseException as e:
@@ -129,7 +131,7 @@ TASK_TOTAL_ATTEMPTS = 10
 
 async def run_task(
     task: HasTask,
-    view: NodeView,
+    projection: Projection,
     inputs: dict,
     nonce: Optional[str],
     models: list["Statement"] = None,
@@ -153,7 +155,7 @@ async def run_task(
         # run task step
         model = models[model_idx]
         compiler = model.compiler  # models may share a compiler
-        compiled = await compiler.compile(task, view, inputs, previous_results, nonce)
+        compiled = await compiler.compile(task, projection, inputs, previous_results, nonce)
         if not compiler.can_run(model, compiled):
             model_idx += 1
             model_attempts = 0
@@ -258,7 +260,7 @@ class TaskCompiler(abc.ABC):
     async def compile(
         self,
         task: HasTask,
-        view: NodeView,
+        projection: Projection,
         inputs: dict,
         previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],

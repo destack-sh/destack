@@ -534,7 +534,7 @@ def diff_modules(
 def render(
     *edits: list[Edit] | EditBundle | list["Node"] | Node,
     target="python",
-    record_limit: int = 100,
+    record_limit: int = 20,
     recursive: bool = True,
 ) -> Optional[str]:
     """
@@ -570,7 +570,6 @@ def render(
                     file = node.file
                     statement = node
                 elif isinstance(node, Record):
-                    # Records are not in the inline tree, see :NodeViews
                     file = node.parent.file
                     statement = node.parent
                 else:

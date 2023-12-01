@@ -844,7 +844,7 @@ class _ChangeEffect:
                 affected_nodes.append(child)
                 if isinstance(child, ScopeNode):
                     affected_nodes.extend(
-                        child._local_root_tree.get_descendants(  # :NodeViews
+                        child._local_root_tree.get_descendants(
                             child.ck, recursive=True, include_self=False
                         )
                     )
@@ -1076,7 +1076,7 @@ class NodeList(NodeListBase[NodeT]):
 
         # index node into parent scope
         if isinstance(_node, ScopeNode) and _node._local_tree is not None:
-            # subsume if previously detached (ignores out of line nodes, see :NodeViews)
+            # subsume if previously detached (ignores out of line nodes)
             added = _node._local_tree.get_descendants(_node.ck, recursive=True, include_self=True)
             if _create and self._parent._session:
                 self._parent.session._tracer.node_create_preflight(*added)
@@ -2236,7 +2236,7 @@ def _make_rec_method(
 
     @functools.wraps(wraps)
     def rec_method(self: "ScopeNode", *args, **kwargs):
-        # ignores out-of-line descendants (see :NodeViews)
+        # tree has only host and inlined nodes, so this ignores out-of-line descendants (like records)
         descendants = self._local_root_tree.get_descendants(self.ck, recursive=True)
         method_name = method.self
         if custom_kwargs:
