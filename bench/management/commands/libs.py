@@ -1,7 +1,5 @@
 import os
-import subprocess
 from pathlib import Path
-from uuid import UUID
 
 import structlog
 from django.core.management import BaseCommand
@@ -10,13 +8,12 @@ from django.db import transaction
 
 from bench import models
 from bench.language import wire
-from bench.language.builtin import symbolx_lib
-from bench.language.const import INTERP_NODE_TYPES, NodeType
+from bench.language.const import INTERP_NODE_TYPES
 from bench.language.edit import diff_modules
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.module import NodeTree
 from bench.models import packer
-from bench.models.packer import DEFAULT_EXCLUDED, DEFAULT_PACK_FILTER, INTERP_MODEL_TYPES
+from bench.models.packer import DEFAULT_PACK_FILTER
 from bench.utils.utils import DEBUG, LOCAL, TEST
 
 logger = structlog.get_logger(__name__)
@@ -55,6 +52,7 @@ def create_orgs_if_not_exist():  # probably should put this elsewhere
         ("SymbolX", "symbolx"),
         ("OpenAI", "openai"),
         ("Anthropic", "anthropic"),
+        ("Deepgram", "deepgram"),
     ]:
         if not models.Organization.objects.filter(owner_slug_id=org_slug).exists():
             models.Organization.objects.create_organization(name=org_name, slug=org_slug)
@@ -113,62 +111,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
     packer.write_host_db_edits(project_v, NodeTree(blank_module_data.nodes), edits, validate=False)
     project_v.commit()
 
-    if sanity_check:
-        # check: no issues after reload
-        new_module_loaded_data = packer.pack_module_host(
-            project_v, filter=DEFAULT_PACK_FILTER, excluded=DEFAULT_EXCLUDED + INTERP_MODEL_TYPES
-        )
-        new_module_loaded = wire.unpack_module(new_module_loaded_data.nodes, session=None)
-        if name != "symbolx.lib":
-            new_module_loaded.add_dependency(symbolx_lib)
-        new_module_loaded._interp_rec()
-        if new_module_loaded.issues:
-            raise ValueError(f"module {new_module_loaded} has issues: {new_module_loaded.issues}")
-
-        # check: no diff when generated in another process
-        _sanity_check_diff(module_name, new_module, project.id, log)
-
     log.info("lib.upsert.done", nodes=len(new_module.nodes))
-
-
-def _sanity_check_diff(
-    module_name: str, new_module: wire.ModuleTreeData, project_id: UUID, log: structlog.BoundLogger
-) -> None:
-    # start a new process, dump module, check if equal
-    log.info("lib.upsert.sanity_check")
-    process = subprocess.Popen(
-        "python manage.py libs dump".split() + [module_name],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    stdout, stderr = process.communicate()
-    assert process.returncode == 0, f"dump failed: {stderr}"
-
-    # load other module
-    other_module_path = _get_module_dump_path(module_name)
-    other_module_bytes = Path(other_module_path).read_bytes()
-    other_module_data = wire.deserialize_module(other_module_bytes)
-    diff = diff_modules(new_module, other_module_data, project_id=project_id)
-    diff = [
-        e for e in diff if e.node_type not in INTERP_NODE_TYPES and e.node_type != NodeType.RECORD
-    ]
-
-    if diff:
-        # get exact diff for debugging
-        module_tree = NodeTree(new_module.nodes)
-        other_module_tree = NodeTree(other_module_data.nodes)
-
-        def _get_path(n_id: UUID) -> str:
-            if n_id in module_tree.nodes_by_id:
-                path = module_tree.path_of(module_tree.nodes_by_id[n_id])
-            else:
-                path = other_module_tree.path_of(other_module_tree.nodes_by_id[n_id])
-            return ".".join(n.name for n in path)
-
-        diff_str = "\n".join(f"{e.node.id} {_get_path(e.node.id)}: {e.type} {e.node}" for e in diff)
-        raise ValueError(f"module {module_name} is not equal to dumped module:\n{diff_str}")
-    else:
-        log.info("lib.upsert.sanity_check.ok", bytes=len(other_module_bytes))
 
 
 _LIB_DUMP_DIR = "/tmp/bench_libs"

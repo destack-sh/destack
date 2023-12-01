@@ -238,6 +238,7 @@ const DEFAULT_LIBRARIES: GRecord<string, string> = {
   "symbolx.lib": _defaultLibId("symbolx.lib"),
   "openai.lib": _defaultLibId("openai.lib"),
   "anthropic.lib": _defaultLibId("anthropic.lib"),
+  "deepgram.lib": _defaultLibId("anthropic.lib"),
   // templates
   "symbolx.templates": "bba83b4f-04c2-40e1-8597-8263aa4c5fb6", // hard-coded since it's not deterministic
 };

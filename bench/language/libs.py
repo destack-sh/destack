@@ -1036,10 +1036,12 @@ class DeepgramAudioTranscriptionModel(HasModel):
         dg_client = deepgram.Deepgram(self._api_key)
         source = {"url": url}
         options = {"model": "nova", "language": "en-US"}
-        response = dg_client.transcription.sync_prerecorded(source, options)
+
+        response = await dg_client.transcription.prerecorded(source, options)
         results = response["results"]
         alternatives = results["channels"][0]["alternatives"]
         transcript = alternatives[0]["transcript"]
+
         return DeepgramAudioTranscription(text=transcript)
 
 
@@ -1047,6 +1049,7 @@ DEFAULT_MODULES: dict[str, Module] = {
     "symbolx.lib": symbolx_lib,
     "openai.lib": openai_lib,
     "anthropic.lib": anthropic_lib,
+    "deepgram.lib": deepgram_lib,
 }
 DEFAULT_DEPENDENCIES = ("symbolx.templates",)
 
