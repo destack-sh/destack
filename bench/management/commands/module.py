@@ -20,6 +20,7 @@ from bench.sql.engine import (
     pg_delete,
     pg_insert,
     pg_pack_record_row,
+    update_pg_schema,
 )
 from bench.utils.func import partition
 from bench.utils.utils import DEBUG, LOCAL
@@ -63,6 +64,7 @@ class Command(BaseCommand):
     async def _write_local_records(
         self, module: lang.Module, all_records_data: list[wire.RecordData]
     ):
+        await update_pg_schema(module.pg_name, module)
         async with async_pg_cursor(module.pg_name) as cur:
             for database in module._nodes:
                 if lang.HasDatabase not in database._components:

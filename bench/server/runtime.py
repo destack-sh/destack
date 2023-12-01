@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from uuid import UUID, uuid4
 
+import aiohttp
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
@@ -105,7 +106,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import partition
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
-from bench.utils.utils import sentry_capture
+from bench.utils.utils import get_from_env, sentry_capture
 from bench.utils.uuidt import UUIDT
 from bench.worker.edit import get_api_edit_from_internal
 
@@ -492,6 +493,20 @@ class RuntimeSupervisor(Monitored):
                 else:
                     log.warning("statement.run.local", inputs=inputs)
                 outputs = {}
+            elif statement.name == "get website html":
+                token = get_from_env("BROWSERLESS_API_KEY")
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"https://chrome.browserless.io/content?token={token}",
+                        headers={"Content-Type": "application/json"},
+                        data='{ "url": "' + inputs["url"] + '"}',
+                    ) as response:
+                        if response.status != 200:
+                            raise RuntimeError(
+                                f"browserless.io returned {response.status}: {await response.text()}"
+                            )
+                        html = await response.text()
+                outputs = {"html": html[: 1024 * 32]}
             else:
                 raise RuntimeError(f"unknown proxy statement {statement}")
             error = None
@@ -499,6 +514,8 @@ class RuntimeSupervisor(Monitored):
             log.error("statement.exception", exc_info=True, sentry=sentry_capture(e))
             outputs = None
             error = f"{e.__class__.__name__}: {e}"
+        if outputs:
+            outputs = pack_value(outputs, statement, is_output=True, ignore_outer=True)
         await msg.reply(RepRunStatementPayload(outputs=outputs, error=error))
 
     @message_handler
