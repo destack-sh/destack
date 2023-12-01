@@ -7,7 +7,7 @@ from bench import models
 from bench.language import Module, wire
 from bench.language.const import LOCAL_NODE_TYPES
 from bench.language.edit import EditData, EditKind
-from bench.models.packer import HOST_MODEL_TYPES, collect_node
+from bench.models.packer import HOST_MODEL_TYPES, collect_node_host
 from bench.search import core as os
 from bench.search import mirror
 from bench.search.client import get_os_errors, os_client, os_client_sync
@@ -357,7 +357,7 @@ async def write_module_to_os(
 async def write_module_to_os_from_db(
     project_v: models.ProjectVersion, *, wipe: bool, update_mappings: bool
 ) -> None:
-    nodes = await sync_to_async(collect_node)(project_v)
+    nodes = await sync_to_async(collect_node_host)(project_v)
     await write_module_to_os(
         project_v, nodes.visited.values(), wipe=wipe, update_schema=update_mappings
     )

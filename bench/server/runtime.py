@@ -135,7 +135,9 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
             .aget()
         )
         project_version = project_version.head
-    module = await sync_to_async(packer.pack_module)(project_version, excluded=INTERP_NODE_TYPES)
+    module = await sync_to_async(packer.pack_module_host)(
+        project_version, excluded=INTERP_NODE_TYPES
+    )
     if project_version.committed:
         _cached_modules[ref] = module, project_version.project
     return module, project_version.project
@@ -707,7 +709,7 @@ class RuntimeHost:
             )
             deleted_at = [None, *(r.deleted_at for r in restored_roots)]
             assert not all(d is None for d in deleted_at), f"no deleted_at found in {host_edits!r}"
-            restored = await sync_to_async(packer.pack_node)(
+            restored = await sync_to_async(packer.pack_node_host)(
                 *restored_roots,
                 excluded=INTERP_NODE_TYPES,
                 filter=get_default_pack_filters(deleted_at),
@@ -750,7 +752,7 @@ class RuntimeHost:
         except Exception:
             # reset source & module from db on failure
             log.error("runtime.write_edits.failed", exc_info=True)
-            old_source = await sync_to_async(packer.pack_module)(
+            old_source = await sync_to_async(packer.pack_module_host)(
                 self.project_version, excluded=INTERP_NODE_TYPES
             )
             old_source = wire.NodeTree(old_source.nodes)

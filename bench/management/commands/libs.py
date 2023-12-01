@@ -106,16 +106,16 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
         project_v.name = version
         project_v.save()
 
-    blank_module_data = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
+    blank_module_data = packer.pack_module_host(project_v, filter=DEFAULT_PACK_FILTER)
     wire.unpack_module(blank_module_data.nodes, session=None)
-    new_module = wire.pack_module(module, exclude=set())
+    new_module = wire.pack_module_inline(module, exclude=set())
     edits = diff_modules(blank_module_data, new_module, project_id=project.id)
     packer.write_host_db_edits(project_v, NodeTree(blank_module_data.nodes), edits, validate=False)
     project_v.commit()
 
     if sanity_check:
         # check: no issues after reload
-        new_module_loaded_data = packer.pack_module(
+        new_module_loaded_data = packer.pack_module_host(
             project_v, filter=DEFAULT_PACK_FILTER, excluded=DEFAULT_EXCLUDED + INTERP_MODEL_TYPES
         )
         new_module_loaded = wire.unpack_module(new_module_loaded_data.nodes, session=None)
@@ -180,7 +180,7 @@ def _get_module_dump_path(module_name: str):
 
 def _dump_module(module_name: str):
     module = DEFAULT_MODULES[module_name]
-    module_data = wire.pack_module(module, exclude=INTERP_NODE_TYPES)
+    module_data = wire.pack_module_inline(module, exclude=INTERP_NODE_TYPES)
     module_bytes = wire.serialize_module(module_data)
     module_path = _get_module_dump_path(module_name)
     os.makedirs(os.path.dirname(module_path), exist_ok=True)

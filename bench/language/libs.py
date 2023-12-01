@@ -1110,7 +1110,7 @@ for name, module in DEFAULT_MODULES.items():
         # also check for issues after reload to prevent any sneaky reference bugs
         from bench.language import wire
 
-        module_data = wire.pack_module(module, exclude=INTERP_NODE_TYPES)
+        module_data = wire.pack_module_inline(module, exclude=INTERP_NODE_TYPES)
         module_reloaded = wire.unpack_module(module_data.nodes, session=None)
         if module_reloaded.name != "symbolx.lib":
             module_reloaded.add_dependency(symbolx_lib)

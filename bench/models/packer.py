@@ -168,13 +168,13 @@ def get_node_packer(node: NodeT) -> NodePacker:
         return _node_packers_by_node[type(node)]
 
 
-def pack_module(
+def pack_module_host(
     module: models.ProjectVersion,
     filter: PackFilter = DEFAULT_PACK_FILTER,
     excluded: Collection[type[ModelT]] = DEFAULT_EXCLUDED,
 ) -> wire.ModuleTreeData:
     """Pack a module (convenience wrapper)"""
-    packed = pack_node(module, filter=filter, excluded=excluded)
+    packed = pack_node_host(module, filter=filter, excluded=excluded)
     tree = wire.ModuleTreeData(
         **packed.roots[0].__dict__, module=packed.roots[0], nodes=packed.nodes_list()
     )
@@ -209,14 +209,14 @@ class _PackedCopy:
         return list(self.nodes_by_id.values())
 
 
-def collect_node(
+def collect_node_host(
     *roots: ModelT,
     filter: PackFilter = DEFAULT_PACK_FILTER,
     excluded: Collection[ModelT] = None,
     recurse_flat_root: bool = True,
 ) -> _VisitedTree:
     """
-    Collect a node and its descendants.
+    Collect a node and its host descendants.
     If the roots are at a flattened level (e.g. file), we also collect their descendants.
     """
     visited_by_id: dict[UUID, NodeT] = {}
@@ -251,9 +251,8 @@ def collect_node(
             """.format(
                 type=root_node_type.value.lower()
             )
-            qs = BASE_MODEL_CLASS_BY_NODE_TYPE[root_node_type]._base_manager.filter(
-                id__in=RawSQL(query, ([root.id],))
-            )
+            qs = BASE_MODEL_CLASS_BY_NODE_TYPE[root_node_type]._base_manager
+            qs = qs.filter(id__in=RawSQL(query, ([root.id],)))
             qs = filter(qs)
             to_pack.extend(qs)
 
@@ -294,13 +293,13 @@ def collect_node(
     return _VisitedTree(roots, visited_by_id, visited_by_parent)
 
 
-def pack_node(
+def pack_node_host(
     *models: ModelT,
     filter: PackFilter = DEFAULT_PACK_FILTER,
     excluded: Collection[type[ModelT]] = DEFAULT_EXCLUDED,
 ) -> _Packed:
-    """Pack a node and its descendants"""
-    visited = collect_node(*models, filter=filter, excluded=excluded)
+    """Pack a node and its host descendants"""
+    visited = collect_node_host(*models, filter=filter, excluded=excluded)
     nodes = {node.id: pack_node_flat(node) for node in visited.visited.values()}
     roots = [nodes[node.id] for node in visited.roots]
 
