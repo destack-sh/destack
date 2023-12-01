@@ -444,7 +444,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target_cks = {**(target_cks or {}), source.ck: target.ck}
         target_cks_reversed = {target.ck: source.ck}
         target_keys = {}
-        packed = packer.pack_node(
+        packed = packer.pack_node_host(
             *nodes, filter=filter or packer.DEFAULT_PACK_FILTER, excluded=excluded
         )
 

@@ -151,7 +151,7 @@ def read_module_node(
     excluded = NODE_TYPE_BY_MODEL_CLASS.keys() - included
 
     # collect them
-    tree = packer.collect_node(node, excluded=excluded, recurse_flat_root=False)
+    tree = packer.collect_node_host(node, excluded=excluded, recurse_flat_root=False)
     logger.debug(
         "module.read_node.resolve",
         id=node.id,

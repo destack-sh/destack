@@ -181,8 +181,8 @@ def unpack_data(data: DataT, module: Module) -> ObjectT:
     return packer.unpack(data, module)
 
 
-def pack_module(module: Module, exclude: set[NodeType] | None = None) -> "ModuleTreeData":
-    module_data, nodes = pack_node(module, exclude=exclude)
+def pack_module_inline(module: Module, exclude: set[NodeType] | None = None) -> "ModuleTreeData":
+    module_data, nodes = pack_node_inline(module, exclude=exclude)
     module_tree = ModuleTreeData(**module_data.__dict__, module=module_data, nodes=nodes)
     return module_tree
 
@@ -194,7 +194,7 @@ def unpack_module(
     return module
 
 
-def pack_node(
+def pack_node_inline(
     root: NodeT, exclude: set[NodeType] | None = None
 ) -> tuple[NodeDataT, list[NodeDataT]]:
     """Pack a node and all its inline descendants"""

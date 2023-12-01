@@ -4,12 +4,24 @@ from pathlib import Path
 import structlog
 from django.core.management import BaseCommand, CommandParser
 from django.db import transaction
+from psycopg import sql
 
+from bench import language as lang
 from bench import models
 from bench.language import wire
+from bench.language.const import NodeType
 from bench.models import packer
 from bench.models.utils import create_models_bfs
 from bench.server.search import update_os_schema_from_db, write_module_to_os
+from bench.sql.client import async_pg_cursor
+from bench.sql.engine import (
+    PostgresConditionalOp,
+    SqlComparison,
+    pg_delete,
+    pg_insert,
+    pg_pack_record_row,
+)
+from bench.utils.func import partition
 from bench.utils.utils import DEBUG, LOCAL
 
 logger = structlog.get_logger(__name__)
@@ -31,6 +43,38 @@ class Command(BaseCommand):
         parser.add_argument("--alias", type=str, help="Alias")
         # optional create flag
         parser.add_argument("--create", action="store_true", help="Create")
+
+    async def _collect_local_records(
+        self, module: lang.Module, *, versioned_only: bool
+    ) -> list[wire.RecordData]:
+        all_records: list[wire.RecordData] = []
+        async with async_pg_cursor(module.pg_name) as cur:
+            for database in module._nodes:
+                if (
+                    lang.HasDatabase not in database._components
+                    or versioned_only
+                    and not database.versioned
+                ):
+                    continue
+                fetched = await database.records.first(2048)._do_fetch(cur)
+                all_records.extend(fetched.records)
+        return all_records
+
+    async def _write_local_records(
+        self, module: lang.Module, all_records_data: list[wire.RecordData]
+    ):
+        async with async_pg_cursor(module.pg_name) as cur:
+            for database in module._nodes:
+                if lang.HasDatabase not in database._components:
+                    continue
+                records_data = [r for r in all_records_data if r.parent_id == database.id]
+                if records_data:
+                    where = SqlComparison(
+                        sql.Identifier("statement_key"), PostgresConditionalOp.EQ, database.key
+                    )
+                    await pg_delete(cur, database._table, where=where)
+                    records_rows = [pg_pack_record_row(database, record) for record in records_data]
+                    await pg_insert(cur, database._table, records_rows)
 
     @transaction.atomic
     def handle(
@@ -98,12 +142,35 @@ class Command(BaseCommand):
             # dump filtered versions
             versions = project.versions.order_by("-tag").filter(tag__gte=after or "0")
             for version in list(versions) + [project.head]:
-                module_data = packer.pack_module(version, excluded=[])
+                # host/inline data
+                module_data = packer.pack_module_host(version, excluded=[])
+                # add local records
+                module = lang.Module.make(
+                    module_data.nodes,
+                    project_id=project.id,
+                    os_name=project.os_name,
+                    pg_name=project.pg_name,
+                )
+                if version.id == project.head_id:  # only the head version has all tables
+                    records_data = loop.run_until_complete(
+                        self._collect_local_records(module, versioned_only=True)
+                    )
+                    module_data.nodes.extend(records_data)
+                else:
+                    records_data = ()
+                # serialize & write
                 module_bytes = wire.serialize_module(module_data)
                 tag_clean = version.tag.replace(".", "-") if version.tag else "head"
                 module_path = path + "/" + tag_clean + ".bench"
                 Path(module_path).write_bytes(module_bytes)
-                logger.info("dump", version=version, path=module_path, bytes=len(module_bytes))
+                logger.info(
+                    "dump",
+                    version=version,
+                    path=module_path,
+                    nodes=len(module_data.nodes),
+                    records=len(records_data),
+                    bytes=len(module_bytes),
+                )
         elif action == "load":
             assert path is not None, "path is required for load"
 
@@ -144,17 +211,36 @@ class Command(BaseCommand):
                 )
 
                 # wipe project version
-                logger.info("load", version=project_v, path=module_path, bytes=len(module_bytes))
+                host_nodes, record_nodes = partition(
+                    lambda n: n.node_type == NodeType.RECORD, module_data.nodes
+                )
+                logger.info(
+                    "load",
+                    version=project_v,
+                    path=module_path,
+                    nodes=len(module_data.nodes),
+                    records=len(record_nodes),
+                    bytes=len(module_bytes),
+                )
                 unpacked = packer.unpack_nodes_tree(
-                    module_data.nodes, pre_unpacked={project_v.id: project_v}
+                    host_nodes, pre_unpacked={project_v.id: project_v}
                 )
                 create_models_bfs(unpacked.walk_bfs_batched(), exclude=[project_v.id])
-                if project.head_id == project_v.id:  # write head to OS
+                if project.head_id == project_v.id:
+                    # write head to OS
                     loop.run_until_complete(update_os_schema_from_db(project_v))
                     loop.run_until_complete(
                         write_module_to_os(project_v, unpacked.walk_bfs(), wipe=True)
                     )
-
+                if record_nodes:
+                    # write records to local
+                    module = lang.Module.make(
+                        module_data.nodes,
+                        project_id=project.id,
+                        os_name=project.os_name,
+                        pg_name=project.pg_name,
+                    )
+                    loop.run_until_complete(self._write_local_records(module, record_nodes))
             # set parents to previous version
             for version in project.versions.exclude(tag=None).order_by("-tag"):
                 if version.parents.exists():
