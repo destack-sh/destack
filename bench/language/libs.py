@@ -1032,12 +1032,14 @@ class DeepgramAudioTranscription:
     file=_deepgram_audio,
 )
 class DeepgramAudioTranscriptionModel(HasModel):
-    async def _endpoint(self, url: str) -> DeepgramAudioTranscription:
+    async def _endpoint(
+        self, url: str, language: Optional[str] = None
+    ) -> DeepgramAudioTranscription:
         dg_client = deepgram.Deepgram(self._api_key)
-        source = {"url": url}
-        options = {"model": "nova", "language": "en-US"}
-
-        response = await dg_client.transcription.prerecorded(source, options)
+        options = {"model": "nova-2", "smart_format": True}
+        if language:
+            options["language"] = language
+        response = await dg_client.transcription.prerecorded({"url": url}, options)
         results = response["results"]
         alternatives = results["channels"][0]["alternatives"]
         transcript = alternatives[0]["transcript"]
