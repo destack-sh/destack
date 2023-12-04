@@ -290,6 +290,8 @@ def compile_pg_conditional(
 
         if cond.op == ConditionalOp.STARTS_WITH:
             right = sql.SQL("{} || '%'").format(sql.Literal(cond.value))
+        elif cond.op == ConditionalOp.MATCHES:
+            right = sql.SQL("'%' || {} || '%'").format(sql.Literal(cond.value))
         else:
             right = sql.Literal(cond.value)
 

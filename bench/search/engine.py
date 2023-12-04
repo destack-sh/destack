@@ -401,7 +401,7 @@ def compile_os_conditional(ctx: CompilationContext, cond: Conditional) -> dict[s
             return {"prefix": {key: cond.value}}
         elif cond.op == ConditionalOp.NEAR:
             # TODO @Performance @Robustness: tune knn k relative to database and query limit
-            return {"kn": {key: {"vector": cond.value, "k": ctx.root_limit * 2}}}
+            return {"knn": {key: {"vector": cond.value, "k": ctx.root_limit * 2}}}
     elif isinstance(cond, ExistenceConditional):
         key = _compile_field_key(cond.field)
         if cond.op == ConditionalOp.EXISTS:

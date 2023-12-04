@@ -445,6 +445,7 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
     ConditionalOp.STARTS_WITH: "^=",
     ConditionalOp.EXISTS: "?",
     ConditionalOp.NOT_EXISTS: "?!",
+    ConditionalOp.NEAR: "~=",
 }
 
 
