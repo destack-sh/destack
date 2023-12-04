@@ -64,7 +64,9 @@ class HasTask(Node):
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
-            passthrough_model: "Statement" = self.session.module.resolve("openai.lib.text.ada")
+            passthrough_model: "Statement" = self.session.module.resolve(
+                "huggingface.lib.text.llm-embedder"
+            )
         elif self.path == "symbolx.lib.builtins.transcribe":
             passthrough_model: "Statement" = self.session.module.resolve(
                 "deepgram.lib.audio.nova-2"

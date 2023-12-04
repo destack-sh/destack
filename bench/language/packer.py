@@ -69,11 +69,11 @@ def _map_k_noop(field: Field):
 def _is_arrayable_not_an_array(type: Field, value: Any) -> bool:
     return (
         not isinstance(value, Collection)
-        or isinstance(value, str)
+        or isinstance(value, (str, bytes))
         or (
             type._effective_tag == TypeTag.VECTOR
             and isinstance(value, list)
-            and (not value or isinstance(value[0], float))
+            and (not value or isinstance(value[0], (float, int)))
         )
     )
 
@@ -603,7 +603,12 @@ class VectorTypeMapper(StaticPyTypeMapper):
 
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         # not quite right but good enough for now
-        return isinstance(value, Collection) and len(value) > 0 and isinstance(value[0], float)
+        return (
+            isinstance(value, bytes)
+            or isinstance(value, Collection)
+            and len(value) > 0
+            and isinstance(value[0], (float, int))
+        )
 
     def render_python(self, type: HasType, value: Any) -> str:
         return "<vector>"  # not sure how to render this

@@ -923,6 +923,8 @@ class ModuleWorkerProcess(RuntimeHost):
             RepRunInferencePayload,
             timeout=timeout + 3,
         )
-        if rep.p.error is not None:
-            raise ModelError(rep.p.error, statement, f"remote {self} failed")
+        if rep.p.error_kind is not None:
+            raise ModelError(
+                rep.p.error_kind, statement, f"remote {self} failed: {rep.p.error_message}"
+            )
         return rep.p.outputs

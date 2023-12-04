@@ -12,6 +12,7 @@ from random import Random
 from typing import Any, Optional
 from uuid import UUID
 
+import more_itertools
 import structlog
 from more_itertools import first, last
 
@@ -461,6 +462,7 @@ STATIC_BUILTINS: dict[str, Any] = {
     # functional builtins
     "first": first,
     "last": last,
+    "batched": more_itertools.batched,
     "chain": itertools.chain,
     "UUID": UUID,
 }

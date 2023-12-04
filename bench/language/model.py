@@ -120,9 +120,8 @@ class HasModel(HasFields, Node):
             try:
                 outputs = await self.session.runtime.run_proxy_inference(self, inputs_raw, timeout)
                 outputs = unpack_value(outputs, self, is_output=True)
-                self.session._tracer.run_exit(self, outputs)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
-                return TypedDict(outputs, self, is_output=True)
+                outputs = TypedDict(outputs, self, is_output=True)
             except BaseException as e:
                 self.session._tracer.run_exception(self, e)
                 log.warning("inference.remote.error", e=e, exc_info=e)
@@ -130,6 +129,8 @@ class HasModel(HasFields, Node):
                     raise
                 else:
                     raise ModelError(ModelErrorType.Unavailable, self, f"remote {self} failed")
+            self.session._tracer.run_exit(self, outputs)
+            return outputs
         else:
             # otherwise run inference through endpoint :LibImplementation
             try:

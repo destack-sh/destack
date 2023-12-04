@@ -135,8 +135,8 @@ class StructFieldMapper(FieldMapper):
 class VectorFieldMapper(FieldMapper):
     def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
         # see https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#construction-parameters
+        # assumes byte-quantized vectors with <= 1024 dimensions
         method = os.KnnMethod(
-            # assumes byte-quantized vectors with <= 1024 dimensions
             name=os.KnnMethodName.HNSW,
             engine=os.KnnEngine.LUCENE,
             space_type=os.KnnSpaceType.L2,

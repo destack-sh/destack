@@ -299,12 +299,16 @@ const PUBLIC_BACKEND_VARS = [
   },
 ];
 
-const PRIVATE_BACKEND_VARS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "DEEPGRAM_API_KEY", "BROWSERLESS_API_KEY"].map(
-  (name) => ({
-    name,
-    value: config.requireSecret(name),
-  })
-);
+const PRIVATE_BACKEND_VARS = [
+  "OPENAI_API_KEY",
+  "ANTHROPIC_API_KEY",
+  "DEEPGRAM_API_KEY",
+  "HUGGINGFACE_API_KEY",
+  "BROWSERLESS_API_KEY",
+].map((name) => ({
+  name,
+  value: config.requireSecret(name),
+}));
 
 // public load-balanced API service (also runs internal server)
 const apiName = "api";

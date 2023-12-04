@@ -8,6 +8,8 @@ config:
     secure: AAABAPHDsqwb8sZZZnuupmI/xgSabdHyQzTMB3d1gOaGfQpEwrvbGxphr/BXvsmWzmoPATG+Ue5l23GzAOOjUiu8lHU=
   bench:DEEPGRAM_API_KEY:
     secure: AAABANzJubkeeMQeUHaAfddP51ITzPDJwV7biQd8kOCo5C0Tjrsg/sM0+DRH8vnKP7s0ELnCKeKfBerciIGPttSctp8EbcAA
+  bench:HUGGINGFACE_API_KEY:
+    secure: AAABAKTXjre+JCbEbrlXhvLNlple7oCuGCYikUvQW7F+rsC2qv3A1f7jWKYv0vCDYRnV0pzBBr7DW17n2VyO0SZjZqft
   bench:LOOPS_API_KEY:
     secure: AAABALugbjvj+BJBfVwXcSB2vq9oCmiWncVZ5V6k1xNKaIkCCLIJa/+VmPsidbPSTLYJpnROIzaSD6MGabTWDA==
   bench:LOOPS_USER_TRANSACTIONAL_ID: cloo304uv01ebjq0olzfb0dfu
