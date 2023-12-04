@@ -215,10 +215,8 @@ class RecordQuery:
         where = self._combined_filter
         first = self._first or LOCAL_RECORD_CACHE_LIMIT
         # prefer sql engine if possible, except for scored queries
-        required_engine = None
-        if where.is_scored:  # :QueryEngineSelection
-            required_engine = QueryEngine.OPENSEARCH
-        if required_engine and self._engine and self._engine != required_engine:
+        required_engine = self._required_engine
+        if self._engine and self._engine != required_engine:
             raise ValueError(f"cannot use {self._engine} with {self!r}")
         target_engine = self._engine or required_engine or QueryEngine.POSTGRES
 
@@ -259,6 +257,13 @@ class RecordQuery:
             return _RecordFetchResult(records, cursors, count, target_engine)
         else:
             raise ValueError(f"unexpected query engine {target_engine}")
+
+    @property
+    def _required_engine(self) -> QueryEngine:
+        if self._filter is not None and self._filter.is_scored:  # :QueryEngineSelection
+            return QueryEngine.OPENSEARCH
+        else:
+            return QueryEngine.POSTGRES
 
     async def _fetch(self) -> list[Record]:
         """Fetches the result set for this query."""
@@ -320,7 +325,7 @@ class RecordQuery:
         """Adds a filter clause to the query."""
         query = coerce_conditional(self._database, query, kwargs)
         copy = self.copy()
-        copy._filter = query & self._filter if self._filter else query
+        copy._filter = query & self._filter if self._filter is not None else query
         return copy
 
     def sort(self, sort: list[Sort] | Sort) -> "RecordQuery":
@@ -379,6 +384,7 @@ class RecordQuery:
         """Returns the number of results. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_count
 
+        assert not self._engine, "cannot count with forced query engine"
         assert not self._first and not self._skip and not self._sort, "cannot count with limits"
         query = coerce_conditional(self._database, query, kwargs)
 
@@ -397,6 +403,7 @@ class RecordQuery:
 
         query = coerce_conditional(self._database, query, kwargs, return_none_if_empty=True)
 
+        assert not self._engine, "cannot exists with forced query engine"
         assert not self._first and not self._skip and not self._sort, "cannot exists with limits"
         if query is None and self._cached_records is not None:
             return bool(self._cached_records)
@@ -419,6 +426,7 @@ class RecordQuery:
         from bench.language.packer import check_type, pack_value
         from bench.sql.engine import compile_pg_conditional, pg_update_static, pg_wrap_record_value
 
+        assert not self._engine, "cannot update with forced query engine"
         if not value:
             raise ValueError(f"no values given to update {self!r}")
 
@@ -454,6 +462,7 @@ class RecordQuery:
         """Deletes all results."""
         from bench.sql.engine import compile_pg_conditional, pg_delete
 
+        assert not self._engine, "cannot delete with forced query engine"
         session = self._database.session
         session.check_access(SessionAccessLevel.Delete)
         if session._tracer._local_edits:

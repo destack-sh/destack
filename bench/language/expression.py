@@ -249,6 +249,8 @@ class ComparisonConditional(FieldExpression, Conditional):
 
     def __str__(self):
         value_str = str(self.value)
+        if len(value_str) > 32:
+            value_str = f"{value_str[:24]}...{value_str[-12:]}"
         return f"{self._field_str}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
 
 
