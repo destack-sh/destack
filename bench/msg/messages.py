@@ -481,7 +481,8 @@ class ReqRunInferencePayload(Payload):
 @payload(NMessageType.RUN_PROXY_INFERENCE_REP)
 class RepRunInferencePayload(Payload):
     outputs: Optional[typing.Any] = None
-    error: Optional[ModelErrorType] = None
+    error_kind: Optional[ModelErrorType] = None
+    error_message: Optional[str] = None
 
 
 @payload(NMessageType.RUN_PROXY_STATEMENT)

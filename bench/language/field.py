@@ -99,8 +99,8 @@ PRIMITIVE_TYPES = [
     TypeTag.VECTOR,
     TypeTag.NODE,
 ]
-DEFAULT_EMBEDDING_DIMENSION = 384  # currently only support :FixedEmbeddingDimension
-Vector = typing.NewType("Vector", list[float])
+DEFAULT_EMBEDDING_DIMENSION = 768  # currently only support :FixedEmbeddingDimension
+Vector = typing.NewType("Vector", Union[bytes, list[float]])
 Json = typing.NewType("Json", dict)
 Key = typing.NewType("Key", str)
 RichText = typing.NewType("RichText", str)

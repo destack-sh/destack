@@ -453,17 +453,22 @@ class RuntimeSupervisor(Monitored):
             )
             outputs = await asyncio.wait_for(asyncio.shield(inference), msg.p.timeout)
             outputs = pack_value(outputs, model, is_output=True, ignore_outer=True)
-            error = None
+            error_kind, error_message = None, None
         except Exception as e:
             log.error("inference.exception", exc_info=True, sentry=sentry_capture(e))
             outputs = None
             if isinstance(e, asyncio.TimeoutError):
-                error = ModelErrorType.Timeout
+                error_kind = ModelErrorType.Timeout
             elif isinstance(e, ModelError):
-                error = e.type
+                error_kind = e.type
             else:
-                error = ModelErrorType.Unknown
-        await msg.reply(RepRunInferencePayload(outputs=outputs, error=error))
+                error_kind = ModelErrorType.Unknown
+            error_message = str(e)
+        await msg.reply(
+            RepRunInferencePayload(
+                outputs=outputs, error_kind=error_kind, error_message=error_message
+            )
+        )
 
     @message_handler
     async def run_statement(self, msg: NMessage[ReqRunStatementPayload]) -> None:

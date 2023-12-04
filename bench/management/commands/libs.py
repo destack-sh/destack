@@ -53,6 +53,7 @@ def create_orgs_if_not_exist():  # probably should put this elsewhere
         ("OpenAI", "openai"),
         ("Anthropic", "anthropic"),
         ("Deepgram", "deepgram"),
+        ("HuggingFace", "huggingface"),
     ]:
         if not models.Organization.objects.filter(owner_slug_id=org_slug).exists():
             models.Organization.objects.create_organization(name=org_name, slug=org_slug)

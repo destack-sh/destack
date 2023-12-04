@@ -92,7 +92,7 @@ export function renderBuiltinType(tag: TypeTag, hint: TypeHint | null): string |
   return builtin.slice(0, 1).toUpperCase() + builtin.slice(1); // always uppercase first letter
 }
 
-export const DEFAULT_EMBEDDING_DIMENSION = 1536; // currently only support :FixedEmbeddingDimension
+export const DEFAULT_EMBEDDING_DIMENSION = 768; // currently only support :FixedEmbeddingDimension
 // sync with :TypeStorageFormat
 export enum TypeStorageFormat {
   STRING = "str",

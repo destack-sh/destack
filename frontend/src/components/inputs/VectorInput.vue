@@ -12,18 +12,13 @@ const emit = defineEmits<{
 }>();
 
 // some tailwind colors from default palette
-const PALETTE_COLOR_BITS = 4;
+const PALETTE_COLOR_BITS = 4; // 2^4 = 16 colors
 const predefinedColors = [
   // 16 colors (4 bits)
   "#ef4444", // red-500
   "#f59e0b", // amber-500
   "#eab308", // yellow-500
   "#84cc16", // lime-500
-
-  "#22c55e", // green-500
-  "#10b981", // emerald-500
-  "#14b8a6", // teal-500
-  "#06b6d4", // cyan-500
 
   "#0ea5e9", // sky-500
   "#3b82f6", // blue-500
@@ -34,6 +29,11 @@ const predefinedColors = [
   "#d946ef", // fuscia-500
   "#ec4899", // pink-500
   "#f43f5e", // rose-500
+
+  "#22c55e", // green-500
+  "#10b981", // emerald-500
+  "#14b8a6", // teal-500
+  "#06b6d4", // cyan-500
 ];
 
 const instanceId = ref(Math.random().toString(36).substring(2)); // for scoping svg defs
@@ -44,7 +44,7 @@ const instanceId = ref(Math.random().toString(36).substring(2)); // for scoping 
 const colorStops = computed(() => {
   if (props.modelValue == null) return [];
   const numColorStops = Math.max(2, Math.floor(Math.sqrt(Math.sqrt(props.modelValue.length))));
-  const numProbes = 4;
+  const numProbes = 8;
   const stops = [];
   const step = Math.floor(props.modelValue.length / numColorStops);
   for (let i = 0; i < numColorStops; i++) {

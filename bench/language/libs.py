@@ -11,12 +11,20 @@ from json import JSONDecodeError
 from typing import Any, Optional, Union
 from uuid import UUID
 
+import aiohttp
 import anthropic
 import deepgram
+import numpy as np
 import openai
 
 from bench.language import Blob, HasRun, HasText, Module, Run, RunError, render
-from bench.language.builtin import anthropic_lib, deepgram_lib, openai_lib, symbolx_lib
+from bench.language.builtin import (
+    anthropic_lib,
+    deepgram_lib,
+    huggingface_lib,
+    openai_lib,
+    symbolx_lib,
+)
 from bench.language.const import (
     INTERP_NODE_TYPES,
     NodeType,
@@ -1047,11 +1055,70 @@ class DeepgramAudioTranscriptionModel(HasModel):
         return DeepgramAudioTranscription(text=transcript)
 
 
+#
+# huggingface.lib
+# TODO @Architecture @Cleanup: don't hard-code specific HF model?
+#
+
+huggingface_lib.add_dependency(symbolx_lib)
+_huggingface_text = huggingface_lib.files.create("text")
+
+
+@x_struct(
+    "HuggingfaceEmbeddingResponse",
+    "Response from Huggingface text embedding models",
+    file=_huggingface_text,
+)
+class HuggingfaceEmbeddingResponse:
+    vector: typing.Union[Vector, list[Vector]]
+
+
+@x_model(
+    "llm-embedder",
+    "BAAI/llm-embedder",
+    external_name="baai/llm-embedder",
+    file=_huggingface_text,
+)
+class HuggingfaceEmbeddingModel(HasModel):
+    async def _endpoint(self, text: typing.Union[str, list[str]]) -> HuggingfaceEmbeddingResponse:
+        # check and package text
+        is_batched = isinstance(text, list)
+        if not is_batched:
+            text = [text]
+        for i, t in enumerate(text):
+            if not t:
+                raise TaskError(TaskErrorType.InvalidFormat, self, f"empty text at {i}")
+
+        # get embeddings
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://a1cuxmqvoagqss78.eu-west-1.aws.endpoints.huggingface.cloud",
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={"inputs": text},
+            ) as response:
+                vector = await response.json()
+        if not isinstance(vector, list):
+            raise TaskError(TaskErrorType.Incapable, self, f"invalid response: {vector}")
+
+        # quantize embeddings to [-128, 127] bytearray
+        vector = np.array(vector, dtype=np.float32)
+        vector = (vector * 128).clip(-128, 127).astype(np.int8)
+        vector = [v.tolist() for v in vector]
+        if not is_batched:
+            vector = vector[0]
+
+        return HuggingfaceEmbeddingResponse(vector=vector)
+
+
 DEFAULT_MODULES: dict[str, Module] = {
     "symbolx.lib": symbolx_lib,
     "openai.lib": openai_lib,
     "anthropic.lib": anthropic_lib,
     "deepgram.lib": deepgram_lib,
+    "huggingface.lib": huggingface_lib,
 }
 DEFAULT_DEPENDENCIES = ("symbolx.templates",)
 

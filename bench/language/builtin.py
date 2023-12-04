@@ -33,7 +33,7 @@ def active_session() -> "Session":
 
 
 def _auto_async_to_sync(func=None):
-    """Automatically convert async functions to sync within a session if called in sync context."""
+    """Automatically convert async functions to sync if not called in async context."""
 
     def decorate(func):
         # check that the func is async
@@ -97,3 +97,4 @@ symbolx_lib = _make_builtin_lib_module("symbolx.lib")
 openai_lib = _make_builtin_lib_module("openai.lib")
 anthropic_lib = _make_builtin_lib_module("anthropic.lib")
 deepgram_lib = _make_builtin_lib_module("deepgram.lib")
+huggingface_lib = _make_builtin_lib_module("huggingface.lib")

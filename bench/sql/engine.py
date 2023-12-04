@@ -737,6 +737,22 @@ def pg_wrap_record_field_value(database: "HasDatabase", field: "Field", value: A
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
     if field._storage_format == TypeStorageFormat.OBJECT:
         return Jsonb(value)
+    elif field._storage_format == TypeStorageFormat.VECTOR:
+        if not isinstance(value, bytes):
+            value
+        # turn [-128, 127] into bytea
+        return bytes(v + 128 for v in value)
+    else:
+        return value
+
+
+def pg_unwrap_record_field_value(database: "HasDatabase", field: "Field", value: Any) -> Any:
+    # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
+    if field._storage_format == TypeStorageFormat.OBJECT:
+        return value
+    elif field._storage_format == TypeStorageFormat.VECTOR:
+        # turn bytea into [-128, 127]
+        return [v - 128 for v in value]
     else:
         return value
 
@@ -762,7 +778,10 @@ def pg_unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordDat
     if database.ephemeral:
         value = row["value"]
     else:
-        value = {f._typed_key: row[get_field_column_name(f)] for f in database.resolved_fields}
+        value = {
+            f._typed_key: pg_unwrap_record_field_value(database, f, row[get_field_column_name(f)])
+            for f in database.resolved_fields
+        }
     return wire.RecordData(
         id=row["id"],
         ck=row["ck"],

@@ -60,7 +60,7 @@ def to_dict(obj: typing.Any, omit_empty: bool = False) -> typing.Any:
         }
     elif isinstance(obj, (datetime, UUID)):
         return str(obj)
-    elif isinstance(obj, (int, float, str, bool)):
+    elif isinstance(obj, (int, float, str, bool, bytes, bytearray)):
         return obj
     elif isinstance(obj, enum.Enum):
         return obj.value
@@ -119,6 +119,8 @@ def from_dict(
         return obj
     elif cls == datetime:
         return datetime.fromisoformat(data)
+    elif cls in (bytes, bytearray):
+        return data
     elif cls in (str, int, float, UUID):
         return cls(data)
     elif cls == bool:
