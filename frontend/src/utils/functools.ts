@@ -1,4 +1,5 @@
-import { customRef, watch, type Ref, isRef, ref, onMounted } from "vue";
+import type { AnyFn } from "@vueuse/core";
+import { customRef, watch, type Ref, isRef, ref, onMounted, EffectScope, effectScope } from "vue";
 
 export function reverseRecord<T extends PropertyKey, U extends PropertyKey>(input: Partial<Record<T, U>>) {
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [value, key])) as Record<U, T>;
@@ -83,6 +84,23 @@ export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToVal
     }
   }
   return result as RefsToValueRefs<T>;
+}
+
+/**
+ * Make a composable function usable within multiple Vue instances.
+ * like https://vueuse.org/createSharedComposable but never dies
+ */
+export function createImmortalSharedComposable<Fn extends AnyFn>(composable: Fn): Fn {
+  let state: ReturnType<Fn> | undefined;
+  let scope: EffectScope | undefined;
+
+  return <Fn>((...args) => {
+    if (!state) {
+      scope = effectScope(true);
+      state = scope.run(() => composable(...args));
+    }
+    return state;
+  });
 }
 
 export function startStopIf(

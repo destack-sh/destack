@@ -26,11 +26,12 @@ export function getUpdatedConnectionQuery<T, C = string>(
   node: T & { id: string },
   prev: Connection<T> | undefined,
   maxLength?: number,
-  insertAt?: "start" | "end"
+  insertAt?: "start" | "end",
+  typename?: string
 ): Connection<T> {
   // cursor is base64-encoded Connection:{nodeId}
   const newEdge = {
-    __typename: "NodeEdge",
+    __typename: typename ?? "NodeEdge",
     // not sure what to put here, it's a strawberry internal
     // should probably update all other edges' cursors as well
     // :ArrayConnections

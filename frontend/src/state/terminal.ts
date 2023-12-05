@@ -2,7 +2,7 @@ import { ConditionalOp, SortOp, type Run, RunStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session";
-import { createSharedComposable } from "@vueuse/core";
+import { createImmortalSharedComposable } from "@/utils/functools";
 import { computed, ref, toRef, type Ref, watchEffect } from "vue";
 
 export type TerminalRun = {
@@ -57,7 +57,7 @@ function _useTerminal() {
       live: true,
       insertAt: "start",
       queryAsFilter: (run) => run.value?.[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL && run.statement == null,
-      neverUnsubscribe: true, // shared composable
+      neverUnsubscribe: true, // shared/immortal composable
     }
   );
   const pendingRuns: Ref<Run[]> = ref([]);
@@ -119,7 +119,6 @@ function _useTerminal() {
     const { run, firstResult, finalResult } = session.run(code, {
       scope: options.scope,
       rootValue: {
-        name: "terminal",
         code: code,
         scope: options.scope,
         generated_from: options.generatedFrom,
@@ -146,4 +145,4 @@ function _useTerminal() {
   };
 }
 
-export const useTerminal = createSharedComposable(_useTerminal);
+export const useTerminal = createImmortalSharedComposable(_useTerminal);

@@ -547,28 +547,8 @@ defineExpose({
     >
       <!-- Inner grid -->
       <div ref="innerGridRef" class="-mx-1 flex min-w-fit flex-col">
-        <!-- Header placeholder -->
-        <div
-          :style="{
-            width: columnWidths.reduce((a, b) => a + b, 0) + 'px',
-            height: minRowHeight - 1 + 'px',
-          }"
-        />
         <!-- Header (with types) -->
-        <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
-        <div
-          class="z-[1] flex flex-row self-start border-b border-t border-amber-900/[12%]"
-          :class="[!isHeaderRowFloating || (focused && !editing) ? '' : 'bg-white']"
-          :style="{
-            position: isHeaderRowFloating ? 'fixed' : 'absolute',
-            left: isHeaderRowFloating
-              ? -gridScrollOffsetX + 4 + panel.pos.value.left + gridOffsetX + 'px'
-              : -gridScrollOffsetX + 4 + 'px',
-            top: isHeaderRowFloating ? panel.pos.value.top + appearance.panelHeaderHeight - 4 + 'px' : undefined,
-            /* clip to editor bounds (different stacking context so need to 're-clip' into editor) */
-            clipPath: isHeaderRowFloating ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
-          }"
-        >
+        <div class="flex flex-row self-start border-b border-t border-amber-900/[12%]">
           <div v-for="(field, x) in allFields" :key="field?.id" class="">
             <div
               class="whitespace-nowrap focus-within:bg-orange-100"
