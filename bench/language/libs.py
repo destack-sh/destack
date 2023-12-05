@@ -1080,6 +1080,7 @@ class HuggingfaceEmbeddingResponse:
     file=_huggingface_text,
 )
 class HuggingfaceEmbeddingModel(HasModel):
+    # TODO @Performance: move embedding/HF model into our own cluster
     async def _endpoint(self, text: typing.Union[str, list[str]]) -> HuggingfaceEmbeddingResponse:
         # check and package text
         is_batched = isinstance(text, list)
@@ -1099,12 +1100,18 @@ class HuggingfaceEmbeddingModel(HasModel):
                 },
                 json={"inputs": text},
             ) as response:
-                vector = await response.json()
-        if not isinstance(vector, list):
-            raise TaskError(TaskErrorType.Incapable, self, f"invalid response: {vector}")
+                rep = await response.json()
+        if isinstance(rep, dict) and "error" in rep:
+            if "gateway" in rep["error"].lower():
+                error = TaskErrorType.TemporarilyUnavailable
+            else:
+                error = TaskErrorType.Unknown
+            raise TaskError(error, self, rep["error"])
+        elif not isinstance(rep, list):
+            raise TaskError(TaskErrorType.Incapable, self, f"invalid response: {rep}")
 
         # quantize embeddings to [-128, 127] bytearray
-        vector = np.array(vector, dtype=np.float32)
+        vector = np.array(rep, dtype=np.float32)
         vector = (vector * 128).clip(-128, 127).astype(np.int8)
         vector = [v.tolist() for v in vector]
         if not is_batched:

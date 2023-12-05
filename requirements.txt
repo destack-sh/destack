@@ -177,10 +177,14 @@ drf-nested-routers==0.93.4
     # via -r requirements.in
 drf-spectacular==0.24.2
     # via -r requirements.in
+filelock==3.13.1
+    # via huggingface-hub
 frozenlist==1.4.0
     # via
     #   aiohttp
     #   aiosignal
+fsspec==2023.12.0
+    # via huggingface-hub
 google-auth==2.22.0
     # via kubernetes
 graphql-core==3.2.3
@@ -205,6 +209,8 @@ httpcore==0.17.3
     # via httpx
 httpx==0.24.1
     # via anthropic
+huggingface-hub==0.19.4
+    # via -r requirements.in
 hyperframe==6.0.1
     # via h2
 hyperlink==21.0.0
@@ -300,6 +306,7 @@ opentelemetry-semantic-conventions==0.40b0
 packaging==23.1
     # via
     #   gunicorn
+    #   huggingface-hub
     #   marshmallow
 pillow==9.4.0
     # via -r requirements.in
@@ -362,6 +369,7 @@ pytz==2022.1
 pyyaml==6.0.1
     # via
     #   drf-spectacular
+    #   huggingface-hub
     #   kubernetes
     #   kubernetes-asyncio
     #   libcst
@@ -373,6 +381,7 @@ referencing==0.30.2
     #   jsonschema-specifications
 requests==2.31.0
     # via
+    #   huggingface-hub
     #   kubernetes
     #   openai
     #   opensearch-py
@@ -438,7 +447,9 @@ structlog==23.1.0
 tokenizers==0.13.3
     # via anthropic
 tqdm==4.66.1
-    # via openai
+    # via
+    #   huggingface-hub
+    #   openai
 twisted[tls]==23.8.0
     # via daphne
 txaio==23.1.1
@@ -455,6 +466,7 @@ typing-extensions==4.7.1
     #   anthropic
     #   django-stubs
     #   django-stubs-ext
+    #   huggingface-hub
     #   janus
     #   libcst
     #   mypy
