@@ -737,20 +737,27 @@ def pg_pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowI
 
 def pg_wrap_record_field_value(database: "HasDatabase", field: "Field", value: Any) -> Any:
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
-    if field._storage_format == TypeStorageFormat.OBJECT:
+    if value is None:
+        return None
+    elif field._storage_format == TypeStorageFormat.OBJECT:
         return Jsonb(value)
     elif field._storage_format == TypeStorageFormat.VECTOR:
-        if not isinstance(value, bytes):
-            value
-        # turn [-128, 127] into bytea
-        return bytes(v + 128 for v in value)
+        if isinstance(value, bytes):
+            return value
+        elif not isinstance(value, list):
+            raise ValueError(f"unexpected vector value: {value}")
+        else:
+            # turn [-128, 127] into bytea
+            return bytes(v + 128 for v in value)
     else:
         return value
 
 
 def pg_unwrap_record_field_value(database: "HasDatabase", field: "Field", value: Any) -> Any:
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
-    if field._storage_format == TypeStorageFormat.OBJECT:
+    if value is None:
+        return None
+    elif field._storage_format == TypeStorageFormat.OBJECT:
         return value
     elif field._storage_format == TypeStorageFormat.VECTOR:
         # turn bytea into [-128, 127]

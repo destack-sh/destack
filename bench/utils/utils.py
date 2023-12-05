@@ -212,8 +212,21 @@ def omit_empty(obj):
 T = typing.TypeVar("T")
 
 
-def flatten(*lists: list[T] | tuple[T]) -> list[T]:
+def flatten(*lists: list[T] | tuple[T]) -> list[T] | tuple[T]:
     """Flatten a list, generator, element or mixed list of those."""
+    # try to unwrap inner directly
+    if len(lists) == 1:
+        if isinstance(lists[0], (list, tuple)):
+            if len(lists[0]) == 1:
+                if isinstance(lists[0][0], (list, tuple)):
+                    return lists[0][0]
+                elif isinstance(lists[0][0], Generator):
+                    return tuple(lists[0][0])
+            return lists[0]
+        elif isinstance(lists[0], Generator):
+            return tuple(lists[0])
+
+    # flatten out element by element
     flattened: list[T] = []
     for item in lists:
         if isinstance(item, (list, tuple)):
