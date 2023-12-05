@@ -923,7 +923,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
     def create_many(self, *nodes: Collection[typing.Any | dict]) -> list[NodeT]:
         """Creates a new node in the list."""
         created = []
-        for n in nodes:
+        for n in flatten(nodes):
             if isinstance(n, dict):
                 node = self.create(**n, _append=False)
             elif isinstance(n, tuple):

@@ -190,7 +190,8 @@ class Session:
 
     def check_access(self, access_level: SessionAccessLevel):
         if access_level > self.access_level:
-            raise PermissionError(f"cannot {access_level} in {self!r}")
+            access_level_name = SessionAccessLevel(access_level).name.lower()
+            raise PermissionError(f"cannot {access_level_name} in {self!r}")
 
     @property
     def dangling(self) -> list[Node]:
