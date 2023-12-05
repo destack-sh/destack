@@ -29,7 +29,10 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="group/meta relative flex flex-row items-center justify-between">
+  <div
+    class="group/meta relative flex cursor-text flex-row items-center justify-between"
+    @click="nameRef?.focus('last')"
+  >
     <!-- Name & actions -->
     <span class="flex flex-row items-center">
       <!-- Name -->
@@ -46,6 +49,7 @@ defineExpose({
           @enter="emit('enter')"
           @enter-left="emit('enter')"
           @enter-right="emit('enter')"
+          @click.stop
           @keyup.up.prevent="() => ({}) /* noop */"
           @keydown.down.prevent.stop="() => emit('navigateDown')"
         />
