@@ -538,7 +538,8 @@ class WorkerObserver:
             await asyncio.wait_for(self._until_healthy_waiters[project_id].wait(), timeout)
         else:
             await self._until_healthy_waiters[project_id].wait()
-        del self._until_healthy_waiters[project_id]
+        if project_id in self._until_healthy_waiters:
+            del self._until_healthy_waiters[project_id]
         log.info("worker_observer.wait_until_healthy.done")
 
     async def stop(self):
