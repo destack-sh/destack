@@ -15,7 +15,7 @@ from bench.language.const import (
     SessionAccessLevel,
     new_dynamic_node_key,
 )
-from bench.language.expression import C, Conditional, Sort, coerce_conditional
+from bench.language.expression import C, Conditional, Sort, coerce_conditional, coerce_sort
 from bench.language.module import (
     _NC,
     NS,
@@ -328,11 +328,10 @@ class RecordQuery:
         copy._filter = query & self._filter if self._filter is not None else query
         return copy
 
-    def sort(self, sort: list[Sort] | Sort) -> "RecordQuery":
+    def sort(self, sort: list[Sort | str] | str | Sort = None, *args: str) -> "RecordQuery":
         """Sorts the query results by the given sort criteria."""
         copy = self.copy()
-        if not isinstance(sort, list):
-            sort = [sort]
+        sort = coerce_sort(self._database, sort, args)
         copy._sort = sort
         return copy
 
