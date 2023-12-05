@@ -824,7 +824,8 @@ export function useRuns(
               run,
               prev?.searchRuns as Connection<Run> | undefined,
               options?.limit,
-              options?.insertAt ?? "start"
+              options?.insertAt ?? "start",
+              "RunEdge"
             ) as any,
           };
         }

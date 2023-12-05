@@ -11,6 +11,7 @@ from asgiref.sync import sync_to_async
 
 from bench.language import (
     Blob,
+    File,
     HasDatabase,
     Module,
     Run,
@@ -660,6 +661,7 @@ class ModuleWorkerProcess(RuntimeHost):
                 if job.tags:
                     statement.tags.create_many(*job.tags)
                 statement._track = NodeTrackingLevel.ANONYMOUS
+                assert isinstance(scope, File), f"anonymous scope must be a file: {scope!r}"
                 scope.children.append(statement, _trigger=_NodeChange.UpdateLists)
                 statement._clear_rec()
                 statement._interp_rec()

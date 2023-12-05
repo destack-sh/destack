@@ -123,7 +123,7 @@ async function run() {
   if (!canRun.value) return;
   // actually run
   const { run, firstResult } = terminal.runCode(input.value, {
-    scope: bench.lastActiveFileCk ?? undefined,
+    scope: bench.lastActiveFileCk ?? module.allFiles.value[0]?.ck,
     accessLevel: panel.value.accessLevel,
     tags: ["test"],
   });
@@ -285,5 +285,9 @@ defineExpose({
         </button>
       </div>
     </div>
+    <span v-if="bench.debug" class="absolute left-0 top-0 ml-2 bg-red-200 bg-opacity-50 text-xs text-gray-900">
+      {{ bench.focusedPanelId == panel.id ? "(focused)" : "" }}
+      cleared:{{ panel.clearedAt }}
+    </span>
   </div>
 </template>

@@ -30,6 +30,7 @@ class NodeType(enum.StrEnum):
     ISSUE = "ISSUE"
     RESOLVED_FIELD = "RESOLVED_FIELD"
     # user
+    USER = "USER"
     COMMENT = "COMMENT"
     ACCESS = "ACCESS"
     # remote

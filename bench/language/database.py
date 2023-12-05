@@ -370,12 +370,14 @@ class RecordQuery:
                 return self.first(item.stop)
         elif isinstance(item, int):
             if self._cached_records is None:
-                self._database.session.async_to_sync(self._fetch)()
+                records = self._database.session.async_to_sync(self._fetch)()
+            else:
+                records = self._cached_records
             if item < 0:
-                item += len(self._cached_records)
-            if item >= len(self._cached_records):
+                item += len(records)
+            if item >= len(records):
                 raise IndexError(f"index {item} out of range for {self!r} (got {len(self)})")
-            return self._cached_records[item]
+            return records[item]
         else:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
