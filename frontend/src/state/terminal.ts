@@ -138,6 +138,7 @@ function _useTerminal() {
 
   return {
     runs: terminalRuns,
+    pendingRuns, // for debugging
     loading,
     totalCount,
     runTextToCode,

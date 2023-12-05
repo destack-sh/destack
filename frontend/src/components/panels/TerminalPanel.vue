@@ -143,7 +143,7 @@ defineExpose({
   <div class="relative flex flex-col" :style="{ height: panelSize.height + 'px' }">
     <!-- History -->
     <div
-      class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-x-hidden overflow-y-scroll text-sm"
+      class="mx-auto flex h-full max-h-full w-full max-w-full flex-1 overflow-x-hidden overflow-y-scroll text-sm"
       :class="loading || visibleHistory?.length == 0 ? 'flex-col items-center justify-center' : 'flex-col-reverse'"
     >
       <!-- Loading / empty state -->
@@ -153,7 +153,7 @@ defineExpose({
       </div>
       <!-- Previous runs -->
       <div
-        v-for="{ run, code, scope, generatedFrom, generatedIn } in visibleHistory"
+        v-for="{ run, code, scope, generatedFrom, generatedIn } in loading ? [] : visibleHistory"
         :key="run.id"
         class="opacity-150 w-full border-l-4 border-t border-orange-900/[15%] py-1.5 transition-colors"
         :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"

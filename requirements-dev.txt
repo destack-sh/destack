@@ -283,8 +283,11 @@ drf-spectacular==0.24.2
     #   -r requirements.in
 execnet==2.0.2
     # via pytest-xdist
-filelock==3.12.3
-    # via virtualenv
+filelock==3.13.1
+    # via
+    #   -c requirements.txt
+    #   huggingface-hub
+    #   virtualenv
 flake8==6.1.0
     # via -r requirements-dev.in
 flake8-import-order==0.18.1
@@ -294,6 +297,10 @@ frozenlist==1.4.0
     #   -c requirements.txt
     #   aiohttp
     #   aiosignal
+fsspec==2023.12.0
+    # via
+    #   -c requirements.txt
+    #   huggingface-hub
 google-auth==2.22.0
     # via
     #   -c requirements.txt
@@ -339,6 +346,10 @@ httpx==0.24.1
     # via
     #   -c requirements.txt
     #   anthropic
+huggingface-hub==0.19.4
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 hyperframe==6.0.1
     # via
     #   -c requirements.txt
@@ -514,6 +525,7 @@ packaging==23.1
     #   black
     #   build
     #   gunicorn
+    #   huggingface-hub
     #   marshmallow
     #   pytest
 pathspec==0.11.2
@@ -646,6 +658,7 @@ pyyaml==6.0.1
     # via
     #   -c requirements.txt
     #   drf-spectacular
+    #   huggingface-hub
     #   kubernetes
     #   kubernetes-asyncio
     #   libcst
@@ -663,6 +676,7 @@ requests==2.31.0
     # via
     #   -c requirements.txt
     #   djangorestframework-stubs
+    #   huggingface-hub
     #   kubernetes
     #   openai
     #   opensearch-py
@@ -763,6 +777,7 @@ tokenizers==0.13.3
 tqdm==4.66.1
     # via
     #   -c requirements.txt
+    #   huggingface-hub
     #   openai
 twisted[tls]==23.8.0
     # via
@@ -807,6 +822,7 @@ typing-extensions==4.7.1
     #   django-stubs
     #   django-stubs-ext
     #   djangorestframework-stubs
+    #   huggingface-hub
     #   janus
     #   libcst
     #   mypy

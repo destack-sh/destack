@@ -64,18 +64,16 @@ class HasTask(Node):
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
-            passthrough_model: "Statement" = self.session.module.resolve(
+            builtin_model: "Statement" = self.session.module.resolve(
                 "huggingface.lib.text.llm-embedder"
             )
         elif self.path == "symbolx.lib.builtins.transcribe":
-            passthrough_model: "Statement" = self.session.module.resolve(
-                "deepgram.lib.audio.nova-2"
-            )
+            builtin_model: "Statement" = self.session.module.resolve("deepgram.lib.audio.nova-2")
             if inputs.get("file"):  # replace file with url to blob
                 inputs["url"] = await inputs["file"].get_url()
                 del inputs["file"]
         else:
-            passthrough_model = None
+            builtin_model = None
             if mode == "auto":
                 mode = "fast"
             if mode == "fast":
@@ -96,15 +94,10 @@ class HasTask(Node):
 
         self.session._tracer.run_enter(self, is_async=True, inputs=inputs)
         try:
-            if passthrough_model:
+            if builtin_model:
                 # passthrough model
                 inputs = {k: v for k, v in inputs.items() if k not in ("cache", "nonce", "mode")}
-                outputs = await passthrough_model(**inputs)
-                # trim output to own outputs
-                if isinstance(outputs, dict):
-                    outputs = {k: v for k, v in outputs.items() if k in self.fields}
-                if not isinstance(outputs, TypedDict):
-                    outputs = TypedDict(outputs, self, is_output=True)
+                outputs = await run_builtin_task(self, builtin_model, inputs)
             else:
                 outputs = await run_task(self, projection, inputs, nonce, models)
             if self.session._should_autocommit:
@@ -123,12 +116,39 @@ class TaskErrorType(enum.StrEnum):
     InvalidType = "InvalidType"
     ExceededLimit = "ExceededLimit"
     Unavailable = "Unavailable"
+    TemporarilyUnavailable = "TemporarilyUnavailable"
     Unknown = "Unknown"
 
 
 UNRECOVERABLE_ERRORS = {TaskErrorType.Incapable, TaskErrorType.Unknown}
 TASK_MODEL_ATTEMPTS = 3
 TASK_TOTAL_ATTEMPTS = 10
+BUILTIN_TASK_MODEL_ATTEMPTS = 5
+
+
+async def run_builtin_task(task: HasTask, model: "HasModel", inputs: dict):
+    retries = 0
+    while retries < BUILTIN_TASK_MODEL_ATTEMPTS:
+        try:
+            outputs = await model(**inputs)
+            # trim output to own outputs
+            if isinstance(outputs, dict):
+                outputs = {k: v for k, v in outputs.items() if k in task.fields}
+            if not isinstance(outputs, TypedDict):
+                outputs = TypedDict(outputs, task, is_output=True)
+            return outputs
+        except TaskError as e:
+            if e.type in UNRECOVERABLE_ERRORS:
+                raise
+            else:
+                retries += 1
+                await asyncio.sleep((retries + 1) ** 2)
+                continue
+    raise TaskError(
+        TaskErrorType.ExceededLimit,
+        model,
+        f"could not solve task in {BUILTIN_TASK_MODEL_ATTEMPTS} attempts",
+    )
 
 
 async def run_task(
