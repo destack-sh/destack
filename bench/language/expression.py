@@ -270,6 +270,9 @@ class ExistenceConditional(FieldExpression, Conditional):
 class Sort(FieldExpression):
     mode: Optional[SortMode] = bproperty(default=None)
 
+    def __str__(self):
+        return f"{self._field_str}{'-' if self.op == SortOp.DESCENDING else ''}"
+
 
 @expression(*AggregationOp)
 class Aggregation(FieldExpression):
@@ -334,6 +337,50 @@ def coerce_conditional(
         else:
             return C(ConditionalOp.TRUE)
     return Conditional.and_if_set(*clauses)
+
+
+def coerce_sort(
+    statement: "HasFields",
+    sort: list[Sort | str] | Sort | str | None,
+    args: str | None = None,
+) -> Optional[list[Sort]]:
+    """
+    Coerce a sort expression from either the given expression or args.
+    Strings are looked up as field names/identifiers.
+    Like in Django, prefix with "-" for descending.
+    """
+    if sort is None:
+        if args is None:
+            return None
+        sort = args
+    elif isinstance(sort, str):
+        sort = [sort]
+    elif isinstance(sort, Sort):
+        sort = [sort]
+    if not isinstance(sort, (list, tuple)):
+        raise TypeError(f"expected sort to be a list or tuple, got {sort}")
+    if args:
+        sort = (*sort, *args)
+    coerced = []
+    for item in sort:
+        if isinstance(item, str):
+            op = SortOp.DESCENDING if item.startswith("-") else SortOp.ASCENDING
+            if op == SortOp.DESCENDING:
+                item = item[1:]
+            field = statement.resolved_fields.get(item)
+            if not field:  # try reflected property
+                field = statement.__properties__.get(item)
+                if field:
+                    field = field._as_field
+            if not field:
+                raise TypeError(f"{statement!r} has no field {item}")
+            item = S(op, field=field)
+        if not isinstance(item, Sort):
+            raise TypeError(f"expected sort to be a list of Sort, got {item}")
+        coerced.append(item)
+    if not coerced:
+        return None
+    return coerced
 
 
 # single-letter convenience constructors
