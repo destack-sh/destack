@@ -176,6 +176,7 @@ class HasCode(Node):
             "session": self.session,
             "cache": self.session.cache_async if self._is_async else self.session.cache_sync,
             "storage": self.session.blobs,
+            "blobs": self.session.blobs,
             "random": Random(self.id.hex.encode()),
             "ximport": self._import_sync if not self._is_async else self._import_async,
             "install": _install_package,
@@ -466,7 +467,7 @@ STATIC_BUILTINS: dict[str, Any] = {
     "chain": itertools.chain,
     "UUID": UUID,
 }
-DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "storage", "cache", "random", "self"}
+DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "storage", "blobs", "cache", "random", "self"}
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 
 

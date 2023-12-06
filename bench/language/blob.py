@@ -19,6 +19,7 @@ logger = structlog.get_logger(__name__)
 
 BLOB_HASH_LENGTH = 128  # 512 bits
 BLOB_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
+BLOB_MAX_NAME_LENGTH = 256
 
 
 @node(NodeType.BLOB)
@@ -46,6 +47,8 @@ class Blob(Node):
         return self.__dict__[item]
 
     def _validate_inner(self, properties: set[str], on_issue: ValidationHandler) -> None:
+        if len(self.name) > BLOB_MAX_NAME_LENGTH:
+            on_issue(self, f"{self} name is too long ({len(self.name)} > {BLOB_MAX_NAME_LENGTH})")
         if self.content_length > BLOB_MAX_SIZE:
             on_issue(self, f"{self} is too big ({self.content_length} > {BLOB_MAX_SIZE} bytes)")
 
@@ -128,13 +131,15 @@ class Blob(Node):
         self._set_untracked("id", self.ck)
 
     @staticmethod
-    def from_url(url: str, name: str = None, timeout: int = None) -> "Blob":
+    @_auto_async_to_sync
+    async def from_url(url: str, name: str = None, timeout: int = None) -> "Blob":
         """Upload a file to blob storage."""
         response = requests.get(url, timeout=timeout)
-        return Blob.from_requests(response, name=name)
+        return await Blob.from_requests(response, name=name)
 
     @staticmethod
-    def from_requests(response: requests.Response, name: str = None) -> "Blob":
+    @_auto_async_to_sync
+    async def from_requests(response: requests.Response, name: str = None) -> "Blob":
         """Upload a file to blob storage."""
         session = active_session()
         response.raise_for_status()
@@ -146,18 +151,24 @@ class Blob(Node):
         )
         obj._assign_id_and_ck(session.module.ck)
         obj._validate_self(["name", "content_type", "content_length"], on_issue=on_issue_raise)
-        session.async_to_sync(obj._do_upload)(response.content)
+        await obj._do_upload(response.content)
         return obj
 
     @staticmethod
-    def from_file(file: typing.BinaryIO, name: str = None, content_type: str = None) -> "Blob":
+    @_auto_async_to_sync
+    async def from_file(
+        file: typing.BinaryIO, name: str = None, content_type: str = None
+    ) -> "Blob":
         """Upload a file to blob storage."""
         content = file.read()
         content_type = content_type or mimetypes.guess_type(file.name)[0]
-        return Blob.from_content(name or file.name, content_type, content)
+        return await Blob.from_content(name or file.name, content_type, content)
 
     @staticmethod
-    def from_content(name: str, content_type: str, content: bytes | typing.BinaryIO) -> "Blob":
+    @_auto_async_to_sync
+    async def from_content(
+        name: str, content_type: str, content: bytes | typing.BinaryIO
+    ) -> "Blob":
         """Upload a file to blob storage."""
         session = active_session()
         if isinstance(content, typing.BinaryIO):
@@ -171,8 +182,14 @@ class Blob(Node):
         )
         obj._assign_id_and_ck(session.module.ck)
         obj._validate_self(["name", "content_type", "content_length"], on_issue=on_issue_raise)
-        session.async_to_sync(obj._do_upload)(content)
+        await obj._do_upload(content)
         return obj
+
+    @staticmethod
+    @_auto_async_to_sync
+    async def from_text(name: str, content: str) -> "Blob":
+        """Upload a file to blob storage."""
+        return await Blob.from_content(name, "text/plain", content.encode())
 
 
 class Blobs:
@@ -187,14 +204,34 @@ class Blobs:
     def __repr__(self):
         return f"<Storage {self}>"
 
-    def upload(self, file: typing.BinaryIO, name: str = None, content_type: str = None) -> Blob:
+    @_auto_async_to_sync
+    async def upload(
+        self, file: typing.BinaryIO, name: str = None, content_type: str = None
+    ) -> Blob:
         """Upload a file to blob storage."""
-        return Blob.from_file(file, name=name, content_type=content_type)
+        return await Blob.from_file(file, name=name, content_type=content_type)
 
-    def upload_from_url(self, url: str, name: str = None, timeout: int = None) -> Blob:
+    @_auto_async_to_sync
+    async def upload_content(
+        self, name: str, content_type: str, content: bytes | typing.BinaryIO
+    ) -> Blob:
         """Upload a file to blob storage."""
-        return Blob.from_url(url, self.module.session, name=name, timeout=timeout)
+        return await Blob.from_content(name, content_type, content)
 
-    def upload_from_requests(self, response: requests.Response, name: str = None) -> Blob:
+    @_auto_async_to_sync
+    async def upload_text(self, name: str, content: str) -> Blob:
         """Upload a file to blob storage."""
-        return Blob.from_requests(response, self.module.session, name=name)
+        # append .txt if no extension
+        if "." not in name:
+            name += ".txt"
+        return await Blob.from_content(name, "text/plain", content.encode())
+
+    @_auto_async_to_sync
+    async def upload_from_url(self, url: str, name: str = None, timeout: int = None) -> Blob:
+        """Upload a file to blob storage."""
+        return await Blob.from_url(url, self.module.session, name=name, timeout=timeout)
+
+    @_auto_async_to_sync
+    async def upload_from_requests(self, response: requests.Response, name: str = None) -> Blob:
+        """Upload a file to blob storage."""
+        return await Blob.from_requests(response, self.module.session, name=name)
