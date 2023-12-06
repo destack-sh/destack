@@ -3,10 +3,11 @@ import enum
 import struct
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, Collection, Mapping, Sequence, cast
+from typing import Any, Collection, Mapping, Optional, Sequence, cast
 from uuid import UUID, uuid4
 
 import cachetools
+import msgpack
 import psycopg
 import structlog
 from psycopg import sql
@@ -705,9 +706,21 @@ async def pg_create_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, 
 #
 # Record API
 #
+MAX_RECORD_TOTAL_VALUE_SIZE = 64 * 1024  # 128 KiB
+MAX_RECORD_FIELD_VALUE_SIZE = 8 * 1024  # 16 KiB
 
 
 def pg_pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
+    """Packs a record into a row for Postgres (flattened for ephemeral)."""
+    # check size
+    # TODO @Performance: measure record value size more efficiently (than msgpack, also see below)
+    msgpack_size = len(msgpack.packb(record.value))
+    if msgpack_size > MAX_RECORD_TOTAL_VALUE_SIZE:
+        raise ValueError(
+            f"record {record.id} is too large: {msgpack_size} > {MAX_RECORD_TOTAL_VALUE_SIZE} bytes (consider storing large values in a Blob instead)"
+        )
+
+    # pack it up
     row = {
         "id": record.id,
         "ck": record.ck,
@@ -728,18 +741,29 @@ def pg_pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowI
         for field in database.resolved_fields:
             column_name = get_field_column_name(field)
             value = record.value.get(field._typed_key)
-            row[column_name] = pg_wrap_record_field_value(database, field, value)
+            row[column_name] = pg_wrap_record_field_value(database, record, field, value)
     assert len(row) == len(
         database._table.columns
     ), f"row mismatch: {row.keys()} for {database._table!r}"
     return row
 
 
-def pg_wrap_record_field_value(database: "HasDatabase", field: "Field", value: Any) -> Any:
+def pg_wrap_record_field_value(
+    database: "HasDatabase", record: Optional[wire.RecordData], field: "Field", value: Any
+) -> Any:
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
     if value is None:
         return None
-    elif field._storage_format == TypeStorageFormat.OBJECT:
+    msgpack_size = len(msgpack.packb(value))
+    if msgpack_size > MAX_RECORD_FIELD_VALUE_SIZE:
+        record_str = f"record {record.id}" if record else "record"
+        value_str = repr(value)
+        if len(value_str) > 256:
+            value_str = value_str[:196] + "..." + value_str[-56:]
+        raise ValueError(
+            f"{record_str} field value '{field.py_ident}' is too large: {msgpack_size} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a Blob instead)\nValue (truncated): {value_str}"
+        )
+    if field._storage_format == TypeStorageFormat.OBJECT:
         return Jsonb(value)
     elif field._storage_format == TypeStorageFormat.VECTOR:
         if isinstance(value, bytes):
@@ -778,7 +802,7 @@ def pg_wrap_record_value(database: "HasDatabase", value: dict) -> dict:
             v = value.get(field._typed_key, UNSET)
             if v is not UNSET:
                 column_name = get_field_column_name(field)
-                value_columnized[column_name] = pg_wrap_record_field_value(database, field, v)
+                value_columnized[column_name] = pg_wrap_record_field_value(database, None, field, v)
         value = value_columnized
     return value
 
@@ -888,7 +912,7 @@ async def write_local_edits_to_pg(
                 for field in database.resolved_fields:  # all 'value' fields are considered changed
                     column_name = get_field_column_name(field)
                     value = record.value.get(field._typed_key)
-                    row[column_name] = pg_wrap_record_field_value(database, field, value)
+                    row[column_name] = pg_wrap_record_field_value(database, record, field, value)
                 row_values.append(row)
             # and update cru info :LocalRecordCru
             fixed_values = {
