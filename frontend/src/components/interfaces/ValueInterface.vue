@@ -270,6 +270,7 @@ defineExpose({
         @close="close"
         @enter="enter"
         v-bind="appearanceAttrs"
+        :style="{ maxHeight: '600px' } /* unfortunately hard-coded for now.. should be panel height? */"
       />
       <!-- pending indicator -->
       <span v-if="editableRef?.pending" class="absolute -right-6 top-1.5 mr-1 mt-1">
