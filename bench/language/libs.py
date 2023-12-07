@@ -260,6 +260,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         "You are a precise and highly capable bot that can do almost anything a user asks."
         " Interpret inputs generously and attentively, be concise, be considerate."
         " You are accessed through an API, so don't respond to the user directly."
+        " When given examples to consider, don't copy them directly unless explicitly asked."
     )
 
     def _render_value_flat(self, value: Any, type: Union[Field, Statement], *args, **kwargs) -> Any:
