@@ -54,12 +54,12 @@ class Command(BaseCommand):
             for project in projects:
                 # ignore fields not in mapping during reindex
                 #  (fields may have existed in between snapshots)
-                for project_v in project.versions.all():
-                    async_to_sync(update_os_schema_from_db)(project_v, dynamic="false")
-                    async_to_sync(write_module_to_os_from_db)(
-                        project_v, wipe=True, update_mappings=False
-                    )
-                    async_to_sync(write_sessions_to_os_from_db)(project_v)
+                project_v = project.head
+                async_to_sync(update_os_schema_from_db)(project_v, dynamic="false")
+                async_to_sync(write_module_to_os_from_db)(
+                    project_v, wipe=True, update_mappings=False
+                )
+                async_to_sync(write_sessions_to_os_from_db)(project_v)
                 enable_os_strict_mapping(project.os_name)
         else:
             raise ValueError("Unknown action")

@@ -1,7 +1,6 @@
 import hashlib
 import io
 import mimetypes
-import pathlib
 import typing
 from typing import Optional
 from urllib.parse import parse_qs, urlparse, urlunparse
@@ -191,9 +190,9 @@ class Blob(Node):
     async def from_text(name: str, content: str) -> "Blob":
         """Upload a file to blob storage."""
         # append .txt if no extension
-        path = pathlib.Path(name)
-        if not path.suffix:
-            name = f"{name}.txt"
+        suffix = name.split(".")[-1]
+        if suffix not in ("txt", "md", "csv", "rst", "log", "json", "yaml", "yml", "toml"):
+            name += ".txt"
         return await Blob.from_content(name, "text/plain", content.encode())
 
 
@@ -226,7 +225,7 @@ class Blobs:
     @_auto_async_to_sync
     async def upload_text(self, name: str, content: str) -> Blob:
         """Upload a file to blob storage."""
-        return await Blob.from_content(name, "text/plain", content.encode())
+        return await Blob.from_text(name, content)
 
     @_auto_async_to_sync
     async def upload_from_url(self, url: str, name: str = None, timeout: int = None) -> Blob:
