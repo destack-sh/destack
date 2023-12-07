@@ -181,9 +181,14 @@ defineExpose({
           <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
             <span class="text-gray-700">No results</span>
           </div>
-          <ComboboxOption v-for="(input, i) in filteredCommands" :key="input.label" :value="input" v-slot="{ active }">
+          <ComboboxOption
+            v-for="(input, i) in filteredCommands"
+            :key="i + input.label"
+            :value="input"
+            v-slot="{ active }"
+          >
             <div
-              v-if="i == 0 || input.group != filteredCommands[i - 1]?.group"
+              v-if="i == 0 || input.group?.name != filteredCommands[i - 1]?.group?.name"
               class="select-none px-2 py-1 text-xs font-semibold tracking-wide text-gray-500"
             >
               {{ input.group?.name }}
