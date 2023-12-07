@@ -314,6 +314,8 @@ def coerce_conditional(
     if expr is not None and kwargs:
         raise TypeError(f"cannot specify both {expr} and {kwargs}")
     if expr is not None:
+        if not isinstance(expr, Conditional):
+            raise TypeError(f"expected Conditional, got {expr!r}")
         return expr
 
     clauses = []
@@ -373,10 +375,10 @@ def coerce_sort(
                 if field:
                     field = field._as_field
             if not field:
-                raise TypeError(f"{statement!r} has no field {item}")
+                raise TypeError(f"{statement!r} has no field {item!r}")
             item = S(op, field=field)
         if not isinstance(item, Sort):
-            raise TypeError(f"expected sort to be a list of Sort, got {item}")
+            raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)
     if not coerced:
         return None
