@@ -69,95 +69,6 @@ function onDeleteLeft() {
   }
 }
 
-// quick inline actions
-type QuickAction = {
-  id: string;
-  label: string;
-  icon: Component;
-  action: () => void;
-  description?: string;
-  fat?: boolean;
-  highlight?: boolean;
-};
-const now = useNow(10000);
-const quickActions = computed(() => {
-  if (
-    !props.focused ||
-    props.statement.type != StatementType.Text ||
-    props.statement.name != null ||
-    props.readonly ||
-    textRef.value?.open
-  )
-    return [];
-  const actions: QuickAction[] = [];
-  actions.push({
-    id: "implement",
-    label: "Assist",
-    description: "Draft this for me",
-    icon: SparklesIcon,
-    fat: false, // too distracting
-    action: () => {
-      emit("launchAssist", "Continue from here");
-    },
-    // highlight if statement was just created (<1min ago)
-    highlight:
-      props.statement.createdAt != null &&
-      now.value.diff(DateTime.fromISO(props.statement.createdAt)).as("minutes") < 10,
-  });
-  if ((props.statement.headingLevel ?? 0) > 0) {
-    return actions; // no other actions for headings
-  }
-  if (props.statement.name == null) {
-    actions.push({
-      id: "name",
-      label: "Add name",
-      icon: AtSymbolIcon,
-      action: () => {
-        ops.statement.rename(null, props.statement.id, null, "");
-        nextTick(() => emit("focus", "declaration"));
-      },
-    });
-  }
-  actions.push({
-    id: "task",
-    label: "Turn into task",
-    icon: getStatementIconSolid(StatementType.Task),
-    action: () => ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Task }),
-  });
-  actions.push({
-    id: "code",
-    label: "Turn into code",
-    icon: getStatementIconSolid(StatementType.Code),
-    action: () => {
-      ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Code });
-      nextTick(() => emit("focus", "code"));
-    },
-  });
-  actions.push({
-    id: "data",
-    label: "Turn into database",
-    icon: getStatementIconSolid(StatementType.Database),
-    action: () => {
-      ops.statement.morph(null, props.statement.id, props.statement, {
-        type: StatementType.Database,
-        versioned: true,
-        key: newDynamicNodeKey(props.statement.id),
-      });
-      nextTick(() => emit("focus", "database"));
-    },
-  });
-
-  return actions;
-});
-const quickActionsRefs = useElementRefs<HTMLButtonElement>(quickActions, {
-  navigateLeft: () => textRef.value?.focus("last"),
-  navigateRight: () => emit("navigateRight"), // unsure whether we should loop or not
-});
-
-function focusAction(id: string | number) {
-  quickActionsRefs.focus(id);
-}
-
 defineExpose({
   focus,
   blur,
@@ -183,7 +94,7 @@ defineExpose({
       @navigate-up="emit('navigateUp')"
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
-      @navigate-right="quickActions.length > 0 ? quickActionsRefs.focus(quickActions[0].id) : emit('navigateRight')"
+      @navigate-right="emit('navigateRight')"
       @enter-left="emit('enterLeft')"
       @enter="emit('enter')"
       @enter-right="emit('enterRight')"
@@ -205,45 +116,5 @@ defineExpose({
     >
       Text...
     </button>
-    <!-- Quick inline actions (positioned as not to disturb the flow) -->
-    <!-- TODO @UX: inline actions don't wrap properly when text overflows -->
-    <div v-if="quickActions.length > 0 && focused && editing" class="relative inline-block">
-      <div
-        class="absolute -bottom-[7px] z-20 flex animate-fadein-1000 flex-row gap-1.5 whitespace-nowrap text-sm font-normal transition-opacity"
-        :class="[text.length == 0 ? 'ml-24' : 'ml-3' /* for 'type for text...' */]"
-      >
-        <button
-          v-for="action in quickActions"
-          :key="action.id"
-          :ref="(ref: any) => quickActionsRefs.registerRef(action.id, ref)"
-          class="group relative flex h-fit max-h-fit flex-row rounded-sm px-1 py-0.5 transition-colors duration-150 focus:outline-none"
-          :class="[
-            action.fat
-              ? ''
-              : 'text-gray-300 hover:bg-orange-100 hover:text-gray-500 focus:bg-orange-100 focus:text-gray-500',
-            action.fat && action.highlight
-              ? 'bg-orange-600 text-white ring-orange-600 hover:bg-orange-500 focus:bg-orange-500 '
-              : '',
-            action.fat && !action.highlight ? 'bg-gray-100 text-gray-400 hover:bg-orange-100 focus:bg-orange-100' : '',
-          ]"
-          @click="action.action"
-          @keydown.right.stop.prevent="quickActionsRefs.navigateRight(action.id)"
-          @keydown.left.stop.prevent="quickActionsRefs.navigateLeft(action.id)"
-        >
-          <span class="mt-0.5">
-            <component :is="action.icon" class="h-4 w-4 transition-colors duration-150" />
-          </span>
-          <span v-if="action.fat" class="ml-1">
-            {{ action.label }}
-          </span>
-          <!-- Label popover -->
-          <span
-            class="pointer-events-none absolute -left-1/2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
-          >
-            {{ action.description ?? action.label }}
-          </span>
-        </button>
-      </div>
-    </div>
   </div>
 </template>
