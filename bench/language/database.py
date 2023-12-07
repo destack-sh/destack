@@ -265,12 +265,12 @@ class RecordQuery:
         else:
             return QueryEngine.POSTGRES
 
-    async def _fetch(self) -> list[Record]:
+    async def _fetch(self, *, _no_flush: bool = False) -> list[Record]:
         """Fetches the result set for this query."""
         from bench.language import wire
 
         session = self._database.session
-        if session._tracer._local_edits:
+        if not _no_flush and session._tracer._local_edits:
             await session.flush_local()  # first flush any local edits
         fetched = await self._do_fetch(pg_cursor=await self._database._get_pg_cursor())
         records: list[Record] = []
@@ -381,7 +381,7 @@ class RecordQuery:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
     @_auto_async_to_sync
-    async def count(self, query: Conditional = None, **kwargs) -> int:
+    async def count(self, query: Conditional = None, *, _no_flush: bool = False, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_count
 
@@ -389,7 +389,7 @@ class RecordQuery:
         assert not self._first and not self._skip and not self._sort, "cannot count with limits"
         query = coerce_conditional(self._database, query, kwargs)
 
-        if self._database.session._tracer._local_edits:
+        if not _no_flush and self._database.session._tracer._local_edits:
             await self._database.session.flush_local()
 
         where = compile_pg_conditional(self._database, query & self._combined_filter)
@@ -398,7 +398,7 @@ class RecordQuery:
         )
 
     @_auto_async_to_sync
-    async def exists(self, query: Conditional = None, **kwargs) -> bool:
+    async def exists(self, query: Conditional = None, *, _no_flush: bool = False, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_exists
 
@@ -583,9 +583,11 @@ class RecordList(NodeListBase[Record], RecordQuery):
             if not self._parent.attached:
                 # detached record nodes are temporarily hoisted into inline tree :TempRecordTree
                 self._parent._local_root_tree.add(node)
-        # update affected nodes
-        if _trigger:  # manually trigger ChangeEffect
-            node._attached_inner()
+        # update affected nodes (manually trigger ChangeEffect)
+        if _trigger:
+            node._attached_self()
+            if self._parent._session:
+                node._activate_self(self._parent._session)
         # 'create' node in session
         if _create and self._parent._session and self._parent.attached:
             self._parent.session._tracer.node_create(node)
@@ -600,10 +602,13 @@ class RecordList(NodeListBase[Record], RecordQuery):
                 self._parent.session._tracer.node_create_preflight(*nodes)
             if not self._parent.attached:
                 self._parent._local_root_tree.add_many(nodes)  # :TempRecordTree
-        # update affected nodes
+        # update affected nodes (manually trigger ChangeEffect)
         if _trigger:
             for n in nodes:
-                n._attached_inner()
+                n._attached_self()
+            if self._parent._session:
+                for n in nodes:
+                    n._activate_self(self._parent._session)
         # 'create' nodes in session
         if _create and self._parent._session and self._parent.attached:
             self._parent.session._tracer.node_create(*nodes)
