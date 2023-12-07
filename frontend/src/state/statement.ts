@@ -45,7 +45,7 @@ import {
 } from "@heroicons/vue/24/solid";
 import { computed, type Ref } from "vue";
 import { useNavigationContext, type CopiedStatement } from "@/state/file";
-import type { StatementHeader } from "@/state/bench";
+import uFuzzy from "@leeoniya/ufuzzy";
 
 function _computedEmptyIfDisabled<T>(func: () => T, enabled?: Ref<boolean>) {
   return computed(() => (enabled?.value !== false ? func() : []));
@@ -472,6 +472,7 @@ export type MorphCommand = {
 export type MorphIdentity = {
   type: StatementType;
   headingLevel?: number | null;
+  versioned?: boolean;
 };
 
 export function getMorphIdentity(statement: Statement): MorphIdentity {
@@ -491,6 +492,7 @@ const MORPH_GROUPS = {
   ADVANCED: { name: "Advanced statements" },
   TEMPLATES: { name: "Templates" },
 };
+const MORPH_GROUPS_ORDER = Object.values(MORPH_GROUPS).map((g) => g.name);
 
 export function useStatementMorph(
   statement: Ref<Statement>,
@@ -632,7 +634,7 @@ export function useStatementMorph(
           iconOutline: getStatementIconOutline(s.type),
           iconSolid: getStatementIconSolid(s.type),
           description,
-          identity: { type: s.type, headingLevel: s.headingLevel },
+          identity: { type: s.type, headingLevel: s.headingLevel }, // should have .versioned here too but currently not in InterpStatement
           template: s,
         });
       });
@@ -641,23 +643,31 @@ export function useStatementMorph(
     return commands;
   });
 
+  const uf = new uFuzzy({ intraMode: 0 });
   const filteredCommands = computed(() => {
     if (options?.query == null) return commands.value;
-    return commands.value
-      .filter((command) => canMorphTo(statement.value, command.identity))
-      .map((command) => {
-        const query = options.query?.value.toLowerCase() as string; // can't change
-        const titleMatch = command.label.toLowerCase().includes(query);
-        const aliasMatch = command.aliases?.some((alias) => alias.toLowerCase().includes(query));
-        const descriptionMatch = command.description.toLowerCase().includes(query);
-
-        return {
-          ...command,
-          score: titleMatch ? 1 : aliasMatch ? 0.5 : descriptionMatch ? 0.25 : 0,
-        };
-      })
-      .filter((c) => c.score > 0)
-      .sort((a, b) => b.score - a.score);
+    const [idxs, info, order] = uf.search(
+      commands.value
+        .filter((command) => canMorphTo(statement.value, command.identity))
+        .map((c) => {
+          let hay = c.label;
+          if (c.aliases != null) {
+            hay += " " + c.aliases.join(" ");
+          }
+          if (c.description != null) {
+            hay += " " + c.description;
+          }
+          return hay;
+        }),
+      options.query.value
+    );
+    if (idxs && order) {
+      // put basic statements first, retain order of results
+      return order
+        .map((i) => commands.value[idxs[i]])
+        .sort((a, b) => MORPH_GROUPS_ORDER.indexOf(a.group.name) - MORPH_GROUPS_ORDER.indexOf(b.group.name));
+    }
+    return commands.value;
   });
 
   return { commands, filteredCommands, doMorph };

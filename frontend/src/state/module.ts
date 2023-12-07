@@ -232,6 +232,7 @@ function _defaultLibId(name: string): string {
   return uuidv5(`builtin:${name}`, BENCH_UUID_NAMESPACE);
 }
 
+// TODO @Robustness: exclude own library if it's a dependency
 const BENCH_UUID_NAMESPACE = "d822dab7-41ad-4706-a9c8-4379e15b2ed0"; // :BenchUuidNamespace
 const DEFAULT_LIBRARIES: GRecord<string, string> = {
   // default libs
