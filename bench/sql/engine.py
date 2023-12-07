@@ -706,8 +706,8 @@ async def pg_create_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, 
 #
 # Record API
 #
-MAX_RECORD_TOTAL_VALUE_SIZE = 64 * 1024  # 128 KiB
-MAX_RECORD_FIELD_VALUE_SIZE = 8 * 1024  # 16 KiB
+MAX_RECORD_TOTAL_VALUE_SIZE = 128 * 1024  # 128 KiB
+MAX_RECORD_FIELD_VALUE_SIZE = 32 * 1024  # 32 KiB
 
 
 def pg_pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
