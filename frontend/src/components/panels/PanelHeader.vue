@@ -5,11 +5,9 @@ import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
 import {
   EditFilePanel,
-  EditStatementPanel,
   useBenchState,
   usePanelContext,
   type Action,
-  PANEL_ICONS_SOLID,
   PANEL_ICONS_OUTLINE,
   NavigablePanel,
 } from "@/state/bench";
@@ -108,7 +106,6 @@ const auth = useAuth();
         v-if="auth.loggedIn.value && ['statement', 'file'].includes(panel.panel.value.type)"
         size="small"
         :file-id="(panel.panel.value as EditFilePanel).fileCk"
-        :statement-id="(panel.panel.value as EditStatementPanel).statementCk"
       />
       <button
         v-if="!hideWideToggle"

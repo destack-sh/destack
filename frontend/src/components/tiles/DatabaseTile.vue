@@ -4,22 +4,42 @@ import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useElementSize } from "@/composables/useSize";
-import type { SearchRecordsQueryVariables, SortOp } from "@/gql/graphql";
+import {
+  EditType,
+  QueryEngine,
+  type Conditional,
+  type SearchRecordsQueryVariables,
+  type SortOp,
+  type Sort,
+} from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
+import type { RecordAction } from "@/state/bench";
 import { RECORD_SEARCH_QUERY } from "@/state/database";
 import { useCurrentModule, type Statement, newNodeIdentity, type Field, type Record } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useFields } from "@/state/statement";
+import { useEditListener } from "@/state/sync";
 import { emptyConnection, getUpdatedConnectionQuery } from "@/utils/connection";
 import { toValueRef } from "@/utils/functools";
-import { EllipsisHorizontalIcon, PlusIcon } from "@heroicons/vue/24/solid";
+import { IS_DEBUG } from "@/utils/globals";
+import { Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { EllipsisHorizontalIcon, PlusIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
-import { computed, nextTick, toRef, type Ref, ref, watch } from "vue";
+import { useDebounceFn } from "@vueuse/core";
+import { DateTime } from "luxon";
+import { computed, nextTick, toRef, type Ref, ref, watch, onMounted } from "vue";
 
-const PAGE_SIZE = 32;
 type GRecord<K extends keyof any, V> = globalThis.Record<K, V>;
 
-const props = defineProps<{ statement: Statement; targetMinWidth: number; readonly?: boolean }>();
+const props = defineProps<{
+  statement: Statement;
+  query?: Conditional;
+  queryEngine?: QueryEngine;
+  sort?: Sort[];
+  targetMinWidth: number;
+  pageSize: number;
+  readonly?: boolean;
+}>();
 const emit = defineEmits<{
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
@@ -46,9 +66,9 @@ const searchQueryVariables: Ref<SearchRecordsQueryVariables> = computed(
     ({
       statementId: props.statement.id,
       after: null as string | null,
-      query: null,
-      sort: null,
-      limit: PAGE_SIZE,
+      query: props.query,
+      sort: props.sort,
+      limit: props.pageSize,
       count: true,
     } as SearchRecordsQueryVariables)
 );
@@ -69,6 +89,33 @@ const loading = computed(
   () => (recordsFetchedResult.value == null || recordsLoading.value) && recordsError.value == null
 );
 const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
+
+// auto refetch when bumped and using OS query engine (1s is the OS indexing delay)
+const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 5000 });
+useEditListener([EditType.BumpStatement], props.statement.id, () => {
+  if (props.queryEngine == QueryEngine.Opensearch) {
+    refetchDebounced();
+  } else {
+    refetch();
+  }
+});
+// trigger refetch (debounced) once if just created to autoload if the database was duplicated
+onMounted(() => {
+  const delta = DateTime.now().diff(DateTime.fromISO(props.statement.createdAt ?? ""));
+  if (delta.as("seconds") < 1) {
+    refetchDebounced();
+  }
+});
+
+function loadMore(pageSize?: number) {
+  if (!pageInfo.value?.hasNextPage) return;
+  fetchMore({
+    variables: {
+      after: recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.cursor,
+      limit: pageSize ?? props.pageSize,
+    },
+  });
+}
 
 function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "value"> & Partial<Field>) {
   grid.beginBatchChange();
@@ -181,6 +228,8 @@ function deleteRecord(recordId: string) {
 
 // navigation
 
+const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
+
 function focusLastRecord() {
   if (grid.refs.value.length > 0) {
     grid.focus(-1, columnsInOrder.value[0]);
@@ -188,6 +237,28 @@ function focusLastRecord() {
     emit("navigateUp");
   }
 }
+
+// nocheckin record actions (& record select?)
+const recordActions: RecordAction[] = [
+  {
+    label: "Insert",
+    icon: PlusIcon,
+    action: () => {
+      insertRecordAtEnd();
+    },
+  },
+  {
+    label: "Duplicate",
+    icon: Square2StackIcon,
+    action: (record: any) =>
+      insertRecord({ belowRecordId: record.id, value: JSON.parse(JSON.stringify(record.value)) }),
+  },
+  {
+    label: "Delete",
+    icon: TrashIcon,
+    action: (record: any) => deleteRecord(record.id),
+  },
+];
 
 // display
 
@@ -201,7 +272,7 @@ const grid = useNavigationGrid<string, InstanceType<typeof FieldInterface> | Ins
   }),
   {
     gridNavigateUp: () => emit("navigateUp"),
-    gridNavigateDown: () => emit("navigateDown"),
+    gridNavigateDown: () => props.readonly ? emit("navigateDown") : addRecordRef.value?.focus(),
   }
 );
 
@@ -255,6 +326,25 @@ watch(
   },
   { immediate: true }
 );
+
+defineExpose({
+  focus: (position: "first" | "last" = "first") => {
+    if (position == "first") {
+      grid.focus(0, columnsInOrder.value[0]);
+    } else {
+      focusLastRecord();
+    }
+  },
+  blur: () => grid.blur(),
+  loadMore,
+  refetch,
+  loading,
+  recordsInView,
+  pageInfo,
+  totalCount,
+  insertRecordAtEnd,
+  insertRecord,
+});
 </script>
 <template>
   <div class="flex flex-col">
@@ -264,13 +354,12 @@ watch(
         :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
         v-for="(field, x) in allFields"
         :key="field?.ck"
-        class="h-full w-full border-b border-amber-900/[12%] px-1 py-1 text-gray-700 focus-within:border-amber-900 focus-within:bg-amber-100 hover:bg-amber-100"
+        class="h-full w-full truncate border-b border-t border-amber-900/[12%] px-1.5 py-1 text-gray-700 focus-within:border-amber-900/[15%] focus-within:bg-amber-100 hover:bg-amber-100"
         :class="[x > 0 ? 'border-l' : '', x == allFields.length - 1 ? 'border-r' : '']"
         :style="{
           width: columnWidths[x] + 'px',
         }"
         is-view
-        hide-outline
         orientation="horizontal"
         :model-value="field"
         @update:model-value="updateField(field.key, $event as Field)"
@@ -286,7 +375,7 @@ watch(
       />
       <!-- Properties column (add + settings) -->
       <div
-        class="flex flex-row items-center overflow-x-hidden whitespace-nowrap border-b border-r border-amber-900/[12%]"
+        class="flex flex-row items-center overflow-x-hidden whitespace-nowrap border-b border-t border-amber-900/[12%]"
         :style="{
           width: columnWidths[columnWidths.length - 1] + 'px',
         }"
@@ -333,7 +422,7 @@ watch(
         @navigate-up="() => grid.navigateUp(record.id, field.key as string)"
         @navigate-down="() => grid.navigateDown(record.id, field.key as string)"
         @delete-self="() => deleteRecordField(record.id, fieldsTypedKeyByCk[field.ck])"
-        class="scroll-hidden h-full overflow-hidden border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+        class="scroll-hidden h-full overflow-hidden border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900/[15%] focus-within:bg-orange-100 hover:bg-orange-100"
         :class="[
           x > 0 ? 'border-l-orange-900/[12%]' : '',
           x == allFields.length - 1 ? 'border-r-orange-900/[12%]' : '',
@@ -344,9 +433,9 @@ watch(
           width: columnWidths[x] + 'px',
         }"
       />
+      <!-- Extra empty 'value' for properties column (also useful as placeholder if database has no fields) -->
       <div
         class="overflow-hidden"
-        :class="[columnWidths.length > 1 ? 'border-r border-orange-900/[12%]' : '']"
         :style="{
           minHeight: minRowHeight + 'px',
           width: columnWidths[columnWidths.length - 1] + 'px',
@@ -369,5 +458,15 @@ watch(
       <template v-if="readonly"> Nothing here </template>
       <template v-else> <PlusIcon class="h-4 w-4" /> Record </template>
     </button>
+    <!-- Failed to load -->
+    <div
+      v-if="!loading && recordsError != null"
+      class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900/[12%] px-1 py-1 text-red-600 outline-none transition duration-75 hover:bg-orange-100 hover:text-red-600 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+      :style="{ minHeight: minRowHeight + 'px' }"
+      @click.stop="refetch()"
+    >
+      <XCircleIcon class="h-4 w-4" /> <span class="whitespace-nowrap font-bold">Failed to load:</span>
+      <span class="max-w-full truncate">{{ IS_DEBUG ? recordsError.message : "Internal error" }}</span>
+    </div>
   </div>
 </template>

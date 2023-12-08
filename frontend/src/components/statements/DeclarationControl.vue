@@ -2,15 +2,8 @@
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { getStatementDescription, getStatementIconSolid, getStatementLabel } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
-import { useKeyModifier } from "@vueuse/core";
-import { usePanelContext, type StatementHeader, useBenchState } from "@/state/bench";
-import {
-  STANDALONE_ENABLED,
-  STATEMENT_INTERFACES,
-  STATEMENT_RUNNABLE_TYPES,
-  type StatementEmit,
-  type StatementProps,
-} from "@/components/statements";
+import { useBenchState } from "@/state/bench";
+import { STATEMENT_RUNNABLE_TYPES, type StatementEmit, type StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { StatementType } from "@/gql/graphql";
@@ -32,16 +25,6 @@ const nameSync = syncProperty({
 const hasName = computed(() => name.value.trim().length > 0);
 const icon = computed(() => getStatementIconSolid(props.statement.type));
 const runButtonRef = ref<HTMLButtonElement | null>(null);
-
-const canOpenInStandaloneEditor = computed(
-  () => (STANDALONE_ENABLED && STATEMENT_INTERFACES[props.statement.type]?.foldable) ?? false
-);
-const altKey = useKeyModifier("Alt");
-const panel = usePanelContext();
-
-function openInEditor() {
-  panel.panel.value.bench.openEditStatement(props.statement as StatementHeader, { focus: true });
-}
 
 function onDeleteLeft() {
   if (props.statement.type == StatementType.Text) {
@@ -82,16 +65,10 @@ defineExpose({
     <EditableSpan
       ref="nameRef"
       class="text-md flex-shrink-0 whitespace-nowrap px-0.5 font-semibold"
-      :class="[
-        altKey && canOpenInStandaloneEditor
-          ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline'
-          : 'cursor-text',
-      ]"
       regex="name"
       v-model="name"
       @update:model-value="nameSync.onLocalWrite"
       :readonly="readonly"
-      @click="altKey && canOpenInStandaloneEditor && openInEditor()"
       @navigate-up="emit('navigateUp')"
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
