@@ -68,7 +68,7 @@ const auth = useAuth();
           <button
             v-else-if="(node.name ?? '').length > 0 || i != path.length"
             class="group/node relative select-none rounded-sm px-0.5 text-gray-500 hover:bg-orange-100"
-            @click="
+            @click.stop="
               i >= self || node.id == null
                 ? emit('focus', node)
                 : bench.focusNode(node as NodeBase, panel?.panel.value.group)

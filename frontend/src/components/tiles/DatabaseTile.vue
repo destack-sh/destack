@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import ActionPopover from "@/components/basic/ActionPopover.vue";
 import { getInputInterface } from "@/components/inputs";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
@@ -23,7 +24,7 @@ import { emptyConnection, getUpdatedConnectionQuery } from "@/utils/connection";
 import { toValueRef } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
 import { Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
-import { EllipsisHorizontalIcon, PlusIcon, XCircleIcon } from "@heroicons/vue/24/solid";
+import { EllipsisHorizontalIcon, EllipsisVerticalIcon, PlusIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/core";
 import { DateTime } from "luxon";
@@ -37,6 +38,9 @@ const props = defineProps<{
   queryEngine?: QueryEngine;
   sort?: Sort[];
   targetMinWidth: number;
+  paddingLeft?: number;
+  showRecordActionPopover?: boolean;
+  selectable?: boolean;
   pageSize: number;
   readonly?: boolean;
 }>();
@@ -228,6 +232,21 @@ function deleteRecord(recordId: string) {
 
 // navigation
 
+const selectedRecordIds: Ref<string[]> = ref([]);
+const hasAnySelectedRecords = computed(() => selectedRecordIds.value.length > 0);
+
+function isRecordSelected(record: { id: string }) {
+  return selectedRecordIds.value.length > 0 && selectedRecordIds.value.includes(record.id);
+}
+
+function setRecordSelected(record: { id: string }, selected: boolean) {
+  if (selected) {
+    selectedRecordIds.value.push(record.id);
+  } else {
+    selectedRecordIds.value = selectedRecordIds.value.filter((id) => id != record.id);
+  }
+}
+
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 
 function focusLastRecord() {
@@ -238,7 +257,6 @@ function focusLastRecord() {
   }
 }
 
-// nocheckin record actions (& record select?)
 const recordActions: RecordAction[] = [
   {
     label: "Insert",
@@ -272,7 +290,7 @@ const grid = useNavigationGrid<string, InstanceType<typeof FieldInterface> | Ins
   }),
   {
     gridNavigateUp: () => emit("navigateUp"),
-    gridNavigateDown: () => props.readonly ? emit("navigateDown") : addRecordRef.value?.focus(),
+    gridNavigateDown: () => (props.readonly ? emit("navigateDown") : addRecordRef.value?.focus()),
   }
 );
 
@@ -281,7 +299,7 @@ const minRowHeight = 32; // incl. padding x2
 const maxRowHeight = 220;
 const defaultGrowFactor = 0.1;
 const defaultMinWidth = 50;
-const growColumns = true;
+const selectColumnWidth = 32;
 const propertiesColumnWidth = 52;
 const rowHeights: Ref<number[]> = ref([]);
 const columnWidths: Ref<number[]> = ref([]);
@@ -292,7 +310,7 @@ watch(
   () => {
     // update column widths
     const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = allFields.value.map((f) =>
-      getInputInterface(f)
+      getInputInterface(module.effectiveTypeOf(f))
     );
     ifaces.push({ minWidth: propertiesColumnWidth, grow: 0.05 }); // 'fake' properties column
 
@@ -307,10 +325,12 @@ watch(
       const minWidth = Math.max(headerWidth, iface?.minWidth ?? defaultMinWidth);
       widths.push(minWidth);
     }
+    if (props.selectable) widths.push(selectColumnWidth);
+
     // if the total width is too small, scale up to fill by the grow factors
-    const minTotalWidth = widths.reduce((a, b) => a + b, 0);
-    if (minTotalWidth < props.targetMinWidth && growColumns) {
-      const toFill = Math.max(props.targetMinWidth - minTotalWidth, 0);
+    const actualTotalWidth = widths.reduce((a, b) => a + b, 0);
+    if (actualTotalWidth < props.targetMinWidth) {
+      const toFill = Math.max(props.targetMinWidth - actualTotalWidth, 0);
       const growFactors = ifaces.map((i) => i?.grow ?? defaultGrowFactor);
       const growTotal = growFactors.reduce((a, b) => a + b, 0);
       const growWidths = growFactors.map((g) => (g / growTotal) * toFill);
@@ -342,14 +362,25 @@ defineExpose({
   recordsInView,
   pageInfo,
   totalCount,
+  selectedRecordIds,
+  createNewField,
   insertRecordAtEnd,
   insertRecord,
 });
 </script>
 <template>
   <div class="flex flex-col">
-    <!-- Fields -->
-    <div class="flex flex-row text-sm">
+    <!-- Header -->
+    <div class="flex flex-row self-start align-top text-sm">
+      <!-- Select column (placeholder, maybe put something here later) -->
+      <div
+        v-if="selectable"
+        class="border-b border-r border-t border-amber-900/[12%]"
+        :style="{
+          width: selectColumnWidth + 'px',
+        }"
+      />
+      <!-- Fields -->
       <FieldInterface
         :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
         v-for="(field, x) in allFields"
@@ -358,6 +389,7 @@ defineExpose({
         :class="[x > 0 ? 'border-l' : '', x == allFields.length - 1 ? 'border-r' : '']"
         :style="{
           width: columnWidths[x] + 'px',
+          paddingLeft: paddingLeft != null && x == 0 ? paddingLeft + 'px' : undefined,
         }"
         is-view
         orientation="horizontal"
@@ -404,8 +436,40 @@ defineExpose({
       v-for="(record, y) in recordsInView"
       :key="record.id"
       class="group/record relative flex flex-row self-start border-b border-orange-900/[12%] align-top"
-      :class="[appearance.textSmall ? 'text-sm' : '']"
+      :class="[appearance.textSmall ? 'text-sm' : '', isRecordSelected(record) ? 'bg-orange-100' : '']"
     >
+      <!-- Select row -->
+      <div
+        v-if="selectable"
+        class="border-r border-orange-900/[12%] text-center align-middle hover:cursor-pointer"
+        :style="{ width: selectColumnWidth + 'px' }"
+        @click="setRecordSelected(record, !isRecordSelected(record))"
+      >
+        <input
+          type="checkbox"
+          ref="checkboxRef"
+          class="mt-1.5 h-4 w-4 cursor-pointer rounded border border-gray-300 text-orange-600 ring-0 transition-opacity duration-75 focus:ring-0"
+          :class="hasAnySelectedRecords ? 'opacity-100' : 'opacity-0 group-hover/record:opacity-100'"
+          :checked="isRecordSelected(record)"
+          :disabled="props.readonly"
+        />
+      </div>
+      <!-- Action popover -->
+      <div v-if="showRecordActionPopover" class="absolute -left-6 top-1">
+        <ActionPopover v-if="!readonly" anchor="right" v-slot="{ open }" :thing="record" :actions="recordActions">
+          <div
+            class="p-0.5 text-gray-400 hover:text-gray-700"
+            :class="[
+              open
+                ? ''
+                : 'opacity-0 transition-opacity focus:opacity-100 group-focus-within/record:opacity-100 group-hover/record:opacity-100',
+            ]"
+          >
+            <EllipsisVerticalIcon class="h-4 w-4" />
+          </div>
+        </ActionPopover>
+      </div>
+      <!-- Values -->
       <ValueInterface
         :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
         v-for="(field, x) in allFields"
@@ -431,14 +495,14 @@ defineExpose({
           minHeight: minRowHeight + 'px',
           maxHeight: maxRowHeight + rowPadding * 2 + 'px',
           width: columnWidths[x] + 'px',
+          paddingLeft: paddingLeft != null && x == 0 ? paddingLeft + 'px' : undefined,
         }"
       />
       <!-- Extra empty 'value' for properties column (also useful as placeholder if database has no fields) -->
       <div
-        class="overflow-hidden"
         :style="{
           minHeight: minRowHeight + 'px',
-          width: columnWidths[columnWidths.length - 1] + 'px',
+          width: propertiesColumnWidth + 'px',
           height: rowHeights[y] + rowPadding * 2 + 'px',
         }"
       />
@@ -448,7 +512,7 @@ defineExpose({
       v-if="!loading && (!readonly || recordsInView.length == 0)"
       ref="addRecordRef"
       class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900/[12%] px-1 py-1 text-sm text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-      :style="{ height: minRowHeight + 'px' }"
+      :style="{ height: minRowHeight + 'px', paddingLeft: paddingLeft != null ? paddingLeft + 'px' : undefined }"
       @click.stop="readonly || insertRecordAtEnd()"
       @keydown.enter.prevent="readonly || insertRecordAtEnd()"
       @keydown.up.exact.prevent="focusLastRecord()"
