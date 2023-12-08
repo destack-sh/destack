@@ -1,17 +1,10 @@
 <script lang="ts" setup>
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
-import { useElementRefs } from "@/composables/useGrid";
-import { useNow } from "@/composables/useNow";
 import { StatementType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
-import { newDynamicNodeKey } from "@/state/operations/statement";
-import { getStatementIconSolid } from "@/state/statement";
 import { syncProperty } from "@/utils/sync";
-import { SparklesIcon } from "@heroicons/vue/24/solid";
-import { AtSymbolIcon } from "@heroicons/vue/24/solid";
-import { DateTime } from "luxon";
-import { computed, nextTick, ref, watch, type Ref, type Component } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "focused" | "editing">>();
 const emit = defineEmits<StatementEmit>();
@@ -33,7 +26,6 @@ function focus(position: "first" | "last" = "first") {
 
 function blur() {
   textRef.value?.blur();
-  quickActionsRefs.refs.value.forEach((ref) => ref?.blur());
 }
 
 function onInput() {

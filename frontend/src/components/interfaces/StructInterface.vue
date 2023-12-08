@@ -253,7 +253,7 @@ defineExpose({
             :type="field"
             :readonly="(readonly ?? false) || (readonlyType ?? false)"
             orientation="vertical"
-            class="w-full self-start border-r border-amber-900/[12%] bg-amber-100 py-1 pr-1.5 text-gray-700 focus-within:border-solid focus-within:bg-amber-200 hover:bg-amber-200"
+            class="w-full self-start border-r border-amber-900/[12%] px-1.5 py-1 text-gray-700 focus-within:border-solid focus-within:bg-amber-200 hover:bg-amber-200"
             :hide-outline="appearance.hideFieldOutline"
             hide-text
             :ref-types="[TypeTag.Enum, TypeTag.Struct]"

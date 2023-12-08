@@ -82,7 +82,7 @@ defineExpose({
       v-for="(base, i) in baseTypes"
       :key="base.id"
       :ref="(ref: any) => baseTypesRefs.registerRef(base.id, ref)"
-      class="inline-flex flex-row rounded-xl bg-fuchsia-100 px-1.5 text-fuchsia-900 ring-1 ring-inset ring-fuchsia-600/20 hover:bg-fuchsia-200 focus:bg-fuchsia-200 focus:outline-none focus:ring-fuchsia-600/60"
+      class="inline-flex flex-row rounded-xl px-1 text-fuchsia-900 ring-inset ring-fuchsia-600/20 hover:bg-fuchsia-200 hover:ring-1 focus:bg-fuchsia-200 focus:outline-none focus:ring-fuchsia-600/60"
       @click="edit(base)"
       @keydown.left.exact.prevent="i == 0 ? emit('navigateLeft') : baseTypesRefs.focus(baseTypes[i - 1]?.id)"
       @keydown.right.exact.prevent="
