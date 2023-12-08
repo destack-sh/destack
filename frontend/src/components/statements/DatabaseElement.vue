@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useActiveScroll } from "@/composables/useScroll";
-import { SortOp, type Sort } from "@/gql/graphql";
+import { SortOp, type Sort, TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { usePanelContext, useElementPanelSettings, type StatementAction, useBenchState } from "@/state/bench";
 import { useCurrentModule, type Field, type Record, type NodeBase } from "@/state/module";
@@ -23,7 +23,7 @@ import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useDatabaseInlineSearch } from "@/state/database";
 import { humanizeNumber } from "@/composables/useNow";
 import DatabaseTile from "@/components/tiles/DatabaseTile.vue";
-import type CreateFieldInterfaceVue from "@/components/interfaces/CreateFieldInterface.vue";
+import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const PAGE_SIZE = 10;
@@ -42,7 +42,7 @@ const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const innerGridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
-const createFieldRef: Ref<InstanceType<typeof CreateFieldInterfaceVue> | null> = ref(null);
+const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const databaseTileRef: Ref<InstanceType<typeof DatabaseTile> | null> = ref(null);
 
 const properties = useElementPanelSettings<DatabaseStatementProperties>(toRef(props, "statement"), {
@@ -203,6 +203,12 @@ defineExpose({
     >
       <!-- Inner grid -->
       <div ref="innerGridRef" class="-mx-1 flex min-w-fit flex-col">
+        <CreateFieldInterface
+          ref="createFieldRef"
+          :title="'New field'"
+          :ref-types="[TypeTag.Enum, TypeTag.Struct]"
+          @select="databaseTileRef?.createNewField($event)"
+        />
         <DatabaseTile
           ref="databaseTileRef"
           :statement="props.statement"
@@ -217,8 +223,11 @@ defineExpose({
             8
           "
           :page-size="PAGE_SIZE"
+          show-record-action-popover
           @navigate-up="emit('navigateUp')"
           @navigate-down="loadMoreRef != null ? loadMoreRef.focus() : emit('navigateDown')"
+          @create-field="createFieldRef?.show()"
+          @add-sort="({ field, order }) => addSort(field, order ?? SortOp.Ascending)"
         />
         <!-- Load more/loading/go to big database view -->
         <div
