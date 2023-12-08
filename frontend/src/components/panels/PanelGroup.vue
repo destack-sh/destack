@@ -246,7 +246,7 @@ async function createFileInPanelGroup() {
       </div>
       <!-- Contents -->
       <TabPanels :style="panelSize">
-        <!-- Only file panels have a white background :FileBackground -->
+        <!-- Only source panels have a white background :PanelBackground -->
         <TabPanel
           v-for="p in group.panels"
           :key="p.id"

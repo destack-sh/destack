@@ -463,7 +463,7 @@ defineExpose({
 
 <template>
   <!-- File container -->
-  <!-- Only files have a white background :FileBackground -->
+  <!-- Only source files have a white background :PanelBackground -->
   <div class="relative overflow-x-hidden bg-white">
     <PanelHeader
       class="border-b border-orange-900/[12%] bg-white"

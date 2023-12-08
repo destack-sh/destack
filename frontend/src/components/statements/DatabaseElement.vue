@@ -8,8 +8,21 @@ import { useNavigationGrid } from "@/composables/useGrid";
 import { useActiveScroll } from "@/composables/useScroll";
 import { SortOp, EditType, type Sort, type SearchRecordsQueryVariables, QueryEngine } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
-import { useCurrentModule, type Field, newNodeIdentity, type Statement, type Record } from "@/state/module";
+import {
+  usePanelContext,
+  useElementPanelSettings,
+  type RecordAction,
+  type StatementAction,
+  useBenchState,
+} from "@/state/bench";
+import {
+  useCurrentModule,
+  type Field,
+  newNodeIdentity,
+  type Statement,
+  type Record,
+  type NodeBase,
+} from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useFields, type DatabaseStatementProperties } from "@/state/statement";
 import { IS_DEBUG, IS_LOCALHOST } from "@/utils/globals";
@@ -25,6 +38,8 @@ import {
   XMarkIcon,
   SquaresPlusIcon,
   EllipsisVerticalIcon,
+  ArrowUpRightIcon,
+  ArrowsPointingOutIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
@@ -41,11 +56,13 @@ import { humanizeNumber } from "@/composables/useNow";
 import { emptyConnection, getUpdatedConnectionQuery } from "@/utils/connection";
 
 const PAGE_SIZE = 10;
+const MAX_INLINE_RECORDS = 40;
 
 const props =
   defineProps<Pick<StatementProps, "statement" | "focused" | "readonly" | "editing" | "xoffset" | "visible">>();
 const emit = defineEmits<StatementEmit>();
 
+const bench = useBenchState();
 const module = useCurrentModule();
 const panel = usePanelContext();
 const appearance = useAppearance();
@@ -423,6 +440,10 @@ function deleteRecord(recordId: string) {
   grid.focus(recordIdx, columnsInOrder.value[0]);
 }
 
+function openAsDatabasePanel() {
+  bench.openEditDatabase(props.statement as NodeBase, { focus: true });
+}
+
 // drag & drop
 const position = useMouseInElement(gridRef);
 
@@ -454,6 +475,14 @@ const actions = computed(() => {
     icon: PlusIcon,
     action: () => {
       insertRecordAtEnd();
+    },
+  });
+  actions.push({
+    label: "View all",
+    groupId: "nav",
+    icon: ArrowsPointingOutIcon,
+    action: () => {
+      openAsDatabasePanel();
     },
   });
   actions.push({
@@ -710,28 +739,42 @@ defineExpose({
           <XCircleIconSolid class="h-4 w-4" /> <span class="whitespace-nowrap font-bold">Failed to load:</span>
           <span class="max-w-full truncate">{{ IS_DEBUG ? recordsError.message : "Internal error" }}</span>
         </button>
-        <!-- Load more/loading -->
-        <button
-          v-if="pageInfo?.hasNextPage || loading"
-          ref="loadMoreRef"
-          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900/[12%] px-1 py-1 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-          :class="[loading ? 'text-gray-400' : 'text-gray-300 ']"
+        <!-- Load more/loading/go to big database view -->
+        <div
+          class="flex flex-row rounded-sm border-b border-orange-900/[12%] group-focus-within/statement:text-gray-400"
           :style="{ height: minRowHeight + 'px' }"
-          @click.stop="loadMore()"
-          @keydown.enter.prevent="loadMore(), $nextTick(() => focusLastRecord())"
           @keydown.up.exact.prevent="focusLastRecord"
           @keydown.down.exact.prevent="emit('navigateDown')"
-          :disabled="loading"
         >
-          <template v-if="loading">
-            <BusySpinnerIcon class="mr-1 h-4 w-4" :class="loading ? 'animate-spin' : ''" />
-            Loading
-          </template>
-          <template v-else>
-            <ArrowDownIcon class="h-4 w-4" />
-            Load {{ PAGE_SIZE }} more (of {{ humanizeNumber(totalCount ?? 0) }})
-          </template>
-        </button>
+          <!-- Load more/loading -->
+          <button
+            v-if="pageInfo?.hasNextPage || loading"
+            ref="loadMoreRef"
+            class="flex w-full flex-1 select-none flex-row items-center gap-0.5 px-1 py-1 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
+            :class="[loading ? 'text-gray-400' : 'text-gray-300 ']"
+            @click.stop="loadMore()"
+            @keydown.enter.prevent="loadMore(), $nextTick(() => focusLastRecord())"
+            :disabled="loading"
+          >
+            <template v-if="loading">
+              <BusySpinnerIcon class="mr-1 h-4 w-4" :class="loading ? 'animate-spin' : ''" />
+              Loading
+            </template>
+            <template v-else>
+              <ArrowDownIcon class="h-4 w-4" />
+              Load {{ PAGE_SIZE }} more
+            </template>
+          </button>
+          <!-- Go to big database view -->
+          <button
+            ref="openPanelViewRef"
+            class="flex flex-1 flex-row items-center justify-end px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
+            @click="openAsDatabasePanel()"
+          >
+            <ArrowUpRightIcon class="mr-1 h-4 w-4" />
+            View all ({{ humanizeNumber(totalCount ?? 0) }} records)
+          </button>
+        </div>
         <!-- Insert button (or 'nothing here') -->
         <button
           v-if="!loading && (!readonly || recordsInView.length == 0)"
