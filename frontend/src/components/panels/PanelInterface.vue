@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import EditFilePanelInterface from "@/components/panels/EditFilePanel.vue";
+import EditDatabasePanelInterface from "@/components/panels/EditDatabasePanel.vue";
 import LaunchRunPanelInterface from "@/components/panels/LaunchRunPanel.vue";
 import ViewRunsPanelInterface from "@/components/panels/ViewRunsPanel.vue";
 import ViewRunPanelInterface from "@/components/panels/ViewRunPanel.vue";
@@ -17,6 +18,7 @@ const focused = computed(() => bench.focusedPanelId == props.panel.id);
 
 const componentsByPanel: Partial<Record<PanelType, any>> = {
   "edit-file": EditFilePanelInterface,
+  "edit-database": EditDatabasePanelInterface,
   "launch-run": LaunchRunPanelInterface,
   "view-runs": ViewRunsPanelInterface,
   "view-run": ViewRunPanelInterface,

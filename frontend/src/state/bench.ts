@@ -35,6 +35,7 @@ import {
   WindowIcon as WindowIconOutline,
   ArrowUturnLeftIcon,
   CommandLineIcon as CommandLineIconOutline,
+  CircleStackIcon as CircleStackIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   CodeBracketIcon as CodeBracketIconSolid,
@@ -42,13 +43,14 @@ import {
   Bars4Icon as Bars4IconSolid,
   WindowIcon as WindowIconSolid,
   CommandLineIcon as CommandLineIconSolid,
+  CircleStackIcon as CircleStackIconSolid,
 } from "@heroicons/vue/24/solid";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, watch, type Ref, nextTick, toRef } from "vue";
 import { validate as isValidUUID } from "uuid";
 import type EditFilePanelVue from "@/components/panels/EditFilePanel.vue";
-import { ModuleAccessLevel, base64ToUuid, dashifyUuid, uuidToBase64 } from "@/state/auth";
+import { ModuleAccessLevel, dashifyUuid } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 
 export const PROJECT_ACCESS_LEVELS = [
@@ -121,7 +123,14 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "environment" | "tests" | "comments";
 
-export type PanelType = "edit-file" | "launch-run" | "view-run" | "view-runs" | "view-logs" | "terminal";
+export type PanelType =
+  | "edit-file"
+  | "edit-database"
+  | "launch-run"
+  | "view-run"
+  | "view-runs"
+  | "view-logs"
+  | "terminal";
 
 const BENCH_STATE_VERSION = 10;
 
@@ -591,8 +600,12 @@ export const useBenchState = defineStore("bench", {
       );
     },
 
-    openEditStatement(statement: { ck: string; name?: string | null }, options?: PanelOpenOptions): Panel {
-      throw new Error("not implemented");
+    openEditDatabase(statement: NodeBase, options?: PanelOpenOptions): Panel {
+      return this._openMaybeCreate(
+        (p) => p.type == "edit-database" && (p as EditDatabasePanel).statementCk == statement.ck,
+        () => new EditDatabasePanel(statement),
+        options
+      );
     },
 
     openLaunchRun(statement: { ck: string; name?: string | null }, options?: PanelOpenOptions): Panel {
@@ -1168,6 +1181,52 @@ export class EditFilePanel extends NavigablePanel {
   }
 }
 
+export class EditDatabasePanel extends NavigablePanel {
+  type = "edit-database" as const;
+  statementCk: string;
+
+  constructor(statement: { ck: string; name?: string | null }) {
+    super(
+      "edit-database",
+      statement.ck + "-" + randomHexString(),
+      statement.name ?? "(Unnamed)",
+      (statement.name ?? "(Unnamed)") + "-" + statement.ck.replace(/-/g, "")
+    );
+    this.statementCk = statement.ck;
+  }
+
+  resetId(): void {
+    this.id = this.statementCk + "-" + randomHexString();
+  }
+
+  updatePath(statementHeader: { id: string; ck: string; name?: string | null }, module: ModuleIndex) {
+    const statement = module.statementsById[statementHeader.id];
+    if (statement == null) return;
+    this.name = statementHeader.name ?? statement.name ?? "";
+    this.path = (statement.name ?? "(Unnamed)") + "-" + statement.ck.replace(/-/g, "");
+  }
+
+  static parsePath(path: string, module: ModuleIndex): Panel | null {
+    let matchingStatement = null;
+    try {
+      const ck = dashifyUuid(path.split("-").slice(-1)[0]);
+      matchingStatement = module.statementsById[module.idByCk[ck]];
+    } catch (e) {
+      // ignore
+    }
+    if (matchingStatement == null) return null;
+    return new EditDatabasePanel(matchingStatement);
+  }
+
+  get hasWhiteBackground() {
+    return true;
+  }
+
+  get hasScrollY() {
+    return false;
+  }
+}
+
 export class LaunchRunPanel extends Panel {
   type = "launch-run" as const;
   statementCk: string;
@@ -1347,6 +1406,7 @@ export class TerminalPanel extends Panel {
 
 export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
   "edit-file": EditFilePanel as any,
+  "edit-database": EditDatabasePanel as any,
   "launch-run": LaunchRunPanel as any, // don't care about constructor type
   "view-runs": ViewRunsPanel as any,
   "view-run": ViewRunPanel as any,
@@ -1356,6 +1416,7 @@ export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
 
 export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
   "edit-file": CodeBracketIconOutline,
+  "edit-database": CircleStackIconOutline,
   "launch-run": WindowIconOutline,
   "view-runs": PlayIconOutline,
   "view-run": PlayIconOutline,
@@ -1365,6 +1426,7 @@ export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
 
 export const PANEL_ICONS_SOLID: Record<PanelType, any> = {
   "edit-file": CodeBracketIconSolid,
+  "edit-database": CircleStackIconSolid,
   "launch-run": WindowIconSolid,
   "view-runs": PlayIconSolid,
   "view-run": PlayIconSolid,
