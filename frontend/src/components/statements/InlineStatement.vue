@@ -5,10 +5,8 @@ import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import {
   BASIC_CONTROL_PARTS,
-  STANDALONE_ENABLED,
   STATEMENT_INTERFACES,
   STATEMENT_RUNNABLE_TYPES,
-  STATEMENT_STANDALONE_TYPES,
   type StatementElementId,
   type StatementEmitDict,
   type StatementInterface,
@@ -508,30 +506,9 @@ const isHighlighted = toValueRef(
 );
 
 // actions
-const hasStandaloneEditor = computed(() => STATEMENT_STANDALONE_TYPES.includes(statement.value.type));
 const canHaveText = computed(() => iface.value?.elements.some((e) => e.id == "text"));
 const defaultActions: Ref<StatementAction[]> = computed(() => {
   const actions = [];
-  if (hasStandaloneEditor.value && STANDALONE_ENABLED) {
-    actions.push({
-      groupId: "nav",
-      label: "Open",
-      icon: ArrowsPointingOutIcon,
-      hideInline: true,
-      action: () => {
-        bench.openEditStatement(statement.value, { focus: true });
-      },
-    });
-    actions.push({
-      groupId: "nav",
-      label: "Open on other side",
-      icon: ArrowsPointingOutIcon,
-      hideInline: true,
-      action: () => {
-        bench.openEditStatement(statement.value, { group: panel.panel.value.group, focus: true, opposite: true });
-      },
-    });
-  }
   if (canContentFold.value) {
     actions.push({
       groupId: "nav",

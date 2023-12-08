@@ -14,7 +14,6 @@ type StructAppearance = {
   minRowHeight?: number;
   maxRowHeight?: number;
   rowPadding?: number;
-  hideFieldOutline?: boolean;
   hideFieldType?: boolean;
   minimalFields?: boolean;
   view?: "tree" | "grid";
@@ -25,7 +24,6 @@ const DEFAULT_APPEARANCE = {
   minRowHeight: 32, // incl. padding
   maxRowHeight: 220,
   rowPadding: 4,
-  hideFieldOutline: true,
   hideFieldType: true,
   minimalFields: false,
   view: "grid",
@@ -254,7 +252,6 @@ defineExpose({
             :readonly="(readonly ?? false) || (readonlyType ?? false)"
             orientation="vertical"
             class="w-full self-start border-r border-amber-900/[12%] px-1.5 py-1 text-gray-700 focus-within:border-solid focus-within:bg-amber-200 hover:bg-amber-200"
-            :hide-outline="appearance.hideFieldOutline"
             hide-text
             :ref-types="[TypeTag.Enum, TypeTag.Struct]"
             :model-value="field"

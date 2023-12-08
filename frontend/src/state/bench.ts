@@ -1184,6 +1184,7 @@ export class EditFilePanel extends NavigablePanel {
 export class EditDatabasePanel extends NavigablePanel {
   type = "edit-database" as const;
   statementCk: string;
+  // nocheckin support (local) sort & filter in edit database panel
 
   constructor(statement: { ck: string; name?: string | null }) {
     super(

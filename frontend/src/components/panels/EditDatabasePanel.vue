@@ -8,6 +8,8 @@ import { useBenchState, type PanelContext, EditDatabasePanel } from "@/state/ben
 import { type Statement, useCurrentModule } from "@/state/module";
 import { computed, watch } from "vue";
 
+const PAGE_SIZE = 32;
+
 const props = defineProps<{ panel: PanelContext<EditDatabasePanel>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const bench = useBenchState();
@@ -65,6 +67,7 @@ watch(
       class="h-full w-full overflow-x-auto overflow-y-auto"
       :statement="(statement as Statement)"
       :target-min-width="props.panel.size.value?.width ?? 0"
+      :page-size="PAGE_SIZE"
     />
   </div>
 </template>
