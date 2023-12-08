@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
-import { getInterface } from "@/components/inputs";
+import { getInputInterface } from "@/components/inputs";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
@@ -56,7 +56,7 @@ import { humanizeNumber } from "@/composables/useNow";
 import { emptyConnection, getUpdatedConnectionQuery } from "@/utils/connection";
 
 const PAGE_SIZE = 10;
-const MAX_INLINE_RECORDS = 40;
+const MAX_INLINE_RECORDS = 3 * PAGE_SIZE;
 
 const props =
   defineProps<Pick<StatementProps, "statement" | "focused" | "readonly" | "editing" | "xoffset" | "visible">>();
@@ -141,7 +141,6 @@ const recordsFetched = computed(() => recordsFetchedResult.value?.searchRecords.
 const loading = computed(
   () => (recordsFetchedResult.value == null || recordsLoading.value) && recordsError.value == null
 );
-
 const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
 
 // auto refetch when bumped and using OS query engine (1s is the OS indexing delay)
@@ -227,7 +226,9 @@ watch(
       Math.min(panel.size.value.width - panel.panel.value.contentMarginX * 2, panel.panel.value.contentWidth) -
       props.xoffset -
       8; // from Statement interface
-    const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = allFields.value.map((f) => getInterface(f));
+    const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = allFields.value.map((f) =>
+      getInputInterface(f)
+    );
     if (showPropertiesColumn) {
       ifaces.push({ minWidth: propertiesColumnWidth, grow: 0.05 }); // 'fake' properties column
     }
@@ -484,6 +485,7 @@ const actions = computed(() => {
     action: () => {
       openAsDatabasePanel();
     },
+    hideInline: true,
   });
   actions.push({
     label: properties.wrapColumns ? "Unwrap columns" : "Wrap columns",
@@ -599,7 +601,7 @@ defineExpose({
                 is-view
                 hide-outline
                 orientation="horizontal"
-                class="h-full w-full border border-transparent bg-amber-100 py-1 pr-1 text-gray-700 focus-within:border-amber-900 focus-within:border-opacity-[15%] focus-within:bg-amber-200 hover:bg-amber-200"
+                class="h-full w-full border border-transparent px-1 py-1 text-gray-700 focus-within:border-amber-900 focus-within:border-opacity-[15%] focus-within:bg-amber-200 hover:bg-amber-200"
                 :model-value="field"
                 @update:model-value="(node: any) => updateField(field.key, node)"
                 @navigate-left="grid.navigateLeft('', field.key as string)"
@@ -739,6 +741,21 @@ defineExpose({
           <XCircleIconSolid class="h-4 w-4" /> <span class="whitespace-nowrap font-bold">Failed to load:</span>
           <span class="max-w-full truncate">{{ IS_DEBUG ? recordsError.message : "Internal error" }}</span>
         </button>
+        <!-- Insert button (or 'nothing here') -->
+        <button
+          v-if="!loading && (!readonly || recordsInView.length == 0)"
+          ref="addRecordRef"
+          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900/[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+          :style="{ height: minRowHeight + 'px' }"
+          @click.stop="readonly || insertRecordAtEnd()"
+          @keydown.enter.prevent="readonly || insertRecordAtEnd()"
+          @keydown.up.exact.prevent="focusLastRecord()"
+          @keydown.down.exact.prevent="emit('navigateDown')"
+          :disabled="loading"
+        >
+          <template v-if="readonly"> Nothing here </template>
+          <template v-else> <PlusIcon class="h-4 w-4" /> Record </template>
+        </button>
         <!-- Load more/loading/go to big database view -->
         <div
           class="flex flex-row rounded-sm border-b border-orange-900/[12%] group-focus-within/statement:text-gray-400"
@@ -748,7 +765,7 @@ defineExpose({
         >
           <!-- Load more/loading -->
           <button
-            v-if="pageInfo?.hasNextPage || loading"
+            v-if="(pageInfo?.hasNextPage || loading) && recordsInView.length < MAX_INLINE_RECORDS"
             ref="loadMoreRef"
             class="flex w-full flex-1 select-none flex-row items-center gap-0.5 px-1 py-1 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
             :class="[loading ? 'text-gray-400' : 'text-gray-300 ']"
@@ -769,27 +786,12 @@ defineExpose({
           <button
             ref="openPanelViewRef"
             class="flex flex-1 flex-row items-center justify-end px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
-            @click="openAsDatabasePanel()"
+            @click.stop="openAsDatabasePanel()"
           >
             <ArrowUpRightIcon class="mr-1 h-4 w-4" />
             View all ({{ humanizeNumber(totalCount ?? 0) }} records)
           </button>
         </div>
-        <!-- Insert button (or 'nothing here') -->
-        <button
-          v-if="!loading && (!readonly || recordsInView.length == 0)"
-          ref="addRecordRef"
-          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900/[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-          :style="{ height: minRowHeight + 'px' }"
-          @click.stop="readonly || insertRecordAtEnd()"
-          @keydown.enter.prevent="readonly || insertRecordAtEnd()"
-          @keydown.up.exact.prevent="(loadMoreRef?.focus ?? focusLastRecord)()"
-          @keydown.down.exact.prevent="emit('navigateDown')"
-          :disabled="loading"
-        >
-          <template v-if="readonly"> Nothing here </template>
-          <template v-else> <PlusIcon class="h-4 w-4" /> Record </template>
-        </button>
       </div>
     </div>
   </div>

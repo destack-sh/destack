@@ -207,7 +207,7 @@ registerInterface("node", {
   grow: 1.0,
 });
 
-export function getInterface(type: Field): ValueInterface | undefined {
+export function getInputInterface(type: Field): ValueInterface | undefined {
   let filtered = Object.values(interfaces);
   // find most specific interface that supports the type
   filtered = filtered.filter((i) => {
@@ -231,6 +231,6 @@ export function getInterface(type: Field): ValueInterface | undefined {
 }
 
 export function getMinWidth(type: Field): number | undefined {
-  const iface = getInterface(type);
+  const iface = getInputInterface(type);
   return iface?.minWidth;
 }

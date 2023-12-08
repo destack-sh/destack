@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { getInterface } from "@/components/inputs";
+import { getInputInterface } from "@/components/inputs";
 import CheckboxInput from "@/components/inputs/CheckboxInput.vue";
 import EnumInput from "@/components/inputs/EnumInput.vue";
 import FileInput from "@/components/inputs/FileInput.vue";
@@ -83,7 +83,7 @@ const editablePin = pinAbsoluteElement(editablePopoverRef, { pos: true, width: t
 const previewSize = useElementSize(previewButtonRef);
 
 const valueInterface = computed(() => {
-  const iface = getInterface(props.type);
+  const iface = getInputInterface(props.type);
   if (INTERFACES[iface?.id as string] != null) {
     return iface;
   } else if (iface != null) {

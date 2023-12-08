@@ -283,21 +283,21 @@ defineExpose({
         <div
           ref="previewRef"
           class="flex max-w-full flex-row items-center rounded-sm text-left"
-          :class="[isEnum || !hideOutline ? 'bg-amber-100 py-0.5 pr-2 ring-1 ring-inset ring-amber-600/[15%]' : '']"
+          :class="[isEnum || !hideOutline ? 'py-0.5 pr-2' : '']"
         >
           <!-- :EnumStyle -->
           <svg
             v-if="isEnum"
-            class="absolute left-2.5 top-[8px] h-[8px] w-[8px]"
+            class="absolute left-1 top-[8px] h-[8px] w-[8px]"
             :style="{ fill: getEnumColor(value) }"
             viewBox="0 0 6 6"
             aria-hidden="true"
           >
             <rect rx="2" ry="2" width="5" height="6" />
           </svg>
-          <TypePreview v-else :type="value" class="absolute left-1.5" />
+          <TypePreview v-else :type="value" class="absolute left-0" />
           <span
-            class="ml-7 max-w-full truncate text-gray-900"
+            class="ml-5 max-w-full truncate font-semibold text-gray-800"
             :class="[inlined ? 'underline decoration-fuchsia-300 underline-offset-4' : '', isEnum ? 'ml-4 ' : '']"
             >{{ value.name }}</span
           >

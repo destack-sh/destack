@@ -211,7 +211,7 @@ defineExpose({
           @delete-left="deleteField('input', field.id)"
           @delete-self="deleteField('input', field.id)"
           @drop="(p, v) => dropField(v.id, p, field.id)"
-          class="w-full self-start px-1 py-0.5 text-gray-700 focus-within:bg-amber-100 hover:bg-amber-50"
+          class="w-full self-start px-1 py-0.5 text-gray-700 focus-within:bg-amber-100 hover:bg-amber-100"
         />
       </template>
       <!-- Add a field -->
@@ -233,7 +233,7 @@ defineExpose({
     <!-- Lil' arrow -->
     <component
       :is="isHorizontal ? ArrowLongRightIcon : ArrowLongDownIcon"
-      class="mt-2 h-4 w-4 self-start text-gray-700"
+      class="mt-2 h-5 w-5 self-start text-gray-700"
     />
     <!-- Outputs -->
     <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication (but the UI is not great anyway) -->
@@ -241,7 +241,6 @@ defineExpose({
       <template v-for="field of outputs" :key="field.id">
         <FieldInterface
           :ref="(el: any) => outputGrid.registerColumnRef(field.id, 'type', el)"
-          :is="'type' == 'type' ? FieldInterface : ValueInterface"
           :model-value="readColumn(field as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('output', field.id, 'type', val)"
           :readonly="readonly"
