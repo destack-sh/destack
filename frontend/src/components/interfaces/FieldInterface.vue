@@ -37,6 +37,7 @@ const props = defineProps<{
   isView?: boolean;
   hideOutline?: boolean;
   hideText?: boolean;
+  canFilter?: boolean;
   orientation?: "horizontal" | "vertical";
   statementId?: string;
 }>();
@@ -55,6 +56,7 @@ const emit = defineEmits<{
   (e: "focus", event: FocusEvent): void;
   (e: "drop", p: "above" | "below" | "left" | "right", v: Dragged): void;
   (e: "sort", order: SortOp): void;
+  (e: "filter"): void;
 }>();
 
 const tupleName = computed(() => props.tupleName ?? "field");
@@ -150,9 +152,9 @@ const actions: Ref<TypeAction[]> = computed(() => {
         groupId: "query",
         label: "Filter",
         icon: FunnelIcon,
-        disabled: true,
+        disabled: !props.canFilter,
         action: () => {
-          /* not implemented yet */
+          emit("filter");
         },
       });
     }

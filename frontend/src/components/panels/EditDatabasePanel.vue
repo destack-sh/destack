@@ -8,6 +8,10 @@ import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, EditDatabasePanel } from "@/state/bench";
 import { type Statement, useCurrentModule, type NodeBase } from "@/state/module";
 import { computed, ref, watch } from "vue";
+import SortSetTile from "@/components/tiles/SortSetTile.vue";
+import ConditionalSetTile from "@/components/tiles/ConditionalSetTile.vue";
+import { useFieldsState } from "@/state/statement";
+import ViewPaginationTile from "@/components/tiles/ViewPaginationTile.vue";
 
 const PAGE_SIZE = 50;
 
@@ -19,6 +23,7 @@ const panel = computed(() => props.panel.panel.value);
 const appearance = useAppearance();
 const statement = computed(() => module.statementOf(props.panel.panel.value.statementCk));
 const path = computed(() => module.nodePathOf(props.panel.panel.value.statementCk));
+const fields = useFieldsState(statement);
 
 const contentRef = ref<InstanceType<typeof DatabaseTile> | null>(null);
 useActiveScroll(computed(() => contentRef.value?.$el));
@@ -60,8 +65,18 @@ watch(
     <PanelStatusNotice :thing="statement" name="file" :loading="module.loading.value" />
 
     <!-- Header (search/views/pagination/create) -->
-    <div class="w-full px-2 pb-1.5 pt-8 text-sm">
-      <span>TODO search nocheckin</span>
+    <div class="flex w-full flex-row gap-1.5 px-2 pb-1.5 pt-8 text-sm">
+      <!-- TODO: inline query -->
+      <ConditionalSetTile
+        :fields="fields.allFields.value"
+        :model-value="panel.filters"
+        @update:model-value="panel.filters = $event"
+      />
+      <SortSetTile
+        :fields="fields.allFields.value"
+        :model-value="panel.sorts"
+        @update:model-value="panel.sorts = $event"
+      />
     </div>
 
     <!-- Content -->

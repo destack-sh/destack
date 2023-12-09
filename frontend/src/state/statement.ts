@@ -46,6 +46,7 @@ import {
 import { computed, type Ref } from "vue";
 import { useNavigationContext, type CopiedStatement } from "@/state/file";
 import uFuzzy from "@leeoniya/ufuzzy";
+import type { State } from "monaco-languageclient/.";
 
 function _computedEmptyIfDisabled<T>(func: () => T, enabled?: Ref<boolean>) {
   return computed(() => (enabled?.value !== false ? func() : []));
@@ -73,12 +74,12 @@ export function useTriggers(statement: Ref<Statement>) {
   };
 }
 
-export function useFieldsState(statement: Ref<Statement>, enabled?: Ref<boolean>) {
+export function useFieldsState(statement: Ref<InterpStatement | Statement | undefined>, enabled?: Ref<boolean>) {
   const module = useCurrentModule();
 
   const fields = _computedEmptyIfDisabled(
     () =>
-      statement.value.fields
+      statement.value?.fields
         ?.map((n) => n as Field)
         .filter((n) => n.deletedAt == null)
         .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? [],
@@ -86,7 +87,7 @@ export function useFieldsState(statement: Ref<Statement>, enabled?: Ref<boolean>
   );
   const resolvedFields = _computedEmptyIfDisabled(
     () =>
-      statement.value.resolvedFields
+      statement.value?.resolvedFields
         ?.map((n) => n as ResolvedField)
         .map((n) => (n?.fieldCk == null ? null : module.fieldOf(n.fieldCk)))
         .filter((n) => n != null && n.deletedAt == null && !(n.flags & TypeFlag.IS_CONFIG))
@@ -450,7 +451,7 @@ export type DatabaseStatementProperties = {
   wrapColumns: boolean;
   // local 'view' (because we don't have proper module database view yet, this is the only view)
   sorts?: Sort[];
-  query?: Conditional;
+  filters?: Conditional[];
 };
 
 export type MorphCommandGroup = {

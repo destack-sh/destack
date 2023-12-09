@@ -146,19 +146,19 @@ registerInterface("number.rating", {
 registerInterface("boolean.checkbox", {
   tags: [TypeTag.Boolean],
   map: coerceToBoolean,
-  minWidth: 40,
+  minWidth: 80,
   inline: true,
 });
 registerInterface("boolean.toggle", {
   hints: [TypeHint.Toggle],
   map: coerceToBoolean,
-  minWidth: 40,
+  minWidth: 80,
   inline: true,
 });
 registerInterface("boolean.thumbs", {
   hints: [TypeHint.Thumbs],
   map: coerceToBoolean,
-  minWidth: 40,
+  minWidth: 80,
   inline: true,
 });
 // type reference
