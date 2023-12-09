@@ -50,6 +50,7 @@ const emit = defineEmits<{
   (e: "openActions"): void;
   (e: "createField"): void;
   (e: "addSort", sort: { field: Field; order?: SortOp }): void;
+  (e: "addFilter", filter: { field: Field }): void;
 }>();
 const module = useCurrentModule();
 const appearance = useAppearance();
@@ -393,6 +394,7 @@ defineExpose({
         }"
         is-view
         orientation="horizontal"
+        can-filter
         :model-value="field"
         @update:model-value="updateField(field.key, $event as Field)"
         @navigate-left="grid.navigateLeft('', field.key as string)"
@@ -402,14 +404,15 @@ defineExpose({
         @delete-self="deleteField(field)"
         @duplicate-self="duplicateField(field.id)"
         @drop="(p, v) => dropField(v.id, p, field.id)"
-        @sort="(order) => emit('addSort', { field, order })"
         @enter="grid.navigateDown('', field.key as string)"
+        @sort="(order) => emit('addSort', { field, order })"
+        @filter="() => emit('addFilter', { field })"
       />
       <!-- Properties column (add + settings) -->
       <div
         class="flex flex-row items-center overflow-x-hidden whitespace-nowrap border-b border-t border-amber-900/[12%]"
         :style="{
-          width: columnWidths[columnWidths.length - 1] + 'px',
+          width: propertiesColumnWidth + 'px',
         }"
       >
         <!-- Add column -->

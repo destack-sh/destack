@@ -116,7 +116,7 @@ defineExpose({
       @keydown.down.exact.prevent="emit('navigateDown')"
     >
       <TagIconSolid class="mt-0.5 h-4 w-4" />
-      <span class="text-orange-00 ml-0.5">
+      <span class="text-orange-00 ml-0.5 font-semibold">
         {{ module.tagsByKey.value[tagging.key]?.name ?? (IS_DEBUG ? tagging.key : "???") }}
       </span>
     </button>

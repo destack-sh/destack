@@ -139,7 +139,7 @@ defineExpose({
         <component :is="TRIGGER_ICONS_SOLID[TriggerType.Time]" class="h-4 w-4" />
         <PauseIcon v-if="!trigger.active" class="h-4 w-4" />
       </span>
-      <span class="max-w-[120px] truncate whitespace-nowrap text-sm">
+      <span class="max-w-[120px] truncate whitespace-nowrap text-sm font-semibold">
         {{ triggerSchedules[i]?.humanized ?? "???" }}
       </span>
       <!-- Full trigger + schedule on hover -->

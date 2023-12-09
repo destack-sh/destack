@@ -2,7 +2,13 @@
 import { useActiveScroll } from "@/composables/useScroll";
 import { SortOp, type Sort, TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { usePanelContext, useElementPanelSettings, type StatementAction, useBenchState } from "@/state/bench";
+import {
+  usePanelContext,
+  useElementPanelSettings,
+  type StatementAction,
+  useBenchState,
+  EditDatabasePanel,
+} from "@/state/bench";
 import { useCurrentModule, type Field, type Record, type NodeBase } from "@/state/module";
 import { useFields, type DatabaseStatementProperties } from "@/state/statement";
 import { IS_DEBUG, IS_LOCALHOST } from "@/utils/globals";
@@ -25,6 +31,9 @@ import { humanizeNumber } from "@/composables/useNow";
 import DatabaseTile from "@/components/tiles/DatabaseTile.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import SortSetTile from "@/components/tiles/SortSetTile.vue";
+import ConditionalSetTile from "@/components/tiles/ConditionalSetTile.vue";
+import ViewPaginationTile from "@/components/tiles/ViewPaginationTile.vue";
 
 const PAGE_SIZE = 10;
 
@@ -81,7 +90,11 @@ const sort: Ref<Sort[] | null> = computed(() => {
 useActiveScroll(gridRef);
 
 function openAsDatabasePanel() {
-  bench.openEditDatabase(props.statement as NodeBase, { focus: true });
+  // nocheckin: forward query & filter to edit database panel
+  const panel = bench.openEditDatabase(props.statement as NodeBase, { focus: true }) as EditDatabasePanel;
+  panel.sorts = properties.sorts;
+  panel.filters = properties.filters;
+  panel.inlineQuery = properties.inlineQuery;
 }
 
 // drag & drop
@@ -167,26 +180,18 @@ defineExpose({
 </script>
 <template>
   <div>
-    <!-- Sorts/filters -->
-    <div
-      v-if="(properties.sorts ?? []).length > 0 || properties.query != null"
-      class="-mx-0.5 mb-1 flex flex-row flex-wrap gap-1.5"
-    >
-      <!-- Sort pills -->
-      <span
-        v-for="sort in properties.sorts ?? []"
-        :key="sort.field"
-        class="flex w-fit flex-row items-center rounded-xl border border-amber-900/[15%] px-1.5 py-0.5 text-gray-900"
-      >
-        <span class="underline decoration-gray-300 underline-offset-4">
-          {{ fields.allFields.value.find((f) => sort.field == f.ck)?.name }}
-        </span>
-        <span class="ml-0.5 text-gray-700">{{ sort.order == SortOp.Ascending ? "↑" : "↓" }}</span>
-        <!-- Clear button -->
-        <button @click="removeSort(sort)">
-          <XMarkIcon class="h-3 w-3 text-gray-400" />
-        </button>
-      </span>
+    <!-- Views: sorts/filters/pagination -->
+    <div class="-mx-0.5 mb-1 flex flex-row flex-wrap items-center gap-2">
+      <ConditionalSetTile
+        :fields="fields.allFields.value"
+        :model-value="properties.filters"
+        @update:model-value="properties.filters = $event"
+      />
+      <SortSetTile
+        :fields="fields.allFields.value"
+        :model-value="properties.sorts"
+        @update:model-value="properties.sorts = $event"
+      />
     </div>
     <!-- Table (in table form but manually sized) -->
     <!-- Wrapper to contain any scrolling -->
