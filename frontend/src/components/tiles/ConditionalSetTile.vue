@@ -1,9 +1,12 @@
 <script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
+import SelectFieldInterface from "@/components/interfaces/SelectFieldInterface.vue";
 import ConditionalTile from "@/components/tiles/ConditionalTile.vue";
+import { pinAbsoluteElement } from "@/composables/useFixed";
 import type { Conditional } from "@/gql/graphql";
 import type { Field, Statement } from "@/state/module";
 import { PlusIcon } from "@heroicons/vue/24/solid";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps<{ fields: Field[]; modelValue?: Conditional[] }>();
 const emit = defineEmits<{ (e: "update:modelValue", value?: Conditional[]): void }>();
@@ -25,10 +28,23 @@ function updateConditional(index: number, conditional?: Conditional) {
   }
   emit("update:modelValue", value);
 }
+
+const adding = ref(false);
+const popoverRef = ref<HTMLDivElement | null>(null);
+const popoverPin = pinAbsoluteElement(popoverRef, { pos: true, keepInView: true });
+
+function close() {
+  adding.value = false;
+}
+
+function open() {
+  adding.value = true;
+}
 </script>
 <template>
-  <div>
-    <!-- nocheckin filter -->
+  <div class="relative">
+    <!-- Filters/select potential filters -->
+    <!-- nocheckin: select potential filters -->
     <ConditionalTile
       v-for="(conditional, i) in modelValue?.filter((c) => fieldsByCk[c.field as string] != null) ?? []"
       :key="i"
@@ -36,10 +52,27 @@ function updateConditional(index: number, conditional?: Conditional) {
       :modelValue="conditional"
       @update:modelValue="($event) => updateConditional(i, $event)"
     />
-    <button class="flex flex-row items-center rounded-sm px-0.5 py-0.5 text-gray-400 hover:bg-amber-100">
-      <!-- nocheckin: select field to filter -->
+    <!-- Arbitary filters -->
+    <button class="flex flex-row items-center rounded-sm px-0.5 py-0.5 text-gray-400 hover:bg-amber-100" @click="open">
       <PlusIcon class="h-4 w-4" />
       Filter
     </button>
+    <!-- Prevent scroll and capture click outside -->
+    <div v-if="adding" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />
+    <!-- Add popover -->
+    <FadeTransition>
+      <div
+        v-if="adding"
+        ref="popoverRef"
+        class="z-50 flex w-60 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        :class="[popoverPin.pinned.value ? '' : 'absolute -right-48 top-7']"
+        @keydown.escape.exact.prevent.stop="close()"
+      >
+        <div class="px-1 text-sm text-gray-700">
+          <span>Filter by</span>
+        </div>
+        <SelectFieldInterface class="mt-1" :options="fields" @update:modelValue="($event) => addFilter($event)" />
+      </div>
+    </FadeTransition>
   </div>
 </template>

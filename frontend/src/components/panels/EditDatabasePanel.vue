@@ -7,11 +7,11 @@ import { useActiveScroll } from "@/composables/useScroll";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, EditDatabasePanel } from "@/state/bench";
 import { type Statement, useCurrentModule, type NodeBase } from "@/state/module";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import SortSetTile from "@/components/tiles/SortSetTile.vue";
 import ConditionalSetTile from "@/components/tiles/ConditionalSetTile.vue";
 import { useFieldsState } from "@/state/statement";
-import ViewPaginationTile from "@/components/tiles/ViewPaginationTile.vue";
+import { ConditionalOp, type Conditional } from "@/gql/graphql";
 
 const PAGE_SIZE = 50;
 
@@ -24,6 +24,14 @@ const appearance = useAppearance();
 const statement = computed(() => module.statementOf(props.panel.panel.value.statementCk));
 const path = computed(() => module.nodePathOf(props.panel.panel.value.statementCk));
 const fields = useFieldsState(statement);
+
+const combinedQuery: Ref<Conditional | undefined> = computed(() => {
+  if ((panel.value.filters ?? []).length == 0) return undefined;
+  return {
+    op: ConditionalOp.And,
+    clauses: panel.value.filters,
+  } as Conditional;
+});
 
 const contentRef = ref<InstanceType<typeof DatabaseTile> | null>(null);
 useActiveScroll(computed(() => contentRef.value?.$el));
@@ -91,6 +99,8 @@ watch(
       :target-min-width="props.panel.size.value?.width ?? 0"
       :page-size="PAGE_SIZE"
       :padding-left="8 /* for record actions since this is full panel */"
+      :query="combinedQuery"
+      :sort="panel.sorts"
       selectable
     />
   </div>
