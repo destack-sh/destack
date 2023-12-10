@@ -90,7 +90,6 @@ const sort: Ref<Sort[] | null> = computed(() => {
 useActiveScroll(gridRef);
 
 function openAsDatabasePanel() {
-  // nocheckin: forward query & filter to edit database panel
   const panel = bench.openEditDatabase(props.statement as NodeBase, { focus: true }) as EditDatabasePanel;
   panel.sorts = properties.sorts;
   panel.filters = properties.filters;

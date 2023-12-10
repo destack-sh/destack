@@ -7,7 +7,7 @@ const emit = defineEmits<{ (e: "update:modelValue", value?: Conditional): void }
 </script>
 <template>
   <div>
-    <!-- nocheckin -->
+    <!-- nocheckin: conditional -->
     filter {{ field.name }}
   </div>
 </template>
