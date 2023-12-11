@@ -22,12 +22,12 @@ from bench.language.const import ConditionalOp, IssueType, NodePath, SortMode, S
 from bench.language.expression import C
 from bench.language.field import TypedDict
 from bench.language.module import LookupBy, Node, ScopeNode, bruntime, node_component
-from bench.language.validation import ValidationHandler
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
     from bench.language import Statement
+    from bench.language.issue import IssueHandler
 
 logger = structlog.get_logger(__name__)
 

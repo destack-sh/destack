@@ -15,7 +15,7 @@ from bench.language.const import (
     SessionAccessLevel,
     new_dynamic_node_key,
 )
-from bench.language.expression import C, Expression, coerce_conditional, coerce_sort, ExpressionOps
+from bench.language.expression import C, Expression, ExpressionOps, coerce_conditional, coerce_sort
 from bench.language.issue import IssueHandler
 from bench.language.module import (
     _NC,
@@ -119,6 +119,10 @@ _RecordFetchResult = typing.NamedTuple(
     [
         ("records", list["RecordData"]),
         ("cursors", list[str]),
+        (
+            "start_cursor",
+            str | None,
+        ),  # special because it encodes 'include me' (after is exclusive)
         ("total", int | None),
         ("engine", QueryEngine),
     ],
@@ -229,11 +233,15 @@ class RecordQuery:
                 sort=self._sort,
             )
             return _RecordFetchResult(
-                os_results.as_records(), os_results.cursors, os_results.total, target_engine
+                os_results.as_records(),
+                os_results.cursors,
+                os_results.start_cursor,
+                os_results.total,
+                target_engine,
             )
         elif target_engine == QueryEngine.POSTGRES:
             assert pg_cursor is not None, f"missing pg_cursor for {self!r}"
-            records, cursors = await pg_select_records(
+            records, cursors, start_cursor = await pg_select_records(
                 cur=pg_cursor,
                 database=self._database,
                 where=where,
@@ -250,7 +258,7 @@ class RecordQuery:
                 )
             else:
                 count = None
-            return _RecordFetchResult(records, cursors, count, target_engine)
+            return _RecordFetchResult(records, cursors, start_cursor, count, target_engine)
         else:
             raise ValueError(f"unexpected query engine {target_engine}")
 

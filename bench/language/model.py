@@ -19,10 +19,9 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
 
-from .validation import ValidationHandler
-
 if typing.TYPE_CHECKING:
     from bench.language import Statement
+    from bench.language.issue import IssueHandler
     from bench.language.task import TaskCompiler
 
 logger = structlog.get_logger(__name__)

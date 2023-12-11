@@ -38,7 +38,7 @@ from bench.language.const import (
 )
 from bench.language.database import RecordQuery
 from bench.language.edit import EditData, EditKind, NodeTreeEditor
-from bench.language.expression import SCORE_KEY, C, S, ExpressionOps
+from bench.language.expression import SCORE_KEY, C, ExpressionOps, S
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.module import NodeTree, on_issue_raise, walk_bfs
@@ -1028,6 +1028,7 @@ class RuntimeHost:
             rep = RepSearchRecordsPayload(
                 records=fetched.records,
                 cursors=fetched.cursors,
+                start_cursor=fetched.start_cursor,
                 total=fetched.total,
                 limit=msg.p.limit,
                 engine=fetched.engine,

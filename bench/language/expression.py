@@ -23,6 +23,7 @@ from bench.language.module import Struct, bproperty, struct
 
 if TYPE_CHECKING:
     from bench.language import Field, HasFields, Node, ScopeNode
+    from bench.language.issue import IssueHandler
 
 
 #
@@ -78,7 +79,7 @@ class Expression(Struct):
         return self.op.name
 
     def __repr__(self):
-        return f"<{self.op.name} {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     def __invert__(self):
         if self.op == ConditionalOp.TRUE:
@@ -174,7 +175,7 @@ class Expression(Struct):
         return base
 
 
-class ExpressionOps:
+class ExpressionOps:  # :ExpressionOps
     # Conditionals
     COND_STATIC = {ConditionalOp.TRUE, ConditionalOp.FALSE}
     COND_LOGICAL = {ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR}
@@ -191,7 +192,7 @@ class ExpressionOps:
         ConditionalOp.LESS_THAN_OR_EQUALS,
     }
     COND_COMPARISON = {*COND_EXACT, *COND_RANGE}
-    COND_STRUCT = {ConditionalOp.CONTAINS, ConditionalOp.NOT_CONTAINS}
+    COND_SET = {ConditionalOp.CONTAINS, ConditionalOp.NOT_CONTAINS}
     COND_EXISTENCE = {ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS}
     COND_VECTOR = {ConditionalOp.NEAR}
     COND_STRING = {ConditionalOp.STARTS_WITH, ConditionalOp.MATCHES}
@@ -210,14 +211,12 @@ class ExpressionOps:
     SORT = {SortOp.ASCENDING, SortOp.DESCENDING}
 
 
-RANKED_CONDITIONAL_OPS = {*ExpressionOps.COND_STRING, *ExpressionOps.COND_VECTOR}
-
 EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionOp]] = {
     ExpressionKind.CONDITIONAL: {
         *ExpressionOps.COND_STATIC,
         *ExpressionOps.COND_LOGICAL,
         *ExpressionOps.COND_EXACT,
-        *ExpressionOps.COND_STRUCT,
+        *ExpressionOps.COND_SET,
         *ExpressionOps.COND_RANGE,
         *ExpressionOps.COND_EXISTENCE,
         *ExpressionOps.COND_VECTOR,
@@ -346,6 +345,7 @@ TYPE_DISCRIMINATOR_KEY = "_type"
 
 #
 # Field query ops
+# :ExpressionSupport
 #
 
 

@@ -425,6 +425,7 @@ class ReqSearchRecordsPayload(ReqSearch, Payload):
 class RepSearchRecordsPayload(RepSearch, Payload):
     records: Optional[list[RecordData]] = None
     cursors: Optional[list[str]] = None
+    start_cursor: Optional[str] = None
 
 
 @payload(NMessageType.DOWNLOAD_BLOB)

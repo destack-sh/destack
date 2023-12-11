@@ -244,7 +244,7 @@ class RecordQuery:
         else:
             edges = []
         page_info = PageInfo(
-            start_cursor=cursors[0] if cursors else None,
+            start_cursor=rep.p.start_cursor,
             end_cursor=cursors[-1] if cursors else None,
             has_next_page=bool(rep.p.records) and len(rep.p.records) > effective_limit,
             has_previous_page=False,

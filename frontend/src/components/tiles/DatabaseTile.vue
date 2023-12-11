@@ -66,7 +66,6 @@ const fieldsTypedKeyByCk: Ref<GRecord<string, string>> = toValueRef(
   computed(() => Object.fromEntries(allFields.value.map((f) => [f.ck, module.getTypedKey(f) as string])))
 );
 
-// :QueryFieldPolicies
 const searchQueryVariables: Ref<SearchRecordsQueryVariables> = computed(
   () =>
     ({

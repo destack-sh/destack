@@ -839,12 +839,10 @@ async def pg_select_records(
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
-) -> tuple[list[wire.RecordData], list[str]]:
+) -> tuple[list[wire.RecordData], list[str], str | None]:
     """Executes a select query on the given database."""
     if after:
-        if skip is not None:
-            raise ValueError("cannot specify both after and skip")
-        skip = int(decode_pg_cursor(after))
+        skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
     where = compile_pg_conditional(database, where) if where is not None else None
     sort = compile_pg_sorts(database, sort) if sort is not None else None
     rows = await pg_select(
@@ -853,11 +851,13 @@ async def pg_select_records(
     records_data = [pg_unpack_record_row(database, row) for row in rows]
     cursors = [encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(records_data))]
     assert len(records_data) == len(cursors), f"unexpected cursors: {cursors} for {records_data}"
-    return records_data, cursors
+    return records_data, cursors, after
 
 
 @cachetools.cached({})
-def encode_pg_cursor(i: int) -> str:
+def encode_pg_cursor(i: int, exclusive: bool = True) -> str:
+    if not exclusive:
+        i -= 1  # include current element
     return base64.b64encode(struct.pack("q", i)).decode("ascii")
 
 
