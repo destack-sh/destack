@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -12,6 +12,7 @@ from bench.language.const import (
     ExpressionOp,
     IssueType,
     QueryEngine,
+    SortMode,
     SortOp,
     StructType,
     TypeHint,
@@ -19,10 +20,9 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.module import Struct, bproperty, struct
-from bench.utils.func import get_subclasses
 
 if TYPE_CHECKING:
-    from bench.language import Field, HasFields, ScopeNode, SortMode
+    from bench.language import Field, HasFields, Node, ScopeNode
     from bench.language.validation import ValidationHandler
 
 
@@ -46,28 +46,81 @@ FieldReference = UUID | str  # str as an alias for fields that we don't have ref
 @struct(StructType.EXPRESSION)
 class Expression(Struct):
     op: ExpressionOp = bproperty(is_required=True)
-
-    def __str__(self):
-        return self.__class__.__name__
-
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self})"
+    field: FieldReference | Field | None = bproperty(default=None)
+    clauses: list[Expression] | None = bproperty(default=None)
+    value: Any = bproperty(default=None)
+    mode: Optional[SortMode] = bproperty(default=None)
 
     @property
     def kind(self) -> ExpressionKind:
-        return EXPRESSION_KIND_BY_CLASS[type(self)]
+        return EXPRESSION_KIND_BY_OP[self.op]
 
+    def __bool__(self):
+        raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
-@struct(StructType.EXPRESSION)
-class FieldExpression(Expression):
-    field: Field | FieldReference = bproperty(is_required=True)
+    def __str__(self):
+        if self.op in ExpressionOps.COND_STATIC:
+            return self.op.name.lower()
+        elif self.op in ExpressionOps.COND_LOGICAL:
+            return f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses)
+        elif self.op in ExpressionOps.COND_EXACT:
+            value_str = str(self.value)
+            if len(value_str) > 32:
+                value_str = f"{value_str[:24]}...{value_str[-12:]}"
+            return f"{self._field_str}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
+        elif self.op in ExpressionOps.COND_EXISTENCE:
+            return f"{self._field_str}{_CONDITIONAL_OP_SIGN[self.op]}"
+        elif self.op in ExpressionOps.SORT:
+            return f"{'-' if self.op == SortOp.DESCENDING else ''}{self._field_str}"
+        return self.op.name
 
-    @property
-    def _field_str(self) -> str:
-        if not isinstance(self.field, (UUID, str)):
-            return self.field.py_ident
+    def __repr__(self):
+        return f"<{self.op.name} {self}>"
+
+    def __invert__(self):
+        if self.op == ConditionalOp.TRUE:
+            return C(ConditionalOp.FALSE)
+        elif self.op == ConditionalOp.FALSE:
+            return C(ConditionalOp.TRUE)
+        elif self.op == ConditionalOp.NOT:
+            return self.clauses[0]
+        elif self.op == ConditionalOp.EXISTS:
+            return C(ConditionalOp.NOT_EXISTS, field=self.field)
+        elif self.op == ConditionalOp.NOT_EXISTS:
+            return C(ConditionalOp.EXISTS, field=self.field)
         else:
-            return str(self.field)
+            return C(ConditionalOp.NOT, clauses=[self])
+
+    def __and__(self, other: Expression):
+        if not isinstance(other, Expression) or other.kind != ExpressionKind.CONDITIONAL:
+            raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
+        if self.op == ConditionalOp.AND:
+            if isinstance(other, Expression) and other.op == ConditionalOp.AND:
+                return C(ConditionalOp.AND, clauses=[*self.clauses, *other.clauses])
+            else:
+                return C(ConditionalOp.AND, clauses=[*self.clauses, other])
+        else:
+            return C(ConditionalOp.AND, clauses=[self, other])
+
+    def __or__(self, other: Expression):
+        if not isinstance(other, Expression) or other.kind != ExpressionKind.CONDITIONAL:
+            raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
+        if self.op == ConditionalOp.OR:
+            if isinstance(other, Expression) and other.op == ConditionalOp.OR:
+                return C(ConditionalOp.OR, clauses=[*self.clauses, *other.clauses])
+            else:
+                return C(ConditionalOp.OR, clauses=[*self.clauses, other])
+        else:
+            return C(ConditionalOp.OR, clauses=[self, other])
+
+    def _walk_inner(self, on_member: Callable[[Union["Node", "Struct"]], None]):
+        from bench.language import Node
+
+        if isinstance(self.field, Node):
+            on_member(self.field)
+        if self.clauses:
+            for clause in self.clauses:
+                on_member(clause)
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         if not isinstance(self.field, (UUID, str)) and (
@@ -76,17 +129,42 @@ class FieldExpression(Expression):
             self._set_untracked("field", self.field.ck)
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
-        resolved = self.field
-        if isinstance(self.field, UUID):
-            resolved = scope.lookup(self.field)
-        if resolved is None:
-            on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<expression>")
+        if self.field:
+            resolved = self.field
+            if isinstance(self.field, UUID):
+                resolved = scope.lookup(self.field)
+            if resolved is None:
+                on_issue(type=IssueType.MISSING_REFERENCE, subject=scope, path="<expression>")
+            else:
+                self._set_untracked("field", resolved)
+
+    @property
+    def _field_str(self) -> str:
+        if not isinstance(self.field, (UUID, str)):
+            return self.field.py_ident
         else:
-            self._set_untracked("field", resolved)
+            return str(self.field)
 
     @property
     def field_key(self) -> str:
         return self.field if isinstance(self.field, str) else self.field._source_key
+
+    @property
+    def is_scored(self) -> bool:
+        return self.op in RANKED_CONDITIONAL_OPS
+
+    @staticmethod
+    def and_if_set(
+        *clauses: Optional[Expression],
+    ) -> Optional[Expression]:
+        base = None
+        for clause in clauses:
+            if clause is not None:
+                if base is None:
+                    base = clause
+                else:
+                    base &= clause
+        return base
 
 
 class ExpressionOps:
@@ -108,6 +186,7 @@ class ExpressionOps:
     }
     COND_EXISTENCE = {ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS}
     COND_VECTOR = {ConditionalOp.NEAR}
+    COND_COMPARISON = {*COND_EXACT, *COND_RANGE}
     # Aggregations
     AGG_SINGLE = {
         AggregationOp.COUNT,
@@ -124,170 +203,22 @@ class ExpressionOps:
 
 RANKED_CONDITIONAL_OPS = {ConditionalOp.MATCHES, *ExpressionOps.COND_VECTOR}
 
-EXPRESSION_CLASS_BY_OP: dict[ExpressionOp, type[Expression]] = {}
-
-
-def expression(*ops: ExpressionOp):
-    """Register a query class for the given ops."""
-
-    def decorator(cls: type[Expression]):
-        if not issubclass(cls, Expression):
-            raise TypeError(f"expression {cls} must be a subclass of {Expression}")
-        cls = struct(StructType.EXPRESSION)(cls)
-        for op in ops:
-            if op in EXPRESSION_CLASS_BY_OP:
-                raise RuntimeError(
-                    f"expression for {op} already registered: {EXPRESSION_CLASS_BY_OP[op]}"
-                )
-            EXPRESSION_CLASS_BY_OP[op] = cls
-        return cls
-
-    return decorator
-
-
-@expression()
-class Conditional(Expression):
-    def __bool__(self):
-        raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
-
-    def __invert__(self):
-        return C(ConditionalOp.NOT, clauses=[self])
-
-    def __and__(self, other):
-        if not isinstance(other, Conditional):
-            raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
-        return C(ConditionalOp.AND, clauses=[self, other])
-
-    def __or__(self, other):
-        if not isinstance(other, Conditional):
-            raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
-        return C(ConditionalOp.OR, clauses=[self, other])
-
-    @property
-    def is_scored(self) -> bool:
-        return self.op in RANKED_CONDITIONAL_OPS
-
-    @staticmethod
-    def and_if_set(
-        *clauses: Optional[Conditional],
-    ) -> Optional[Conditional]:
-        base = None
-        for clause in clauses:
-            if clause is not None:
-                if base is None:
-                    base = clause
-                else:
-                    base &= clause
-        return base
-
-
-@expression(ConditionalOp.TRUE, ConditionalOp.FALSE)
-class StaticConditional(Conditional):
-    def __invert__(self):
-        if self.op == ConditionalOp.TRUE:
-            return C(ConditionalOp.FALSE)
-        else:
-            return C(ConditionalOp.TRUE)
-
-    def __str__(self):
-        return self.op.name.lower()
-
-
-@expression(ConditionalOp.NOT, ConditionalOp.AND, ConditionalOp.OR)
-class CompoundConditional(Conditional):
-    clauses: list[Conditional] = bproperty(is_required=True)
-
-    def __str__(self):
-        return f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses)
-
-    def __invert__(self):
-        if self.op == ConditionalOp.NOT:
-            return self.clauses[0]
-        else:
-            return super().__invert__()
-
-    def __and__(self, other):
-        if not isinstance(other, Conditional):
-            raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
-        if self.op == ConditionalOp.AND:
-            if isinstance(other, CompoundConditional) and other.op == ConditionalOp.AND:
-                return C(ConditionalOp.AND, clauses=[*self.clauses, *other.clauses])
-            else:
-                return C(ConditionalOp.AND, clauses=[*self.clauses, other])
-        else:
-            return super().__and__(other)
-
-    def __or__(self, other):
-        if not isinstance(other, Conditional):
-            raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
-        if self.op == ConditionalOp.OR:
-            if isinstance(other, CompoundConditional) and other.op == ConditionalOp.OR:
-                return C(ConditionalOp.OR, clauses=[*self.clauses, *other.clauses])
-            else:
-                return C(ConditionalOp.OR, clauses=[*self.clauses, other])
-        else:
-            return super().__or__(other)
-
-    @property
-    def is_scored(self) -> bool:
-        return any(q.is_scored for q in self.clauses)
-
-
-@expression(
-    ConditionalOp.EQUALS,
-    ConditionalOp.NOT_EQUALS,
-    ConditionalOp.GREATER_THAN,
-    ConditionalOp.GREATER_THAN_OR_EQUALS,
-    ConditionalOp.LESS_THAN,
-    ConditionalOp.LESS_THAN_OR_EQUALS,
-    ConditionalOp.MATCHES,
-    ConditionalOp.STARTS_WITH,
-    ConditionalOp.NEAR,
-)
-class ComparisonConditional(FieldExpression, Conditional):
-    value: Any = bproperty(is_required=True)
-
-    def __str__(self):
-        value_str = str(self.value)
-        if len(value_str) > 32:
-            value_str = f"{value_str[:24]}...{value_str[-12:]}"
-        return f"{self._field_str}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
-
-
-@expression(ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS)
-class ExistenceConditional(FieldExpression, Conditional):
-    def __str__(self):
-        return f"{self._field_str}{_CONDITIONAL_OP_SIGN[self.op]}"
-
-    def __invert__(self):
-        if self.op == ConditionalOp.EXISTS:
-            return C(ConditionalOp.NOT_EXISTS, field=self.field)
-        else:
-            return C(ConditionalOp.EXISTS, field=self.field)
-
-
-@expression(*SortOp)
-class Sort(FieldExpression):
-    mode: Optional[SortMode] = bproperty(default=None)
-
-    def __str__(self):
-        return f"{self._field_str}{'-' if self.op == SortOp.DESCENDING else ''}"
-
-
-@expression(*AggregationOp)
-class Aggregation(FieldExpression):
-    pass
-
-
-EXPRESSION_KIND_BY_CLASS: dict[type[Expression], ExpressionKind] = {
-    Conditional: ExpressionKind.CONDITIONAL,
-    Sort: ExpressionKind.SORT,
-    Aggregation: ExpressionKind.AGGREGATION,
+EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionOp]] = {
+    ExpressionKind.CONDITIONAL: {
+        *ExpressionOps.COND_STATIC,
+        *ExpressionOps.COND_LOGICAL,
+        *ExpressionOps.COND_EXACT,
+        *ExpressionOps.COND_STRUCT,
+        *ExpressionOps.COND_RANGE,
+        *ExpressionOps.COND_EXISTENCE,
+        *ExpressionOps.COND_VECTOR,
+    },
+    ExpressionKind.AGGREGATION: {*ExpressionOps.AGG_SINGLE, *ExpressionOps.AGG_BUCKET},
+    ExpressionKind.SORT: {*ExpressionOps.SORT},
 }
-# expand into subclasses
-for super_t, kind in list(EXPRESSION_KIND_BY_CLASS.items()):
-    for sub_t in get_subclasses(super_t):
-        EXPRESSION_KIND_BY_CLASS[sub_t] = kind
+EXPRESSION_KIND_BY_OP: dict[ExpressionOp, ExpressionKind] = {
+    op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops
+}
 
 CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
     "eq": ConditionalOp.EQUALS,
@@ -303,10 +234,10 @@ CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
 
 def coerce_conditional(
     statement: "HasFields",
-    expr: Optional[Conditional],
+    expr: Optional[Expression],
     kwargs: Optional[dict[str, Any]] = None,
     return_none_if_empty: bool = False,
-) -> Optional[Conditional]:
+) -> Optional[Expression]:
     """
     Coerce a conditional expression from either the given expression or kwargs.
     Useful for basic Django-style querying (with optional __<op>, but no relation support yet).
@@ -314,7 +245,7 @@ def coerce_conditional(
     if expr is not None and kwargs:
         raise TypeError(f"cannot specify both {expr} and {kwargs}")
     if expr is not None:
-        if not isinstance(expr, Conditional):
+        if not isinstance(expr, Expression) or expr.kind != ExpressionKind.CONDITIONAL:
             raise TypeError(f"expected Conditional, got {expr!r}")
         return expr
 
@@ -332,20 +263,20 @@ def coerce_conditional(
         if not field:
             raise TypeError(f"{statement!r} has no field {field_key}")
         _check_field_supports(field, op)
-        clauses.append(ComparisonConditional(op=op, field=field, value=value))
+        clauses.append(Expression(op=op, field=field, value=value))
     if not clauses:
         if return_none_if_empty:
             return None
         else:
             return C(ConditionalOp.TRUE)
-    return Conditional.and_if_set(*clauses)
+    return Expression.and_if_set(*clauses)
 
 
 def coerce_sort(
     statement: "HasFields",
-    sort: list[Sort | str] | Sort | str | None,
+    sort: list[Expression | str] | Expression | str | None,
     args: str | None = None,
-) -> Optional[list[Sort]]:
+) -> Optional[list[Expression]]:
     """
     Coerce a sort expression from either the given expression or args.
     Strings are looked up as field names/identifiers.
@@ -357,7 +288,7 @@ def coerce_sort(
         sort = args
     elif isinstance(sort, str):
         sort = [sort]
-    elif isinstance(sort, Sort):
+    elif isinstance(sort, Expression) and sort.kind == ExpressionKind.SORT:
         sort = [sort]
     if not isinstance(sort, (list, tuple)):
         raise TypeError(f"expected sort to be a list or tuple, got {sort}")
@@ -377,7 +308,7 @@ def coerce_sort(
             if not field:
                 raise TypeError(f"{statement!r} has no field {item!r}")
             item = S(op, field=field)
-        if not isinstance(item, Sort):
+        if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)
     if not coerced:
@@ -386,17 +317,16 @@ def coerce_sort(
 
 
 # single-letter convenience constructors
-def E(op: ExpressionOp, *args, _expect_t: type[Expression] = None, **kwargs) -> Expression:
-    cls = EXPRESSION_CLASS_BY_OP[op]
-    if _expect_t is not None and not issubclass(cls, _expect_t):
-        raise TypeError(f"expected {_expect_t}, got {cls}")
-    kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls.__properties__}
-    return cls(op, *args, **kwargs)
+def E(op: ExpressionOp, *args, _expect_t: type[ExpressionKind] = None, **kwargs) -> Expression:
+    if _expect_t is not None and EXPRESSION_KIND_BY_OP[op] != _expect_t:
+        raise TypeError(f"expected {_expect_t}, got {EXPRESSION_KIND_BY_OP[op]}")
+    kwargs = {k: v for k, v in kwargs.items() if v is not None and k in Expression.__properties__}
+    return Expression(op, *args, **kwargs)
 
 
-C = functools.partial(E, _expect_t=Conditional)
-S = functools.partial(E, _expect_t=Sort)
-A = functools.partial(E, _expect_t=Aggregation)
+C = functools.partial(E, _expect_t=ExpressionKind.CONDITIONAL)
+S = functools.partial(E, _expect_t=ExpressionKind.SORT)
+A = functools.partial(E, _expect_t=ExpressionKind.AGGREGATION)
 
 SCORE_KEY = "_score"  # for ranking
 TYPE_DISCRIMINATOR_KEY = "_type"

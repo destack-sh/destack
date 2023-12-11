@@ -1,9 +1,8 @@
-import abc
+import uuid
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language import IssueType
-from bench.language.const import IssueKind, NodeType
+from bench.language.const import IssueKind, IssueType, NodeType
 from bench.language.module import Node, bproperty, node, nparent
 from bench.language.validation import enum_validator
 
@@ -35,6 +34,7 @@ ERRORS = [
     IssueType.CIRCULAR_ANCESTRY,
     IssueType.CIRCULAR_UNION,
     IssueType.MISMATCHED_UNION,
+    IssueType.INVALID_DATA,
 ]
 WARNINGS = [
     IssueType.AMBIGUOUS_DEFINITION,
@@ -59,7 +59,7 @@ class BenchError(ValueError):
         self.issue = issue
 
 
-@node(node_type=NodeType.ISSUE)
+@node(NodeType.ISSUE)
 class Issue(Node):
     parent: Union["Statement", "File", None] = nparent(NodeType.STATEMENT, NodeType.FILE)
     type: IssueType = bproperty(is_required=True, validate=enum_validator(IssueType))
@@ -99,14 +99,26 @@ class Issue(Node):
     def to_error(self) -> BenchError:
         return BenchError(self)
 
+    @staticmethod
+    def from_subject(subject: Node, type: IssueType, message: str = None, **kwargs) -> "Issue":
+        from bench.language import File, Statement
 
-class IssueHandler(abc.ABC):
+        assert isinstance(subject, Node), f"invalid subject: {subject!r}"
+        issue_ck = uuid.uuid5(subject.id, (type.value + (message or "")))
+        issue_id = issue_ck  # not sure?
+        if not isinstance(subject, (Statement, File)):
+            subject = subject.parent  # fields don't have issues (yet)
+        issue = Issue(id=issue_id, ck=issue_ck, type=type, subject=subject, parent=None, **kwargs)
+        return issue
+
+
+class IssueHandler:
     def __call__(
         self,
-        issue: "Issue" = None,
-        *,
-        subject: Union["Statement", "File", None],
+        subject: "Node",
         type: IssueType,
+        message: Optional[str] = None,
+        path: Optional[str] = None,
         **kwargs,
     ):
         pass

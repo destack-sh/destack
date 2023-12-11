@@ -489,6 +489,7 @@ export enum IssueType {
   CodeNotExportable = "CODE_NOT_EXPORTABLE",
   CodeReferenceNotExported = "CODE_REFERENCE_NOT_EXPORTED",
   Internal = "INTERNAL",
+  InvalidData = "INVALID_DATA",
   MismatchedUnion = "MISMATCHED_UNION",
   MissingReference = "MISSING_REFERENCE",
   TaskIsStatic = "TASK_IS_STATIC",

@@ -13,7 +13,7 @@ import msgpack
 import structlog
 
 from bench import language as lang
-from bench.language import File, IssueType, Module
+from bench.language import Expression, File, IssueType, Module
 from bench.language.const import (
     BlobStatus,
     ExpressionKind,
@@ -34,15 +34,6 @@ from bench.language.const import (
     TypeTag,
     WorkerProfile,
     WorkerSetStatus,
-)
-from bench.language.expression import (
-    EXPRESSION_CLASS_BY_OP,
-    ComparisonConditional,
-    CompoundConditional,
-    Conditional,
-    ExistenceConditional,
-    FieldExpression,
-    Sort,
 )
 from bench.language.module import Node, NodeStatus, NodeTree, ScopeNode
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
@@ -821,8 +812,8 @@ class ViewData(NodeData, HasOrder, HasCrud):
 
     id: UUID
     name: str
-    query: Optional[Conditional] = None
-    sort: Optional[list[Sort]] = None
+    query: Optional[Expression] = None
+    sort: Optional[list[Expression]] = None
 
 
 @node_packer(NodeType.VIEW, ViewData, lang.View)
@@ -953,7 +944,6 @@ class ExpressionData:
     clauses: list[ExpressionData] = None
     field: typing.Union[UUID, str] = None
     value: typing.Any = None
-    approximate: Optional[bool] = None
     mode: Optional[SortMode] = None
 
     def __str__(self):
@@ -963,41 +953,27 @@ class ExpressionData:
 @data_packer(ExpressionData, lang.Expression, *get_subclasses(lang.Expression))
 class ExpressionPacker(DataPacker[ExpressionData, lang.Expression]):
     def pack(self, expr: lang.Expression) -> ExpressionData:
-        if isinstance(expr, FieldExpression):
-            field = expr.field.ck if isinstance(expr.field, lang.Field) else expr.field
-        else:
-            field = None
-        if isinstance(expr, CompoundConditional):
-            clauses = [self.pack(clause) for clause in expr.clauses]
-        else:
-            clauses = None
         return ExpressionData(
-            kind=expr.kind,
             op=expr.op,
-            clauses=clauses,
-            field=field,
+            kind=expr.kind,
+            clauses=[self.pack(clause) for clause in expr.clauses]
+            if expr.clauses is not None
+            else None,
+            field=expr.field.ck if isinstance(expr.field, lang.Field) else expr.field,
             value=getattr(expr, "value", None),
-            approximate=getattr(expr, "approximate", None),
-            mode=(expr.mode if isinstance(expr, Sort) else None),
+            mode=expr.mode,
         )
 
     def unpack(self, data: ExpressionData, module: Module) -> lang.Expression:
-        op = ExpressionOp(data.op)
-        expr_cls = EXPRESSION_CLASS_BY_OP[op.value]
-        if data.clauses is not None:
-            clauses = [self.unpack(clause, module) for clause in data.clauses]
-        else:
-            clauses = None
-        if issubclass(expr_cls, CompoundConditional):
-            return expr_cls(op=op, clauses=clauses)
-        elif issubclass(expr_cls, ComparisonConditional):
-            return expr_cls(op=op, field=data.field, value=data.value)
-        elif issubclass(expr_cls, ExistenceConditional):
-            return expr_cls(op=op, field=data.field)
-        elif issubclass(expr_cls, Sort):
-            return expr_cls(op=op, field=data.field, mode=data.mode)
-        else:
-            raise NotImplementedError(f"unexpected expression class {expr_cls} ({data})")
+        return Expression(
+            op=ExpressionOp(data.op),
+            field=data.field,
+            clauses=[self.unpack(clause, module) for clause in data.clauses]
+            if data.clauses is not None
+            else None,
+            value=data.value,
+            mode=data.mode,
+        )
 
 
 @dataclass

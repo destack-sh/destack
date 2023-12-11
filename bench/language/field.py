@@ -37,6 +37,7 @@ from bench.language.module import (
     node,
     node_component,
     nparent,
+    on_issue_raise,
 )
 from bench.language.reference import HasReference
 from bench.language.text import HasText
@@ -44,7 +45,6 @@ from bench.language.validation import (
     ValidationHandler,
     enum_validator,
     flag_validator,
-    on_issue_raise,
     validate_name,
 )
 from bench.language.value import HasValue
@@ -344,7 +344,7 @@ class HasType(Node):
         )
 
 
-@node(node_type=NodeType.FIELD)
+@node(NodeType.FIELD)
 class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
     parent: Union["Statement", None] = nparent(NodeType.STATEMENT)
     name: str | None = bproperty(default=None, validate=validate_name)
@@ -537,7 +537,7 @@ class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
         return None  # for FieldQueryOps
 
 
-@node(node_type=NodeType.RESOLVED_FIELD)
+@node(NodeType.RESOLVED_FIELD)
 class ResolvedField(Field):
     parent: "Statement" = nparent(NodeType.STATEMENT)
     field: Field = binternal()

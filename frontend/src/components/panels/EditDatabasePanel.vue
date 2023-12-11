@@ -6,12 +6,13 @@ import DatabaseTile from "@/components/tiles/DatabaseTile.vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, EditDatabasePanel } from "@/state/bench";
-import { type Statement, useCurrentModule, type NodeBase } from "@/state/module";
-import { computed, ref, watch, type Ref } from "vue";
+import { type Statement, useCurrentModule, type NodeBase, type Field } from "@/state/module";
+import { computed, ref, watch, type Ref, watchEffect } from "vue";
 import SortSetTile from "@/components/tiles/SortSetTile.vue";
 import ConditionalSetTile from "@/components/tiles/ConditionalSetTile.vue";
 import { useFieldsState } from "@/state/statement";
-import { ConditionalOp, type Conditional } from "@/gql/graphql";
+import { ConditionalOp, type Conditional, SortOp } from "@/gql/graphql";
+import { getDefaultConditional } from "@/state/database";
 
 const PAGE_SIZE = 50;
 
@@ -34,7 +35,28 @@ const combinedQuery: Ref<Conditional | undefined> = computed(() => {
 });
 
 const contentRef = ref<InstanceType<typeof DatabaseTile> | null>(null);
+
+// mark as 'loading' until loaded once
+const loading: Ref<boolean> = ref(true);
+watchEffect(() => {
+  if (!module.loading.value && contentRef.value != null && !contentRef.value.loading) {
+    loading.value = false;
+  }
+});
+
 useActiveScroll(computed(() => contentRef.value?.$el));
+
+function addSort(field: Field, order: SortOp) {
+  const value = [...(panel.value.sorts ?? [])];
+  value.push({ field: field.ck, order });
+  panel.value.sorts = value;
+}
+
+function addDefaultConditional(field: Field) {
+  const value = [...(panel.value.filters ?? [])];
+  value.push(getDefaultConditional(field));
+  panel.value.filters = value;
+}
 
 // sync name/path into editor
 watch(
@@ -61,7 +83,7 @@ watch(
     />
     <!-- Loading / status -->
     <div
-      v-if="module.loading.value"
+      v-if="loading"
       class="flex h-full w-full flex-col items-center justify-center"
       :style="{
         width: props.panel.size.value?.width + 'px',
@@ -70,11 +92,11 @@ watch(
     >
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
     </div>
-    <PanelStatusNotice :thing="statement" name="file" :loading="module.loading.value" />
+    <PanelStatusNotice :thing="statement" name="file" :loading="loading" />
 
     <!-- Header (search/views/pagination/create) -->
     <div class="flex w-full flex-row gap-1.5 px-2 pb-1.5 pt-8 text-sm">
-      <!-- TODO: inline query -->
+      <!-- nocheckin: inline search query -->
       <ConditionalSetTile
         :fields="fields.allFields.value"
         :model-value="panel.filters"
@@ -102,6 +124,8 @@ watch(
       :query="combinedQuery"
       :sort="panel.sorts"
       selectable
+      @add-sort="({ field, order }) => addSort(field, order ?? SortOp.Ascending)"
+      @add-filter="({ field }) => addDefaultConditional(field)"
     />
   </div>
 </template>

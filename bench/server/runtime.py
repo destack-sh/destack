@@ -41,11 +41,10 @@ from bench.language.edit import EditData, EditKind, NodeTreeEditor
 from bench.language.expression import SCORE_KEY, C, S
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
-from bench.language.module import NodeTree, walk_bfs
+from bench.language.module import NodeTree, on_issue_raise, walk_bfs
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
-from bench.language.validation import on_issue_raise
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import get_default_pack_filters, write_host_db_edits, write_session
 from bench.models.user import loops_request

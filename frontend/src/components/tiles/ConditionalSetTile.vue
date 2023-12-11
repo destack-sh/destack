@@ -3,7 +3,8 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectFieldInterface from "@/components/interfaces/SelectFieldInterface.vue";
 import ConditionalTile from "@/components/tiles/ConditionalTile.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import type { Conditional } from "@/gql/graphql";
+import { ConditionalOp, type Conditional } from "@/gql/graphql";
+import { getDefaultConditional } from "@/state/database";
 import type { Field, Statement } from "@/state/module";
 import { PlusIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
@@ -29,6 +30,12 @@ function updateConditional(index: number, conditional?: Conditional) {
   emit("update:modelValue", value);
 }
 
+function addDefaultConditional(field: Field) {
+  const value = [...(props.modelValue ?? [])];
+  value.push(getDefaultConditional(field));
+  emit("update:modelValue", value);
+}
+
 const adding = ref(false);
 const popoverRef = ref<HTMLDivElement | null>(null);
 const popoverPin = pinAbsoluteElement(popoverRef, { pos: true, keepInView: true });
@@ -40,11 +47,17 @@ function close() {
 function open() {
   adding.value = true;
 }
+
+defineExpose({
+  open,
+  close,
+  addDefaultConditional,
+});
 </script>
 <template>
   <div class="relative">
-    <!-- Filters/select potential filters -->
-    <!-- nocheckin: select potential filters -->
+    <!-- Filters -->
+    <!-- TODO @UX: show Notion-like potential filters for selected fields -->
     <ConditionalTile
       v-for="(conditional, i) in modelValue?.filter((c) => fieldsByCk[c.field as string] != null) ?? []"
       :key="i"
@@ -71,7 +84,11 @@ function open() {
         <div class="px-1 text-sm text-gray-700">
           <span>Filter by</span>
         </div>
-        <SelectFieldInterface class="mt-1" :options="fields" @update:modelValue="($event) => addFilter($event)" />
+        <SelectFieldInterface
+          class="mt-1"
+          :options="fields"
+          @update:modelValue="($event) => addDefaultConditional($event)"
+        />
       </div>
     </FadeTransition>
   </div>

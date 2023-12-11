@@ -19,7 +19,7 @@ from more_itertools import first, last
 from bench.language.blob import Blob, BlobStatus
 from bench.language.builtin import symbolx_lib
 from bench.language.const import ConditionalOp, IssueType, NodePath, SortMode, SortOp, TypeFlag
-from bench.language.expression import C, Conditional, Sort
+from bench.language.expression import C
 from bench.language.field import TypedDict
 from bench.language.module import LookupBy, Node, ScopeNode, bruntime, node_component
 from bench.language.validation import ValidationHandler
@@ -452,9 +452,7 @@ STATIC_BUILTINS: dict[str, Any] = {
     "boolean": bool,
     # querying
     "Q": C,
-    "Query": Conditional,
-    "QueryOp": ConditionalOp,
-    "Sort": Sort,
+    "ConditionalOp": ConditionalOp,
     "SortOp": SortOp,
     "SortMode": SortMode,
     # remote

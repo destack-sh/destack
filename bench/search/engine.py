@@ -12,13 +12,11 @@ from psycopg import sql
 from bench import language as lang
 from bench.language import (
     C,
-    Conditional,
     ConditionalOp,
     HasDatabase,
     HasRun,
     Module,
     QueryEngine,
-    Sort,
     SortMode,
     SortOp,
     TypeHint,
@@ -29,14 +27,12 @@ from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
 from bench.language.edit import EditType
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
-    ComparisonConditional,
-    CompoundConditional,
-    ExistenceConditional,
+    Expression,
+    ExpressionOps,
     FieldReference,
     QueryEngineError,
     QueryEngineIncapableError,
     S,
-    StaticConditional,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
 from bench.search import core as os
@@ -370,44 +366,40 @@ def _compile_field_key(field: lang.Field | FieldReference) -> str:
         return field
 
 
-def compile_os_conditional(ctx: CompilationContext, cond: Conditional) -> dict[str, Any]:
-    if isinstance(cond, StaticConditional):
-        if cond.op == ConditionalOp.TRUE:
-            return {"match_all": {}}
-        else:
-            return {"match_none": {}}
-    elif isinstance(cond, CompoundConditional):
+def compile_os_conditional(ctx: CompilationContext, cond: Expression) -> dict[str, Any]:
+    key = _compile_field_key(cond.field) if cond.field else None
+    if cond.op == ConditionalOp.TRUE:
+        return {"match_all": {}}
+    elif cond.op == ConditionalOp.FALSE:
+        return {"match_none": {}}
+    elif cond.op in ExpressionOps.COND_LOGICAL:
         clauses = [compile_os_conditional(ctx, c) for c in cond.clauses]
         return {"bool": {OS_CONDITIONAL_OP_BY_BENCH[cond.op]: clauses}}
-    elif isinstance(cond, ComparisonConditional):
-        key = _compile_field_key(cond.field)
-        if cond.op == ConditionalOp.EQUALS:
-            if isinstance(cond.value, list):
-                return {"terms": {key: cond.value}}
-            else:
-                return {"term": {key: cond.value}}
-        elif cond.op == ConditionalOp.NOT_EQUALS:
-            return {"bool": {"must_not": {"term": {key: cond.value}}}}
-        elif cond.op in (
-            ConditionalOp.GREATER_THAN,
-            ConditionalOp.GREATER_THAN_OR_EQUALS,
-            ConditionalOp.LESS_THAN,
-            ConditionalOp.LESS_THAN_OR_EQUALS,
-        ):
-            return {"range": {key: {OS_CONDITIONAL_OP_BY_BENCH[cond.op]: cond.value}}}
-        elif cond.op == ConditionalOp.MATCHES:
-            return {"match": {key: cond.value}}
-        elif cond.op == ConditionalOp.STARTS_WITH:
-            return {"prefix": {key: cond.value}}
-        elif cond.op == ConditionalOp.NEAR:
-            # TODO @Performance @Robustness: tune knn k relative to database and query limit
-            return {"knn": {key: {"vector": cond.value, "k": ctx.root_limit * 3}}}
-    elif isinstance(cond, ExistenceConditional):
-        key = _compile_field_key(cond.field)
-        if cond.op == ConditionalOp.EXISTS:
-            return {"exists": {"field": key}}
-        elif cond.op == ConditionalOp.NOT_EXISTS:
-            return {"bool": {"must_not": {"exists": {"field": key}}}}
+    elif cond.op == ConditionalOp.EQUALS:
+        if isinstance(cond.value, list):
+            return {"terms": {key: cond.value}}
+        else:
+            return {"term": {key: cond.value}}
+    elif cond.op == ConditionalOp.NOT_EQUALS:
+        return {"bool": {"must_not": {"term": {key: cond.value}}}}
+    elif cond.op in (
+        ConditionalOp.GREATER_THAN,
+        ConditionalOp.GREATER_THAN_OR_EQUALS,
+        ConditionalOp.LESS_THAN,
+        ConditionalOp.LESS_THAN_OR_EQUALS,
+    ):
+        return {"range": {key: {OS_CONDITIONAL_OP_BY_BENCH[cond.op]: cond.value}}}
+    elif cond.op == ConditionalOp.MATCHES:
+        return {"match": {key: cond.value}}
+    elif cond.op == ConditionalOp.STARTS_WITH:
+        return {"prefix": {key: cond.value}}
+    elif cond.op == ConditionalOp.NEAR:
+        # TODO @Performance @Robustness: tune knn k relative to database and query limit
+        return {"knn": {key: {"vector": cond.value, "k": ctx.root_limit * 3}}}
+    elif cond.op == ConditionalOp.EXISTS:
+        return {"exists": {"field": key}}
+    elif cond.op == ConditionalOp.NOT_EXISTS:
+        return {"bool": {"must_not": {"exists": {"field": key}}}}
     raise QueryEngineIncapableError(QueryEngine.OPENSEARCH, cond, "unsupported conditional")
 
 
@@ -424,7 +416,7 @@ OS_SORT_MODE_BY_BENCH = {
 }
 
 
-def compile_os_sort(ctx: CompilationContext, sort: Sort) -> dict[str, Any]:
+def compile_os_sort(ctx: CompilationContext, sort: Expression) -> dict[str, Any]:
     props = {"order": OS_SORT_ORDER_BY_BENCH[sort.op]}
     if sort.mode:
         props["mode"] = OS_SORT_MODE_BY_BENCH[sort.mode]
@@ -483,8 +475,8 @@ class OsSearchResult:
 
 def compile_os_search(
     type: DocumentType,
-    query: Optional[Conditional] = None,
-    sort: Optional[list[Sort]] = None,
+    query: Optional[Expression] = None,
+    sort: Optional[list[Expression]] = None,
     limit: int | None = None,
     skip: int | None = None,
     count: bool = True,
@@ -526,8 +518,8 @@ def _wrap_os_error(
 async def os_search(
     os_name: str,
     type: "DocumentType",
-    filter: Optional[Conditional] = None,
-    sort: Optional[list[Sort]] = None,
+    filter: Optional[Expression] = None,
+    sort: Optional[list[Expression]] = None,
     limit: int | None = None,
     skip: int | None = None,
     count: bool = True,
@@ -549,8 +541,8 @@ async def os_search(
 def os_search_sync(
     os_name: str,
     type: "DocumentType",
-    filter: Optional[Conditional] = None,
-    sort: Optional[list[Sort]] = None,
+    filter: Optional[Expression] = None,
+    sort: Optional[list[Expression]] = None,
     limit: int | None = None,
     skip: int | None = None,
     count: bool = True,

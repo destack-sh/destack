@@ -30,7 +30,7 @@ TRIGGER_INTERVAL_ABS_MAX = 60 * 60 * 24 * 365  # seconds :MaxTriggerInterval
 TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 
-@node(node_type=NodeType.TRIGGER)
+@node(NodeType.TRIGGER)
 class Trigger(Node):
     """A trigger for a statement, possibly inside a flow."""
 

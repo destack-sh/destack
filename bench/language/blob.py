@@ -11,9 +11,9 @@ import requests
 import structlog
 
 from bench.language.builtin import _auto_async_to_sync, active_session
-from bench.language.const import BlobStatus, NodeType
-from bench.language.module import Module, Node, binternal, bruntime, node
-from bench.language.validation import ValidationHandler, on_issue_raise
+from bench.language.const import BlobStatus, IssueType, NodeType
+from bench.language.issue import IssueHandler
+from bench.language.module import Module, Node, binternal, bruntime, node, on_issue_raise
 
 logger = structlog.get_logger(__name__)
 
@@ -46,11 +46,19 @@ class Blob(Node):
     def __getitem__(self, item):
         return self.__dict__[item]
 
-    def _validate_inner(self, properties: set[str], on_issue: ValidationHandler) -> None:
+    def _validate_inner(self, properties: set[str], on_issue: IssueHandler) -> None:
         if len(self.name) > BLOB_MAX_NAME_LENGTH:
-            on_issue(self, f"{self} name is too long ({len(self.name)} > {BLOB_MAX_NAME_LENGTH})")
+            on_issue(
+                self,
+                IssueType.INVALID_DATA,
+                f"{self} name is too long ({len(self.name)} > {BLOB_MAX_NAME_LENGTH})",
+            )
         if self.content_length > BLOB_MAX_SIZE:
-            on_issue(self, f"{self} is too big ({self.content_length} > {BLOB_MAX_SIZE} bytes)")
+            on_issue(
+                self,
+                IssueType.INVALID_DATA,
+                f"{self} is too big ({self.content_length} > {BLOB_MAX_SIZE} bytes)",
+            )
 
     @_auto_async_to_sync
     async def download(self) -> bytes:
