@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { ConditionalOp, TypeHint, TypeTag, type Conditional, StatementType, QueryEngine } from "@/gql/graphql";
+import { ConditionalOp, TypeHint, TypeTag, type Conditional, StatementType, QueryEngine, SortOp } from "@/gql/graphql";
 import { useCurrentModule, type Field } from "@/state/module";
 import type { useFields } from "@/state/statement";
 import { TypeStorageFormat, getStorageFormat } from "@/state/type";
@@ -78,7 +78,7 @@ export function useDatabaseInlineSearch(
           ({
             op: ConditionalOp.StartsWith,
             field: "value." + module.getTypedKey(f),
-            value: textQuery.value?.toLowerCase(), // :StartsWithHack
+            value: textQuery.value,
           } as Conditional)
       ),
     ];
@@ -120,6 +120,80 @@ export function getDefaultConditional(field: Field): Conditional {
   return { field: field.ck, op: ConditionalOp.Exists };
 }
 
-export function renderConditional(conditional: Conditional): string {
-  return "nocheckin: renderConditional";
+export const CONDITIONAL_OP_NAME: Partial<Record<ConditionalOp, string>> = {
+  [ConditionalOp.Exists]: "exists",
+  [ConditionalOp.NotExists]: "not exists",
+  [ConditionalOp.Equals]: "=",
+  [ConditionalOp.NotEquals]: "!=",
+  [ConditionalOp.GreaterThan]: ">",
+  [ConditionalOp.GreaterThanOrEquals]: ">=",
+  [ConditionalOp.LessThan]: "<",
+  [ConditionalOp.LessThanOrEquals]: "<=",
+  [ConditionalOp.Matches]: "matches",
+  [ConditionalOp.StartsWith]: "starts with",
+  [ConditionalOp.Contains]: "contains",
+  [ConditionalOp.NotContains]: "not contains",
+  [ConditionalOp.In]: "in",
+  [ConditionalOp.NotIn]: "not in",
+  [ConditionalOp.And]: "and",
+  [ConditionalOp.Or]: "or",
+  [ConditionalOp.Not]: "not",
+};
+
+// :ExpressionOps
+export const COND_EXACT = [ConditionalOp.Equals, ConditionalOp.NotEquals, ConditionalOp.In, ConditionalOp.NotIn];
+export const COND_RANGE = [
+  ConditionalOp.GreaterThan,
+  ConditionalOp.GreaterThanOrEquals,
+  ConditionalOp.LessThan,
+  ConditionalOp.LessThanOrEquals,
+];
+export const COND_VECTOR = [ConditionalOp.Near];
+export const COND_STRING = [ConditionalOp.StartsWith, ConditionalOp.Matches];
+export const EXPRESSION_OPS = {
+  // Conditionals
+  COND_STATIC: [ConditionalOp.True, ConditionalOp.False],
+  COND_LOGICAL: [ConditionalOp.Not, ConditionalOp.And, ConditionalOp.Or],
+  COND_EXACT,
+  COND_RANGE,
+  COND_COMPARISON: [...COND_EXACT, ...COND_RANGE],
+  COND_SET: [ConditionalOp.Contains, ConditionalOp.NotContains],
+  COND_EXISTENCE: [ConditionalOp.Exists, ConditionalOp.NotExists],
+  COND_VECTOR,
+  COND_STRING,
+  COND_SCORED: [...COND_VECTOR, ...COND_STRING],
+  // Sorts
+  SORT: [SortOp.Ascending, SortOp.Descending],
+};
+
+// :ExpressionSupport
+export const SUPPORTED_OPS_BY_TYPE: Partial<Record<TypeTag | TypeHint | TypeStorageFormat, ConditionalOp[]>> = {
+  [TypeStorageFormat.LONG]: [...EXPRESSION_OPS.COND_EXACT, ...EXPRESSION_OPS.COND_RANGE],
+  [TypeStorageFormat.DOUBLE]: [...EXPRESSION_OPS.COND_EXACT, ...EXPRESSION_OPS.COND_RANGE],
+  [TypeStorageFormat.BOOLEAN]: EXPRESSION_OPS.COND_EXACT,
+  [TypeStorageFormat.DATE]: [...EXPRESSION_OPS.COND_EXACT, ...EXPRESSION_OPS.COND_RANGE],
+  [TypeStorageFormat.KEYWORD]: EXPRESSION_OPS.COND_EXACT,
+  [TypeStorageFormat.VECTOR]: EXPRESSION_OPS.COND_VECTOR,
+  [TypeStorageFormat.RELATION]: EXPRESSION_OPS.COND_EXACT,
+  [TypeTag.String]: EXPRESSION_OPS.COND_STRING,
+  [TypeHint.Name]: [ConditionalOp.StartsWith],
+};
+
+export function canSort(field: Field): boolean {
+  return [TypeStorageFormat.DATE, TypeStorageFormat.DOUBLE, TypeStorageFormat.LONG, TypeStorageFormat.KEYWORD].includes(
+    getStorageFormat(field.tag, field.hint, field.flags) as TypeStorageFormat
+  );
+}
+
+export function getSupportedConditionalOps(field: Field): ConditionalOp[] {
+  const ops: ConditionalOp[] = [];
+  for (const op of [
+    ...EXPRESSION_OPS.COND_EXISTENCE,
+    ...(SUPPORTED_OPS_BY_TYPE[field.tag] ?? []),
+    ...(SUPPORTED_OPS_BY_TYPE[field.hint] ?? []),
+    ...(SUPPORTED_OPS_BY_TYPE[getStorageFormat(field.tag, field.hint, field.flags) as TypeStorageFormat] ?? []),
+  ]) {
+    if (!ops.includes(op)) ops.push(op);
+  }
+  return ops;
 }

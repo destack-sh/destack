@@ -113,7 +113,7 @@ export function useFieldsState(statement: Ref<InterpStatement | Statement | unde
   return { fields, resolvedFields, selfFields, baseTypes, inheritedFields, allFields };
 }
 
-export function useFields(statement: Ref<Statement>) {
+export function useFields(statement: Ref<Statement | InterpStatement | undefined>) {
   const module = useCurrentModule();
   const ops = useOperations();
 
@@ -143,6 +143,9 @@ export function useFields(statement: Ref<Statement>) {
   const selfOutputs = computed(() => selfFields.value.filter((n) => n.flags & TypeFlag.IS_OUTPUT));
 
   function _createField(field: Field) {
+    if (statement.value == null) {
+      throw new Error("cannot create field on statement that doesn't exist");
+    }
     ops.symbol.createField(null, statement.value.id, {
       ...field,
       statement: { __typename: "Statement", id: statement.value.id } as any,
@@ -270,6 +273,9 @@ export function useFields(statement: Ref<Statement>) {
   }
 
   function deleteField(field: { id: string }) {
+    if (statement.value == null) {
+      throw new Error("cannot delete field on statement that doesn't exist");
+    }
     const oldField = fields.value?.find((n) => n.id == field.id);
     if (!oldField) {
       throw new Error("cannot delete field that doesn't exist");

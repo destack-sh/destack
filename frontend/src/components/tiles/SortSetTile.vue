@@ -96,7 +96,11 @@ function open() {
           </button>
           <span>by</span>
         </div>
-        <SelectFieldInterface class="mt-1" :options="fields" @update:modelValue="($event) => addSort($event)" />
+        <SelectFieldInterface
+          class="mt-1"
+          :options="fields"
+          @update:modelValue="($event) => (addSort($event), close())"
+        />
       </div>
     </FadeTransition>
   </div>

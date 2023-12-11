@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useActiveScroll } from "@/composables/useScroll";
-import { SortOp, type Sort, TypeTag } from "@/gql/graphql";
+import { SortOp, type Sort, TypeTag, ConditionalOp, type Conditional } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
   usePanelContext,
@@ -22,17 +22,16 @@ import {
   ArrowUpRightIcon,
   ArrowsPointingOutIcon,
 } from "@heroicons/vue/24/outline";
-import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref, onMounted, toRef } from "vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { getDefaultConditional, useDatabaseInlineSearch } from "@/state/database";
-import { humanizeNumber } from "@/composables/useNow";
 import DatabaseTile from "@/components/tiles/DatabaseTile.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import SortSetTile from "@/components/tiles/SortSetTile.vue";
 import ConditionalSetTile from "@/components/tiles/ConditionalSetTile.vue";
+import QuickSearchTile from "@/components/tiles/QuickSearchTile.vue";
 import ViewPaginationTile from "@/components/tiles/ViewPaginationTile.vue";
 
 const PAGE_SIZE = 10;
@@ -44,15 +43,13 @@ const emit = defineEmits<StatementEmit>();
 const bench = useBenchState();
 const module = useCurrentModule();
 const panel = usePanelContext();
-const appearance = useAppearance();
-const client = useApolloClient();
 
 const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const innerGridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
-const databaseTileRef: Ref<InstanceType<typeof DatabaseTile> | null> = ref(null);
+const contentRef: Ref<InstanceType<typeof DatabaseTile> | null> = ref(null);
 
 const properties = useElementPanelSettings<DatabaseStatementProperties>(toRef(props, "statement"), {
   inlineQuery: undefined,
@@ -67,6 +64,18 @@ onMounted(() => {
 });
 
 const { inlineQuery, queryEngine } = useDatabaseInlineSearch(fields, toRef(properties, "inlineQuery"));
+const combinedQuery: Ref<Conditional | undefined> = computed(() => {
+  const combined = {
+    op: ConditionalOp.And,
+    clauses: properties.filters?.slice() ?? [],
+  } as Conditional;
+  if (inlineQuery.value != null) {
+    combined.clauses!.push(inlineQuery.value);
+  }
+  if (combined.clauses?.length == 0) return undefined;
+  return combined;
+});
+const after: Ref<string | undefined> = ref(undefined);
 
 function addSort(field: Field, order: SortOp) {
   if (properties.sorts == null) properties.sorts = [];
@@ -119,8 +128,8 @@ const actions = computed(() => {
     actions.push({
       label: "Reload view",
       icon: ArrowPathIcon,
-      active: databaseTileRef.value?.loading,
-      action: () => databaseTileRef.value?.refetch(),
+      active: contentRef.value?.loading,
+      action: () => contentRef.value?.refetch(),
     });
   }
   actions.push({
@@ -138,7 +147,7 @@ const actions = computed(() => {
     disabled: props.readonly,
     icon: PlusIcon,
     action: () => {
-      databaseTileRef.value?.insertRecordAtEnd();
+      contentRef.value?.insertRecordAtEnd();
     },
   });
   actions.push({
@@ -163,22 +172,22 @@ const actions = computed(() => {
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
     if (position == "first") {
-      if ((databaseTileRef?.value?.recordsInView.length ?? 0) > 0) {
-        databaseTileRef.value?.focus("first");
+      if ((contentRef?.value?.recordsInView.length ?? 0) > 0) {
+        contentRef.value?.focus("first");
       } else {
         addRecordRef.value?.focus();
       }
     } else {
-      databaseTileRef.value?.focus("last");
+      contentRef.value?.focus("last");
     }
   },
   blur: () => {
     addRecordRef.value?.blur();
-    databaseTileRef.value?.blur();
+    contentRef.value?.blur();
   },
   // prevent outer drag and drop while inside grid
   capturingDrag: computed(() => !position.isOutside.value),
-  loading: computed(() => databaseTileRef.value?.loading ?? false),
+  loading: computed(() => contentRef.value?.loading ?? false),
   actions,
 });
 </script>
@@ -186,7 +195,11 @@ defineExpose({
   <div>
     <!-- Views: sorts/filters/pagination -->
     <div class="-mx-0.5 mb-1 flex flex-row flex-wrap items-center gap-2">
-      <!-- nocheckin: inline search query (move from control) -->
+      <QuickSearchTile
+        :modelValue="properties.inlineQuery"
+        @update:modelValue="properties.inlineQuery = $event"
+        placeholder="Search..."
+      />
       <ConditionalSetTile
         :fields="fields.allFields.value"
         :model-value="properties.filters"
@@ -196,6 +209,12 @@ defineExpose({
         :fields="fields.allFields.value"
         :model-value="properties.sorts"
         @update:model-value="properties.sorts = $event"
+      />
+      <ViewPaginationTile
+        class="ml-auto"
+        :page-info="contentRef?.pageInfo"
+        :total-count="contentRef?.totalCount"
+        v-model="after"
       />
     </div>
     <!-- Table (in table form but manually sized) -->
@@ -217,14 +236,15 @@ defineExpose({
           ref="createFieldRef"
           :title="'New field'"
           :ref-types="[TypeTag.Enum, TypeTag.Struct]"
-          @select="databaseTileRef?.createNewField($event)"
+          @select="contentRef?.createNewField($event)"
         />
         <DatabaseTile
-          ref="databaseTileRef"
+          ref="contentRef"
           :statement="props.statement"
-          :query="inlineQuery"
+          :query="combinedQuery"
           :query-engine="queryEngine"
           :sort="sort"
+          :after="after"
           :readonly="props.readonly"
           :editing="props.editing"
           :target-min-width="
@@ -242,9 +262,10 @@ defineExpose({
         />
         <!-- Load more/loading/go to big database view -->
         <div
+          v-if="contentRef?.loading"
           class="flex flex-row rounded-sm border-b border-orange-900/[12%] group-focus-within/statement:text-gray-400"
           :style="{ height: 32 + 'px' }"
-          @keydown.up.exact.prevent="databaseTileRef?.focus('last')"
+          @keydown.up.exact.prevent="contentRef?.focus('last')"
           @keydown.down.exact.prevent="emit('navigateDown')"
         >
           <!-- Load more abandoned because of performance issues -->
@@ -254,14 +275,8 @@ defineExpose({
             class="flex flex-1 flex-row items-center px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
             @click.stop="openAsDatabasePanel()"
           >
-            <template v-if="databaseTileRef?.loading">
-              <BusySpinnerIcon class="mr-1 h-4 w-4 animate-spin" />
-              Loading
-            </template>
-            <template v-else>
-              <ArrowUpRightIcon class="mr-1 h-4 w-4" />
-              View all ({{ humanizeNumber(databaseTileRef?.totalCount ?? 0) }} records)
-            </template>
+            <BusySpinnerIcon class="mr-1 h-4 w-4 animate-spin" />
+            Loading
           </button>
         </div>
       </div>

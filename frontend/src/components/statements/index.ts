@@ -4,7 +4,6 @@ import CodeElement from "@/components/statements/CodeElement.vue";
 import CurrentRunControl from "@/components/statements/CurrentRunControl.vue";
 import DatabaseElement from "@/components/statements/DatabaseElement.vue";
 import DatabaseInfoControl from "@/components/statements/DatabaseInfoControl.vue";
-import DatabaseSearchControl from "@/components/statements/DatabaseSearchControl.vue";
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
 import FunctionTypeElement from "@/components/statements/FunctionTypeElement.vue";
 import ListTypeElement from "@/components/statements/ListTypeElement.vue";
@@ -180,12 +179,6 @@ const RUN_META: StatementControl = {
   enabled: (iface, statement) => false,
   exists: (iface, statement) => false,
 };
-const DATABASE_SEARCH: StatementControl = {
-  id: "database.search",
-  component: DatabaseSearchControl,
-  enabled: (iface, statement) => statement.type === StatementType.Database,
-  exists: (iface, statement) => true,
-};
 
 const BLANK: StatementElement = { id: "blank", component: BlankElement, exists: () => true };
 const TEXT: StatementElement = {
@@ -294,7 +287,7 @@ register(StatementType.Database, {
   needsDeclaration: true,
   hasTags: true,
   hasBases: true,
-  extraControls: [DATABASE_SEARCH],
+  extraControls: [],
   elements: [TEXT, DATABASE],
 });
 register(StatementType.Tag, {
