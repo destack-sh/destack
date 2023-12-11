@@ -26,7 +26,7 @@ import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref, onMounted, toRef } from "vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
-import { useDatabaseInlineSearch } from "@/state/database";
+import { getDefaultConditional, useDatabaseInlineSearch } from "@/state/database";
 import { humanizeNumber } from "@/composables/useNow";
 import DatabaseTile from "@/components/tiles/DatabaseTile.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
@@ -85,6 +85,11 @@ const sort: Ref<Sort[] | null> = computed(() => {
   if (properties.sorts == null || properties.sorts.length == 0) return null;
   return properties.sorts;
 });
+
+function addDefaultConditional(field: Field) {
+  if (properties.filters == null) properties.filters = [];
+  properties.filters.push(getDefaultConditional(field));
+}
 
 // navigation
 useActiveScroll(gridRef);
@@ -181,6 +186,7 @@ defineExpose({
   <div>
     <!-- Views: sorts/filters/pagination -->
     <div class="-mx-0.5 mb-1 flex flex-row flex-wrap items-center gap-2">
+      <!-- nocheckin: inline search query (move from control) -->
       <ConditionalSetTile
         :fields="fields.allFields.value"
         :model-value="properties.filters"
@@ -232,6 +238,7 @@ defineExpose({
           @navigate-down="loadMoreRef != null ? loadMoreRef.focus() : emit('navigateDown')"
           @create-field="createFieldRef?.show()"
           @add-sort="({ field, order }) => addSort(field, order ?? SortOp.Ascending)"
+          @add-filter="({ field }) => addDefaultConditional(field)"
         />
         <!-- Load more/loading/go to big database view -->
         <div

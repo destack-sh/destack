@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import { ConditionalOp, TypeHint, TypeTag, type Conditional, StatementType, QueryEngine } from "@/gql/graphql";
-import { useCurrentModule } from "@/state/module";
+import { useCurrentModule, type Field } from "@/state/module";
 import type { useFields } from "@/state/statement";
 import { TypeStorageFormat, getStorageFormat } from "@/state/type";
 import { useDebounceFn } from "@vueuse/core";
@@ -114,4 +114,12 @@ export function useDatabaseInlineSearch(
   });
 
   return { inlineQuery, queryEngine };
+}
+
+export function getDefaultConditional(field: Field): Conditional {
+  return { field: field.ck, op: ConditionalOp.Exists };
+}
+
+export function renderConditional(conditional: Conditional): string {
+  return "nocheckin: renderConditional";
 }

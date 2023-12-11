@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from bench.language.statement import Statement
 
 
-@node(node_type=NodeType.FILE, passthrough=(("statements", _Passthrough.Full),))
+@node(NodeType.FILE, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
     parent: Union["File", Module] = nparent(NodeType.FILE, NodeType.MODULE)
     name: str | None = bproperty(validate=validate_name)

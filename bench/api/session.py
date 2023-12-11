@@ -452,35 +452,33 @@ class SessionQuery:
 
         query = query.to_bench() if query else None
         if session_id:
-            query = lang.Conditional.and_if_set(
+            query = lang.Expression.and_if_set(
                 query, lang.C(ConditionalOp.EQUALS, "session_id", value=session_id)
             )
         if run_id:
-            query = lang.Conditional.and_if_set(
+            query = lang.Expression.and_if_set(
                 query, lang.C(ConditionalOp.EQUALS, "run_id", value=run_id)
             )
         if statement_ids is not None:
             if statement_ids:
-                query = lang.Conditional.and_if_set(
+                query = lang.Expression.and_if_set(
                     query, lang.C(ConditionalOp.EQUALS, "statement_id", value=statement_ids)
                 )
             else:
-                query = lang.Conditional.and_if_set(
+                query = lang.Expression.and_if_set(
                     query, lang.C(ConditionalOp.NOT_EXISTS, "statement_id")
                 )
         if statement_cks is not None:
             if statement_cks:
-                query = lang.Conditional.and_if_set(
+                query = lang.Expression.and_if_set(
                     query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
                 )
             else:
-                query = lang.Conditional.and_if_set(
+                query = lang.Expression.and_if_set(
                     query, lang.C(ConditionalOp.NOT_EXISTS, "statement_ck")
                 )
         if root_only:
-            query = lang.Conditional.and_if_set(
-                query, lang.C(ConditionalOp.NOT_EXISTS, "parent_id")
-            )
+            query = lang.Expression.and_if_set(query, lang.C(ConditionalOp.NOT_EXISTS, "parent_id"))
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
         default_sort = [lang.S(SortOp.DESCENDING, field="created_at")]
         sort = [s.to_bench() for s in sort] if sort else default_sort
@@ -562,19 +560,19 @@ class SessionQuery:
         sort = [s.to_bench() for s in sort] if sort else default_sort
         query = query.to_bench() if query else None
         if session_id:
-            query = lang.Conditional.and_if_set(
+            query = lang.Expression.and_if_set(
                 query, lang.C(ConditionalOp.EQUALS, "session_id", value=str(session_id))
             )
         if run_id:
-            query = lang.Conditional.and_if_set(
+            query = lang.Expression.and_if_set(
                 query, lang.C(ConditionalOp.EQUALS, "run_id", value=str(run_id))
             )
         if statement_ids:
-            query = lang.Conditional.and_if_set(
+            query = lang.Expression.and_if_set(
                 query, lang.C(ConditionalOp.EQUALS, "statement_id", value=str(statement_ids))
             )
         if statement_cks:
-            query = lang.Conditional.and_if_set(
+            query = lang.Expression.and_if_set(
                 query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
             )
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)

@@ -15,7 +15,8 @@ from bench.language.const import (
     SessionAccessLevel,
     new_dynamic_node_key,
 )
-from bench.language.expression import C, Conditional, Sort, coerce_conditional, coerce_sort
+from bench.language.expression import C, Expression, coerce_conditional, coerce_sort
+from bench.language.issue import IssueHandler
 from bench.language.module import (
     _NC,
     NS,
@@ -50,7 +51,7 @@ LOCAL_RECORD_CACHE_LIMIT = 2048
 RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 
-@node(node_type=NodeType.RECORD, passthrough=(("value", _Passthrough.Full),))
+@node(NodeType.RECORD, passthrough=(("value", _Passthrough.Full),))
 class Record(HasValue, Node):
     parent: "Statement" = nparent(NodeType.STATEMENT)
 
@@ -129,8 +130,8 @@ class RecordQuery:
     def __init__(
         self,
         database: "HasDatabase",
-        filter: Conditional | None = None,
-        sort: list[Sort] = None,
+        filter: Expression | None = None,
+        sort: list[Expression] = None,
         include: list["Field"] = None,
         select: list["Field"] = None,
         distinct: list["Field"] = None,
@@ -166,9 +167,9 @@ class RecordQuery:
         return f"<RecordQuery {self}>"
 
     @property
-    def _combined_filter(self) -> Conditional:
+    def _combined_filter(self) -> Expression:
         """Combines the custom with the default filter for this database."""
-        return Conditional.and_if_set(
+        return Expression.and_if_set(
             self._filter,
             C(ConditionalOp.EQUALS, "statement_key", value=self._database.key),
             ~C(ConditionalOp.EXISTS, "deleted_at"),
@@ -189,17 +190,17 @@ class RecordQuery:
             # cache is not copied on purpose as it shouldn't propagate
         )
 
-    def _interp_self(self, scope: "ScopeNode", on_issue: "ValidationHandler") -> None:
+    def _interp_self(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:
         """
         Interprets the Bench parts of the query.
         Convenient for using RecordQuery with just deserialized parts,
          but of course RecordQuery isn't a node or struct or such.
         """
         if self._filter is not None:
-            self._filter._interp_self(scope, on_issue)
+            self._filter._interp_rec(scope, on_issue)
         if self._sort is not None:
             for sort in self._sort:
-                sort._interp_self(scope, on_issue)
+                sort._interp_rec(scope, on_issue)
 
     def _invalidate(self):
         self._cached_records = None
@@ -312,7 +313,7 @@ class RecordQuery:
         return copy
 
     @_auto_async_to_sync
-    async def get(self, query: Conditional = None, **kwargs) -> Record:
+    async def get(self, query: Expression = None, **kwargs) -> Record:
         """Returns the unique result matching the query (errors otherwise)."""
         query = coerce_conditional(self._database, query, kwargs)
         results = await self.filter(query).tolist()
@@ -321,14 +322,16 @@ class RecordQuery:
         else:
             raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results}")
 
-    def filter(self, query: Conditional = None, **kwargs) -> "RecordQuery":
+    def filter(self, query: Expression = None, **kwargs) -> "RecordQuery":
         """Adds a filter clause to the query."""
         query = coerce_conditional(self._database, query, kwargs)
         copy = self.copy()
         copy._filter = query & self._filter if self._filter is not None else query
         return copy
 
-    def sort(self, sort: list[Sort | str] | str | Sort = None, *args: str) -> "RecordQuery":
+    def sort(
+        self, sort: list[Expression | str] | str | Expression = None, *args: str
+    ) -> "RecordQuery":
         """Sorts the query results by the given sort criteria."""
         copy = self.copy()
         sort = coerce_sort(self._database, sort, args)
@@ -381,7 +384,7 @@ class RecordQuery:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
     @_auto_async_to_sync
-    async def count(self, query: Conditional = None, *, _no_flush: bool = False, **kwargs) -> int:
+    async def count(self, query: Expression = None, *, _no_flush: bool = False, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_count
 
@@ -398,7 +401,7 @@ class RecordQuery:
         )
 
     @_auto_async_to_sync
-    async def exists(self, query: Conditional = None, *, _no_flush: bool = False, **kwargs) -> bool:
+    async def exists(self, query: Expression = None, *, _no_flush: bool = False, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_exists
 
@@ -468,7 +471,7 @@ class RecordQuery:
         session.check_access(SessionAccessLevel.Delete)
         if session._tracer._local_edits:
             await session.flush_local()
-        where = Conditional.and_if_set(
+        where = Expression.and_if_set(
             self._filter, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
         )
         deleted_rows = await pg_delete(
@@ -533,7 +536,7 @@ class RecordRelationToMany(RecordRelation):
         super().__init__(parent, field, type, reverse_field)
         self.value: list[Record] = []
 
-    def filter(self, query: Conditional) -> "RecordQuery":
+    def filter(self, query: Expression) -> "RecordQuery":
         raise NotImplementedError
 
     def create(self, **kwargs) -> "Record":
@@ -629,7 +632,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
     def __contains__(self, obj: object) -> bool:
         return False  # lookup by id?
 
-    def get(self, conditional: Conditional = None, **kwargs) -> Record:
+    def get(self, conditional: Expression = None, **kwargs) -> Record:
         return RecordQuery.get(self, conditional, **kwargs)
 
     #

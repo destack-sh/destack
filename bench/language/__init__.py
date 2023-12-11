@@ -19,16 +19,7 @@ from .const import (
 )
 from .database import HasDatabase, Record
 from .edit import render, render_as_python
-from .expression import (
-    A,
-    Aggregation,
-    C,
-    Conditional,
-    E,
-    Expression,
-    S,
-    Sort,
-)
+from .expression import A, C, E, Expression, S
 from .field import Field, HasFields, HasType, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
@@ -47,11 +38,9 @@ from .view import View
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
     "A",
-    "Aggregation",
     "BenchError",
     "Blob",
     "C",
-    "Conditional",
     "ConditionalOp",
     "E",
     "Expression",
@@ -85,7 +74,6 @@ __all__ = [
     "Secret",
     "Session",
     "SessionAccessLevel",
-    "Sort",
     "SortMode",
     "SortOp",
     "Statement",

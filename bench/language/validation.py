@@ -49,7 +49,7 @@ class PropertyValidationHandler:
         self.handler(self.subject, message, [self.prop.name], cause)
 
 
-def on_issue_raise(
+def on_invalid_raise(
     subject: "Node",
     message: str,
     properties: list[str] | None,

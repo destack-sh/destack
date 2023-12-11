@@ -19,12 +19,9 @@ from bench.language.const import NodeType, TypeFlag, TypeStorageFormat
 from bench.language.edit import EditData, EditKind
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
-    ComparisonConditional,
-    CompoundConditional,
-    ExistenceConditional,
+    ExpressionOps,
     FieldReference,
     QueryEngineIncapableError,
-    StaticConditional,
 )
 from bench.language.module import UNSET, get_node_id
 from bench.sql.client import async_pg_cursor
@@ -267,14 +264,16 @@ def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReferen
 
 def compile_pg_conditional(
     database: "HasDatabase",
-    cond: lang.Conditional | None,
+    cond: lang.Expression | None,
 ) -> SqlNode:
-    if isinstance(cond, StaticConditional):
-        return sql.SQL("TRUE" if cond.op == ConditionalOp.TRUE else "FALSE")
-    elif isinstance(cond, CompoundConditional) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
+    if cond.op == ConditionalOp.TRUE:
+        return sql.SQL("TRUE")
+    elif cond.op == ConditionalOp.FALSE:
+        return sql.SQL("FALSE")
+    elif cond.op in ExpressionOps.COND_LOGICAL and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         clauses = [compile_pg_conditional(database, c) for c in cond.clauses]
         return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
-    elif isinstance(cond, ComparisonConditional) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
+    elif cond.op in ExpressionOps.COND_COMPARISON and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_field_ref(database, cond.field)
         if isinstance(cond.field, Field):  # add explicit cast to LHS if possible
             pg_type = CAST_TYPE_BY_STORAGE_FORMAT[cond.field._storage_format]
@@ -297,7 +296,7 @@ def compile_pg_conditional(
             right = sql.Literal(cond.value)
 
         return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
-    elif isinstance(cond, ExistenceConditional):
+    elif cond.op in ExpressionOps.COND_EXISTENCE:
         return SqlUnary(
             left=_compile_field_ref(database, cond.field), op=PG_CONDITIONAL_OP_BY_BENCH[cond.op]
         )
@@ -306,7 +305,7 @@ def compile_pg_conditional(
 
 def compile_pg_sort(
     database: "HasDatabase",
-    sort: lang.Sort,
+    sort: lang.Expression,
 ) -> SqlNode:
     field_ref = _compile_field_ref(database, sort.field)
     return sql.SQL("{} {}").format(
@@ -316,7 +315,7 @@ def compile_pg_sort(
 
 def compile_pg_sorts(
     database: "HasDatabase",
-    sorts: list[lang.Sort],
+    sorts: list[lang.Expression],
 ) -> SqlNode:
     return sql.SQL(", ").join(compile_pg_sort(database, sort) for sort in sorts)
 
@@ -833,8 +832,8 @@ async def pg_select_records(
     cur: psycopg.AsyncCursor,
     database: "HasDatabase",
     *,
-    where: lang.Conditional | None = None,
-    sort: list[lang.Sort] | None = None,
+    where: lang.Expression | None = None,
+    sort: list[lang.Expression] | None = None,
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
@@ -992,7 +991,7 @@ async def duplicate_records_in_pg(
     target_database: "HasDatabase",
     *,
     keep_cks: bool,
-    where: lang.Conditional,
+    where: lang.Expression,
     copy_revisions: bool,
     return_nodes: bool = False,
 ) -> list[wire.RecordData] | None:

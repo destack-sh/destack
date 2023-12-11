@@ -2,7 +2,7 @@ import typing
 from typing import Optional
 
 from bench.language.const import NodeType, ViewLayout
-from bench.language.expression import Conditional, Sort
+from bench.language.expression import Expression
 from bench.language.module import ScopeNode, bproperty, node, nparent
 from bench.language.validation import enum_validator
 
@@ -10,13 +10,13 @@ if typing.TYPE_CHECKING:
     from bench.language import File, Statement
 
 
-@node(node_type=NodeType.VIEW)
+@node(NodeType.VIEW)
 class View(ScopeNode):
     parent: typing.Union["Statement", "File"] = nparent(NodeType.STATEMENT, NodeType.FILE)
     name: str | None = bproperty(default=None)
     layout: ViewLayout = bproperty(default=ViewLayout.TABLE, validate=enum_validator(ViewLayout))
-    query: Optional[Conditional] = bproperty(default=None)
-    sort: Optional[list[Sort]] = bproperty(default=None)
+    query: Optional[Expression] = bproperty(default=None)
+    sort: Optional[list[Expression]] = bproperty(default=None)
 
     def __str__(self):
         return f"{self.parent.path}:{self.name} ({self.layout})"

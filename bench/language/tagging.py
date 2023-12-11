@@ -21,7 +21,7 @@ if typing.TYPE_CHECKING:
     from bench.language import Field, File, HasFields, Statement
 
 
-@node(node_type=NodeType.TAGGING)
+@node(NodeType.TAGGING)
 class Tagging(HasValue, HasReference, Node):
     """An association between a tag and a statement (with optional value)."""
 

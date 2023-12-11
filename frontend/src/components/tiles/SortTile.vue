@@ -42,7 +42,7 @@ function open() {
 <template>
   <!-- Sort pill -->
   <button
-    class="relative flex flex-row items-center rounded-xl border border-orange-900/[12%] px-1.5 py-0.5 hover:bg-amber-100"
+    class="flex flex-row items-center rounded-xl border border-amber-900/[12%] px-1.5 py-0.5 hover:bg-amber-100"
     @click="open"
   >
     <TypePreview :type="field" />

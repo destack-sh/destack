@@ -251,8 +251,8 @@ class Conditional:
     value: Optional[JSON] = None
     clauses: Optional[list["Conditional"]] = None
 
-    def to_bench(self) -> expr.Conditional:
-        clauses = [q.to_bench() for q in self.clauses] if self.clauses else None
+    def to_bench(self) -> expr.Expression:
+        clauses = [c.to_bench() for c in self.clauses] if self.clauses else None
         return expr.C(self.op, clauses=clauses, field=try_to_uuid(self.field), value=self.value)
 
 
@@ -262,5 +262,5 @@ class Sort:
     order: SortOp = SortOp.ASCENDING
     mode: Optional[SortMode] = None
 
-    def to_bench(self) -> expr.Sort:
+    def to_bench(self) -> expr.Expression:
         return expr.S(self.order, field=try_to_uuid(self.field), mode=self.mode)

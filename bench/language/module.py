@@ -44,12 +44,7 @@ from bench.language.const import (
     parse_absolute_node_reference,
     parse_node_path,
 )
-from bench.language.validation import (
-    PropertyValidationHandler,
-    ValidationError,
-    ValidationHandler,
-    on_issue_raise,
-)
+from bench.language.validation import PropertyValidationHandler, ValidationError, ValidationHandler
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
 from bench.utils.func import did_you_mean_str, nextn
@@ -69,6 +64,18 @@ if TYPE_CHECKING:
     from bench.language.wire import NodeData
 
 logger = structlog.get_logger(__name__)
+
+
+def on_issue_raise(
+    subject: "Node",
+    type: IssueType,
+    message: Optional[str] = None,
+    path: Optional[str] = None,
+    **kwargs,
+):
+    from bench.language.issue import Issue
+
+    raise Issue.from_subject(subject=subject, type=type, message=message, path=path).to_error()
 
 
 def new_node_identity(module_id: UUID) -> tuple[UUID, UUID]:
@@ -258,17 +265,17 @@ class _FieldExpressionBase:
 
     @_require_expr_op(SortOp.ASCENDING)
     def asc(self) -> "Sort":
-        from bench.language.expression import Sort
+        from bench.language.expression import S
 
-        return Sort(SortOp.ASCENDING, self._as_field)
+        return S(SortOp.ASCENDING, self._as_field)
 
     ascending = asc
 
     @_require_expr_op(SortOp.DESCENDING)
     def desc(self) -> "Sort":
-        from bench.language.expression import Sort
+        from bench.language.expression import S
 
-        return Sort(SortOp.DESCENDING, self._as_field)
+        return S(SortOp.DESCENDING, self._as_field)
 
     descending = desc
 
@@ -481,6 +488,7 @@ NS = NodeStatus
 
 class ComponentMethod(enum.Enum):
     init = "init"
+    walk = "walk"
     clear = "clear"
     index = "index"
     interp = "interp"
@@ -567,7 +575,7 @@ def _process_struct_base(
     cls: Union[type["Node"], type["Struct"]], dynamic_components: tuple[type["Node"], ...] = ()
 ) -> tuple[type["Node"], dict[str, Property]]:
     properties: dict[str, Property] = {}
-    static_components: list[type["Node"]] = [cls]
+    static_components: list[type["Node"] | type["Struct"]] = [cls]
 
     # check that no forbidden methods are defined
     CORE_TYPES = ("Struct", "Node", "ScopeNode")
@@ -588,7 +596,12 @@ def _process_struct_base(
                 if gp.__name__ not in CORE_TYPES and gp not in static_components:
                     static_components.append(gp)
     if cls.__name__ not in ("Struct", "Node"):
-        static_components.append(Node)
+        if issubclass(cls, Node):
+            static_components.append(Node)
+        elif issubclass(cls, Struct):
+            static_components.append(Struct)
+        else:
+            raise ValueError(f"invalid struct base {cls}")
 
     # collect properties from this
     for name, prop in cls.__dict__.items():
@@ -1808,7 +1821,7 @@ class _Passthrough(enum.StrEnum):
     Scope = "scope"
 
 
-@dataclass
+@dataclass(eq=False)
 class Struct:
     """
     A non-node data structure, usually inside a node.
@@ -1816,6 +1829,8 @@ class Struct:
     """
 
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
+    __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
+    __properties__: ClassVar[dict[str, Property]] = {}
 
     @property
     def _components(self) -> tuple[type["Node"], ...]:
@@ -1826,14 +1841,48 @@ class Struct:
         """Identifier for dynamic components"""
         return type(self).__name__
 
+    def __eq__(self, other):
+        return self is other  # structs have no identity
+
+    def _walk_inner(self, on_member: Callable[[Union["Node", "Struct"]], None]):
+        pass
+
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         pass
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
         pass
 
+    _walk_self = _make_self_method(ComponentMethod.walk, _walk_inner)
     _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner)
     _interp_self = _make_self_method(ComponentMethod.interp, _interp_inner)
+
+    @staticmethod
+    def _make_rec_method(method: ComponentMethod, wraps):
+        """Creates method that calls _method_self for all descendants (using _walk_self)"""
+
+        @functools.wraps(wraps)
+        def rec_method(self: "Node", *args, **kwargs):
+            # collect descendants (there tend to be few, so lists are fine)
+            descendants = []
+            new_descendants = [self]
+            while new_descendants:
+                next_descendants = []
+                for descendant in new_descendants:
+                    descendant._walk_self(next_descendants.append)
+                    if descendant not in descendants:
+                        descendants.append(descendant)
+                new_descendants = next_descendants
+            # and call the method on each
+            for descendant in descendants:
+                if isinstance(descendant, Struct):
+                    getattr(descendant, method.self)(*args, **kwargs)
+
+        rec_method.__name__ = method.rec
+        return rec_method
+
+    _clear_rec = _make_rec_method(ComponentMethod.clear, _clear_self)
+    _interp_rec = _make_rec_method(ComponentMethod.interp, _interp_self)
 
     def _set_untracked(self, key: str, value: Any):
         self.__dict__[key] = value
@@ -2427,18 +2476,13 @@ class ScopeNode(Node):
         return scopes
 
     def _on_issue(self, subject: "Node", type: IssueType, message: str = None, **kwargs):
-        from bench.language import File, Statement
         from bench.language.issue import Issue
 
         if not subject.attached:
             return  # no way to derive issue id, so just ignore?
-        issue_ck = uuid.uuid5(subject.id, (type.value + (message or "")))
-        issue_id = issue_ck  # not sure?
-        if not isinstance(subject, (Statement, File)):
-            subject = subject.parent  # fields don't have issues (yet)
-        issue = Issue(id=issue_id, ck=issue_ck, type=type, parent=None, **kwargs)
-        if issue not in subject.issues:  # dedup
-            subject.issues.append(issue, _trigger=_NC.UpdateLists)
+        issue = Issue.from_subject(subject, type, message, **kwargs)
+        if issue not in issue.subject.issues:  # dedup
+            issue.subject.issues.append(issue, _trigger=_NC.UpdateLists)
 
     @property
     def errors(self) -> list["Issue"]:
@@ -2479,7 +2523,7 @@ class ModuleChange:
         return ModuleChange([], [], [], [], [])
 
 
-@node(node_type=NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
+@node(NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
     parent: None = nparent()
     name: str = binternal()  # can't change this yet
