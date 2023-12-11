@@ -18,7 +18,7 @@ class HasValue(Node):
     def _type_of_value(self) -> Optional["HasFields"]:
         return self  # assume this is a statement with fields
 
-    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
+    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
         # type may not be ready if not attached (e.g. Record in a Database)
         if "value" in properties and self._type_of_value is not None:
             from bench.language.packer import check_type
@@ -27,7 +27,7 @@ class HasValue(Node):
                 get_k = lambda f: f.py_ident if self._status == NS.ACTIVE else f._typed_key  # noqa
                 check_type(self.value or {}, self._type_of_value, get_k=get_k)
             except TypeError as e:
-                on_issue(self, f"invalid value: {e}", ["value"])
+                on_invalid(self, f"invalid value: {e}", ["value"])
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
         if self.value:  # :VisitValue

@@ -67,6 +67,7 @@ class Issue(Node):
     message: str = bproperty(default=None)
     subject: Optional[Node] = bproperty(default=None)
     path: Optional[str] = bproperty(default=None)
+    properties: list[str] = bproperty(default=None)
     other: Optional[Node] = bproperty(default=None)
 
     def _init_inner(self):
@@ -100,7 +101,13 @@ class Issue(Node):
         return BenchError(self)
 
     @staticmethod
-    def from_subject(subject: Node, type: IssueType, message: str = None, **kwargs) -> "Issue":
+    def from_subject(
+        subject: Node,
+        type: IssueType,
+        message: str = None,
+        path: Optional[str] = None,
+        properties: Optional[list[str]] = None,
+    ) -> "Issue":
         from bench.language import File, Statement
 
         assert isinstance(subject, Node), f"invalid subject: {subject!r}"
@@ -108,7 +115,17 @@ class Issue(Node):
         issue_id = issue_ck  # not sure?
         if not isinstance(subject, (Statement, File)):
             subject = subject.parent  # fields don't have issues (yet)
-        issue = Issue(id=issue_id, ck=issue_ck, type=type, subject=subject, parent=None, **kwargs)
+        issue = Issue(
+            id=issue_id,
+            ck=issue_ck,
+            type=type,
+            subject=subject,
+            parent=None,
+            path=path,
+            properties=properties,
+            message=message,
+        )
+        # don't set parent yet because it would append it to the issues list
         return issue
 
 
@@ -119,6 +136,7 @@ class IssueHandler:
         type: IssueType,
         message: Optional[str] = None,
         path: Optional[str] = None,
+        properties: list[str] | None = None,
         **kwargs,
     ):
         pass

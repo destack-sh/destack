@@ -15,7 +15,7 @@ from bench.language.const import (
     SessionAccessLevel,
     new_dynamic_node_key,
 )
-from bench.language.expression import C, Expression, coerce_conditional, coerce_sort
+from bench.language.expression import C, Expression, coerce_conditional, coerce_sort, ExpressionOps
 from bench.language.issue import IssueHandler
 from bench.language.module import (
     _NC,
@@ -33,7 +33,6 @@ from bench.language.module import (
     node_component,
     nparent,
 )
-from bench.language.validation import ValidationHandler
 from bench.language.value import HasValue
 from bench.search.core import DocumentType
 from bench.sql.core import EPHEMERAL_RECORD_TABLE, Table
@@ -215,11 +214,7 @@ class RecordQuery:
 
         where = self._combined_filter
         first = self._first or LOCAL_RECORD_CACHE_LIMIT
-        # prefer sql engine if possible, except for scored queries
-        required_engine = self._required_engine
-        if self._engine and self._engine != required_engine:
-            raise ValueError(f"cannot use {self._engine} with {self!r}")
-        target_engine = self._engine or required_engine or QueryEngine.POSTGRES
+        target_engine = self._engine or self._recommended_engine or QueryEngine.POSTGRES
 
         logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
         if target_engine == QueryEngine.OPENSEARCH:
@@ -260,11 +255,27 @@ class RecordQuery:
             raise ValueError(f"unexpected query engine {target_engine}")
 
     @property
-    def _required_engine(self) -> QueryEngine:
-        if self._filter is not None and self._filter.is_scored:  # :QueryEngineSelection
-            return QueryEngine.OPENSEARCH
-        else:
-            return QueryEngine.POSTGRES
+    def _required_engine(self) -> Optional[QueryEngine]:
+        """The engine required to execute this query."""
+        if self._filter is not None:
+            ops = self._filter._collect_ops()
+            if ConditionalOp.NEAR in ops:
+                return QueryEngine.OPENSEARCH
+        return None
+
+    @property
+    def _recommended_engine(self) -> QueryEngine:
+        if self._filter is not None:
+            ops = self._filter._collect_ops()
+            if ops & ExpressionOps.COND_SCORED:
+                return QueryEngine.OPENSEARCH
+        return QueryEngine.POSTGRES
+
+    def _require_engine(self, engine: QueryEngine) -> None:
+        if self._required_engine and self._required_engine != engine:
+            raise ValueError(f"cannot use {engine} with {self!r}")
+        if self._engine and self._engine != engine:
+            raise ValueError(f"cannot force {engine} with {self!r}")
 
     async def _fetch(self, *, _no_flush: bool = False) -> list[Record]:
         """Fetches the result set for this query."""
@@ -388,7 +399,7 @@ class RecordQuery:
         """Returns the number of results. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_count
 
-        assert not self._engine, "cannot count with forced query engine"
+        self._require_engine(QueryEngine.POSTGRES)
         assert not self._first and not self._skip and not self._sort, "cannot count with limits"
         query = coerce_conditional(self._database, query, kwargs)
 
@@ -407,7 +418,7 @@ class RecordQuery:
 
         query = coerce_conditional(self._database, query, kwargs, return_none_if_empty=True)
 
-        assert not self._engine, "cannot exists with forced query engine"
+        self._require_engine(QueryEngine.POSTGRES)
         assert not self._first and not self._skip and not self._sort, "cannot exists with limits"
         if query is None and self._cached_records is not None:
             return bool(self._cached_records)
@@ -430,7 +441,7 @@ class RecordQuery:
         from bench.language.packer import check_type, pack_value
         from bench.sql.engine import compile_pg_conditional, pg_update_static, pg_wrap_record_value
 
-        assert not self._engine, "cannot update with forced query engine"
+        self._require_engine(QueryEngine.POSTGRES)
         if not value:
             raise ValueError(f"no values given to update {self!r}")
 
@@ -466,6 +477,7 @@ class RecordQuery:
         """Deletes all results."""
         from bench.sql.engine import compile_pg_conditional, pg_delete
 
+        self._require_engine(QueryEngine.POSTGRES)
         assert not self._engine, "cannot delete with forced query engine"
         session = self._database.session
         session.check_access(SessionAccessLevel.Delete)
@@ -667,7 +679,7 @@ class HasDatabase(Node):
     def _clear_inner(self, scope: Optional["ScopeNode"]) -> None:
         self._table = None
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler") -> None:
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:
         from bench.sql.engine import map_to_pg_table
 
         if self.ephemeral:

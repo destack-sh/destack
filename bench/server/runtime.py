@@ -38,7 +38,7 @@ from bench.language.const import (
 )
 from bench.language.database import RecordQuery
 from bench.language.edit import EditData, EditKind, NodeTreeEditor
-from bench.language.expression import SCORE_KEY, C, S
+from bench.language.expression import SCORE_KEY, C, S, ExpressionOps
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.module import NodeTree, on_issue_raise, walk_bfs
@@ -1005,7 +1005,11 @@ class RuntimeHost:
         try:
             filter = wire.unpack_data(msg.p.query, self.module) if msg.p.query else None
             sort = [wire.unpack_data(s, self.module) for s in msg.p.sort] if msg.p.sort else None
-            if not sort and filter is not None and filter.is_scored:
+            if (
+                not sort
+                and filter is not None
+                and filter._collect_ops() & ExpressionOps.COND_SCORED
+            ):
                 sort = [S(SortOp.DESCENDING, field=SCORE_KEY)]
 
             database = self.module.resolve(msg.p.statement_ck)

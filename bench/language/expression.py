@@ -23,7 +23,6 @@ from bench.language.module import Struct, bproperty, struct
 
 if TYPE_CHECKING:
     from bench.language import Field, HasFields, Node, ScopeNode
-    from bench.language.validation import ValidationHandler
 
 
 #
@@ -63,7 +62,11 @@ class Expression(Struct):
             return self.op.name.lower()
         elif self.op in ExpressionOps.COND_LOGICAL:
             return f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses)
-        elif self.op in ExpressionOps.COND_EXACT:
+        elif (
+            self.op in ExpressionOps.COND_EXACT
+            or self.op in ExpressionOps.COND_RANGE
+            or self.op in ExpressionOps.COND_STRING
+        ):
             value_str = str(self.value)
             if len(value_str) > 32:
                 value_str = f"{value_str[:24]}...{value_str[-12:]}"
@@ -128,7 +131,7 @@ class Expression(Struct):
         ):
             self._set_untracked("field", self.field.ck)
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
         if self.field:
             resolved = self.field
             if isinstance(self.field, UUID):
@@ -149,9 +152,13 @@ class Expression(Struct):
     def field_key(self) -> str:
         return self.field if isinstance(self.field, str) else self.field._source_key
 
-    @property
-    def is_scored(self) -> bool:
-        return self.op in RANKED_CONDITIONAL_OPS
+    def _collect_ops(self) -> set[ExpressionOp]:
+        """Collect all ops in this expression and its clauses (recursively)."""
+        ops = {self.op}
+        if self.clauses:
+            for clause in self.clauses:
+                ops |= clause._collect_ops()
+        return ops
 
     @staticmethod
     def and_if_set(
@@ -177,16 +184,18 @@ class ExpressionOps:
         ConditionalOp.IN,
         ConditionalOp.NOT_IN,
     }
-    COND_STRUCT = {ConditionalOp.CONTAINS, ConditionalOp.NOT_CONTAINS}
     COND_RANGE = {
         ConditionalOp.GREATER_THAN,
         ConditionalOp.GREATER_THAN_OR_EQUALS,
         ConditionalOp.LESS_THAN,
         ConditionalOp.LESS_THAN_OR_EQUALS,
     }
+    COND_COMPARISON = {*COND_EXACT, *COND_RANGE}
+    COND_STRUCT = {ConditionalOp.CONTAINS, ConditionalOp.NOT_CONTAINS}
     COND_EXISTENCE = {ConditionalOp.EXISTS, ConditionalOp.NOT_EXISTS}
     COND_VECTOR = {ConditionalOp.NEAR}
-    COND_COMPARISON = {*COND_EXACT, *COND_RANGE}
+    COND_STRING = {ConditionalOp.STARTS_WITH, ConditionalOp.MATCHES}
+    COND_SCORED = {ConditionalOp.NEAR, *COND_STRING}
     # Aggregations
     AGG_SINGLE = {
         AggregationOp.COUNT,
@@ -201,7 +210,7 @@ class ExpressionOps:
     SORT = {SortOp.ASCENDING, SortOp.DESCENDING}
 
 
-RANKED_CONDITIONAL_OPS = {ConditionalOp.MATCHES, *ExpressionOps.COND_VECTOR}
+RANKED_CONDITIONAL_OPS = {*ExpressionOps.COND_STRING, *ExpressionOps.COND_VECTOR}
 
 EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionOp]] = {
     ExpressionKind.CONDITIONAL: {
@@ -212,6 +221,8 @@ EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionOp]] = {
         *ExpressionOps.COND_RANGE,
         *ExpressionOps.COND_EXISTENCE,
         *ExpressionOps.COND_VECTOR,
+        *ExpressionOps.COND_COMPARISON,
+        *ExpressionOps.COND_STRING,
     },
     ExpressionKind.AGGREGATION: {*ExpressionOps.AGG_SINGLE, *ExpressionOps.AGG_BUCKET},
     ExpressionKind.SORT: {*ExpressionOps.SORT},
@@ -219,6 +230,7 @@ EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionOp]] = {
 EXPRESSION_KIND_BY_OP: dict[ExpressionOp, ExpressionKind] = {
     op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops
 }
+assert len(EXPRESSION_KIND_BY_OP) == len(ExpressionOp), "missing expression op/kind mapping"
 
 CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
     "eq": ConditionalOp.EQUALS,

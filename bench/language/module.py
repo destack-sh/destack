@@ -44,7 +44,12 @@ from bench.language.const import (
     parse_absolute_node_reference,
     parse_node_path,
 )
-from bench.language.validation import PropertyValidationHandler, ValidationError, ValidationHandler
+from bench.language.validation import (
+    PropertyValidationHandler,
+    ValidationError,
+    ValidationHandler,
+    on_invalid_raise,
+)
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
 from bench.utils.func import did_you_mean_str, nextn
@@ -59,9 +64,10 @@ from bench.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Conditional, Field, File, Issue, NodeVisitor, Session, Sort
+    from bench.language import Field, File, Issue, NodeVisitor, Session, Expression
     from bench.language.edit import EditData
     from bench.language.wire import NodeData
+    from bench.language.issue import IssueHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -134,10 +140,10 @@ def _require_expr_op(op: ExpressionOp):
     return decorator
 
 
-def _to_conditional(op: ConditionalOp, *args, **kwargs):
+def _to_conditional(op: ConditionalOp, field: "Field", value: Any = None):
     from bench.language.expression import C
 
-    return C(op, *args, **kwargs)
+    return C(op, field, value=value)
 
 
 class _FieldExpressionBase:
@@ -147,7 +153,7 @@ class _FieldExpressionBase:
     """
 
     @property
-    def _as_field(self):
+    def _as_field(self) -> "Field":
         from bench.language.field import Field
 
         assert isinstance(self, Field), f"{self!r} is not a Field"
@@ -155,11 +161,9 @@ class _FieldExpressionBase:
 
         # basic support checks
 
-    def _strip_value(self: "Field", value: Any) -> Any:
+    def _coerce_value(self: "Field", value: Any) -> Any:
         from bench.language.field import Field
 
-        # probably don't want to do this here anymore (move to engines?)
-        # coerce to field to get its key
         if self._as_field._effective_tag == TypeTag.ENUM and not isinstance(value, Field):
             value = self.resolved_fields.get(value)
         return value
@@ -167,36 +171,36 @@ class _FieldExpressionBase:
     # comparison
 
     @_require_expr_op(ConditionalOp.EQUALS)
-    def equals(self, value: Any) -> "Conditional":
-        value = self._strip_value(value)
+    def equals(self, value: Any) -> "Expression":
+        value = self._coerce_value(value)
         if value is None:
             return self.not_exists()
-        return _to_conditional(ConditionalOp.EQUALS, self._as_field, value)
+        return _to_conditional(ConditionalOp.EQUALS, self._as_field, value=value)
 
     @_require_expr_op(ConditionalOp.NOT_EQUALS)
-    def not_equal(self, value: Any) -> "Conditional":
-        value = self._strip_value(value)
-        return _to_conditional(ConditionalOp.NOT_EQUALS, self._as_field, value)
+    def not_equal(self, value: Any) -> "Expression":
+        value = self._coerce_value(value)
+        return _to_conditional(ConditionalOp.NOT_EQUALS, self._as_field, value=value)
 
     @_require_expr_op(ConditionalOp.GREATER_THAN)
-    def greater_than(self, value: Any) -> "Conditional":
-        value = self._strip_value(value)
-        return _to_conditional(ConditionalOp.GREATER_THAN, self._as_field, value)
+    def greater_than(self, value: Any) -> "Expression":
+        value = self._coerce_value(value)
+        return _to_conditional(ConditionalOp.GREATER_THAN, self._as_field, value=value)
 
     @_require_expr_op(ConditionalOp.GREATER_THAN_OR_EQUALS)
-    def greater_than_or_equals(self, value: Any) -> "Conditional":
-        value = self._strip_value(value)
-        return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self._as_field, value)
+    def greater_than_or_equals(self, value: Any) -> "Expression":
+        value = self._coerce_value(value)
+        return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self._as_field, value=value)
 
     @_require_expr_op(ConditionalOp.LESS_THAN)
-    def less_than(self, value: Any) -> "Conditional":
-        value = self._strip_value(value)
-        return _to_conditional(ConditionalOp.LESS_THAN, self._as_field, value)
+    def less_than(self, value: Any) -> "Expression":
+        value = self._coerce_value(value)
+        return _to_conditional(ConditionalOp.LESS_THAN, self._as_field, value=value)
 
     @_require_expr_op(ConditionalOp.LESS_THAN_OR_EQUALS)
-    def less_than_or_equals(self, value: Any) -> "Conditional":
-        value = self._strip_value(value)
-        return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self._as_field, value)
+    def less_than_or_equals(self, value: Any) -> "Expression":
+        value = self._coerce_value(value)
+        return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self._as_field, value=value)
 
     def __eq__(self, other):
         if isinstance(self, Node) and isinstance(other, Node):
@@ -216,55 +220,55 @@ class _FieldExpressionBase:
     # string comparison
 
     @_require_expr_op(ConditionalOp.STARTS_WITH)
-    def starts_with(self, value: str) -> "Conditional":
-        return _to_conditional(ConditionalOp.STARTS_WITH, self._as_field, value)
+    def starts_with(self, value: str) -> "Expression":
+        return _to_conditional(ConditionalOp.STARTS_WITH, self._as_field, value=value)
 
     @_require_expr_op(ConditionalOp.MATCHES)
-    def matches(self, value: str) -> "Conditional":
-        return _to_conditional(ConditionalOp.MATCHES, self._as_field, value)
+    def matches(self, value: str) -> "Expression":
+        return _to_conditional(ConditionalOp.MATCHES, self._as_field, value=value)
 
     # containment
 
     @_require_expr_op(ConditionalOp.IN)
-    def in_(self, *values: list[Any]) -> "Conditional":
-        values = [self._strip_value(value) for value in values]
-        return _to_conditional(ConditionalOp.IN, self._as_field, values)
+    def in_(self, *values: list[Any]) -> "Expression":
+        values = [self._coerce_value(value) for value in values]
+        return _to_conditional(ConditionalOp.IN, self._as_field, value=values)
 
     @_require_expr_op(ConditionalOp.NOT_IN)
-    def not_in(self, *values: list[Any]) -> "Conditional":
-        values = [self._strip_value(value) for value in values]
-        return _to_conditional(ConditionalOp.NOT_IN, self._as_field, values)
+    def not_in(self, *values: list[Any]) -> "Expression":
+        values = [self._coerce_value(value) for value in values]
+        return _to_conditional(ConditionalOp.NOT_IN, self._as_field, value=values)
 
     @_require_expr_op(ConditionalOp.CONTAINS)
-    def contains(self, value: Any) -> "Conditional":
-        value = self._strip_value(value)
-        return _to_conditional(ConditionalOp.CONTAINS, self._as_field, value)
+    def contains(self, value: Any) -> "Expression":
+        value = self._coerce_value(value)
+        return _to_conditional(ConditionalOp.CONTAINS, self._as_field, value=value)
 
     @_require_expr_op(ConditionalOp.NOT_CONTAINS)
-    def not_contains(self, value: Any) -> "Conditional":
-        value = self._strip_value(value)
-        return _to_conditional(ConditionalOp.NOT_CONTAINS, self._as_field, value)
+    def not_contains(self, value: Any) -> "Expression":
+        value = self._coerce_value(value)
+        return _to_conditional(ConditionalOp.NOT_CONTAINS, self._as_field, value=value)
 
     # existence
 
     @_require_expr_op(ConditionalOp.EXISTS)
-    def exists(self) -> "Conditional":
+    def exists(self) -> "Expression":
         return _to_conditional(ConditionalOp.EXISTS, self._as_field)
 
     @_require_expr_op(ConditionalOp.NOT_EXISTS)
-    def not_exists(self) -> "Conditional":
+    def not_exists(self) -> "Expression":
         return _to_conditional(ConditionalOp.NOT_EXISTS, self._as_field)
 
     # knn
 
     @_require_expr_op(ConditionalOp.NEAR)
-    def near(self, value: list[float], approximate: bool = True) -> "Conditional":
-        return _to_conditional(ConditionalOp.NEAR, self._as_field, value, approximate=approximate)
+    def near(self, value: list[float]) -> "Expression":
+        return _to_conditional(ConditionalOp.NEAR, self._as_field, value=value)
 
     # sort
 
     @_require_expr_op(SortOp.ASCENDING)
-    def asc(self) -> "Sort":
+    def asc(self) -> "Expression":
         from bench.language.expression import S
 
         return S(SortOp.ASCENDING, self._as_field)
@@ -272,7 +276,7 @@ class _FieldExpressionBase:
     ascending = asc
 
     @_require_expr_op(SortOp.DESCENDING)
-    def desc(self) -> "Sort":
+    def desc(self) -> "Expression":
         from bench.language.expression import S
 
         return S(SortOp.DESCENDING, self._as_field)
@@ -339,7 +343,7 @@ class Property(_FieldExpressionBase):
                 func_str = f"{v.__name__}@{hex(id(v))}"
                 non_default.append(f"{k}={func_str}")
             elif k == "children_flags":
-                flags_str = ", ".join(f.name for f in NodeRelationType if v & f)
+                flags_str = ", ".join(*tuple(f.name for f in NodeRelationType if v & f))
                 if flags_str:
                     non_default.append(flags_str)
             elif k not in ("name", "annotation", "component", "ignore_conflicts_with"):
@@ -852,7 +856,7 @@ class _ChangeEffect:
 
         # collect nodes to reinterp following attach/detach
         if level & (_NC.Detach | _NC.Attach):
-            affected_nodes: list[Node] = ancestors[:]
+            affected_nodes: list[Node] | None = ancestors[:]
             for child in changed:
                 affected_nodes.append(child)
                 if isinstance(child, ScopeNode):
@@ -1085,7 +1089,7 @@ class NodeList(NodeListBase[NodeT]):
         _node.parent = self._parent
         # validate node now that it has a parent (while in session)
         if self._parent._session is not None:
-            _node._validate_self(_node.__tracked_properties__.keys(), on_issue=on_issue_raise)
+            _node._validate_self(_node.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
         # index node into parent scope
         if isinstance(_node, ScopeNode) and _node._local_tree is not None:
@@ -1850,7 +1854,7 @@ class Struct:
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         pass
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler"):
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
         pass
 
     _walk_self = _make_self_method(ComponentMethod.walk, _walk_inner)
@@ -2016,7 +2020,7 @@ class Node(abc.ABC):
             prev = getattr(self, key)
             self.__dict__[key] = value
             try:
-                self._validate_self([key], on_issue=on_issue_raise)
+                self._validate_self([key], on_invalid=on_invalid_raise)
             except ValidationError as e:  # reset on error
                 self.__dict__[key] = prev
                 raise e
@@ -2096,11 +2100,11 @@ class Node(abc.ABC):
         """Index this node."""
         pass
 
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "ValidationHandler") -> None:
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:
         """Interpret this node."""
         pass
 
-    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
+    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
         """Validate cross-property constraints given the modified properties."""
         # since this is the root module, we also validate the properties directly
         from bench.language.builtin import _should_validate
@@ -2113,12 +2117,12 @@ class Node(abc.ABC):
             value = getattr(self, name)
             if value is None:
                 if prop.is_required:
-                    on_issue(self, f"{prop.name}: is required", [prop.name])
+                    on_invalid(self, f"{prop.name}: is required", [prop.name])
             elif prop.custom_validate is not None:
-                handler = PropertyValidationHandler(self, prop, on_issue)
+                handler = PropertyValidationHandler(self, prop, on_invalid)
                 valid = prop.validate(value, handler)
                 if valid is False:
-                    on_issue(self, f"{prop.name}: invalid value", [prop.name])
+                    on_invalid(self, f"{prop.name}: invalid value", [prop.name])
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
         """Visit any non-descendant referenced nodes."""
@@ -2196,7 +2200,7 @@ class Node(abc.ABC):
 
         # validate if in session after all init are done
         if self._status >= NS.INTERP and self._session is not None:
-            self._validate_self(self.__tracked_properties__.keys(), on_issue=on_issue_raise)
+            self._validate_self(self.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
     _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner, to_status=NS.SOURCE)
     _index_self = _make_self_method(
@@ -2346,7 +2350,7 @@ class ScopeNode(Node):
         ComponentMethod.validate,
         Node._validate_self,
         custom_kwargs=lambda n: dict(
-            properties=n.__tracked_properties__.keys(), on_issue=on_issue_raise
+            properties=n.__tracked_properties__.keys(), on_invalid=on_invalid_raise
         ),
     )
     _activate_rec = _make_rec_method(ComponentMethod.activate, Node._activate_self)
@@ -2619,7 +2623,7 @@ class Module(ScopeNode):
         elif isinstance(path, str) and path.startswith("."):
             resolved = ScopeNode.lookup(self, path, node_t=node_t, by=by)
         else:
-            if not isinstance(path, NodePath):
+            if isinstance(path, str):
                 path = parse_absolute_node_reference(path)
             module_name, sub_path = path
             if module_name == self.name:
