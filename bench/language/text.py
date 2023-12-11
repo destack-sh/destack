@@ -36,7 +36,7 @@ class HasText(Node):
     def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         self._text_parsed = None
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         if self.text is None:
             return
 

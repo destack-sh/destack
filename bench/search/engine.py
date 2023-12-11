@@ -392,7 +392,7 @@ def compile_os_conditional(ctx: CompilationContext, cond: Expression) -> dict[st
     elif cond.op == ConditionalOp.MATCHES:
         return {"match": {key: cond.value}}
     elif cond.op == ConditionalOp.STARTS_WITH:
-        return {"prefix": {key: cond.value}}
+        return {"match_phrase_prefix": {key: cond.value.lower()}}
     elif cond.op == ConditionalOp.NEAR:
         # TODO @Performance @Robustness: tune knn k relative to database and query limit
         return {"knn": {key: {"vector": cond.value, "k": ctx.root_limit * 3}}}

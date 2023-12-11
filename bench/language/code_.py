@@ -86,7 +86,7 @@ class HasCode(Node):
         self._callable_wrapped = None
         self._cached_exports = None
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         self._parse = _parse_code(self.code)
         self._proxied = self.path in (
             "symbolx.lib.builtins.send_email",

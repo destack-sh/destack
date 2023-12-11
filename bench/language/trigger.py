@@ -102,15 +102,15 @@ class Trigger(Node):
 
     # ignore scope and statement for now
 
-    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
+    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
         if self.type == TriggerType.TIME:
             if self.schedule_type == ScheduleType.CRON:
                 if not croniter.is_valid(self.cron):
-                    on_issue(self, f"cron: invalid expression ('{self.cron}')", ["cron"])
+                    on_invalid(self, f"cron: invalid expression ('{self.cron}')", ["cron"])
             elif self.schedule_type == ScheduleType.INTERVAL:
                 interval = self.interval or 0
                 if interval < TRIGGER_INTERVAL_USR_MIN or interval > TRIGGER_INTERVAL_ABS_MAX:
-                    on_issue(
+                    on_invalid(
                         self,
                         f"interval: invalid ({interval} not in [{TRIGGER_INTERVAL_USR_MIN}, {TRIGGER_INTERVAL_ABS_MAX}])",
                         ["interval"],

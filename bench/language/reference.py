@@ -4,7 +4,7 @@ from uuid import UUID
 from bench.language.const import IssueType, NodeType, SortOp, StatementReference
 from bench.language.expression import S
 from bench.language.module import Node, ScopeNode, bproperty, node_component
-from bench.language.validation import ValidationHandler
+from bench.language.issue import IssueHandler
 from bench.utils.utils import identity
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ class HasReference(Node):
         ):
             self._set_untracked("reference", self.reference.ck)
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         if self.reference is None:
             return
         resolved = self.reference

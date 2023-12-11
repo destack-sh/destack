@@ -35,7 +35,7 @@ class HasTask(Node):
         self._root_models = None
         self._randomize = False
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         from bench.language.builtin import symbolx_lib
 
         randomize_tag = symbolx_lib.resolve(".builtins.randomize")

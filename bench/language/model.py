@@ -56,7 +56,7 @@ class HasModel(HasFields, Node):
         self._compiler_impl = None
         self._has_vector_io = False
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
         if ALLOW_KEY_FROM_ENV:

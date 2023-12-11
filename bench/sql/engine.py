@@ -273,7 +273,9 @@ def compile_pg_conditional(
     elif cond.op in ExpressionOps.COND_LOGICAL and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         clauses = [compile_pg_conditional(database, c) for c in cond.clauses]
         return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
-    elif cond.op in ExpressionOps.COND_COMPARISON and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
+    elif (
+        cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
+    ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
         left = _compile_field_ref(database, cond.field)
         if isinstance(cond.field, Field):  # add explicit cast to LHS if possible
             pg_type = CAST_TYPE_BY_STORAGE_FORMAT[cond.field._storage_format]

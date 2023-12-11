@@ -298,7 +298,7 @@ class HasType(Node):
     key: str | None = binternal(default=None)
 
     @property
-    def resolved_fields(self) -> Collection["ResolvedField"]:
+    def resolved_fields(self) -> NodeList["ResolvedField"]:
         raise NotImplementedError
 
     @property
@@ -486,22 +486,26 @@ class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
     def _init_inner(self):
         self.key = self.key or new_dynamic_node_key(self.ck)
 
-    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
+    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
         if self.hint is not None:
             tag = TYPE_TAG_BY_TYPE_HINT[self.hint]
             if self.tag != tag:
-                on_issue(self, f"expected {tag} for {self.hint} ({self.tag})", ["tag", "hint"])
+                on_invalid(self, f"expected {tag} for {self.hint} ({self.tag})", ["tag", "hint"])
         if self.flags & TypeFlag.IS_UNION_WITH:
             if self.tag != TypeTag.TYPE_REFERENCE:
-                on_issue(
+                on_invalid(
                     self,
+                    IssueType.INVALID_DATA,
                     f"expected reference for IsUnionWith ({self.tag})",
                     ["tag", "reference", "flags"],
                 )
         if self.flags & TypeFlag.IS_SECRET:
             if self.hint != TypeHint.SECRET:
-                on_issue(
-                    self, f"expected secret hint for IsSecret ({self.hint})", ["hint", "flags"]
+                on_invalid(
+                    self,
+                    IssueType.INVALID_DATA,
+                    f"expected secret hint for IsSecret ({self.hint})",
+                    ["hint", "flags"],
                 )
 
     @property
@@ -599,12 +603,10 @@ class HasFields(HasType):
         self.resolved_fields.clear(_trigger=_NC.UpdateLists)
         self._did_resolve_fields = False
 
-    def _interp_inner(self, scope: ScopeNode, on_issue: "ValidationHandler") -> None:
+    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         self._resolve_fields([], on_issue)
 
-    def _resolve_fields(
-        self: "HasFields", path: list[HasType], on_issue: "ValidationHandler"
-    ) -> None:
+    def _resolve_fields(self: "HasFields", path: list[HasType], on_issue: "IssueHandler") -> None:
         """
         Resolves (and inlines) field references and unions.
         """

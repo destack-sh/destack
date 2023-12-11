@@ -11,9 +11,9 @@ import requests
 import structlog
 
 from bench.language.builtin import _auto_async_to_sync, active_session
-from bench.language.const import BlobStatus, IssueType, NodeType
-from bench.language.issue import IssueHandler
-from bench.language.module import Module, Node, binternal, bruntime, node, on_issue_raise
+from bench.language.const import BlobStatus, NodeType
+from bench.language.module import Module, Node, binternal, bruntime, node
+from bench.language.validation import ValidationHandler, on_invalid_raise
 
 logger = structlog.get_logger(__name__)
 
@@ -46,17 +46,17 @@ class Blob(Node):
     def __getitem__(self, item):
         return self.__dict__[item]
 
-    def _validate_inner(self, properties: set[str], on_issue: IssueHandler) -> None:
+    def _validate_inner(
+        self, properties: typing.Collection[str], on_invalid: ValidationHandler
+    ) -> None:
         if len(self.name) > BLOB_MAX_NAME_LENGTH:
-            on_issue(
+            on_invalid(
                 self,
-                IssueType.INVALID_DATA,
                 f"{self} name is too long ({len(self.name)} > {BLOB_MAX_NAME_LENGTH})",
             )
         if self.content_length > BLOB_MAX_SIZE:
-            on_issue(
+            on_invalid(
                 self,
-                IssueType.INVALID_DATA,
                 f"{self} is too big ({self.content_length} > {BLOB_MAX_SIZE} bytes)",
             )
 
@@ -158,7 +158,7 @@ class Blob(Node):
             name=name or response.url.split("/")[-1],
         )
         obj._assign_id_and_ck(session.module.ck)
-        obj._validate_self(["name", "content_type", "content_length"], on_issue=on_issue_raise)
+        obj._validate_self(["name", "content_type", "content_length"], on_invalid=on_invalid_raise)
         await obj._do_upload(response.content)
         return obj
 
@@ -189,7 +189,7 @@ class Blob(Node):
             _session=None,
         )
         obj._assign_id_and_ck(session.module.ck)
-        obj._validate_self(["name", "content_type", "content_length"], on_issue=on_issue_raise)
+        obj._validate_self(["name", "content_type", "content_length"], on_invalid=on_invalid_raise)
         await obj._do_upload(content)
         return obj
 
