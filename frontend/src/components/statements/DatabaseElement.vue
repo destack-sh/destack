@@ -197,23 +197,25 @@ defineExpose({
     <div class="-mx-0.5 mb-1 flex flex-row flex-wrap items-center gap-2">
       <QuickSearchTile
         :modelValue="properties.inlineQuery"
-        @update:modelValue="properties.inlineQuery = $event"
+        @update:modelValue="(properties.inlineQuery = $event), (after = undefined)"
         placeholder="Search..."
       />
       <ConditionalSetTile
         :fields="fields.allFields.value"
         :model-value="properties.filters"
-        @update:model-value="properties.filters = $event"
+        @update:model-value="(properties.filters = $event), (after = undefined)"
       />
       <SortSetTile
         :fields="fields.allFields.value"
         :model-value="properties.sorts"
-        @update:model-value="properties.sorts = $event"
+        @update:model-value="(properties.sorts = $event), (after = undefined)"
       />
       <ViewPaginationTile
         class="ml-auto"
         :page-info="contentRef?.pageInfo"
         :total-count="contentRef?.totalCount"
+        :query="combinedQuery"
+        :sort="sort"
         v-model="after"
       />
     </div>

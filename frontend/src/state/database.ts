@@ -6,7 +6,6 @@ import { TypeStorageFormat, getStorageFormat } from "@/state/type";
 import { useDebounceFn } from "@vueuse/core";
 import { computed, ref, watch, type Ref } from "vue";
 
-// :QueryFieldPolicies
 export const RECORD_SEARCH_QUERY = graphql(/* GraphQL */ `
   query searchRecords(
     $statementId: GlobalID!

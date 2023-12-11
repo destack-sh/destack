@@ -4,7 +4,6 @@ import PanelHeader from "@/components/panels/PanelHeader.vue";
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 import DatabaseTile from "@/components/tiles/DatabaseTile.vue";
 import { useActiveScroll } from "@/composables/useScroll";
-import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, EditDatabasePanel } from "@/state/bench";
 import { type Statement, useCurrentModule, type NodeBase, type Field } from "@/state/module";
 import { computed, ref, watch, type Ref, watchEffect, toRef } from "vue";
@@ -23,7 +22,6 @@ const emit = defineEmits<{ (e: "close"): void }>();
 const bench = useBenchState();
 const module = useCurrentModule();
 const panel = computed(() => props.panel.panel.value);
-const appearance = useAppearance();
 const statement = computed(() => module.statementOf(props.panel.panel.value.statementCk));
 const path = computed(() => module.nodePathOf(props.panel.panel.value.statementCk));
 const fields = useFields(statement);
@@ -109,24 +107,26 @@ watch(
     <div class="flex w-full flex-row gap-1.5 px-2 pb-1.5 pt-8 text-sm">
       <QuickSearchTile
         :modelValue="panel.inlineQuery"
-        @update:modelValue="panel.inlineQuery = $event"
+        @update:modelValue="(panel.inlineQuery = $event), (after = undefined)"
         placeholder="Search..."
       />
       <ConditionalSetTile
         :fields="fields.allFields.value"
         :model-value="panel.filters"
-        @update:model-value="panel.filters = $event"
+        @update:model-value="(panel.filters = $event), (after = undefined)"
       />
       <SortSetTile
         :fields="fields.allFields.value"
         :model-value="panel.sorts"
-        @update:model-value="panel.sorts = $event"
+        @update:model-value="(panel.sorts = $event), (after = undefined)"
       />
       <ViewPaginationTile
         class="ml-auto"
         :page-info="contentRef?.pageInfo"
         :total-count="contentRef?.totalCount ?? undefined"
         v-model="after"
+        :query="combinedQuery"
+        :sort="panel.sorts"
       />
     </div>
 

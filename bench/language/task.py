@@ -14,10 +14,10 @@ from bench.language.module import Node, ScopeNode, bruntime, node_component
 from bench.language.reference import Projection
 
 from ..utils.func import describe_type
-from .validation import ValidationHandler
 
 if TYPE_CHECKING:
     from bench.language import Run, Statement
+    from bench.language.issue import IssueHandler
 
 logger = structlog.get_logger(__name__)
 

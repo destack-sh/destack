@@ -353,6 +353,10 @@ OS_CONDITIONAL_OP_BY_BENCH = {
     ConditionalOp.NOT: "must_not",
     ConditionalOp.AND: "must",
     ConditionalOp.OR: "should",
+    ConditionalOp.GREATER_THAN: "gt",
+    ConditionalOp.GREATER_THAN_OR_EQUALS: "gte",
+    ConditionalOp.LESS_THAN: "lt",
+    ConditionalOp.LESS_THAN_OR_EQUALS: "lte",
 }
 
 
@@ -463,6 +467,7 @@ class OsSearchResult:
     total: Optional[int]
     results: list[dict[str, Any]]
     cursors: list[str]
+    start_cursor: Optional[str]
 
     def as_records(self) -> list[wire.RecordData]:
         records_data: list[wire.RecordData] = []
@@ -535,7 +540,7 @@ async def os_search(
     total = os_results["hits"]["total"]["value"] if search.count else None
     results = os_results["hits"]["hits"]
     cursors = [encode_os_cursor(r, search.after, i) for i, r in enumerate(results)]
-    return OsSearchResult(total=total, results=results, cursors=cursors)
+    return OsSearchResult(total=total, results=results, cursors=cursors, start_cursor=after)
 
 
 def os_search_sync(
@@ -560,7 +565,7 @@ def os_search_sync(
     total = os_results["hits"]["total"]["value"] if search.count else None
     results = os_results["hits"]["hits"]
     cursors = [encode_os_cursor(r, search.after, i) for i, r in enumerate(results)]
-    return OsSearchResult(total=total, results=results, cursors=cursors)
+    return OsSearchResult(total=total, results=results, cursors=cursors, start_cursor=after)
 
 
 def encode_os_cursor(record: dict[str, Any], after: Optional[str], i: int) -> str:

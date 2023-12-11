@@ -1,13 +1,16 @@
 import re
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import NodeReference, NodeType, TypedNodeReference
 from bench.language.module import Node, ScopeNode, bproperty, bruntime, node_component
 from bench.language.reference import NodeVisitor
-from bench.language.validation import ValidationHandler, validate_is_str
+from bench.language.validation import validate_is_str
+
+if TYPE_CHECKING:
+    from bench.language.issue import IssueHandler
 
 
 @node_component

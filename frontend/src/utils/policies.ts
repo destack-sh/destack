@@ -1,5 +1,4 @@
 import type { TypePolicies } from "@apollo/client";
-import { relayStylePagination } from "@apollo/client/utilities";
 
 const useIncoming = {
   merge: (existing: any, incoming: any) => incoming,
@@ -60,9 +59,8 @@ export const TYPE_POLICIES: TypePolicies = {
     },
   },
   Query: {
-    // :QueryFieldPolicies
     fields: {
-      searchRecords: relayStylePagination(["statementId", "query", "sort", "limit", "count", "after"]),
+      searchRecords: useIncoming,
     },
   },
 };
