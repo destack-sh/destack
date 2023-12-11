@@ -48,8 +48,8 @@ const INTERFACES: Record<string, any> = {
 const props = defineProps<{
   modelValue: unknown;
   type: Field;
-  readonly: boolean;
-  active: boolean;
+  readonly?: boolean;
+  active?: boolean;
   debounced?: boolean;
   supportsDrop?: boolean;
   wrap?: boolean;
@@ -66,7 +66,7 @@ const emit = defineEmits<{
   (e: "enter"): void;
   (e: "escape"): void;
   (e: "edit"): void;
-  (e: "focus", event: FocusEvent): void;
+  (e: "focus"): void;
 }>();
 
 function emitPrevent(event: any, e: string, ...args: any[]) {
@@ -209,7 +209,7 @@ defineExpose({
       :class="[readonly ? '' : 'cursor-pointer']"
       tabindex="-1"
       :disabled="readonly"
-      @click.stop="edit"
+      @click.stop="edit(), emit('focus')"
       @keydown="editing || previewRef?.onKeydown?.($event)"
       @keydown.enter.exact.stop.prevent="edit"
       @keydown.space.exact="edit"

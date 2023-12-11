@@ -37,6 +37,7 @@ const props = defineProps<{
   query?: Conditional;
   queryEngine?: QueryEngine;
   sort?: Sort[];
+  after?: string | null;
   targetMinWidth: number;
   paddingLeft?: number;
   showRecordActionPopover?: boolean;
@@ -70,7 +71,7 @@ const searchQueryVariables: Ref<SearchRecordsQueryVariables> = computed(
   () =>
     ({
       statementId: props.statement.id,
-      after: null as string | null,
+      after: props.after as string | null,
       query: props.query,
       sort: props.sort,
       limit: props.pageSize,
@@ -395,6 +396,7 @@ defineExpose({
         is-view
         orientation="horizontal"
         can-filter
+        :readonly="readonly"
         :model-value="field"
         @update:model-value="updateField(field.key, $event as Field)"
         @navigate-left="grid.navigateLeft('', field.key as string)"

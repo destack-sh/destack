@@ -7,12 +7,14 @@ import { useActiveScroll } from "@/composables/useScroll";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, EditDatabasePanel } from "@/state/bench";
 import { type Statement, useCurrentModule, type NodeBase, type Field } from "@/state/module";
-import { computed, ref, watch, type Ref, watchEffect } from "vue";
+import { computed, ref, watch, type Ref, watchEffect, toRef } from "vue";
 import SortSetTile from "@/components/tiles/SortSetTile.vue";
 import ConditionalSetTile from "@/components/tiles/ConditionalSetTile.vue";
-import { useFieldsState } from "@/state/statement";
+import { useFields } from "@/state/statement";
 import { ConditionalOp, type Conditional, SortOp } from "@/gql/graphql";
-import { getDefaultConditional } from "@/state/database";
+import { getDefaultConditional, useDatabaseInlineSearch } from "@/state/database";
+import QuickSearchTile from "@/components/tiles/QuickSearchTile.vue";
+import ViewPaginationTile from "@/components/tiles/ViewPaginationTile.vue";
 
 const PAGE_SIZE = 50;
 
@@ -24,15 +26,24 @@ const panel = computed(() => props.panel.panel.value);
 const appearance = useAppearance();
 const statement = computed(() => module.statementOf(props.panel.panel.value.statementCk));
 const path = computed(() => module.nodePathOf(props.panel.panel.value.statementCk));
-const fields = useFieldsState(statement);
+const fields = useFields(statement);
 
+const { inlineQuery } = useDatabaseInlineSearch(
+  fields,
+  computed(() => panel.value.inlineQuery)
+);
 const combinedQuery: Ref<Conditional | undefined> = computed(() => {
-  if ((panel.value.filters ?? []).length == 0) return undefined;
-  return {
+  const combined = {
     op: ConditionalOp.And,
-    clauses: panel.value.filters,
+    clauses: panel.value.filters?.slice() ?? [],
   } as Conditional;
+  if (inlineQuery.value != null) {
+    combined.clauses!.push(inlineQuery.value);
+  }
+  if (combined.clauses?.length == 0) return undefined;
+  return combined;
 });
+const after: Ref<string | undefined> = ref(undefined);
 
 const contentRef = ref<InstanceType<typeof DatabaseTile> | null>(null);
 
@@ -96,7 +107,11 @@ watch(
 
     <!-- Header (search/views/pagination/create) -->
     <div class="flex w-full flex-row gap-1.5 px-2 pb-1.5 pt-8 text-sm">
-      <!-- nocheckin: inline search query -->
+      <QuickSearchTile
+        :modelValue="panel.inlineQuery"
+        @update:modelValue="panel.inlineQuery = $event"
+        placeholder="Search..."
+      />
       <ConditionalSetTile
         :fields="fields.allFields.value"
         :model-value="panel.filters"
@@ -106,6 +121,12 @@ watch(
         :fields="fields.allFields.value"
         :model-value="panel.sorts"
         @update:model-value="panel.sorts = $event"
+      />
+      <ViewPaginationTile
+        class="ml-auto"
+        :page-info="contentRef?.pageInfo"
+        :total-count="contentRef?.totalCount ?? undefined"
+        v-model="after"
       />
     </div>
 
@@ -123,6 +144,7 @@ watch(
       :padding-left="8 /* for record actions since this is full panel */"
       :query="combinedQuery"
       :sort="panel.sorts"
+      :after="after"
       selectable
       @add-sort="({ field, order }) => addSort(field, order ?? SortOp.Ascending)"
       @add-filter="({ field }) => addDefaultConditional(field)"

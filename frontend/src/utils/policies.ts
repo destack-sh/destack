@@ -62,7 +62,7 @@ export const TYPE_POLICIES: TypePolicies = {
   Query: {
     // :QueryFieldPolicies
     fields: {
-      searchRecords: relayStylePagination(["statementId", "query", "sort", "limit", "count"]),
+      searchRecords: relayStylePagination(["statementId", "query", "sort", "limit", "count", "after"]),
     },
   },
 };

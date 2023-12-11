@@ -3,7 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectFieldInterface from "@/components/interfaces/SelectFieldInterface.vue";
 import ConditionalTile from "@/components/tiles/ConditionalTile.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import { ConditionalOp, type Conditional } from "@/gql/graphql";
+import type { Conditional } from "@/gql/graphql";
 import { getDefaultConditional } from "@/state/database";
 import type { Field, Statement } from "@/state/module";
 import { PlusIcon } from "@heroicons/vue/24/solid";
@@ -55,7 +55,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative">
+  <div class="relative flex flex-row gap-1">
     <!-- Filters -->
     <!-- TODO @UX: show Notion-like potential filters for selected fields -->
     <ConditionalTile
@@ -87,7 +87,7 @@ defineExpose({
         <SelectFieldInterface
           class="mt-1"
           :options="fields"
-          @update:modelValue="($event) => addDefaultConditional($event)"
+          @update:modelValue="($event) => (addDefaultConditional($event), close())"
         />
       </div>
     </FadeTransition>
