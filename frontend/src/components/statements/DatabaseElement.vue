@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { useActiveScroll } from "@/composables/useScroll";
-import { SortOp, type Sort, TypeTag, ConditionalOp, type Conditional } from "@/gql/graphql";
-import { useAppearance } from "@/state/appearance";
+import { SortOp, type Sort, TypeTag } from "@/gql/graphql";
 import {
   usePanelContext,
   useElementPanelSettings,
@@ -17,20 +16,13 @@ import {
   PlusIcon,
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
-  XMarkIcon,
   SquaresPlusIcon,
-  ArrowUpRightIcon,
   ArrowsPointingOutIcon,
 } from "@heroicons/vue/24/outline";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref, onMounted, toRef } from "vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
-import {
-  combineConditionals,
-  getDefaultConditional,
-  isConditionalFullySpecified,
-  useDatabaseInlineSearch,
-} from "@/state/database";
+import { getDefaultConditional, useDatabaseCombinedSearch } from "@/state/database";
 import DatabaseTile from "@/components/tiles/DatabaseTile.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
@@ -68,18 +60,10 @@ onMounted(() => {
   }
 });
 
-const { inlineQuery, queryEngine } = useDatabaseInlineSearch(fields, toRef(properties, "inlineQuery"));
-const combinedQuery: Ref<Conditional | undefined> = computed(() =>
-  combineConditionals(
-    ConditionalOp.And,
-    [...(properties.filters ?? []), inlineQuery.value]
-      .filter((c) => {
-        const field = module.fieldOf(c?.field as string);
-        if (field == null) return false;
-        return isConditionalFullySpecified(field, c as Conditional);
-      })
-      .map((c) => c as Conditional)
-  )
+const { combinedQuery, queryEngine } = useDatabaseCombinedSearch(
+  fields,
+  computed(() => properties.inlineQuery),
+  computed(() => properties.filters ?? [])
 );
 const after: Ref<string | undefined> = ref(undefined);
 
@@ -267,6 +251,7 @@ defineExpose({
           @create-field="createFieldRef?.show()"
           @add-sort="({ field, order }) => addSort(field, order ?? SortOp.Ascending)"
           @add-filter="({ field }) => addDefaultConditional(field)"
+          @open-actions="emit('openActions')"
         />
         <!-- Load more/loading/go to big database view -->
         <div

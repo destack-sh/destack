@@ -40,11 +40,7 @@ export const RECORD_SEARCH_QUERY = graphql(/* GraphQL */ `
   }
 `);
 
-export function useDatabaseInlineSearch(
-  fields: ReturnType<typeof useFields>,
-  textQuery: Ref<string | undefined>,
-  options?: { debounceMs?: number }
-) {
+export function useDatabaseInlineSearch(fields: ReturnType<typeof useFields>, textQuery: Ref<string | undefined>) {
   const module = useCurrentModule();
 
   // find every string-stored field for search
@@ -108,12 +104,35 @@ export function useDatabaseInlineSearch(
   function updateInlineQuery() {
     inlineQuery.value = getInlineQuery();
   }
-  const updateInlineQueryDebounced = useDebounceFn(updateInlineQuery, options?.debounceMs ?? 100);
+  const updateInlineQueryDebounced = useDebounceFn(updateInlineQuery, 100);
   watch(() => [textQuery.value, stringFields.value, nameFields.value, enumFields.value], updateInlineQueryDebounced, {
     immediate: true,
   });
 
   return { inlineQuery, queryEngine };
+}
+
+export function useDatabaseCombinedSearch(
+  fields: ReturnType<typeof useFields>,
+  textQuery: Ref<string | undefined>,
+  maybeFilters: Ref<Conditional[]>
+) {
+  const { inlineQuery, queryEngine } = useDatabaseInlineSearch(fields, textQuery);
+  const module = useCurrentModule();
+  const combinedQuery: Ref<Conditional | undefined> = computed(() => {
+    const clauses = [
+      ...(maybeFilters.value.filter((c) => {
+        const field = module.fieldOf(c?.field as string);
+        if (field == null) return false;
+        return isConditionalFullySpecified(field, c as Conditional);
+      }) ?? []),
+      inlineQuery.value,
+    ]
+      .filter((c) => c != null)
+      .map((c) => c as Conditional);
+    return combineConditionals(ConditionalOp.And, clauses);
+  });
+  return { inlineQuery, combinedQuery, queryEngine };
 }
 
 export function getDefaultConditional(field: Field): Conditional {
