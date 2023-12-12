@@ -156,6 +156,7 @@ watch(
       :wrap="panel.wrap"
       selectable
       show-record-action-popover
+      sticky-header
       v-model:selected-record-ids="panel.selectedElementIds"
       @add-sort="({ field, order }) => addSort(field, order ?? SortOp.Ascending)"
       @add-filter="({ field }) => addDefaultConditional(field)"
