@@ -4,6 +4,7 @@ import { getInputInterface } from "@/components/inputs";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
+import { humanizeNumber } from "@/composables/useNow";
 import { useElementSize } from "@/composables/useSize";
 import {
   EditType,
@@ -26,7 +27,7 @@ import { IS_DEBUG } from "@/utils/globals";
 import { Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { EllipsisHorizontalIcon, EllipsisVerticalIcon, PlusIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
-import { onStartTyping, useDebounceFn } from "@vueuse/core";
+import { onStartTyping, useDebounceFn, useKeyModifier } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, nextTick, toRef, type Ref, ref, watch, onMounted } from "vue";
 
@@ -41,6 +42,7 @@ const props = defineProps<{
   targetMinWidth: number;
   paddingLeft?: number;
   showRecordActionPopover?: boolean;
+  stickyHeader?: boolean;
   selectable?: boolean;
   pageSize: number;
   readonly?: boolean;
@@ -238,18 +240,33 @@ function deleteRecord(recordId: string) {
 
 const selectedRecordIds: Ref<string[]> = ref(props.selectedRecordIds ?? []);
 const hasAnySelectedRecords = computed(() => selectedRecordIds.value.length > 0);
+const shiftKeyPressed = useKeyModifier("Shift");
 
 function isRecordSelected(record: { id: string }) {
   return selectedRecordIds.value.length > 0 && selectedRecordIds.value.includes(record.id);
 }
 
-function setRecordSelected(record: { id: string }, selected: boolean) {
+function setRecordSelected(record: { id: string }, selected: boolean, shift: boolean) {
   if (selected) {
+    if (shift) {
+      // add (select) all between last selected and this one
+      const lastSelectedIdx = recordsInView.value.findIndex((r) => r.id == selectedRecordIds.value.slice(-1)[0]);
+      const thisIdx = recordsInView.value.findIndex((r) => r.id == record.id);
+      if (lastSelectedIdx >= 0 && thisIdx >= 0) {
+        const [start, end] = lastSelectedIdx < thisIdx ? [lastSelectedIdx, thisIdx] : [thisIdx, lastSelectedIdx];
+        for (let i = start; i <= end; i++) {
+          if (!selectedRecordIds.value.includes(recordsInView.value[i].id)) {
+            selectedRecordIds.value.push(recordsInView.value[i].id);
+          }
+        }
+      }
+    }
     selectedRecordIds.value.push(record.id);
   } else {
     const idx = selectedRecordIds.value.indexOf(record.id);
     if (idx >= 0) selectedRecordIds.value.splice(idx, 1);
   }
+
   emit("updateSelectedRecordIds", selectedRecordIds.value);
 }
 // sync selected record ids from props
@@ -387,17 +404,32 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex flex-col">
+  <div class="relative flex flex-col">
     <!-- Header -->
-    <div class="flex flex-row self-start align-top text-sm">
+    <div
+      class="flex flex-row self-start align-top text-sm"
+      :class="[stickyHeader ? 'sticky top-0 z-10  bg-white' : '']"
+    >
       <!-- Select column (placeholder, maybe put something here later) -->
-      <div
+      <!-- Acts as select all / deselect -->
+      <button
         v-if="selectable"
-        class="border-b border-r border-t border-amber-900/[12%]"
+        class="select-none border-b border-r border-t border-amber-900/[12%] text-center hover:bg-amber-100"
+        :class="[]"
         :style="{
           width: selectColumnWidth + 'px',
         }"
-      />
+        @click="
+          selectedRecordIds.length > 0
+            ? (selectedRecordIds = [])
+            : (selectedRecordIds = recordsInView.map((r) => r.id));
+          emit('updateSelectedRecordIds', selectedRecordIds);
+        "
+      >
+        <span v-if="selectedRecordIds.length > 0" class="py-1 text-amber-600">
+          {{ humanizeNumber(selectedRecordIds.length ?? 0) }}
+        </span>
+      </button>
       <!-- Fields -->
       <FieldInterface
         :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
@@ -462,9 +494,9 @@ defineExpose({
       <!-- Select row -->
       <div
         v-if="selectable"
-        class="border-r border-orange-900/[12%] text-center align-middle hover:cursor-pointer"
+        class="select-none border-r border-orange-900/[12%] text-center align-middle hover:cursor-pointer"
         :style="{ width: selectColumnWidth + 'px' }"
-        @click="setRecordSelected(record, !isRecordSelected(record))"
+        @click="setRecordSelected(record, !isRecordSelected(record), shiftKeyPressed ?? false)"
       >
         <input
           type="checkbox"
