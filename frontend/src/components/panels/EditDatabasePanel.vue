@@ -112,11 +112,8 @@ watch(
         @update:model-value="(panel.sorts = $event), (after = undefined)"
       />
       <div class="ml-auto flex flex-row gap-1.5">
-        <div
-          class="flex flex-row rounded-xl px-1 ring-1 ring-amber-600/60 transition-opacity duration-75"
-          :class="[panel.selectedElementIds.length > 0 ? 'opacity-100' : 'opacity-0']"
-        >
-          <button class="p-1 text-amber-600 hover:bg-amber-100" @click="panel.clearSelection()">
+        <div v-if="panel.selectedElementIds.length > 0" class="flex flex-row rounded-xl px-1 ring-1 ring-amber-600/60">
+          <button class="rounded-xl p-1 text-amber-600 hover:bg-amber-100" @click="panel.clearSelection()">
             {{ panel.selectedElementIds.length }} records
           </button>
           <!-- TODO @UX: support batch ops for records once we have :BE-114 -->
@@ -129,7 +126,7 @@ watch(
             class="h-4 w-4 transform transition-transform duration-75"
             :class="panel.wrap ? 'rotate-0' : 'rotate-180'"
           />
-          <span class="ml-0.5">Wrap</span>
+          <span class="ml-0.5">{{ panel.wrap ? "Wrapped" : "Compact" }}</span>
         </button>
         <ViewPaginationTile
           :page-info="contentRef?.pageInfo"
@@ -145,7 +142,7 @@ watch(
     <DatabaseTile
       v-if="statement != null"
       ref="contentRef"
-      class="h-full w-full overflow-x-auto overflow-y-scroll pb-16 pl-6 pr-0"
+      class="h-full w-full overflow-x-auto overflow-y-scroll pb-20 pl-6 pr-0"
       :style="{
         maxWidth: props.panel.size.value?.width + 'px',
       }"
