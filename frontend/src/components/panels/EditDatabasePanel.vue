@@ -19,6 +19,8 @@ import {
 } from "@/state/database";
 import QuickSearchTile from "@/components/tiles/QuickSearchTile.vue";
 import ViewPaginationTile from "@/components/tiles/ViewPaginationTile.vue";
+import { ChevronDoubleDownIcon } from "@heroicons/vue/24/outline";
+import { TrashIcon } from "@heroicons/vue/24/solid";
 
 const PAGE_SIZE = 50;
 
@@ -110,7 +112,7 @@ watch(
     <PanelStatusNotice :thing="statement" name="file" :loading="loading" />
 
     <!-- Header (search/views/pagination/create) -->
-    <div class="flex w-full flex-row gap-1.5 px-2 pb-1.5 pt-8 text-sm">
+    <div class="flex w-full flex-row flex-wrap gap-1.5 pb-2 pl-6 pr-4 pt-8 text-sm">
       <QuickSearchTile
         :modelValue="panel.inlineQuery"
         @update:modelValue="(panel.inlineQuery = $event), (after = undefined)"
@@ -126,32 +128,55 @@ watch(
         :model-value="panel.sorts"
         @update:model-value="(panel.sorts = $event), (after = undefined)"
       />
-      <ViewPaginationTile
-        class="ml-auto"
-        :page-info="contentRef?.pageInfo"
-        :total-count="contentRef?.totalCount ?? undefined"
-        v-model="after"
-        :query="combinedQuery"
-        :sort="panel.sorts"
-      />
+      <div class="ml-auto flex flex-row gap-1.5">
+        <div
+          class="flex flex-row rounded-xl px-1 ring-1 ring-amber-600/60 transition-opacity duration-75"
+          :class="[panel.selectedElementIds.length > 0 ? 'opacity-100' : 'opacity-0']"
+        >
+          <button class="p-1 text-amber-600 hover:bg-amber-100" @click="panel.clearSelection()">
+            {{ panel.selectedElementIds.length }} records
+          </button>
+          <!-- TODO @UX: support batch ops for records once we have :BE-114 -->
+        </div>
+        <button
+          class="flex flex-row items-center rounded-sm p-1 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
+          @click="panel.wrap = !panel.wrap"
+        >
+          <ChevronDoubleDownIcon
+            class="h-4 w-4 transform transition-transform duration-75"
+            :class="panel.wrap ? 'rotate-0' : 'rotate-180'"
+          />
+          <span class="ml-0.5">Wrap</span>
+        </button>
+        <ViewPaginationTile
+          :page-info="contentRef?.pageInfo"
+          :total-count="contentRef?.totalCount ?? undefined"
+          v-model="after"
+          :query="combinedQuery"
+          :sort="panel.sorts"
+        />
+      </div>
     </div>
 
     <!-- Content -->
     <DatabaseTile
       v-if="statement != null"
       ref="contentRef"
-      class="h-full w-full overflow-x-auto overflow-y-auto"
+      class="h-full w-full overflow-x-auto overflow-y-scroll pb-16 pl-6 pr-0"
       :style="{
         maxWidth: props.panel.size.value?.width + 'px',
       }"
       :statement="(statement as Statement)"
-      :target-min-width="props.panel.size.value?.width ?? 0"
+      :target-min-width="props.panel.size.value?.width - 20 ?? 0"
       :page-size="PAGE_SIZE"
       :padding-left="8 /* for record actions since this is full panel */"
       :query="combinedQuery"
       :sort="panel.sorts"
       :after="after"
+      :wrap="panel.wrap"
       selectable
+      show-record-action-popover
+      v-model:selected-record-ids="panel.selectedElementIds"
       @add-sort="({ field, order }) => addSort(field, order ?? SortOp.Ascending)"
       @add-filter="({ field }) => addDefaultConditional(field)"
     />

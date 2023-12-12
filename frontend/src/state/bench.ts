@@ -10,7 +10,7 @@ import {
   type Statement,
   type Sort,
   type RunError,
-type Conditional,
+  type Conditional,
 } from "@/gql/graphql";
 import {
   CONTENT_MARGIN_X_NARROW,
@@ -1188,6 +1188,7 @@ export class EditDatabasePanel extends NavigablePanel {
   sorts?: Sort[];
   filters?: Conditional[];
   inlineQuery?: string;
+  wrap?: boolean;
 
   constructor(statement: { ck: string; name?: string | null }) {
     super(

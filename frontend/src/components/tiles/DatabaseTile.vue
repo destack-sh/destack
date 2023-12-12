@@ -44,6 +44,8 @@ const props = defineProps<{
   selectable?: boolean;
   pageSize: number;
   readonly?: boolean;
+  selectedRecordIds?: string[];
+  wrap?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "navigateUp"): void;
@@ -52,6 +54,7 @@ const emit = defineEmits<{
   (e: "createField"): void;
   (e: "addSort", sort: { field: Field; order?: SortOp }): void;
   (e: "addFilter", filter: { field: Field }): void;
+  (e: "updateSelectedRecordIds", ids: string[]): void;
 }>();
 const module = useCurrentModule();
 const appearance = useAppearance();
@@ -233,7 +236,7 @@ function deleteRecord(recordId: string) {
 
 // navigation
 
-const selectedRecordIds: Ref<string[]> = ref([]);
+const selectedRecordIds: Ref<string[]> = ref(props.selectedRecordIds ?? []);
 const hasAnySelectedRecords = computed(() => selectedRecordIds.value.length > 0);
 
 function isRecordSelected(record: { id: string }) {
@@ -244,9 +247,19 @@ function setRecordSelected(record: { id: string }, selected: boolean) {
   if (selected) {
     selectedRecordIds.value.push(record.id);
   } else {
-    selectedRecordIds.value = selectedRecordIds.value.filter((id) => id != record.id);
+    const idx = selectedRecordIds.value.indexOf(record.id);
+    if (idx >= 0) selectedRecordIds.value.splice(idx, 1);
   }
+  emit("updateSelectedRecordIds", selectedRecordIds.value);
 }
+// sync selected record ids from props
+watch(
+  () => props.selectedRecordIds,
+  (ids) => {
+    selectedRecordIds.value = ids ?? [];
+  },
+  { immediate: true }
+);
 
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 
@@ -259,13 +272,6 @@ function focusLastRecord() {
 }
 
 const recordActions: RecordAction[] = [
-  {
-    label: "Insert",
-    icon: PlusIcon,
-    action: () => {
-      insertRecordAtEnd();
-    },
-  },
   {
     label: "Duplicate",
     icon: Square2StackIcon,
@@ -282,7 +288,6 @@ const recordActions: RecordAction[] = [
 // display
 
 const columnsInOrder: Ref<string[]> = computed(() => allFields.value?.map((n) => n.key ?? "") ?? []);
-const rowIdsInOrder: Ref<string[]> = computed(() => recordsInView.value?.map((r) => r.id) ?? []);
 const grid = useNavigationGrid<string, InstanceType<typeof FieldInterface> | InstanceType<typeof ValueInterface>>(
   columnsInOrder,
   computed(() => {
@@ -485,6 +490,7 @@ defineExpose({
         :inlined="inheritedFields.find((n) => n.key == field.key) != null"
         debounced
         :supports-drop="false"
+        :wrap="wrap"
         @navigate-left="() => grid.navigateLeft(record.id, field.key as string)"
         @navigate-right="() => grid.navigateRight(record.id, field.key as string)"
         @navigate-up="() => grid.navigateUp(record.id, field.key as string)"

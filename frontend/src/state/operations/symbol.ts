@@ -3,8 +3,6 @@ import {
   EditType,
   TypeHint,
   TypeTag,
-  type BatchRestoreRecordMutation,
-  type BatchSoftDeleteRecordMutation,
   type CreateRecordMutation,
   type DeleteRecordMutation,
   type DeleteFieldMutation,

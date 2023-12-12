@@ -45,7 +45,7 @@ function open() {
     @click="open()"
   >
     <TypePreview :type="field" />
-    <span class="ml-1 underline decoration-gray-300 underline-offset-4">{{ field.name }}</span
+    <span class="ml-1 text-gray-900 underline decoration-gray-300 underline-offset-4">{{ field.name }}</span
     >:
     <span class="ml-1.5">{{ CONDITIONAL_OP_NAME[props.modelValue.op] }}</span>
     <ValueInterface

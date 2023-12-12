@@ -46,7 +46,7 @@ function open() {
     @click="open"
   >
     <TypePreview :type="field" />
-    <span class="ml-1 underline decoration-gray-300 underline-offset-4">{{ field.name }}</span>
+    <span class="ml-1 text-gray-900 underline decoration-gray-300 underline-offset-4">{{ field.name }}</span>
     <ArrowUpIcon
       class="ml-0.5 h-4 w-4 transform transition-transform"
       :class="modelValue?.order == SortOp.Ascending ? 'rotate-0' : 'rotate-180'"

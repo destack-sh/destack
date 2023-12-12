@@ -253,6 +253,7 @@ defineExpose({
           :sort="sort"
           :after="after"
           :readonly="props.readonly"
+          :wrap="properties.wrapColumns"
           :editing="props.editing"
           :target-min-width="
             Math.min(panel.size.value.width - panel.panel.value.contentMarginX * 2, panel.panel.value.contentWidth) -
