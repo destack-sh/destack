@@ -11,7 +11,12 @@ import SortSetTile from "@/components/tiles/SortSetTile.vue";
 import ConditionalSetTile from "@/components/tiles/ConditionalSetTile.vue";
 import { useFields } from "@/state/statement";
 import { ConditionalOp, type Conditional, SortOp } from "@/gql/graphql";
-import { getDefaultConditional, useDatabaseInlineSearch } from "@/state/database";
+import {
+  combineConditionals,
+  getDefaultConditional,
+  isConditionalFullySpecified,
+  useDatabaseInlineSearch,
+} from "@/state/database";
 import QuickSearchTile from "@/components/tiles/QuickSearchTile.vue";
 import ViewPaginationTile from "@/components/tiles/ViewPaginationTile.vue";
 
@@ -30,17 +35,18 @@ const { inlineQuery } = useDatabaseInlineSearch(
   fields,
   computed(() => panel.value.inlineQuery)
 );
-const combinedQuery: Ref<Conditional | undefined> = computed(() => {
-  const combined = {
-    op: ConditionalOp.And,
-    clauses: panel.value.filters?.slice() ?? [],
-  } as Conditional;
-  if (inlineQuery.value != null) {
-    combined.clauses!.push(inlineQuery.value);
-  }
-  if (combined.clauses?.length == 0) return undefined;
-  return combined;
-});
+const combinedQuery: Ref<Conditional | undefined> = computed(() =>
+  combineConditionals(
+    ConditionalOp.And,
+    [...(panel.value.filters ?? []), inlineQuery.value]
+      .filter((c) => {
+        const field = module.fieldOf(c?.field as string);
+        if (field == null) return false;
+        return isConditionalFullySpecified(field, c as Conditional);
+      })
+      .map((c) => c as Conditional)
+  )
+);
 const after: Ref<string | undefined> = ref(undefined);
 
 const contentRef = ref<InstanceType<typeof DatabaseTile> | null>(null);

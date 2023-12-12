@@ -234,3 +234,12 @@ export function getMinWidth(type: Field): number | undefined {
   const iface = getInputInterface(type);
   return iface?.minWidth;
 }
+
+export function readValue(type: Field, value: any): any {
+  // doesn't this belong more in typing?
+  const iface = getInputInterface(type);
+  if (iface?.read) {
+    return iface.read(type, value);
+  }
+  return value;
+}

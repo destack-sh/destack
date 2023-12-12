@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { humanizeNumber } from "@/composables/useNow";
 import type { Conditional, PageInfo, Sort } from "@/gql/graphql";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/vue/24/solid";
@@ -41,11 +43,10 @@ watch(
 </script>
 <template>
   <div class="flex flex-row items-center">
-    <span
-      class="text-gray-400 transition-opacity duration-75"
-      :class="[totalCount == null ? 'opacity-0' : 'opacity-100']"
-      >{{ humanizeNumber(totalCount ?? 0) }}</span
-    >
+    <FadeTransition mode="out-in">
+      <span v-if="totalCount != null" class="text-gray-400">{{ humanizeNumber(totalCount ?? 0) }}</span>
+      <BusySpinnerIcon v-else class="h-4 w-4 animate-spin" />
+    </FadeTransition>
     <button
       class="ml-1 rounded-sm px-1 py-1"
       :class="[
