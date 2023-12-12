@@ -17,7 +17,7 @@ import deepgram
 import numpy as np
 import openai
 
-from bench.language import Blob, HasRun, HasText, Module, Run, RunError, render
+from bench.language import HasRun, HasText, Module, Run, RunError, render
 from bench.language.builtin import (
     anthropic_lib,
     deepgram_lib,
@@ -111,7 +111,7 @@ class TranscriptionOutput:
 
 
 @x_task("transcribe", "Transcribe any audio into text", file=_symbolx_builtins)
-def transcribe(url: Optional[str] = None, file: Optional[Blob] = None) -> TranscriptionOutput:
+def transcribe(url: Optional[str] = None) -> TranscriptionOutput:
     raise UnreachableError()  # stub
 
 
@@ -1045,14 +1045,26 @@ class DeepgramAudioTranscriptionModel(HasModel):
         self, url: str, language: Optional[str] = None
     ) -> DeepgramAudioTranscription:
         dg_client = deepgram.Deepgram(self._api_key)
-        options = {"model": "nova-2", "smart_format": True}
+        options = {"model": "nova-2", "smart_format": True, "diarize": True}
         if language:
             options["language"] = language
         response = await dg_client.transcription.prerecorded({"url": url}, options)
-        results = response["results"]
-        alternatives = results["channels"][0]["alternatives"]
-        transcript = alternatives[0]["transcript"]
 
+        # transcript = newline separated utterances
+        # timestamps as [<HH:mm:ss>]
+        # speaker prefix as [Speaker:<speaker_id>]
+        utterances = []
+        alternatives = response["results"]["channels"][0]["alternatives"]
+        for paragraph in alternatives[0]["paragraphs"]["paragraphs"]:
+            start_time = paragraph["start"]
+            hours = int(start_time) // 3600
+            minutes = int(start_time) // 60 % 60
+            seconds = int(start_time) % 60
+            start_time = f"{hours:02}:{minutes:02}:{seconds:02}"
+            paragraph_text = " ".join(s["text"] for s in paragraph["sentences"])
+            utterances.append(f"[{start_time}][Speaker:{paragraph['speaker']}]{paragraph_text}")
+
+        transcript = "\n".join(utterances)
         return DeepgramAudioTranscription(text=transcript)
 
 

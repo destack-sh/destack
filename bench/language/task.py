@@ -69,9 +69,6 @@ class HasTask(Node):
             )
         elif self.path == "symbolx.lib.builtins.transcribe":
             builtin_model: "Statement" = self.session.module.resolve("deepgram.lib.audio.nova-2")
-            if inputs.get("file"):  # replace file with url to blob
-                inputs["url"] = await inputs["file"].get_url()
-                del inputs["file"]
         else:
             builtin_model = None
             if mode == "auto":

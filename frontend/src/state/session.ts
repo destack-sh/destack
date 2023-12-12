@@ -819,15 +819,14 @@ export function useRuns(
           variables: combinedVariables.value,
         },
         (prev) => {
-          return {
-            searchRuns: getUpdatedConnectionQuery(
-              run,
-              prev?.searchRuns as Connection<Run> | undefined,
-              options?.limit,
-              options?.insertAt ?? "start",
-              "RunEdge"
-            ) as any,
-          };
+          const updated = getUpdatedConnectionQuery(
+            run,
+            prev?.searchRuns as Connection<Run> | undefined,
+            options?.limit,
+            options?.insertAt ?? "start",
+            "RunEdge"
+          ) as any;
+          return { searchRuns: updated };
         }
       );
     });
