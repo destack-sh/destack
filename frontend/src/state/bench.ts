@@ -1188,7 +1188,7 @@ export class EditDatabasePanel extends NavigablePanel {
   sorts?: Sort[];
   filters?: Conditional[];
   inlineQuery?: string;
-  wrap?: boolean;
+  wrap?: boolean = true;
 
   constructor(statement: { ck: string; name?: string | null }) {
     super(
