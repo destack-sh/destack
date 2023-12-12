@@ -86,23 +86,6 @@ export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToVal
   return result as RefsToValueRefs<T>;
 }
 
-/**
- * Make a composable function usable within multiple Vue instances.
- * like https://vueuse.org/createSharedComposable but never dies
- */
-export function createImmortalSharedComposable<Fn extends AnyFn>(composable: Fn): Fn {
-  let state: ReturnType<Fn> | undefined;
-  let scope: EffectScope | undefined;
-
-  return <Fn>((...args) => {
-    if (!state) {
-      scope = effectScope(true);
-      state = scope.run(() => composable(...args));
-    }
-    return state;
-  });
-}
-
 export function startStopIf(
   predicate: Ref<boolean>,
   start: () => void,

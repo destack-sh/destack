@@ -451,6 +451,7 @@ class SessionQuery:
         check_module_access(info, project, ModuleAccessLevel.Read)
 
         query = query.to_bench() if query else None
+        # TODO @Architecture: remove anything but query/sort/etc. in line with :BE-114
         if session_id:
             query = lang.Expression.and_if_set(
                 query, lang.C(ConditionalOp.EQUALS, "session_id", value=session_id)

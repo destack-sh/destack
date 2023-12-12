@@ -81,10 +81,15 @@ function onInputWrite() {
   focusedRunId.value = null;
 }
 
+const lastClearedInput: Ref<string | null> = ref(null);
+
 function navigateInputUp() {
   // scroll backwards to last input
   if (!visibleHistory.value) return;
   const currentRunIndex = visibleHistory.value.findIndex((r) => r.run.id == focusedRunId.value);
+  if (currentRunIndex == -1) {
+    lastClearedInput.value = input.value;
+  }
   if (currentRunIndex < visibleHistory.value.length - 1) {
     const nextRun = visibleHistory.value[currentRunIndex + 1];
     focusedRunId.value = nextRun.run.id;
@@ -95,7 +100,7 @@ function navigateInputUp() {
 
 function navigateInputDown() {
   // scroll forwards to next input / clear
-  if (!visibleHistory.value) return;
+  if (!visibleHistory.value && lastClearedInput.value == null) return;
   const currentRunIndex = visibleHistory.value.findIndex((r) => r.run.id == focusedRunId.value);
   if (currentRunIndex > 0) {
     const nextRun = visibleHistory.value[currentRunIndex - 1];
@@ -103,7 +108,7 @@ function navigateInputDown() {
     input.value = nextRun.code;
   } else {
     focusedRunId.value = null;
-    input.value = "";
+    input.value = lastClearedInput.value ?? "";
   }
   nextTick(() => focus("last"));
 }

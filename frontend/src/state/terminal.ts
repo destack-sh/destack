@@ -2,7 +2,7 @@ import { ConditionalOp, SortOp, type Run, RunStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session";
-import { createImmortalSharedComposable } from "@/utils/functools";
+import { createSharedComposable } from "@vueuse/core";
 import { computed, ref, toRef, type Ref, watchEffect } from "vue";
 
 export type TerminalRun = {
@@ -145,4 +145,4 @@ function _useTerminal() {
   };
 }
 
-export const useTerminal = createImmortalSharedComposable(_useTerminal);
+export const useTerminal = createSharedComposable(_useTerminal);
