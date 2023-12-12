@@ -1,3 +1,4 @@
+import { readValue } from "@/components/inputs";
 import { graphql } from "@/gql";
 import { ConditionalOp, TypeHint, TypeTag, type Conditional, StatementType, QueryEngine, SortOp } from "@/gql/graphql";
 import { useCurrentModule, type Field } from "@/state/module";
@@ -195,4 +196,22 @@ export function getSupportedConditionalOps(field: Field): ConditionalOp[] {
     if (!ops.includes(op)) ops.push(op);
   }
   return ops;
+}
+
+export function combineConditionals(op: ConditionalOp, clauses: Conditional[]): Conditional | undefined {
+  if (clauses.length == 0) return undefined;
+  if (clauses.length == 1) return clauses[0];
+  return { op, clauses };
+}
+
+export function isConditionalFullySpecified(field: Field, conditional: Conditional): boolean {
+  /** Whether the conditional has a value set if needed. Used to filter conditionals that were just created but not set yet.  */
+  if (EXPRESSION_OPS.COND_COMPARISON.includes(conditional.op) || EXPRESSION_OPS.COND_STRING.includes(conditional.op)) {
+    // this feels a bit too hacky
+    const value = readValue(field, conditional.value);
+    if (typeof value == "string" && (value ?? "").trim().length == 0) return false;
+    if (value == null) return false;
+    if (Array.isArray(value) && value.length == 0) return false;
+  }
+  return true;
 }

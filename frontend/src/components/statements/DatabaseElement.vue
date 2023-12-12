@@ -25,7 +25,12 @@ import {
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref, onMounted, toRef } from "vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
-import { getDefaultConditional, useDatabaseInlineSearch } from "@/state/database";
+import {
+  combineConditionals,
+  getDefaultConditional,
+  isConditionalFullySpecified,
+  useDatabaseInlineSearch,
+} from "@/state/database";
 import DatabaseTile from "@/components/tiles/DatabaseTile.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
@@ -64,17 +69,18 @@ onMounted(() => {
 });
 
 const { inlineQuery, queryEngine } = useDatabaseInlineSearch(fields, toRef(properties, "inlineQuery"));
-const combinedQuery: Ref<Conditional | undefined> = computed(() => {
-  const combined = {
-    op: ConditionalOp.And,
-    clauses: properties.filters?.slice() ?? [],
-  } as Conditional;
-  if (inlineQuery.value != null) {
-    combined.clauses!.push(inlineQuery.value);
-  }
-  if (combined.clauses?.length == 0) return undefined;
-  return combined;
-});
+const combinedQuery: Ref<Conditional | undefined> = computed(() =>
+  combineConditionals(
+    ConditionalOp.And,
+    [...(properties.filters ?? []), inlineQuery.value]
+      .filter((c) => {
+        const field = module.fieldOf(c?.field as string);
+        if (field == null) return false;
+        return isConditionalFullySpecified(field, c as Conditional);
+      })
+      .map((c) => c as Conditional)
+  )
+);
 const after: Ref<string | undefined> = ref(undefined);
 
 function addSort(field: Field, order: SortOp) {
@@ -157,7 +163,6 @@ const actions = computed(() => {
     action: () => {
       openAsDatabasePanel();
     },
-    hideInline: true,
   });
   actions.push({
     label: properties.wrapColumns ? "Unwrap columns" : "Wrap columns",
