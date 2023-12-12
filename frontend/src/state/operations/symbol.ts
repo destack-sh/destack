@@ -27,7 +27,6 @@ import {
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { EditRegistry, PENDING_REVISION } from "@/state/sync";
-import { useMutation } from "@vue/apollo-composable";
 
 export function useSymbolContentOps() {
   const ops = useOperationsStore();

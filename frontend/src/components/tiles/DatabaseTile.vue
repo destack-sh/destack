@@ -26,7 +26,7 @@ import { IS_DEBUG } from "@/utils/globals";
 import { Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { EllipsisHorizontalIcon, EllipsisVerticalIcon, PlusIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
-import { useDebounceFn } from "@vueuse/core";
+import { onStartTyping, useDebounceFn } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, nextTick, toRef, type Ref, ref, watch, onMounted } from "vue";
 
@@ -318,7 +318,7 @@ watch(
     const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = allFields.value.map((f) =>
       getInputInterface(module.effectiveTypeOf(f))
     );
-    ifaces.push({ minWidth: propertiesColumnWidth, grow: 0.05 }); // 'fake' properties column
+    ifaces.push({ minWidth: propertiesColumnWidth, grow: 0.01 }); // 'fake' properties column
 
     // init width to minimum widths as min(header, iface_min)
     const widths: number[] = [];
@@ -331,10 +331,10 @@ watch(
       const minWidth = Math.max(headerWidth, iface?.minWidth ?? defaultMinWidth);
       widths.push(minWidth);
     }
-    if (props.selectable) widths.push(selectColumnWidth);
 
     // if the total width is too small, scale up to fill by the grow factors
-    const actualTotalWidth = widths.reduce((a, b) => a + b, 0);
+    let actualTotalWidth = widths.reduce((a, b) => a + b, 0);
+    if (props.selectable) actualTotalWidth += selectColumnWidth;
     if (actualTotalWidth < props.targetMinWidth) {
       const toFill = Math.max(props.targetMinWidth - actualTotalWidth, 0);
       const growFactors = ifaces.map((i) => i?.grow ?? defaultGrowFactor);
@@ -352,6 +352,18 @@ watch(
   },
   { immediate: true }
 );
+
+// auto-edit value field if starting to type (clear & focus)
+onStartTyping((e) => {
+  if (props.readonly) return;
+  const cell = grid.findRef((r) => r.$el.parentNode.contains(e.target));
+  if (cell != null && cell.rowId != "") {
+    const field = allFields.value.find((f) => f.key == cell.column);
+    if (field == null) return;
+    deleteRecordField(cell.rowId, fieldsTypedKeyByCk.value[field.ck]);
+    nextTick(() => (cell.ref as unknown as { edit?: () => void }).edit?.());
+  }
+});
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
@@ -418,7 +430,7 @@ defineExpose({
       <div
         class="flex flex-row items-center overflow-x-hidden whitespace-nowrap border-b border-t border-amber-900/[12%]"
         :style="{
-          width: propertiesColumnWidth + 'px',
+          width: columnWidths[columnWidths.length - 1] + 'px',
         }"
       >
         <!-- Add column -->
@@ -512,7 +524,7 @@ defineExpose({
       <div
         :style="{
           minHeight: minRowHeight + 'px',
-          width: propertiesColumnWidth + 'px',
+          width: columnWidths[columnWidths.length - 1] + 'px',
           height: rowHeights[y] + rowPadding * 2 + 'px',
         }"
       />

@@ -10,17 +10,11 @@ import { computed, ref, watch, type Ref, watchEffect, toRef } from "vue";
 import SortSetTile from "@/components/tiles/SortSetTile.vue";
 import ConditionalSetTile from "@/components/tiles/ConditionalSetTile.vue";
 import { useFields } from "@/state/statement";
-import { ConditionalOp, type Conditional, SortOp } from "@/gql/graphql";
-import {
-  combineConditionals,
-  getDefaultConditional,
-  isConditionalFullySpecified,
-  useDatabaseInlineSearch,
-} from "@/state/database";
+import { SortOp } from "@/gql/graphql";
+import { getDefaultConditional, useDatabaseCombinedSearch } from "@/state/database";
 import QuickSearchTile from "@/components/tiles/QuickSearchTile.vue";
 import ViewPaginationTile from "@/components/tiles/ViewPaginationTile.vue";
 import { ChevronDoubleDownIcon } from "@heroicons/vue/24/outline";
-import { TrashIcon } from "@heroicons/vue/24/solid";
 
 const PAGE_SIZE = 50;
 
@@ -33,21 +27,10 @@ const statement = computed(() => module.statementOf(props.panel.panel.value.stat
 const path = computed(() => module.nodePathOf(props.panel.panel.value.statementCk));
 const fields = useFields(statement);
 
-const { inlineQuery } = useDatabaseInlineSearch(
+const { combinedQuery } = useDatabaseCombinedSearch(
   fields,
-  computed(() => panel.value.inlineQuery)
-);
-const combinedQuery: Ref<Conditional | undefined> = computed(() =>
-  combineConditionals(
-    ConditionalOp.And,
-    [...(panel.value.filters ?? []), inlineQuery.value]
-      .filter((c) => {
-        const field = module.fieldOf(c?.field as string);
-        if (field == null) return false;
-        return isConditionalFullySpecified(field, c as Conditional);
-      })
-      .map((c) => c as Conditional)
-  )
+  computed(() => panel.value.inlineQuery),
+  computed(() => panel.value.filters ?? [])
 );
 const after: Ref<string | undefined> = ref(undefined);
 
