@@ -27,11 +27,11 @@ from bench.language.module import (
     Property,
     ScopeNode,
     _Passthrough,
-    bruntime,
-    nchildren,
     node,
+    node_children,
     node_component,
-    nparent,
+    node_parent,
+    struct_runtime,
 )
 from bench.language.value import HasValue
 from bench.search.core import DocumentType
@@ -52,7 +52,7 @@ RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 @node(NodeType.RECORD, passthrough=(("value", _Passthrough.Full),))
 class Record(HasValue, Node):
-    parent: "Statement" = nparent(NodeType.STATEMENT)
+    parent: "Statement" = node_parent(NodeType.STATEMENT)
 
     @staticmethod
     def new(
@@ -674,9 +674,9 @@ class RecordList(NodeListBase[Record], RecordQuery):
 
 @node_component
 class HasDatabase(Node):
-    views: NodeList["View"] = nchildren(NodeType.VIEW, NRel.Named | NRel.Ordered)
-    records: NodeList[Record] = nchildren(NodeType.RECORD, NRel.Remote, custom_list=RecordList)
-    _table: Optional[Table] = bruntime(default=None)
+    views: NodeList["View"] = node_children(NodeType.VIEW, NRel.Named | NRel.Ordered)
+    records: NodeList[Record] = node_children(NodeType.RECORD, NRel.Remote, custom_list=RecordList)
+    _table: Optional[Table] = struct_runtime(default=None)
 
     def _init_inner(self):
         # this runs before HasFields because of the ordering in

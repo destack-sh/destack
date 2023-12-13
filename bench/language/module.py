@@ -64,10 +64,10 @@ from bench.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Field, File, Issue, NodeVisitor, Session, Expression
+    from bench.language import Expression, Field, File, Issue, NodeVisitor, Session
     from bench.language.edit import EditData
-    from bench.language.wire import NodeData
     from bench.language.issue import IssueHandler
+    from bench.language.wire import NodeData
 
 logger = structlog.get_logger(__name__)
 
@@ -298,6 +298,7 @@ class Property(_FieldExpressionBase):
     is_runtime: bool = False
     is_cru: bool = False
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
+    is_ancestor_nearest: bool | None = None  # for ancestor relations
     parent_node_types: tuple[NodeType] | None = None
     ancestor_node_type: NodeType | None = None
     default: typing.Any = UNSET
@@ -322,16 +323,18 @@ class Property(_FieldExpressionBase):
 
     def __post_init__(self):
         if (
-            not self.is_relation
+            not self.is_tree_relation
             and self.is_runtime
             and self.default is UNSET
             and self.default_factory is None
         ):
-            raise ValueError(f"missing default for {self}")
+            raise ValueError(f"missing default for {self!r}")
         if self.child_node_type and (self.default is not UNSET or self.default_factory is not None):
-            raise ValueError(f"cannot set default for {self}")
+            raise ValueError(f"cannot set default for {self!r}")
 
     def __str__(self):
+        if self.component is None:
+            return "<detached>"
         return f"{self.component.__name__}.{self.name}"
 
     def __repr__(self):
@@ -373,7 +376,7 @@ class Property(_FieldExpressionBase):
             raise ValueError(f"no default for {self!r}")
 
     def copy(self, value: typing.Any) -> typing.Any:
-        if self.is_relation:
+        if self.is_tree_relation:
             raise ValueError(f"cannot copy relation {self!r}")
         elif self.custom_copy is not None:
             return self.custom_copy(value)
@@ -390,11 +393,12 @@ class Property(_FieldExpressionBase):
             return None
 
     @property
-    def is_relation(self) -> bool:
+    def is_tree_relation(self) -> bool:
+        """Whether this is a node relation property (parent/child/ancestor)."""
         return bool(self.parent_node_types) or self.child_node_type or self.ancestor_node_type
 
 
-def bproperty(
+def struct_property(
     *,
     default: typing.Any = UNSET,
     default_factory: Callable[[], typing.Any] = None,
@@ -416,7 +420,7 @@ def bproperty(
     )
 
 
-def binternal(
+def struct_internal(
     *,
     default: typing.Any = UNSET,
     default_factory: Callable[[], typing.Any] = None,
@@ -436,7 +440,7 @@ def binternal(
     )
 
 
-def bruntime(
+def struct_runtime(
     *,
     default: typing.Any = UNSET,
     default_factory: Callable[[], typing.Any] = None,
@@ -453,17 +457,19 @@ def bruntime(
     )
 
 
-def nparent(*node_type: NodeType):
+def node_parent(*node_type: NodeType):
     """The parent of a node, must be of one of the given types."""
     return Property(parent_node_types=tuple(node_type), default=None, is_internal=True)
 
 
-def nancestor(node_type: NodeType):
-    """Computed nearest ancestor of the given type."""
-    return Property(ancestor_node_type=node_type, default=None, is_internal=True)
+def node_ancestor(node_type: NodeType, nearest: bool = True):
+    """Computed nearest or farthest ancestor of the given type."""
+    return Property(
+        ancestor_node_type=node_type, default=None, is_internal=True, is_ancestor_nearest=nearest
+    )
 
 
-def nchildren(
+def node_children(
     node_type: NodeType,
     flags: NRel = NRel.Default,
     custom_list: type["NodeListBase"] = None,
@@ -581,7 +587,7 @@ def _process_struct_base(
     properties: dict[str, Property] = {}
     static_components: list[type["Node"] | type["Struct"]] = [cls]
 
-    # check that no forbidden methods are defined
+    # check that no forbidden methods are defined in non-base classes
     CORE_TYPES = ("Struct", "Node", "ScopeNode")
     if cls.__name__ not in CORE_TYPES:
         for name in _FORBIDDEN_NODE_METHODS:
@@ -621,13 +627,14 @@ def _process_struct_base(
         ):
             continue  # ignore reserved names and non-fields
         if not isinstance(prop, Property):
-            raise TypeError(f"{cls}.{name} is not a NodeProperty: {prop} ({type(prop)})")
+            raise TypeError(f"{cls.__name__}.{name} is not a NodeProperty: {prop} ({type(prop)})")
         prop.name = name
         prop.component = cls
         prop.annotation = cls.__annotations__.get(name, None)
         properties[name] = prop
 
     # collect properties from all components (static and dynamic, least to most specific)
+    is_node = cls.__name__ in CORE_TYPES or issubclass(cls, Node)
     cls.__properties__ = {**properties}  # copy own properties
     for component in chain(reversed(static_components), reversed(dynamic_components)):
         for name, prop in component.__properties__.items():
@@ -642,6 +649,9 @@ def _process_struct_base(
                 ):
                     continue
                 raise ValueError(f"property conflict '{name}': {prop!r}, {existing!r}")
+            # check that only nodes have node relations
+            if not is_node and prop.is_tree_relation:
+                raise ValueError(f"non-node {cls} has node-only relation {prop}")
 
     # collect methods implemented in this class (specifically)
     for meth_type in ComponentMethod:
@@ -702,7 +712,7 @@ def node_component(
                     and not issubclass(cls, ScopeNode)
                     and node_type is not None
                 ):
-                    raise ValueError(f"{cls} is not ScopeNode for {prop}")
+                    raise ValueError(f"{cls} is not a ScopeNode for {prop}")
                 list_properties[prop.name] = prop
                 list_properties_by_child[prop.child_node_type].append(prop)
         cls.__list_properties__ = frozendict(list_properties)
@@ -761,13 +771,29 @@ NodeT = typing.TypeVar("NodeT", bound="Node")
 def _node_ancestor_prop(prop: Property) -> property:
     """Computed ancestor property for ModuleNode instances."""
 
-    def get(self: NodeT) -> Optional[NodeT]:
-        parent = self  # include self in search
-        while parent is not None:
-            if parent.node_type == prop.ancestor_node_type:
-                return parent
-            parent = parent.parent
-        return None
+    if prop.is_ancestor_nearest:
+
+        def get_nearest(self: NodeT) -> Optional[NodeT]:
+            parent = self  # include self in search
+            while parent is not None:
+                if parent.node_type == prop.ancestor_node_type:
+                    return parent
+                parent = parent.parent
+            return None
+
+        get = get_nearest
+    else:
+
+        def get_farthest(self: NodeT) -> Optional[NodeT]:
+            parent = self.parent
+            farthest = None
+            while parent is not None:
+                if parent.node_type == prop.ancestor_node_type:
+                    farthest = parent
+                parent = parent.parent
+            return farthest
+
+        get = get_farthest
 
     def set(self: NodeT, value: NodeT):
         raise NotImplementedError(f"cannot set computed ancestor property {prop}")
@@ -1912,23 +1938,23 @@ class Node(abc.ABC):
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __has_scope__: ClassVar[bool] = False
 
-    id: UUID = binternal(default=None, reflect=True)
-    ck: UUID = binternal(default=None, reflect=True)
-    parent: Optional["Node"] = nparent()
+    id: UUID = struct_internal(default=None, reflect=True)
+    ck: UUID = struct_internal(default=None, reflect=True)
+    parent: Optional["Node"] = node_parent()
     # prototype: Optional["Node"] / instance_of_ck: UUID
-    module: Optional["Module"] = nancestor(NodeType.MODULE)
+    module: Optional["Module"] = node_ancestor(NodeType.MODULE)
 
-    created_at: datetime = binternal(default=None, is_cru=True, reflect=True)
-    updated_at: datetime = binternal(default=None, is_cru=True, reflect=True)
-    deleted_at: datetime = binternal(default=None, is_cru=True, reflect=True)
-    last_edited_at: datetime = binternal(default=None, is_cru=True, reflect=True)
-    last_changed_at: datetime = binternal(default=None, is_cru=True, reflect=True)
-    revision: int = binternal(default=0, is_cru=True, reflect=True)
+    created_at: datetime = struct_internal(default=None, is_cru=True, reflect=True)
+    updated_at: datetime = struct_internal(default=None, is_cru=True, reflect=True)
+    deleted_at: datetime = struct_internal(default=None, is_cru=True, reflect=True)
+    last_edited_at: datetime = struct_internal(default=None, is_cru=True, reflect=True)
+    last_changed_at: datetime = struct_internal(default=None, is_cru=True, reflect=True)
+    revision: int = struct_internal(default=0, is_cru=True, reflect=True)
 
-    _session: Optional["Session"] = bruntime(default=None)
-    _status: NodeStatus = bruntime(default=None)
-    _track: NodeTrackingLevel = bruntime(default=NodeTrackingLevel.FULL)
-    _new: bool = bruntime(default=False)
+    _session: Optional["Session"] = struct_runtime(default=None)
+    _status: NodeStatus = struct_runtime(default=None)
+    _track: NodeTrackingLevel = struct_runtime(default=NodeTrackingLevel.FULL)
+    _new: bool = struct_runtime(default=False)
 
     def __post_init__(self):
         if self._session is None:
@@ -2232,7 +2258,7 @@ class Node(abc.ABC):
         """
         props = {}
         for name, prop in self.__properties__.items():
-            if prop.is_relation:
+            if prop.is_tree_relation:
                 continue
             props[name] = prop.copy(getattr(self, name))
         if keep_parent:
@@ -2312,11 +2338,11 @@ class ScopeNode(Node):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
     __has_scope__: ClassVar[bool] = True
-    issues: NodeList["Issue"] = nchildren(NodeType.ISSUE, NRel.Cumulative)
-    _scopes_by_name: dict[str, "ScopeNode"] = bruntime(default_factory=dict)
-    _names_by_ident: dict[str, str] = bruntime(default_factory=dict)
+    issues: NodeList["Issue"] = node_children(NodeType.ISSUE, NRel.Cumulative)
+    _scopes_by_name: dict[str, "ScopeNode"] = struct_runtime(default_factory=dict)
+    _names_by_ident: dict[str, str] = struct_runtime(default_factory=dict)
     # the local tree is maintained at the local root (usually module, maybe a detached root node)
-    _local_tree: Union["NodeTree", "DetachedNodeTree", None] = bruntime(default=None)
+    _local_tree: Union["NodeTree", "DetachedNodeTree", None] = struct_runtime(default=None)
 
     @property
     def scope(self) -> "ScopeNode":
@@ -2529,17 +2555,17 @@ class ModuleChange:
 
 @node(NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
-    parent: None = nparent()
-    name: str = binternal()  # can't change this yet
-    committed: bool = binternal(default=False)
-    files: NodeList["File"] = nchildren(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
-    dependencies: dict[str, Union["Module", ModuleReference]] = bruntime(default_factory=dict)
-    builtins: list["File"] = bruntime(default_factory=list)
-    _lookup_cache: dict[str, NodeT] = bruntime(default_factory=dict)
-    _source: Optional[NodeTree] = bruntime(default=None)
-    _project_id: Optional[UUID] = bruntime(default=None)
-    _os_name: Optional[str] = bruntime(default=None)
-    _pg_name: Optional[str] = bruntime(default=None)
+    parent: None = node_parent()
+    name: str = struct_internal()  # can't change this yet
+    committed: bool = struct_internal(default=False)
+    files: NodeList["File"] = node_children(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
+    dependencies: dict[str, Union["Module", ModuleReference]] = struct_runtime(default_factory=dict)
+    builtins: list["File"] = struct_runtime(default_factory=list)
+    _lookup_cache: dict[str, NodeT] = struct_runtime(default_factory=dict)
+    _source: Optional[NodeTree] = struct_runtime(default=None)
+    _project_id: Optional[UUID] = struct_runtime(default=None)
+    _os_name: Optional[str] = struct_runtime(default=None)
+    _pg_name: Optional[str] = struct_runtime(default=None)
 
     def __str__(self):
         if self.issues:

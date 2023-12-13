@@ -36,7 +36,7 @@ from bench.language.const import (
     WorkerSetStatus,
 )
 from bench.language.module import Node, NodeStatus, NodeTree, ScopeNode
-from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
+from bench.language.run import Run, RunCodeFrame, RunErrorKind
 from bench.language.session import LazyRun, Session
 from bench.language.text import patch_text_html
 from bench.utils.func import describe_type, get_subclasses
@@ -45,7 +45,7 @@ from bench.utils.serialize import from_dict, to_dict
 #
 # Stable, concise and flat data nodes for transit and storage.
 # TODO @Performance @Robustness: use an optimized and evolvable :WireFormat
-# TODO @Cleanup @Architecture: auto-generate wire format and module data packers (most of it)
+# TODO @Cleanup @Architecture: auto-generate wire format and module struct packers (most of it)
 #  We can probably do this and implement protobuf or such at the same time.
 #  Maybe we can also auto-generate some of the model packers, though that mapping is less 1:1.
 #
@@ -59,8 +59,8 @@ DataT = typing.TypeVar("DataT")
 ObjectT = typing.TypeVar("ObjectT")
 
 
-class DataPacker(abc.ABC, typing.Generic[DataT, ObjectT]):
-    """Generic data packer for non-node module data types"""
+class StructPacker(abc.ABC, typing.Generic[DataT, ObjectT]):
+    """Generic struct packer for non-node module data types"""
 
     def pack(self, object: ObjectT) -> DataT:
         raise NotImplementedError
@@ -93,35 +93,35 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
 # registered packers
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
 _node_packers_by_node: dict[typing.Type[NodeT], NodePacker] = {}
-_data_packers_by_data: dict[typing.Type[DataT], "DataPacker"] = {}
-_data_packers_by_node: dict[typing.Type, "DataPacker"] = {}
+_struct_packers_by_data: dict[typing.Type[DataT], "StructPacker"] = {}
+_struct_packers_by_node: dict[typing.Type, "StructPacker"] = {}
 NODE_TYPE_BY_DATA_CLASS: dict[typing.Type[NodeDataT], NodeType] = {}
 DATA_CLASS_BY_NODE_TYPE: dict[NodeType, typing.Type[NodeDataT]] = {}
 _DATA_CLASS_BY_NAME: dict[str, typing.Type[NodeDataT]] = {}
 
 
-def data_packer(
+def struct_packer(
     data_t: typing.Type[DataT],
     node_t: typing.Optional[typing.Type] | None,
     *extra_node_t: typing.Optional[typing.Type] | None,
 ):
-    """Decorator to register a data packer for a given type"""
+    """Decorator to register a struct packer for a given type"""
 
-    def decorator(cls: "DataPacker"):
+    def decorator(cls: "StructPacker"):
         node_ts = [node_t, *extra_node_t]
         packer = cls()
-        if data_t in _data_packers_by_data:
+        if data_t in _struct_packers_by_data:
             raise ValueError(
-                f"packer for {data_t} already registered: {_data_packers_by_data[data_t]}"
+                f"packer for {data_t} already registered: {_struct_packers_by_data[data_t]}"
             )
-        _data_packers_by_data[data_t] = packer
+        _struct_packers_by_data[data_t] = packer
         for t in node_ts:
-            if t in _data_packers_by_node:
+            if t in _struct_packers_by_node:
                 raise ValueError(
-                    f"packer for {t} already registered: {_data_packers_by_node[node_t]}"
+                    f"packer for {t} already registered: {_struct_packers_by_node[node_t]}"
                 )
             if t:
-                _data_packers_by_node[t] = packer
+                _struct_packers_by_node[t] = packer
         return cls
 
     return decorator
@@ -160,15 +160,13 @@ def node_packer(
     return decorator
 
 
-def pack_data(data: ObjectT) -> DataT:
-    """Pack a language data object into a flat module node"""
-    packer = _data_packers_by_node[type(data)]
+def pack_struct(data: ObjectT) -> DataT:
+    packer = _struct_packers_by_node[type(data)]
     return packer.pack(data)
 
 
-def unpack_data(data: DataT, module: Module) -> ObjectT:
-    """Unpack a flat module node into a language data object"""
-    packer = _data_packers_by_data[type(data)]
+def unpack_struct(data: DataT, module: Module) -> ObjectT:
+    packer = _struct_packers_by_data[type(data)]
     return packer.unpack(data, module)
 
 
@@ -235,7 +233,7 @@ def unpack_node(
         # keep parent instance if it was passed (update in place)
         if parent is not None and node.id == parent.id:
             for prop in parent.__properties__.values():
-                if not prop.is_runtime and not prop.is_relation:
+                if not prop.is_runtime and not prop.is_tree_relation:
                     setattr(parent, prop.name, getattr(node, prop.name))
             node = parent
 
@@ -950,8 +948,8 @@ class ExpressionData:
         return f"{self.kind.name} {self.op.name}"
 
 
-@data_packer(ExpressionData, lang.Expression, *get_subclasses(lang.Expression))
-class ExpressionPacker(DataPacker[ExpressionData, lang.Expression]):
+@struct_packer(ExpressionData, lang.Expression, *get_subclasses(lang.Expression))
+class ExpressionPacker(StructPacker[ExpressionData, lang.Expression]):
     def pack(self, expr: lang.Expression) -> ExpressionData:
         return ExpressionData(
             op=expr.op,
@@ -992,8 +990,8 @@ class BlobData:
         return f"<Blob {self}>"
 
 
-@data_packer(BlobData, lang.Blob)
-class BlobPacker(DataPacker[BlobData, lang.Blob]):
+@struct_packer(BlobData, lang.Blob)
+class BlobPacker(StructPacker[BlobData, lang.Blob]):
     def pack(self, blob: lang.Blob) -> BlobData:
         return BlobData(
             id=blob.id,
@@ -1028,8 +1026,8 @@ class SecretData:
         return f"<Secret {self}>"
 
 
-@data_packer(SecretData, lang.Secret)
-class SecretPacker(DataPacker[SecretData, lang.Secret]):
+@struct_packer(SecretData, lang.Secret)
+class SecretPacker(StructPacker[SecretData, lang.Secret]):
     def pack(self, object: lang.Secret) -> SecretData:
         return SecretData(id=object.id, sha512=object.sha512, value=object.value)
 
@@ -1038,7 +1036,7 @@ class SecretPacker(DataPacker[SecretData, lang.Secret]):
 
 
 @dataclass
-class SessionData:
+class SessionData(NodeData):
     id: UUID
     module_id: UUID
     opened_at: Optional[datetime]
@@ -1047,8 +1045,8 @@ class SessionData:
     trigger_type: TriggerType
 
 
-@data_packer(SessionData, lang.Session)
-class SessionPacker(DataPacker[SessionData, lang.Session]):
+@struct_packer(SessionData, lang.Session)
+class SessionPacker(NodePacker[SessionData, lang.Session]):
     def pack(self, session: lang.Session) -> SessionData:
         return SessionData(
             id=session.id,
@@ -1093,8 +1091,7 @@ class RunErrorData:
 
 
 @dataclass
-class RunData:
-    id: UUID
+class RunData(NodeData):
     worker_node_id: Optional[str]
     worker_process_id: Optional[str]
     project_id: UUID
@@ -1121,8 +1118,8 @@ class RunData:
     access_level: Optional[SessionAccessLevel]
 
 
-@data_packer(RunData, Run)
-class RunPacker(DataPacker[RunData, Run]):
+@struct_packer(RunData, Run)
+class RunPacker(NodePacker[RunData, Run]):
     def pack(self, run: Run) -> RunData:
         track_statement = run.statement._track >= NodeTrackingLevel.FULL
         if run.error:
@@ -1170,40 +1167,6 @@ class RunPacker(DataPacker[RunData, Run]):
             access_level=run.access_level,
         )
 
-    def unpack(self, data: RunData, module: Module) -> Run:
-        # we leave relational references that aren't in the module as None?
-        if data.error:
-            error = RunError(
-                kind=data.error.kind,
-                type=data.error.type,
-                message=data.error.message,
-                traceback=data.error.traceback,
-                statement=None,  # obviously wrong
-            )
-        else:
-            error = None
-        return Run(
-            id=data.id,
-            module=module,
-            session=None,
-            root=LazyRun(data.root_id) if data.root_id else None,
-            parent=LazyRun(data.parent_id) if data.parent_id else None,
-            statement=None,  # obviously wrong
-            statement_path=data.statement_path,
-            trigger=data.trigger_id,
-            trigger_type=data.trigger_type,
-            created_at=data.created_at,
-            updated_at=data.updated_at,
-            scheduled_at=data.scheduled_at,
-            started_at=data.started_at,
-            terminated_at=data.terminated_at,
-            inputs=data.inputs,
-            outputs=data.outputs,
-            error=error,
-            value=data.value,
-            access_level=data.access_level,
-        )
-
 
 @dataclass
 class LogEntryData:
@@ -1221,8 +1184,8 @@ class LogEntryData:
     value: Optional[dict[str, Any]]
 
 
-@data_packer(LogEntryData, lang.LogEntry)
-class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
+@struct_packer(LogEntryData, lang.LogEntry)
+class LogEntryPacker(StructPacker[LogEntryData, lang.LogEntry]):
     def pack(self, object: lang.LogEntry) -> LogEntryData:
         return LogEntryData(
             id=object.id,

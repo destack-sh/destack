@@ -7,11 +7,11 @@ from bench.language.module import (
     Node,
     NodeList,
     NRel,
-    binternal,
-    nchildren,
     node,
+    node_children,
     node_component,
-    nparent,
+    node_parent,
+    struct_internal,
 )
 from bench.language.reference import HasReference
 from bench.language.value import HasValue
@@ -25,10 +25,10 @@ if typing.TYPE_CHECKING:
 class Tagging(HasValue, HasReference, Node):
     """An association between a tag and a statement (with optional value)."""
 
-    parent: Union["File", "Statement", "Field"] | None = nparent(
+    parent: Union["File", "Statement", "Field"] | None = node_parent(
         NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
     )
-    key: str = binternal()
+    key: str = struct_internal()
 
     @staticmethod
     def new(
@@ -87,4 +87,4 @@ class Tagging(HasValue, HasReference, Node):
 
 @node_component
 class HasTags(Node):
-    tags: NodeList["Tagging"] = nchildren(NodeType.TAGGING, NRel.Keyed)
+    tags: NodeList["Tagging"] = node_children(NodeType.TAGGING, NRel.Keyed)

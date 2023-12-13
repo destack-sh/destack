@@ -10,11 +10,11 @@ from bench.language.const import NodeType, ScheduleType, TriggerType
 from bench.language.module import (
     Node,
     NodeList,
-    bproperty,
-    nchildren,
     node,
+    node_children,
     node_component,
-    nparent,
+    node_parent,
+    struct_property,
 )
 from bench.language.validation import ValidationHandler, enum_validator
 from bench.utils.func import dict_minus
@@ -34,18 +34,18 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 class Trigger(Node):
     """A trigger for a statement, possibly inside a flow."""
 
-    parent: "Statement" = nparent(NodeType.STATEMENT)
-    type: TriggerType = bproperty(is_required=True, validate=enum_validator(TriggerType))
-    active: bool = bproperty(default=True)
-    mapping: Optional[Mapping] = bproperty(default=None)
-    schedule_type: Optional[ScheduleType] = bproperty(
+    parent: "Statement" = node_parent(NodeType.STATEMENT)
+    type: TriggerType = struct_property(is_required=True, validate=enum_validator(TriggerType))
+    active: bool = struct_property(default=True)
+    mapping: Optional[Mapping] = struct_property(default=None)
+    schedule_type: Optional[ScheduleType] = struct_property(
         default=None, validate=enum_validator(ScheduleType)
     )
-    timezone: Optional[str] = bproperty(default=pytz.utc.zone)
-    interval: Optional[int] = bproperty(default=None)
-    cron: Optional[str] = bproperty(default=None)
-    statement: Union["Statement", UUID, None] = bproperty(default=None)
-    scope: Union["Node", UUID, None] = bproperty(default=None)
+    timezone: Optional[str] = struct_property(default=pytz.utc.zone)
+    interval: Optional[int] = struct_property(default=None)
+    cron: Optional[str] = struct_property(default=None)
+    statement: Union["Statement", UUID, None] = struct_property(default=None)
+    scope: Union["Node", UUID, None] = struct_property(default=None)
 
     @staticmethod
     def new(
@@ -119,7 +119,7 @@ class Trigger(Node):
 
 @node_component
 class HasTriggers(Node):
-    triggers: NodeList[Trigger] = nchildren(NodeType.TRIGGER)
+    triggers: NodeList[Trigger] = node_children(NodeType.TRIGGER)
 
 
 class TriggerScheduleIterator:

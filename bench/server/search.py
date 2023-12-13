@@ -1,4 +1,4 @@
-from typing import Generator, Iterable, Optional, Type
+from typing import Generator, Iterable, Type
 
 import structlog
 from asgiref.sync import sync_to_async
@@ -395,45 +395,6 @@ def write_runs_to_os(
     ret = os_client_sync.bulk(ops)
     if ret.get("errors"):
         raise RuntimeError(f"failed to write runs to OpenSearch: {get_os_errors(ret)}")
-
-
-def write_session_to_os(
-    project_v: models.ProjectVersion, session: Optional[models.Session], runs: list[wire.RunData]
-) -> None:
-    """Writes/mirrors a session to OpenSearch."""
-
-    os_name = project_v.project.os_name
-    ops: list[dict] = []
-    if session:
-        ops.append({"index": {"_index": os_name, "_id": str(session.id)}})
-        ops.append(mirror.mirror_node(project_v, session).to_dict())
-    for run in runs:
-        ops.append({"index": {"_index": os_name, "_id": str(run.id)}})
-        ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
-    logger.debug("os.write_session", project_version=project_v, index=os_name, operations=len(ops))
-    ret = os_client_sync.bulk(ops)
-    if ret.get("errors"):
-        raise RuntimeError(f"failed to write session to OpenSearch: {get_os_errors(ret)}")
-
-
-async def write_sessions_to_os_from_db(project_v: models.ProjectVersion) -> None:
-    """Writes/mirrors all sessions and runs to OpenSearch."""
-    from bench.models import packer
-
-    os_name = project_v.project.os_name
-    ops: list[dict] = []
-    for session in project_v.sessions.all():
-        ops.append({"index": {"_index": os_name, "_id": str(session.id)}})
-        ops.append(mirror.mirror_node(project_v, session).to_dict())
-    for run in project_v.runs.all():
-        ops.append({"index": {"_index": os_name, "_id": str(run.id)}})
-        run = packer.pack_data(run)
-        ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
-    logger.debug("os.write_sessions", project_version=project_v, index=os_name, operations=len(ops))
-    if ops:
-        ret = await os_client.bulk(ops)
-        if ret.get("errors"):
-            raise RuntimeError(f"failed to write sessions to OpenSearch: {get_os_errors(ret)}")
 
 
 async def delete_module_in_os(project_v: models.ProjectVersion):

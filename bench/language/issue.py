@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import IssueKind, IssueType, NodeType
-from bench.language.module import Node, bproperty, node, nparent
+from bench.language.module import Node, node, node_parent, struct_property
 from bench.language.validation import enum_validator
 
 if TYPE_CHECKING:
@@ -61,14 +61,14 @@ class BenchError(ValueError):
 
 @node(NodeType.ISSUE)
 class Issue(Node):
-    parent: Union["Statement", "File", None] = nparent(NodeType.STATEMENT, NodeType.FILE)
-    type: IssueType = bproperty(is_required=True, validate=enum_validator(IssueType))
-    kind: IssueKind = bproperty(default=None, validate=enum_validator(IssueKind))
-    message: str = bproperty(default=None)
-    subject: Optional[Node] = bproperty(default=None)
-    path: Optional[str] = bproperty(default=None)
-    properties: list[str] = bproperty(default=None)
-    other: Optional[Node] = bproperty(default=None)
+    parent: Union["Statement", "File", None] = node_parent(NodeType.STATEMENT, NodeType.FILE)
+    type: IssueType = struct_property(is_required=True, validate=enum_validator(IssueType))
+    kind: IssueKind = struct_property(default=None, validate=enum_validator(IssueKind))
+    message: str = struct_property(default=None)
+    subject: Optional[Node] = struct_property(default=None)
+    path: Optional[str] = struct_property(default=None)
+    properties: list[str] = struct_property(default=None)
+    other: Optional[Node] = struct_property(default=None)
 
     def _init_inner(self):
         # make message

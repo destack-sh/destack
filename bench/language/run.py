@@ -1,18 +1,37 @@
+import asyncio
 import enum
 import hashlib
 import sys
 import traceback
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import msgpack
 
-from bench.language.const import TERMINAL_RUN_STATUSES, RunStatus, SessionAccessLevel, TriggerType
-from bench.language.module import NS, Module, Node, node_component
+from bench.language.const import (
+    TERMINAL_RUN_STATUSES,
+    NodeType,
+    RunStatus,
+    SessionAccessLevel,
+    StructType,
+    TriggerType,
+)
+from bench.language.module import (
+    NS,
+    Module,
+    Node,
+    Struct,
+    node,
+    node_ancestor,
+    node_component,
+    node_parent,
+    struct,
+    struct_internal,
+)
+from bench.language.value import HasValue
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.proxy import proxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
@@ -28,16 +47,11 @@ class HasRun(Node):
         """Whether this statement is async."""
         return None
 
-    # runs/logs will re-appear soon
-
     @property
     def cache(self):
-        from bench.language.cache import CacheAsync, CacheSync
+        from bench.language.cache import Cache
 
-        if self._is_async:
-            return CacheAsync(self.module, subkey=self.ck.hex)
-        else:
-            return CacheSync(self.module, subkey=self.ck.hex)
+        return Cache(self.module, subkey=self.ck.hex)
 
     @property
     def current_run(self):
@@ -47,7 +61,11 @@ class HasRun(Node):
         assert (
             self.attached and self._status == NS.ACTIVE
         ), f"cannot call {self!r} (status={self._status!r})"
-        is_outer_async = self.session.current_run is None or self.session.current_run._is_async
+        try:
+            asyncio.get_running_loop()
+            is_outer_async = True
+        except RuntimeError:
+            is_outer_async = False
         inner_call = self._call_inner_async if self._is_async else self._call_inner_sync
 
         if is_outer_async and not self._is_async:
@@ -117,38 +135,27 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
         return f"run.{input_hash}"
 
 
-# TODO @Architecture: Run is like a module node, but also kind of not
-#  (have parent run/session, need revisions for value, no ck, activation, ..?)
-
-
-@dataclass
-class Run:
-    id: UUID
-    statement: Optional["Statement"]
-    statement_path: Optional[str]
-    module: Module
-    session: Optional["Session"]
-    root: Optional["Run"]
-    parent: Optional["Run"]
-    scheduled_at: Optional[datetime]
-    started_at: Optional[datetime]
-    terminated_at: Optional[datetime]
-    trigger_type: Optional[TriggerType]
-    trigger: Union["Trigger", UUID]
-    status: RunStatus
-    inputs: Optional[dict[str, Any]]
-    outputs: Optional[dict[str, Any]]
-    error: Optional["RunError"]
-    value: dict[str, Any] = field(default_factory=dict)
-    access_level: Optional["SessionAccessLevel"] = None
-    created_at: datetime = field(default_factory=utcnow_with_tz)
-    updated_at: datetime = field(default_factory=utcnow_with_tz)
-    children: list["Run"] = field(default_factory=list)
-    _value_unpacked: bool = False
-    _is_async: bool = False
-
-    def __post_init__(self):
-        self.updated_at = utcnow_with_tz()
+@node(NodeType.RUN)
+class Run(HasValue):
+    # nocheckin: turn Run into Node
+    parent: Union["Session", "Run"] = node_parent(NodeType.SESSION, NodeType.RUN)
+    session: "Session" = node_ancestor(NodeType.SESSION)
+    root: Optional["Run"] = node_ancestor(NodeType.RUN, nearest=False)  # -> farthest
+    # Run.children should exist but children currently require a ScopeNode as parent,
+    #  and Run shouldn't be one because it would be unnecessary overhead (?). Not needed yet anyway.
+    # children: list["Run"] = node_children(NodeType.RUN)
+    statement: Optional["Statement"] = struct_internal(default=None)
+    statement_path: Optional[str] = struct_internal(default=None)
+    scheduled_at: Optional[datetime] = struct_internal(default=None)
+    started_at: Optional[datetime] = struct_internal(default=None)
+    terminated_at: Optional[datetime] = struct_internal(default=None)
+    trigger_type: Optional[TriggerType] = struct_internal(default=None)
+    trigger: Union["Trigger", UUID] = struct_internal(default=None)
+    access_level: Optional["SessionAccessLevel"] = struct_internal(default=None)
+    status: RunStatus = struct_internal()
+    inputs: Optional[dict[str, Any]] = struct_internal(default=None)
+    outputs: Optional[dict[str, Any]] = struct_internal(default=None)
+    error: Optional["RunError"] = struct_internal(default=None)
 
     def __str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
@@ -160,37 +167,13 @@ class Run:
     def _mark_dead_if_active(self):
         if self.active:
             self.terminated_at = utcnow_with_tz()
-            self.status = RunStatus.Aborted if self.started_at else RunStatus.Cancelled
+            self.status = RunStatus.ABORTED if self.started_at else RunStatus.CANCELLED
 
-    def _activate_inner(self, session: "Session", **kwargs):
+    @property
+    def _type_of_value(self):
         from bench.language.libs import symbolx_lib
-        from bench.language.packer import check_type, unpack_value
 
-        metatype = symbolx_lib.resolve(".reflect.RunMetadata")
-
-        def _onwrite_value(key: str):
-            check_type(self.value, metatype)
-
-        value = unpack_value(self.value, metatype, ignore_array=True, ignore_outer=True)
-        self.value = proxy_value(
-            value, onread=lambda *args: None, onwrite=_onwrite_value, default_none=True
-        )
-        self._value_unpacked = True
-
-        for key, value in kwargs.items():
-            if value:
-                self.value[key] = value
-
-    def _raw_value(self) -> dict:
-        from bench.language.libs import symbolx_lib
-        from bench.language.packer import pack_value
-
-        run_value = symbolx_lib.resolve(".reflect.RunMetadata")
-
-        if not self._value_unpacked:
-            return self.value
-        else:
-            return pack_value(self.value, run_value, ignore_array=True, ignore_outer=True)
+        return symbolx_lib.resolve(".reflect.RunMetadata")
 
     @property
     def statement_id(self) -> Optional[UUID]:
@@ -225,13 +208,13 @@ _IGNORED_PACKAGE_PREFIXES = [
 _IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in _IGNORED_PACKAGE_PREFIXES]
 
 
-@dataclass
-class RunCodeFrame:
-    filename: str
-    lineno: int
-    name: str
-    locals: dict[str, Any] = None  # locals should be richer for deep linking (with ids)
-    line: str = None
+@struct(StructType.RUN_CODE_FRAME)
+class RunCodeFrame(Struct):
+    filename: str = struct_internal()
+    lineno: int = struct_internal()
+    name: str = struct_internal()
+    locals: dict[str, Any] | None = struct_internal(default=None)
+    line: str = struct_internal()
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "RunCodeFrame":
@@ -316,15 +299,15 @@ class RunErrorKind(enum.StrEnum):
     Untrusted = "Untrusted"
 
 
-@dataclass
-class RunError(Exception):  # can this really be a subclass of Exception?
+@struct(StructType.RUN_ERROR)
+class RunError(Struct, Exception):  # can this really be a subclass of Exception?
     """Wire-able representation of an exception."""
 
-    kind: RunErrorKind
-    type: str
-    message: Optional[str] = None
-    statement: Optional["Statement"] = None
-    traceback: list[RunCodeFrame] = None
+    kind: RunErrorKind = struct_internal()
+    type: str = struct_internal()
+    message: Optional[str] = struct_internal(default=None)
+    statement: Optional["Statement"] = struct_internal(default=None)
+    traceback: list[RunCodeFrame] = struct_internal(default_factory=list)
 
     @staticmethod
     def from_exception(e: BaseException, statement: Optional["Statement"]) -> "RunError":
@@ -345,19 +328,19 @@ class RunError(Exception):  # can this really be a subclass of Exception?
         )
 
 
-@dataclass
-class LogEntry:
-    id: UUID
-    module: Module
-    created_at: datetime
-    stream: str
-    session: "Session"
-    level: Optional[str] = None
-    logger: Optional[str] = None
-    statement: Optional["Statement"] = None
-    run: Optional["Run"] = None
-    message: Optional[str] = None
-    value: dict[str, Any] = None
+@struct(StructType.LOG_ENTRY)
+class LogEntry(Struct):
+    id: UUID = struct_internal(default_factory=uuid4)
+    module: Module = struct_internal()
+    created_at: datetime = struct_internal(default_factory=utcnow_with_tz)
+    stream: str = struct_internal()
+    session: "Session" = struct_internal()
+    level: Optional[str] = struct_internal(default=None)
+    logger: Optional[str] = struct_internal(default=None)
+    statement: Optional["Statement"] = struct_internal(default=None)
+    run: Optional["Run"] = struct_internal(default=None)
+    message: Optional[str] = struct_internal(default=None)
+    value: dict[str, Any] | None = struct_internal(default=None)
 
     def __str__(self):
         return f"'{self.message}' ({self.created_at})"

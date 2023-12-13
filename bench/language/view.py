@@ -3,7 +3,7 @@ from typing import Optional
 
 from bench.language.const import NodeType, ViewLayout
 from bench.language.expression import Expression
-from bench.language.module import ScopeNode, bproperty, node, nparent
+from bench.language.module import ScopeNode, node, node_parent, struct_property
 from bench.language.validation import enum_validator
 
 if typing.TYPE_CHECKING:
@@ -12,11 +12,13 @@ if typing.TYPE_CHECKING:
 
 @node(NodeType.VIEW)
 class View(ScopeNode):
-    parent: typing.Union["Statement", "File"] = nparent(NodeType.STATEMENT, NodeType.FILE)
-    name: str | None = bproperty(default=None)
-    layout: ViewLayout = bproperty(default=ViewLayout.TABLE, validate=enum_validator(ViewLayout))
-    query: Optional[Expression] = bproperty(default=None)
-    sort: Optional[list[Expression]] = bproperty(default=None)
+    parent: typing.Union["Statement", "File"] = node_parent(NodeType.STATEMENT, NodeType.FILE)
+    name: str | None = struct_property(default=None)
+    layout: ViewLayout = struct_property(
+        default=ViewLayout.TABLE, validate=enum_validator(ViewLayout)
+    )
+    query: Optional[Expression] = struct_property(default=None)
+    sort: Optional[list[Expression]] = struct_property(default=None)
 
     def __str__(self):
         return f"{self.parent.path}:{self.name} ({self.layout})"

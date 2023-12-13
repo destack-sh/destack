@@ -12,9 +12,9 @@ from uuid import UUID
 import msgpack
 import structlog
 
-from bench.language.cache import CacheAsync
+from bench.language.cache import Cache
 from bench.language.field import Field, HasFields, TypedDict, TypeTag
-from bench.language.module import Node, ScopeNode, bruntime, node_component
+from bench.language.module import Node, ScopeNode, node_component, struct_runtime
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
@@ -40,11 +40,11 @@ class ModelErrorType(enum.StrEnum):
 
 @node_component
 class HasModel(HasFields, Node):
-    _remote: bool = bruntime(default=False)
-    _endpoint_impl: typing.Optional[typing.Callable] = bruntime(default=None)
-    _compiler_impl: typing.Optional[typing.Callable] = bruntime(default=None)
-    _api_key: typing.Optional[str] = bruntime(default=None)
-    _has_vector_io: bool = bruntime(default=None)
+    _remote: bool = struct_runtime(default=False)
+    _endpoint_impl: typing.Optional[typing.Callable] = struct_runtime(default=None)
+    _compiler_impl: typing.Optional[typing.Callable] = struct_runtime(default=None)
+    _api_key: typing.Optional[str] = struct_runtime(default=None)
+    _has_vector_io: bool = struct_runtime(default=None)
 
     # we only cache models without vector inputs/outputs
 
@@ -88,7 +88,7 @@ class HasModel(HasFields, Node):
         log.debug("inference.enter.pre")
 
         # try to read from cache if enabled
-        if cache and self.session.cache_inferences:
+        if cache:
             cached_inference = await self.cache.get(cache_subkey)
             if cached_inference is not None:
                 try:
@@ -117,7 +117,7 @@ class HasModel(HasFields, Node):
             self.session._tracer.run_enter(self, is_async=True, inputs=inputs)
             timeout = timeout if timeout is not None else self.session.inference_timeout
             try:
-                outputs = await self.session.runtime.run_proxy_inference(self, inputs_raw, timeout)
+                outputs = await self.session._runtime.run_proxy_inference(self, inputs_raw, timeout)
                 outputs = unpack_value(outputs, self, is_output=True)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
                 outputs = TypedDict(outputs, self, is_output=True)
@@ -164,7 +164,7 @@ class HasModel(HasFields, Node):
         self,
         inputs: Any,
         cache_subkey: str,
-        cache: CacheAsync | None,
+        cache: Cache | None,
         run_id: UUID,
         log: Logger = logger,
     ) -> Any:

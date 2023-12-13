@@ -175,7 +175,7 @@ class OrchestrationServer(Monitored):
         # save in DB
         await models.WorkerSet.objects.abulk_update(worker_sets, WORKER_SET_FIELDS_NO_ID)
         # notify
-        worker_sets_data = [packer.pack_data(worker_set) for worker_set in worker_sets]
+        worker_sets_data = [packer.pack_struct(worker_set) for worker_set in worker_sets]
         project_id = worker_sets_data[0].project_id if len(worker_sets) == 1 else None
         await publish(
             NMessageType.WORKERS_CHANGED,
@@ -227,7 +227,7 @@ class OrchestrationServer(Monitored):
         for run in dead_runs:
             run.mark_dead()
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
-        dead_runs_data = [packer.pack_data(r) for r in dead_runs]
+        dead_runs_data = [packer.pack_struct(r) for r in dead_runs]
         await sync_to_async(write_runs_to_os)(project_vs, dead_runs_data)
         await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=dead_runs_data))
 
