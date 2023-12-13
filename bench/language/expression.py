@@ -19,7 +19,7 @@ from bench.language.const import (
     TypeStorageFormat,
     TypeTag,
 )
-from bench.language.module import Struct, bproperty, struct
+from bench.language.module import Struct, struct, struct_property
 
 if TYPE_CHECKING:
     from bench.language import Field, HasFields, Node, ScopeNode
@@ -45,11 +45,11 @@ FieldReference = UUID | str  # str as an alias for fields that we don't have ref
 
 @struct(StructType.EXPRESSION)
 class Expression(Struct):
-    op: ExpressionOp = bproperty(is_required=True)
-    field: FieldReference | Field | None = bproperty(default=None)
-    clauses: list[Expression] | None = bproperty(default=None)
-    value: Any = bproperty(default=None)
-    mode: Optional[SortMode] = bproperty(default=None)
+    op: ExpressionOp = struct_property(is_required=True)
+    field: FieldReference | Field | None = struct_property(default=None)
+    clauses: list[Expression] | None = struct_property(default=None)
+    value: Any = struct_property(default=None)
+    mode: Optional[SortMode] = struct_property(default=None)
 
     @property
     def kind(self) -> ExpressionKind:

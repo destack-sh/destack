@@ -480,7 +480,7 @@ class WorkerObserver:
         logger.debug("worker_observer.change", msg=msg)
         for updated_ws in msg.p.worker_sets:
             # upsert properties in local worker set
-            updated_ws: models.WorkerSet = packer.unpack_data(updated_ws)
+            updated_ws: models.WorkerSet = packer.unpack_struct(updated_ws)
             if updated_ws.project_id not in self._worker_sets_by_project_id:
                 ws = await models.WorkerSet.objects.select_related(
                     "project", "project__organization", "project__user"
@@ -489,7 +489,7 @@ class WorkerObserver:
                 ws = self._worker_sets_by_project_id[updated_ws.project_id]
             for field in models.WorkerSet._meta.fields:
                 # skip relational fields
-                if field.is_relation:
+                if field.is_tree_relation:
                     continue
                 setattr(ws, field.name, getattr(updated_ws, field.name))
 

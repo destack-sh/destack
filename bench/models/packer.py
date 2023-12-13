@@ -679,8 +679,8 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
 # detached module data
 
 
-class DataPacker(typing.Generic[DataT, NodeT]):
-    """Generic data packer for non-node data types"""
+class StructPacker(typing.Generic[DataT, NodeT]):
+    """Generic struct packer for non-node data types"""
 
     def pack(self, model: ModelT) -> DataT:
         raise NotImplementedError(f"{self.__class__.__name__} does not support pack")
@@ -689,50 +689,50 @@ class DataPacker(typing.Generic[DataT, NodeT]):
         raise NotImplementedError(f"{self.__class__.__name__} does not support unpack")
 
 
-_data_packers_by_data: dict[typing.Type[DataT], "DataPacker"] = {}
-_data_packers_by_model: dict[typing.Type[ModelT], "DataPacker"] = {}
+_struct_packers_by_data: dict[typing.Type[DataT], "StructPacker"] = {}
+_struct_packers_by_model: dict[typing.Type[ModelT], "StructPacker"] = {}
 
 
-def data_packer(data_t: typing.Type[DataT], model_t: typing.Type[ModelT]):
-    """Decorator to register a data packer for a given type"""
+def struct_packer(data_t: typing.Type[DataT], model_t: typing.Type[ModelT]):
+    """Decorator to register a struct packer for a given type"""
 
-    def decorator(cls: "DataPacker"):
-        if data_t in _data_packers_by_data:
+    def decorator(cls: "StructPacker"):
+        if data_t in _struct_packers_by_data:
             raise ValueError(
-                f"packer for {data_t} already registered: {_data_packers_by_data[data_t]}"
+                f"packer for {data_t} already registered: {_struct_packers_by_data[data_t]}"
             )
-        if model_t and model_t in _data_packers_by_model:
+        if model_t and model_t in _struct_packers_by_model:
             raise ValueError(
-                f"packer for {model_t} already registered: {_data_packers_by_model[model_t]}"
+                f"packer for {model_t} already registered: {_struct_packers_by_model[model_t]}"
             )
         packer = cls()
-        _data_packers_by_data[data_t] = packer
+        _struct_packers_by_data[data_t] = packer
         if model_t:
-            _data_packers_by_model[model_t] = packer
+            _struct_packers_by_model[model_t] = packer
         return cls
 
     return decorator
 
 
-def get_data_packer(data_t: typing.Type[DataT]) -> "DataPacker":
-    """Get the data packer for a given data type"""
-    return _data_packers_by_data[data_t]
+def get_struct_packer(data_t: typing.Type[DataT]) -> "StructPacker":
+    """Get the struct packer for a given data type"""
+    return _struct_packers_by_data[data_t]
 
 
-def pack_data(model: ModelT) -> DataT:
+def pack_struct(model: ModelT) -> DataT:
     """Pack any non-node data type"""
-    packer = _data_packers_by_model[type(model)]
+    packer = _struct_packers_by_model[type(model)]
     return packer.pack(model)
 
 
-def unpack_data(data: DataT) -> ModelT:
+def unpack_struct(data: DataT) -> ModelT:
     """Unpack any non-node data type"""
-    packer = _data_packers_by_data[type(data)]
+    packer = _struct_packers_by_data[type(data)]
     return packer.unpack(data)
 
 
-@data_packer(wire.BlobData, models.Blob)
-class BlobPacker(DataPacker[wire.BlobData, models.Blob]):
+@struct_packer(wire.BlobData, models.Blob)
+class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
     def pack(self, data: models.Blob) -> wire.BlobData:
         return wire.BlobData(
             id=data.id,
@@ -754,8 +754,8 @@ class BlobPacker(DataPacker[wire.BlobData, models.Blob]):
         )
 
 
-@data_packer(wire.SecretData, models.Secret)
-class SecretPacker(DataPacker[wire.SecretData, models.Secret]):
+@struct_packer(wire.SecretData, models.Secret)
+class SecretPacker(NodePacker[wire.SecretData, models.Secret]):
     def pack(self, data: models.Secret) -> wire.SecretData:
         return wire.SecretData(id=data.id, sha512=data.sha512, value=data.value)
 
@@ -763,8 +763,8 @@ class SecretPacker(DataPacker[wire.SecretData, models.Secret]):
         return models.Secret(id=data.id, sha512=data.sha512, value=data.value)
 
 
-@data_packer(wire.SessionData, models.Session)
-class SessionPacker(DataPacker[wire.SessionData, models.Session]):
+@struct_packer(wire.SessionData, models.Session)
+class SessionPacker(NodePacker[wire.SessionData, models.Session]):
     def pack(self, data: models.Session) -> wire.SessionData:
         return wire.SessionData(
             id=data.id,
@@ -797,8 +797,8 @@ class SessionPacker(DataPacker[wire.SessionData, models.Session]):
         )
 
 
-@data_packer(wire.RunData, models.Run)
-class RunPacker(DataPacker[wire.RunData, models.Run]):
+@struct_packer(wire.RunData, models.Run)
+class RunPacker(NodePacker[wire.RunData, models.Run]):
     def pack(self, model: models.Run) -> wire.RunData:
         return wire.RunData(
             id=model.id,
@@ -870,8 +870,8 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
         )
 
 
-@data_packer(wire.WorkerSetData, models.WorkerSet)
-class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
+@struct_packer(wire.WorkerSetData, models.WorkerSet)
+class WorkerSetPacker(StructPacker[wire.WorkerSetData, models.WorkerSet]):
     def pack(self, model: models.WorkerSet) -> wire.WorkerSetData:
         return wire.WorkerSetData(
             id=model.id,
@@ -1032,45 +1032,6 @@ def write_host_db_edits(
             model_cls._base_manager.filter(id__in=[e.node.id for e in batch]).delete()
 
     return edited_nodes
-
-
-@transaction.atomic(savepoint=False)
-def write_session(
-    project_v: models.ProjectVersion,
-    session: Optional[wire.SessionData],
-    runs: list[wire.RunData],
-):
-    from bench.server.search import write_session_to_os
-
-    """
-    Writes a session and relevant runs and logs to the database.
-    """
-    if session:
-        session = unpack_data(session)
-        models.Session.objects.bulk_create(
-            [session],
-            update_conflicts=True,
-            unique_fields=["id"],
-            update_fields=["updated_at", "opened_at", "closed_at"],
-        )
-    runs_models = [unpack_data(r) for r in runs]
-    models.Run.objects.bulk_create(
-        runs_models,
-        update_conflicts=True,
-        unique_fields=["id"],
-        update_fields=[
-            "status",
-            "updated_at",
-            "started_at",
-            "terminated_at",
-            "inputs",
-            "outputs",
-            "error",
-            "value",
-        ],
-    )
-
-    write_session_to_os(project_v, session, runs)
 
 
 INTERP_MODEL_TYPES = tuple(

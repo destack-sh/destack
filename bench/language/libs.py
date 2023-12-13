@@ -291,7 +291,7 @@ class BaseTextTaskCompiler(TaskCompiler):
             return f"{error.type}: {error.message}"
 
     def _compile_run_text(self, run: Run) -> str:
-        if run.status == RunStatus.Failed:
+        if run.status == RunStatus.FAILED:
             return self._compile_error_text(run)
         else:
             run_inputs_str = json.dumps(
@@ -651,7 +651,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         )
 
     def _compile_run_chat(self, run: Run) -> OpenAIChatMessage:
-        if run.status == RunStatus.Failed:
+        if run.status == RunStatus.FAILED:
             return self._compile_error_text(run.error)
         else:
             return OpenAIChatMessage(
@@ -1062,7 +1062,7 @@ class DeepgramAudioTranscriptionModel(HasModel):
             seconds = int(start_time) % 60
             start_time = f"{hours:02}:{minutes:02}:{seconds:02}"
             paragraph_text = " ".join(s["text"] for s in paragraph["sentences"])
-            utterances.append(f"[{start_time}][Speaker:{paragraph['speaker']}]{paragraph_text}")
+            utterances.append(f"[{start_time}][Speaker:{paragraph['speaker']}] {paragraph_text}")
 
         transcript = "\n".join(utterances)
         return DeepgramAudioTranscription(text=transcript)

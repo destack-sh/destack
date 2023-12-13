@@ -20,6 +20,7 @@ from bench.language.const import (
     TypeTag,
     new_dynamic_node_key,
 )
+from bench.language.issue import IssueHandler
 from bench.language.module import (
     _NC,
     NS,
@@ -29,15 +30,15 @@ from bench.language.module import (
     ScopeNode,
     _FieldExpressionBase,
     _NodeChange,
-    binternal,
-    bproperty,
-    bruntime,
     get_node_id,
-    nchildren,
     node,
+    node_children,
     node_component,
-    nparent,
+    node_parent,
     on_issue_raise,
+    struct_internal,
+    struct_property,
+    struct_runtime,
 )
 from bench.language.reference import HasReference
 from bench.language.text import HasText
@@ -295,7 +296,7 @@ for hint in TypeHint:
 
 @node_component
 class HasType(Node):
-    key: str | None = binternal(default=None)
+    key: str | None = struct_internal(default=None)
 
     @property
     def resolved_fields(self) -> NodeList["ResolvedField"]:
@@ -346,13 +347,13 @@ class HasType(Node):
 
 @node(NodeType.FIELD)
 class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
-    parent: Union["Statement", None] = nparent(NodeType.STATEMENT)
-    name: str | None = bproperty(default=None, validate=validate_name)
-    order_key: str | None = binternal(default=None)
-    tag: TypeTag = bproperty(is_required=True, validate=enum_validator(TypeTag))
-    hint: TypeHint | None = bproperty(default=None, validate=enum_validator(TypeHint))
-    flags: TypeFlag = bproperty(default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
-    reflected: bool = bruntime(default=False)
+    parent: Union["Statement", None] = node_parent(NodeType.STATEMENT)
+    name: str | None = struct_property(default=None, validate=validate_name)
+    order_key: str | None = struct_internal(default=None)
+    tag: TypeTag = struct_property(is_required=True, validate=enum_validator(TypeTag))
+    hint: TypeHint | None = struct_property(default=None, validate=enum_validator(TypeHint))
+    flags: TypeFlag = struct_property(default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
+    reflected: bool = struct_runtime(default=False)
 
     @staticmethod
     def new(
@@ -543,8 +544,8 @@ class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
 
 @node(NodeType.RESOLVED_FIELD)
 class ResolvedField(Field):
-    parent: "Statement" = nparent(NodeType.STATEMENT)
-    field: Field = binternal()
+    parent: "Statement" = node_parent(NodeType.STATEMENT)
+    field: Field = struct_internal()
 
     @property
     def field_ck(self) -> UUID:
@@ -588,12 +589,14 @@ class ResolvedField(Field):
 class HasFields(HasType):
     """A node with fields"""
 
-    fields: NodeList["Field"] = nchildren(NodeType.FIELD, NRel.Named | NRel.Scoped | NRel.Ordered)
+    fields: NodeList["Field"] = node_children(
+        NodeType.FIELD, NRel.Named | NRel.Scoped | NRel.Ordered
+    )
 
-    resolved_fields: NodeList["ResolvedField"] = nchildren(
+    resolved_fields: NodeList["ResolvedField"] = node_children(
         NodeType.RESOLVED_FIELD, NRel.Named | NRel.Keyed | NRel.Ordered, alias="f"
     )
-    _did_resolve_fields: bool = bruntime(default=False)
+    _did_resolve_fields: bool = struct_runtime(default=False)
 
     def _init_inner(self):
         if self.key is None:

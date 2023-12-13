@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import timedelta
 from functools import partial
-from typing import Any, Collection, Optional, Union
+from typing import Any, Collection, Optional
 from uuid import UUID
 
 import structlog
@@ -14,7 +14,6 @@ from bench.language import (
     File,
     HasDatabase,
     Module,
-    Run,
     RunError,
     Secret,
     Statement,
@@ -64,7 +63,6 @@ from bench.msg.messages import (
     RepStartRunPayload,
     RepUploadBlobPayload,
     RepWriteEditsPayload,
-    RepWriteSessionPayload,
     ReqDownloadBlobPayload,
     ReqGetEnvironmentPayload,
     ReqKillRunPayload,
@@ -78,7 +76,6 @@ from bench.msg.messages import (
     ReqStartRunPayload,
     ReqUploadBlobPayload,
     ReqWriteEditsPayload,
-    ReqWriteSessionPayload,
     StartRunErrorType,
 )
 from bench.utils.cache import redis
@@ -273,7 +270,7 @@ class WorkerNode(Monitored):
 
             # create run data
             now = utcnow_with_tz()
-            status = RunStatus.Queued if msg.p.scheduled_at is None else RunStatus.Scheduled
+            status = RunStatus.QUEUED if msg.p.scheduled_at is None else RunStatus.SCHEDULED
             # only create session id if not scheduled
             run_data = RunData(
                 id=run_id,
@@ -333,12 +330,12 @@ class WorkerNode(Monitored):
         # (this doesn't feel like the right place for this, but we always need to do it to reply)
         if job.session and job.session._tracer.runs:
             run = job.session._tracer.runs[job.run_data.id]
-            job.run_data = wire.pack_data(run)
+            job.run_data = wire.pack_struct(run)
             last_logs = job.session._tracer.cached_logs[:50]
         else:
             last_logs = None
 
-        logs = [wire.pack_data(log) for log in last_logs] if last_logs else None
+        logs = [wire.pack_struct(log) for log in last_logs] if last_logs else None
         run_data = job.run_data if job else None
         if not msg.p.keyed_return:
             # unkey inputs/outputs/value
@@ -540,7 +537,7 @@ class ModuleWorkerProcess(RuntimeHost):
             if isinstance(job, MakeJob):
                 await self._do_make_job(job)
                 continue
-            if job.run_data.status != RunStatus.Queued:
+            if job.run_data.status != RunStatus.QUEUED:
                 continue  # cancelled
             try:
                 await self._do_run_job(job, WORKER_RUN_TIMEOUT)
@@ -591,7 +588,7 @@ class ModuleWorkerProcess(RuntimeHost):
         def _enqueue(priority: int):
             self._prepared_runs[run_data.id] = job
             job.priority = priority
-            run_data.status = RunStatus.Queued
+            run_data.status = RunStatus.QUEUED
             self.queue.put_nowait(job)
             self._dirty_dangling_runs[run_data.id] = run_data
             self.log.debug("worker.queue", job=job)
@@ -600,7 +597,7 @@ class ModuleWorkerProcess(RuntimeHost):
 
         # add to queue (now or later if scheduled)
         if run_data.scheduled_at:
-            run_data.status = RunStatus.Scheduled
+            run_data.status = RunStatus.SCHEDULED
             now = utcnow_with_tz()
             delay = (run_data.scheduled_at - now).total_seconds() - WORKER_SCHEDULE_BLOCK_AHEAD
             if delay > 0:
@@ -744,7 +741,7 @@ class ModuleWorkerProcess(RuntimeHost):
     ) -> None:
         """Actually runs the statement in the session"""
 
-        await session.open()
+        await session._open()
         try:
             await statement(**inputs)
             # we autocommit at the end of the top-level run
@@ -757,7 +754,7 @@ class ModuleWorkerProcess(RuntimeHost):
             )
             raise error from e
         finally:
-            await session.close()
+            await session._close()
 
     async def kill_run(self, run_id: UUID) -> bool:
         run = self._active_runs.get(run_id)
@@ -792,31 +789,6 @@ class ModuleWorkerProcess(RuntimeHost):
         if not rep.p.success:
             raise RuntimeError(f"failed to commit edits: {rep.p.error}")
 
-    async def push_session(
-        self, session: Optional["Session"], runs: list[Union["Run", wire.RunData]]
-    ) -> None:
-        self.log.debug("session.write", session=session, runs=len(runs))
-
-        session_data = wire.pack_data(session) if session else None
-        runs_data = [wire.pack_data(run) if isinstance(run, Run) else run for run in runs]
-
-        # remove runs from dirty dangling runs
-        for run in runs:
-            if run.id in self._dirty_dangling_runs:
-                del self._dirty_dangling_runs[run.id]
-
-        req = ReqWriteSessionPayload(
-            module_id=self.module_id,
-            session=session_data,
-            runs=runs_data,
-            client=self.node.client,
-        )
-        rep: NMessage[RepWriteSessionPayload] = await request(
-            NMessageType.WRITE_SESSION, req, RepWriteSessionPayload, retry=3
-        )
-        if not rep.p.success:
-            raise RuntimeError(f"failed to write session: {rep.p.error}")
-
     async def notify_logs_changed(self, logs: list[wire.LogEntryData]) -> None:
         await publish(
             NMessageType.LOGS_CHANGED,
@@ -849,7 +821,7 @@ class ModuleWorkerProcess(RuntimeHost):
     async def download_blob(self, blob: "Blob") -> str:
         rep: NMessage[RepDownloadBlobPayload] = await request(
             NMessageType.DOWNLOAD_BLOB,
-            ReqDownloadBlobPayload(blobs=[wire.pack_data(blob)]),
+            ReqDownloadBlobPayload(blobs=[wire.pack_struct(blob)]),
             reply_t=RepDownloadBlobPayload,
             timeout=5,
         )
@@ -863,19 +835,19 @@ class ModuleWorkerProcess(RuntimeHost):
         # first get POST url to upload the object
         rep: NMessage[RepUploadBlobPayload] = await request(
             NMessageType.UPLOAD_BLOB,
-            ReqUploadBlobPayload(module_id=self.module.id, blobs=[wire.pack_data(blob)]),
+            ReqUploadBlobPayload(module_id=self.module.id, blobs=[wire.pack_struct(blob)]),
             reply_t=RepUploadBlobPayload,
         )
         blob_data = rep.p.blobs[0]
         post_url = rep.p.post_urls[0] if rep.p.post_urls else None
-        blob = wire.unpack_data(blob_data, blob.module)
+        blob = wire.unpack_struct(blob_data, blob.module)
         return blob, post_url
 
     async def mark_uploaded_blob(self, blob: "Blob") -> None:
         logger.debug("blob.mark_uploaded", object=self)
         rep: NMessage[RepMarkUploadedBlobPayload] = await request(
             NMessageType.MARK_UPLOADED_BLOB,
-            ReqMarkUploadedBlobPayload(blobs=[wire.pack_data(blob)]),
+            ReqMarkUploadedBlobPayload(blobs=[wire.pack_struct(blob)]),
             reply_t=RepMarkUploadedBlobPayload,
         )
         if not rep.p.success:
@@ -885,7 +857,7 @@ class ModuleWorkerProcess(RuntimeHost):
         logger.debug("secret.reveal", secret=secret)
         rep: NMessage[RepRevealSecretPayload] = await request(
             NMessageType.REVEAL_SECRET,
-            ReqRevealSecretPayload(secrets=[wire.pack_data(secret)]),
+            ReqRevealSecretPayload(secrets=[wire.pack_struct(secret)]),
             reply_t=RepRevealSecretPayload,
             timeout=10,
         )

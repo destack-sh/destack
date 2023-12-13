@@ -112,9 +112,9 @@ class Run(UUIDTModel, HasTriggeredBy):
     def mark_dead(self):
         self.terminated_at = utcnow_with_tz()
         if self.started_at is not None:
-            self.status = RunStatus.Aborted
+            self.status = RunStatus.ABORTED
         else:
-            self.status = RunStatus.Cancelled
+            self.status = RunStatus.CANCELLED
 
     def descendants(self) -> models.QuerySet[Run]:
         if self.parent_id is None:

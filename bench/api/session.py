@@ -431,12 +431,6 @@ class SessionQuery:
         self,
         info: Info,
         project_id: GlobalID,
-        project_version_id: GlobalID,
-        session_id: Optional[GlobalID] = None,
-        run_id: Optional[GlobalID] = None,
-        statement_ids: Optional[list[GlobalID]] = None,
-        statement_cks: Optional[list[UUID]] = None,
-        root_only: Optional[bool] = None,
         query: Optional[Conditional] = None,
         sort: Optional[list[Sort]] = None,
         after: Optional[str] = None,
@@ -444,42 +438,9 @@ class SessionQuery:
         count: Optional[bool] = None,
     ) -> ListConnectionWithTotalCount[Run]:
         project = models.Project.objects.get(id=to_uuid(project_id))
-        project_version_id = to_uuid(project_version_id)
-        session_id = to_uuid(session_id)
-        run_id = to_uuid(run_id)
-        statement_ids = to_uuids(statement_ids)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
         query = query.to_bench() if query else None
-        # TODO @Architecture: remove anything but query/sort/etc. in line with :BE-114
-        if session_id:
-            query = lang.Expression.and_if_set(
-                query, lang.C(ConditionalOp.EQUALS, "session_id", value=session_id)
-            )
-        if run_id:
-            query = lang.Expression.and_if_set(
-                query, lang.C(ConditionalOp.EQUALS, "run_id", value=run_id)
-            )
-        if statement_ids is not None:
-            if statement_ids:
-                query = lang.Expression.and_if_set(
-                    query, lang.C(ConditionalOp.EQUALS, "statement_id", value=statement_ids)
-                )
-            else:
-                query = lang.Expression.and_if_set(
-                    query, lang.C(ConditionalOp.NOT_EXISTS, "statement_id")
-                )
-        if statement_cks is not None:
-            if statement_cks:
-                query = lang.Expression.and_if_set(
-                    query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
-                )
-            else:
-                query = lang.Expression.and_if_set(
-                    query, lang.C(ConditionalOp.NOT_EXISTS, "statement_ck")
-                )
-        if root_only:
-            query = lang.Expression.and_if_set(query, lang.C(ConditionalOp.NOT_EXISTS, "parent_id"))
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
         default_sort = [lang.S(SortOp.DESCENDING, field="created_at")]
         sort = [s.to_bench() for s in sort] if sort else default_sort
@@ -703,7 +664,7 @@ class SessionMutation:
                 error = StartRunErrorType.TIMEOUT
             else:
                 error = StartRunErrorType.UNAVAILABLE
-        run = packer.unpack_data(rep.p.run) if rep and rep.p.run else None
+        run = packer.unpack_struct(rep.p.run) if rep and rep.p.run else None
         logs = [LogEntry.from_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
         return RunState(
             project_version_id=input.project_version_id,
@@ -768,7 +729,7 @@ class SessionMutation:
             run.mark_dead()
         if runs:
             await models.Run.objects.abulk_update(runs, ["terminated_at", "status"])
-            runs_data = [packer.pack_data(r) for r in runs]
+            runs_data = [packer.pack_struct(r) for r in runs]
             await sync_to_async(write_runs_to_os)(project_version, runs_data)
             await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_data))
         run = await models.Run.objects.filter(id=run_id).afirst()
@@ -840,12 +801,12 @@ class SessionSubscription:
             if isinstance(msg.p, WorkersChangedPayload):
                 if msg.p.project_id is not None:
                     worker_sets = [
-                        packer.unpack_data(ws)
+                        packer.unpack_struct(ws)
                         for ws in msg.p.worker_sets
                         if ws.project_id == project_id
                     ]
                 elif msg.p.project_id == project_id:
-                    worker_sets = [packer.unpack_data(ws) for ws in msg.p.worker_sets]
+                    worker_sets = [packer.unpack_struct(ws) for ws in msg.p.worker_sets]
                 else:
                     continue
                 log.debug("workers.update", msg=msg)
@@ -853,13 +814,13 @@ class SessionSubscription:
             elif isinstance(msg.p, SessionChangedPayload):
                 log.debug("sessions.update", msg=msg)
                 yield SessionChange(
-                    session=packer.unpack_data(msg.p.session) if msg.p.session else None,
-                    runs=[packer.unpack_data(r) for r in msg.p.runs],
+                    session=packer.unpack_struct(msg.p.session) if msg.p.session else None,
+                    runs=[packer.unpack_struct(r) for r in msg.p.runs],
                 )
             elif isinstance(msg.p, RunsChangedGlobalPayload):
                 log.debug("runs.update", msg=msg)
                 # filter runs to only those in the project
-                runs = [packer.unpack_data(r) for r in msg.p.runs if _filter_run(r)]
+                runs = [packer.unpack_struct(r) for r in msg.p.runs if _filter_run(r)]
                 if runs:
                     yield RunsChange(runs=runs)
             else:

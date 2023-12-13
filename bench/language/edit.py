@@ -710,7 +710,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
                 prop.name: getattr(node, prop.name)
                 for prop in node.__properties__.values()
                 if not prop.is_runtime
-                and not prop.is_relation
+                and not prop.is_tree_relation
                 and not prop.is_cru
                 and prop.name not in ("id", "ck", "parent", "order_key", "key")
                 and getattr(node, prop.name, UNSET) is not prop.default

@@ -13,7 +13,6 @@ from bench.server.search import (
     enable_os_strict_mapping,
     update_os_schema_from_db,
     write_module_to_os_from_db,
-    write_sessions_to_os_from_db,
 )
 
 logger = structlog.get_logger(__name__)
@@ -59,7 +58,6 @@ class Command(BaseCommand):
                 async_to_sync(write_module_to_os_from_db)(
                     project_v, wipe=True, update_mappings=False
                 )
-                async_to_sync(write_sessions_to_os_from_db)(project_v)
                 enable_os_strict_mapping(project.os_name)
         else:
             raise ValueError("Unknown action")

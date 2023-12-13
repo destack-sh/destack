@@ -12,7 +12,7 @@ import structlog
 
 from bench.language.builtin import _auto_async_to_sync, active_session
 from bench.language.const import BlobStatus, NodeType
-from bench.language.module import Module, Node, binternal, bruntime, node
+from bench.language.module import Module, Node, node, struct_internal, struct_runtime
 from bench.language.validation import ValidationHandler, on_invalid_raise
 
 logger = structlog.get_logger(__name__)
@@ -29,13 +29,13 @@ class Blob(Node):
     :BlobType
     """
 
-    sha512: str = binternal()
-    content_length: int = binternal()
-    content_type: str = binternal()
-    name: str = binternal()
-    status: BlobStatus = binternal(default=BlobStatus.PREPARED)
+    sha512: str = struct_internal()
+    content_length: int = struct_internal()
+    content_type: str = struct_internal()
+    name: str = struct_internal()
+    status: BlobStatus = struct_internal(default=BlobStatus.PREPARED)
 
-    _cached_bytes: Optional[bytes] = bruntime(default=None)
+    _cached_bytes: Optional[bytes] = struct_runtime(default=None)
 
     def __str__(self):
         return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
@@ -80,7 +80,7 @@ class Blob(Node):
     async def get_url(self):
         if self.status != BlobStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
-        return await self.session.runtime.download_blob(self)
+        return await self.session._runtime.download_blob(self)
 
     @_auto_async_to_sync
     async def text(self) -> str:
@@ -103,7 +103,7 @@ class Blob(Node):
         Note that we perform a sleight of hand here: we change the id and status if the object
         already exists under a different id in the object store.
         """
-        blob, post_url = await self.session.runtime.prepare_upload_blob(self)
+        blob, post_url = await self.session._runtime.prepare_upload_blob(self)
         self._set_untracked("id", blob.id)
         self._set_untracked("ck", blob.ck)
         self.status = blob.status
@@ -111,7 +111,7 @@ class Blob(Node):
 
     async def _mark_uploaded(self) -> None:
         """Mark the object as uploaded to the remote storage."""
-        await self.session.runtime.mark_uploaded_blob(self)
+        await self.session._runtime.mark_uploaded_blob(self)
         self.status = BlobStatus.AVAILABLE
 
     async def _do_upload(self, content: bytes) -> None:

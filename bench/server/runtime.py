@@ -25,7 +25,7 @@ from bench.language import (
     wire,
 )
 from bench.language.builtin import symbolx_lib
-from bench.language.cache import CacheAsync
+from bench.language.cache import Cache
 from bench.language.const import (
     INTERP_NODE_TYPES,
     ConditionalOp,
@@ -46,7 +46,7 @@ from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.models import Project, ProjectVersion, packer
-from bench.models.packer import get_default_pack_filters, write_host_db_edits, write_session
+from bench.models.packer import get_default_pack_filters, write_host_db_edits
 from bench.models.user import loops_request
 from bench.msg import NMessage
 from bench.msg.core import VERSION, handle_reply, message_handler, nc_init, publish, request
@@ -69,7 +69,6 @@ from bench.msg.messages import (
     RepUploadBlobPayload,
     RepWakeRuntimePayload,
     RepWriteEditsPayload,
-    RepWriteSessionPayload,
     ReqDownloadBlobPayload,
     ReqMarkUploadedBlobPayload,
     ReqPasteNodesPayload,
@@ -84,9 +83,7 @@ from bench.msg.messages import (
     ReqUploadBlobPayload,
     ReqWakeRuntimePayload,
     ReqWriteEditsPayload,
-    ReqWriteSessionPayload,
     RunsChangedGlobalPayload,
-    SessionChangedPayload,
     StartRunErrorType,
 )
 from bench.search import mirror
@@ -199,7 +196,6 @@ class RuntimeSupervisor(Monitored):
             await handle_reply(NMessageType.READ_MODULE, self.read_module),
             await handle_reply(NMessageType.WRITE_EDITS, self.write_edits),
             await handle_reply(NMessageType.PASTE_NODES, self.paste_nodes),
-            await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.PULL_WORKER_RUNS, self.pull_runs),
             await handle_reply(NMessageType.WAKE_RUNTIME, self.wake_runtime),
             await handle_reply(NMessageType.SNAPSHOT_MODULE, self.snapshot),
@@ -300,28 +296,6 @@ class RuntimeSupervisor(Monitored):
         await msg.reply(RepPasteNodesPayload(nodes=edited_nodes, success=success, error=error))
 
     @message_handler
-    async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
-        runtime = await self._prepare_runtime_host(msg.p.module_id)
-        try:
-            await runtime.write_session(
-                session=msg.p.session, runs=msg.p.runs, origins=(msg.p.client,)
-            )
-            success = True
-            error = None
-        except Exception as e:
-            sentry_capture(e)
-            logger.error(
-                "session.write.failed",
-                msg=msg,
-                session=msg.p.session,
-                runs=msg.p.runs,
-                exc_info=True,
-            )
-            success = False
-            error = str(e)
-        await msg.reply(RepWriteSessionPayload(success=success, error=error))
-
-    @message_handler
     async def pull_runs(self, msg: NMessage[ReqPullWorkerRunsPayload]) -> None:
         logger.debug("run.pull", msg=msg)
         runtime = await self._prepare_runtime_host(msg.p.module_id)
@@ -385,7 +359,7 @@ class RuntimeSupervisor(Monitored):
         project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
         post_urls: list[str | None] = []
         for obj_data in msg.p.blobs:
-            model_blob: models.Blob = packer.unpack_data(obj_data)
+            model_blob: models.Blob = packer.unpack_struct(obj_data)
             model_blob.project_id = project_v.project_id
             existing_blob = await project_v.project.blobs.filter(sha512=model_blob.sha512).afirst()
             if existing_blob is not None:
@@ -423,7 +397,7 @@ class RuntimeSupervisor(Monitored):
         # TODO @Security!!: check if msg origin has read access to secret
         secrets = []
         async for secret in models.Secret.objects.filter(id__in=(s.id for s in msg.p.secrets)):
-            secret_data = packer.pack_data(secret)
+            secret_data = packer.pack_struct(secret)
             secret_data.value = json.loads(secret_data.value)  # :SecretJson
             secrets.append(secret_data)
         await msg.reply(RepRevealSecretPayload(secrets=secrets))
@@ -441,7 +415,7 @@ class RuntimeSupervisor(Monitored):
             model = module.resolve(localized_path)
             cache_subkey = get_run_cache_subkey(inputs_raw=msg.p.inputs)
             log = log.bind(cache_subkey=cache_subkey)
-            cache = CacheAsync(module=None, subkey=model.ck.hex, project_id=msg.p.project_id)
+            cache = Cache(module=None, subkey=model.ck.hex, project_id=msg.p.project_id)
             inputs = unpack_value(msg.p.inputs, model, is_output=False)
             inference = model._inference(
                 inputs=inputs,
@@ -892,23 +866,6 @@ class RuntimeHost:
                     copy_revisions=False,
                 )
 
-    async def write_session(
-        self,
-        session: Optional[wire.SessionData],
-        runs: list[wire.RunData] | None,
-        origins: tuple[ClientOrigin] = None,
-    ) -> None:
-        """Write a session and runs to the database, and publish it to the client"""
-        self.log.debug("session.write", session=session, runs=len(runs))
-        await sync_to_async(write_session)(self.project_version, session, runs)
-
-        await publish(
-            NMessageType.SESSION_CHANGED,
-            SessionChangedPayload(
-                project_id=self.project_id, module_id=self.module_id, session=session, runs=runs
-            ),
-        )
-
     def _do_snapshot_host(
         self, name: str | None, tag: str | None, description: str | None
     ) -> models.ProjectVersion:
@@ -1003,8 +960,8 @@ class RuntimeHost:
         (Full module state is needed to query the local database).
         """
         try:
-            filter = wire.unpack_data(msg.p.query, self.module) if msg.p.query else None
-            sort = [wire.unpack_data(s, self.module) for s in msg.p.sort] if msg.p.sort else None
+            filter = wire.unpack_struct(msg.p.query, self.module) if msg.p.query else None
+            sort = [wire.unpack_struct(s, self.module) for s in msg.p.sort] if msg.p.sort else None
             if (
                 not sort
                 and filter is not None
@@ -1061,10 +1018,10 @@ class RuntimeHost:
         prescheduled_runs = [
             r
             async for r in models.Run.objects.filter(
-                status=RunStatus.Scheduled, project_id=self.project_id
+                status=RunStatus.SCHEDULED, project_id=self.project_id
             ).order_by("scheduled_at")
         ]
-        prescheduled_runs = [packer.pack_data(r) for r in prescheduled_runs]
+        prescheduled_runs = [packer.pack_struct(r) for r in prescheduled_runs]
         return prescheduled_runs
 
     async def _update_local_triggers(self):
@@ -1138,7 +1095,7 @@ class RuntimeHost:
         prescheduled_runs = [
             r
             async for r in models.Run.objects.filter(
-                status=RunStatus.Scheduled, project_id=self.project_id
+                status=RunStatus.SCHEDULED, project_id=self.project_id
             ).order_by("scheduled_at")
         ]
         latest_prescheduled_run_by_trigger: dict[UUID, UUID] = {
@@ -1150,12 +1107,12 @@ class RuntimeHost:
                 run.trigger_id not in triggers_to_fire
                 and run.id == latest_prescheduled_run_by_trigger[run.trigger_id]
             ):
-                runs_to_start[run.id] = packer.pack_data(run)
+                runs_to_start[run.id] = packer.pack_struct(run)
             else:
                 run.mark_dead()
                 coalesced_runs.append(run)
         await models.Run.objects.abulk_update(coalesced_runs, fields=("status", "terminated_at"))
-        coalesced_runs = [packer.pack_data(r) for r in coalesced_runs]
+        coalesced_runs = [packer.pack_struct(r) for r in coalesced_runs]
         await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=coalesced_runs))
         logger.debug(
             "time_triggers.backfill", runs_to_start=runs_to_start, coalesced_runs=coalesced_runs
@@ -1324,7 +1281,7 @@ class RuntimeHost:
                 scheduled_at=fired_trigger.next_occurrence,
                 started_at=None,
                 terminated_at=None,
-                status=RunStatus.Scheduled,
+                status=RunStatus.SCHEDULED,
                 access_level=SessionAccessLevel.Full,
                 inputs={},
                 outputs=None,
@@ -1332,6 +1289,6 @@ class RuntimeHost:
                 value=None,
             )
             runs.append(run)
-        models.Run.objects.bulk_create([packer.unpack_data(run) for run in runs])
+        models.Run.objects.bulk_create([packer.unpack_struct(run) for run in runs])
 
         return runs

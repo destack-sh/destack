@@ -21,7 +21,7 @@ from bench.language.builtin import symbolx_lib
 from bench.language.const import ConditionalOp, IssueType, NodePath, SortMode, SortOp, TypeFlag
 from bench.language.expression import C
 from bench.language.field import TypedDict
-from bench.language.module import LookupBy, Node, ScopeNode, bruntime, node_component
+from bench.language.module import LookupBy, Node, ScopeNode, node_component, struct_runtime
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
@@ -72,12 +72,12 @@ def _install_package(name: str, timeout: int = 300, try_import: str = None) -> N
 
 @node_component
 class HasCode(Node):
-    _is_async: Optional[bool] = bruntime(default=None)
-    _parse: Optional[CodeParse] = bruntime(default=None)
-    _transform: Optional[CodeTransformation] = bruntime(default=None)
-    _statement_references: dict[str, "Statement"] | None = bruntime(default=None)
-    _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = bruntime(default=None)
-    _cached_exports: dict[str, Any] | None = bruntime(default=None)
+    _is_async: Optional[bool] = struct_runtime(default=None)
+    _parse: Optional[CodeParse] = struct_runtime(default=None)
+    _transform: Optional[CodeTransformation] = struct_runtime(default=None)
+    _statement_references: dict[str, "Statement"] | None = struct_runtime(default=None)
+    _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = struct_runtime(default=None)
+    _cached_exports: dict[str, Any] | None = struct_runtime(default=None)
 
     def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         self._parse = None
@@ -174,9 +174,8 @@ class HasCode(Node):
             "file": self.file,
             "module": self.module,
             "session": self.session,
-            "cache": self.session.cache_async if self._is_async else self.session.cache_sync,
-            "storage": self.session.blobs,
-            "blobs": self.session.blobs,
+            "cache": self.session._cache,
+            "blobs": self.session._blobs,
             "random": Random(self.id.hex.encode()),
             "ximport": self._import_sync if not self._is_async else self._import_async,
             "install": _install_package,
@@ -294,7 +293,7 @@ class HasCode(Node):
             inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer=True)
             try:
                 logger.debug("code.proxy", code=self, inputs=inputs_raw)
-                outputs = await self.session.runtime.run_proxy_statement(self, inputs_raw)
+                outputs = await self.session._runtime.run_proxy_statement(self, inputs_raw)
                 outputs = unpack_value(outputs, self, is_output=True)
                 return TypedDict(outputs, self, is_output=True)
             except BaseException as e:

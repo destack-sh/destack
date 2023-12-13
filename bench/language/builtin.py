@@ -49,12 +49,7 @@ def _auto_async_to_sync(func=None):
                 is_in_loop = True
             except RuntimeError:
                 is_in_loop = False
-            if (
-                is_in_loop
-                or session is None
-                or session.current_run is None
-                or session.current_run._is_async
-            ):
+            if is_in_loop:
                 return func(*args, **kwargs)
             else:
                 return session.async_to_sync(func)(*args, **kwargs)

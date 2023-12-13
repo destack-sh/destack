@@ -20,7 +20,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import asgiref.sync
 import psycopg
@@ -38,7 +38,7 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.edit import EditData, EditKind, EditType
-from bench.language.module import Module, Node
+from bench.language.module import Module, Node, node, node_parent, struct_internal, struct_runtime
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.statement import Statement
 from bench.search.client import get_os_errors, os_client
@@ -49,6 +49,7 @@ from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import Blob, HasDatabase, HasFields, Secret, Trigger
+    from bench.language.cache import Cache
     from bench.language.wire import LogEntryData
 
 logger = structlog.get_logger(__name__)
@@ -60,8 +61,7 @@ class RuntimeHost(abc.ABC):
     async def commit_edits(self, edits: Collection["EditData"]) -> None:
         raise NotImplementedError
 
-    async def push_session(self, session: "Session", runs: Collection["Run"]) -> None:
-        raise NotImplementedError
+    # nocheckin: merge push_session into commit_edits (now that sessions/runs are nodes)
 
     async def notify_logs_changed(self, logs: Collection["LogEntryData"]) -> None:
         raise NotImplementedError
@@ -88,58 +88,45 @@ class RuntimeHost(abc.ABC):
         raise NotImplementedError
 
 
-class Session:
-    """A managed context for running a Bench module (in a worker)."""
+@node(NodeType.SESSION)
+class Session(Node):
+    """
+    A managed context for running a Bench module (in a worker).
+    nocheckin: turn Session into a Node
+    """
 
-    def __init__(
-        self,
-        module: Module,
-        runtime: RuntimeHost,
-        access_level: SessionAccessLevel,
-        worker_node_id: str,
-        worker_process_id: Optional[str],
-        trigger_type: TriggerType,
-        trigger_id: Optional[UUID] = None,
-        id: UUID = None,
-        root_run_id: Optional[UUID] = None,
-        root_run_value: dict = None,
-        global_run_value: dict = None,
-        cache_inferences: bool = True,
-        inference_timeout: int = 300,
-        inference_retries: int = 5,
-    ):
+    parent: Module = node_parent(NodeType.MODULE)  # doesn't really have a parent though?
+    access_level: SessionAccessLevel = struct_internal()
+    worker_node_id: str = struct_internal(reflect=True)
+    worker_process_id: Optional[str] = struct_internal(reflect=True)
+    trigger_type: TriggerType = struct_internal(reflect=True)
+    trigger_id: Optional[UUID] = struct_internal(reflect=True)
+    opened_at: Optional[datetime] = struct_internal(reflect=True)
+    closed_at: Optional[datetime] = struct_internal(reflect=True)
+    inference_timeout: int = struct_internal(default=300)
+    inference_retries: int = struct_internal(default=5)
+    _runtime: RuntimeHost | None = struct_runtime(default=None)
+    _root_run_id: UUID | None = struct_runtime(default=None)
+    _root_run_value: dict | None = struct_runtime(default=None)
+    _global_run_value: dict | None = struct_runtime(default=None)
+    _cache: Union["Cache", None] = struct_runtime(default=None)
+
+    def _init_inner(self):
         from bench.language.blob import Blobs
-        from bench.language.cache import CacheAsync, CacheSync
+        from bench.language.cache import Cache
 
-        self.id = id or uuid4()
-        self.module = module
-        self.worker_node_id = worker_node_id
-        self.worker_process_id = worker_process_id
-        self.trigger_type = trigger_type
-        self.trigger_id = trigger_id
-        self.cache_inferences = cache_inferences
-        self.inference_timeout = inference_timeout
-        self.inference_retries = inference_retries
-        self.access_level = access_level
-        self.runtime = runtime
-
-        self.cache_sync = CacheSync(module)
-        self.cache_async = CacheAsync(module)
-        self.blobs = Blobs(module)
-
+        self._cache = Cache(self.module)
+        self._blobs = Blobs(self.module)
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._log = logger.bind(session=self)
         self._tracer = SessionTracer(
             self,
-            root_run_id=root_run_id,
-            root_run_value=root_run_value,
-            global_run_value=global_run_value,
+            root_run_id=self._root_run_id,
+            root_run_value=self._root_run_value,
+            global_run_value=self._global_run_value,
         )
         self._primary_pg_cursor: psycopg.AsyncCursor | None = None
         self._foreign_pg_cursors: dict[str, psycopg.AsyncCursor] = {}
-
-        self._opened_at: Optional[datetime] = None
-        self._closed_at: Optional[datetime] = None
         self._dangling_nodes_by_ck: dict[UUID, Node] = {}
         self._failed_commit: bool = False
 
@@ -226,7 +213,7 @@ class Session:
         # ensure edits are committed before we exit out of topmost run for error propagation
         return self._tracer.has_edits and len(self._tracer.stacktrace) == 1
 
-    async def open(self):
+    async def _open(self):
         """Opens the session for execution and modification."""
         if self._opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
@@ -325,7 +312,7 @@ class Session:
             # publish local edits
             await self.runtime.notify_databases_changed(touched_databases_by_id.values())
 
-    async def close(self):
+    async def _close(self):
         """Closes the session, committing any edits and preventing further execution/edit."""
         if self._closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
@@ -361,7 +348,7 @@ class Session:
         self._log.debug("session.write_logs", logs=len(logs))
         ops: list[dict] = []
         os_name = self.module.os_name
-        logs = [wire.pack_data(log) for log in logs]
+        logs = [wire.pack_struct(log) for log in logs]
         for log in logs:
             ops.append({"index": {"_index": os_name, "_id": str(log.id)}})
             ops.append(mirror.unpack_node_flat(self.module, log, None).to_dict())
@@ -724,7 +711,7 @@ class SessionTracer:
             run.outputs = _pack_and_truncate_value(
                 outputs, statement, is_output=True, none_if_invalid=True
             )
-            run.status = RunStatus.Completed
+            run.status = RunStatus.COMPLETED
             self._track_run(run)
             _clear_active_run(run)
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
@@ -737,9 +724,9 @@ class SessionTracer:
             run.terminated_at = utcnow_with_tz()
             run.error = RunError.from_exception(exception, statement)
             if isinstance(exception, asyncio.CancelledError):
-                run.status = RunStatus.Aborted
+                run.status = RunStatus.ABORTED
             else:
-                run.status = RunStatus.Failed
+                run.status = RunStatus.FAILED
             self._track_run(run)
             _clear_active_run(run)
         logger.debug("trace.run.exception", run=run, stackdepth=len(self.stacktrace))
@@ -762,7 +749,7 @@ class SessionTracer:
         run.outputs = _pack_and_truncate_value(
             outputs, statement, is_output=True, none_if_invalid=True
         )
-        run.status = RunStatus.Completed
+        run.status = RunStatus.COMPLETED
         run.value.cached_at = generated_at
         run.value.cached_in = generated_in
         run.value.cached_duration = duration
@@ -823,7 +810,7 @@ class SessionTracer:
             inputs=inputs,
             outputs=None,
             error=None,
-            status=RunStatus.Queued if queue_position is not None else RunStatus.Running,
+            status=RunStatus.QUEUED if queue_position is not None else RunStatus.RUNNING,
             value=(self._root_run_value or {}) if root is None else {},
             _is_async=_is_async,
         )
@@ -885,13 +872,7 @@ class SessionTracer:
             logs = self._pending_logs
             self._pending_logs = []
 
-        # force commit module as well if a new statement was run
-        #  (since we need those field mappings, lest OS errors)
-        if any(r.statement_ck in self._created_nodes_ck for r in runs):
-            await self.session.commit()
-
-        # update session
-        await self.session.runtime.push_session(self.session, runs)
+        await self.session._runtime.push_session(self.session, runs)
         await self.session._write_logs(logs)
 
     async def open(self, flush_interval: float = 0.1):

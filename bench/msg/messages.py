@@ -80,8 +80,6 @@ class NMessageType(StrEnum):
     PASTE_NODES_REP = "module.paste_nodes.rep"
     SNAPSHOT_MODULE = "module.snapshot"
     SNAPSHOT_MODULE_REP = "module.snapshot.rep"
-    WRITE_SESSION = "session.write"
-    WRITE_SESSION_REP = "session.write.rep"
     SEARCH_RECORDS = "module.search.records"
     SEARCH_RECORDS_REP = "module.search.records.rep"
     DOWNLOAD_BLOB = "object.read"
@@ -112,6 +110,7 @@ class NMessageType(StrEnum):
     GET_ENVIRONMENT_REP = "worker_set.get_environment.rep"
     PING_WORKER_SET = "worker_set.ping"
     PING_WORKER_SET_REP = "worker_set.ping.rep"
+    # TODO @Architecture: PULL_WORKER_RUNS should work via READ_MODULE with corresponding query?
     PULL_WORKER_RUNS = "worker_set.pull_scheduled_runs"
     PULL_WORKER_RUNS_REP = "worker_set.pull_scheduled_runs.rep"
     # running (routed via project id, maybe later worker set/node/process as well)
@@ -134,7 +133,6 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.WRITE_EDITS: NMessageType.WRITE_EDITS_REP,
     NMessageType.PASTE_NODES: NMessageType.PASTE_NODES_REP,
     NMessageType.SNAPSHOT_MODULE: NMessageType.SNAPSHOT_MODULE_REP,
-    NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
     NMessageType.DOWNLOAD_BLOB: NMessageType.DOWNLOAD_BLOB_REP,
     NMessageType.SEARCH_RECORDS: NMessageType.SEARCH_RECORDS_REP,
     NMessageType.UPLOAD_BLOB: NMessageType.UPLOAD_BLOB_REP,
@@ -377,20 +375,6 @@ class ReqSnapshotModulePayload(Payload):
 
 @payload(NMessageType.SNAPSHOT_MODULE_REP)
 class RepSnapshotModulePayload(Payload):
-    success: bool
-    error: Optional[str] = None
-
-
-@payload(NMessageType.WRITE_SESSION)
-class ReqWriteSessionPayload(Payload):
-    module_id: UUID
-    session: Optional[SessionData]
-    runs: list[RunData]
-    client: ClientOrigin
-
-
-@payload(NMessageType.WRITE_SESSION_REP)
-class RepWriteSessionPayload(Payload):
     success: bool
     error: Optional[str] = None
 

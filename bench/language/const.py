@@ -55,7 +55,11 @@ HOST_NODE_TYPES = (nt for nt in NodeType if nt not in LOCAL_NODE_TYPES)
 
 
 class StructType(enum.StrEnum):
-    EXPRESSION = "Expression"
+    EXPRESSION = "EXPRESSION"
+    RUN_CODE_FRAME = "RUN_CODE_FRAME"
+    RUN_ERROR = "RUN_ERROR"
+    LOG_ENTRY = "LOG_ENTRY"
+    PROJECTION = "PROJECTION"
 
 
 class StatementType(enum.StrEnum):
@@ -87,10 +91,6 @@ RUNNABLE_STATEMENT_TYPES = {
 }
 
 DYNAMIC_NODE_KEY_LENGTH = 8
-
-# :ModuleLimits
-MAX_STATEMENTS_PER_FILE = 256
-MAX_FILES = 64
 
 
 def new_dynamic_node_key(ck_or_id: UUID) -> str:
@@ -360,33 +360,39 @@ class WorkerSetStatus(enum.StrEnum):
     UNKNOWN = "UNKNOWN"
 
 
+class SessionStatus(enum.StrEnum):
+    ACTIVE = "ACTIVE"
+    SUSPENDED = "SUSPENDED"
+    TERMINATED = "TERMINATED"
+
+
 class RunStatus(enum.StrEnum):
-    Scheduled = "Scheduled"
-    Queued = "Queued"
-    Running = "Running"
-    Suspended = "Suspended"
-    Aborting = "Aborting"
+    SCHEDULED = "SCHEDULED"
+    QUEUED = "QUEUED"
+    RUNNING = "RUNNING"
+    SUSPENDED = "SUSPENDED"
+    ABORTING = "ABORTING"
     # terminal statuses
-    Cancelled = "Cancelled"
-    Aborted = "Aborted"
-    Failed = "Failed"
-    Completed = "Completed"
+    CANCELLED = "CANCELLED"
+    ABORTED = "ABORTED"
+    FAILED = "FAILED"
+    COMPLETED = "COMPLETED"
 
 
 TERMINAL_RUN_STATUSES = {
-    RunStatus.Cancelled,
-    RunStatus.Aborted,
-    RunStatus.Failed,
-    RunStatus.Completed,
+    RunStatus.CANCELLED,
+    RunStatus.ABORTED,
+    RunStatus.FAILED,
+    RunStatus.COMPLETED,
 }
 PENDING_RUN_STATUSES = {
-    RunStatus.Scheduled,
-    RunStatus.Queued,
-    RunStatus.Running,
-    RunStatus.Suspended,
-    RunStatus.Aborting,
+    RunStatus.SCHEDULED,
+    RunStatus.QUEUED,
+    RunStatus.RUNNING,
+    RunStatus.SUSPENDED,
+    RunStatus.ABORTING,
 }
-ACTIVE_RUN_STATUSES = {RunStatus.Queued, RunStatus.Running, RunStatus.Suspended, RunStatus.Aborting}
+ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.SUSPENDED, RunStatus.ABORTING}
 
 
 class WorkerProfile(enum.StrEnum):

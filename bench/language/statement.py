@@ -22,13 +22,13 @@ from bench.language.module import (
     NRel,
     ScopeNode,
     _Passthrough,
-    binternal,
-    bproperty,
-    nancestor,
-    nchildren,
     node,
+    node_ancestor,
+    node_children,
     node_component,
-    nparent,
+    node_parent,
+    struct_internal,
+    struct_property,
 )
 from bench.language.reference import HasReference
 from bench.language.run import HasRun
@@ -184,26 +184,28 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node]] = tuple(
 class Statement(ScopeNode, HasTags):
     """A Bench statement."""
 
-    file: Optional["File"] = nancestor(NodeType.FILE)
-    parent: Union["Statement", "File"] = nparent(NodeType.STATEMENT, NodeType.FILE)
-    children: NodeList["Statement"] = nchildren(
+    file: Optional["File"] = node_ancestor(NodeType.FILE)
+    parent: Union["Statement", "File"] = node_parent(NodeType.STATEMENT, NodeType.FILE)
+    children: NodeList["Statement"] = node_children(
         NodeType.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
-    type: StatementType = binternal(default=StatementType.BLANK)
-    name: str | None = bproperty(default=None, validate=validate_name)
-    order_key: str | None = binternal(default=None)
+    type: StatementType = struct_internal(default=StatementType.BLANK)
+    name: str | None = struct_property(default=None, validate=validate_name)
+    order_key: str | None = struct_internal(default=None)
 
-    reference: Union["Statement", StatementReference, None] = bproperty(default=None, copy=identity)
-    heading_level: Optional["TextHeadingLevel"] = bproperty(
+    reference: Union["Statement", StatementReference, None] = struct_property(
+        default=None, copy=identity
+    )
+    heading_level: Optional["TextHeadingLevel"] = struct_property(
         default=None, validate=enum_validator(TextHeadingLevel)
     )
-    text: str | None = bproperty(default=None, validate=validate_is_str)
-    key: str | None = binternal(default=None)
-    code: str | None = bproperty(default=None, validate=validate_is_str)
-    value: Any | None = bproperty(default_factory=dict, copy=deepcopy)
-    versioned: bool = binternal(default=True)
-    external_name: str | None = binternal(default=None)  # for model, to be moved into value
+    text: str | None = struct_property(default=None, validate=validate_is_str)
+    key: str | None = struct_internal(default=None)
+    code: str | None = struct_property(default=None, validate=validate_is_str)
+    value: Any | None = struct_property(default_factory=dict, copy=deepcopy)
+    versioned: bool = struct_internal(default=True)
+    external_name: str | None = struct_internal(default=None)  # for model, to be moved into value
 
     @staticmethod
     def new(

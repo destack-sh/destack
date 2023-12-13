@@ -1144,7 +1144,7 @@ type Query {
   ): Run
   currentRuns(projectId: GlobalID!, projectVersionId: GlobalID!): SessionStateOperationInfo!
   environment(projectId: GlobalID!): EnvironmentOperationInfo!
-  searchRuns(projectId: GlobalID!, projectVersionId: GlobalID!, sessionId: GlobalID = null, runId: GlobalID = null, statementIds: [GlobalID!] = null, statementCks: [UUID!] = null, rootOnly: Boolean = null, query: Conditional = null, sort: [Sort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RunConnection!
+  searchRuns(projectId: GlobalID!, query: Conditional = null, sort: [Sort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RunConnection!
   searchLogs(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, statementIds: [GlobalID!] = null, statementCks: [UUID!] = null, query: Conditional = null, sort: [Sort!] = null, after: String = null, limit: Int = null, count: Boolean = null): LogEntryConnection!
   clients(
     projectId: GlobalID = null
@@ -1426,15 +1426,15 @@ type RunState {
 union RunStateOperationInfo = RunState | OperationInfo
 
 enum RunStatus {
-  Scheduled
-  Queued
-  Running
-  Suspended
-  Aborting
-  Cancelled
-  Aborted
-  Failed
-  Completed
+  SCHEDULED
+  QUEUED
+  RUNNING
+  SUSPENDED
+  ABORTING
+  CANCELLED
+  ABORTED
+  FAILED
+  COMPLETED
 }
 
 type RunsChange {

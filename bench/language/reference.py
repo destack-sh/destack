@@ -3,8 +3,8 @@ from uuid import UUID
 
 from bench.language.const import IssueType, NodeType, SortOp, StatementReference
 from bench.language.expression import S
-from bench.language.module import Node, ScopeNode, bproperty, node_component
 from bench.language.issue import IssueHandler
+from bench.language.module import Node, ScopeNode, node_component, struct_property
 from bench.utils.utils import identity
 
 if TYPE_CHECKING:
@@ -15,7 +15,9 @@ if TYPE_CHECKING:
 class HasReference(Node):
     """A reference to another statement."""
 
-    reference: Union["Statement", StatementReference, None] = bproperty(default=None, copy=identity)
+    reference: Union["Statement", StatementReference, None] = struct_property(
+        default=None, copy=identity
+    )
 
     def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
         if isinstance(self.reference, Node) and (
