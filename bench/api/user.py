@@ -203,8 +203,8 @@ class UserMutation:
         client_id = _get_client_id(info)
         if client_id is not None:
             client = models.Client.objects.get(id=client_id)
-            client._closed_at = utcnow_with_tz()
-            client.last_seen_at = client._closed_at
+            client.closed_at = utcnow_with_tz()
+            client.last_seen_at = client.closed_at
             client.save()
             _publish_client_changed(client, info)
         async_to_sync(channels_logout)(info.context["request"].consumer.scope)
@@ -265,8 +265,8 @@ class UserMutation:
         if client_id is not None:
             return None  # ignore
         client = models.Client.objects.get(id=client_id)
-        client._closed_at = utcnow_with_tz()
-        client.last_seen_at = client._closed_at
+        client.closed_at = utcnow_with_tz()
+        client.last_seen_at = client.closed_at
         client.save()
         _publish_client_changed(client, info)
         return client

@@ -227,7 +227,7 @@ class OrchestrationServer(Monitored):
         for run in dead_runs:
             run.mark_dead()
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
-        dead_runs_data = [packer.pack_struct(r) for r in dead_runs]
+        dead_runs_data = [packer.pack_node_flat(r) for r in dead_runs]
         await sync_to_async(write_runs_to_os)(project_vs, dead_runs_data)
         await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=dead_runs_data))
 

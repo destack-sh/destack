@@ -82,7 +82,7 @@ async def unpack_module_edits(
                     data.order_key = "a0"
                     data.field_ck = UUID("00000000-0000-0000-0000-000000000000")
                 elif e.node_type == NodeType.ISSUE:
-                    data.kind = IssueKind.Notice
+                    data.kind = IssueKind.NOTICE
                     data.type = IssueType.INTERNAL
                     data.message = ""
             else:  # only need

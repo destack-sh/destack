@@ -341,7 +341,7 @@ def unpack_nodes_tree(
 
 
 def unpack_nodes(
-    project_v: models.ProjectVersion, module: NodeTree, nodes: list[NodeDataT]
+    project_v: models.ProjectVersion, module: NodeTree, nodes: Collection[NodeDataT]
 ) -> list[NodeT]:
     """Unpack a list nodes (incl. their ancestors) without DB queries"""
     unpacked_nodes = []
@@ -731,7 +731,7 @@ def unpack_struct(data: DataT) -> ModelT:
     return packer.unpack(data)
 
 
-@struct_packer(wire.BlobData, models.Blob)
+@node_packer(NodeType.BLOB, wire.BlobData, models.Blob)
 class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
     def pack(self, data: models.Blob) -> wire.BlobData:
         return wire.BlobData(
@@ -743,7 +743,7 @@ class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
             status=BlobStatus(data.status),
         )
 
-    def unpack(self, data: wire.BlobData) -> models.Blob:
+    def unpack(self, data: wire.BlobData, parent: None) -> models.Blob:
         return models.Blob(
             id=data.id,
             sha512=data.sha512,
@@ -754,16 +754,16 @@ class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
         )
 
 
-@struct_packer(wire.SecretData, models.Secret)
+@node_packer(NodeType.SECRET, wire.SecretData, models.Secret)
 class SecretPacker(NodePacker[wire.SecretData, models.Secret]):
     def pack(self, data: models.Secret) -> wire.SecretData:
         return wire.SecretData(id=data.id, sha512=data.sha512, value=data.value)
 
-    def unpack(self, data: wire.SecretData) -> models.Secret:
+    def unpack(self, data: wire.SecretData, parent: None) -> models.Secret:
         return models.Secret(id=data.id, sha512=data.sha512, value=data.value)
 
 
-@struct_packer(wire.SessionData, models.Session)
+@node_packer(NodeType.SESSION, wire.SessionData, models.Session)
 class SessionPacker(NodePacker[wire.SessionData, models.Session]):
     def pack(self, data: models.Session) -> wire.SessionData:
         return wire.SessionData(
@@ -775,7 +775,7 @@ class SessionPacker(NodePacker[wire.SessionData, models.Session]):
             trigger_type=data.trigger_type,
         )
 
-    def unpack(self, data: wire.SessionData) -> models.Session:
+    def unpack(self, data: wire.SessionData, parent: None) -> models.Session:
         user_id = None
         access_token_id = None
         trigger_id = None
@@ -797,11 +797,12 @@ class SessionPacker(NodePacker[wire.SessionData, models.Session]):
         )
 
 
-@struct_packer(wire.RunData, models.Run)
+@node_packer(NodeType.RUN, wire.RunData, models.Run)
 class RunPacker(NodePacker[wire.RunData, models.Run]):
     def pack(self, model: models.Run) -> wire.RunData:
         return wire.RunData(
             id=model.id,
+            ck=model.ck,
             project_id=model.project_id,
             worker_node_id=model.worker_node_id,
             worker_process_id=model.worker_process_id,
@@ -828,7 +829,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             access_level=model.access_level,
         )
 
-    def unpack(self, data: wire.RunData) -> models.Run:
+    def unpack(self, data: wire.RunData, parent: None) -> models.Run:
         # additional context
         user_id = None
         access_token_id = None

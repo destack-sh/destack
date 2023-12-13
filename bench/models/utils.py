@@ -35,7 +35,7 @@ class Revisioned(models.Model):
         abstract = True
 
 
-class ModuleNode(models.Model):
+class Node(models.Model):
     """A node in the module tree. See language/core."""
 
     id = models.UUIDField(primary_key=True, editable=False)  # must be set manually
@@ -46,14 +46,14 @@ class ModuleNode(models.Model):
         raise NotImplementedError(f"{self} does not implement parent_id")
 
     @property
-    def parent(self) -> Optional["ModuleNode"]:
+    def parent(self) -> Optional["Node"]:
         raise NotImplementedError(f"{self} does not implement parent")
 
     class Meta:
         abstract = True
 
 
-class DetachedModuleNode(ModuleNode):
+class DetachedNode(Node):
     """A cross-Bench node that doesn't belong to a single module (version)."""
 
     initial_project_version = models.ForeignKey(
@@ -82,7 +82,7 @@ class CrudModel(models.Model):
         abstract = True
 
 
-class CrudNode(CrudModel, ModuleNode, Revisioned):
+class CrudNode(CrudModel, Node, Revisioned):
     last_edited_in = models.ForeignKey(
         "Run", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
@@ -109,7 +109,7 @@ def is_jsonable(value: Any) -> bool:
 T = TypeVar("T")
 
 
-def create_models_bfs(layers: Iterator[Collection[ModuleNode]], exclude: set[uuid.UUID] = None):
+def create_models_bfs(layers: Iterator[Collection[Node]], exclude: set[uuid.UUID] = None):
     for node_batch in layers:
         if exclude and any(node.id in exclude for node in node_batch):
             node_batch = [node for node in node_batch if node.id not in exclude]

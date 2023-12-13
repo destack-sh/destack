@@ -975,8 +975,7 @@ class ExpressionPacker(StructPacker[ExpressionData, lang.Expression]):
 
 
 @dataclass
-class BlobData:
-    id: UUID
+class BlobData(NodeData, HasCrud):
     sha512: str
     content_length: int
     content_type: str
@@ -991,10 +990,16 @@ class BlobData:
 
 
 @struct_packer(BlobData, lang.Blob)
-class BlobPacker(StructPacker[BlobData, lang.Blob]):
+class BlobPacker(NodePacker[BlobData, lang.Blob]):
     def pack(self, blob: lang.Blob) -> BlobData:
         return BlobData(
             id=blob.id,
+            ck=blob.ck,
+            created_at=blob.created_at,
+            updated_at=blob.updated_at,
+            deleted_at=blob.deleted_at,
+            last_edited_at=blob.last_edited_at,
+            last_changed_at=blob.last_changed_at,
             sha512=blob.sha512,
             content_length=blob.content_length,
             content_type=blob.content_type,
@@ -1002,9 +1007,16 @@ class BlobPacker(StructPacker[BlobData, lang.Blob]):
             status=blob.status,
         )
 
-    def unpack(self, data: BlobData, module: Module) -> lang.Blob:
+    def unpack(self, data: BlobData, parent: None, module: Module) -> lang.Blob:
         return lang.Blob(
             id=data.id,
+            ck=data.ck,
+            parent=parent,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            deleted_at=data.deleted_at,
+            last_edited_at=data.last_edited_at,
+            last_changed_at=data.last_changed_at,
             sha512=data.sha512,
             content_length=data.content_length,
             content_type=data.content_type,
@@ -1014,8 +1026,7 @@ class BlobPacker(StructPacker[BlobData, lang.Blob]):
 
 
 @dataclass
-class SecretData:
-    id: UUID
+class SecretData(NodeData, HasCrud):
     sha512: str
     value: Optional[typing.Any] = None
 
@@ -1026,17 +1037,38 @@ class SecretData:
         return f"<Secret {self}>"
 
 
-@struct_packer(SecretData, lang.Secret)
-class SecretPacker(StructPacker[SecretData, lang.Secret]):
+@node_packer(NodeType.SECRET, SecretData, lang.Secret)
+class SecretPacker(NodePacker[SecretData, lang.Secret]):
     def pack(self, object: lang.Secret) -> SecretData:
-        return SecretData(id=object.id, sha512=object.sha512, value=object.value)
+        return SecretData(
+            id=object.id,
+            ck=object.ck,
+            created_at=object.created_at,
+            updated_at=object.updated_at,
+            deleted_at=object.deleted_at,
+            last_edited_at=object.last_edited_at,
+            last_changed_at=object.last_changed_at,
+            sha512=object.sha512,
+            value=object.value,
+        )
 
-    def unpack(self, data: SecretData, module: Module) -> lang.Secret:
-        return lang.Secret(id=data.id, sha512=data.sha512, value=data.value)
+    def unpack(self, data: SecretData, parent: None, module: Module) -> lang.Secret:
+        return lang.Secret(
+            id=data.id,
+            ck=data.ck,
+            parent=parent,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            deleted_at=data.deleted_at,
+            last_edited_at=data.last_edited_at,
+            last_changed_at=data.last_changed_at,
+            sha512=data.sha512,
+            value=data.value,
+        )
 
 
 @dataclass
-class SessionData(NodeData):
+class SessionData(NodeData, HasCrud):
     id: UUID
     module_id: UUID
     opened_at: Optional[datetime]
@@ -1050,9 +1082,15 @@ class SessionPacker(NodePacker[SessionData, lang.Session]):
     def pack(self, session: lang.Session) -> SessionData:
         return SessionData(
             id=session.id,
+            ck=session.ck,
+            created_at=session.created_at,
+            updated_at=session.updated_at,
+            deleted_at=session.deleted_at,
+            last_edited_at=session.last_edited_at,
+            last_changed_at=session.last_changed_at,
             module_id=session.module.id,
-            opened_at=session._opened_at,
-            closed_at=session._closed_at,
+            opened_at=session.opened_at,
+            closed_at=session.closed_at,
             trigger_id=session.trigger_id,
             trigger_type=session.trigger_type,
         )
@@ -1091,7 +1129,7 @@ class RunErrorData:
 
 
 @dataclass
-class RunData(NodeData):
+class RunData(NodeData, HasCrud):
     worker_node_id: Optional[str]
     worker_process_id: Optional[str]
     project_id: UUID
@@ -1118,7 +1156,7 @@ class RunData(NodeData):
     access_level: Optional[SessionAccessLevel]
 
 
-@struct_packer(RunData, Run)
+@node_packer(NodeType.RUN, RunData, Run)
 class RunPacker(NodePacker[RunData, Run]):
     def pack(self, run: Run) -> RunData:
         track_statement = run.statement._track >= NodeTrackingLevel.FULL
@@ -1141,6 +1179,13 @@ class RunPacker(NodePacker[RunData, Run]):
         )
         return RunData(
             id=run.id,
+            ck=run.ck,
+            created_at=run.created_at,
+            updated_at=run.updated_at,
+            deleted_at=run.deleted_at,
+            last_edited_at=run.last_edited_at,
+            last_changed_at=run.last_changed_at,
+            revision=run.revision,
             project_id=run.module.project_id,
             module_id=run.module.id,
             worker_node_id=run.session.worker_node_id,
@@ -1153,9 +1198,7 @@ class RunPacker(NodePacker[RunData, Run]):
             trigger_id=trigger_id,
             trigger_type=run.trigger_type if run.trigger_type else None,
             root_id=run.root.id if run.root else None,
-            parent_id=run.parent.id if run.parent else None,
-            created_at=run.created_at,
-            updated_at=run.updated_at,
+            parent_id=run.parent.id if run.parent else run.session.id,
             scheduled_at=run.scheduled_at,
             started_at=run.started_at,
             terminated_at=run.terminated_at,

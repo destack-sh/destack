@@ -664,7 +664,7 @@ class SessionMutation:
                 error = StartRunErrorType.TIMEOUT
             else:
                 error = StartRunErrorType.UNAVAILABLE
-        run = packer.unpack_struct(rep.p.run) if rep and rep.p.run else None
+        run = packer.unpack_node_flat(rep.p.run, None) if rep and rep.p.run else None
         logs = [LogEntry.from_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
         return RunState(
             project_version_id=input.project_version_id,
@@ -729,7 +729,7 @@ class SessionMutation:
             run.mark_dead()
         if runs:
             await models.Run.objects.abulk_update(runs, ["terminated_at", "status"])
-            runs_data = [packer.pack_struct(r) for r in runs]
+            runs_data = [packer.pack_node_flat(r) for r in runs]
             await sync_to_async(write_runs_to_os)(project_version, runs_data)
             await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_data))
         run = await models.Run.objects.filter(id=run_id).afirst()
@@ -815,12 +815,12 @@ class SessionSubscription:
                 log.debug("sessions.update", msg=msg)
                 yield SessionChange(
                     session=packer.unpack_struct(msg.p.session) if msg.p.session else None,
-                    runs=[packer.unpack_struct(r) for r in msg.p.runs],
+                    runs=[packer.unpack_node_flat(r, None) for r in msg.p.runs],
                 )
             elif isinstance(msg.p, RunsChangedGlobalPayload):
                 log.debug("runs.update", msg=msg)
                 # filter runs to only those in the project
-                runs = [packer.unpack_struct(r) for r in msg.p.runs if _filter_run(r)]
+                runs = [packer.unpack_node_flat(r, None) for r in msg.p.runs if _filter_run(r)]
                 if runs:
                     yield RunsChange(runs=runs)
             else:

@@ -1618,14 +1618,8 @@ export type QuerySearchRunsArgs = {
   count?: InputMaybe<Scalars["Boolean"]["input"]>;
   limit?: InputMaybe<Scalars["Int"]["input"]>;
   projectId: Scalars["GlobalID"]["input"];
-  projectVersionId: Scalars["GlobalID"]["input"];
   query?: InputMaybe<Conditional>;
-  rootOnly?: InputMaybe<Scalars["Boolean"]["input"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
   sort?: InputMaybe<Array<Sort>>;
-  statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]>>;
-  statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]>>;
 };
 
 export type QuerySecretArgs = {
@@ -1654,7 +1648,7 @@ export type QueryUsersArgs = {
 
 export enum QueryEngine {
   Host = "HOST",
-  Local = "LOCAL",
+  Module = "MODULE",
   Opensearch = "OPENSEARCH",
   Postgres = "POSTGRES",
 }
@@ -1852,15 +1846,15 @@ export type RunState = {
 export type RunStateOperationInfo = OperationInfo | RunState;
 
 export enum RunStatus {
-  Aborted = "Aborted",
-  Aborting = "Aborting",
-  Cancelled = "Cancelled",
-  Completed = "Completed",
-  Failed = "Failed",
-  Queued = "Queued",
-  Running = "Running",
-  Scheduled = "Scheduled",
-  Suspended = "Suspended",
+  Aborted = "ABORTED",
+  Aborting = "ABORTING",
+  Cancelled = "CANCELLED",
+  Completed = "COMPLETED",
+  Failed = "FAILED",
+  Queued = "QUEUED",
+  Running = "RUNNING",
+  Scheduled = "SCHEDULED",
+  Suspended = "SUSPENDED",
 }
 
 export type RunsChange = {
@@ -5307,12 +5301,6 @@ export type RefetchProjectWorkerSetsQuery = {
 
 export type SearchRunsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"]["input"];
-  projectVersionId: Scalars["GlobalID"]["input"];
-  statementIds?: InputMaybe<Array<Scalars["GlobalID"]["input"]> | Scalars["GlobalID"]["input"]>;
-  statementCks?: InputMaybe<Array<Scalars["UUID"]["input"]> | Scalars["UUID"]["input"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]["input"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]["input"]>;
-  rootOnly: Scalars["Boolean"]["input"];
   query?: InputMaybe<Conditional>;
   sort?: InputMaybe<Array<Sort> | Sort>;
   after?: InputMaybe<Scalars["String"]["input"]>;
@@ -20364,42 +20352,6 @@ export const SearchRunsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "statementIds" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "statementCks" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "rootOnly" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "query" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Conditional" } },
         },
@@ -20438,36 +20390,6 @@ export const SearchRunsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "projectId" },
                 value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectVersionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "statementIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "statementIds" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "statementCks" },
-                value: { kind: "Variable", name: { kind: "Name", value: "statementCks" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "sessionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "runId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "rootOnly" },
-                value: { kind: "Variable", name: { kind: "Name", value: "rootOnly" } },
               },
               {
                 kind: "Argument",

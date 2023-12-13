@@ -32,7 +32,7 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 @node(NodeType.TRIGGER)
 class Trigger(Node):
-    """A trigger for a statement, possibly inside a flow."""
+    """A trigger for a statement to run."""
 
     parent: "Statement" = node_parent(NodeType.STATEMENT)
     type: TriggerType = struct_property(is_required=True, validate=enum_validator(TriggerType))

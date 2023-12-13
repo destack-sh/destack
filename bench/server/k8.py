@@ -489,7 +489,7 @@ class WorkerObserver:
                 ws = self._worker_sets_by_project_id[updated_ws.project_id]
             for field in models.WorkerSet._meta.fields:
                 # skip relational fields
-                if field.is_tree_relation:
+                if field.is_relation:
                     continue
                 setattr(ws, field.name, getattr(updated_ws, field.name))
 
