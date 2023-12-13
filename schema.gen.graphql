@@ -261,6 +261,10 @@ enum EditType {
   TRUNCATE_RESOLVED_FIELDS
   CREATE_RESOLVED_FIELD
   DELETE_RESOLVED_FIELD
+  CREATE_SESSION
+  UPDATE_SESSION
+  CREATE_RUN
+  UPDATE_RUN
 }
 
 type Environment {
@@ -1492,7 +1496,6 @@ type Session implements HasTriggeredBy & Node {
 }
 
 type SessionChange {
-  session: Session
   runs: [Run!]!
 }
 

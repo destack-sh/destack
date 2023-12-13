@@ -85,6 +85,7 @@ from bench.msg.messages import (
     ReqWriteEditsPayload,
     RunsChangedGlobalPayload,
     StartRunErrorType,
+    SessionChangedPayload,
 )
 from bench.search import mirror
 from bench.search.engine import update_os_schema
@@ -627,6 +628,16 @@ class RuntimeHost:
             ),
         )
 
+    async def _publish_session_edits(
+        self, edits: list[EditData], origins: tuple[ClientOrigin, ...] = None
+    ):
+        # these are separate right now because sessions/runs aren't fully 'regular' nodes yet
+        runs = [e.node for e in edits if e.node.node_type == NodeType.RUN]
+        await publish(
+            NMessageType.SESSION_CHANGED,
+            SessionChangedPayload(project_id=self.project_id, module_id=self.module_id, runs=runs),
+        )
+
     async def _reset_interp_state(self):
         """Resets, stores and broadcasts the module's interp nodes."""
         self.log.debug("runtime.reset_interp_state")
@@ -735,11 +746,13 @@ class RuntimeHost:
         try:
             # apply edits to source directly (in memory)
             #  (restore edits were already applied above)
-            host_change = self.module._apply_edits(host_edits + restore_edits, old_source)
+            host_change = self.module._apply_edits(host_module_edits + restore_edits, old_source)
             schema_changed = host_change.includes(
                 NodeType.FIELD, NodeType.RESOLVED_FIELD, StatementType.DATABASE
             )
-            db_edits = list(reversed(soft_delete_edits)) + host_change.all_edits  # (deletes first)
+            db_edits = (
+                list(reversed(soft_delete_edits)) + host_change.all_edits + host_session_edits
+            )
             # apply host edits (cascade deletes as well, they're implicit/not needed in NodeTree)
             log.debug("runtime.write_edits.apply", db_edits=db_edits)
             if host_change.all_edits:
@@ -766,6 +779,7 @@ class RuntimeHost:
             self.module._reset_from_source(old_source)
             raise
 
+        # update our own runtime stuff
         if host_change.includes(NodeType.TRIGGER):
             await self._update_local_triggers()
 
@@ -774,6 +788,8 @@ class RuntimeHost:
             await self._publish_edits(
                 host_change.source_edits, origins=(*(origins or ()), self.client)
             )
+        if host_session_edits:  # separate from source edits for now
+            await self._publish_session_edits(host_session_edits, origins=origins)
         if host_change.interp_edits:
             await self._publish_edits(host_change.interp_edits, origins=(self.client,))
 
@@ -1125,7 +1141,9 @@ class RuntimeHost:
                 coalesced_runs.append(run)
         await models.Run.objects.abulk_update(coalesced_runs, fields=("status", "terminated_at"))
         coalesced_runs = [packer.pack_node_flat(r) for r in coalesced_runs]
-        await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=coalesced_runs))
+        await publish(
+            NMessageType.RUNS_CHANGED_GLOBAL, RunsChangedGlobalPayload(runs=coalesced_runs)
+        )
         logger.debug(
             "time_triggers.backfill", runs_to_start=runs_to_start, coalesced_runs=coalesced_runs
         )
@@ -1168,7 +1186,7 @@ class RuntimeHost:
 
             # publish scheduled runs (should be project scoped later, but we don't have a session)
             await publish(
-                NMessageType.RUNS_CHANGED,
+                NMessageType.RUNS_CHANGED_GLOBAL,
                 RunsChangedGlobalPayload(runs=list(runs_to_start.values())),
             )
 
@@ -1215,7 +1233,9 @@ class RuntimeHost:
                     run_model = await models.Run.objects.aget(id=run.id)
                     run_model.mark_dead()
                     await run_model.asave()
-                    await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=[run]))
+                    await publish(
+                        NMessageType.RUNS_CHANGED_GLOBAL, RunsChangedGlobalPayload(runs=[run])
+                    )
 
             # reset next occurrence for all triggers that fired
             for trigger_id in triggers_to_fire:

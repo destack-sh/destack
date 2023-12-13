@@ -107,6 +107,11 @@ class EditType(enum.StrEnum):
     TRUNCATE_RESOLVED_FIELDS = "TRUNCATE_RESOLVED_FIELDS"
     CREATE_RESOLVED_FIELD = "CREATE_RESOLVED_FIELD"
     DELETE_RESOLVED_FIELD = "DELETE_RESOLVED_FIELD"
+    # Session
+    CREATE_SESSION = "CREATE_SESSION"
+    UPDATE_SESSION = "UPDATE_SESSION"
+    CREATE_RUN = "CREATE_RUN"
+    UPDATE_RUN = "UPDATE_RUN"
 
     @property
     def kind(self) -> "EditKind":
@@ -199,6 +204,11 @@ _MODULE_EDIT_MAP: dict[EditType, tuple[EditKind, NodeType]] = {
     EditType.TRUNCATE_RESOLVED_FIELDS: (EditKind.TRUNCATE, NodeType.RESOLVED_FIELD),
     EditType.CREATE_RESOLVED_FIELD: (EditKind.CREATE, NodeType.RESOLVED_FIELD),
     EditType.DELETE_RESOLVED_FIELD: (EditKind.DELETE, NodeType.RESOLVED_FIELD),
+    # Sessions
+    EditType.CREATE_SESSION: (EditKind.CREATE, NodeType.SESSION),
+    EditType.UPDATE_SESSION: (EditKind.UPDATE, NodeType.SESSION),
+    EditType.CREATE_RUN: (EditKind.CREATE, NodeType.RUN),
+    EditType.UPDATE_RUN: (EditKind.UPDATE, NodeType.RUN),
 }
 
 # assert that all edits are in the map

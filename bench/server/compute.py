@@ -229,7 +229,9 @@ class OrchestrationServer(Monitored):
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
         dead_runs_data = [packer.pack_node_flat(r) for r in dead_runs]
         await sync_to_async(write_runs_to_os)(project_vs, dead_runs_data)
-        await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=dead_runs_data))
+        await publish(
+            NMessageType.RUNS_CHANGED_GLOBAL, RunsChangedGlobalPayload(runs=dead_runs_data)
+        )
 
     async def _watch_worker_sets_in_k8_forever(self, k8_marker: k8.VersionMarker):
         """Watch k8 deployments and update worker sets accordingly."""

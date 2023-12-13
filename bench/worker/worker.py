@@ -18,6 +18,7 @@ from bench.language import (
     Secret,
     Statement,
     wire,
+    Run,
 )
 from bench.language.builtin import symbolx_lib
 from bench.language.const import (
@@ -77,6 +78,7 @@ from bench.msg.messages import (
     ReqUploadBlobPayload,
     ReqWriteEditsPayload,
     StartRunErrorType,
+    SessionChangedPayload,
 )
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
@@ -473,7 +475,7 @@ class ModuleWorkerProcess(RuntimeHost):
         self._active_runs: dict[UUID, RunJob] = {}
         self._prepared_runs: dict[UUID, RunJob] = {}
         self._last_run_job: Optional[RunJob] = None
-        self._dirty_dangling_runs: dict[UUID, wire.RunData] = {}
+        self._pending_created_runs: dict[UUID, wire.RunData] = {}
 
     @property
     def active(self) -> bool:
@@ -595,7 +597,7 @@ class ModuleWorkerProcess(RuntimeHost):
             job.priority = priority
             run_data.status = RunStatus.QUEUED
             self.queue.put_nowait(job)
-            self._dirty_dangling_runs[run_data.id] = run_data
+            self._pending_created_runs[run_data.id] = run_data
             self.log.debug("worker.queue", job=job)
             if job.run_data.id in self._prepared_runs:
                 del self._prepared_runs[job.run_data.id]
@@ -607,7 +609,7 @@ class ModuleWorkerProcess(RuntimeHost):
             delay = (run_data.scheduled_at - now).total_seconds() - WORKER_SCHEDULE_BLOCK_AHEAD
             if delay > 0:
                 self._prepared_runs[run_data.id] = job
-                self._dirty_dangling_runs[run_data.id] = run_data
+                self._pending_created_runs[run_data.id] = run_data
                 asyncio.get_running_loop().call_later(delay, _enqueue, 0)  # high priority
             else:
                 _enqueue(0)
@@ -724,8 +726,8 @@ class ModuleWorkerProcess(RuntimeHost):
         finally:
             # remove root run from our own dirty runs (for queue/schedule) to avoid race condition
             #  (where a queued run may be saved after a fast run has completed and flushed)
-            if job.run_data.id in self._dirty_dangling_runs:
-                del self._dirty_dangling_runs[job.run_data.id]
+            if job.run_data.id in self._pending_created_runs:
+                del self._pending_created_runs[job.run_data.id]
             if job.run_data.id in self._active_runs:
                 del self._active_runs[job.run_data.id]
 
@@ -774,17 +776,30 @@ class ModuleWorkerProcess(RuntimeHost):
 
     async def _flush_dirty_runs_forever(self, interval: float):
         while True:
-            if self._dirty_dangling_runs:
-                logger.debug("worker.flush_dirty_runs", runs=len(self._dirty_dangling_runs))
-                runs = list(self._dirty_dangling_runs.values())
-                self._dirty_dangling_runs = {}
+            if self._pending_created_runs:
+                logger.debug("worker.flush_dirty_runs", runs=len(self._pending_created_runs))
+                runs_to_flush = list(self._pending_created_runs.values())
+                self._pending_created_runs = {}
                 try:
-                    await self.push_session(session=None, runs=runs)
+                    # turn runs into create edits
+                    edits = []
+                    for run_data in runs_to_flush:
+                        edit = EditData(
+                            type=EditType.CREATE_RUN,
+                            project_version_id=self.module.id,
+                            file_id=None,
+                            statement_id=None,
+                            revision=None,
+                            properties=None,
+                        )
+                        edit.node = run_data
+                        edits.append(edit)
+                    await self.commit_edits(edits)
                 except Exception as e:
-                    logger.error("worker.flush_dirty_runs.failed", exc_info=e, runs=runs)
+                    logger.error("worker.flush_dirty_runs.failed", exc_info=e, runs=runs_to_flush)
             await asyncio.sleep(interval)
 
-    async def commit_edits(self, edits: list[EditData]) -> None:
+    async def commit_edits(self, edits: Collection[EditData]) -> None:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
         self.log.debug("module.commit_edits", edits=edits)
         req = ReqWriteEditsPayload(module_id=self.module_id, edits=edits, client=self.node.client)
@@ -794,6 +809,16 @@ class ModuleWorkerProcess(RuntimeHost):
         self.log.debug("module.commit_edits.done", edits=edits)
         if not rep.p.success:
             raise RuntimeError(f"failed to commit edits: {rep.p.error}")
+
+    async def notify_runs_changed(self, runs: Collection["RunData"]) -> None:
+        # remove from dirty (already saved by caller session)
+        for run in runs:
+            if run.id in self._pending_created_runs:
+                del self._pending_created_runs[run.id]
+        await publish(
+            NMessageType.SESSION_CHANGED,
+            SessionChangedPayload(project_id=self.project_id, module_id=self.module_id, runs=runs),
+        )
 
     async def notify_logs_changed(self, logs: list[wire.LogEntryData]) -> None:
         await publish(

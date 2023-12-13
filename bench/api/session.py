@@ -731,7 +731,9 @@ class SessionMutation:
             await models.Run.objects.abulk_update(runs, ["terminated_at", "status"])
             runs_data = [packer.pack_node_flat(r) for r in runs]
             await sync_to_async(write_runs_to_os)(project_version, runs_data)
-            await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_data))
+            await publish(
+                NMessageType.RUNS_CHANGED_GLOBAL, RunsChangedGlobalPayload(runs=runs_data)
+            )
         run = await models.Run.objects.filter(id=run_id).afirst()
         return KillRunPayload(run=run)
 
@@ -743,7 +745,6 @@ class LogChange:
 
 @strawberry.type
 class SessionChange:
-    session: Optional[Session]
     runs: list[Run]
 
 
@@ -789,7 +790,7 @@ class SessionSubscription:
             {
                 f"{NMessageType.SESSION_CHANGED}.{routing_id}": SessionChangedPayload,
                 f"{NMessageType.SESSION_CHANGED}.all": SessionChangedPayload,
-                f"{NMessageType.RUNS_CHANGED}": SessionChangedPayload,
+                f"{NMessageType.RUNS_CHANGED_GLOBAL}": SessionChangedPayload,
                 f"{NMessageType.WORKERS_CHANGED}.{project_id}": WorkersChangedPayload,
                 f"{NMessageType.WORKERS_CHANGED}.all": WorkersChangedPayload,
             },
@@ -814,7 +815,6 @@ class SessionSubscription:
             elif isinstance(msg.p, SessionChangedPayload):
                 log.debug("sessions.update", msg=msg)
                 yield SessionChange(
-                    session=packer.unpack_struct(msg.p.session) if msg.p.session else None,
                     runs=[packer.unpack_node_flat(r, None) for r in msg.p.runs],
                 )
             elif isinstance(msg.p, RunsChangedGlobalPayload):

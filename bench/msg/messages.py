@@ -66,8 +66,10 @@ class NMessageType(StrEnum):
     CLIENT_CHANGED = "client.changed"
     PROJECT_CHANGED = "project.changed"
     MODULE_CHANGED = "module.changed"
-    SESSION_CHANGED = "session.changed"
-    RUNS_CHANGED = "runs.changed"
+    SESSION_CHANGED = (
+        "session.changed"  # TODO @Architecture: merge SESSION_CHANGED into MODULE_CHANGED?
+    )
+    RUNS_CHANGED_GLOBAL = "runs.changed"
     LOGS_CHANGED = "logs.changed"
     WORKERS_CHANGED = "workers.changed"
 
@@ -299,11 +301,10 @@ class RepKillRunPayload(Payload):
 
 @payload(NMessageType.SESSION_CHANGED)
 class SessionChangedPayload(ModuleScoped, Payload):
-    session: SessionData
     runs: list[RunData]
 
 
-@payload(NMessageType.RUNS_CHANGED)
+@payload(NMessageType.RUNS_CHANGED_GLOBAL)
 class RunsChangedGlobalPayload(Payload):
     runs: list[RunData]
 
