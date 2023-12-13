@@ -20,7 +20,7 @@ from bench.language.const import StatementType, new_dynamic_node_key
 from bench.language.validation import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
-from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
+from bench.models.utils import CrudModel, CrudNode, Node, UUIDModel, create_models_bfs
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import (
@@ -425,7 +425,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target: ProjectVersion,
         nodes: list[models.Model],
         keep_cks: bool,
-        excluded: set[type[ModuleNode]],
+        excluded: set[type[Node]],
         target_ids: dict[UUID, UUID] = None,
         target_cks: dict[UUID, UUID] = None,
         copy_revisions: bool = True,
@@ -565,7 +565,7 @@ class ProjectVersion(CrudNode):
         return None
 
     @property
-    def parent(self) -> Optional["ModuleNode"]:
+    def parent(self) -> Optional["Node"]:
         return None
 
     def commit(self):

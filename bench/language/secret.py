@@ -9,7 +9,7 @@ from bench.language.module import node, struct_property, struct_runtime
 SecretValueT = typing.TypeVar("SecretValueT")
 
 
-@node(NodeType.SECRET)
+@node(NodeType.SECRET, detached=True)
 class Secret(Node, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 

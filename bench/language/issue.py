@@ -47,9 +47,9 @@ NOTICES = [IssueType.TASK_IS_STATIC]
 _missing_issue_types = set(IssueType) - set(ERRORS) - set(WARNINGS) - set(NOTICES)
 assert not _missing_issue_types, f"missing issue types: {_missing_issue_types}"
 _ISSUE_KIND_BY_TYPE = {
-    **{error: IssueKind.Error for error in ERRORS},
-    **{warning: IssueKind.Warning for warning in WARNINGS},
-    **{notice: IssueKind.Notice for notice in NOTICES},
+    **{error: IssueKind.ERROR for error in ERRORS},
+    **{warning: IssueKind.WARNING for warning in WARNINGS},
+    **{notice: IssueKind.NOTICE for notice in NOTICES},
 }
 
 

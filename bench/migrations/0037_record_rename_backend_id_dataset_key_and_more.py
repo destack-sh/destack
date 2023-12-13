@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
                     ),
                 ),
             ],
-            bases=(bench.models.utils.ModuleNode, models.Model),
+            bases=(bench.models.utils.Node, models.Model),
         ),
         migrations.RenameField(
             model_name="dataset",

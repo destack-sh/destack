@@ -70,7 +70,7 @@ def check_module_access(
 
 
 def check_module_node_access(
-    info: Info, module_node: models.ModuleNode, level: models.ModuleAccessLevel
+    info: Info, module_node: models.Node, level: models.ModuleAccessLevel
 ) -> ModuleAccessInfo:
     """Raises a PermissionDenied error if the user cannot view the given object."""
     access = has_module_node_access(info, module_node, level)
@@ -160,7 +160,7 @@ def get_default_project_access(project: models.Project) -> Optional[ModuleAccess
 
 
 def has_module_node_access(
-    info: Info, node: models.ModuleNode | wire.RecordData, level: models.ModuleAccessLevel
+    info: Info, node: models.Node | wire.RecordData, level: models.ModuleAccessLevel
 ) -> Optional[ModuleAccessInfo]:
     """
     Get node-level access info for the given user.

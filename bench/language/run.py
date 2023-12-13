@@ -135,9 +135,15 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
         return f"run.{input_hash}"
 
 
-@node(NodeType.RUN)
+@node(NodeType.RUN, detached=True)
 class Run(HasValue):
-    # nocheckin: turn Run into Node
+    """
+    A run of a statement (in a session).
+    NOTE we don't 'activate' runs in sessions yet
+     (because we don't edit them outside of the source session,
+      and because it's unclear run/session edits should interact with 'regular' module edits)
+    """
+
     parent: Union["Session", "Run"] = node_parent(NodeType.SESSION, NodeType.RUN)
     session: "Session" = node_ancestor(NodeType.SESSION)
     root: Optional["Run"] = node_ancestor(NodeType.RUN, nearest=False)  # -> farthest

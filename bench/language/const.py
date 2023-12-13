@@ -321,9 +321,9 @@ class ScheduleType(enum.StrEnum):
 
 
 class IssueKind(enum.StrEnum):
-    Error = "Error"
-    Warning = "Warning"
-    Notice = "Notice"
+    ERROR = "Error"
+    WARNING = "Warning"
+    NOTICE = "Notice"
 
 
 class IssueType(enum.StrEnum):
@@ -367,16 +367,16 @@ class SessionStatus(enum.StrEnum):
 
 
 class RunStatus(enum.StrEnum):
-    SCHEDULED = "SCHEDULED"
-    QUEUED = "QUEUED"
-    RUNNING = "RUNNING"
-    SUSPENDED = "SUSPENDED"
-    ABORTING = "ABORTING"
+    SCHEDULED = "Scheduled"
+    QUEUED = "Queued"
+    RUNNING = "Running"
+    SUSPENDED = "Suspended"
+    ABORTING = "Aborting"
     # terminal statuses
-    CANCELLED = "CANCELLED"
-    ABORTED = "ABORTED"
-    FAILED = "FAILED"
-    COMPLETED = "COMPLETED"
+    CANCELLED = "Cancelled"
+    ABORTED = "Aborted"
+    FAILED = "Failed"
+    COMPLETED = "Completed"
 
 
 TERMINAL_RUN_STATUSES = {
@@ -475,7 +475,7 @@ class SortOp(enum.StrEnum):
 
 
 class QueryEngine(enum.StrEnum):
-    LOCAL = "LOCAL"
+    MODULE = "MODULE"
     HOST = "HOST"
     OPENSEARCH = "OS"
     POSTGRES = "PG"

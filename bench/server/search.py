@@ -286,7 +286,7 @@ async def write_edits_to_os(
             EditKind.SOFT_DELETE,
             EditKind.RESTORE,
         ):
-            if isinstance(node, models.ModuleNode):
+            if isinstance(node, models.Node):
                 mirrored_data = mirror.mirror_node(module, node).to_dict()
             elif isinstance(node, wire.NodeData):
                 parent = module.resolve(node.parent_id)
@@ -315,7 +315,7 @@ async def update_os_schema_from_db(
 
 async def write_module_to_os(
     project_v: models.ProjectVersion,
-    nodes: Iterable[models.ModuleNode] | Generator[models.ModuleNode, None, None],
+    nodes: Iterable[models.Node] | Generator[models.Node, None, None],
     *,
     wipe: bool,
     update_schema: bool = True,

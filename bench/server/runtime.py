@@ -671,49 +671,61 @@ class RuntimeHost:
             if edit.kind in (EditKind.UPDATE, EditKind.MOVE):
                 edit.revision = edit.node.revision = edit.node.revision + 1
         host_edits, local_edits = partition(lambda e: e.node_type == NodeType.RECORD, edits)
+        host_module_edits, host_session_edits = partition(
+            lambda e: e.node_type in (NodeType.RUN, NodeType.SESSION), host_edits
+        )
         del edits  # refer explicitly to host/local edits
-        log = self.log.bind(host_edits=host_edits, local_edits=local_edits, origins=origins)
+        log = self.log.bind(
+            host_module_edits=host_module_edits,
+            host_session_edits=host_session_edits,
+            local_edits=local_edits,
+            origins=origins,
+        )
         log.debug("runtime.write_edits")
-        old_source = self.module._source.deepcopy()  # TODO @Performance: don't deepcopy on edit?
+        old_source = self.module._source.deepcopy() if host_module_edits else self.module._source
 
         # cascade soft delete/restore edits against affected descendant nodes in DB
         cascade_edits, soft_delete_edits, restore_edits = [], [], []
-        if any(e.kind == EditKind.SOFT_DELETE for e in host_edits):
+        if any(e.kind == EditKind.SOFT_DELETE for e in host_module_edits):
             # cascade soft deletes through local tree (set uniform deleted_at for restore)
-            soft_deleted_roots = [e.node for e in host_edits if e.kind == EditKind.SOFT_DELETE]
+            soft_deleted_roots = tuple(
+                e.node for e in host_module_edits if e.kind == EditKind.SOFT_DELETE
+            )
             deleted_at = first(
                 (n.deleted_at for n in soft_deleted_roots if n.deleted_at), utcnow_with_tz()
             )
             soft_deleted = self.module._local_tree.collect_descendants(soft_deleted_roots)
-            soft_delete_edits = [
+            soft_delete_edits = tuple(
                 e
                 for e in self._edit().soft_delete_many(*soft_deleted, deleted_at=deleted_at)
                 if not any(e.node.id == r.id for r in soft_deleted_roots)
-            ]
+            )
             cascade_edits.extend(soft_delete_edits)
             log.debug(
                 "runtime.write_edits.soft_delete",
                 soft_deleted=soft_delete_edits,
                 deleted_at=deleted_at,
             )
-        if any(e.kind == EditKind.RESTORE for e in host_edits):
+        if any(e.kind == EditKind.RESTORE for e in host_module_edits):
             # cascade restore from DB (use uniform deleted_at to select nodes)
-            restored_roots = [e.node for e in host_edits if e.kind == EditKind.RESTORE]
+            restored_roots = tuple(e.node for e in host_module_edits if e.kind == EditKind.RESTORE)
             restored_roots = packer.unpack_nodes(
                 self.project_version, self.module._source, restored_roots
             )
-            deleted_at = [None, *(r.deleted_at for r in restored_roots)]
-            assert not all(d is None for d in deleted_at), f"no deleted_at found in {host_edits!r}"
+            deleted_at = tuple(None, *(r.deleted_at for r in restored_roots))
+            assert not all(
+                d is None for d in deleted_at
+            ), f"no deleted_at found in {host_module_edits!r}"
             restored = await sync_to_async(packer.pack_node_host)(
                 *restored_roots,
                 excluded=INTERP_NODE_TYPES,
-                filter=get_default_pack_filters(deleted_at),
+                filter=get_default_pack_filters(deleted_at=deleted_at),
             )
             editor = self._edit(old_source)
             for node in walk_bfs(restored.nodes_by_id.values()):
                 restore_edit = editor.restore(node)
                 old_source.apply_edit(restore_edit)
-                if not any(node.id == r.id for r in restored_roots):
+                if not any(node.id == r.id for r in restored_roots):  # (already restored)
                     restore_edits.append(restore_edit)
             cascade_edits.extend(restore_edits)
             log.debug("runtime.write_edits.restore", restored=restore_edits, deleted_at=deleted_at)
@@ -1021,7 +1033,7 @@ class RuntimeHost:
                 status=RunStatus.SCHEDULED, project_id=self.project_id
             ).order_by("scheduled_at")
         ]
-        prescheduled_runs = [packer.pack_struct(r) for r in prescheduled_runs]
+        prescheduled_runs = [packer.pack_node_flat(r) for r in prescheduled_runs]
         return prescheduled_runs
 
     async def _update_local_triggers(self):
@@ -1107,12 +1119,12 @@ class RuntimeHost:
                 run.trigger_id not in triggers_to_fire
                 and run.id == latest_prescheduled_run_by_trigger[run.trigger_id]
             ):
-                runs_to_start[run.id] = packer.pack_struct(run)
+                runs_to_start[run.id] = packer.pack_node_flat(run)
             else:
                 run.mark_dead()
                 coalesced_runs.append(run)
         await models.Run.objects.abulk_update(coalesced_runs, fields=("status", "terminated_at"))
-        coalesced_runs = [packer.pack_struct(r) for r in coalesced_runs]
+        coalesced_runs = [packer.pack_node_flat(r) for r in coalesced_runs]
         await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=coalesced_runs))
         logger.debug(
             "time_triggers.backfill", runs_to_start=runs_to_start, coalesced_runs=coalesced_runs
@@ -1261,8 +1273,10 @@ class RuntimeHost:
         for trigger_id in triggers_to_fire:
             fired_trigger = triggers[trigger_id]
             statement = fired_trigger.trigger.parent
+            id = UUIDT()
             run = wire.RunData(
-                id=UUIDT(),
+                id=id,
+                ck=id,
                 project_id=self.project_id,
                 module_id=self.module.id,
                 worker_node_id=None,
@@ -1278,6 +1292,10 @@ class RuntimeHost:
                 parent_id=None,
                 created_at=now,
                 updated_at=now,
+                deleted_at=None,
+                last_edited_at=now,
+                last_changed_at=now,
+                revision=0,
                 scheduled_at=fired_trigger.next_occurrence,
                 started_at=None,
                 terminated_at=None,
@@ -1289,6 +1307,6 @@ class RuntimeHost:
                 value=None,
             )
             runs.append(run)
-        models.Run.objects.bulk_create([packer.unpack_struct(run) for run in runs])
+        models.Run.objects.bulk_create([packer.unpack_node_flat(run) for run in runs])
 
         return runs

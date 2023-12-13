@@ -22,7 +22,7 @@ BLOB_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 BLOB_MAX_NAME_LENGTH = 256
 
 
-@node(NodeType.BLOB)
+@node(NodeType.BLOB, detached=True)
 class Blob(Node):
     """
     A proxy to a remotely stored object behaving like a Python file on demand.

@@ -274,6 +274,7 @@ class WorkerNode(Monitored):
             # only create session id if not scheduled
             run_data = RunData(
                 id=run_id,
+                ck=run_id,
                 project_id=worker.project_id,
                 module_id=msg.p.module_id,
                 worker_node_id=self.worker_node_id,
@@ -290,6 +291,10 @@ class WorkerNode(Monitored):
                 created_at=now,
                 updated_at=now,
                 scheduled_at=msg.p.scheduled_at,
+                deleted_at=None,
+                last_changed_at=now,
+                last_edited_at=now,
+                revision=0,
                 started_at=None,
                 terminated_at=None,
                 status=status,
@@ -330,7 +335,7 @@ class WorkerNode(Monitored):
         # (this doesn't feel like the right place for this, but we always need to do it to reply)
         if job.session and job.session._tracer.runs:
             run = job.session._tracer.runs[job.run_data.id]
-            job.run_data = wire.pack_struct(run)
+            job.run_data = wire.pack_node_flat(run)
             last_logs = job.session._tracer.cached_logs[:50]
         else:
             last_logs = None
@@ -577,7 +582,7 @@ class ModuleWorkerProcess(RuntimeHost):
     ) -> RunJob:
         """
         Registers a run to be processed by this worker process.
-        If scheduled, the run will be queued after the delay.
+        If scheduled, the run will be queued after any remaining delay.
         """
 
         if run_data.id in self._prepared_runs:
@@ -680,17 +685,18 @@ class ModuleWorkerProcess(RuntimeHost):
 
             # create session
             job.session = Session(
+                id=job.session_id,
+                ck=job.session_id,
                 module=self.module,
-                runtime=self,
                 access_level=job.run_data.access_level or SessionAccessLevel.Read,
                 worker_node_id=self.node.worker_node_id,
                 worker_process_id=None,
                 trigger_type=job.run_data.trigger_type,
                 trigger_id=job.run_data.trigger_id,
-                root_run_id=job.run_data.id,
-                root_run_value=job.run_data.value,
-                global_run_value=job.global_value,
-                id=job.session_id,
+                _runtime=self,
+                _root_run_id=job.run_data.id,
+                _root_run_value=job.run_data.value,
+                _global_run_value=job.global_value,
             )
 
             # run in active session

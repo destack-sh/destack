@@ -684,7 +684,7 @@ export function useNavigation() {
     bench.focusFile(file_ as NodeBase);
   }
 
-  return { focusStatement: focusStatement, focusFile };
+  return { focusStatement, focusFile };
 }
 
 export function newRunId(): string {

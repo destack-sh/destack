@@ -153,6 +153,6 @@ class Migration(migrations.Migration):
             options={
                 "abstract": False,
             },
-            bases=(bench.models.utils.ModuleNode, models.Model),
+            bases=(bench.models.utils.Node, models.Model),
         ),
     ]

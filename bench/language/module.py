@@ -582,7 +582,9 @@ def _get_node_class(node_type: NodeType):
 
 
 def _process_struct_base(
-    cls: Union[type["Node"], type["Struct"]], dynamic_components: tuple[type["Node"], ...] = ()
+    cls: Union[type["Node"], type["Struct"]],
+    dynamic_components: tuple[type["Node"], ...] = (),
+    detached: bool = False,
 ) -> tuple[type["Node"], dict[str, Property]]:
     properties: dict[str, Property] = {}
     static_components: list[type["Node"] | type["Struct"]] = [cls]
@@ -665,7 +667,7 @@ def _process_struct_base(
     for name, prop in properties.items():
         if not prop.child_node_type and not hasattr(cls, name):  # may be inherited
             continue
-        if prop.ancestor_node_type:
+        if prop.ancestor_node_type and not detached:
             setattr(cls, name, _node_ancestor_prop(prop))
             if name in cls.__annotations__:  # computed property doesn't need a dataclass field
                 del cls.__annotations__[name]
@@ -677,7 +679,7 @@ def _process_struct_base(
             setattr(cls, name, dataclasses.field(default_factory=prop.default_factory))
         else:
             setattr(cls, name, required_field())
-        if not prop.ancestor_node_type:
+        if not prop.ancestor_node_type or detached:
             cls.__annotations__[name] = prop.annotation
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
     cls.__static_components__ = tuple(static_components)
@@ -693,13 +695,16 @@ def node_component(
     node_type: NodeType = None,
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
+    detached: bool = False,
 ):
     """
     Mark a class as a node component (or concrete node for a NodeType).
     """
 
     def decorate(cls):
-        cls, properties = _process_struct_base(cls, dynamic_components)
+        cls, properties = _process_struct_base(
+            cls=cls, dynamic_components=dynamic_components, detached=detached
+        )
         cls.__static_passthrough__ = passthrough
         # register node properties
         props = properties.values()
@@ -756,10 +761,15 @@ def node(
     node_type: NodeType,
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
+    detached: bool = False,
 ):
     def decorate(cls):
         return node_component(
-            cls, node_type=node_type, passthrough=passthrough, dynamic_components=dynamic_components
+            cls,
+            node_type=node_type,
+            passthrough=passthrough,
+            dynamic_components=dynamic_components,
+            detached=detached,
         )
 
     return decorate
@@ -2518,7 +2528,7 @@ class ScopeNode(Node):
     def errors(self) -> list["Issue"]:
         if self.issues is None:
             return []
-        return [i for i in self.issues or [] if i.kind == IssueKind.Error]
+        return [i for i in self.issues or [] if i.kind == IssueKind.ERROR]
 
     @property
     def self_errors(self):
@@ -2570,7 +2580,7 @@ class Module(ScopeNode):
     def __str__(self):
         if self.issues:
             issue_strs = []
-            for k in (IssueKind.Error, IssueKind.Warning, IssueKind.Notice):
+            for k in (IssueKind.ERROR, IssueKind.WARNING, IssueKind.NOTICE):
                 issues_of_kind = [i for i in self.issues if i.kind == k]
                 if issues_of_kind:
                     issue_strs.append(f"{len(issues_of_kind)} {k.name.lower()}s")

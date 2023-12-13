@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING, Optional, Union
 from django.db import models
 
 from bench.language.validation import MAX_NAME_LENGTH
-from bench.models.utils import ModuleNode, UUIDModel
+from bench.models.utils import Node, UUIDModel
 
 if TYPE_CHECKING:
     from bench.models import File, Statement
 
 
-class ResolvedField(UUIDModel, ModuleNode):
+class ResolvedField(UUIDModel, Node):
     """A field that has been resolved to a statement."""
 
     project_version = models.ForeignKey(
@@ -33,7 +33,7 @@ class IssueKind(models.TextChoices):
     Notice = "Notice"
 
 
-class Issue(UUIDModel, ModuleNode):
+class Issue(UUIDModel, Node):
     """An error/warning/... about a part of a project."""
 
     project_version = models.ForeignKey(

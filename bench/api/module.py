@@ -169,9 +169,9 @@ def read_module_node(
 
 
 def _resolve_node(
-    n: models.ModuleNode,
+    n: models.Node,
     selections: list[SelectedField],
-    children: dict[UUID, list[models.ModuleNode]],
+    children: dict[UUID, list[models.Node]],
 ) -> ModuleNode:
     """Map relevant selections to the node's fields"""
     model_name = n._meta.object_name

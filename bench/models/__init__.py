@@ -19,7 +19,7 @@ from .session import Run, Session
 from .statement import Field, Statement, Tagging, Trigger, TriggerType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User, UserStatus
-from .utils import CrudModel, CrudNode, DetachedModuleNode, ModuleNode
+from .utils import CrudModel, CrudNode, DetachedNode, Node
 from .worker import WorkerSet
 
 __all__ = [
@@ -30,12 +30,12 @@ __all__ = [
     "ClientType",
     "CrudModel",
     "CrudNode",
-    "DetachedModuleNode",
+    "DetachedNode",
     "Field",
     "File",
     "Issue",
     "IssueKind",
-    "ModuleNode",
+    "Node",
     "Notification",
     "NotificationStatus",
     "NotificationType",

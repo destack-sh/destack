@@ -735,14 +735,10 @@ export function useRuns(
    */
   filter = wrapValueRefs(filter);
 
+  // nocheckin: remap run filters to query
+
   const combinedVariables: Ref<SearchRunsQueryVariables> = computed(() => ({
     projectId: filter.projectId.value,
-    projectVersionId: filter.projectVersionId.value,
-    statementIds: filter.statementIds.value,
-    statementCks: filter.statementCks.value,
-    sessionId: filter.sessionId.value,
-    runId: filter.runId.value,
-    rootOnly: filter.rootOnly.value,
     query: filter.query.value,
     sort: filter.sort.value,
     after: filter.after.value,
@@ -752,32 +748,13 @@ export function useRuns(
   const RUNS_QUERY = graphql(/* GraphQL */ `
     query searchRuns(
       $projectId: GlobalID!
-      $projectVersionId: GlobalID!
-      $statementIds: [GlobalID!]
-      $statementCks: [UUID!]
-      $sessionId: GlobalID
-      $runId: GlobalID
-      $rootOnly: Boolean!
       $query: Conditional
       $sort: [Sort!]
       $after: String
       $limit: Int
       $count: Boolean
     ) {
-      searchRuns(
-        projectId: $projectId
-        projectVersionId: $projectVersionId
-        statementIds: $statementIds
-        statementCks: $statementCks
-        sessionId: $sessionId
-        runId: $runId
-        rootOnly: $rootOnly
-        query: $query
-        sort: $sort
-        after: $after
-        limit: $limit
-        count: $count
-      ) {
+      searchRuns(projectId: $projectId, query: $query, sort: $sort, after: $after, limit: $limit, count: $count) {
         totalCount
         pageInfo {
           hasNextPage

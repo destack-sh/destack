@@ -4,10 +4,10 @@ from typing import Optional
 from django.db import models
 
 from bench.language.const import NodeType
-from bench.models.utils import CrudModel, DetachedModuleNode, get_choices
+from bench.models.utils import CrudModel, DetachedNode, get_choices
 
 
-class Comment(CrudModel, DetachedModuleNode):
+class Comment(CrudModel, DetachedNode):
     """A nested comment on a file or statement."""
 
     parent_ck = models.UUIDField()

@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from bench.language.blob import BLOB_HASH_LENGTH
-from bench.models.utils import UUIDModel
+from bench.models.utils import CrudNode
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 
 BLOB_PRESIGNED_POST_EXPIRY = 60 * 60  # 1 hour
@@ -32,15 +32,13 @@ class BlobStatus(models.TextChoices):
     AVAILABLE = "available"
 
 
-class Blob(UUIDModel):
+class Blob(CrudNode):
     """
     A pointer to a remotely stored object.
     """
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    prepared_at = models.DateTimeField(null=True, blank=True)
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="blobs")
+    prepared_at = models.DateTimeField(null=True, blank=True)
     sha512 = models.CharField(max_length=BLOB_HASH_LENGTH)
     content_length = models.IntegerField()
     content_type = models.CharField(max_length=255)

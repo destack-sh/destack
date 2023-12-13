@@ -9,7 +9,7 @@ from django.db.models.expressions import RawSQL
 from strawberry_django.descriptors import model_property
 
 from bench.language.const import RunStatus, SessionAccessLevel, TriggerType
-from bench.models.utils import UUIDTModel, get_choices
+from bench.models.utils import CrudNode, get_choices
 from bench.utils.dt import utcnow_with_tz
 
 
@@ -31,7 +31,7 @@ class HasTriggeredBy(Model):
         abstract = True
 
 
-class Session(UUIDTModel, HasTriggeredBy):
+class Session(CrudNode, HasTriggeredBy):
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="sessions"
     )
@@ -60,7 +60,7 @@ class RunManager(models.Manager):
         return Run._base_manager.filter(id__in=RawSQL(query, (run_ids,)))
 
 
-class Run(UUIDTModel, HasTriggeredBy):
+class Run(CrudNode, HasTriggeredBy):
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="runs")
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="runs"

@@ -38,7 +38,7 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.edit import EditData, EditKind, EditType
-from bench.language.module import Module, Node, node, node_parent, struct_internal, struct_runtime
+from bench.language.module import Module, Node, node, struct_internal, struct_runtime
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.statement import Statement
 from bench.search.client import get_os_errors, os_client
@@ -88,21 +88,19 @@ class RuntimeHost(abc.ABC):
         raise NotImplementedError
 
 
-@node(NodeType.SESSION)
+@node(NodeType.SESSION, detached=True)
 class Session(Node):
     """
     A managed context for running a Bench module (in a worker).
-    nocheckin: turn Session into a Node
     """
 
-    parent: Module = node_parent(NodeType.MODULE)  # doesn't really have a parent though?
     access_level: SessionAccessLevel = struct_internal()
     worker_node_id: str = struct_internal(reflect=True)
     worker_process_id: Optional[str] = struct_internal(reflect=True)
     trigger_type: TriggerType = struct_internal(reflect=True)
-    trigger_id: Optional[UUID] = struct_internal(reflect=True)
-    opened_at: Optional[datetime] = struct_internal(reflect=True)
-    closed_at: Optional[datetime] = struct_internal(reflect=True)
+    trigger_id: Optional[UUID] = struct_internal(default=None, reflect=True)
+    opened_at: Optional[datetime] = struct_internal(default=None, reflect=True)
+    closed_at: Optional[datetime] = struct_internal(default=None, reflect=True)
     inference_timeout: int = struct_internal(default=300)
     inference_retries: int = struct_internal(default=5)
     _runtime: RuntimeHost | None = struct_runtime(default=None)
@@ -131,15 +129,15 @@ class Session(Node):
         self._failed_commit: bool = False
 
     def __str__(self):
-        if self._closed_at:
+        if self.closed_at:
             status = "closed"
-        elif self._opened_at:
+        elif self.opened_at:
             status = "open"
         else:
             status = "not opened"
         return (
             f"{self.module.name} ({self.access_level.name}, {status}, "
-            f"{len(self._tracer._local_edits)} local edits, {len(self._tracer._host_edits)} host edits"
+            f"{len(self._tracer._local_edits)} local edits, {len(self._tracer._host_module_edits)} host edits"
             f")"
         )
 
@@ -189,7 +187,7 @@ class Session(Node):
 
     @property
     def is_open(self) -> bool:
-        return self._opened_at is not None and self._closed_at is None
+        return self.opened_at is not None and self.closed_at is None
 
     @property
     def pg_cursor(self) -> psycopg.AsyncCursor:
@@ -215,11 +213,11 @@ class Session(Node):
 
     async def _open(self):
         """Opens the session for execution and modification."""
-        if self._opened_at is not None:
+        if self.opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
 
         # prepare session
-        self._opened_at = utcnow_with_tz()
+        self.opened_at = utcnow_with_tz()
         if _active_session.get() is not None:
             raise RuntimeError(f"another session is active: {_active_session.get()}")
         _active_session.set(self)
@@ -247,7 +245,7 @@ class Session(Node):
             await update_pg_schema(self.module.pg_name, self.module)
             self._tracer._schema_changed = False
 
-        _, local_edits = self._tracer.eat_edits(include_host=False)
+        _, local_edits = self._tracer.eat_module_edits(include_host=False)
         await write_local_edits_to_pg(self.pg_cursor, self.module, local_edits)
 
     @_auto_async_to_sync
@@ -263,7 +261,7 @@ class Session(Node):
             return  # nothing to commit
 
         touched_databases_by_id = {**self._tracer._touched_databases_by_id}
-        host_edits, local_edits = self._tracer.eat_edits(include_host=True)
+        host_edits, local_edits = self._tracer.eat_module_edits(include_host=True)
         log = self._log.bind(
             host_edits=host_edits,
             local_edits_preview=local_edits[:16],
@@ -314,7 +312,7 @@ class Session(Node):
 
     async def _close(self):
         """Closes the session, committing any edits and preventing further execution/edit."""
-        if self._closed_at is not None:
+        if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
         self._log.debug("session.close")
 
@@ -331,7 +329,7 @@ class Session(Node):
                 await pg_pool.putconn(pg_cursor.connection)
 
         # close session
-        self._closed_at = utcnow_with_tz()
+        self.closed_at = utcnow_with_tz()
         _active_session.set(None)
         await self._tracer.close()
 
@@ -409,7 +407,7 @@ class SessionTracer:
         self._changed_record_ids_by_db_id: dict[UUID, set[UUID]] = defaultdict(set)
         self._touched_databases_by_id: dict[UUID, "HasDatabase"] = {}
         self._local_edits: list[EditEvent] = []
-        self._host_edits: list[EditEvent] = []
+        self._host_module_edits: list[EditEvent] = []
         self._schema_changed: bool = False
 
     def __str__(self):
@@ -426,7 +424,7 @@ class SessionTracer:
     def has_edits(self) -> bool:
         return (
             len(self._local_edits) > 0
-            or len(self._host_edits) > 0
+            or len(self._host_module_edits) > 0
             or len(self._changed_record_ids_by_db_id) > 0
         )
 
@@ -453,10 +451,12 @@ class SessionTracer:
     # Edits are actually written to local source in session commit.
     # We have the :InterpFilter because interp edits are tracked in the runtime host only.
     #
-    # NOTE: We don't support restore/soft-delete/move in sessions (yet).
+    # NOTE: We don't support restore/soft-delete/move in code yet.
     #
 
-    def eat_edits(self, *, include_host: bool) -> tuple[list[EditData] | None, list[EditData]]:
+    def eat_module_edits(
+        self, *, include_host: bool
+    ) -> tuple[list[EditData] | None, list[EditData]]:
         """
         Converts the edit events into proper edits (for hosts and local)
         Host edits = any module edits not in a localized node (like records).
@@ -488,7 +488,7 @@ class SessionTracer:
             # create host edits (if needed)
             host_edits: list[EditData] | None = [] if include_host else None
             if include_host:
-                for event in self._host_edits:
+                for event in self._host_module_edits:
                     node = event.node
                     edit = EditData(
                         type=event.type,
@@ -499,7 +499,7 @@ class SessionTracer:
                     )
                     edit.node = pack_node_flat(node)
                     host_edits.append(edit)
-                self._host_edits.clear()
+                self._host_module_edits.clear()
 
             # reset
             if include_host:  # just clear all
@@ -534,8 +534,8 @@ class SessionTracer:
             statement_id=statement.id if statement else None,
             target=target,
         )
-        assert not self.session._closed_at, f"cannot {edit!r} in closed session {self.session!r}"
-        edits = self._local_edits if is_local else self._host_edits
+        assert not self.session.closed_at, f"cannot {edit!r} in closed session {self.session!r}"
+        edits = self._local_edits if is_local else self._host_module_edits
 
         if edit.type.kind == EditKind.CREATE:
             self._created_nodes_ck.add(edit.node.ck)
@@ -670,12 +670,11 @@ class SessionTracer:
         #  these values may be written even if invalid
         from bench.language.packer import check_type, pack_value
 
-        assert not self.session._closed_at, f"cannot run {statement!r} in session {self.session!r}"
+        assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
 
         run = self._create_run(
             statement=statement,
             inputs=pack_value(inputs, statement, is_output=False, none_if_invalid=True),
-            _is_async=is_async,
         )
         with self._tracing_lock:
             self._stacktrace_push(run)
@@ -695,7 +694,7 @@ class SessionTracer:
     def run_exit(self, statement: "Statement", outputs):
         from bench.language.packer import check_type
 
-        assert not self.session._closed_at, f"cannot run {statement!r} in session {self.session!r}"
+        assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
 
         # post-run validation
         try:
@@ -717,7 +716,7 @@ class SessionTracer:
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
 
     def run_exception(self, statement: "Statement", exception: BaseException):
-        assert not self.session._closed_at, f"cannot run {statement!r} in session {self.session!r}"
+        assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
         with self._tracing_lock:
             run = self.pop_stacktrace()
             assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
@@ -740,7 +739,7 @@ class SessionTracer:
         generated_in: UUID,
         duration: float,
     ):
-        assert not self.session._closed_at, f"cannot run {statement!r} in session {self.session!r}"
+        assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
         run = self._create_run(statement=statement, trace=True)
         run.terminated_at = utcnow_with_tz()
         run.inputs = _pack_and_truncate_value(
@@ -778,7 +777,6 @@ class SessionTracer:
         trace: bool = True,
         trigger_type: TriggerType | None = None,
         trigger: Union["Trigger", UUID, None] = None,
-        _is_async: bool = False,
     ):
         active_run = _get_active_run()
         if trace and active_run is not None:
@@ -812,9 +810,8 @@ class SessionTracer:
             error=None,
             status=RunStatus.QUEUED if queue_position is not None else RunStatus.RUNNING,
             value=(self._root_run_value or {}) if root is None else {},
-            _is_async=_is_async,
         )
-        run._activate_inner(self.session, queue_position=queue_position)
+        run._attached_inner(self.session)
         if parent is not None:
             parent.children.append(run)
         custom_value = _custom_value.get()
