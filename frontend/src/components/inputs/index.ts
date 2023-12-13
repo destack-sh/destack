@@ -178,8 +178,8 @@ registerInterface("struct", {
   minWidth: 200,
   grow: 1.0,
 });
-// file
-registerInterface("file", {
+// blob
+registerInterface("blob", {
   tags: [TypeTag.Blob],
   read: (t, v) => toArray(t, v).filter(isValidBlobRecord),
   write: (t, v) => coerceToScalarOrArray(t, v),

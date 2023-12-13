@@ -59,6 +59,14 @@ class Blob(CrudNode):
         return f"<Blob {self}>"
 
     @property
+    def parent(self):
+        return None
+
+    @property
+    def parent_id(self):
+        return None
+
+    @property
     def key(self) -> str:
         return f"{self.id}/{self.name}"
 

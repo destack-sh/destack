@@ -64,15 +64,15 @@ def document(type: os.DocumentType, *, store_type: bool = True):
 
 class Packer(Generic[ModelT, MirrorT, DataT]):
     def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: ModelT) -> MirrorT:
-        raise NotImplementedError
+        raise NotImplementedError(f"mirror not implemented for {type(self)}")
 
     def pack(self, mirror: MirrorT) -> DataT:
-        raise NotImplementedError
+        raise NotImplementedError(f"pack not implemented for {type(self)}")
 
     def unpack(
         self, project_v: models.ProjectVersion | ModuleInfo, data: DataT, parent: ModelT
     ) -> MirrorT:
-        raise NotImplementedError
+        raise NotImplementedError(f"unpack not implemented for {type(self)}")
 
 
 _packers_by_model: dict[type[ModelT], Packer[ModelT, MirrorT, DataT]] = {}
@@ -481,6 +481,33 @@ class Run(os.Document):
 
 @packer(models.Run, Run, wire.RunData)
 class RunPacker(Packer[models.Run, Run, wire.RunData]):
+    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.Run) -> MirrorT:
+        return Run(
+            id=node.id,
+            project_id=node.project_id,
+            project_version_id=node.project_version_id,
+            worker_node_id=node.worker_node_id,
+            worker_process_id=node.worker_process_id,
+            session_id=node.session_id,
+            trigger_type=node.trigger_type,
+            root_id=node.root_id,
+            parent_id=node.parent_id,
+            statement_id=node.statement_id,
+            statement_ck=node.statement_ck,
+            statement_type=node.statement_type,
+            created_at=node.created_at,
+            updated_at=node.updated_at,
+            scheduled_at=node.scheduled_at,
+            started_at=node.started_at,
+            terminated_at=node.terminated_at,
+            duration=node.duration,
+            status=node.status,
+            inputs=node.inputs,
+            outputs=node.outputs,
+            error=node.error,
+            value=node.value,
+        )
+
     def pack(self, mirror: Run) -> wire.RunData:
         statement_type = (
             wire.StatementType(mirror.statement_type) if mirror.statement_type else None

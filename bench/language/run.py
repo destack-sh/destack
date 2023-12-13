@@ -219,7 +219,7 @@ class RunCodeFrame(Struct):
     filename: str = struct_internal()
     lineno: int = struct_internal()
     name: str = struct_internal()
-    locals: dict[str, Any] | None = struct_internal(default=None)
+    locals: Optional[dict[str, Any]] = struct_internal(default=None)
     line: str = struct_internal()
 
     @staticmethod

@@ -18,7 +18,6 @@ from bench.language import (
     Secret,
     Statement,
     wire,
-    Run,
 )
 from bench.language.builtin import symbolx_lib
 from bench.language.const import (
@@ -775,10 +774,10 @@ class ModuleWorkerProcess(RuntimeHost):
             return True
 
     async def _flush_dirty_runs_forever(self, interval: float):
-        while True:
+        while False:  # nocheckin: reenable flush dirty runs
             if self._pending_created_runs:
-                logger.debug("worker.flush_dirty_runs", runs=len(self._pending_created_runs))
                 runs_to_flush = list(self._pending_created_runs.values())
+                logger.debug("worker.flush_dirty_runs", runs=runs_to_flush)
                 self._pending_created_runs = {}
                 try:
                     # turn runs into create edits
@@ -852,7 +851,7 @@ class ModuleWorkerProcess(RuntimeHost):
     async def download_blob(self, blob: "Blob") -> str:
         rep: NMessage[RepDownloadBlobPayload] = await request(
             NMessageType.DOWNLOAD_BLOB,
-            ReqDownloadBlobPayload(blobs=[wire.pack_struct(blob)]),
+            ReqDownloadBlobPayload(blobs=[wire.pack_node_flat(blob)]),
             reply_t=RepDownloadBlobPayload,
             timeout=5,
         )
@@ -866,19 +865,19 @@ class ModuleWorkerProcess(RuntimeHost):
         # first get POST url to upload the object
         rep: NMessage[RepUploadBlobPayload] = await request(
             NMessageType.UPLOAD_BLOB,
-            ReqUploadBlobPayload(module_id=self.module.id, blobs=[wire.pack_struct(blob)]),
+            ReqUploadBlobPayload(module_id=self.module.id, blobs=[wire.pack_node_flat(blob)]),
             reply_t=RepUploadBlobPayload,
         )
         blob_data = rep.p.blobs[0]
         post_url = rep.p.post_urls[0] if rep.p.post_urls else None
-        blob = wire.unpack_struct(blob_data, blob.module)
+        blob = wire.unpack_node_flat(blob_data, None, blob._session)
         return blob, post_url
 
     async def mark_uploaded_blob(self, blob: "Blob") -> None:
         logger.debug("blob.mark_uploaded", object=self)
         rep: NMessage[RepMarkUploadedBlobPayload] = await request(
             NMessageType.MARK_UPLOADED_BLOB,
-            ReqMarkUploadedBlobPayload(blobs=[wire.pack_struct(blob)]),
+            ReqMarkUploadedBlobPayload(blobs=[wire.pack_node_flat(blob)]),
             reply_t=RepMarkUploadedBlobPayload,
         )
         if not rep.p.success:
@@ -888,7 +887,7 @@ class ModuleWorkerProcess(RuntimeHost):
         logger.debug("secret.reveal", secret=secret)
         rep: NMessage[RepRevealSecretPayload] = await request(
             NMessageType.REVEAL_SECRET,
-            ReqRevealSecretPayload(secrets=[wire.pack_struct(secret)]),
+            ReqRevealSecretPayload(secrets=[wire.pack_node_flat(secret)]),
             reply_t=RepRevealSecretPayload,
             timeout=10,
         )

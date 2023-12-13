@@ -989,7 +989,7 @@ class BlobData(NodeData, HasCrud):
         return f"<Blob {self}>"
 
 
-@struct_packer(BlobData, lang.Blob)
+@node_packer(NodeType.BLOB, BlobData, lang.Blob)
 class BlobPacker(NodePacker[BlobData, lang.Blob]):
     def pack(self, blob: lang.Blob) -> BlobData:
         return BlobData(
@@ -998,6 +998,7 @@ class BlobPacker(NodePacker[BlobData, lang.Blob]):
             created_at=blob.created_at,
             updated_at=blob.updated_at,
             deleted_at=blob.deleted_at,
+            revision=blob.revision,
             last_edited_at=blob.last_edited_at,
             last_changed_at=blob.last_changed_at,
             sha512=blob.sha512,
@@ -1005,6 +1006,7 @@ class BlobPacker(NodePacker[BlobData, lang.Blob]):
             content_type=blob.content_type,
             name=blob.name,
             status=blob.status,
+            parent_id=blob.parent_id,
         )
 
     def unpack(self, data: BlobData, parent: None, module: Module) -> lang.Blob:
@@ -1013,6 +1015,7 @@ class BlobPacker(NodePacker[BlobData, lang.Blob]):
             ck=data.ck,
             parent=parent,
             created_at=data.created_at,
+            revision=data.revision,
             updated_at=data.updated_at,
             deleted_at=data.deleted_at,
             last_edited_at=data.last_edited_at,
@@ -1046,6 +1049,8 @@ class SecretPacker(NodePacker[SecretData, lang.Secret]):
             created_at=object.created_at,
             updated_at=object.updated_at,
             deleted_at=object.deleted_at,
+            revision=object.revision,
+            parent_id=object.parent_id,
             last_edited_at=object.last_edited_at,
             last_changed_at=object.last_changed_at,
             sha512=object.sha512,
@@ -1062,6 +1067,8 @@ class SecretPacker(NodePacker[SecretData, lang.Secret]):
             deleted_at=data.deleted_at,
             last_edited_at=data.last_edited_at,
             last_changed_at=data.last_changed_at,
+            revision=data.revision,
+            parent_id=data.parent_id,
             sha512=data.sha512,
             value=data.value,
         )

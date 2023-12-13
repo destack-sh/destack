@@ -2,7 +2,7 @@
 import { getInputInterface } from "@/components/inputs";
 import CheckboxInput from "@/components/inputs/CheckboxInput.vue";
 import EnumInput from "@/components/inputs/EnumInput.vue";
-import FileInput from "@/components/inputs/FileInput.vue";
+import BlobInput from "@/components/inputs/BlobInput.vue";
 import NumberInput from "@/components/inputs/NumberInput.vue";
 import RatingInput from "@/components/inputs/RatingInput.vue";
 import SecretInput from "@/components/inputs/SecretInput.vue";
@@ -39,7 +39,7 @@ const INTERFACES: Record<string, any> = {
   "number.rating": RatingInput,
   enum: EnumInput,
   struct: StructInput,
-  file: FileInput,
+  blob: BlobInput,
   secret: SecretInput,
   vector: VectorInput,
   node: NodeInput,

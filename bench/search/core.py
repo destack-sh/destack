@@ -7,7 +7,11 @@ from datetime import datetime
 from typing import Any, ClassVar
 from uuid import UUID
 
+from bench.language.const import NodeType
 from bench.language.expression import TYPE_DISCRIMINATOR_KEY
+
+# different from LOCAL_NODE_TYPES (which is the source of truth, this is just OS indexing)
+LOCAL_OS_NODE_TYPES = (NodeType.SESSION, NodeType.RUN, NodeType.RECORD)
 
 
 class FieldType(enum.StrEnum):

@@ -360,7 +360,7 @@ class RuntimeSupervisor(Monitored):
         project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
         post_urls: list[str | None] = []
         for obj_data in msg.p.blobs:
-            model_blob: models.Blob = packer.unpack_struct(obj_data)
+            model_blob: models.Blob = packer.unpack_node_flat(obj_data, None)
             model_blob.project_id = project_v.project_id
             existing_blob = await project_v.project.blobs.filter(sha512=model_blob.sha512).afirst()
             if existing_blob is not None:
@@ -398,7 +398,7 @@ class RuntimeSupervisor(Monitored):
         # TODO @Security!!: check if msg origin has read access to secret
         secrets = []
         async for secret in models.Secret.objects.filter(id__in=(s.id for s in msg.p.secrets)):
-            secret_data = packer.pack_struct(secret)
+            secret_data = packer.pack_node_flat(secret)
             secret_data.value = json.loads(secret_data.value)  # :SecretJson
             secrets.append(secret_data)
         await msg.reply(RepRevealSecretPayload(secrets=secrets))
@@ -692,8 +692,9 @@ class RuntimeHost:
             local_edits=local_edits,
             origins=origins,
         )
-        log.debug("runtime.write_edits")
+        # copy source if modifying it with (host) module edits
         old_source = self.module._source.deepcopy() if host_module_edits else self.module._source
+        log.debug("runtime.write_edits")
 
         # cascade soft delete/restore edits against affected descendant nodes in DB
         cascade_edits, soft_delete_edits, restore_edits = [], [], []
@@ -755,7 +756,7 @@ class RuntimeHost:
             )
             # apply host edits (cascade deletes as well, they're implicit/not needed in NodeTree)
             log.debug("runtime.write_edits.apply", db_edits=db_edits)
-            if host_change.all_edits:
+            if db_edits:
                 edited_host_nodes = await sync_to_async(write_host_db_edits)(
                     self.project_version, old_source, db_edits, raise_on_apply_error=False
                 )
@@ -796,7 +797,7 @@ class RuntimeHost:
         # mirror
         if schema_changed:
             await update_os_schema(self.project.os_name, self.module)
-        os_edits = host_change.all_edits + local_edits + cascade_edits
+        os_edits = host_change.all_edits + host_session_edits + local_edits + cascade_edits
         await write_edits_to_os(self.module, edits=os_edits)
 
         duration = time.time() - start_time
