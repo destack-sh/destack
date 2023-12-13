@@ -234,6 +234,8 @@ export enum EditType {
   CreateIssue = "CREATE_ISSUE",
   CreateRecord = "CREATE_RECORD",
   CreateResolvedField = "CREATE_RESOLVED_FIELD",
+  CreateRun = "CREATE_RUN",
+  CreateSession = "CREATE_SESSION",
   CreateStatement = "CREATE_STATEMENT",
   CreateTagging = "CREATE_TAGGING",
   CreateTrigger = "CREATE_TRIGGER",
@@ -274,6 +276,8 @@ export enum EditType {
   UpdateFieldType = "UPDATE_FIELD_TYPE",
   UpdateFile = "UPDATE_FILE",
   UpdateRecord = "UPDATE_RECORD",
+  UpdateRun = "UPDATE_RUN",
+  UpdateSession = "UPDATE_SESSION",
   UpdateStatement = "UPDATE_STATEMENT",
   UpdateStatementFlags = "UPDATE_STATEMENT_FLAGS",
   UpdateStatementHeadingLevel = "UPDATE_STATEMENT_HEADING_LEVEL",
@@ -1917,7 +1921,6 @@ export type Session = HasTriggeredBy &
 export type SessionChange = {
   __typename?: "SessionChange";
   runs: Array<Run>;
-  session?: Maybe<Session>;
 };
 
 export type SessionChangeRunsChangeWorkerChange = RunsChange | SessionChange | WorkerChange;

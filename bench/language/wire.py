@@ -1077,7 +1077,7 @@ class SessionData(NodeData, HasCrud):
     trigger_type: TriggerType
 
 
-@struct_packer(SessionData, lang.Session)
+@node_packer(NodeType.SESSION, SessionData, lang.Session)
 class SessionPacker(NodePacker[SessionData, lang.Session]):
     def pack(self, session: lang.Session) -> SessionData:
         return SessionData(
@@ -1093,6 +1093,8 @@ class SessionPacker(NodePacker[SessionData, lang.Session]):
             closed_at=session.closed_at,
             trigger_id=session.trigger_id,
             trigger_type=session.trigger_type,
+            parent_id=session.parent_id,
+            revision=session.revision,
         )
 
 

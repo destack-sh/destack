@@ -61,7 +61,8 @@ class RuntimeHost(abc.ABC):
     async def commit_edits(self, edits: Collection["EditData"]) -> None:
         raise NotImplementedError
 
-    # nocheckin: merge push_session into commit_edits (now that sessions/runs are nodes)
+    async def notify_runs_changed(self, runs: Collection["Run"]) -> None:
+        raise NotImplementedError
 
     async def notify_logs_changed(self, logs: Collection["LogEntryData"]) -> None:
         raise NotImplementedError
@@ -409,6 +410,7 @@ class SessionTracer:
         self._local_edits: list[EditEvent] = []
         self._host_module_edits: list[EditEvent] = []
         self._schema_changed: bool = False
+        self._flushed_session_node_ids: set[UUID] = set()
 
     def __str__(self):
         return f"{len(self.stacktrace)} stack, {len(self.runs)} runs"
@@ -811,7 +813,7 @@ class SessionTracer:
             status=RunStatus.QUEUED if queue_position is not None else RunStatus.RUNNING,
             value=(self._root_run_value or {}) if root is None else {},
         )
-        run._attached_inner(self.session)
+        run._attached_self()
         if parent is not None:
             parent.children.append(run)
         custom_value = _custom_value.get()
@@ -851,6 +853,8 @@ class SessionTracer:
 
     async def _flush(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session data."""
+        from bench.language import wire
+
         if not force and not self._pending_logs and not self._pending_runs:
             return  # skip if nothing to commit
 
@@ -858,19 +862,39 @@ class SessionTracer:
             "trace.flush", runs=len(self._pending_runs), logs=len(self._pending_logs)
         )
         with self._tracing_lock:
-            runs = list(self._pending_runs.values())
+            runs_to_flush = list(self._pending_runs.values())
             self._pending_runs.clear()
 
             if kill_pending_runs:
                 # abort any remaining active runs
-                for run in chain(runs, self.runs.values()):
+                for run in chain(runs_to_flush, self.runs.values()):
                     run._mark_dead_if_active()
 
-            logs = self._pending_logs
+            logs_to_flush = self._pending_logs
             self._pending_logs = []
 
-        await self.session._runtime.push_session(self.session, runs)
-        await self.session._write_logs(logs)
+        # turn session and runs into create/update edits
+        session_edits: list[EditData] = []
+        for n in chain(runs_to_flush, (self.session,)):
+            edit_kind = (
+                EditKind.CREATE if n.id not in self._flushed_session_node_ids else EditKind.UPDATE
+            )
+            edit = EditData(
+                type=EditType.from_nt(edit_kind, n.node_type),
+                project_version_id=n.module.id,
+                file_id=None,
+                statement_id=None,
+                properties=None,
+                revision=n.revision,
+            )
+            edit.node = wire.pack_node_flat(n)
+            session_edits.append(edit)
+
+        await self.session._runtime.commit_edits(session_edits)
+        await self.session._runtime.notify_runs_changed(
+            tuple(e.node for e in session_edits if e.node_type == NodeType.RUN)
+        )
+        await self.session._write_logs(logs_to_flush)
 
     async def open(self, flush_interval: float = 0.1):
         self.stdout_collector.start()
