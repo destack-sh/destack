@@ -30,7 +30,7 @@ from bench.language.const import (
     TriggerType,
 )
 from bench.language.edit import EditBundle, EditData, EditKind
-from bench.language.module import NodeTree
+from bench.language.module import NodeTree, NODE_CLASS_BY_NODE_TYPE
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import flatten
 
@@ -347,14 +347,17 @@ def unpack_nodes(
     unpacked_nodes = []
     ancestors_by_id = {project_v.id: project_v}
     for node in nodes:
-        if node.parent_id not in ancestors_by_id:  # ancestor may already be unpacked
+        detached = NODE_CLASS_BY_NODE_TYPE[node.node_type].__is_detached__
+        # node may be detached or ancestor may already be unpacked
+        if not detached and node.parent_id not in ancestors_by_id:
             ancestors = module.get_ancestors(node.parent_id, include_self=True)
             for ancestor in reversed(ancestors):
                 if ancestor.id not in ancestors_by_id:
                     parent = ancestors_by_id.get(ancestor.parent_id)
                     unpacked = unpack_node_flat(ancestor, parent)
                     ancestors_by_id[ancestor.id] = unpacked
-        node_model = unpack_node_flat(node, ancestors_by_id[node.parent_id])
+        node_parent = ancestors_by_id[node.parent_id] if not detached else None
+        node_model = unpack_node_flat(node, node_parent)
         unpacked_nodes.append(node_model)
         ancestors_by_id[node.id] = node_model
     return unpacked_nodes
@@ -736,6 +739,13 @@ class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
     def pack(self, data: models.Blob) -> wire.BlobData:
         return wire.BlobData(
             id=data.id,
+            ck=data.ck,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            deleted_at=data.deleted_at,
+            last_changed_at=data.last_changed_at,
+            last_edited_at=data.last_edited_at,
+            revision=data.revision,
             sha512=data.sha512,
             content_length=data.content_length,
             content_type=data.content_type,
@@ -746,6 +756,13 @@ class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
     def unpack(self, data: wire.BlobData, parent: None) -> models.Blob:
         return models.Blob(
             id=data.id,
+            ck=data.ck,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            deleted_at=data.deleted_at,
+            last_changed_at=data.last_changed_at,
+            last_edited_at=data.last_edited_at,
+            revision=data.revision,
             sha512=data.sha512,
             content_length=data.content_length,
             content_type=data.content_type,
@@ -757,10 +774,33 @@ class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
 @node_packer(NodeType.SECRET, wire.SecretData, models.Secret)
 class SecretPacker(NodePacker[wire.SecretData, models.Secret]):
     def pack(self, data: models.Secret) -> wire.SecretData:
-        return wire.SecretData(id=data.id, sha512=data.sha512, value=data.value)
+        return wire.SecretData(
+            id=data.id,
+            ck=data.ck,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            deleted_at=data.deleted_at,
+            last_changed_at=data.last_changed_at,
+            last_edited_at=data.last_edited_at,
+            revision=data.revision,
+            sha512=data.sha512,
+            value=data.value,
+            parent_id=data.parent_id,
+        )
 
     def unpack(self, data: wire.SecretData, parent: None) -> models.Secret:
-        return models.Secret(id=data.id, sha512=data.sha512, value=data.value)
+        return models.Secret(
+            id=data.id,
+            ck=data.ck,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            deleted_at=data.deleted_at,
+            last_changed_at=data.last_changed_at,
+            last_edited_at=data.last_edited_at,
+            revision=data.revision,
+            sha512=data.sha512,
+            value=data.value,
+        )
 
 
 @node_packer(NodeType.SESSION, wire.SessionData, models.Session)
@@ -768,11 +808,19 @@ class SessionPacker(NodePacker[wire.SessionData, models.Session]):
     def pack(self, data: models.Session) -> wire.SessionData:
         return wire.SessionData(
             id=data.id,
+            ck=data.ck,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            deleted_at=data.deleted_at,
+            last_changed_at=data.last_changed_at,
+            last_edited_at=data.last_edited_at,
+            revision=data.revision,
             module_id=data.project_version_id,
             opened_at=data.opened_at,
             closed_at=data.closed_at,
             trigger_id=data.trigger_id,
             trigger_type=data.trigger_type,
+            parent_id=data.parent_id,
         )
 
     def unpack(self, data: wire.SessionData, parent: None) -> models.Session:
@@ -787,6 +835,13 @@ class SessionPacker(NodePacker[wire.SessionData, models.Session]):
             trigger_id = data.trigger_id
         return models.Session(
             id=data.id,
+            ck=data.ck,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            deleted_at=data.deleted_at,
+            last_changed_at=data.last_changed_at,
+            last_edited_at=data.last_edited_at,
+            revision=data.revision,
             project_version_id=data.module_id,
             opened_at=data.opened_at,
             closed_at=data.closed_at,

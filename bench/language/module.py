@@ -535,8 +535,8 @@ _FORBIDDEN_NODE_METHODS = (
     + [m.rec for m in ComponentMethod]
     + ["__post_init__", "__del__"]
 )
-_NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
-_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
+NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
+NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 _COMPONENT_METHODS: dict[[ComponentMethod, type["Node"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
     "Node",
@@ -572,13 +572,6 @@ def _get_component_methods(
         if _COMPONENT_METHODS.get((method, component), None) is not None:
             methods.append(getattr(component, method.inner))
     return methods
-
-
-def _get_node_class(node_type: NodeType):
-    if len(_NODE_CLASS_BY_NODE_TYPE) < len(NodeType):
-        m = import_module("bench.language")
-        getattr(m, node_type)  # noqa check that the node class is defined
-    return _NODE_CLASS_BY_NODE_TYPE[node_type]
 
 
 def _process_struct_base(
@@ -725,16 +718,17 @@ def node_component(
         cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
         cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_node_type})
         cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
+        cls.__is_detached__ = detached
 
         # register as concrete node class for node_type
         if node_type:
             cls.node_type = node_type
-            if node_type in _NODE_CLASS_BY_NODE_TYPE:
+            if node_type in NODE_CLASS_BY_NODE_TYPE:
                 raise ValueError(
-                    f"node class conflict for {node_type}: {cls}, {_NODE_CLASS_BY_NODE_TYPE[node_type]}"
+                    f"node class conflict for {node_type}: {cls}, {NODE_CLASS_BY_NODE_TYPE[node_type]}"
                 )
-            _NODE_CLASS_BY_NODE_TYPE[node_type] = cls
-        _COMPONENT_CLASS_BY_NAME[cls.__name__] = cls
+            NODE_CLASS_BY_NODE_TYPE[node_type] = cls
+        NODE_COMPONENT_CLASS_BY_NAME[cls.__name__] = cls
 
         return cls
 
@@ -963,7 +957,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         """Creates a new node in the list."""
         if len(args) == 1 and isinstance(args[0], Node):
             raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
-        node_cls = _NODE_CLASS_BY_NODE_TYPE[self._property.child_node_type]
+        node_cls = NODE_CLASS_BY_NODE_TYPE[self._property.child_node_type]
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
             node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NS.SOURCE)
@@ -1947,6 +1941,7 @@ class Node(abc.ABC):
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __has_scope__: ClassVar[bool] = False
+    __is_detached__: ClassVar[bool] = False
 
     id: UUID = struct_internal(default=None, reflect=True)
     ck: UUID = struct_internal(default=None, reflect=True)

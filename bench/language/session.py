@@ -109,6 +109,7 @@ class Session(Node):
     _root_run_value: dict | None = struct_runtime(default=None)
     _global_run_value: dict | None = struct_runtime(default=None)
     _cache: Union["Cache", None] = struct_runtime(default=None)
+    _failed_commit: bool = struct_runtime(default=False)
 
     def _init_inner(self):
         from bench.language.blob import Blobs
@@ -127,7 +128,6 @@ class Session(Node):
         self._primary_pg_cursor: psycopg.AsyncCursor | None = None
         self._foreign_pg_cursors: dict[str, psycopg.AsyncCursor] = {}
         self._dangling_nodes_by_ck: dict[UUID, Node] = {}
-        self._failed_commit: bool = False
 
     def __str__(self):
         if self.closed_at:
@@ -274,7 +274,7 @@ class Session(Node):
         try:
             # commit host edits
             if host_edits:
-                await self.runtime.commit_edits(host_edits)
+                await self._runtime.commit_edits(host_edits)
             # commit local edits
             if local_edits:
                 await write_local_edits_to_pg(
@@ -309,7 +309,7 @@ class Session(Node):
             self._tracer._touched_databases_by_id.clear()
 
             # publish local edits
-            await self.runtime.notify_databases_changed(touched_databases_by_id.values())
+            await self._runtime.notify_databases_changed(touched_databases_by_id.values())
 
     async def _close(self):
         """Closes the session, committing any edits and preventing further execution/edit."""
@@ -354,7 +354,7 @@ class Session(Node):
         ret = await os_client.bulk(ops)
         if ret["errors"]:
             raise RuntimeError(f"failed to write logs: {get_os_errors(ret)}")
-        await self.runtime.notify_logs_changed(logs)
+        await self._runtime.notify_logs_changed(logs)
         self._log.debug("session.write_logs.done", logs=len(logs))
 
 
@@ -873,7 +873,7 @@ class SessionTracer:
             logs_to_flush = self._pending_logs
             self._pending_logs = []
 
-        # turn session and runs into create/update edits
+        # turn session and runs into create/update edits (always update session)
         session_edits: list[EditData] = []
         for n in chain(runs_to_flush, (self.session,)):
             edit_kind = (

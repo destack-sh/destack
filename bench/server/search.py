@@ -5,13 +5,12 @@ from asgiref.sync import sync_to_async
 
 from bench import models
 from bench.language import Module, wire
-from bench.language.const import LOCAL_NODE_TYPES
 from bench.language.edit import EditData, EditKind
 from bench.models.packer import HOST_MODEL_TYPES, collect_node_host
 from bench.search import core as os
 from bench.search import mirror
 from bench.search.client import get_os_errors, os_client, os_client_sync
-from bench.search.core import IndexType
+from bench.search.core import IndexType, LOCAL_OS_NODE_TYPES
 from bench.search.engine import DOCUMENTS_BY_INDEX, update_os_schema
 
 logger = structlog.get_logger(__name__)
@@ -275,7 +274,9 @@ async def write_edits_to_os(
         ops.clear()
 
     for edit in edits:
-        index = module.os_name if edit.type.node_type in LOCAL_NODE_TYPES else os.GLOBAL_INDEX_NAME
+        index = (
+            module.os_name if edit.type.node_type in LOCAL_OS_NODE_TYPES else os.GLOBAL_INDEX_NAME
+        )
         node = edit.thing or edit.node  # local nodes don't have a model thing, only data node
         if not mirror.has_mirror(node):
             continue  # ignore

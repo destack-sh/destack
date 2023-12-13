@@ -40,6 +40,14 @@ class Session(CrudNode, HasTriggeredBy):
     opened_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
 
+    @property
+    def parent_id(self):
+        return None
+
+    @property
+    def parent(self):
+        return None
+
 
 class RunManager(models.Manager):
     def get_descendants(self, run_ids: list[UUID]):
@@ -97,6 +105,8 @@ class Run(CrudNode, HasTriggeredBy):
     access_level = models.CharField(
         max_length=32, null=True, blank=True, choices=get_choices(SessionAccessLevel)
     )
+
+    # nocheckin: rename Run.parent -> parent_run (to make parent parent_run or session if root)
 
     @model_property(only=["started_at", "terminated_at"])
     def duration(self) -> Optional[float]:

@@ -14,6 +14,14 @@ class Secret(CrudNode):
     name = models.CharField(max_length=255, null=True, blank=True)
     value = fields.TextPGPSymmetricKeyField()
 
+    @property
+    def parent(self):
+        return None
+
+    @property
+    def parent_id(self):
+        return None
+
     def __str__(self):
         return f"{self.id} ({self.sha512})"
 

@@ -28,7 +28,7 @@ const bench = useBenchState();
 const ongoingUploads = ref(0);
 const notifications = useNotifications();
 
-const fileRefs = useElementRefs();
+const blobRefs = useElementRefs();
 const fileChooserRef = ref<HTMLInputElement | null>(null);
 const uploadButtonRef = ref<HTMLButtonElement | null>(null);
 const dropZoneRef = ref<HTMLDivElement>();
@@ -39,30 +39,30 @@ const { isOverDropZone: dragOver } = useRelativeDropZone(
   computed(() => !props.readonly)
 );
 
-function onDrop(files: File[] | { type: string; id: string } | null) {
-  if (!Array.isArray(files)) {
+function onDrop(blobs: File[] | { type: string; id: string } | null) {
+  if (!Array.isArray(blobs)) {
     return; // ignore
   }
   // upload into here
   if (isArray.value) {
-    files.forEach(doUpload);
-  } else if (files.length > 0) {
-    doUpload(files[0]);
-    if (files.length > 1) {
-      emit("dropFiles", "below", files.slice(1));
+    blobs.forEach(doUpload);
+  } else if (blobs.length > 0) {
+    doUpload(blobs[0]);
+    if (blobs.length > 1) {
+      emit("dropFiles", "below", blobs.slice(1));
     }
   }
 }
 
-async function doUpload(file: File | null) {
-  if (file == null || bench.projectId == null) return;
+async function doUpload(blob: File | null) {
+  if (blob == null || bench.projectId == null) return;
   ongoingUploads.value++;
   function onUpdate(val: BlobRecord | null) {
     if (val == null) return;
     // if single, replace value
     if (!isArray.value) {
       // refocus since button may be gone
-      nextTick(() => (val == null ? uploadButtonRef.value?.focus() : fileRefs.focus(val.id)));
+      nextTick(() => (val == null ? uploadButtonRef.value?.focus() : blobRefs.focus(val.id)));
       emit("update:modelValue", [val]);
     } else if (val != null) {
       // replace specific value or append
@@ -74,37 +74,37 @@ async function doUpload(file: File | null) {
       }
     }
   }
-  await objects.upload(bench.projectId, file, onUpdate);
+  await objects.upload(bench.projectId, blob, onUpdate);
   ongoingUploads.value--;
 }
 
-async function open(file: BlobRecord) {
-  if (file.status != BlobStatus.Available) return;
-  // open file (in new tab)
+async function open(blob: BlobRecord) {
+  if (blob.status != BlobStatus.Available) return;
+  // open blob (in new tab)
   try {
-    const presignedGet = await objects.getPresignedGet(file.id);
+    const presignedGet = await objects.getPresignedGet(blob.id);
     window.open(presignedGet, "_blank");
   } catch (e) {
     notifications.show({
       kind: "error",
       type: "object.open",
-      message: "Unable to open file",
-      description: "The file seems to be unavailable.",
+      message: "Unable to open blob",
+      description: "The blob seems to be unavailable.",
     });
     console.error(e);
   }
 }
 
-function remove(file: BlobRecord) {
-  const fileIndex = props.modelValue.findIndex((f) => f.id == file.id);
+function remove(blob: BlobRecord) {
+  const blobIndex = props.modelValue.findIndex((f) => f.id == blob.id);
   emit(
     "update:modelValue",
-    props.modelValue.filter((f) => f.id != file.id)
+    props.modelValue.filter((f) => f.id != blob.id)
   );
   if (!isArray.value || props.modelValue.length == 1) {
     nextTick(() => uploadButtonRef.value?.focus());
   } else {
-    fileRefs.focus(props.modelValue[fileIndex - 1]?.id);
+    blobRefs.focus(props.modelValue[blobIndex - 1]?.id);
   }
 }
 
@@ -114,13 +114,13 @@ function focus() {
   } else if (isArray.value) {
     uploadButtonRef.value?.focus();
   } else {
-    fileRefs.focus(props.modelValue.slice(-1)[0]?.id);
+    blobRefs.focus(props.modelValue.slice(-1)[0]?.id);
   }
 }
 
 function blur() {
   uploadButtonRef.value?.blur();
-  fileRefs.refs.value.forEach((ref) => ref?.blur());
+  blobRefs.refs.value.forEach((ref) => ref?.blur());
 }
 
 defineExpose({
@@ -142,37 +142,39 @@ defineExpose({
       'min-w-[300px]': !preview,
     }"
   >
-    <!-- Existing files -->
-    <!-- :FileStyle -->
+    <!-- Existing blobs -->
     <div
-      :ref="(el: any) => fileRefs.registerRef(file.id, el)"
-      v-for="(file, i) in modelValue"
+      :ref="(el: any) => blobRefs.registerRef(blob.id, el)"
+      v-for="(blob, i) in modelValue"
       tabindex="-1"
-      :key="file.id"
-      class="group/file flex flex-row items-center rounded-sm hover:cursor-pointer focus:bg-orange-100 focus:outline-none"
-      @click.stop="open(file)"
-      @keydown.enter.stop.prevent="open(file)"
+      :key="blob.id"
+      class="group/blob flex flex-row items-center rounded-sm hover:cursor-pointer focus:bg-orange-100 focus:outline-none"
+      @click.stop="open(blob)"
+      @keydown.enter.stop.prevent="open(blob)"
       @keydown.right.stop.prevent="
-        i == modelValue.length - 1 ? uploadButtonRef?.focus() : fileRefs.focus(modelValue[i + 1]?.id)
+        i == modelValue.length - 1 ? uploadButtonRef?.focus() : blobRefs.focus(modelValue[i + 1]?.id)
       "
-      @keydown.left.stop.prevent="i == 0 ? null : fileRefs.focus(modelValue[i - 1]?.id)"
-      @keydown.delete.stop.prevent="remove(file)"
+      @keydown.left.stop.prevent="i == 0 ? null : blobRefs.focus(modelValue[i - 1]?.id)"
+      @keydown.delete.stop.prevent="remove(blob)"
     >
-      <!-- File status & info -->
+      <!-- Blob status & info -->
       <component
-        :is="file.status == BlobStatus.Uploading ? BusySpinnerIcon : DocumentArrowUpIcon"
+        :is="blob.status == BlobStatus.Uploading ? BusySpinnerIcon : DocumentArrowUpIcon"
         class="h-4 w-4 flex-shrink-0 text-gray-700"
-        :class="file.status == BlobStatus.Uploading ? 'animate-spin' : ''"
+        :class="blob.status == BlobStatus.Uploading ? 'animate-spin' : ''"
       />
       <span class="ml-1 flex flex-row items-baseline gap-1">
-        <span class="truncate text-gray-900 underline-offset-4 group-hover/file:underline">{{ file.name }}</span>
-        <span class="text-xs text-gray-400">{{ humanizeBytes(file?.content_length) }}</span>
+        <span
+          class="truncate text-gray-900 underline decoration-gray-300 underline-offset-4 transition-colors duration-75 group-hover/blob:decoration-gray-700"
+          >{{ blob.name }}</span
+        >
+        <span class="text-xs text-gray-400">{{ humanizeBytes(blob?.content_length) }}</span>
       </span>
       <!-- Delete button -->
       <button
         v-if="!preview"
-        class="text-gray-300 focus:text-gray-700 group-hover/file:text-gray-500"
-        @click.stop.prevent="remove(file)"
+        class="text-gray-300 focus:text-gray-700 group-hover/blob:text-gray-500"
+        @click.stop.prevent="remove(blob)"
       >
         x
       </button>
@@ -188,7 +190,7 @@ defineExpose({
       :class="[ongoingUploads ? 'animate-spin' : '', preview ? 'opacity-0' : '']"
       @click.stop.prevent="fileChooserRef?.click()"
       @keydown.enter.stop.prevent="fileChooserRef?.click()"
-      @keydown.left.stop.prevent="fileRefs.focus(modelValue.slice(-1)[0]?.id)"
+      @keydown.left.stop.prevent="blobRefs.focus(modelValue.slice(-1)[0]?.id)"
     >
       <component :is="ongoingUploads ? BusySpinnerIcon : ArrowUpTrayIcon" class="h-4 w-4 text-gray-400" />
     </button>

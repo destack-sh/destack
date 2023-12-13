@@ -113,9 +113,8 @@ def from_dict(
         # second pass: fill in missing fields
         for key, field in fields.items():
             if key in data and key not in deserialized:
-                setattr(
-                    obj, key, from_dict(field.type, data[key], _path + [key] if _path else None)
-                )
+                val = from_dict(field.type, data[key], _path + [key] if _path else None)
+                setattr(obj, key, val)
         return obj
     elif cls == datetime:
         return datetime.fromisoformat(data)
@@ -197,4 +196,4 @@ def from_dict(
         path_str = ".".join(_path) if _path else "<root>"
     else:
         path_str = "<unknown>"
-    raise TypeError(f"unexpected type {cls} for {type(data)} at {path_str} (data={data})")
+    raise TypeError(f"unexpected type {cls} with data {type(data)} at {path_str} (data={data!r})")
