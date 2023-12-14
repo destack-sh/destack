@@ -91,7 +91,7 @@ from bench.search import mirror
 from bench.search.engine import update_os_schema
 from bench.server import search
 from bench.server.k8 import WorkerObserver
-from bench.server.search import write_edits_to_os
+from bench.server.search import write_edits_to_os, write_records_to_os
 from bench.sql.client import async_pg_cursor
 from bench.sql.engine import (
     SqlUndefinedConstruct,
@@ -603,7 +603,7 @@ class RuntimeHost:
                 pg_name=project.pg_name,
             )
             await self._reset_interp_state()
-            await update_os_schema(self.project.os_name, self.module)
+            await update_os_schema(self.module)
             await update_pg_schema(self.project.pg_name, self.module)
             if not self.committed:  # module is only active at head...?
                 await self._update_local_triggers()
@@ -796,7 +796,7 @@ class RuntimeHost:
 
         # mirror
         if schema_changed:
-            await update_os_schema(self.project.os_name, self.module)
+            await update_os_schema(self.module)
         os_edits = host_change.all_edits + host_session_edits + local_edits + cascade_edits
         await write_edits_to_os(self.module, edits=os_edits)
 
@@ -879,13 +879,14 @@ class RuntimeHost:
                 os_name=source_project_v.project.os_name,
                 pg_name=source_project_v.project.pg_name,
             )
+        all_pasted_records: list[wire.RecordData] = []
         async with async_pg_cursor(source_project_v.project.pg_name) as source_cur, async_pg_cursor(
             self.project.pg_name
         ) as target_cur:
             for target_database in target_databases:
                 source_database_ck = copy.target_cks_reversed[target_database.ck]
                 source_database = source_module.resolve(source_database_ck)
-                await duplicate_records_in_pg(
+                pasted_records = await duplicate_records_in_pg(
                     source_cur=source_cur,
                     source_database=source_database,
                     target_cur=target_cur,
@@ -893,7 +894,11 @@ class RuntimeHost:
                     where=C(ConditionalOp.NOT_EXISTS, "deleted_at"),
                     keep_cks=False,
                     copy_revisions=False,
+                    return_nodes=True,
                 )
+                all_pasted_records.extend(pasted_records)
+        # sync pasted records into OS
+        await write_records_to_os(self.module, all_pasted_records)
 
     def _do_snapshot_host(
         self, name: str | None, tag: str | None, description: str | None

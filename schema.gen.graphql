@@ -1346,7 +1346,7 @@ type Run implements HasTriggeredBy & Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   projectVersion: ProjectVersion!
-  parent: RunSession!
+  parent: RunSession
   session: Session
   root: Run
   children: [Run!]!
