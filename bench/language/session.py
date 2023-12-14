@@ -41,6 +41,7 @@ from bench.language.const import (
 from bench.language.edit import EditData, EditKind, EditType
 from bench.language.module import (
     _NC,
+    UNSET,
     Module,
     Node,
     NodeList,
@@ -828,7 +829,9 @@ class SessionTracer:
             status=RunStatus.QUEUED if queue_position is not None else RunStatus.RUNNING,
             value=(self._root_run_value or {}) if root is None else {},
             _track=NodeTrackingLevel.NONE,
+            _session=UNSET,  # ensure run isn't validated/tracked in session
         )
+        run._session = None  # reset to None so it can be activated
         # we track session nodes manually :ManualSessionTracking
         parent.runs.append(run, _trigger=_NC.UpdateLists, _create=False)
         custom_value = _custom_value.get()

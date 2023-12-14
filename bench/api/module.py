@@ -15,6 +15,7 @@ from bench.api.utils import ModuleNode
 from bench.language.module import FLATTENED_RELATIONS
 from bench.models import ModuleAccessLevel, packer
 from bench.models.packer import NODE_TYPE_BY_MODEL_CLASS
+from bench.utils.utils import frozendict
 
 logger = structlog.get_logger(__name__)
 
@@ -160,7 +161,9 @@ def read_module_node(
         excluded=excluded,
     )
     # 'resolve' them into a proxy models.ModuleNode (with all relevant fields set/cached)
-    resolved_node = _resolve_node(node, root_selections, children=tree.visited_by_parent)
+    resolved_node = _resolve_node(
+        node, root_selections, children=frozendict(tree.visited_by_parent)
+    )
     logger.debug(
         "module.read_node.done", id=node.id, node=node, nodes=len(tree.visited), excluded=excluded
     )
@@ -227,7 +230,7 @@ def _resolve_node(
                 NODE_TYPE_BY_MODEL_CLASS[django_field.related_model],
             ) in FLATTENED_RELATIONS:
                 # collect descendants of same type
-                remaining = children.get(n.id, [])
+                remaining = list(children.get(n.id, []))
                 while remaining:
                     child = remaining.pop()
                     if type(child) != django_field.related_model:
