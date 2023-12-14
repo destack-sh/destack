@@ -12,7 +12,7 @@ from bench.language import wire
 from bench.language.const import NodeType
 from bench.models import packer
 from bench.models.utils import create_models_bfs
-from bench.server.search import update_os_schema_from_db, write_module_to_os
+from bench.search.engine import update_os_schema
 from bench.sql.client import async_pg_cursor
 from bench.sql.engine import (
     PostgresConditionalOp,
@@ -228,20 +228,17 @@ class Command(BaseCommand):
                     host_nodes, pre_unpacked={project_v.id: project_v}
                 )
                 create_models_bfs(unpacked.walk_bfs_batched(), exclude=[project_v.id])
+                # write records to local
+                module = lang.Module.make(
+                    module_data.nodes,
+                    project_id=project.id,
+                    os_name=project.os_name,
+                    pg_name=project.pg_name,
+                )
                 if project.head_id == project_v.id:
                     # write head to OS
-                    loop.run_until_complete(update_os_schema_from_db(project_v))
-                    loop.run_until_complete(
-                        write_module_to_os(project_v, unpacked.walk_bfs(), wipe=True)
-                    )
+                    loop.run_until_complete(update_os_schema(module))
                 if record_nodes:
-                    # write records to local
-                    module = lang.Module.make(
-                        module_data.nodes,
-                        project_id=project.id,
-                        os_name=project.os_name,
-                        pg_name=project.pg_name,
-                    )
                     loop.run_until_complete(self._write_local_records(module, record_nodes))
             # set parents to previous version
             for version in project.versions.exclude(tag=None).order_by("-tag"):

@@ -1766,7 +1766,7 @@ export type Run = HasTriggeredBy &
     id: Scalars["GlobalID"]["output"];
     inputs?: Maybe<Scalars["JSON"]["output"]>;
     outputs?: Maybe<Scalars["JSON"]["output"]>;
-    parent: RunSession;
+    parent?: Maybe<RunSession>;
     projectVersion: ProjectVersion;
     root?: Maybe<Run>;
     session?: Maybe<Session>;
@@ -5184,7 +5184,7 @@ export type RunHeaderFragment = {
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
-  parent: { __typename?: "Run"; id: any } | { __typename?: "Session"; id: any };
+  parent?: { __typename?: "Run"; id: any } | { __typename?: "Session"; id: any } | null;
 } & { " $fragmentName"?: "RunHeaderFragment" };
 
 export type RunContentFragment = {
@@ -5204,7 +5204,7 @@ export type RunContentFragment = {
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
-  parent: { __typename?: "Run"; id: any } | { __typename?: "Session"; id: any };
+  parent?: { __typename?: "Run"; id: any } | { __typename?: "Session"; id: any } | null;
   errorNice?: {
     __typename?: "RunError";
     kind: string;

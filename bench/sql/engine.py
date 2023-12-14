@@ -1,6 +1,7 @@
 import base64
 import enum
 import struct
+import typing
 from dataclasses import dataclass
 from itertools import chain
 from typing import Any, Collection, Mapping, Optional, Sequence, cast
@@ -830,6 +831,12 @@ def pg_unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordDat
     )
 
 
+PgSelectRecordsResult = typing.NamedTuple(
+    "PgSelectRecordsResult",
+    [("records", list[wire.RecordData]), ("cursors", list[str]), ("start_cursor", str | None)],
+)
+
+
 async def pg_select_records(
     cur: psycopg.AsyncCursor,
     database: "HasDatabase",
@@ -839,7 +846,7 @@ async def pg_select_records(
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
-) -> tuple[list[wire.RecordData], list[str], str | None]:
+) -> PgSelectRecordsResult:
     """Executes a select query on the given database."""
     if after:
         skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
@@ -851,7 +858,7 @@ async def pg_select_records(
     records_data = [pg_unpack_record_row(database, row) for row in rows]
     cursors = [encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(records_data))]
     assert len(records_data) == len(cursors), f"unexpected cursors: {cursors} for {records_data}"
-    return records_data, cursors, after
+    return PgSelectRecordsResult(records_data, cursors, after)
 
 
 @cachetools.cached({})
@@ -1007,7 +1014,7 @@ async def duplicate_records_in_pg(
     target_module_id = target_database.module.id
 
     # TODO @Performance: duplicate records within same database directly in postgres
-    where = where & lang.C(ConditionalOp.EQUALS, "statement_key", source_database.key)
+    where = where & lang.C(ConditionalOp.EQUALS, "statement_key", value=source_database.key)
     log = logger.bind(source=source_database, target=target_database, where=where)
     log.debug("pg.duplicate_records", copy_revisions=copy_revisions, keep_cks=keep_cks)
     record_rows = await pg_select(

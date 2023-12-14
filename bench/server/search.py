@@ -1,17 +1,16 @@
-from typing import Generator, Iterable, Type
+from typing import Type
 
 import structlog
-from asgiref.sync import sync_to_async
 
 from bench import models
-from bench.language import Module, wire
+from bench.language import C, ConditionalOp, HasDatabase, Module, wire
 from bench.language.edit import EditData, EditKind
-from bench.models.packer import HOST_MODEL_TYPES, collect_node_host
+from bench.language.expression import TYPE_DISCRIMINATOR_KEY
 from bench.search import core as os
 from bench.search import mirror
 from bench.search.client import get_os_errors, os_client, os_client_sync
-from bench.search.core import IndexType, LOCAL_OS_NODE_TYPES
-from bench.search.engine import DOCUMENTS_BY_INDEX, update_os_schema
+from bench.search.core import LOCAL_OS_NODE_TYPES, DocumentType, IndexType
+from bench.search.engine import DOCUMENTS_BY_INDEX
 
 logger = structlog.get_logger(__name__)
 
@@ -304,64 +303,53 @@ async def write_edits_to_os(
     await _flush()  # flush all remaining edits
 
 
-async def update_os_schema_from_db(
-    project_v: models.ProjectVersion, dynamic: str = "strict"
-) -> None:
-    from bench.server.runtime import interp_module
-
-    logger.info("os.update_mappings", project_version=project_v)
-    module, project = await interp_module(project_v.id)
-    await update_os_schema(project_v.project.os_name, module, dynamic=dynamic)
-
-
-async def write_module_to_os(
-    project_v: models.ProjectVersion,
-    nodes: Iterable[models.Node] | Generator[models.Node, None, None],
-    *,
-    wipe: bool,
-    update_schema: bool = True,
-    wait: bool = False,
-):
+async def sync_databases_to_os(module: Module, databases: list[HasDatabase]) -> None:
     """
-    Writes all nodes in the module to OpenSearch.
-    If wipe, first delete all module data for that version.
+    Mirrors the given databases to OpenSearch, replacing any existing data.
+    Obviously not scalable yet because it just selects everything in one go (no streaming).
+    TODO @Robustness: race condition in syncing database because OS has no transactions?
     """
-    ops: list[dict] = []
+    from bench.sql.engine import async_pg_cursor, pg_select_records
 
-    if wipe:
-        await delete_module_in_os(project_v)
+    log = logger.bind(module=module, databases=databases)
 
-    if update_schema:
-        await update_os_schema_from_db(project_v)  # can we only do this sometimes? when?
+    all_records: list[wire.RecordData] = []
+    async with async_pg_cursor(module.pg_name) as cur:
+        for database in databases:
+            where = C(ConditionalOp.EQUALS, "statement_key", value=database.key) & ~C(
+                ConditionalOp.EXISTS, "deleted_at"
+            )
+            records_data, _, _ = await pg_select_records(cur, database, where=where)
+            all_records.extend(records_data)
 
-    project: models.Project = project_v.project
-    for node in nodes:
-        if not mirror.has_mirror(node):
-            continue
-        if type(node) in HOST_MODEL_TYPES:
-            index = os.GLOBAL_INDEX_NAME
-        else:
-            index = project.os_name
-        ops.append({"index": {"_index": index, "_id": str(node.id)}})
-        ops.append(mirror.mirror_node(project_v, node).to_dict())
-
-    logger.debug(
-        "os.write_module", project_version=project_v, index=project.os_name, operations=len(ops)
+    log.debug("os.write_edits.flush", records=len(all_records))
+    # wipe all databases by query
+    await os_client.delete_by_query(
+        module.os_name,
+        body={
+            "query": {
+                "term": {
+                    TYPE_DISCRIMINATOR_KEY: DocumentType.RECORD,
+                    "statement_key": [d.key for d in databases],
+                }
+            }
+        },
     )
-    if not ops:
+    await write_records_to_os(module.os_name, all_records)
+
+
+async def write_records_to_os(module: Module, records: list[wire.RecordData]) -> None:
+    if not records:
         return
-    ret = await os_client.bulk(ops, refresh="wait_for" if wait else False)
+    ops: list[dict] = []
+    for record_data in records:
+        parent = module._local_tree.nodes_by_id[record_data.parent_id]
+        ops.append({"index": {"_index": module.os_name, "_id": str(record_data.id)}})
+        ops.append(mirror.unpack_node_flat(module, record_data, parent).to_dict())
+    logger.debug("os.write_records", operations=len(ops))
+    ret = await os_client.bulk(ops)
     if ret.get("errors"):
-        raise RuntimeError(f"failed to write module to OpenSearch: {get_os_errors(ret)}")
-
-
-async def write_module_to_os_from_db(
-    project_v: models.ProjectVersion, *, wipe: bool, update_mappings: bool
-) -> None:
-    nodes = await sync_to_async(collect_node_host)(project_v)
-    await write_module_to_os(
-        project_v, nodes.visited.values(), wipe=wipe, update_schema=update_mappings
-    )
+        raise RuntimeError(f"failed to write records to OpenSearch: {get_os_errors(ret)}")
 
 
 def disable_os_strict_mapping(index_name: str) -> None:

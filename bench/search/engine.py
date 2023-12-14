@@ -173,30 +173,12 @@ register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 register_mapper(VectorFieldMapper(), tags=[TypeTag.VECTOR])
 # vector
 register_mapper(os.Field(os.FT.FLAT_OBJECT), tags=[TypeTag.JSON])
+# blob/secret will be replaced by node references soon
 # blob
-register_mapper(
-    os.Field(
-        os.FT.OBJECT,
-        properties={
-            **mirror.Blob.__fields__,
-            "id": os.Field(os.FT.KEYWORD),
-            TYPE_DISCRIMINATOR_KEY: os.Field(os.FT.KEYWORD),
-        },
-    ),
-    tags=[TypeTag.BLOB],
-)
+register_mapper(os.Field(os.FT.FLAT_OBJECT), tags=[TypeTag.BLOB])
 # secret
 register_mapper(
-    os.Field(
-        os.FT.OBJECT,
-        properties={
-            **mirror.Secret.__fields__,
-            "id": os.Field(os.FT.KEYWORD),
-            TYPE_DISCRIMINATOR_KEY: os.Field(os.FT.KEYWORD),
-        },
-    ),
-    tags=[TypeTag.STRING, TypeTag.NUMBER],
-    flags=TypeFlag.IS_SECRET,
+    os.Field(os.FT.FLAT_OBJECT), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IS_SECRET
 )
 # struct
 register_mapper(StructFieldMapper(), tags=[TypeTag.STRUCT])
@@ -212,16 +194,7 @@ def map_to_os_field(field: lang.Field) -> os.Field:
 
 
 DOCUMENTS_BY_INDEX = {
-    IndexType.GLOBAL: [
-        mirror.User,
-        mirror.Organization,
-        mirror.Project,
-        mirror.ProjectVersion,
-        mirror.File,
-        mirror.Statement,
-        mirror.Field,
-        mirror.Comment,
-    ],
+    IndexType.GLOBAL: [],
     IndexType.LOCAL: [mirror.Record, mirror.Session, mirror.Run, mirror.LogEntry],
 }
 SEARCH_SEMANTIC_EDIT_TYPES = {
@@ -234,7 +207,7 @@ SEARCH_SEMANTIC_EDIT_TYPES = {
 }
 
 
-async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict") -> None:
+async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
     """
     Updates *all* OpenSearch field mappings for a module
     TODO @Performance: update OS field mappings more efficiently on field edit
@@ -301,7 +274,7 @@ async def update_os_schema(os_name: str, module: Module, dynamic: str = "strict"
         sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items() if v is not None}
         mappings[key] = {"type": "object", "dynamic": dynamic, "properties": sub_mappings}
 
-    await os_client.indices.put_mapping(index=os_name, body={"properties": mappings})
+    await os_client.indices.put_mapping(index=module.os_name, body={"properties": mappings})
     logger.info(
         "os.update_mappings.done",
         module=module,

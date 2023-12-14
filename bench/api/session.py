@@ -174,7 +174,7 @@ class Session(HasTriggeredBy, relay.Node):
 @strawberry_django.type(models.Run)
 class Run(HasTriggeredBy, relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
-    parent: Union["Run", "Session"]
+    parent: Union["Run", "Session", None]
     session: Optional[Session]
     root: Optional["Run"]
     children: list["Run"]

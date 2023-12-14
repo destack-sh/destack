@@ -6,13 +6,14 @@ from django.db import transaction
 from bench import models
 from bench.models import Project
 from bench.search.client import os_client_sync
+from bench.search.engine import update_os_schema
+from bench.server.runtime import interp_module
 from bench.server.search import (
     create_global_os_index,
     create_global_os_role,
     create_local_os_index,
     enable_os_strict_mapping,
-    update_os_schema_from_db,
-    write_module_to_os_from_db,
+    sync_databases_to_os,
 )
 
 logger = structlog.get_logger(__name__)
@@ -53,11 +54,9 @@ class Command(BaseCommand):
             for project in projects:
                 # ignore fields not in mapping during reindex
                 #  (fields may have existed in between snapshots)
-                project_v = project.head
-                async_to_sync(update_os_schema_from_db)(project_v, dynamic="false")
-                async_to_sync(write_module_to_os_from_db)(
-                    project_v, wipe=True, update_mappings=False
-                )
+                module, _ = async_to_sync(interp_module)(project.head_id)
+                async_to_sync(update_os_schema)(module, dynamic="false")
+                async_to_sync(sync_databases_to_os)(module)
                 enable_os_strict_mapping(project.os_name)
         else:
             raise ValueError("Unknown action")

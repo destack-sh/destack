@@ -447,17 +447,7 @@ class IndexType(enum.StrEnum):
 
 
 class DocumentType(enum.StrEnum):
-    BLOB = "blob"
-    SECRET = "secret"
-    USER = "user"
-    ORGANIZATION = "organization"
-    PROJECT = "project"
-    PROJECT_VERSION = "project_version"
-    FILE = "file"
-    STATEMENT = "statement"
-    FIELD = "field"
     RECORD = "record"
-    COMMENT = "comment"
     SESSION = "session"
     RUN = "run"
     LOG_ENTRY = "log_entry"

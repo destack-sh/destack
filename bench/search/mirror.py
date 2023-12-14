@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from uuid import UUID
 
 import bench.search.core as os
-from bench.language import StatementType, wire
+from bench.language import wire
 from bench.language.const import RunStatus
 from bench.utils.utils import IS_WORKER
 
@@ -165,200 +165,11 @@ class CrudThingPacker(Packer):
         )
 
 
-@document(os.DocumentType.BLOB)
-class Blob(os.Document):
-    #  :BlobType
-    sha512: str = os.field(os.FT.KEYWORD)
-    content_length: int = os.field(os.FT.LONG)
-    content_type: str = os.field(os.FT.KEYWORD)
-    name: str = NAME_FIELD
-    status: str = os.field(os.FT.KEYWORD)
-
-
-@packer(models.Blob, Blob, wire.BlobData)
-class BlobPacker(Packer[models.Blob, Blob, wire.BlobData]):
-    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.Blob) -> Blob:
-        return Blob(
-            id=node.id,
-            sha512=node.sha512,
-            content_length=node.content_length,
-            content_type=node.content_type,
-            name=node.name,
-        )
-
-
-@document(os.DocumentType.SECRET)
-class Secret(os.Document):
-    sha512: str = os.field(os.FT.KEYWORD)
-    name: str = NAME_FIELD
-
-
-@packer(models.Secret, Secret, wire.SecretData)
-class SecretPacker(Packer[models.Secret, Secret, wire.SecretData]):
-    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.Secret) -> Secret:
-        return Secret(id=node.id, sha512=node.sha512, name=node.name)
-
-
-# global
-
-
-@document(os.DocumentType.USER)
-class User(os.Document):
-    name: str = NAME_FIELD
-    slug: str = NAME_FIELD
-    email: str = NAME_FIELD
-
-
-@packer(models.User, User, None)
-class UserPacker(Packer[models.User, User, None]):
-    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.User) -> User:
-        return User(id=node.id, name=node.username, slug=node.slug, email=node.email)
-
-
-@document(os.DocumentType.ORGANIZATION)
-class Organization(os.Document):
-    name: str = NAME_FIELD
-    slug: str = NAME_FIELD
-
-
-@packer(models.Organization, Organization, None)
-class OrganizationPacker(Packer[models.Organization, Organization, None]):
-    def mirror(
-        self, project_v: models.ProjectVersion | ModuleInfo, node: models.Organization
-    ) -> Organization:
-        return Organization(id=node.id, name=node.name, slug=node.slug)
-
-
-@document(os.DocumentType.PROJECT)
-class Project(CrudThing, os.Document):
-    name: str = NAME_FIELD
-    description: str = os.field(os.FT.TEXT)
-
-
-@packer(models.Project, Project, None)
-class ProjectPacker(CrudThingPacker, Packer[models.Project, Project, None]):
-    def mirror(
-        self, project_v: models.ProjectVersion | ModuleInfo, node: models.Project
-    ) -> Project:
-        crud = super().mirror(project_v, node)
-        return Project(**crud.__dict__, name=node.name, description=node.description)
-
-
-# module/project content
-
-
-@document(os.DocumentType.PROJECT_VERSION)
-class ProjectVersion(CrudThing, Revisioned, os.Document):
-    project_id: UUID = os.field(os.FT.KEYWORD)
-    name: str = NAME_FIELD
-    tag: str = NAME_FIELD
-    description: str = os.field(os.FT.TEXT)
-
-
-@packer(models.ProjectVersion, ProjectVersion, None)
-class ProjectVersionPacker(CrudThingPacker, Packer[models.ProjectVersion, ProjectVersion, None]):
-    def mirror(
-        self, project_v: models.ProjectVersion | ModuleInfo, node: models.ProjectVersion
-    ) -> ProjectVersion:
-        crud = super().mirror(project_v, node)
-        return ProjectVersion(
-            **crud.__dict__,
-            project_id=node.project_id,
-            name=node.name,
-            tag=node.tag,
-            description=node.description,
-        )
-
-
-@document(os.DocumentType.FILE)
-class File(CrudThing, Revisioned, os.Document):
-    ck: UUID = os.field(os.FT.KEYWORD)
-    project_id: UUID = os.field(os.FT.KEYWORD)
-    project_version_id: UUID = os.field(os.FT.KEYWORD)
-    name: str = NAME_FIELD
-
-
-@packer(models.File, File, wire.FileData)
-class FilePacker(CrudThingPacker, Packer[models.File, File, wire.FileData]):
-    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.File) -> File:
-        crud = super().mirror(project_v, node)
-        return File(
-            **crud.__dict__,
-            ck=node.ck,
-            project_version_id=project_v.id,
-            project_id=project_v.project_id,
-            name=node.name,
-        )
-
-
-@document(os.DocumentType.STATEMENT)
-class Statement(CrudThing, Revisioned, os.Document):
-    ck: UUID = os.field(os.FT.KEYWORD)
-    project_id: UUID = os.field(os.FT.KEYWORD)
-    project_version_id: UUID = os.field(os.FT.KEYWORD)
-    file_id: UUID = os.field(os.FT.KEYWORD)
-    type: StatementType = os.field(os.FT.KEYWORD)
-    name: Optional[str] = NAME_FIELD
-    text: Optional[str] = TEXT_FIELD
-    code: Optional[str] = os.field(os.FT.TEXT)
-    # can't index value as it would explode our mappings (module index is global)
-
-
-@packer(models.Statement, Statement, wire.StatementData)
-class StatementPacker(CrudThingPacker, Packer[models.Statement, Statement, wire.StatementData]):
-    def mirror(
-        self, project_v: models.ProjectVersion | ModuleInfo, node: models.Statement
-    ) -> Statement:
-        crud = super().mirror(project_v, node)
-        return Statement(
-            **crud.__dict__,
-            ck=node.ck,
-            project_version_id=node.project_version_id,
-            project_id=project_v.project_id,
-            file_id=node.file_id,
-            type=node.type,
-            name=node.name,
-            text=node.text,
-            code=node.code,
-        )
-
-
-@document(os.DocumentType.FIELD)
-class Field(CrudThing, Revisioned, os.Document):
-    ck: UUID = os.field(os.FT.KEYWORD)
-    project_id: UUID = os.field(os.FT.KEYWORD)
-    project_version_id: UUID = os.field(os.FT.KEYWORD)
-    statement_id: UUID = os.field(os.FT.KEYWORD)
-    name: Optional[str] = NAME_FIELD
-    text: Optional[str] = TEXT_FIELD
-    type_tag: str = os.field(os.FT.KEYWORD)
-    type_hint: Optional[str] = os.field(os.FT.TEXT)
-
-
-@packer(models.Field, Field, wire.FieldData)
-class FieldPacker(CrudThingPacker, Packer[models.Field, Field, wire.FieldData]):
-    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.Field) -> Field:
-        crud = super().mirror(project_v, node)
-        return Field(
-            **crud.__dict__,
-            ck=node.ck,
-            project_version_id=project_v.id,
-            project_id=project_v.project_id,
-            statement_id=node.statement_id,
-            name=node.name,
-            text=node.text,
-            type_tag=node.tag,
-            type_hint=node.hint,
-        )
-
-
 @document(os.DocumentType.RECORD)
 class Record(CrudThing, os.Document):
     ck: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
-    statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     statement_key: Optional[str] = os.field(os.FT.KEYWORD)
-    statement_ck: UUID = os.field(os.FT.KEYWORD)
     # single name field to copy all data names to :RecordNameField
     name: Optional[str] = replace(NAME_FIELD, can_set_directly=False, store=False)
     value: dict = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
@@ -372,8 +183,6 @@ class RecordPacker(CrudThingPacker, Packer[wire.RecordData, Record, wire.RecordD
             id=node.id,
             ck=node.ck,
             project_version_id=project_v.id,
-            statement_id=node.statement_id,
-            statement_ck=node.statement_ck,
             statement_key=node.statement_key,
             value=node.value,
             revision=node.revision,
@@ -389,7 +198,7 @@ class RecordPacker(CrudThingPacker, Packer[wire.RecordData, Record, wire.RecordD
         return wire.RecordData(
             id=node.id,
             ck=node.ck,
-            parent_id=node.statement_id,
+            parent_id=None,  # unknown?
             value=node.value,
             revision=node.revision,
             created_at=node.created_at,
@@ -409,8 +218,6 @@ class RecordPacker(CrudThingPacker, Packer[wire.RecordData, Record, wire.RecordD
             id=data.id,
             ck=data.ck,
             project_version_id=project_v.id,
-            statement_id=data.parent_id,
-            statement_ck=parent.ck,
             statement_key=parent.key,
             value=data.value,
             revision=data.revision,
@@ -421,11 +228,6 @@ class RecordPacker(CrudThingPacker, Packer[wire.RecordData, Record, wire.RecordD
             last_edited_at=data.last_edited_at,
             last_edited_by_id=None,
         )
-
-
-@document(os.DocumentType.COMMENT)
-class Comment(CrudThing, os.Document):
-    project_version_id: UUID = os.field(os.FT.KEYWORD)
 
 
 # sessions/logs
