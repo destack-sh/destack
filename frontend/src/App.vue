@@ -118,6 +118,17 @@ provideGlobalAction({
   },
 });
 
+// show permanent notification if run on non-Chromium browsers (ugh, will be fixed soon)
+if (!window.chrome) {
+  notifications.show({
+    kind: "error",
+    type: "browser.bad",
+    message: "Incompatible browser",
+    description: "Bench is optimized for Chrome.",
+    showTimeMs: 60000,
+  });
+}
+
 // host all statement actions (bound to root component)
 hostStatementActions();
 </script>
