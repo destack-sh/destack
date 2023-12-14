@@ -662,6 +662,7 @@ class SessionMutation:
                 error = StartRunErrorType.TIMEOUT
             else:
                 error = StartRunErrorType.UNAVAILABLE
+        # None as parent is fine since this must be the root run
         run = packer.unpack_node_flat(rep.p.run, None) if rep and rep.p.run else None
         logs = [LogEntry.from_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
         return RunState(
@@ -782,6 +783,15 @@ class SessionSubscription:
                 return False
             return True
 
+        def _collect_runs(runs: list[wire.RunData]) -> list[Run]:
+            runs_by_id = {r.id: packer.unpack_node_flat(r, None) for r in runs if _filter_run(r)}
+            for run in runs_by_id.values():
+                if run.parent_id in runs_by_id:
+                    run.parent_run = runs_by_id[run.parent_id]
+                elif run.root_id is not None:
+                    run.parent_run = models.Run(id=run.parent_id)
+            return list(runs_by_id.values())
+
         log.info("sessions.subscribe")
         routing_id = f"{project_id}.{project_version_id or '*'}"
         sub = await subscribe_many(
@@ -812,13 +822,12 @@ class SessionSubscription:
                 yield WorkerChange(worker_sets=worker_sets)
             elif isinstance(msg.p, SessionChangedPayload):
                 log.debug("sessions.update", msg=msg)
-                # nocheckin: get run/session parent from somewhere... temporary hack
-                runs = [packer.unpack_node_flat(r, None) for r in msg.p.runs]
+                runs = _collect_runs(msg.p.runs)
                 yield SessionChange(runs=runs)
             elif isinstance(msg.p, RunsChangedGlobalPayload):
                 log.debug("runs.update", msg=msg)
                 # filter runs to only those in the project
-                runs = [packer.unpack_node_flat(r, None) for r in msg.p.runs if _filter_run(r)]
+                runs = _collect_runs(msg.p.runs)
                 if runs:
                     yield RunsChange(runs=runs)
             else:

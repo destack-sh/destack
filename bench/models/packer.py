@@ -30,7 +30,7 @@ from bench.language.const import (
     TriggerType,
 )
 from bench.language.edit import EditBundle, EditData, EditKind
-from bench.language.module import NodeTree, NODE_CLASS_BY_NODE_TYPE
+from bench.language.module import NODE_CLASS_BY_NODE_TYPE, NodeTree
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import flatten
 
@@ -906,7 +906,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             ck=data.ck,
             project_id=data.project_id,
             project_version_id=data.module_id,
-            parent_run_id=parent.id if isinstance(parent, models.Run) else None,
+            parent_run_id=data.parent_id if data.root_id else None,  # hack hack
             worker_node_id=data.worker_node_id,
             worker_process_id=data.worker_process_id,
             session_id=data.session_id,

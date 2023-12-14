@@ -84,8 +84,8 @@ from bench.msg.messages import (
     ReqWakeRuntimePayload,
     ReqWriteEditsPayload,
     RunsChangedGlobalPayload,
-    StartRunErrorType,
     SessionChangedPayload,
+    StartRunErrorType,
 )
 from bench.search import mirror
 from bench.search.engine import update_os_schema
@@ -1299,7 +1299,7 @@ class RuntimeHost:
                 id=id,
                 ck=id,
                 project_id=self.project_id,
-                module_id=self.module.id,
+                project_version_id=self.module.id,
                 statement_ck=statement.ck,
                 trigger_type=fired_trigger.trigger.type,
                 trigger_id=fired_trigger.trigger.id,

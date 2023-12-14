@@ -30,26 +30,26 @@ from bench.language.builtin import _active_session, _auto_async_to_sync, symbolx
 from bench.language.const import (
     INTERP_NODE_TYPES,
     NTL,
+    NodeTrackingLevel,
     NodeType,
     RunStatus,
     SessionAccessLevel,
     TriggerType,
     TypeFlag,
     TypeTag,
-    NodeTrackingLevel,
 )
 from bench.language.edit import EditData, EditKind, EditType
 from bench.language.module import (
+    _NC,
     Module,
     Node,
+    NodeList,
+    NRel,
+    ScopeNode,
     node,
+    node_children,
     struct_internal,
     struct_runtime,
-    ScopeNode,
-    NodeList,
-    node_children,
-    NRel,
-    _NC,
 )
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.statement import Statement
@@ -866,6 +866,16 @@ class SessionTracer:
         capture.start()
         return capture
 
+    DEFAULT_RUN_UPDATE_PROPERTIES = (
+        "status",
+        "started_at",
+        "terminated_at",
+        "inputs",
+        "outputs",
+        "value",
+        "error",
+    )
+
     async def _flush(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session data."""
         from bench.language import wire
@@ -873,11 +883,9 @@ class SessionTracer:
         if not force and not self._pending_logs and not self._pending_runs:
             return  # skip if nothing to commit
 
-        self.session._log.debug(
-            "trace.flush", runs=len(self._pending_runs), logs=len(self._pending_logs)
-        )
         with self._tracing_lock:
             runs_to_flush = list(self._pending_runs.values())
+            self.session._log.debug("trace.flush", runs=runs_to_flush, logs=len(self._pending_logs))
             self._pending_runs.clear()
 
             if kill_pending_runs:
@@ -899,12 +907,17 @@ class SessionTracer:
                     if n.id not in self._flushed_session_node_ids
                     else EditKind.UPDATE
                 )
+                properties = (
+                    self.DEFAULT_RUN_UPDATE_PROPERTIES
+                    if edit_kind == EditKind.UPDATE and n.node_type == NodeType.RUN
+                    else None
+                )
                 edit = EditData(
                     type=EditType.from_nt(edit_kind, n.node_type),
                     project_version_id=n.module.id,
                     file_id=None,
                     statement_id=None,
-                    properties=None,
+                    properties=properties,
                     revision=n.revision,
                 )
                 run_data: RunData = wire.pack_node_flat(n)

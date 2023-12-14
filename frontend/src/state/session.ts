@@ -739,8 +739,6 @@ export function useRuns(
    */
   filter = wrapValueRefs(filter);
 
-  // nocheckin: remap run filters to query
-
   const combinedVariables: Ref<SearchRunsQueryVariables> = computed(() => {
     // remap run filters into query (probably should remove them outright and only keep query?)
     const clauses: Conditional[] = [];
@@ -919,12 +917,12 @@ export function useRun(rootId: Ref<string | null>, options?: { live?: boolean })
   const descendants = computed(() => initialResult.value?.run?.descendants.map((r) => useFragment(RunContentType, r)));
   const nodes = computed(() => {
     if (run.value == null) return null;
-    return [run.value, ...(descendants.value ?? [])];
+    return descendants.value ?? [run.value];
   });
   const childrenByParentId = computed(() => {
     const nodesByParent: Record<string, Run[]> = {};
     for (const node of nodes.value ?? []) {
-      if (node.parent != null) {
+      if (node.parent?.__typename == "Run") {
         if (nodesByParent[node.parent.id] == null) {
           nodesByParent[node.parent.id] = [];
         }
@@ -1146,6 +1144,18 @@ export const RUN_STATUS_ICON_SOLID: Record<RunStatus, any> = {
   [RunStatus.Cancelled]: XCircleIconSolid,
   [RunStatus.Failed]: XCircleIconSolid,
   [RunStatus.Completed]: CheckCircleIconSolid,
+};
+
+export const RUN_STATUS_NAME: Record<RunStatus, string> = {
+  [RunStatus.Aborted]: "Aborted",
+  [RunStatus.Aborting]: "Aborting",
+  [RunStatus.Cancelled]: "Cancelled",
+  [RunStatus.Completed]: "Completed",
+  [RunStatus.Failed]: "Failed",
+  [RunStatus.Queued]: "Queued",
+  [RunStatus.Running]: "Running",
+  [RunStatus.Scheduled]: "Scheduled",
+  [RunStatus.Suspended]: "Suspended",
 };
 
 export function getRunStatusColor(status: RunStatus, options?: { gray?: string }) {

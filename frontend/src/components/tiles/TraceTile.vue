@@ -62,7 +62,7 @@ type OrderedNode = {
 };
 
 // run trace
-const { run: root, loading, childrenByParentId } = useRun(toRef(props, "rootId"), { live: props.live });
+const { run: root, loading, nodes, childrenByParentId } = useRun(toRef(props, "rootId"), { live: props.live });
 
 const orderedNodes: Ref<OrderedNode[]> = computed(() => {
   // walk the tree and position nodes using children (by parent)
