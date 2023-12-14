@@ -280,8 +280,6 @@ class WorkerNode(Monitored):
                 module_id=msg.p.module_id,
                 worker_node_id=self.worker_node_id,
                 worker_process_id=None,
-                statement_id=statement.id if statement else None,
-                statement_type=statement.type if statement else None,
                 statement_ck=statement.ck if statement else None,
                 statement_path=None,
                 session_id=None,
@@ -475,6 +473,11 @@ class ModuleWorkerProcess(RuntimeHost):
         self._prepared_runs: dict[UUID, RunJob] = {}
         self._last_run_job: Optional[RunJob] = None
         self._pending_created_runs: dict[UUID, wire.RunData] = {}
+        self._session_lock = asyncio.Lock()
+
+    @property
+    def session_lock(self):
+        return self._session_lock
 
     @property
     def active(self) -> bool:
@@ -503,7 +506,6 @@ class ModuleWorkerProcess(RuntimeHost):
         except BaseException as e:
             self.log.error("module.init.failed", exc_info=e)
             raise RuntimeError(f"failed to initialize module worker {self}")
-        self.node.tasks.start(self._flush_dirty_runs_forever(interval=0.1))
         self.ready.set()
 
         # recover any prescheduled runs for this process
@@ -589,6 +591,7 @@ class ModuleWorkerProcess(RuntimeHost):
         if run_data.id in self._prepared_runs:
             raise RunStartError(StartRunErrorType.ALREADY_PREPARED)
 
+        session_id = session_id or UUIDT()
         job = RunJob(run_data=run_data, session_id=session_id, global_value=global_value, tags=tags)
 
         def _enqueue(priority: int):
@@ -637,8 +640,8 @@ class ModuleWorkerProcess(RuntimeHost):
             self.log.info("worker.run", job=job, timeout=timeout)
 
             # instantiate arguments
-            if job.run_data.statement_id:
-                statement = self.module.lookup(job.run_data.statement_id)
+            if job.run_data.statement_ck:
+                statement = self.module.lookup(job.run_data.statement_ck)
                 if statement is None or statement.type not in RUNNABLE_STATEMENT_TYPES:
                     raise RunError(
                         kind=RunErrorKind.Runtime,
@@ -698,7 +701,11 @@ class ModuleWorkerProcess(RuntimeHost):
                 _root_run_id=job.run_data.id,
                 _root_run_value=job.run_data.value,
                 _global_run_value=job.global_value,
+                _track=NodeTrackingLevel.NONE,  # :ManualSessionTracking
             )
+            # mark run as already created if it was scheduled (a bit hacky)
+            if job.run_data.scheduled_at:
+                job.session._tracer._flushed_session_node_ids.add(job.run_data.id)
 
             # run in active session
             self.module._activate_rec(job.session)
@@ -734,7 +741,7 @@ class ModuleWorkerProcess(RuntimeHost):
             self.module._deactivate_rec()
             # remove anonymous statement if needed
             if (
-                not job.run_data.statement_id
+                not job.run_data.statement_ck
                 and statement
                 and statement.parent
                 and statement in self.module._local_tree  # may not exist if reset on error
@@ -772,31 +779,6 @@ class ModuleWorkerProcess(RuntimeHost):
             run.task.cancel()
             logger.debug("worker.kill", run=run)
             return True
-
-    async def _flush_dirty_runs_forever(self, interval: float):
-        while False:  # nocheckin: reenable flush dirty runs
-            if self._pending_created_runs:
-                runs_to_flush = list(self._pending_created_runs.values())
-                logger.debug("worker.flush_dirty_runs", runs=runs_to_flush)
-                self._pending_created_runs = {}
-                try:
-                    # turn runs into create edits
-                    edits = []
-                    for run_data in runs_to_flush:
-                        edit = EditData(
-                            type=EditType.CREATE_RUN,
-                            project_version_id=self.module.id,
-                            file_id=None,
-                            statement_id=None,
-                            revision=None,
-                            properties=None,
-                        )
-                        edit.node = run_data
-                        edits.append(edit)
-                    await self.commit_edits(edits)
-                except Exception as e:
-                    logger.error("worker.flush_dirty_runs.failed", exc_info=e, runs=runs_to_flush)
-            await asyncio.sleep(interval)
 
     async def commit_edits(self, edits: Collection[EditData]) -> None:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)

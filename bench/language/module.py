@@ -121,7 +121,12 @@ class NodeRelationType(enum.IntFlag):
 
 NRel = NodeRelationType
 
-FLATTENED_RELATIONS = ((NodeType.MODULE, NodeType.FILE), (NodeType.FILE, NodeType.STATEMENT))
+FLATTENED_RELATIONS = (
+    (NodeType.MODULE, NodeType.FILE),
+    (NodeType.FILE, NodeType.STATEMENT),
+    (NodeType.STATEMENT, NodeType.FIELD),
+    (NodeType.SESSION, NodeType.RUN),
+)
 
 UNSET = object()
 
@@ -299,6 +304,7 @@ class Property(_FieldExpressionBase):
     is_cru: bool = False
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
     is_ancestor_nearest: bool | None = None  # for ancestor relations
+    is_ancestor_self: bool | None = None  # for ancestor relations
     parent_node_types: tuple[NodeType] | None = None
     ancestor_node_type: NodeType | None = None
     default: typing.Any = UNSET
@@ -462,10 +468,14 @@ def node_parent(*node_type: NodeType):
     return Property(parent_node_types=tuple(node_type), default=None, is_internal=True)
 
 
-def node_ancestor(node_type: NodeType, nearest: bool = True):
+def node_ancestor(node_type: NodeType, nearest: bool = True, include_self: bool = True):
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
-        ancestor_node_type=node_type, default=None, is_internal=True, is_ancestor_nearest=nearest
+        ancestor_node_type=node_type,
+        default=None,
+        is_internal=True,
+        is_ancestor_nearest=nearest,
+        is_ancestor_self=include_self,
     )
 
 
@@ -778,23 +788,29 @@ def _node_ancestor_prop(prop: Property) -> property:
     if prop.is_ancestor_nearest:
 
         def get_nearest(self: NodeT) -> Optional[NodeT]:
-            parent = self  # include self in search
+            parent = self if prop.is_ancestor_self else self.parent
             while parent is not None:
                 if parent.node_type == prop.ancestor_node_type:
                     return parent
-                parent = parent.parent
+                if parent.__is_detached__:
+                    parent = parent.module
+                else:
+                    parent = parent.parent
             return None
 
         get = get_nearest
     else:
 
         def get_farthest(self: NodeT) -> Optional[NodeT]:
-            parent = self.parent
+            parent = self if prop.is_ancestor_self else self.parent
             farthest = None
             while parent is not None:
                 if parent.node_type == prop.ancestor_node_type:
                     farthest = parent
-                parent = parent.parent
+                if parent.__is_detached__:
+                    parent = parent.module
+                else:
+                    parent = parent.parent
             return farthest
 
         get = get_farthest
@@ -1971,6 +1987,7 @@ class Node(abc.ABC):
         if self.ck is None:
             self.ck = uuid4()
             self._new = True
+        if self.created_at is None:
             # init cru timestamps
             now = utcnow_with_tz()
             self.created_at = now

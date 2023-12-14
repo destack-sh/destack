@@ -347,7 +347,11 @@ def unpack_nodes(
     unpacked_nodes = []
     ancestors_by_id = {project_v.id: project_v}
     for node in nodes:
-        detached = NODE_CLASS_BY_NODE_TYPE[node.node_type].__is_detached__
+        # runs aren't technically detached but sessions (their parents) are
+        detached = (
+            NODE_CLASS_BY_NODE_TYPE[node.node_type].__is_detached__
+            or node.node_type == NodeType.RUN
+        )
         # node may be detached or ancestor may already be unpacked
         if not detached and node.parent_id not in ancestors_by_id:
             ancestors = module.get_ancestors(node.parent_id, include_self=True)
@@ -867,9 +871,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             trigger_id=model.trigger_id,
             root_id=model.root_id,
             parent_id=model.parent_id,
-            statement_id=model.statement_id,
             statement_ck=model.statement_ck,
-            statement_type=StatementType(model.statement_type) if model.statement_type else None,
             statement_path=model.statement_path,
             created_at=model.created_at,
             updated_at=model.updated_at,
@@ -888,7 +890,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             access_level=model.access_level,
         )
 
-    def unpack(self, data: wire.RunData, parent: None) -> models.Run:
+    def unpack(self, data: wire.RunData, parent: models.Run | models.Session) -> models.Run:
         # additional context
         user_id = None
         access_token_id = None
@@ -904,6 +906,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             ck=data.ck,
             project_id=data.project_id,
             project_version_id=data.module_id,
+            parent_run_id=parent.id if isinstance(parent, models.Run) else None,
             worker_node_id=data.worker_node_id,
             worker_process_id=data.worker_process_id,
             session_id=data.session_id,
@@ -912,10 +915,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             trigger_user_id=user_id,
             trigger_id=trigger_id,
             root_id=data.root_id,
-            parent_id=data.parent_id,
-            statement_id=data.statement_id,
             statement_ck=data.statement_ck,
-            statement_type=data.statement_type.value if data.statement_type else None,
             statement_path=data.statement_path,
             created_at=data.created_at,
             updated_at=data.updated_at,
@@ -1057,14 +1057,13 @@ def write_host_db_edits(
             # different properties may be updated, so group by properties
             nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
             for e, node in zip(batch, nodes):
-                properties = ";".join(
-                    flatten(
-                        *(
-                            REMAP_PROPERTIES.get((edit_type.node_type, p), [p])
-                            for p in e.properties or ()
-                        )
+                properties = flatten(
+                    *(
+                        REMAP_PROPERTIES.get((edit_type.node_type, p), [p])
+                        for p in e.properties or ()
                     )
                 )
+                properties = ";".join(properties)
                 nodes_by_props[properties].append(node)
             # batch update
             for properties, nodes in nodes_by_props.items():

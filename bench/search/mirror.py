@@ -463,9 +463,7 @@ class Run(os.Document):
     trigger_type: Optional[str] = os.field(os.FT.KEYWORD)
     root_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     parent_id: Optional[UUID] = os.field(os.FT.KEYWORD)
-    statement_id: UUID = os.field(os.FT.KEYWORD)
     statement_ck: UUID = os.field(os.FT.KEYWORD)
-    statement_type: str = os.field(os.FT.KEYWORD)
     created_at: datetime = os.field(os.FT.DATE)
     updated_at: datetime = os.field(os.FT.DATE)
     scheduled_at: Optional[datetime] = os.field(os.FT.DATE)
@@ -492,9 +490,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             trigger_type=node.trigger_type,
             root_id=node.root_id,
             parent_id=node.parent_id,
-            statement_id=node.statement_id,
             statement_ck=node.statement_ck,
-            statement_type=node.statement_type,
             created_at=node.created_at,
             updated_at=node.updated_at,
             scheduled_at=node.scheduled_at,

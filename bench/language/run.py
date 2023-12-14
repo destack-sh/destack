@@ -29,6 +29,8 @@ from bench.language.module import (
     node_parent,
     struct,
     struct_internal,
+    ScopeNode,
+    node_children,
 )
 from bench.language.value import HasValue
 from bench.utils.dt import utcnow_with_tz
@@ -135,8 +137,8 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
         return f"run.{input_hash}"
 
 
-@node(NodeType.RUN, detached=True)
-class Run(HasValue):
+@node(NodeType.RUN)
+class Run(ScopeNode, HasValue):
     """
     A run of a statement (in a session).
     NOTE we don't 'activate' runs in sessions yet
@@ -146,10 +148,8 @@ class Run(HasValue):
 
     parent: Union["Session", "Run"] = node_parent(NodeType.SESSION, NodeType.RUN)
     session: "Session" = node_ancestor(NodeType.SESSION)
-    root: Optional["Run"] = node_ancestor(NodeType.RUN, nearest=False)  # -> farthest
-    # Run.children should exist but children currently require a ScopeNode as parent,
-    #  and Run shouldn't be one because it would be unnecessary overhead (?). Not needed yet anyway.
-    # children: list["Run"] = node_children(NodeType.RUN)
+    root: Optional["Run"] = node_ancestor(NodeType.RUN, nearest=False, include_self=False)
+    runs: list["Run"] = node_children(NodeType.RUN)
     statement: Optional["Statement"] = struct_internal(default=None)
     statement_path: Optional[str] = struct_internal(default=None)
     scheduled_at: Optional[datetime] = struct_internal(default=None)
@@ -182,10 +182,6 @@ class Run(HasValue):
         return symbolx_lib.resolve(".reflect.RunMetadata")
 
     @property
-    def statement_id(self) -> Optional[UUID]:
-        return self.statement.id if self.statement else None
-
-    @property
     def statement_ck(self) -> Optional[UUID]:
         return self.statement.ck if self.statement else None
 
@@ -201,7 +197,7 @@ class Run(HasValue):
 
     def walk_descendants(self):
         yield self
-        for child in self.children:
+        for child in self.runs:
             yield from child.walk_descendants()
 
 

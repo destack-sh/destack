@@ -33,7 +33,6 @@ function _useTerminal() {
     {
       projectId: toRef(bench, "projectId"),
       projectVersionId: toRef(bench, "projectVersionId"),
-      statementIds: ref([]),
       statementCks: ref([]),
       rootOnly: ref(true),
       sessionId: ref(null),

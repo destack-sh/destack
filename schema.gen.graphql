@@ -1346,12 +1346,11 @@ type Run implements HasTriggeredBy & Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
   projectVersion: ProjectVersion!
+  parent: RunSession!
   session: Session
   root: Run
-  parent: Run
   children: [Run!]!
   descendants: [Run!]!
-  statement: Statement
   statementCk: UUID
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1417,6 +1416,8 @@ input RunInput {
   globalValue: JSON = null
   accessLevel: Int!
 }
+
+union RunSession = Run | Session
 
 type RunState {
   projectVersionId: GlobalID!

@@ -13,8 +13,10 @@ import {
   type SearchLogsQueryVariables,
   type LogsChangedSubscriptionVariables,
   StartRunErrorType,
+  ConditionalOp,
 } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
+import { combineConditionals } from "@/state/database";
 import { newRunId, newSessionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useSessionOps } from "@/state/operations/session";
@@ -84,11 +86,12 @@ export const RunHeaderType = graphql(/* GraphQL */ `
       id
     }
     parent {
-      id
-    }
-    statement {
-      id
-      name
+      ... on Run {
+        id
+      }
+      ... on Session {
+        id
+      }
     }
     statementCk
   }
@@ -115,7 +118,12 @@ export const RunContentType = graphql(/* GraphQL */ `
       id
     }
     parent {
-      id
+      ... on Run {
+        id
+      }
+      ... on Session {
+        id
+      }
     }
     inputs
     outputs
@@ -132,9 +140,6 @@ export const RunContentType = graphql(/* GraphQL */ `
       }
     }
     value
-    statement {
-      id
-    }
     statementCk
     # trigger
     triggerType
@@ -711,7 +716,6 @@ export function useRuns(
   filter: {
     projectId: Ref<string | null>;
     projectVersionId: Ref<string | null | undefined>;
-    statementIds: Ref<string[] | null | undefined>;
     statementCks: Ref<string[] | null | undefined>;
     sessionId: Ref<string | null>;
     runId: Ref<string | null>;
@@ -737,14 +741,38 @@ export function useRuns(
 
   // nocheckin: remap run filters to query
 
-  const combinedVariables: Ref<SearchRunsQueryVariables> = computed(() => ({
-    projectId: filter.projectId.value,
-    query: filter.query.value,
-    sort: filter.sort.value,
-    after: filter.after.value,
-    limit: options?.limit,
-    count: options?.count,
-  }));
+  const combinedVariables: Ref<SearchRunsQueryVariables> = computed(() => {
+    // remap run filters into query (probably should remove them outright and only keep query?)
+    const clauses: Conditional[] = [];
+    if (filter.query.value != null) {
+      clauses.push(filter.query.value);
+    }
+    if (filter.projectId.value != null) {
+      clauses.push({ op: ConditionalOp.Equals, field: "project_id", value: filter.projectId.value });
+    }
+    if (filter.statementCks.value?.length) {
+      clauses.push({ op: ConditionalOp.In, field: "statement_ck", value: filter.statementCks.value });
+    }
+    if (filter.sessionId.value != null) {
+      clauses.push({ op: ConditionalOp.Equals, field: "session_id", value: filter.sessionId.value });
+    }
+    if (filter.runId.value != null) {
+      clauses.push({ op: ConditionalOp.Equals, field: "id", value: filter.runId.value });
+    }
+    if (filter.rootOnly.value) {
+      clauses.push({ op: ConditionalOp.NotExists, field: "root_id" });
+    }
+    const query = combineConditionals(ConditionalOp.And, clauses);
+
+    return {
+      projectId: filter.projectId.value,
+      query: query,
+      sort: filter.sort.value,
+      after: filter.after.value,
+      limit: options?.limit,
+      count: options?.count,
+    };
+  });
   const RUNS_QUERY = graphql(/* GraphQL */ `
     query searchRuns(
       $projectId: GlobalID!
@@ -782,8 +810,6 @@ export function useRuns(
     const unsub = sessions.onRunChange((run) => {
       if (
         (filter.projectVersionId.value != null && run.projectVersion?.id !== filter.projectVersionId.value) ||
-        ((filter.statementIds.value?.length ?? 0) > 0 &&
-          !filter.statementIds.value?.includes(run.statement?.id ?? "")) ||
         ((filter.statementCks.value?.length ?? 0) && !filter.statementCks.value?.includes(run.statementCk ?? "")) ||
         (filter.sessionId.value != null && run.session?.id !== filter.sessionId.value) ||
         (options?.queryAsFilter != null && !options.queryAsFilter(run))
