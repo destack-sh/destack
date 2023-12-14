@@ -28,7 +28,6 @@ from bench.language.wire import (
     RecordData,
     RunData,
     SecretData,
-    SessionData,
     WorkerSetData,
 )
 from bench.utils.func import try_to_uuid

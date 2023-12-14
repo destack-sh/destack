@@ -9,7 +9,6 @@ from collections import defaultdict, deque
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
-from importlib import import_module
 from itertools import chain
 from logging import Logger
 from typing import (
@@ -1978,7 +1977,7 @@ class Node(abc.ABC):
     _new: bool = struct_runtime(default=False)
 
     def __post_init__(self):
-        if self._session is None:
+        if self._session is None and self._session is not UNSET:
             from bench.language.builtin import _active_session
 
             self._session = _active_session.get()
@@ -1994,7 +1993,7 @@ class Node(abc.ABC):
             self.updated_at = now
             self.last_edited_at = now
             self.last_changed_at = now
-        if self._session and self._new and not self.parent:
+        if self._session and self._session is not UNSET and self._new and not self.parent:
             self._session._dangling_nodes_by_ck[self.ck] = self
         if self.id is None and self.attached:
             self._assign_id(self.module.id)
@@ -2247,7 +2246,7 @@ class Node(abc.ABC):
                 _ChangeEffect._collect(None, self, changed_nodes, _NC.Attach)._effect(_NC.Attach)
 
         # validate if in session after all init are done
-        if self._status >= NS.INTERP and self._session is not None:
+        if self._status >= NS.INTERP and self._session and self._session is not UNSET:
             self._validate_self(self.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
     _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner, to_status=NS.SOURCE)

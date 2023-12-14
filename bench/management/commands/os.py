@@ -1,9 +1,12 @@
+import asyncio
+
 import structlog
 from asgiref.sync import async_to_sync
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from bench import models
+from bench.language.const import NodeType, StatementType
 from bench.models import Project
 from bench.search.client import os_client_sync
 from bench.search.engine import update_os_schema
@@ -34,6 +37,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, action: str, slug: str | None, *args, **options):
+        loop = asyncio.get_event_loop()
         if slug == "all":
             projects = models.Project.objects.all()
         elif slug:
@@ -55,8 +59,15 @@ class Command(BaseCommand):
                 # ignore fields not in mapping during reindex
                 #  (fields may have existed in between snapshots)
                 module, _ = async_to_sync(interp_module)(project.head_id)
-                async_to_sync(update_os_schema)(module, dynamic="false")
-                async_to_sync(sync_databases_to_os)(module)
+                module._os_name = project.os_name
+                module._pg_name = project.pg_name
+                loop.run_until_complete(update_os_schema(module, dynamic="false"))
+                databases = [
+                    n
+                    for n in module._nodes
+                    if n.node_type == NodeType.STATEMENT and n.type == StatementType.DATABASE
+                ]
+                loop.run_until_complete(sync_databases_to_os(module, databases))
                 enable_os_strict_mapping(project.os_name)
         else:
             raise ValueError("Unknown action")

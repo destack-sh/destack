@@ -324,18 +324,12 @@ async def sync_databases_to_os(module: Module, databases: list[HasDatabase]) -> 
 
     log.debug("os.write_edits.flush", records=len(all_records))
     # wipe all databases by query
-    await os_client.delete_by_query(
-        module.os_name,
-        body={
-            "query": {
-                "term": {
-                    TYPE_DISCRIMINATOR_KEY: DocumentType.RECORD,
-                    "statement_key": [d.key for d in databases],
-                }
-            }
-        },
-    )
-    await write_records_to_os(module.os_name, all_records)
+    filter = [
+        {"term": {TYPE_DISCRIMINATOR_KEY: DocumentType.RECORD}},
+        {"terms": {"statement_key": [d.key for d in databases]}},
+    ]
+    await os_client.delete_by_query(module.os_name, body={"query": {"bool": {"filter": filter}}})
+    await write_records_to_os(module, all_records)
 
 
 async def write_records_to_os(module: Module, records: list[wire.RecordData]) -> None:
