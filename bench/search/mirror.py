@@ -500,7 +500,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             status=node.status,
             inputs=node.inputs,
             outputs=node.outputs,
-            error=node.error,
+            error=None,  # not stored for now
             value=node.value,
         )
 
@@ -549,9 +549,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             trigger_type=data.trigger_type,
             root_id=data.root_id,
             parent_id=data.parent_id,
-            statement_id=data.statement_id,
             statement_ck=data.statement_ck,
-            statement_type=data.statement_type,
             created_at=data.created_at,
             updated_at=data.updated_at,
             scheduled_at=data.scheduled_at,

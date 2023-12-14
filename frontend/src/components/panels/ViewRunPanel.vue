@@ -13,7 +13,7 @@ import {
 } from "@/state/module";
 import { computed, ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import { getRunStatusColor, getRunStatusIconSolid, useCurrentSessions, useRun } from "@/state/session";
+import { RUN_STATUS_NAME, getRunStatusColor, getRunStatusIconSolid, useCurrentSessions, useRun } from "@/state/session";
 import { useTiling } from "@/state/screen";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
@@ -153,7 +153,7 @@ defineExpose({
             <button
               v-if="statement != null"
               class="flex flex-row items-center whitespace-nowrap underline-offset-2 hover:underline"
-              @click="nav.focusStatement(run.statement as NodeBase)"
+              @click="nav.focusStatement(statement as NodeBase)"
             >
               <component
                 :is="getStatementIconSolid((statement as InterpStatement).type)"
@@ -175,7 +175,7 @@ defineExpose({
                 class="h-4 w-4"
                 :class="getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : ''"
               />
-              <span>{{ run.status }}</span>
+              <span>{{ RUN_STATUS_NAME[run.status] }}</span>
               <!-- Duration -->
               <span v-if="run.startedAt != null">
                 {{ run.terminatedAt != null ? "in" : "for" }}

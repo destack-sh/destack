@@ -1203,7 +1203,7 @@ class RunPacker(NodePacker[RunData, Run]):
             trigger_id=trigger_id,
             trigger_type=run.trigger_type if run.trigger_type else None,
             root_id=run.root.id if run.root else None,
-            parent_id=run.parent.id if run.parent else run.session.id,
+            parent_id=run.parent.id,
             scheduled_at=run.scheduled_at,
             started_at=run.started_at,
             terminated_at=run.terminated_at,
