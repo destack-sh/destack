@@ -448,19 +448,29 @@ class ConditionalOp(enum.StrEnum):
 
 
 _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
+    # logical
     ConditionalOp.NOT: "~",
     ConditionalOp.AND: "&",
     ConditionalOp.OR: "|",
+    # comparison
     ConditionalOp.EQUALS: "==",
     ConditionalOp.NOT_EQUALS: "!=",
     ConditionalOp.GREATER_THAN: ">",
     ConditionalOp.GREATER_THAN_OR_EQUALS: ">=",
     ConditionalOp.LESS_THAN: "<",
     ConditionalOp.LESS_THAN_OR_EQUALS: "<=",
+    # string comparison
     ConditionalOp.MATCHES: "~=",
     ConditionalOp.STARTS_WITH: "^=",
+    # containment
+    ConditionalOp.CONTAINS: "contains",
+    ConditionalOp.NOT_CONTAINS: "!contains",
+    ConditionalOp.IN: "in",
+    ConditionalOp.NOT_IN: "!in",
+    # existence
     ConditionalOp.EXISTS: "?",
     ConditionalOp.NOT_EXISTS: "!?",
+    # vector
     ConditionalOp.NEAR: "~=",
 }
 
