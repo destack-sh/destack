@@ -1,6 +1,7 @@
 import hashlib
 import json
 from typing import TYPE_CHECKING, Annotated, Optional
+from uuid import uuid4
 
 import strawberry
 import strawberry_django
@@ -67,8 +68,14 @@ class SecretMutation:
         check_module_access(info, project, ModuleAccessLevel.Edit)
         value_str = json.dumps(input.value, indent=0)  # :SecretJson
         sha512 = hashlib.sha512(value_str.encode("utf-8")).hexdigest()
+        secret_id = uuid4()
         secret = models.Secret.objects.create(
-            project=project, name=input.name, value=value_str, sha512=sha512
+            id=secret_id,
+            ck=secret_id,
+            project=project,
+            name=input.name,
+            value=value_str,
+            sha512=sha512,
         )
         return secret
 

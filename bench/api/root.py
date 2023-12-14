@@ -14,12 +14,12 @@ from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
 from bench.api.auth import HasModuleAccess, IsOwner
+from bench.api.blob import Blob, BlobMutation
 from bench.api.database import RecordMutation, RecordQuery
 from bench.api.file import File, FileMutation
 from bench.api.module import read_module_node_by_id
 from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
-from bench.api.object import Blob, ObjectMutation
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
     Project,
@@ -177,7 +177,7 @@ class Mutation(
     RecordMutation,
     FileMutation,
     SessionMutation,
-    ObjectMutation,
+    BlobMutation,
     SecretMutation,
 ):
     pass
