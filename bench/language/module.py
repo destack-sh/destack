@@ -49,6 +49,7 @@ from bench.language.validation import (
     ValidationHandler,
     on_invalid_raise,
 )
+from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
 from bench.utils.func import did_you_mean_str, nextn
@@ -306,16 +307,16 @@ class Property(_FieldExpressionBase):
     is_ancestor_self: bool | None = None  # for ancestor relations
     parent_node_types: tuple[NodeType] | None = None
     ancestor_node_type: NodeType | None = None
+    store: bool = UNSET  # auto-detect (false for runtime)
+    store_as: ColumnType = UNSET  # auto-detect
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
     list_type: type["NodeListBase"] | None = None
-    custom_copy: Callable[[typing.Any], typing.Any] | None = None
-    custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
-    # for manual handling in dynamic nodes
-    ignore_conflicts_with: tuple[type["Node"], ...] | None = None
-    # for relations
     child_node_type: NodeType | None = None
     children_flags: NodeRelationType = NodeRelationType.Default
+    custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
+    custom_copy: Callable[[typing.Any], typing.Any] | None = None
+    ignore_conflicts_with: tuple[type["Node"], ...] | None = None
 
     @functools.cached_property
     def _as_field(self) -> "Field":

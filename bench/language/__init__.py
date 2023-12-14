@@ -23,7 +23,7 @@ from .expression import A, C, E, Expression, S
 from .field import Field, HasFields, HasType, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
-from .module import Module, Node, ScopeNode, Struct
+from .module import Module, Node, Property, ScopeNode, Struct
 from .reference import NodeVisitor
 from .run import HasRun, Run, RunError
 from .secret import Secret
@@ -61,6 +61,7 @@ __all__ = [
     "Node",
     "NodeVisitor",
     "PermissionError",
+    "Property",
     "QueryEngine",
     "Record",
     "render",
