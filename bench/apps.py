@@ -24,7 +24,7 @@ class BenchConfig(AppConfig):
         # (and if we're not running a command that doesn't run the server)
         if DEBUG and "runserver" in sys.argv:
             from bench.api.root import schema
-            from bench.management.commands.genschema import write_schema
+            from bench.management.commands.gql import write_schema
 
             write_schema("schema.gen.graphql", schema)
 

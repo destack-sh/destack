@@ -34,7 +34,6 @@ from bench.language.module import NODE_CLASS_BY_NODE_TYPE, NodeTree
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import flatten
 
-NodeType = NodeType
 ParentsT = set[NodeType]
 NodeDataT = TypeVar("NodeDataT", bound=wire.NodeData)
 NodeT = TypeVar("NodeT", bound=Model)
