@@ -1143,9 +1143,7 @@ class RunData(NodeData, HasCrud):
     worker_process_id: Optional[str]
     project_id: UUID
     module_id: UUID
-    statement_id: Optional[UUID]
     statement_ck: Optional[UUID]
-    statement_type: StatementType
     statement_path: Optional[str]
     session_id: Optional[UUID]
     trigger_type: TriggerType
@@ -1199,9 +1197,7 @@ class RunPacker(NodePacker[RunData, Run]):
             module_id=run.module.id,
             worker_node_id=run.session.worker_node_id,
             worker_process_id=run.session.worker_process_id,
-            statement_id=run.statement.id if track_statement else None,
             statement_ck=run.statement.ck if track_statement else None,
-            statement_type=run.statement.type if track_statement else None,
             statement_path=run.statement_path,
             session_id=run.session.id,
             trigger_id=trigger_id,

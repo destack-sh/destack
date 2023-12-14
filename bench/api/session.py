@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Optional
+from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Optional, Union
 from uuid import UUID
 
 import django.db.models
@@ -20,7 +20,6 @@ import bench.language.const
 from bench import language as lang
 from bench import models
 from bench.api.auth import check_module_access
-from bench.api.statement import Statement
 from bench.api.utils import (
     Conditional,
     ConditionalOp,
@@ -175,12 +174,11 @@ class Session(HasTriggeredBy, relay.Node):
 @strawberry_django.type(models.Run)
 class Run(HasTriggeredBy, relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
+    parent: Union["Run", "Session"]
     session: Optional[Session]
     root: Optional["Run"]
-    parent: Optional["Run"]
     children: list["Run"]
     descendants: list["Run"]
-    statement: Optional["Statement"]
     statement_ck: auto
     created_at: auto
     updated_at: auto
@@ -366,20 +364,20 @@ class SessionQuery:
         project = models.Project.objects.get(id=project_id)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
-        statements_ids = models.Statement.objects.filter(
+        statement_cks = models.Statement.objects.filter(
             deleted_at=None,
             project_version_id=project_version_id,
             type__in=RUNNABLE_STATEMENT_TYPES,
-        ).values_list("id", flat=True)
+        ).values_list("ck", flat=True)
 
         # subquery to get the latest run per statement_id
         latest_runs = models.Run.objects.filter(
-            statement_id=OuterRef("pk"), project_id=project_id
+            statement_ck=OuterRef("ck"), project_id=project_id
         ).order_by("-updated_at")
 
         # get ids of the latest runs for each statement
         latest_run_ids = (
-            models.Statement.objects.filter(id__in=statements_ids)
+            models.Statement.objects.filter(id__in=statement_cks)
             .annotate(
                 latest_run_id=Subquery(latest_runs.values("id")[:1]),
             )
@@ -480,9 +478,9 @@ class SessionQuery:
             # pres-set related fields where we know we only need the id
             run.project_version = models.ProjectVersion(id=run.project_version_id)
             run.session = models.Session(id=run.session_id) if run.session_id else None
-            run.statement = models.Statement(id=run.statement_id)
+            run.statement = None
             run.root = models.Run(id=run.root_id) if run.root_id else None
-            run.parent = models.Run(id=run.parent_id) if run.parent_id else None
+            run.parent_run = models.Run(id=run.parent_id) if run.parent_id else None
 
         page_info = relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
@@ -814,9 +812,9 @@ class SessionSubscription:
                 yield WorkerChange(worker_sets=worker_sets)
             elif isinstance(msg.p, SessionChangedPayload):
                 log.debug("sessions.update", msg=msg)
-                yield SessionChange(
-                    runs=[packer.unpack_node_flat(r, None) for r in msg.p.runs],
-                )
+                # nocheckin: get run/session parent from somewhere... temporary hack
+                runs = [packer.unpack_node_flat(r, None) for r in msg.p.runs]
+                yield SessionChange(runs=runs)
             elif isinstance(msg.p, RunsChangedGlobalPayload):
                 log.debug("runs.update", msg=msg)
                 # filter runs to only those in the project

@@ -1766,12 +1766,11 @@ export type Run = HasTriggeredBy &
     id: Scalars["GlobalID"]["output"];
     inputs?: Maybe<Scalars["JSON"]["output"]>;
     outputs?: Maybe<Scalars["JSON"]["output"]>;
-    parent?: Maybe<Run>;
+    parent: RunSession;
     projectVersion: ProjectVersion;
     root?: Maybe<Run>;
     session?: Maybe<Session>;
     startedAt?: Maybe<Scalars["DateTime"]["output"]>;
-    statement?: Maybe<Statement>;
     statementCk?: Maybe<Scalars["UUID"]["output"]>;
     status: RunStatus;
     terminatedAt?: Maybe<Scalars["DateTime"]["output"]>;
@@ -1836,6 +1835,8 @@ export type RunInput = {
   tags?: InputMaybe<Array<Scalars["String"]["input"]>>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]["input"]>;
 };
+
+export type RunSession = Run | Session;
 
 export type RunState = {
   __typename?: "RunState";
@@ -5183,8 +5184,7 @@ export type RunHeaderFragment = {
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
-  parent?: { __typename?: "Run"; id: any } | null;
-  statement?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+  parent: { __typename?: "Run"; id: any } | { __typename?: "Session"; id: any };
 } & { " $fragmentName"?: "RunHeaderFragment" };
 
 export type RunContentFragment = {
@@ -5204,7 +5204,7 @@ export type RunContentFragment = {
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
-  parent?: { __typename?: "Run"; id: any } | null;
+  parent: { __typename?: "Run"; id: any } | { __typename?: "Session"; id: any };
   errorNice?: {
     __typename?: "RunError";
     kind: string;
@@ -5219,7 +5219,6 @@ export type RunContentFragment = {
       locals?: any | null;
     }> | null;
   } | null;
-  statement?: { __typename?: "Statement"; id: any } | null;
   trigger?: { __typename?: "Trigger"; id: any; type: TriggerType } | null;
   triggerUser?: { __typename?: "User"; id: any; username: string; name: string } | null;
   triggerAccessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
@@ -6820,17 +6819,23 @@ export const RunHeaderFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
               selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Session" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
               ],
             },
           },
@@ -6890,7 +6895,24 @@ export const RunContentFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Session" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
@@ -6922,14 +6944,6 @@ export const RunContentFragmentDoc = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
           { kind: "Field", name: { kind: "Name", value: "statementCk" } },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
@@ -14116,7 +14130,24 @@ export const StartRunDocument = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Session" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
@@ -14148,14 +14179,6 @@ export const StartRunDocument = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
           { kind: "Field", name: { kind: "Name", value: "statementCk" } },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
@@ -19903,7 +19926,24 @@ export const CurrentRunsDocument = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Session" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
@@ -19935,14 +19975,6 @@ export const CurrentRunsDocument = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
           { kind: "Field", name: { kind: "Name", value: "statementCk" } },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
@@ -20156,7 +20188,24 @@ export const SessionsChangedDocument = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Session" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
@@ -20188,14 +20237,6 @@ export const SessionsChangedDocument = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
           { kind: "Field", name: { kind: "Name", value: "statementCk" } },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
@@ -20508,7 +20549,24 @@ export const SearchRunsDocument = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Session" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
@@ -20540,14 +20598,6 @@ export const SearchRunsDocument = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
           { kind: "Field", name: { kind: "Name", value: "statementCk" } },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
@@ -20681,7 +20731,24 @@ export const RunByIdDocument = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Session" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
@@ -20713,14 +20780,6 @@ export const RunByIdDocument = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
           { kind: "Field", name: { kind: "Name", value: "statementCk" } },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {

@@ -51,6 +51,14 @@ class NodeType(enum.StrEnum):
 
 # local = only stored in user Bench, not host
 LOCAL_NODE_TYPES = (NodeType.RECORD,)
+OUT_OF_LINE_NODE_TYPES = (
+    NodeType.SESSION,
+    NodeType.RUN,
+    NodeType.RECORD,
+    NodeType.BLOB,
+    NodeType.SECRET,
+)
+INLINE_NODE_TYPES = (nt for nt in NodeType if nt not in OUT_OF_LINE_NODE_TYPES)
 HOST_NODE_TYPES = (nt for nt in NodeType if nt not in LOCAL_NODE_TYPES)
 
 

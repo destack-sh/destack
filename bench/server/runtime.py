@@ -1210,7 +1210,7 @@ class RuntimeHost:
                     module_id=run.module_id,
                     session_id=run.session_id,
                     run_id=run.id,
-                    statement=run.statement_id,
+                    statement=run.statement_ck,
                     inputs=run.inputs,
                     block=None,
                     keyed=True,
@@ -1289,45 +1289,31 @@ class RuntimeHost:
         )
 
         # create runs for fired triggers
-        runs: list[wire.RunData] = []
+        runs: list[models.Run] = []
         now = utcnow_with_tz()
         for trigger_id in triggers_to_fire:
             fired_trigger = triggers[trigger_id]
             statement = fired_trigger.trigger.parent
             id = UUIDT()
-            run = wire.RunData(
+            run = models.Run(
                 id=id,
                 ck=id,
                 project_id=self.project_id,
                 module_id=self.module.id,
-                worker_node_id=None,
-                worker_process_id=None,
-                statement_id=statement.id,
-                statement_type=statement.type,
                 statement_ck=statement.ck,
-                statement_path=None,
-                session_id=None,
                 trigger_type=fired_trigger.trigger.type,
                 trigger_id=fired_trigger.trigger.id,
-                root_id=None,
-                parent_id=None,
                 created_at=now,
                 updated_at=now,
-                deleted_at=None,
                 last_edited_at=now,
                 last_changed_at=now,
                 revision=0,
                 scheduled_at=fired_trigger.next_occurrence,
-                started_at=None,
-                terminated_at=None,
                 status=RunStatus.SCHEDULED,
                 access_level=SessionAccessLevel.Full,
                 inputs={},
-                outputs=None,
-                error=None,
-                value=None,
             )
             runs.append(run)
-        models.Run.objects.bulk_create([packer.unpack_node_flat(run) for run in runs])
+        models.Run.objects.bulk_create(runs)
 
-        return runs
+        return [packer.pack_node_flat(r) for r in runs]

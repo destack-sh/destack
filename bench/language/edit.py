@@ -20,7 +20,13 @@ from uuid import UUID
 
 from more_itertools import first
 
-from bench.language.const import INTERP_NODE_TYPES, NodeType, TypeFlag, TypeTag
+from bench.language.const import (
+    INTERP_NODE_TYPES,
+    NodeType,
+    TypeFlag,
+    TypeTag,
+    OUT_OF_LINE_NODE_TYPES,
+)
 from bench.language.module import UNSET, Module, Node, NodeTree, NRel
 from bench.language.text import Text, render_text_simple
 from bench.utils.dt import utcnow_with_tz
@@ -499,6 +505,8 @@ class EditBundle:
 
         for type, batch in self.batched():
             yield type, batch
+            if type.node_type in OUT_OF_LINE_NODE_TYPES:
+                continue  # ignore since it's not in the inline tree
             for edit in batch:
                 try:
                     tree.apply_edit(edit)

@@ -18,7 +18,6 @@ const props = defineProps<{
   projectId: string;
   projectVersionId?: string;
   rootOnly?: boolean;
-  statementIds?: string[];
   statementCks?: string[];
   query?: Conditional;
   sort?: [Sort];
@@ -43,7 +42,6 @@ const { runs, loading, totalCount, pageInfo } = useRuns(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
-    statementIds: toRef(props, "statementIds"),
     statementCks: toRef(props, "statementCks"),
     sessionId: ref(null),
     runId: ref(null),

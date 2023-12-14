@@ -36,9 +36,21 @@ from bench.language.const import (
     TriggerType,
     TypeFlag,
     TypeTag,
+    NodeTrackingLevel,
 )
 from bench.language.edit import EditData, EditKind, EditType
-from bench.language.module import Module, Node, node, struct_internal, struct_runtime
+from bench.language.module import (
+    Module,
+    Node,
+    node,
+    struct_internal,
+    struct_runtime,
+    ScopeNode,
+    NodeList,
+    node_children,
+    NRel,
+    _NC,
+)
 from bench.language.run import LogEntry, Run, RunError
 from bench.language.statement import Statement
 from bench.search.client import get_os_errors, os_client
@@ -50,7 +62,7 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import Blob, HasDatabase, HasFields, Secret, Trigger
     from bench.language.cache import Cache
-    from bench.language.wire import LogEntryData
+    from bench.language.wire import LogEntryData, RunData
 
 logger = structlog.get_logger(__name__)
 
@@ -58,10 +70,14 @@ logger = structlog.get_logger(__name__)
 class RuntimeHost(abc.ABC):
     """Central Bench runtime server for synchronizing modules and sessions."""
 
+    @property
+    def session_lock(self) -> asyncio.Lock:
+        raise NotImplementedError
+
     async def commit_edits(self, edits: Collection["EditData"]) -> None:
         raise NotImplementedError
 
-    async def notify_runs_changed(self, runs: Collection["Run"]) -> None:
+    async def notify_runs_changed(self, runs: Collection["RunData"]) -> None:
         raise NotImplementedError
 
     async def notify_logs_changed(self, logs: Collection["LogEntryData"]) -> None:
@@ -90,7 +106,7 @@ class RuntimeHost(abc.ABC):
 
 
 @node(NodeType.SESSION, detached=True)
-class Session(Node):
+class Session(ScopeNode):
     """
     A managed context for running a Bench module (in a worker).
     """
@@ -104,6 +120,7 @@ class Session(Node):
     closed_at: Optional[datetime] = struct_internal(default=None, reflect=True)
     inference_timeout: int = struct_internal(default=300)
     inference_retries: int = struct_internal(default=5)
+    runs: NodeList[Run] = node_children(NodeType.RUN, flags=NRel.Flat)
     _runtime: RuntimeHost | None = struct_runtime(default=None)
     _root_run_id: UUID | None = struct_runtime(default=None)
     _root_run_value: dict | None = struct_runtime(default=None)
@@ -115,6 +132,7 @@ class Session(Node):
         from bench.language.blob import Blobs
         from bench.language.cache import Cache
 
+        self._session = self  # special case for session
         self._cache = Cache(self.module)
         self._blobs = Blobs(self.module)
         self._executor = ThreadPoolExecutor(max_workers=1)
@@ -144,6 +162,10 @@ class Session(Node):
 
     def __repr__(self):
         return f"<Session {self}>"
+
+    @property
+    def path(self):
+        return f"<session:{self.id}>"
 
     def sync_to_async(self, fn: Callable) -> Callable[..., Awaitable]:
         return asgiref.sync.sync_to_async(fn, thread_sensitive=False, executor=self._executor)  # type: ignore
@@ -786,36 +808,29 @@ class SessionTracer:
             parent = active_run
         else:
             root = None
-            parent = None
-        if parent:
+            parent = self.session
+        if root:
             trigger_type = trigger_type or TriggerType.INVOKE
         if not trigger_type and root is None:
             # inherit trigger type from session if we're not nested
             # (this will be wrong once we process other triggers within a session)
             trigger_type = self.session.trigger_type
             trigger = self.session.trigger_id
+        run_id = self._root_run_id if root is None else UUIDT()
         run = Run(
-            id=self._root_run_id if root is None else UUIDT(),
-            module=self.session.module,
+            id=run_id,
+            ck=run_id,  # "detached"
             statement=statement,
-            statement_path=None,
-            session=self.session,
             trigger_type=trigger_type,
             trigger=trigger,
-            root=root,
-            parent=parent,
-            scheduled_at=None,
             started_at=utcnow_with_tz(),
-            terminated_at=None,
             inputs=inputs,
-            outputs=None,
-            error=None,
             status=RunStatus.QUEUED if queue_position is not None else RunStatus.RUNNING,
             value=(self._root_run_value or {}) if root is None else {},
+            _track=NodeTrackingLevel.NONE,
         )
-        run._attached_self()
-        if parent is not None:
-            parent.children.append(run)
+        # we track session nodes manually :ManualSessionTracking
+        parent.runs.append(run, _trigger=_NC.UpdateLists, _create=False)
         custom_value = _custom_value.get()
         if root is None and self._root_run_value:
             run.value.update(self._root_run_value)
@@ -873,27 +888,34 @@ class SessionTracer:
             logs_to_flush = self._pending_logs
             self._pending_logs = []
 
-        # turn session and runs into create/update edits (always update session)
-        session_edits: list[EditData] = []
-        for n in chain(runs_to_flush, (self.session,)):
-            edit_kind = (
-                EditKind.CREATE if n.id not in self._flushed_session_node_ids else EditKind.UPDATE
-            )
-            edit = EditData(
-                type=EditType.from_nt(edit_kind, n.node_type),
-                project_version_id=n.module.id,
-                file_id=None,
-                statement_id=None,
-                properties=None,
-                revision=n.revision,
-            )
-            edit.node = wire.pack_node_flat(n)
-            session_edits.append(edit)
+        async with self.session._runtime.session_lock:
+            # :ManualSessionTracking
+            # turn session and runs into create/update edits (always update session)
+            session_edits: list[EditData] = []
+            runs_data: list[RunData] = []
+            for n in chain((self.session,), runs_to_flush):
+                edit_kind = (
+                    EditKind.CREATE
+                    if n.id not in self._flushed_session_node_ids
+                    else EditKind.UPDATE
+                )
+                edit = EditData(
+                    type=EditType.from_nt(edit_kind, n.node_type),
+                    project_version_id=n.module.id,
+                    file_id=None,
+                    statement_id=None,
+                    properties=None,
+                    revision=n.revision,
+                )
+                run_data: RunData = wire.pack_node_flat(n)
+                edit.node = run_data
+                session_edits.append(edit)
+                if edit.node_type == NodeType.RUN:
+                    runs_data.append(run_data)
+                self._flushed_session_node_ids.add(n.id)
 
-        await self.session._runtime.commit_edits(session_edits)
-        await self.session._runtime.notify_runs_changed(
-            tuple(e.node for e in session_edits if e.node_type == NodeType.RUN)
-        )
+            await self.session._runtime.commit_edits(session_edits)
+            await self.session._runtime.notify_runs_changed(runs_data)
         await self.session._write_logs(logs_to_flush)
 
     async def open(self, flush_interval: float = 0.1):

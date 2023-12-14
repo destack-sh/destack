@@ -54,13 +54,13 @@ class RunManager(models.Manager):
         """Gets descendants of runs with given ids (including the runs themselves)"""
         query = """
           WITH RECURSIVE descendants(id, parent_id) AS (
-              SELECT id, parent_id
+              SELECT id, parent_run_id
               FROM bench_run
               WHERE id = ANY(%s)
               UNION ALL
-              SELECT bench_run.id, bench_run.parent_id
+              SELECT bench_run.id, bench_run.parent_run_id
               FROM bench_run
-              INNER JOIN descendants ON descendants.id = bench_run.parent_id
+              INNER JOIN descendants ON descendants.id = bench_run.parent_run_id
          )
          SELECT DISTINCT id
          FROM descendants
@@ -81,21 +81,17 @@ class Run(CrudNode, HasTriggeredBy):
     root = models.ForeignKey(
         "Run", on_delete=models.CASCADE, null=True, blank=True, related_name="root_descendants"
     )
-    parent = models.ForeignKey(
+    parent_run = models.ForeignKey(
         "Run", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
     root_descendants: models.QuerySet[Run]  # noqa via Run.root
     children: models.QuerySet[Run]  # noqa via Run.parent
 
     status = models.CharField(max_length=32, choices=get_choices(RunStatus))
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     scheduled_at = models.DateTimeField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
     terminated_at = models.DateTimeField(null=True, blank=True)
 
-    statement = models.ForeignKey("Statement", null=True, blank=True, on_delete=models.SET_NULL)
-    statement_type = models.CharField(max_length=64, null=True, blank=True)
     statement_path = models.CharField(max_length=256, null=True, blank=True)
     statement_ck = models.UUIDField(null=True, blank=True)
     inputs = models.JSONField(null=True, blank=True)
@@ -106,7 +102,13 @@ class Run(CrudNode, HasTriggeredBy):
         max_length=32, null=True, blank=True, choices=get_choices(SessionAccessLevel)
     )
 
-    # nocheckin: rename Run.parent -> parent_run (to make parent parent_run or session if root)
+    @property
+    def parent_id(self):
+        return self.parent_run_id or self.session_id
+
+    @property
+    def parent(self):
+        return self.parent_run or self.session
 
     @model_property(only=["started_at", "terminated_at"])
     def duration(self) -> Optional[float]:
@@ -127,10 +129,7 @@ class Run(CrudNode, HasTriggeredBy):
             self.status = RunStatus.CANCELLED
 
     def descendants(self) -> models.QuerySet[Run]:
-        if self.parent_id is None:
-            return self.root_descendants.all()
-        else:
-            return Run.objects.get_descendants([self.id])
+        return Run.objects.get_descendants([self.id])
 
     objects = RunManager()
 
@@ -139,11 +138,8 @@ class Run(CrudNode, HasTriggeredBy):
         indexes = [
             models.Index(fields=["started_at"], name="run_started_at_idx"),
             models.Index(fields=["updated_at"], name="run_updated_at_idx"),
-            models.Index(fields=["statement_id"], name="run_statement_id_idx"),
+            models.Index(fields=["statement_ck"], name="run_statement_ck_idx"),
             models.Index(fields=["worker_node_id"], name="run_worker_node_idx"),
-            models.Index(
-                fields=["statement_id", "project_version_id"], name="run_statement_id_scoped_idx"
-            ),
         ]
 
 
