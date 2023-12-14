@@ -1,8 +1,8 @@
 from django.db.models import Q
 
+from .blob import Blob, BlobStatus
 from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
-from .object import Blob, BlobStatus
 from .organization import Organization, OrganizationInvite, OrganizationMembership, OrganizationRole
 from .owner import OwnerSlug
 from .project import (

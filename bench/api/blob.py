@@ -1,4 +1,5 @@
 from typing import Optional
+from uuid import uuid4
 
 import strawberry
 import strawberry_django
@@ -14,7 +15,7 @@ from bench.api.auth import check_module_access
 from bench.api.utils import safe_mutation
 from bench.language.blob import BLOB_MAX_SIZE
 from bench.models import ModuleAccessLevel
-from bench.models.object import is_allowed_content_type
+from bench.models.blob import is_allowed_content_type
 
 logger = structlog.get_logger(__name__)
 
@@ -52,7 +53,7 @@ class DeleteObjectInput(strawberry_django.NodeInput):
 
 
 @strawberry.type
-class ObjectMutation:
+class BlobMutation:
     @safe_mutation
     def request_upload_object(
         self, info: Info, input: RequestUploadObjectInput
@@ -70,7 +71,10 @@ class ObjectMutation:
             else:
                 blob.status = models.BlobStatus.UPLOADING
         else:
+            blob_id = uuid4()
             blob = models.Blob(
+                id=blob_id,
+                ck=blob_id,
                 project=project,
                 sha512=input.sha512,
                 content_length=input.content_length,
