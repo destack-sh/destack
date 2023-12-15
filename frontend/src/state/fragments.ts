@@ -163,6 +163,7 @@ export const FieldType = graphql(/* GraphQL */ `
     parent {
       id
     }
+    referenceCk
     value
     # crud
     createdAt

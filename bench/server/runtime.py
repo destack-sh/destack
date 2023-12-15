@@ -1001,7 +1001,7 @@ class RuntimeHost:
                 and filter is not None
                 and filter._collect_ops() & ExpressionOps.COND_SCORED
             ):
-                sort = [S(SortOp.DESCENDING, field=SCORE_KEY)]
+                sort = [S(SortOp.DESCENDING, field_key=SCORE_KEY)]
 
             database = self.module.resolve(msg.p.statement_ck)
             query = RecordQuery(

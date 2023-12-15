@@ -12,6 +12,7 @@ import { pinAbsoluteElement } from "@/composables/useFixed";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
 import { TrashIcon } from "@heroicons/vue/24/outline";
+import { IS_DEBUG } from "@/utils/globals";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "focused" | "editing">>();
 const emit = defineEmits<StatementEmit>();
@@ -92,7 +93,9 @@ defineExpose({
       @keydown.down.exact.prevent="emit('navigateDown')"
     >
       <CubeTransparentIcon class="mr-1 mt-0.5 h-4 w-4 text-fuchsia-900" />
-      <span class="font-semibold">{{ resolvedBaseTypes[i]?.name ?? "???" }}</span>
+      <span class="font-semibold">
+        {{ resolvedBaseTypes[i]?.name ?? (IS_DEBUG ? base.referenceCk ?? "missing id" : "???") }}
+      </span>
     </button>
     <!-- Create/edit popup right next to bases -->
     <div
