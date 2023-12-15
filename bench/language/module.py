@@ -52,7 +52,7 @@ from bench.language.validation import (
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
-from bench.utils.func import did_you_mean_str, nextn, try_tuple, strip_py_type, get_subclasses
+from bench.utils.func import did_you_mean_str, get_subclasses, nextn, strip_py_type, try_tuple
 from bench.utils.utils import (
     DEBUG,
     LOCAL,
@@ -148,7 +148,7 @@ def _require_expr_op(op: ExpressionOp):
 def _to_conditional(op: ConditionalOp, field: "Field", value: Any = None):
     from bench.language.expression import C
 
-    return C(op, field, value=value)
+    return C(op, field=field, value=value)
 
 
 class _FieldExpressionBase:
@@ -309,15 +309,17 @@ class Property(_FieldExpressionBase):
     annotation: typing.Any = None  # type annotation on LHS of assignment
     # config
     alias: str | None = None  # for node list relations
+    is_array: bool = UNSET  # auto-detect from annotation
     is_required: bool = False
     is_internal: bool = False
     is_runtime: bool = False
     is_cru: bool = False
-    reference_types: tuple[NodeType, ...] | None = None  # for reference relations
-    reference_key: Optional["Property"] = None  # for reference relations
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
+    struct_type: StructType | None = None  # for struct properties
+    reference_types: tuple[NodeType, ...] | None = None  # for reference relations
+    reference_key: Optional["Property"] = None  # for reference relations
     parent_node_types: tuple[NodeType, ...] | None = None
     ancestor_node_type: NodeType | None = None
     store: bool = UNSET  # auto-detect (false for runtime properties)
@@ -381,6 +383,19 @@ class Property(_FieldExpressionBase):
         attrs_str = f" ({attrs_str})" if attrs_str else ""
         return f"<{self.__class__.__name__} {self}{attrs_str}>"
 
+    @property
+    def is_tree_relation(self) -> bool:
+        """Whether this is a node relation property (parent/child/ancestor)."""
+        return bool(self.parent_node_types) or self.child_node_type or self.ancestor_node_type
+
+    @property
+    def is_node_reference(self):
+        return bool(self.reference_types)
+
+    @property
+    def is_struct(self) -> bool:
+        return self.struct_type is not None
+
     def equals_type(self, other: "Property") -> bool:
         """Compares everything but the source component."""
         for k in dataclasses.fields(self):
@@ -402,12 +417,17 @@ class Property(_FieldExpressionBase):
         # determine storage type
         if self.store_as is UNSET and self.store:
             # resolve py type
-            py_type, _ = strip_py_type(self.annotation)
-            if isinstance(py_type, (str, typing.ForwardRef)):  # resolve manually
+            py_type, info = strip_py_type(self.annotation)
+            # resolve manually if needed
+            if isinstance(py_type, (str, typing.ForwardRef)):
                 py_type = py_type.__forward_arg__ if not isinstance(py_type, str) else py_type
-                py_type = _KNOWN_TYPES_BY_NAME.get(py_type)
+                py_type = _KNOWN_BENCH_TYPES_BY_NAME.get(py_type)
                 if py_type is None:
                     raise ValueError(f"cannot determine storage for {self!r}: {self.annotation!r}")
+
+            # update info from annotation
+            if self.is_array is UNSET:
+                self.is_array = info.is_array
 
             # map to column type
             assert isinstance(py_type, type), f"invalid type {py_type!r} for {self!r}"
@@ -429,7 +449,6 @@ class Property(_FieldExpressionBase):
         """Contribute any extra properties required by this property."""
         if self.reference_types is not None:
             assert not self.reference_key, f"cannot call contribute_properties twice: {self!r}"
-            # nocheckin: auto set reference_ck when reference is set
             reference_ck_prop = Property(
                 name=self.name + "_ck",
                 component=self.component,
@@ -472,11 +491,6 @@ class Property(_FieldExpressionBase):
         else:
             return None
 
-    @property
-    def is_tree_relation(self) -> bool:
-        """Whether this is a node relation property (parent/child/ancestor)."""
-        return bool(self.parent_node_types) or self.child_node_type or self.ancestor_node_type
-
 
 def struct_property(
     *,
@@ -488,6 +502,7 @@ def struct_property(
     reflect: bool = False,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
+    struct_t: StructType = None,
     store_as: ColumnType = UNSET,
 ):
     """Standard user facing struct/node property."""
@@ -500,6 +515,7 @@ def struct_property(
         is_reflected=reflect,
         ignore_conflicts_with=ignore_conflicts_with,
         reference_types=try_tuple(references),
+        struct_type=struct_t,
         store_as=store_as,
     )
 
@@ -513,6 +529,7 @@ def struct_internal(
     is_required: bool = True,
     reflect: bool = False,
     references: tuple[NodeType, ...] | NodeType = None,
+    struct_t: StructType = None,
     store: bool = UNSET,
     store_as: ColumnType = UNSET,
 ):
@@ -527,6 +544,7 @@ def struct_internal(
         is_reflected=reflect,
         reference_types=try_tuple(references),
         store=store,
+        struct_type=struct_t,
         store_as=store_as,
     )
 
@@ -805,6 +823,7 @@ def struct_component(
         cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
         cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
         cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
+        cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
 
         # register struct
         if struct_type:
@@ -866,7 +885,8 @@ def node_component(
         cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_node_type})
         cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
         cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
-        cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
+        cls.__reference_properties__ = frozendict({p.name: p for p in props if p.is_node_reference})
+        cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
         cls.__is_detached__ = detached
 
         # register as concrete node class for node_type
@@ -1954,15 +1974,19 @@ def _make_self_method(
     """Creates method that calls _method_inner for all components in call order"""
 
     @functools.wraps(wraps)
-    def self_method(self: "Node", *args, _coerce: bool = True, _ignore: bool = False, **kwargs):
+    def self_method(self: "Struct", *args, _coerce: bool = True, _ignore: bool = False, **kwargs):
         if from_status is not None and self._status != from_status:
             if not _coerce:
                 raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
             # auto coerce the node into the desired to_status if allowed and feasible
-            if self._status == NS.SOURCE and to_status > NS.INDEX:
-                self._index_self()
-            if self._status == NS.INDEX and to_status > NS.INTERP:
-                self._interp_self(self, on_issue=self.scope._on_issue)
+            if isinstance(self, Node):
+                if self._status == NS.SOURCE and to_status > NS.INDEX:
+                    self._index_self()
+                if self._status == NS.INDEX and to_status > NS.INTERP:
+                    self._interp_self(self, on_issue=self.scope._on_issue)
+            else:  # Struct
+                if self._status == NS.SOURCE and to_status > NS.INTERP:
+                    self._interp_self(self, on_issue_raise)  # nocheckin: struct needs scope?
             if from_status <= to_status <= self._status or from_status >= to_status >= self._status:
                 return  # nothing to do
             if self._status < from_status:
@@ -2011,8 +2035,17 @@ class Struct(abc.ABC):
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __reference_properties__: ClassVar[dict[str, Property]] = {}
+    __struct_properties__: ClassVar[dict[str, Property]] = {}
 
     _status: NodeStatus = struct_runtime(default=None)
+
+    def __post_init__(self):
+        if self._status is None:
+            from bench.language.session import _active_session
+
+            # nocheckin what do here?? no session?
+            self._status = NS.INTERP if _active_session.get() else NS.SOURCE
+        self._init_self()
 
     @property
     def _components(self) -> tuple[type["Node"], ...]:
@@ -2035,7 +2068,7 @@ class Struct(abc.ABC):
         # in session copy reference keys from references if set :NodeReferences
         for prop in self.__reference_properties__.values():
             ref = getattr(self, prop.name)
-            if ref is not None:
+            if isinstance(ref, Node):
                 self.__dict__[prop.reference_key.name] = ref.ck
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
@@ -2046,7 +2079,7 @@ class Struct(abc.ABC):
                 val = getattr(self, prop.name)
                 if val is None or val.ck not in tree:
                     continue
-            # setattr(self, prop.name, None) # nocheckin: do this for real
+            # setattr(self, prop.name, None) # nocheckin: do this for real... causes errors
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
         # resolve node references :NodeReferences
@@ -2087,17 +2120,22 @@ class Struct(abc.ABC):
                 if valid is False:
                     on_invalid(self, f"{prop.name}: invalid value", [prop.name])
 
-    _clear_self = _make_self_method(
-        ComponentMethod.clear, _clear_inner, from_status=NS.INDEX, to_status=NS.SOURCE
-    )
-    _interp_self = _make_self_method(
-        ComponentMethod.interp,
-        _interp_inner,
-        from_status=NS.INDEX,
-        to_status=NS.INTERP,
-    )
+    # struct has basic set of lifecycle methods (no index because no scope)
+    _init_self = _make_self_method(ComponentMethod.init, _init_inner)
+    _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
+    _interp_self = _make_self_method(ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
     _visit_self = _make_self_method(ComponentMethod.visit, _visit_inner)
     _validate_self = _make_self_method(ComponentMethod.validate, _validate_inner)
+
+    def _walk_self(self) -> typing.Iterable["Struct"]:
+        yield self
+        for prop in self.__struct_properties__.values():
+            value = getattr(self, prop.name)
+            if isinstance(value, list):
+                for item in value:
+                    yield from item._walk_self()
+            elif value is not None:
+                yield from value._walk_self()
 
     @staticmethod
     def _make_rec_method(method: ComponentMethod, wraps):
@@ -2105,20 +2143,9 @@ class Struct(abc.ABC):
 
         @functools.wraps(wraps)
         def rec_method(self: "Node", *args, **kwargs):
-            # collect descendants (there tend to be few, so lists are fine)
-            descendants = []
-            new_descendants = [self]
-            while new_descendants:
-                next_descendants = []
-                for descendant in new_descendants:
-                    descendant._walk_self(next_descendants.append)
-                    if descendant not in descendants:
-                        descendants.append(descendant)
-                new_descendants = next_descendants
-            # and call the method on each
-            for descendant in descendants:
-                if isinstance(descendant, Struct):
-                    getattr(descendant, method.self)(*args, **kwargs)
+            # just walk self, every struct can only appear once
+            for descendant in self._walk_self():
+                getattr(descendant, method.self)(*args, **kwargs)
 
         rec_method.__name__ = method.rec
         return rec_method
@@ -2146,6 +2173,7 @@ class Node(Struct):
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __reference_properties__: ClassVar[dict[str, Property]] = {}
+    __struct_properties__: ClassVar[dict[str, Property]] = {}
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __has_scope__: ClassVar[bool] = False
     __is_detached__: ClassVar[bool] = False
@@ -2249,28 +2277,29 @@ class Node(Struct):
 
         # tracked set
         prop = self.__properties__.get(key)
-        if prop.child_node_type:
-            return getattr(self, key).set(value)
-        elif prop.is_internal:
-            return super().__setattr__(key, value)
-        elif prop is not None:
-            prev = getattr(self, key)
-            self.__dict__[key] = value
-            try:
-                self._validate_self([key], on_invalid=on_invalid_raise)
-            except ValidationError as e:  # reset on error
-                self.__dict__[key] = prev
-                raise e
-            if prop.reference_key:  # update reference key  :NodeReferences
-                reference_key_value = value.ck if value is not None else None
-                self.__dict__[prop.reference_key.name] = reference_key_value
-                if self.attached:
+        if prop is not None:
+            if prop.child_node_type:
+                return getattr(self, key).set(value)
+            elif prop.is_internal:
+                return super().__setattr__(key, value)
+            else:
+                prev = getattr(self, key)
+                self.__dict__[key] = value
+                try:
+                    self._validate_self([key], on_invalid=on_invalid_raise)
+                except ValidationError as e:  # reset on error
+                    self.__dict__[key] = prev
+                    raise e
+                if prop.reference_key:  # update reference key  :NodeReferences
+                    reference_key_value = value.ck if value is not None else None
+                    self.__dict__[prop.reference_key.name] = reference_key_value
+                    if self.attached:
+                        self._session._tracer.node_update(self, [key])
+                        self._updated_self((prop.reference_key.name,))
+                elif self.attached:
                     self._session._tracer.node_update(self, [key])
-                    self._updated_self((prop.reference_key.name,))
-            elif self.attached:
-                self._session._tracer.node_update(self, [key])
-                self._updated_self((key,))
-            return
+                    self._updated_self((key,))
+                return
         elif key in self.__dict__:
             self.__dict__[key] = value
             return
@@ -2329,11 +2358,29 @@ class Node(Struct):
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
 
+    def _walk_structs(self) -> typing.Iterable["Struct"]:
+        for prop in self.__struct_properties__.values():
+            value = getattr(self, prop.name)
+            if value is not None:
+                yield from value._walk_self()
+
     # abstract :ComponentMethods in addition to Struct
 
     def _index_inner(self) -> None:
         """Index this node."""
         pass
+
+    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
+        """Clear this node."""
+        # clear all structs recursive
+        for s in self._walk_structs():
+            s._clear_rec()
+
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
+        """Interp this node."""
+        # interp all structs recursive
+        for s in self._walk_structs():
+            s._interp_rec(scope, on_issue)
 
     def _activate_inner(self, session: "Session") -> None:
         """'Instantiate' this object in the given session."""
@@ -2409,14 +2456,15 @@ class Node(Struct):
         if self._status >= NS.INTERP and self._session and self._session is not UNSET:
             self._validate_self(self.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
-    _index_self = _make_self_method(
-        ComponentMethod.index, _index_inner, from_status=NS.SOURCE, to_status=NS.INDEX
-    )
+    # node has extended set of lifecycle methods
+    _index_self = _make_self_method(ComponentMethod.index, _index_inner, NS.SOURCE, NS.INDEX)
+    _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
+    _interp_self = _make_self_method(ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
     _activate_self = _make_self_method(
-        ComponentMethod.activate, _activate_inner, from_status=NS.INTERP, to_status=NS.ACTIVE
+        ComponentMethod.activate, _activate_inner, NS.INTERP, NS.ACTIVE
     )
     _deactivate_self = _make_self_method(
-        ComponentMethod.deactivate, _deactivate_inner, from_status=NS.ACTIVE, to_status=NS.INTERP
+        ComponentMethod.deactivate, _deactivate_inner, NS.ACTIVE, NS.INTERP
     )
     _attached_self = _make_self_method(ComponentMethod.attached, _attached_inner)
     _detached_self = _make_self_method(ComponentMethod.detached, _detached_inner)
@@ -2990,7 +3038,7 @@ class Module(ScopeNode):
         return module
 
 
-_KNOWN_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
+_KNOWN_BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
 
 
 def complete_setup():
@@ -2999,10 +3047,10 @@ def complete_setup():
 
     # populate known types
     for bench_t in chain(NODE_CLASS_BY_NODE_TYPE.values(), STRUCT_CLASS_BY_STRUCT_TYPE.values()):
-        _KNOWN_TYPES_BY_NAME[bench_t.__name__] = bench_t
+        _KNOWN_BENCH_TYPES_BY_NAME[bench_t.__name__] = bench_t
     for maybe_bench_t in const.__dict__.values():
         if isinstance(maybe_bench_t, type) and issubclass(maybe_bench_t, enum.Enum):
-            _KNOWN_TYPES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
+            _KNOWN_BENCH_TYPES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
 
     # misc finalization on properties
     for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
@@ -3015,3 +3063,17 @@ def complete_setup():
             if prop.is_reflected:
                 setattr(cls, name, prop)
                 prop._as_field  # noqa ensure the reflected field works (and cache it)
+
+            # check py_type matches struct type as defined
+            if (
+                not prop.is_tree_relation
+                and not prop.is_node_reference
+                and isinstance(prop.annotation, type)
+                and issubclass(prop.annotation, Struct)
+            ):
+                if not prop.struct_type:
+                    raise ValueError(
+                        f"cannot store {prop!r} as {prop.annotation!r} (missing struct_type)"
+                    )
+                if STRUCT_CLASS_BY_STRUCT_TYPE[prop.struct_type] is not prop.annotation:
+                    raise ValueError(f"{prop!r} {prop.struct_type} != {prop.annotation}")

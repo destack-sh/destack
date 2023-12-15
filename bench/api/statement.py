@@ -283,7 +283,6 @@ class StatementMutation:
             order_key=input.order_key,
             text=input.text,
             key=input.key,
-            reference_ck=input.reference_ck,
             code=input.code,
             value=input.value,
         )

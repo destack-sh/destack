@@ -1,5 +1,5 @@
 import functools
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -8,7 +8,7 @@ from bench.language.const import (
     ConditionalOp,
     ExpressionKind,
     ExpressionOp,
-    IssueType,
+    NodeType,
     QueryEngine,
     SortMode,
     SortOp,
@@ -16,9 +16,8 @@ from bench.language.const import (
     TypeHint,
     TypeStorageFormat,
     TypeTag,
-    NodeType,
 )
-from bench.language.module import Struct, struct, struct_property, Node
+from bench.language.module import Node, Struct, struct, struct_property
 from bench.sql.core import ColumnType
 
 if TYPE_CHECKING:
@@ -49,7 +48,9 @@ class Expression(Struct):
     op: ExpressionOp = struct_property(is_required=True)
     field: Optional["Field"] = struct_property(default=None, references=NodeType.FIELD)
     field_key: Optional[str] = struct_property(default=None)
-    clauses: list["Expression"] | None = struct_property(default=None)
+    clauses: list["Expression"] | None = struct_property(
+        default=None, struct_t=StructType.EXPRESSION
+    )
     value: Any = struct_property(default=None, store_as=ColumnType.JSON)
     mode: Optional[SortMode] = struct_property(default=None)
 

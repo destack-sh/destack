@@ -339,12 +339,14 @@ def _compile_field_key(field: lang.Field | FieldReference) -> str:
             return field.py_ident
         else:
             return field._source_key
-    else:
+    elif isinstance(field, str):
         return field
+    else:
+        raise TypeError(f"unexpected field ref: {field}")
 
 
 def compile_os_conditional(ctx: CompilationContext, cond: Expression) -> dict[str, Any]:
-    key = _compile_field_key(cond.field) if cond.field else None
+    key = _compile_field_key(cond.field or cond.field_key) if cond.field or cond.field_key else None
     if cond.op == ConditionalOp.TRUE:
         return {"match_all": {}}
     elif cond.op == ConditionalOp.FALSE:
