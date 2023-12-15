@@ -30,7 +30,6 @@ from bench.language.module import (
     struct_internal,
     struct_property,
 )
-from bench.language.reference import HasReference
 from bench.language.run import HasRun
 from bench.language.tagging import HasTags
 from bench.language.task import HasTask
@@ -38,6 +37,7 @@ from bench.language.text import HasText
 from bench.language.trigger import HasTriggers
 from bench.language.validation import enum_validator, validate_is_str, validate_name
 from bench.language.value import HasValue
+from bench.sql.core import ColumnType
 from bench.utils.func import dict_minus
 from bench.utils.utils import IdentifierType, IdentT, identity, to_pyidentifier
 
@@ -151,7 +151,6 @@ _s(
         ("resolved_fields", _Passthrough.Scope),
     ),
 )
-_s(StatementType.REFERENCE, (HasReference, HasText), IdentT.VARIABLE)
 _s(StatementType.GROUP, (HasText,), IdentT.VARIABLE, passthrough=(("children", _Passthrough.Full),))
 _s(
     StatementType.VIEW,
@@ -194,8 +193,8 @@ class Statement(ScopeNode, HasTags):
     name: str | None = struct_property(default=None, validate=validate_name)
     order_key: str | None = struct_internal(default=None)
 
-    reference: Union["Statement", StatementReference, None] = struct_property(
-        default=None, copy=identity
+    reference: Optional["Statement"] = struct_property(
+        default=None, copy=identity, references=NodeType.STATEMENT
     )
     heading_level: Optional["TextHeadingLevel"] = struct_property(
         default=None, validate=enum_validator(TextHeadingLevel)
@@ -203,7 +202,9 @@ class Statement(ScopeNode, HasTags):
     text: str | None = struct_property(default=None, validate=validate_is_str)
     key: str | None = struct_internal(default=None)
     code: str | None = struct_property(default=None, validate=validate_is_str)
-    value: Any | None = struct_property(default_factory=dict, copy=deepcopy)
+    value: Any | None = struct_property(
+        default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+    )
     versioned: bool = struct_internal(default=True)
     external_name: str | None = struct_internal(default=None)  # for model, to be moved into value
 
@@ -254,7 +255,7 @@ class Statement(ScopeNode, HasTags):
         return _DYNAMIC_COMPONENTS_BY_TYPE[self.type]
 
     @property
-    def _concrete_cache_key(self) -> str:
+    def _instance_cache_key(self) -> str:
         return self.type
 
     @property

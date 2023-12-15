@@ -8,15 +8,15 @@ import string
 from asyncio import CancelledError
 from collections import OrderedDict
 from itertools import filterfalse, tee
+import types
+import typing
 from typing import (
     Any,
     Collection,
     Coroutine,
     Iterable,
     Mapping,
-    Type,
     TypeVar,
-    cast,
 )
 from uuid import UUID
 
@@ -25,6 +25,11 @@ import structlog
 from bench.utils.utils import sentry_capture
 
 logger = structlog.get_logger(__name__)
+
+T = TypeVar("T")
+
+K = TypeVar("K")
+V = TypeVar("V")
 
 
 def try_to_uuid(id: UUID | str) -> UUID | str:
@@ -60,24 +65,16 @@ def partition(pred, iterable) -> tuple[list[Any], list[Any]]:
     return list(filterfalse(pred, t1)), list(filter(pred, t2))
 
 
+def try_tuple(obj: T) -> tuple[T, ...] | None:
+    """To tuple if not None and not already a tuple"""
+    if obj is None:
+        return None
+    if isinstance(obj, tuple):
+        return obj
+    return (obj,)
+
+
 nextn = next_or_none
-
-T = TypeVar("T")
-
-
-def terrible_cast(cls: Type[T], obj) -> T:
-    """
-    Changes the actual class of an object.
-
-    For obvious reasons, use this with great caution. This can lead to subtle and annoying bugs,
-     but is also super convenient in rare circumstances.
-    """
-    obj.__class__ = cls
-    return cast(T, obj)
-
-
-K = TypeVar("K")
-V = TypeVar("V")
 
 
 def dict_to_ordered(obj: dict[K, V]) -> OrderedDict[K, V]:
@@ -144,6 +141,36 @@ def describe_type(obj: Any) -> str:
         return ", ".join(type(value).__name__ for value in obj)
     else:
         return type(obj).__name__
+
+
+TypeInfo = typing.NamedTuple(
+    "TypeInfo", [("is_optional", bool), ("is_arrayable", bool), ("is_array", bool)]
+)
+
+
+def strip_py_type(py_type: type) -> tuple[type, TypeInfo]:
+    is_optional = False
+    is_arrayable = False
+    is_array = False
+    # strip optional
+    if typing.get_origin(py_type) in (typing.Union, types.UnionType):
+        args = typing.get_args(py_type)
+        if len(args) == 2 and args[1] == type(None):  # noqa: E721
+            py_type = args[0]
+            is_optional = True
+        # convert x | list[x] as isarrayable
+        elif len(args) == 2 and typing.get_origin(args[1]) is list:
+            if args[0] != typing.get_args(args[1])[0]:
+                raise ValueError(f"cannot map generic union types: {py_type}")
+            py_type = args[0]
+            is_arrayable = True
+        else:
+            raise ValueError(f"cannot map generic union types: {py_type}")
+    # strip list
+    if typing.get_origin(py_type) is list:
+        py_type = typing.get_args(py_type)[0]
+        is_array = True
+    return py_type, TypeInfo(is_optional, is_arrayable, is_array)
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:

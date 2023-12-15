@@ -55,7 +55,7 @@ function _useTerminal() {
       count: true,
       live: true,
       insertAt: "start",
-      queryAsFilter: (run) => run.value?.[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL && run.statement == null,
+      queryAsFilter: (run) => run.value?.[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL && run.statementCk == null,
       neverUnsubscribe: true, // shared/immortal composable
     }
   );

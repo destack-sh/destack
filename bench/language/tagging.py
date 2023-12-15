@@ -1,5 +1,5 @@
 import typing
-from typing import Union
+from typing import Union, Optional
 
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodeType, StatementType
@@ -13,7 +13,6 @@ from bench.language.module import (
     node_parent,
     struct_internal,
 )
-from bench.language.reference import HasReference
 from bench.language.value import HasValue
 from bench.utils.func import dict_minus
 
@@ -22,13 +21,16 @@ if typing.TYPE_CHECKING:
 
 
 @node(NodeType.TAGGING)
-class Tagging(HasValue, HasReference, Node):
+class Tagging(HasValue, Node):
     """An association between a tag and a statement (with optional value)."""
 
     parent: Union["File", "Statement", "Field"] | None = node_parent(
         NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
     )
     key: str = struct_internal()
+    reference: Optional["Statement"] = struct_internal(
+        default=None, is_required=False, references=NodeType.STATEMENT
+    )
 
     @staticmethod
     def new(

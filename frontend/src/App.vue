@@ -119,7 +119,7 @@ provideGlobalAction({
 });
 
 // show permanent notification if run on non-Chromium browsers (ugh, will be fixed soon)
-if (!window.chrome) {
+if (!(window as any).chrome) {
   notifications.show({
     kind: "error",
     type: "browser.bad",

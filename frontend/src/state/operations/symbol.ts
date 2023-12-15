@@ -20,7 +20,6 @@ import {
   type Field,
   type UpdateSymbolValueMutation,
   type Tagging,
-  type UpdateStatementReferenceMutation,
   TriggerType,
   type Trigger,
   ScheduleType,
@@ -34,51 +33,6 @@ export function useSymbolContentOps() {
 
   // symbol content mutations
   // (for the annoying redundancy see :BE-114)
-
-  const { mutate: updateStatementReferenceMut } = registry.defineEdit(
-    EditType.UpdateStatementReference,
-    graphql(/* GraphQL */ `
-      mutation updateStatementReference($id: GlobalID!, $referenceCk: UUID) {
-        updateStatementReference(input: { id: $id, referenceCk: $referenceCk }) {
-          ... on Statement {
-            id
-            revision
-            referenceCk
-          }
-          ...OperationInfoContent
-        }
-      }
-    `),
-    {
-      optimisticResponse: (vars: { id: string; referenceCk: string | null }) =>
-        ({
-          updateStatementReference: {
-            __typename: "Statement",
-            id: vars.id,
-            revision: PENDING_REVISION,
-            referenceCk: vars.referenceCk,
-          },
-        } as UpdateStatementReferenceMutation),
-    }
-  );
-
-  async function updateStatementReference(
-    tx: Transaction | null,
-    id: string,
-    oldReferenceCk: string | null,
-    newReferenceCk: string | null
-  ) {
-    await ops.perform({
-      tx,
-      type: "statement.updateReference",
-      do: async () => {
-        return await updateStatementReferenceMut({ id, referenceCk: newReferenceCk });
-      },
-      undo: async () => {
-        return await updateStatementReferenceMut({ id, referenceCk: oldReferenceCk });
-      },
-    });
-  }
 
   // code mutations
 
@@ -1547,7 +1501,6 @@ export function useSymbolContentOps() {
 
   return {
     registry,
-    updateStatementReference,
     updateSymbolCode,
     updateStatementText,
     updateValue,

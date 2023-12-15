@@ -46,7 +46,7 @@ from bench.language.secret import Secret
 from bench.language.session import Session
 from bench.language.statement import Statement
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
-from bench.utils.func import try_to_uuid
+from bench.utils.func import try_to_uuid, strip_py_type
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
@@ -399,24 +399,13 @@ def get_type_mapper_by_instance_type(py_type: type) -> tuple[TypeMapper, type, T
 
 
 def _strip_py_type(py_type: type) -> tuple[type, TypeFlag]:
+    py_type, info = strip_py_type(py_type)
     flags = TypeFlag.ZERO
-    # strip optional
-    if get_origin(py_type) is Union:
-        args = get_args(py_type)
-        if len(args) == 2 and args[1] == type(None):  # noqa: E721
-            py_type = args[0]
-            flags |= TypeFlag.IS_OPTIONAL
-        # convert x | list[x] as isarrayable
-        elif len(args) == 2 and get_origin(args[1]) is list:
-            if args[0] != get_args(args[1])[0]:
-                raise ValueError(f"cannot map generic union types: {py_type}")
-            py_type = args[0]
-            flags |= TypeFlag.IS_ARRAYABLE
-        else:
-            raise ValueError(f"cannot map generic union types: {py_type}")
-    # strip list
-    if get_origin(py_type) is list:
-        py_type = get_args(py_type)[0]
+    if info.is_optional:
+        flags |= TypeFlag.IS_OPTIONAL
+    if info.is_arrayable:
+        flags |= TypeFlag.IS_ARRAYABLE
+    if info.is_array:
         flags |= TypeFlag.IS_ARRAY
     return py_type, flags
 

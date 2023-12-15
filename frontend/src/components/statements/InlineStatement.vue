@@ -95,10 +95,7 @@ const isInSelection = toValueRef(
 );
 const isAnySelection = toValueRef(computed(() => nav?.value?.panel.hasSelection));
 const canContentFold = computed(
-  () =>
-    statement.value.type != StatementType.Blank &&
-    statement.value.type != StatementType.Reference &&
-    statement.value.type != StatementType.Text
+  () => statement.value.type != StatementType.Blank && statement.value.type != StatementType.Text
 );
 const isContentFolded = computed(() => (panel.panel.value as EditFilePanel).isStatementContentFolded(statement.value));
 

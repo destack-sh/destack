@@ -481,7 +481,6 @@ class StatementData(NodeData, HasOrder, HasCrud):
     code: Optional[str]
     value: Optional[typing.Any]
     versioned: Optional[bool]
-    reference_ck: Optional[UUID]
 
     def __str__(self):
         return f"{self.type.name} {self.name}"
@@ -493,7 +492,6 @@ class StatementData(NodeData, HasOrder, HasCrud):
 @node_packer(NodeType.STATEMENT, StatementData, lang.Statement)
 class StatementPacker(NodePacker[StatementData, lang.Statement]):
     PARENTS: ClassVar[ParentsT] = {NodeType.STATEMENT, NodeType.FILE}
-    REMAP: ClassVar[dict[str, str]] = {"reference": "reference_ck"}
 
     def pack(self, statement: lang.Statement) -> "StatementData":
         value = (
@@ -512,7 +510,6 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             code=statement.code,
             value=value,
             versioned=statement.versioned,
-            reference_ck=statement.reference_ck,
             revision=statement.revision,
             created_at=statement.created_at,
             updated_at=statement.updated_at,
@@ -540,7 +537,6 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             code=statement.code,
             value=statement.value,
             versioned=statement.versioned,
-            reference=statement.reference_ck,
             revision=statement.revision,
             created_at=statement.created_at,
             updated_at=statement.updated_at,
@@ -554,7 +550,6 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
     def patch(
         self, statement: StatementData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
     ) -> None:
-        statement.reference_ck = target_cks.get(statement.reference_ck, statement.reference_ck)
         statement.key = target_keys.get(statement.key, statement.key)
         statement.text = patch_text_html(statement.text, target_cks)
 
@@ -621,7 +616,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             hint=field.hint,
             flags=field.flags,
             text=field.text,
-            reference=field.reference_ck,
+            reference_ck=field.reference_ck,
             value=field.value,
             revision=field.revision,
             created_at=field.created_at,
@@ -672,13 +667,10 @@ class TriggerData(NodeData, HasCrud):
     node_type: ClassVar[NodeType] = NodeType.TRIGGER
     type: TriggerType
     active: bool
-    mapping: Optional[list[tuple[str, str]]]
     schedule_type: Optional[ScheduleType]
     timezone: Optional[str]
     interval: Optional[int]
     cron: Optional[str]
-    statement_ck: Optional[UUID]
-    scope_ck: Optional[UUID]
 
 
 @node_packer(NodeType.TRIGGER, TriggerData, lang.Trigger)
@@ -693,13 +685,10 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             parent_id=trigger.parent_id,
             type=trigger.type,
             active=trigger.active,
-            mapping=trigger.mapping,
             schedule_type=trigger.schedule_type,
             timezone=trigger.timezone,
             interval=trigger.interval,
             cron=trigger.cron,
-            statement_ck=trigger.statement.ck if trigger.statement else None,
-            scope_ck=trigger.scope.ck if trigger.scope else None,
             revision=trigger.revision,
             created_at=trigger.created_at,
             updated_at=trigger.updated_at,
@@ -717,13 +706,10 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             ck=trigger.ck,
             type=trigger.type,
             active=trigger.active,
-            mapping=trigger.mapping,
             schedule_type=trigger.schedule_type,
             timezone=trigger.timezone,
             interval=trigger.interval,
             cron=trigger.cron,
-            statement=trigger.statement_ck,
-            scope=trigger.scope_ck,
             revision=trigger.revision,
             created_at=trigger.created_at,
             updated_at=trigger.updated_at,
@@ -940,7 +926,8 @@ class ExpressionData:
     kind: ExpressionKind
     op: str
     clauses: list[ExpressionData] = None
-    field: typing.Union[UUID, str] = None
+    field: UUID = None
+    field_key: str = None
     value: typing.Any = None
     mode: Optional[SortMode] = None
 
@@ -958,6 +945,7 @@ class ExpressionPacker(StructPacker[ExpressionData, lang.Expression]):
             if expr.clauses is not None
             else None,
             field=expr.field.ck if isinstance(expr.field, lang.Field) else expr.field,
+            field_key=expr.field_key,
             value=getattr(expr, "value", None),
             mode=expr.mode,
         )
@@ -966,6 +954,7 @@ class ExpressionPacker(StructPacker[ExpressionData, lang.Expression]):
         return Expression(
             op=ExpressionOp(data.op),
             field=data.field,
+            field_key=data.field_key,
             clauses=[self.unpack(clause, module) for clause in data.clauses]
             if data.clauses is not None
             else None,

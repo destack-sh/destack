@@ -39,7 +39,7 @@ from bench.language.field import Field, HasFields, Key, Vector
 from bench.language.model import HasModel, ModelError, ModelErrorType
 from bench.language.module import Node, NodeList, ScopeNode, get_node_id
 from bench.language.packer import map_value, pack_value_flat, render_value
-from bench.language.reference import Projection
+from bench.language.projection import Projection
 from bench.language.reflect import (
     _derive_constant_key,
     _model_compilers,

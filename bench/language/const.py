@@ -83,7 +83,6 @@ class StatementType(enum.StrEnum):
     VARIABLE = "variable"
     DATABASE = "database"
     VIEW = "view"
-    REFERENCE = "reference"
     GROUP = "group"
 
     @property

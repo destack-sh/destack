@@ -440,7 +440,7 @@ class SessionQuery:
 
         query = query.to_bench() if query else None
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
-        default_sort = [lang.S(SortOp.DESCENDING, field="created_at")]
+        default_sort = [lang.S(SortOp.DESCENDING, field_key="created_at")]
         sort = [s.to_bench() for s in sort] if sort else default_sort
 
         logger.debug("runs.search", project_id=project_id, query=query, sort=sort)
@@ -516,7 +516,7 @@ class SessionQuery:
         statement_ids = to_uuids(statement_ids)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
-        default_sort = [lang.S(SortOp.DESCENDING, field="created_at")]
+        default_sort = [lang.S(SortOp.DESCENDING, field_key="created_at")]
         sort = [s.to_bench() for s in sort] if sort else default_sort
         query = query.to_bench() if query else None
         if session_id:

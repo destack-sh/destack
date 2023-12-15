@@ -11,7 +11,7 @@ from bench.language.const import IssueType, NodeType, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.model import HasModel
 from bench.language.module import Node, ScopeNode, node_component, struct_runtime
-from bench.language.reference import Projection
+from bench.language.projection import Projection
 
 from ..utils.func import describe_type
 

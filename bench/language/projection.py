@@ -1,48 +1,42 @@
-from typing import TYPE_CHECKING, Collection, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Collection, Iterable
 from uuid import UUID
 
-from bench.language.const import IssueType, NodeType, SortOp, StatementReference
+from bench.language.const import NodeType, SortOp
 from bench.language.expression import S
-from bench.language.issue import IssueHandler
-from bench.language.module import Node, ScopeNode, node_component, struct_property
-from bench.utils.utils import identity
+from bench.language.module import Node, ScopeNode
 
 if TYPE_CHECKING:
-    from bench.language.statement import IsTyped, Statement
+    from bench.language.statement import IsTyped
 
 
-@node_component
-class HasReference(Node):
-    """A reference to another statement."""
-
-    reference: Union["Statement", StatementReference, None] = struct_property(
-        default=None, copy=identity
-    )
-
-    def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
-        if isinstance(self.reference, Node) and (
-            scope is None or self.reference.ck in scope._local_root_tree
-        ):
-            self._set_untracked("reference", self.reference.ck)
-
-    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
-        if self.reference is None:
-            return
-        resolved = self.reference
-        if not isinstance(self.reference, Node):
-            resolved = scope.lookup(self.reference)
-        if resolved is None:
-            path = getattr(self, "py_ident", repr(self))
-            on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=path)
-        elif isinstance(self.reference, str):
-            # user code set a string reference, need to track change
-            self.reference = resolved
-        else:
-            self._set_untracked("reference", resolved)
-
-    def _visit_inner(self, visitor: "NodeVisitor") -> None:
-        if isinstance(self.reference, Node):
-            visitor.visit_reference(self.reference)
+# @node_component nocheckin: remove
+# class HasReference(Node):
+#     """A reference to another statement."""
+#
+#     def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
+#         if isinstance(self.reference, Node) and (
+#             scope is None or self.reference.ck in scope._local_root_tree
+#         ):
+#             self._set_untracked("reference", self.reference.ck)
+#
+#     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
+#         if self.reference is None:
+#             return
+#         resolved = self.reference
+#         if not isinstance(self.reference, Node):
+#             resolved = scope.lookup(self.reference)
+#         if resolved is None:
+#             path = getattr(self, "py_ident", repr(self))
+#             on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=path)
+#         elif isinstance(self.reference, str):
+#             # user code set a string reference, need to track change
+#             self.reference = resolved
+#         else:
+#             self._set_untracked("reference", resolved)
+#
+#     def _visit_inner(self, visitor: "NodeVisitor") -> None:
+#         if isinstance(self.reference, Node):
+#             visitor.visit_reference(self.reference)
 
 
 class NodeVisitor:
@@ -135,7 +129,9 @@ class Projection:
         for database in databases:
             # sort by ck for consistency
             records = (
-                await database.records.sort(S(SortOp.ASCENDING, field="ck")).first(limit).tolist()
+                await database.records.sort(S(SortOp.ASCENDING, field_key="ck"))
+                .first(limit)
+                .tolist()
             )
             for record in records:
                 seen_by_ck[record.ck] = record

@@ -33,6 +33,7 @@ from bench.language.module import (
     node_children,
 )
 from bench.language.value import HasValue
+from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
@@ -147,21 +148,23 @@ class Run(ScopeNode, HasValue):
     """
 
     parent: Union["Session", "Run"] = node_parent(NodeType.SESSION, NodeType.RUN)
-    session: "Session" = node_ancestor(NodeType.SESSION)
-    root: Optional["Run"] = node_ancestor(NodeType.RUN, nearest=False, include_self=False)
+    session: "Session" = node_ancestor(NodeType.SESSION, store=True)
+    root: Optional["Run"] = node_ancestor(
+        NodeType.RUN, nearest=False, include_self=False, store=True
+    )
     runs: list["Run"] = node_children(NodeType.RUN)
-    statement: Optional["Statement"] = struct_internal(default=None)
+    statement: Optional["Statement"] = struct_internal(default=None, references=NodeType.STATEMENT)
     statement_path: Optional[str] = struct_internal(default=None)
     scheduled_at: Optional[datetime] = struct_internal(default=None)
     started_at: Optional[datetime] = struct_internal(default=None)
     terminated_at: Optional[datetime] = struct_internal(default=None)
     trigger_type: Optional[TriggerType] = struct_internal(default=None)
-    trigger: Union["Trigger", UUID] = struct_internal(default=None)
+    trigger: Optional["Trigger"] = struct_internal(default=None, references=NodeType.TRIGGER)
     access_level: Optional["SessionAccessLevel"] = struct_internal(default=None)
     status: RunStatus = struct_internal()
-    inputs: Optional[dict[str, Any]] = struct_internal(default=None)
-    outputs: Optional[dict[str, Any]] = struct_internal(default=None)
-    error: Optional["RunError"] = struct_internal(default=None)
+    inputs: Optional[dict[str, Any]] = struct_internal(default=None, store_as=ColumnType.JSON)
+    outputs: Optional[dict[str, Any]] = struct_internal(default=None, store_as=ColumnType.JSON)
+    error: Optional["RunError"] = struct_internal(default=None, store_as=ColumnType.JSON)
 
     def __str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
@@ -215,7 +218,7 @@ class RunCodeFrame(Struct):
     filename: str = struct_internal()
     lineno: int = struct_internal()
     name: str = struct_internal()
-    locals: Optional[dict[str, Any]] = struct_internal(default=None)
+    locals: Optional[dict[str, Any]] = struct_internal(default=None, store_as=ColumnType.JSON)
     line: str = struct_internal()
 
     @staticmethod
@@ -308,7 +311,7 @@ class RunError(Struct, Exception):  # can this really be a subclass of Exception
     kind: RunErrorKind = struct_internal()
     type: str = struct_internal()
     message: Optional[str] = struct_internal(default=None)
-    statement: Optional["Statement"] = struct_internal(default=None)
+    statement: Optional["Statement"] = struct_internal(default=None, references=NodeType.STATEMENT)
     traceback: list[RunCodeFrame] = struct_internal(default_factory=list)
 
     @staticmethod
@@ -333,16 +336,16 @@ class RunError(Struct, Exception):  # can this really be a subclass of Exception
 @struct(StructType.LOG_ENTRY)
 class LogEntry(Struct):
     id: UUID = struct_internal(default_factory=uuid4)
-    module: Module = struct_internal()
+    module: Module = struct_internal(references=NodeType.MODULE)
     created_at: datetime = struct_internal(default_factory=utcnow_with_tz)
     stream: str = struct_internal()
-    session: "Session" = struct_internal()
+    session: "Session" = struct_internal(references=NodeType.SESSION)
     level: Optional[str] = struct_internal(default=None)
     logger: Optional[str] = struct_internal(default=None)
-    statement: Optional["Statement"] = struct_internal(default=None)
-    run: Optional["Run"] = struct_internal(default=None)
+    statement: Optional["Statement"] = struct_internal(default=None, references=NodeType.STATEMENT)
+    run: Optional["Run"] = struct_internal(default=None, references=NodeType.RUN)
     message: Optional[str] = struct_internal(default=None)
-    value: dict[str, Any] | None = struct_internal(default=None)
+    value: dict[str, Any] | None = struct_internal(default=None, store_as=ColumnType.JSON)
 
     def __str__(self):
         return f"'{self.message}' ({self.created_at})"

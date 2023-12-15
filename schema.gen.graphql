@@ -1572,7 +1572,6 @@ type Statement implements HasCrud & ModuleNode & Node {
   code: String
   text: String
   value: JSON
-  referenceCk: UUID
   versioned: Boolean!
   tags(filters: TaggingFilter): [Tagging!]!
   triggers(filters: TriggerFilter): [Trigger!]!
@@ -1681,7 +1680,6 @@ enum StatementType {
   VARIABLE
   DATABASE
   VIEW
-  REFERENCE
   GROUP
 }
 

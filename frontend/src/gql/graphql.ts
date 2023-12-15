@@ -1998,7 +1998,6 @@ export type Statement = HasCrud &
     orderKey: Scalars["String"]["output"];
     parent: ModuleNode;
     projectVersion: ProjectVersion;
-    referenceCk?: Maybe<Scalars["UUID"]["output"]>;
     resolvedFields?: Maybe<Array<ResolvedField>>;
     revision: Scalars["Int"]["output"];
     tags: Array<Tagging>;
@@ -2119,7 +2118,6 @@ export enum StatementType {
   Flow = "FLOW",
   Group = "GROUP",
   Model = "MODEL",
-  Reference = "REFERENCE",
   Tag = "TAG",
   Task = "TASK",
   Text = "TEXT",
@@ -3519,7 +3517,6 @@ export type FieldContentFragment = {
   flags: number;
   text?: string | null;
   orderKey: string;
-  referenceCk?: any | null;
   value?: any | null;
   createdAt: any;
   updatedAt: any;
@@ -3536,7 +3533,6 @@ export type TaggingContentFragment = {
   ck: any;
   revision: number;
   key: string;
-  referenceCk?: any | null;
   value?: any | null;
   createdAt: any;
   updatedAt: any;
@@ -3583,7 +3579,6 @@ export type StatementContentFragment = {
   headingLevel?: number | null;
   code?: string | null;
   value?: any | null;
-  referenceCk?: any | null;
   versioned: boolean;
   createdAt: any;
   updatedAt: any;
@@ -3676,7 +3671,6 @@ export type InterpStatementFragment = {
   revision: number;
   orderKey: string;
   key?: string | null;
-  referenceCk?: any | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -4316,7 +4310,6 @@ export type CreateStatementMutation = {
         text?: string | null;
         headingLevel?: number | null;
         value?: any | null;
-        referenceCk?: any | null;
         versioned: boolean;
         createdAt: any;
         updatedAt: any;
@@ -4569,20 +4562,6 @@ export type BatchPasteStatementMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | null;
-};
-
-export type UpdateStatementReferenceMutationVariables = Exact<{
-  id: Scalars["GlobalID"]["input"];
-  referenceCk?: InputMaybe<Scalars["UUID"]["input"]>;
-}>;
-
-export type UpdateStatementReferenceMutation = {
-  __typename?: "Mutation";
-  updateStatementReference:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | { __typename?: "Statement"; id: any; revision: number; referenceCk?: any | null };
 };
 
 export type UpdateSymbolCodeMutationVariables = Exact<{
@@ -5898,7 +5877,6 @@ export const TaggingContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -5945,7 +5923,6 @@ export const FieldContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -6120,7 +6097,6 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {
             kind: "Field",
@@ -6252,7 +6228,6 @@ export const StatementContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -6294,7 +6269,6 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -6522,7 +6496,6 @@ export const InterpStatementFragmentDoc = {
           },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "key" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "tags" },
@@ -6613,7 +6586,6 @@ export const InterpStatementFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -6655,7 +6627,6 @@ export const InterpStatementFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -7449,7 +7420,6 @@ export const FileContentByIdDocument = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -7491,7 +7461,6 @@ export const FileContentByIdDocument = {
           { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -7699,7 +7668,6 @@ export const FileContentByIdDocument = {
           { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {
             kind: "Field",
@@ -10358,7 +10326,6 @@ export const ModuleContentByIdDocument = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -10400,7 +10367,6 @@ export const ModuleContentByIdDocument = {
           { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -10522,7 +10488,6 @@ export const ModuleContentByIdDocument = {
           },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           { kind: "Field", name: { kind: "Name", value: "key" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "tags" },
@@ -11363,7 +11328,6 @@ export const CreateFileDocument = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -11405,7 +11369,6 @@ export const CreateFileDocument = {
           { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -11560,7 +11523,6 @@ export const CreateFileDocument = {
           { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {
             kind: "Field",
@@ -14596,7 +14558,6 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
-                      { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
                       { kind: "Field", name: { kind: "Name", value: "versioned" } },
                       {
                         kind: "Field",
@@ -16128,107 +16089,6 @@ export const BatchPasteStatementDocument = {
     },
   ],
 } as unknown as DocumentNode<BatchPasteStatementMutation, BatchPasteStatementMutationVariables>;
-export const UpdateStatementReferenceDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "updateStatementReference" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "updateStatementReference" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "id" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "referenceCk" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "OperationInfoContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "InlineFragment",
-            typeCondition: { kind: "NamedType", name: { kind: "Name", value: "OperationInfo" } },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "messages" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "kind" } },
-                      { kind: "Field", name: { kind: "Name", value: "message" } },
-                      { kind: "Field", name: { kind: "Name", value: "field" } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<UpdateStatementReferenceMutation, UpdateStatementReferenceMutationVariables>;
 export const UpdateSymbolCodeDocument = {
   kind: "Document",
   definitions: [

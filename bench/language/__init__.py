@@ -23,8 +23,8 @@ from .expression import A, C, E, Expression, S
 from .field import Field, HasFields, HasType, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
-from .module import Module, Node, Property, ScopeNode, Struct
-from .reference import NodeVisitor
+from .module import Module, Node, Property, ScopeNode, Struct, complete_setup
+from .projection import NodeVisitor
 from .run import HasRun, Run, RunError
 from .secret import Secret
 from .session import LogEntry, PermissionError, Session
@@ -93,11 +93,4 @@ __all__ = [
 ]
 
 # after all the imports, we can finalize
-
-# set reflected struct/node properties as static fields
-#  (can't do this before because dataclass needs the original class's fields)
-for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
-    for name, prop in cls.__properties__.items():
-        if prop.is_reflected:
-            setattr(cls, name, prop)
-            prop._as_field  # noqa ensure the reflected field works (and cache it)
+complete_setup()
