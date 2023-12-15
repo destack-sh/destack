@@ -7,7 +7,6 @@ import DatabaseInfoControl from "@/components/statements/DatabaseInfoControl.vue
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
 import FunctionTypeElement from "@/components/statements/FunctionTypeElement.vue";
 import ListTypeElement from "@/components/statements/ListTypeElement.vue";
-import ReferenceControl from "@/components/statements/ReferenceControl.vue";
 import RunElement from "@/components/statements/RunElement.vue";
 import TaggingControl from "@/components/statements/TaggingControl.vue";
 import TextElement from "@/components/statements/TextElement.vue";
@@ -159,12 +158,6 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
     exists: (iface, statement) => statement.triggers?.find((t) => t.deletedAt == null) != null,
   },
   {
-    id: "reference",
-    component: ReferenceControl,
-    enabled: (iface, statement) => statement.type === StatementType.Reference,
-    exists: (iface, statement) => true,
-  },
-  {
     id: "database.info",
     component: DatabaseInfoControl,
     enabled: (iface, statement) => statement.type === StatementType.Database,
@@ -265,14 +258,6 @@ register(StatementType.Task, {
   hasTriggers: true,
   extraControls: [RUN_META],
   elements: [TEXT, { ...FUNCTION_TYPE, showIfNotExists: true }, RUN],
-});
-register(StatementType.Reference, {
-  primaryPart: "reference",
-  needsDeclaration: false,
-  hasTags: true,
-  hasBases: true,
-  hasTriggers: true,
-  elements: [TEXT],
 });
 register(StatementType.Variable, {
   primaryPart: "value",

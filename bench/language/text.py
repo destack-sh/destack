@@ -6,7 +6,7 @@ from uuid import UUID
 
 from bench.language.const import NodeReference, NodeType, TypedNodeReference
 from bench.language.module import Node, ScopeNode, node_component, struct_property, struct_runtime
-from bench.language.reference import NodeVisitor
+from bench.language.projection import NodeVisitor
 from bench.language.validation import validate_is_str
 
 if TYPE_CHECKING:

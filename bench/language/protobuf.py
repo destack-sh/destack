@@ -143,15 +143,17 @@ class Field(ProtoThing):
 # We map and walk at the same type for simplicity (using the cache)
 #
 
-_BenchType = Union["Node", "Struct", "Property", enum.StrEnum]
+_BenchType = type[Union["Node", "Struct", "Property", enum.StrEnum, enum.IntFlag]]
 
 
-def _bench_property_to_proto(bench_t: "Property", cache: dict[_BenchType, ProtoThing]) -> Field:
+def _bench_property_to_proto(
+    bench_t: type["Property"], cache: dict[_BenchType, ProtoThing]
+) -> Field:
     assert not bench_t.is_runtime, f"shouldn't map runtime property: {bench_t!r}"
     raise NotImplementedError("nocheckin")
 
 
-def _bench_node_to_proto(bench_t: "Struct", cache: dict[_BenchType, ProtoThing]) -> Message:
+def _bench_node_to_proto(bench_t: type["Struct"], cache: dict[_BenchType, ProtoThing]) -> Message:
     struct = Message(name=bench_t.__name__, reserved_names=[], reserved_ids=[], fields=[])
     for prop in bench_t.__properties__.values():
         field = _bench_property_to_proto(prop, cache)
@@ -159,20 +161,29 @@ def _bench_node_to_proto(bench_t: "Struct", cache: dict[_BenchType, ProtoThing])
     return struct
 
 
-def _bench_enum_to_proto(bench_t: enum.StrEnum, cache: dict[_BenchType, ProtoThing]) -> Enum:
-    enum_values = [
-        EnumValue(id=id_, name=name) for id_, name in enumerate(bench_t.__members__.keys())
-    ]
-    return Enum(name=bench_t.__name__, values=enum_values)
+def _bench_enum_to_proto(
+    bench_t: type[enum.StrEnum] | type[enum.IntFlag], cache: dict[_BenchType, ProtoThing]
+) -> Enum:
+    if issubclass(bench_t, enum.StrEnum):
+        enum_values = [
+            EnumValue(id=id_, name=name) for id_, name in enumerate(bench_t.__members__.keys())
+        ]
+        return Enum(name=bench_t.__name__, values=enum_values)
+    elif issubclass(bench_t, enum.IntFlag):
+        # use int values as ids
+        enum_values = [EnumValue(id=id_, name=name) for id_, name in bench_t.__members__.items()]
+        return Enum(name=bench_t.__name__, values=enum_values)
+    else:
+        raise TypeError(f"invalid type: {bench_t!r}")
 
 
 def bench_to_proto(bench_t: _BenchType, cache: dict[_BenchType, ProtoThing]) -> ProtoThing:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
     if bench_t in cache:
         return cache[bench_t]
-    if isinstance(bench_t, (Node, Struct)):
+    if issubclass(bench_t, (Node, Struct)):
         ret = _bench_node_to_proto(bench_t, cache)
-    elif isinstance(bench_t, enum.StrEnum):
+    elif issubclass(bench_t, enum.StrEnum):
         ret = _bench_enum_to_proto(bench_t, cache)
     else:
         raise TypeError(f"invalid type: {bench_t!r}")

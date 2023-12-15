@@ -108,7 +108,6 @@ export function useStatementOps() {
             text
             headingLevel
             value
-            referenceCk
             versioned
             tags(filters: { isVisible: true }) {
               id

@@ -1,7 +1,6 @@
 from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING, Collection, Deque, Mapping, Optional, Union
-from uuid import UUID
+from typing import TYPE_CHECKING, Collection, Deque, Optional
 
 import pytz
 from croniter import croniter
@@ -37,15 +36,12 @@ class Trigger(Node):
     parent: "Statement" = node_parent(NodeType.STATEMENT)
     type: TriggerType = struct_property(is_required=True, validate=enum_validator(TriggerType))
     active: bool = struct_property(default=True)
-    mapping: Optional[Mapping] = struct_property(default=None)
     schedule_type: Optional[ScheduleType] = struct_property(
         default=None, validate=enum_validator(ScheduleType)
     )
     timezone: Optional[str] = struct_property(default=pytz.utc.zone)
     interval: Optional[int] = struct_property(default=None)
     cron: Optional[str] = struct_property(default=None)
-    statement: Union["Statement", UUID, None] = struct_property(default=None)
-    scope: Union["Node", UUID, None] = struct_property(default=None)
 
     @staticmethod
     def new(

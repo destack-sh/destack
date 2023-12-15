@@ -52,7 +52,7 @@ from bench.language.validation import (
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
-from bench.utils.func import did_you_mean_str, nextn
+from bench.utils.func import did_you_mean_str, nextn, try_tuple, strip_py_type, get_subclasses
 from bench.utils.utils import (
     DEBUG,
     LOCAL,
@@ -289,6 +289,17 @@ class _FieldExpressionBase:
     descending = desc
 
 
+PROPERTY_COLUMN_TYPE_BY_PY_TYPE: dict[type, ColumnType] = {
+    bool: ColumnType.BOOLEAN,
+    int: ColumnType.INT,
+    float: ColumnType.FLOAT,
+    str: ColumnType.STRING,
+    bytes: ColumnType.BYTES,
+    datetime: ColumnType.DATETIME,
+    UUID: ColumnType.UUID,
+}
+
+
 @dataclass
 class Property(_FieldExpressionBase):
     """A property of a module node or struct."""
@@ -297,18 +308,19 @@ class Property(_FieldExpressionBase):
     component: type["Node"] | None = None  # source component class
     annotation: typing.Any = None  # type annotation on LHS of assignment
     # config
-    alias: str | None = None  # for relations
+    alias: str | None = None  # for node list relations
     is_required: bool = False
     is_internal: bool = False
     is_runtime: bool = False
     is_cru: bool = False
+    references_type: tuple[NodeType, ...] | None = None  # for reference relations
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
-    parent_node_types: tuple[NodeType] | None = None
+    parent_node_types: tuple[NodeType, ...] | None = None
     ancestor_node_type: NodeType | None = None
-    store: bool = UNSET  # auto-detect (false for runtime)
-    store_as: ColumnType = UNSET  # auto-detect
+    store: bool = UNSET  # auto-detect (false for runtime properties)
+    store_as: ColumnType | None = UNSET  # auto-detect (yes for most non-runtime properties)
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
     list_type: type["NodeListBase"] | None = None
@@ -316,7 +328,7 @@ class Property(_FieldExpressionBase):
     children_flags: NodeRelationType = NodeRelationType.Default
     custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
     custom_copy: Callable[[typing.Any], typing.Any] | None = None
-    ignore_conflicts_with: tuple[type["Node"], ...] | None = None
+    ignore_conflicts_with: tuple[type["Node", ...], ...] | None = None
 
     @functools.cached_property
     def _as_field(self) -> "Field":
@@ -324,7 +336,7 @@ class Property(_FieldExpressionBase):
         from bench.language.packer import type_from_instance_type
 
         field = type_from_instance_type(self.annotation, name=self.name)
-        field.reflected = True
+        field._reflected = True
         return field
 
     def __post_init__(self):
@@ -355,7 +367,11 @@ class Property(_FieldExpressionBase):
                 flags_str = ", ".join(*tuple(f.name for f in NodeRelationType if v & f))
                 if flags_str:
                     non_default.append(flags_str)
-            elif k not in ("name", "annotation", "component", "ignore_conflicts_with"):
+            elif k == "references_type":
+                types_str = "|".join(t.name for t in v)
+                if types_str:
+                    non_default.append(f"to={types_str}")
+            elif k not in ("name", "annotation", "component", "ignore_conflicts_with", "store"):
                 if isinstance(v, bool):
                     non_default.append(k)
                 else:
@@ -373,6 +389,59 @@ class Property(_FieldExpressionBase):
                 return False
         return True
 
+    def determine_storage(self) -> None:
+        """Configures the storage options for this property. Must run after complete setup."""
+        # store property if not runtime (and not marked as _not_ store)
+        if self.is_tree_relation or self.is_runtime or self.references_type:
+            self.store = False
+            self.store_as = None
+        elif self.store is UNSET:
+            self.store = True
+
+        # determine storage type
+        if self.store_as is UNSET and self.store:
+            # resolve py type
+            py_type, _ = strip_py_type(self.annotation)
+            if isinstance(py_type, (str, typing.ForwardRef)):  # resolve manually
+                py_type = py_type.__forward_arg__ if not isinstance(py_type, str) else py_type
+                py_type = _KNOWN_TYPES_BY_NAME.get(py_type)
+                if py_type is None:
+                    raise ValueError(f"cannot determine storage for {self!r}: {self.annotation!r}")
+
+            # map to column type
+            assert isinstance(py_type, type), f"invalid type {py_type!r} for {self!r}"
+            if issubclass(py_type, enum.StrEnum):
+                self.store_as = ColumnType.STRING
+            elif issubclass(py_type, (enum.IntFlag, enum.IntEnum)):
+                self.store_as = ColumnType.INT
+            elif issubclass(py_type, Struct):
+                self.store_as = ColumnType.JSON
+            elif issubclass(py_type, Node):
+                raise ValueError(f"cannot store node directly: {self!r}")
+            else:
+                store_as = PROPERTY_COLUMN_TYPE_BY_PY_TYPE.get(py_type)
+                if store_as is None:
+                    raise ValueError(f"cannot determine storage for {self!r}: {self.annotation!r}")
+                self.store_as = store_as
+
+    def contribute_properties(self) -> tuple["Property"]:
+        """Contribute any extra properties required by this property."""
+        if self.references_type is not None:
+            # nocheckin: auto set reference_ck when reference is set
+            reference_ck_prop = Property(
+                name=self.name + "_ck",
+                component=self.component,
+                annotation=UUID,
+                default=None,
+                is_required=self.is_required,
+                is_internal=True,
+                store=True,
+                store_as=ColumnType.UUID,
+            )
+            return (reference_ck_prop,)
+
+        return tuple()
+
     def new(self) -> typing.Any:
         if self.default is not UNSET:
             return self.default
@@ -384,6 +453,8 @@ class Property(_FieldExpressionBase):
     def copy(self, value: typing.Any) -> typing.Any:
         if self.is_tree_relation:
             raise ValueError(f"cannot copy relation {self!r}")
+        elif self.references_type:
+            return value  # identity
         elif self.custom_copy is not None:
             return self.custom_copy(value)
         # auto-copy if it's trivial (primitives, immutable, enum, ...)
@@ -413,6 +484,8 @@ def struct_property(
     is_required: bool = False,
     reflect: bool = False,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
+    references: tuple[NodeType, ...] | NodeType = None,
+    store_as: ColumnType = UNSET,
 ):
     """Standard user facing struct/node property."""
     return Property(
@@ -423,6 +496,8 @@ def struct_property(
         is_required=is_required,
         is_reflected=reflect,
         ignore_conflicts_with=ignore_conflicts_with,
+        references_type=try_tuple(references),
+        store_as=store_as,
     )
 
 
@@ -432,17 +507,24 @@ def struct_internal(
     default_factory: Callable[[], typing.Any] = None,
     copy: Callable[[typing.Any], typing.Any] = None,
     is_cru: bool = False,
+    is_required: bool = True,
     reflect: bool = False,
+    references: tuple[NodeType, ...] | NodeType = None,
+    store: bool = UNSET,
+    store_as: ColumnType = UNSET,
 ):
     """Internal only struct/node property."""
     return Property(
         is_internal=True,
-        is_required=True,
+        is_required=is_required,
         default=default,
         default_factory=default_factory,
         custom_copy=copy,
         is_cru=is_cru,
         is_reflected=reflect,
+        references_type=try_tuple(references),
+        store=store,
+        store_as=store_as,
     )
 
 
@@ -465,10 +547,12 @@ def struct_runtime(
 
 def node_parent(*node_type: NodeType):
     """The parent of a node, must be of one of the given types."""
-    return Property(parent_node_types=tuple(node_type), default=None, is_internal=True)
+    return Property(parent_node_types=tuple(node_type), default=None, is_internal=True, store=False)
 
 
-def node_ancestor(node_type: NodeType, nearest: bool = True, include_self: bool = True):
+def node_ancestor(
+    node_type: NodeType, nearest: bool = True, include_self: bool = True, store: bool = UNSET
+):
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
         ancestor_node_type=node_type,
@@ -476,6 +560,7 @@ def node_ancestor(node_type: NodeType, nearest: bool = True, include_self: bool 
         is_internal=True,
         is_ancestor_nearest=nearest,
         is_ancestor_self=include_self,
+        store=store,
     )
 
 
@@ -546,6 +631,7 @@ _FORBIDDEN_NODE_METHODS = (
     + ["__post_init__", "__del__"]
 )
 NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
+STRUCT_CLASS_BY_STRUCT_TYPE: dict[StructType, type["Struct"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 _COMPONENT_METHODS: dict[[ComponentMethod, type["Node"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
@@ -584,11 +670,12 @@ def _get_component_methods(
     return methods
 
 
-def _process_struct_base(
+def _process_struct_base_cls(
     cls: Union[type["Node"], type["Struct"]],
     dynamic_components: tuple[type["Node"], ...] = (),
     detached: bool = False,
 ) -> tuple[type["Node"], dict[str, Property]]:
+    """Process a struct base class and return the processed class and its properties."""
     properties: dict[str, Property] = {}
     static_components: list[type["Node"] | type["Struct"]] = [cls]
 
@@ -619,7 +706,7 @@ def _process_struct_base(
             raise ValueError(f"invalid struct base {cls}")
 
     # collect properties from this
-    for name, prop in cls.__dict__.items():
+    for name, prop in list(cls.__dict__.items()):
         if (
             name.startswith("__")
             or type(prop).__name__.startswith("_")
@@ -637,6 +724,12 @@ def _process_struct_base(
         prop.component = cls
         prop.annotation = cls.__annotations__.get(name, None)
         properties[name] = prop
+        # collect any extra contributed properties
+        for p in prop.contribute_properties():
+            if p.name in properties:
+                raise ValueError(f"property conflict '{p.name}': {p!r}, {properties[prop.name]!r}")
+            properties[p.name] = p
+            setattr(cls, p.name, p)
 
     # collect properties from all components (static and dynamic, least to most specific)
     is_node = cls.__name__ in CORE_TYPES or issubclass(cls, Node)
@@ -705,7 +798,7 @@ def node_component(
     """
 
     def decorate(cls):
-        cls, properties = _process_struct_base(
+        cls, properties = _process_struct_base_cls(
             cls=cls, dynamic_components=dynamic_components, detached=detached
         )
         cls.__static_passthrough__ = passthrough
@@ -755,7 +848,12 @@ def struct(st: StructType):
     def decorator(cls: type[Struct]):
         if not issubclass(cls, Struct):
             raise TypeError(f"struct {cls} must be a subclass of {Struct}")
-        cls, properties = _process_struct_base(cls)
+        cls, properties = _process_struct_base_cls(cls)
+        if st in STRUCT_CLASS_BY_STRUCT_TYPE:
+            raise ValueError(
+                f"struct class conflict for {st}: {cls}, {STRUCT_CLASS_BY_STRUCT_TYPE[st]}"
+            )
+        STRUCT_CLASS_BY_STRUCT_TYPE[st] = cls
         return cls
 
     return decorator
@@ -1844,7 +1942,7 @@ def _make_self_method(
                     f"cannot coerce {method.name} {self!r} (status={self._status.name})"
                 )
 
-        for meth in _get_component_methods(self._components, method, self._concrete_cache_key):
+        for meth in _get_component_methods(self._components, method, self._instance_cache_key):
             meth(self, *args, **kwargs)
         if to_status is not None:
             self._status = to_status
@@ -1857,7 +1955,7 @@ def _make_inner_dunder_method(method: ComponentMethod):
     """Creates method that proxies a builtin dunder method to the first _method_inner"""
 
     def inner_method(self: "Node", *args, **kwargs):
-        meths = _get_component_methods(self._components, method, self._concrete_cache_key)
+        meths = _get_component_methods(self._components, method, self._instance_cache_key)
         if len(meths) <= 1:  # includes this one
             raise RuntimeError(f"{self!r} does not support {method.name}")
         return meths[1](self, *args, **kwargs)
@@ -1887,7 +1985,7 @@ class Struct:
         return self.__static_components__
 
     @property
-    def _concrete_cache_key(self) -> str:
+    def _instance_cache_key(self) -> str:
         """Identifier for dynamic components"""
         return type(self).__name__
 
@@ -1898,9 +1996,11 @@ class Struct:
         pass
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
+        # nocheckin: clear references (also in Node)
         pass
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
+        # nocheckin: resolve references (also in Node)
         pass
 
     _walk_self = _make_self_method(ComponentMethod.walk, _walk_inner)
@@ -2015,7 +2115,7 @@ class Node(abc.ABC):
         return ()
 
     @property
-    def _concrete_cache_key(self) -> str:
+    def _instance_cache_key(self) -> str:
         """Identifier for dynamic components"""
         return type(self).__name__
 
@@ -2230,7 +2330,7 @@ class Node(abc.ABC):
 
         # run actual init methods
         for meth in _get_component_methods(
-            self._components, ComponentMethod.init, self._concrete_cache_key
+            self._components, ComponentMethod.init, self._instance_cache_key
         ):
             meth(self)
 
@@ -2839,3 +2939,30 @@ class Module(ScopeNode):
             module._apply_edits_to_source(change.interp_edits)
 
         return module
+
+
+_KNOWN_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
+
+
+def complete_setup():
+    """Finalize setup of all language constructs after everything is imported."""
+    from bench.language import const
+
+    # populate known types
+    for bench_t in chain(NODE_CLASS_BY_NODE_TYPE.values(), STRUCT_CLASS_BY_STRUCT_TYPE.values()):
+        _KNOWN_TYPES_BY_NAME[bench_t.__name__] = bench_t
+    for maybe_bench_t in const.__dict__.values():
+        if isinstance(maybe_bench_t, type) and issubclass(maybe_bench_t, enum.Enum):
+            _KNOWN_TYPES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
+
+    # misc finalization on properties
+    for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
+        for name, prop in cls.__properties__.items():
+            prop: Property
+            # determine final storage type
+            prop.determine_storage()
+
+            # set reflected properties
+            if prop.is_reflected:
+                setattr(cls, name, prop)
+                prop._as_field  # noqa ensure the reflected field works (and cache it)

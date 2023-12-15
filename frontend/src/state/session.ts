@@ -484,7 +484,6 @@ export function _useSessions(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       duration: null,
-      statement,
       statementCk: statement?.ck,
       // should these be keyed?
       inputs: options?.inputs ?? {},
@@ -500,7 +499,7 @@ export function _useSessions(
     } as Run;
     currentRuns.value[runId] = run;
     localRunsIds.add(runId);
-    console.debug("run.start", run.id, run.statement?.name, run.statementCk, Object.keys(run.inputs));
+    console.debug("run.start", run.id, run.statementCk, Object.keys(run.inputs));
 
     function _discardRun() {
       delete currentRuns.value[runId];

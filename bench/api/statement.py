@@ -127,7 +127,6 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     code: auto
     text: auto
     value: auto
-    reference_ck: auto
     versioned: bool
     tags: list[Tagging] = strawberry_django.field(filters=TaggingFilter)
     triggers: list[Trigger] = strawberry_django.field(filters=TriggerFilter)

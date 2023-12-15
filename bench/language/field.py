@@ -40,7 +40,6 @@ from bench.language.module import (
     struct_property,
     struct_runtime,
 )
-from bench.language.reference import HasReference
 from bench.language.text import HasText
 from bench.language.validation import (
     ValidationHandler,
@@ -198,7 +197,7 @@ class Type:
     _tag: TypeTag
     _hint: Optional[TypeHint]
     _flags: TypeFlag
-    _reference: Union["Statement", StatementReference, None] = None
+    _reference: Optional["Statement"] = None
 
     def __str__(self) -> str:
         return _type_str(self._tag, self._hint, self._flags)
@@ -346,14 +345,17 @@ class HasType(Node):
 
 
 @node(NodeType.FIELD)
-class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
+class Field(HasText, HasValue, HasType, _FieldExpressionBase):
     parent: Union["Statement", None] = node_parent(NodeType.STATEMENT)
     name: str | None = struct_property(default=None, validate=validate_name)
     order_key: str | None = struct_internal(default=None)
     tag: TypeTag = struct_property(is_required=True, validate=enum_validator(TypeTag))
     hint: TypeHint | None = struct_property(default=None, validate=enum_validator(TypeHint))
     flags: TypeFlag = struct_property(default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
-    reflected: bool = struct_runtime(default=False)
+    reference: Optional["Statement"] = struct_internal(
+        default=None, is_required=False, references=NodeType.STATEMENT
+    )
+    _reflected: bool = struct_runtime(default=False)
 
     @staticmethod
     def new(
@@ -545,11 +547,7 @@ class Field(HasText, HasValue, HasReference, HasType, _FieldExpressionBase):
 @node(NodeType.RESOLVED_FIELD)
 class ResolvedField(Field):
     parent: "Statement" = node_parent(NodeType.STATEMENT)
-    field: Field = struct_internal()
-
-    @property
-    def field_ck(self) -> UUID:
-        return self.field.ck
+    field: Field = struct_internal(references=NodeType.FIELD)
 
     @property
     def resolved_fields(self):
@@ -629,9 +627,8 @@ class HasFields(HasType):
         for field in self.fields:
             # try to resolve reference or skip this field
             if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
-                HasReference._interp_inner(field, self, field.scope._on_issue)  # resolve ref
-                if not isinstance(field.reference, Node):
-                    continue  # interp error, ignore
+                # nocheckin: interp reference first?
+                continue  # interp error, ignore
 
             if field.flags & TypeFlag.IS_UNION_WITH:
                 if not isinstance(field.reference, Node):

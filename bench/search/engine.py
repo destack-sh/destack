@@ -335,7 +335,7 @@ OS_CONDITIONAL_OP_BY_BENCH = {
 
 def _compile_field_key(field: lang.Field | FieldReference) -> str:
     if isinstance(field, lang.Field):
-        if field.reflected:
+        if field._reflected:
             return field.py_ident
         else:
             return field._source_key
@@ -397,7 +397,7 @@ def compile_os_sort(ctx: CompilationContext, sort: Expression) -> dict[str, Any]
     props = {"order": OS_SORT_ORDER_BY_BENCH[sort.op]}
     if sort.mode:
         props["mode"] = OS_SORT_MODE_BY_BENCH[sort.mode]
-    return {sort.field_key: props}
+    return {sort._field_str: props}
 
 
 @dataclass(frozen=True)
@@ -470,8 +470,8 @@ def compile_os_search(
         combined_query &= query
     # add id to sort as tiebreaker if not already present
     if sort and not any(s.field_key == "_id" for s in sort):
-        sort = sort + [S(SortOp.ASCENDING, field="_id")]
-    sort = sort or [S(SortOp.ASCENDING, field="_id")]
+        sort = sort + [S(SortOp.ASCENDING, field_key="_id")]
+    sort = sort or [S(SortOp.ASCENDING, field_key="_id")]
     ctx = CompilationContext(root_limit=limit)
     compiled_query = compile_os_conditional(ctx, combined_query)
     compiled_sort = [compile_os_sort(ctx, s) for s in sort]

@@ -253,7 +253,7 @@ def sql_node_to_sql(node: SqlNode) -> sql.Composable:
 
 def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReference) -> SqlNode:
     if isinstance(field, lang.Field):
-        if field.reflected:
+        if field._reflected:
             return sql.Identifier(field.py_ident)
         elif database.ephemeral:
             return SqlJsonPath(sql.Identifier("value"), [field._typed_key])

@@ -56,7 +56,7 @@ const appearance = computed(() => ({ ...DEFAULT_APPEARANCE, ...props.appearance 
 const module = useCurrentModule();
 
 function getFields(node: Field | Statement, isOutput?: boolean): Field[] {
-  const statement = node.__typename == "Statement" ? node : module.statementOf(node.referenceCk);
+  const statement = node.__typename == "Statement" ? node : module.statementOf((node as Field).referenceCk);
   return (
     statement?.resolvedFields
       ?.map((f) => f as ResolvedField)

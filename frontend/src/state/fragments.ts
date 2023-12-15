@@ -160,7 +160,6 @@ export const FieldType = graphql(/* GraphQL */ `
     flags
     text
     orderKey
-    referenceCk
     parent {
       id
     }
@@ -189,7 +188,6 @@ export const TaggingType = graphql(/* GraphQL */ `
     parent {
       id
     }
-    referenceCk
     value
     # crud
     createdAt
@@ -254,7 +252,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     headingLevel
     code
     value
-    referenceCk
     versioned
     tags(filters: { isVisible: true }) {
       ...TaggingContent
@@ -352,7 +349,6 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     }
     orderKey
     key
-    referenceCk
     tags(filters: { isVisible: true }) {
       ...TaggingContent
     }

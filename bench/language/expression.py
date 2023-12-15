@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import functools
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 from uuid import UUID
@@ -18,8 +16,10 @@ from bench.language.const import (
     TypeHint,
     TypeStorageFormat,
     TypeTag,
+    NodeType,
 )
 from bench.language.module import Struct, struct, struct_property
+from bench.sql.core import ColumnType
 
 if TYPE_CHECKING:
     from bench.language import Field, HasFields, Node, ScopeNode
@@ -32,7 +32,9 @@ if TYPE_CHECKING:
 
 
 class QueryEngineError(Exception):
-    def __init__(self, engine: QueryEngine, expr: Expression | list[Expression], reason: str):
+    def __init__(
+        self, engine: QueryEngine, expr: Union["Expression", list["Expression"]], reason: str
+    ):
         super().__init__(f"query engine {engine.value} failed on {expr!r}: {reason}")
 
 
@@ -46,9 +48,10 @@ FieldReference = UUID | str  # str as an alias for fields that we don't have ref
 @struct(StructType.EXPRESSION)
 class Expression(Struct):
     op: ExpressionOp = struct_property(is_required=True)
-    field: FieldReference | Field | None = struct_property(default=None)
-    clauses: list[Expression] | None = struct_property(default=None)
-    value: Any = struct_property(default=None)
+    field: Optional["Field"] = struct_property(default=None, references=NodeType.FIELD)
+    field_key: Optional[str] = struct_property(default=None)
+    clauses: list["Expression"] | None = struct_property(default=None)
+    value: Any = struct_property(default=None, store_as=ColumnType.JSON)
     mode: Optional[SortMode] = struct_property(default=None)
 
     @property
@@ -95,7 +98,7 @@ class Expression(Struct):
         else:
             return C(ConditionalOp.NOT, clauses=[self])
 
-    def __and__(self, other: Expression):
+    def __and__(self, other: "Expression"):
         if not isinstance(other, Expression) or other.kind != ExpressionKind.CONDITIONAL:
             raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
         if self.op == ConditionalOp.AND:
@@ -106,7 +109,7 @@ class Expression(Struct):
         else:
             return C(ConditionalOp.AND, clauses=[self, other])
 
-    def __or__(self, other: Expression):
+    def __or__(self, other: "Expression"):
         if not isinstance(other, Expression) or other.kind != ExpressionKind.CONDITIONAL:
             raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
         if self.op == ConditionalOp.OR:
@@ -144,14 +147,10 @@ class Expression(Struct):
 
     @property
     def _field_str(self) -> str:
-        if not isinstance(self.field, (UUID, str)):
-            return self.field.py_ident
+        if self.field_key:
+            return self.field_key
         else:
-            return str(self.field)
-
-    @property
-    def field_key(self) -> str:
-        return self.field if isinstance(self.field, str) else self.field._source_key
+            return self.field.py_ident
 
     def _collect_ops(self) -> set[ExpressionOp]:
         """Collect all ops in this expression and its clauses (recursively)."""
@@ -163,8 +162,8 @@ class Expression(Struct):
 
     @staticmethod
     def and_if_set(
-        *clauses: Optional[Expression],
-    ) -> Optional[Expression]:
+        *clauses: Optional["Expression"],
+    ) -> Optional["Expression"]:
         base = None
         for clause in clauses:
             if clause is not None:

@@ -369,7 +369,6 @@ export const STATEMENT_ICONS_OUTLINE: Record<StatementType, any> = {
   [StatementType.Code]: CodeBracketSquareIconOutline,
   [StatementType.Flow]: PaperAirplaneIconOutline,
   [StatementType.Model]: CpuChipIconOutline,
-  [StatementType.Reference]: ArrowUpRightIcon,
   [StatementType.Group]: PuzzlePieceIconOutline,
   [StatementType.View]: EyeIconOutline,
 };
@@ -385,7 +384,6 @@ export const STATEMENT_ICONS_SOLID: Record<StatementType, any> = {
   [StatementType.Code]: CodeBracketSquareIconSolid,
   [StatementType.Flow]: PaperAirplaneIconSolid,
   [StatementType.Model]: CpuChipIconSolid,
-  [StatementType.Reference]: ArrowUpRightIcon,
   [StatementType.Group]: PuzzlePieceIconSolid,
   [StatementType.View]: EyeIconSolid,
 };
@@ -422,7 +420,6 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
   [StatementType.Database]: "Database",
   [StatementType.Model]: "Model",
   [StatementType.Flow]: "Flow",
-  [StatementType.Reference]: "Reference",
   [StatementType.Group]: "Group",
   [StatementType.View]: "View",
 };
@@ -439,7 +436,6 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Code]: "Python function or procedure.",
   [StatementType.Task]: "AI model function.",
   [StatementType.Variable]: "Common values for configuration or secrets",
-  [StatementType.Reference]: "Reuse a specific statement",
   [StatementType.Flow]: "Connect code and tasks with triggers",
   [StatementType.Blank]: "Empty statement",
   [StatementType.Model]: "An AI model of any kind",
@@ -613,7 +609,6 @@ export function useStatementMorph(
       }),
       simpleStatementCommand(MORPH_GROUPS.ADVANCED, StatementType.Tag),
       simpleStatementCommand(MORPH_GROUPS.ADVANCED, StatementType.Group),
-      simpleStatementCommand(MORPH_GROUPS.ADVANCED, StatementType.Reference),
     ];
 
     if (options?.includeTemplates) {

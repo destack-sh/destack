@@ -23,7 +23,6 @@ from bench import models
 from bench.language import const
 from bench.language import expression as expr
 from bench.msg.messages import ClientOrigin
-from bench.utils.func import try_to_uuid
 from bench.utils.utils import DEBUG, LOCAL, sentry_capture
 
 if typing.TYPE_CHECKING:
@@ -244,6 +243,16 @@ SortMode = strawberry.enum(bench.language.const.SortMode)
 ConditionalOp = strawberry.enum(bench.language.const.ConditionalOp)
 
 
+def _map_to_field(field: Optional[str]) -> tuple[UUID | None, str | None]:
+    if field is None:
+        return None, None
+    try:
+        field = UUID(field)
+        return field, None
+    except ValueError:
+        return None, field
+
+
 @strawberry.input
 class Conditional:
     op: ConditionalOp
@@ -253,7 +262,8 @@ class Conditional:
 
     def to_bench(self) -> expr.Expression:
         clauses = [c.to_bench() for c in self.clauses] if self.clauses else None
-        return expr.C(self.op, clauses=clauses, field=try_to_uuid(self.field), value=self.value)
+        field, field_key = _map_to_field(self.field)
+        return expr.C(self.op, clauses=clauses, field=field, field_key=field_key, value=self.value)
 
 
 @strawberry.input
@@ -263,4 +273,5 @@ class Sort:
     mode: Optional[SortMode] = None
 
     def to_bench(self) -> expr.Expression:
-        return expr.S(self.order, field=try_to_uuid(self.field), mode=self.mode)
+        field, field_key = _map_to_field(self.field)
+        return expr.S(self.order, field=field, field_key=field_key, mode=self.mode)

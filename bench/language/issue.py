@@ -65,10 +65,11 @@ class Issue(Node):
     type: IssueType = struct_property(is_required=True, validate=enum_validator(IssueType))
     kind: IssueKind = struct_property(default=None, validate=enum_validator(IssueKind))
     message: str = struct_property(default=None)
-    subject: Optional[Node] = struct_property(default=None)
+    subject: Union["Statement", "File"] = struct_property(
+        default=None, references=(NodeType.STATEMENT, NodeType.FILE)
+    )
     path: Optional[str] = struct_property(default=None)
     properties: list[str] = struct_property(default=None)
-    other: Optional[Node] = struct_property(default=None)
 
     def _init_inner(self):
         # make message
