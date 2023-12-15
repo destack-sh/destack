@@ -209,7 +209,7 @@ export function getSupportedConditionalOps(field: Field): ConditionalOp[] {
   for (const op of [
     ...EXPRESSION_OPS.COND_EXISTENCE,
     ...(SUPPORTED_OPS_BY_TYPE[field.tag] ?? []),
-    ...(SUPPORTED_OPS_BY_TYPE[field.hint] ?? []),
+    ...(SUPPORTED_OPS_BY_TYPE[field.hint as TypeHint] ?? []),
     ...(SUPPORTED_OPS_BY_TYPE[getStorageFormat(field.tag, field.hint, field.flags) as TypeStorageFormat] ?? []),
   ]) {
     if (!ops.includes(op)) ops.push(op);

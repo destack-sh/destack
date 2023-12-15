@@ -18,12 +18,11 @@ from bench.language.const import (
     TypeTag,
     NodeType,
 )
-from bench.language.module import Struct, struct, struct_property
+from bench.language.module import Struct, struct, struct_property, Node
 from bench.sql.core import ColumnType
 
 if TYPE_CHECKING:
-    from bench.language import Field, HasFields, Node, ScopeNode
-    from bench.language.issue import IssueHandler
+    from bench.language import Field, HasFields
 
 
 #
@@ -62,6 +61,7 @@ class Expression(Struct):
         raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
     def __str__(self):
+        field_str = self._field_str if self.field_key or isinstance(self.field, Node) else "<!ref>"
         if self.op in ExpressionOps.COND_STATIC:
             return self.op.name.lower()
         elif self.op in ExpressionOps.COND_LOGICAL:
@@ -74,15 +74,15 @@ class Expression(Struct):
             value_str = str(self.value)
             if len(value_str) > 32:
                 value_str = f"{value_str[:24]}...{value_str[-12:]}"
-            return f"{self._field_str}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
+            return f"{field_str}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
         elif self.op in ExpressionOps.COND_EXISTENCE:
-            return f"{self._field_str}{_CONDITIONAL_OP_SIGN[self.op]}"
+            return f"{field_str}{_CONDITIONAL_OP_SIGN[self.op]}"
         elif self.op in ExpressionOps.SORT:
-            return f"{'-' if self.op == SortOp.DESCENDING else ''}{self._field_str}"
+            return f"{'-' if self.op == SortOp.DESCENDING else ''}{field_str}"
         return self.op.name
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
+        return f"<{self.kind.name} {self}>"
 
     def __invert__(self):
         if self.op == ConditionalOp.TRUE:
@@ -92,9 +92,9 @@ class Expression(Struct):
         elif self.op == ConditionalOp.NOT:
             return self.clauses[0]
         elif self.op == ConditionalOp.EXISTS:
-            return C(ConditionalOp.NOT_EXISTS, field=self.field)
+            return C(ConditionalOp.NOT_EXISTS, field=self.field, field_key=self.field_key)
         elif self.op == ConditionalOp.NOT_EXISTS:
-            return C(ConditionalOp.EXISTS, field=self.field)
+            return C(ConditionalOp.EXISTS, field=self.field, field_key=self.field_key)
         else:
             return C(ConditionalOp.NOT, clauses=[self])
 
@@ -120,37 +120,16 @@ class Expression(Struct):
         else:
             return C(ConditionalOp.OR, clauses=[self, other])
 
-    def _walk_inner(self, on_member: Callable[[Union["Node", "Struct"]], None]):
-        from bench.language import Node
-
-        if isinstance(self.field, Node):
-            on_member(self.field)
-        if self.clauses:
-            for clause in self.clauses:
-                on_member(clause)
-
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
-        if not isinstance(self.field, (UUID, str)) and (
-            scope is None or self.field.ck in scope._local_root_tree
-        ):
-            self._set_untracked("field", self.field.ck)
-
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
-        if self.field:
-            resolved = self.field
-            if isinstance(self.field, UUID):
-                resolved = scope.lookup(self.field)
-            if resolved is None:
-                on_issue(type=IssueType.MISSING_REFERENCE, subject=scope, path="<expression>")
-            else:
-                self._set_untracked("field", resolved)
-
     @property
     def _field_str(self) -> str:
         if self.field_key:
             return self.field_key
-        else:
+        elif self.field is not None:
             return self.field.py_ident
+        else:
+            raise TypeError(
+                f"cannot stringify unresolved field ref {self.__class__} (op={self.op}, field_ck={self.field_ck}, field_key={self.field_key})"
+            )
 
     def _collect_ops(self) -> set[ExpressionOp]:
         """Collect all ops in this expression and its clauses (recursively)."""
@@ -327,11 +306,11 @@ def coerce_sort(
 
 
 # single-letter convenience constructors
-def E(op: ExpressionOp, *args, _expect_t: type[ExpressionKind] = None, **kwargs) -> Expression:
+def E(op: ExpressionOp, *, _expect_t: type[ExpressionKind] = None, **kwargs) -> Expression:
     if _expect_t is not None and EXPRESSION_KIND_BY_OP[op] != _expect_t:
         raise TypeError(f"expected {_expect_t}, got {EXPRESSION_KIND_BY_OP[op]}")
     kwargs = {k: v for k, v in kwargs.items() if v is not None and k in Expression.__properties__}
-    return Expression(op, *args, **kwargs)
+    return Expression(op=op, **kwargs)
 
 
 C = functools.partial(E, _expect_t=ExpressionKind.CONDITIONAL)

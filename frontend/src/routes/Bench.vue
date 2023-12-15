@@ -439,7 +439,7 @@ watch(
   { immediate: true }
 );
 
-provideBenchVersioning(projectFetched as Ref<ProjectHeader | null>, versionFetched as Ref<ProjectVersionHeader | null>);
+provideBenchVersioning(projectFetched as Ref<ProjectHeader | null>, versionFetched as Ref<ProjectVersionHeader>);
 
 // clear bench state when exiting view
 onBeforeUnmount(() => {

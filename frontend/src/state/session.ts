@@ -526,7 +526,7 @@ export function _useSessions(
             let message;
             if (r?.data?.run?.__typename == "OperationInfo") {
               message = "Could not connect.";
-            } else if (r?.data?.run?.error == StartRunErrorType.Unavailable) {
+            } else if ((r?.data?.run as Run)?.error == StartRunErrorType.Unavailable) {
               message = "Workers are unavailable.";
             } else {
               message = "Invalid request.";

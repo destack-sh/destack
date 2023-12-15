@@ -50,7 +50,7 @@ export const TYPEHINT_KEYWORD: Partial<Record<TypeHint, string>> = {
   [TypeHint.Statement]: "statement",
   [TypeHint.Run]: "run",
   [TypeHint.Secret]: "secret",
-  [TypeHint.Blob]: "blob",
+  // [TypeHint.Blob]: "blob",
 };
 export const SUPPORTED_TYPEHINTS: Partial<Record<TypeHint, TypeTag>> = {
   // string

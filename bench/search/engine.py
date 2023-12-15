@@ -464,7 +464,7 @@ def compile_os_search(
         raise ValueError("cannot specify both after and skip")
     combined_query = C(
         ConditionalOp.AND,
-        clauses=[C(ConditionalOp.EQUALS, TYPE_DISCRIMINATOR_KEY, value=type.value)],
+        clauses=[C(ConditionalOp.EQUALS, field_key=TYPE_DISCRIMINATOR_KEY, value=type.value)],
     )
     if query is not None:
         combined_query &= query

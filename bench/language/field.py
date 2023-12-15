@@ -600,7 +600,7 @@ class HasFields(HasType):
         if self.key is None:
             self.key = new_dynamic_node_key(self.ck)
 
-    def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
+    def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
         self.resolved_fields.clear(_trigger=_NC.UpdateLists)
         self._did_resolve_fields = False
 
@@ -627,8 +627,10 @@ class HasFields(HasType):
         for field in self.fields:
             # try to resolve reference or skip this field
             if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
-                # nocheckin: interp reference first?
-                continue  # interp error, ignore
+                if field._status <= NS.INTERP:  # try to interp field if not already interp-ed
+                    field._interp_self(self, on_issue=on_issue)
+                if not isinstance(field.reference, Node):
+                    continue  # interp error, ignore
 
             if field.flags & TypeFlag.IS_UNION_WITH:
                 if not isinstance(field.reference, Node):

@@ -313,7 +313,8 @@ class Property(_FieldExpressionBase):
     is_internal: bool = False
     is_runtime: bool = False
     is_cru: bool = False
-    references_type: tuple[NodeType, ...] | None = None  # for reference relations
+    reference_types: tuple[NodeType, ...] | None = None  # for reference relations
+    reference_key: Optional["Property"] = None  # for reference relations
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
@@ -367,7 +368,7 @@ class Property(_FieldExpressionBase):
                 flags_str = ", ".join(*tuple(f.name for f in NodeRelationType if v & f))
                 if flags_str:
                     non_default.append(flags_str)
-            elif k == "references_type":
+            elif k == "reference_types":
                 types_str = "|".join(t.name for t in v)
                 if types_str:
                     non_default.append(f"to={types_str}")
@@ -383,7 +384,7 @@ class Property(_FieldExpressionBase):
     def equals_type(self, other: "Property") -> bool:
         """Compares everything but the source component."""
         for k in dataclasses.fields(self):
-            if k.name in ("component", "ignore_conflicts_with"):
+            if k.name in ("component", "ignore_conflicts_with", "reference_key"):
                 continue
             if getattr(self, k.name) != getattr(other, k.name):
                 return False
@@ -392,7 +393,7 @@ class Property(_FieldExpressionBase):
     def determine_storage(self) -> None:
         """Configures the storage options for this property. Must run after complete setup."""
         # store property if not runtime (and not marked as _not_ store)
-        if self.is_tree_relation or self.is_runtime or self.references_type:
+        if self.is_tree_relation or self.is_runtime or self.reference_types:
             self.store = False
             self.store_as = None
         elif self.store is UNSET:
@@ -426,7 +427,8 @@ class Property(_FieldExpressionBase):
 
     def contribute_properties(self) -> tuple["Property"]:
         """Contribute any extra properties required by this property."""
-        if self.references_type is not None:
+        if self.reference_types is not None:
+            assert not self.reference_key, f"cannot call contribute_properties twice: {self!r}"
             # nocheckin: auto set reference_ck when reference is set
             reference_ck_prop = Property(
                 name=self.name + "_ck",
@@ -438,6 +440,7 @@ class Property(_FieldExpressionBase):
                 store=True,
                 store_as=ColumnType.UUID,
             )
+            self.reference_key = reference_ck_prop
             return (reference_ck_prop,)
 
         return tuple()
@@ -453,7 +456,7 @@ class Property(_FieldExpressionBase):
     def copy(self, value: typing.Any) -> typing.Any:
         if self.is_tree_relation:
             raise ValueError(f"cannot copy relation {self!r}")
-        elif self.references_type:
+        elif self.reference_types:
             return value  # identity
         elif self.custom_copy is not None:
             return self.custom_copy(value)
@@ -496,7 +499,7 @@ def struct_property(
         is_required=is_required,
         is_reflected=reflect,
         ignore_conflicts_with=ignore_conflicts_with,
-        references_type=try_tuple(references),
+        reference_types=try_tuple(references),
         store_as=store_as,
     )
 
@@ -522,7 +525,7 @@ def struct_internal(
         custom_copy=copy,
         is_cru=is_cru,
         is_reflected=reflect,
-        references_type=try_tuple(references),
+        reference_types=try_tuple(references),
         store=store,
         store_as=store_as,
     )
@@ -700,6 +703,7 @@ def _process_struct_base_cls(
     if cls.__name__ not in ("Struct", "Node"):
         if issubclass(cls, Node):
             static_components.append(Node)
+            static_components.append(Struct)
         elif issubclass(cls, Struct):
             static_components.append(Struct)
         else:
@@ -786,6 +790,47 @@ def _process_struct_base_cls(
 
 
 @typing.dataclass_transform()
+def struct_component(
+    cls: Optional[typing.Type] = None,
+    struct_type: StructType = None,
+):
+    """
+    Mark a class as a struct component (or concrete struct for a StructType).
+    """
+
+    def decorate(cls):
+        cls, properties = _process_struct_base_cls(cls=cls)
+        cls.__struct_type__ = struct_type
+        props = properties.values()
+        cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
+        cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
+        cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
+
+        # register struct
+        if struct_type:
+            cls.struct_type = struct_type
+            if struct_type in STRUCT_CLASS_BY_STRUCT_TYPE:
+                raise ValueError(
+                    f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_STRUCT_TYPE[struct_type]}"
+                )
+            STRUCT_CLASS_BY_STRUCT_TYPE[struct_type] = cls
+        return cls
+
+    if cls is not None:
+        return decorate(cls)
+    return decorate
+
+
+def struct(
+    struct_type: StructType,
+):
+    def decorate(cls):
+        return struct_component(cls, struct_type=struct_type)
+
+    return decorate
+
+
+@typing.dataclass_transform()
 def node_component(
     cls: Optional[typing.Type] = None,
     node_type: NodeType = None,
@@ -818,9 +863,10 @@ def node_component(
                 list_properties_by_child[prop.child_node_type].append(prop)
         cls.__list_properties__ = frozendict(list_properties)
         cls.__list_properties_by_child__ = frozendict(list_properties_by_child)
-        cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
         cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_node_type})
+        cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
         cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
+        cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
         cls.__is_detached__ = detached
 
         # register as concrete node class for node_type
@@ -839,24 +885,6 @@ def node_component(
         return decorate(cls)
 
     return decorate
-
-
-@typing.dataclass_transform()
-def struct(st: StructType):
-    """Register a struct class."""
-
-    def decorator(cls: type[Struct]):
-        if not issubclass(cls, Struct):
-            raise TypeError(f"struct {cls} must be a subclass of {Struct}")
-        cls, properties = _process_struct_base_cls(cls)
-        if st in STRUCT_CLASS_BY_STRUCT_TYPE:
-            raise ValueError(
-                f"struct class conflict for {st}: {cls}, {STRUCT_CLASS_BY_STRUCT_TYPE[st]}"
-            )
-        STRUCT_CLASS_BY_STRUCT_TYPE[st] = cls
-        return cls
-
-    return decorator
 
 
 def node(
@@ -1969,16 +1997,22 @@ class _Passthrough(enum.StrEnum):
     Scope = "scope"
 
 
-@dataclass(eq=False)
-class Struct:
+@struct_component
+class Struct(abc.ABC):
     """
     A non-node data structure, usually inside a node.
     Will activate, track, etc. when we start using these in nodes.
     """
 
+    struct_type: ClassVar[StructType]
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __properties__: ClassVar[dict[str, Property]] = {}
+    __tracked_properties__: ClassVar[dict[str, Property]] = {}
+    __internal_properties__: ClassVar[dict[str, Property]] = {}
+    __reference_properties__: ClassVar[dict[str, Property]] = {}
+
+    _status: NodeStatus = struct_runtime(default=None)
 
     @property
     def _components(self) -> tuple[type["Node"], ...]:
@@ -1990,26 +2024,84 @@ class Struct:
         return type(self).__name__
 
     def __eq__(self, other):
-        return self is other  # structs have no identity
+        return self is other  # structs have no 'real' identity
 
-    def _walk_inner(self, on_member: Callable[[Union["Node", "Struct"]], None]):
-        pass
+    def _set_untracked(self, key, value):
+        self.__dict__[key] = value
+
+    # TODO nocheckin: track in-struct edits (__setattr__)
+
+    def _init_inner(self):
+        # in session copy reference keys from references if set :NodeReferences
+        for prop in self.__reference_properties__.values():
+            ref = getattr(self, prop.name)
+            if ref is not None:
+                self.__dict__[prop.reference_key.name] = ref.ck
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
-        # nocheckin: clear references (also in Node)
-        pass
+        # clear node references :NodeReferences
+        tree = scope._local_tree if scope is not None else None
+        for prop in self.__reference_properties__.values():
+            if tree is not None:  # if scope is set only clear nodes in scope
+                val = getattr(self, prop.name)
+                if val is None or val.ck not in tree:
+                    continue
+            # setattr(self, prop.name, None) # nocheckin: do this for real
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
-        # nocheckin: resolve references (also in Node)
-        pass
+        # resolve node references :NodeReferences
+        for prop in self.__reference_properties__.values():
+            if getattr(self, prop.name, None) is not None:
+                continue  # already resolved
+            ref_key_value = getattr(self, prop.reference_key.name)
+            if ref_key_value is not None:
+                resolved = scope.resolve(ref_key_value)
+                if resolved is None:
+                    on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=prop.name)
+                setattr(self, prop.name, resolved)
 
-    _walk_self = _make_self_method(ComponentMethod.walk, _walk_inner)
-    _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner)
-    _interp_self = _make_self_method(ComponentMethod.interp, _interp_inner)
+    def _visit_inner(self, visitor: "NodeVisitor"):
+        # visit node references :NodeReferences
+        for prop in self.__properties__.values():
+            value = getattr(self, prop.name)
+            if isinstance(value, Node):
+                visitor.visit_reference(value)
+
+    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
+        """Validate cross-property constraints given the modified properties."""
+        # since this is the root module, we also validate the properties directly
+        from bench.language.builtin import _should_validate
+
+        if LOCAL and not _should_validate():
+            return  # escape hatch for testing
+        for name in properties:
+            prop = self.__properties__.get(name)
+            assert prop is not None, f"unknown property '{name}' on {self!r}"
+            value = getattr(self, name)
+            if value is None:
+                if prop.is_required:
+                    on_invalid(self, f"{prop.name}: is required", [prop.name])
+            elif prop.custom_validate is not None:
+                handler = PropertyValidationHandler(self, prop, on_invalid)
+                valid = prop.validate(value, handler)
+                if valid is False:
+                    on_invalid(self, f"{prop.name}: invalid value", [prop.name])
+
+    _clear_self = _make_self_method(
+        ComponentMethod.clear, _clear_inner, from_status=NS.INDEX, to_status=NS.SOURCE
+    )
+    _interp_self = _make_self_method(
+        ComponentMethod.interp,
+        _interp_inner,
+        from_status=NS.INDEX,
+        to_status=NS.INTERP,
+    )
+    _visit_self = _make_self_method(ComponentMethod.visit, _visit_inner)
+    _validate_self = _make_self_method(ComponentMethod.validate, _validate_inner)
 
     @staticmethod
     def _make_rec_method(method: ComponentMethod, wraps):
-        """Creates method that calls _method_self for all descendants (using _walk_self)"""
+        """Creates method that calls _method_self for all contained structs"""
 
         @functools.wraps(wraps)
         def rec_method(self: "Node", *args, **kwargs):
@@ -2033,15 +2125,13 @@ class Struct:
 
     _clear_rec = _make_rec_method(ComponentMethod.clear, _clear_self)
     _interp_rec = _make_rec_method(ComponentMethod.interp, _interp_self)
-
-    def _set_untracked(self, key: str, value: Any):
-        self.__dict__[key] = value
+    _visit_rec = _make_rec_method(ComponentMethod.visit, _visit_self)
 
 
 @node_component
-class Node(abc.ABC):
+class Node(Struct):
     """
-    A node in a Bench module tree.
+    A node in a Bench module tree - basically struct + identity, so it can relate nodes.
     A node has a per-version unique id (id) and a constant identifier key (ck).
     The id is derived from the module id, so it's only assigned when the node is attached.
     """
@@ -2055,6 +2145,7 @@ class Node(abc.ABC):
     __list_properties_by_child__: ClassVar[dict[NodeType, list[Property]]] = defaultdict(list)
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}
+    __reference_properties__: ClassVar[dict[str, Property]] = {}
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __has_scope__: ClassVar[bool] = False
     __is_detached__: ClassVar[bool] = False
@@ -2152,19 +2243,17 @@ class Node(abc.ABC):
     def __hash__(self):
         return hash(self.id)
 
-    def _set_untracked(self, key, value):
-        self.__dict__[key] = value
-
     def __setattr__(self, key, value):
         if self._status != NS.ACTIVE:
             return super().__setattr__(key, value)
 
         # tracked set
-        if key in self.__list_properties__:
+        prop = self.__properties__.get(key)
+        if prop.child_node_type:
             return getattr(self, key).set(value)
-        elif key in self.__internal_properties__:
+        elif prop.is_internal:
             return super().__setattr__(key, value)
-        elif key in self.__tracked_properties__:
+        elif prop is not None:
             prev = getattr(self, key)
             self.__dict__[key] = value
             try:
@@ -2172,7 +2261,13 @@ class Node(abc.ABC):
             except ValidationError as e:  # reset on error
                 self.__dict__[key] = prev
                 raise e
-            if self.attached:
+            if prop.reference_key:  # update reference key  :NodeReferences
+                reference_key_value = value.ck if value is not None else None
+                self.__dict__[prop.reference_key.name] = reference_key_value
+                if self.attached:
+                    self._session._tracer.node_update(self, [key])
+                    self._updated_self((prop.reference_key.name,))
+            elif self.attached:
                 self._session._tracer.node_update(self, [key])
                 self._updated_self((key,))
             return
@@ -2234,46 +2329,10 @@ class Node(abc.ABC):
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
 
-    # abstract :ComponentMethods
-
-    def _init_inner(self) -> None:
-        """Initialize this node."""
-        pass
-
-    def _clear_inner(self, scope: Optional["ScopeNode"]) -> None:
-        """Resets this node's index and interp state."""
-        pass
+    # abstract :ComponentMethods in addition to Struct
 
     def _index_inner(self) -> None:
         """Index this node."""
-        pass
-
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:
-        """Interpret this node."""
-        pass
-
-    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
-        """Validate cross-property constraints given the modified properties."""
-        # since this is the root module, we also validate the properties directly
-        from bench.language.builtin import _should_validate
-
-        if LOCAL and not _should_validate():
-            return  # escape hatch for testing
-        for name in properties:
-            prop = self.__properties__.get(name)
-            assert prop is not None, f"unknown property '{name}' on {self!r}"
-            value = getattr(self, name)
-            if value is None:
-                if prop.is_required:
-                    on_invalid(self, f"{prop.name}: is required", [prop.name])
-            elif prop.custom_validate is not None:
-                handler = PropertyValidationHandler(self, prop, on_invalid)
-                valid = prop.validate(value, handler)
-                if valid is False:
-                    on_invalid(self, f"{prop.name}: invalid value", [prop.name])
-
-    def _visit_inner(self, visitor: "NodeVisitor") -> None:
-        """Visit any non-descendant referenced nodes."""
         pass
 
     def _activate_inner(self, session: "Session") -> None:
@@ -2350,19 +2409,9 @@ class Node(abc.ABC):
         if self._status >= NS.INTERP and self._session and self._session is not UNSET:
             self._validate_self(self.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
-    _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner, to_status=NS.SOURCE)
     _index_self = _make_self_method(
         ComponentMethod.index, _index_inner, from_status=NS.SOURCE, to_status=NS.INDEX
     )
-    _interp_self = _make_self_method(
-        ComponentMethod.interp,
-        _interp_inner,
-        from_status=NS.INDEX,
-        to_status=NS.INTERP,
-    )
-
-    _visit_self = _make_self_method(ComponentMethod.visit, _visit_inner)
-    _validate_self = _make_self_method(ComponentMethod.validate, _validate_inner)
     _activate_self = _make_self_method(
         ComponentMethod.activate, _activate_inner, from_status=NS.INTERP, to_status=NS.ACTIVE
     )
@@ -2527,7 +2576,7 @@ class ScopeNode(Node):
         for prop in self.__list_properties__.values():
             getattr(self, prop.name)._update(scope)
 
-    def _clear_inner(self, scope: Optional["ScopeNode"]):
+    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         self._scopes_by_name = {}
         self._names_by_ident = {}
 

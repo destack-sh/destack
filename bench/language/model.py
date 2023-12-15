@@ -48,7 +48,7 @@ class HasModel(HasFields, Node):
 
     # we only cache models without vector inputs/outputs
 
-    def _clear_inner(self, scope: typing.Optional[ScopeNode]) -> None:
+    def _clear_inner(self, scope: typing.Optional[ScopeNode] = None) -> None:
         self._api_key = None
         self._remote = True
         self._endpoint_impl = None
