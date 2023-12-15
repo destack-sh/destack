@@ -174,8 +174,8 @@ class RecordQuery:
         """Combines the custom with the default filter for this database."""
         return Expression.and_if_set(
             self._filter,
-            C(ConditionalOp.EQUALS, "statement_key", value=self._database.key),
-            ~C(ConditionalOp.EXISTS, "deleted_at"),
+            C(ConditionalOp.EQUALS, field_key="statement_key", value=self._database.key),
+            ~C(ConditionalOp.EXISTS, field_key="deleted_at"),
         )
 
     def copy(self):
@@ -492,7 +492,8 @@ class RecordQuery:
         if session._tracer._local_edits:
             await session.flush_local()
         where = Expression.and_if_set(
-            self._filter, C(ConditionalOp.EQUALS, "statement_key", value=self._database.key)
+            self._filter,
+            C(ConditionalOp.EQUALS, field_key="statement_key", value=self._database.key),
         )
         deleted_rows = await pg_delete(
             cur=await self._database._get_pg_cursor(),
@@ -684,7 +685,7 @@ class HasDatabase(Node):
         if self.key is None:
             self.key = self._derive_key()
 
-    def _clear_inner(self, scope: Optional["ScopeNode"]) -> None:
+    def _clear_inner(self, scope: Optional["ScopeNode"] = None) -> None:
         self._table = None
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:

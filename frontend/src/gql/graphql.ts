@@ -2338,7 +2338,7 @@ export type TriggerUpdateInput = {
 
 export enum TypeHint {
   Audio = "AUDIO",
-  Blob = "BLOB",
+  // Blob = "BLOB",
   Checkbox = "CHECKBOX",
   Code = "CODE",
   Date = "DATE",

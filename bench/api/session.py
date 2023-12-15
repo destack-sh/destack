@@ -521,19 +521,20 @@ class SessionQuery:
         query = query.to_bench() if query else None
         if session_id:
             query = lang.Expression.and_if_set(
-                query, lang.C(ConditionalOp.EQUALS, "session_id", value=str(session_id))
+                query, lang.C(ConditionalOp.EQUALS, field_key="session_id", value=str(session_id))
             )
         if run_id:
             query = lang.Expression.and_if_set(
-                query, lang.C(ConditionalOp.EQUALS, "run_id", value=str(run_id))
+                query, lang.C(ConditionalOp.EQUALS, field_key="run_id", value=str(run_id))
             )
         if statement_ids:
             query = lang.Expression.and_if_set(
-                query, lang.C(ConditionalOp.EQUALS, "statement_id", value=str(statement_ids))
+                query,
+                lang.C(ConditionalOp.EQUALS, field_key="statement_id", value=str(statement_ids)),
             )
         if statement_cks:
             query = lang.Expression.and_if_set(
-                query, lang.C(ConditionalOp.EQUALS, "statement_ck", value=statement_cks)
+                query, lang.C(ConditionalOp.EQUALS, field_key="statement_ck", value=statement_cks)
             )
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
 

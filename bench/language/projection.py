@@ -9,36 +9,6 @@ if TYPE_CHECKING:
     from bench.language.statement import IsTyped
 
 
-# @node_component nocheckin: remove
-# class HasReference(Node):
-#     """A reference to another statement."""
-#
-#     def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
-#         if isinstance(self.reference, Node) and (
-#             scope is None or self.reference.ck in scope._local_root_tree
-#         ):
-#             self._set_untracked("reference", self.reference.ck)
-#
-#     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
-#         if self.reference is None:
-#             return
-#         resolved = self.reference
-#         if not isinstance(self.reference, Node):
-#             resolved = scope.lookup(self.reference)
-#         if resolved is None:
-#             path = getattr(self, "py_ident", repr(self))
-#             on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=path)
-#         elif isinstance(self.reference, str):
-#             # user code set a string reference, need to track change
-#             self.reference = resolved
-#         else:
-#             self._set_untracked("reference", resolved)
-#
-#     def _visit_inner(self, visitor: "NodeVisitor") -> None:
-#         if isinstance(self.reference, Node):
-#             visitor.visit_reference(self.reference)
-
-
 class NodeVisitor:
     def __init__(self):
         self._reference_by_ck: dict[UUID, Node] = {}
@@ -59,7 +29,7 @@ class NodeVisitor:
 
 class Projection:
     """
-    A projection into a module tree (with inline nodes and out-of-line as needed).
+    A projection into the module (with inline nodes and out-of-line as needed).
     'Projecting' is not quite right / complete yet, consider:
      - How do we filter and LoD this?
      - When do we inline out-of-line descendants (like Comments or local Records)?

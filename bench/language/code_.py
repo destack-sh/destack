@@ -79,7 +79,7 @@ class HasCode(Node):
     _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = struct_runtime(default=None)
     _cached_exports: dict[str, Any] | None = struct_runtime(default=None)
 
-    def _clear_inner(self, scope: Optional[ScopeNode]) -> None:
+    def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
         self._parse = None
         self._transform = None
         self._statement_references = None

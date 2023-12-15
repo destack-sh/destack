@@ -771,7 +771,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             id=tagging.id,
             ck=tagging.ck,
             key=tagging.key,
-            reference=tagging.reference_ck,
+            reference_ck=tagging.reference_ck,
             value=tagging.value,
             revision=tagging.revision,
             created_at=tagging.created_at,
@@ -926,7 +926,7 @@ class ExpressionData:
     kind: ExpressionKind
     op: str
     clauses: list[ExpressionData] = None
-    field: UUID = None
+    field_ck: UUID = None
     field_key: str = None
     value: typing.Any = None
     mode: Optional[SortMode] = None
@@ -944,7 +944,7 @@ class ExpressionPacker(StructPacker[ExpressionData, lang.Expression]):
             clauses=[self.pack(clause) for clause in expr.clauses]
             if expr.clauses is not None
             else None,
-            field=expr.field.ck if isinstance(expr.field, lang.Field) else expr.field,
+            field_ck=expr.field_ck,
             field_key=expr.field_key,
             value=getattr(expr, "value", None),
             mode=expr.mode,
@@ -953,7 +953,7 @@ class ExpressionPacker(StructPacker[ExpressionData, lang.Expression]):
     def unpack(self, data: ExpressionData, module: Module) -> lang.Expression:
         return Expression(
             op=ExpressionOp(data.op),
-            field=data.field,
+            field_ck=data.field_ck,
             field_key=data.field_key,
             clauses=[self.unpack(clause, module) for clause in data.clauses]
             if data.clauses is not None

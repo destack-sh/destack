@@ -263,7 +263,9 @@ class Conditional:
     def to_bench(self) -> expr.Expression:
         clauses = [c.to_bench() for c in self.clauses] if self.clauses else None
         field, field_key = _map_to_field(self.field)
-        return expr.C(self.op, clauses=clauses, field=field, field_key=field_key, value=self.value)
+        return expr.C(
+            self.op, clauses=clauses, field_ck=field, field_key=field_key, value=self.value
+        )
 
 
 @strawberry.input
@@ -274,4 +276,4 @@ class Sort:
 
     def to_bench(self) -> expr.Expression:
         field, field_key = _map_to_field(self.field)
-        return expr.S(self.order, field=field, field_key=field_key, mode=self.mode)
+        return expr.S(self.order, field_ck=field, field_key=field_key, mode=self.mode)

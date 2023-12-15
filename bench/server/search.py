@@ -316,8 +316,8 @@ async def sync_databases_to_os(module: Module, databases: list[HasDatabase]) -> 
     all_records: list[wire.RecordData] = []
     async with async_pg_cursor(module.pg_name) as cur:
         for database in databases:
-            where = C(ConditionalOp.EQUALS, "statement_key", value=database.key) & ~C(
-                ConditionalOp.EXISTS, "deleted_at"
+            where = C(ConditionalOp.EQUALS, field_key="statement_key", value=database.key) & ~C(
+                ConditionalOp.EXISTS, field_key="deleted_at"
             )
             records_data, _, _ = await pg_select_records(cur, database, where=where)
             all_records.extend(records_data)

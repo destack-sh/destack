@@ -891,7 +891,7 @@ class RuntimeHost:
                     source_database=source_database,
                     target_cur=target_cur,
                     target_database=target_database,
-                    where=C(ConditionalOp.NOT_EXISTS, "deleted_at"),
+                    where=C(ConditionalOp.NOT_EXISTS, field_key="deleted_at"),
                     keep_cks=False,
                     copy_revisions=False,
                     return_nodes=True,
@@ -968,7 +968,7 @@ class RuntimeHost:
                         source_database=source_database,
                         target_cur=pg_cursor,
                         target_database=target_database,
-                        where=C(ConditionalOp.NOT_EXISTS, "deleted_at"),
+                        where=C(ConditionalOp.NOT_EXISTS, field_key="deleted_at"),
                         keep_cks=True,
                         copy_revisions=True,
                     )

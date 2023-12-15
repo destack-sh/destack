@@ -259,8 +259,10 @@ def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReferen
             return SqlJsonPath(sql.Identifier("value"), [field._typed_key])
         else:
             return sql.Identifier(get_field_column_name(field))
-    else:
+    elif isinstance(field, str):
         return sql.Identifier(field)
+    else:
+        raise TypeError(f"unexpected field ref: {field!r}")
 
 
 def compile_pg_conditional(
@@ -277,7 +279,7 @@ def compile_pg_conditional(
     elif (
         cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
     ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
-        left = _compile_field_ref(database, cond.field)
+        left = _compile_field_ref(database, cond.field or cond.field_key)
         if isinstance(cond.field, Field):  # add explicit cast to LHS if possible
             pg_type = CAST_TYPE_BY_STORAGE_FORMAT[cond.field._storage_format]
             left = sql.SQL("({})::{}").format(sql_node_to_sql(left), sql.SQL(pg_type))
@@ -301,7 +303,8 @@ def compile_pg_conditional(
         return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
     elif cond.op in ExpressionOps.COND_EXISTENCE:
         return SqlUnary(
-            left=_compile_field_ref(database, cond.field), op=PG_CONDITIONAL_OP_BY_BENCH[cond.op]
+            left=_compile_field_ref(database, cond.field or cond.field_key),
+            op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
     raise QueryEngineIncapableError(QueryEngine.POSTGRES, cond, "unsupported conditional")
 
@@ -310,7 +313,7 @@ def compile_pg_sort(
     database: "HasDatabase",
     sort: lang.Expression,
 ) -> SqlNode:
-    field_ref = _compile_field_ref(database, sort.field)
+    field_ref = _compile_field_ref(database, sort.field or sort.field_key)
     return sql.SQL("{} {}").format(
         sql_node_to_sql(field_ref), sql.SQL(POSTGRES_SORT_OP_BY_BENCH[sort.op])
     )
@@ -1014,7 +1017,9 @@ async def duplicate_records_in_pg(
     target_module_id = target_database.module.id
 
     # TODO @Performance: duplicate records within same database directly in postgres
-    where = where & lang.C(ConditionalOp.EQUALS, "statement_key", value=source_database.key)
+    where = where & lang.C(
+        ConditionalOp.EQUALS, field_key="statement_key", value=source_database.key
+    )
     log = logger.bind(source=source_database, target=target_database, where=where)
     log.debug("pg.duplicate_records", copy_revisions=copy_revisions, keep_cks=keep_cks)
     record_rows = await pg_select(
