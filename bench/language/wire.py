@@ -720,12 +720,6 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             _session=session,
         )
 
-    def patch(
-        self, node: TriggerData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
-    ) -> None:
-        node.statement_ck = target_cks.get(node.statement_ck, node.statement_ck)
-        node.scope_ck = target_cks.get(node.scope_ck, node.scope_ck)
-
 
 @dataclass
 class TaggingData(NodeData, HasCrud):

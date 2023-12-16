@@ -22,10 +22,10 @@ from more_itertools import first
 
 from bench.language.const import (
     INTERP_NODE_TYPES,
+    OUT_OF_LINE_NODE_TYPES,
     NodeType,
     TypeFlag,
     TypeTag,
-    OUT_OF_LINE_NODE_TYPES,
 )
 from bench.language.module import UNSET, Module, Node, NodeTree, NRel
 from bench.language.text import Text, render_text_simple
@@ -616,9 +616,12 @@ def render(
         raise ValueError(f"cannot render to {target}")
 
 
-# ignore files and secrets (can't render them properly.. yet?)
-def DEFAULT_VALUE_FILTER(v, f):
+def filter_field_exclude_blob_and_secret(v, f):
     return f.tag != TypeTag.BLOB and not f.flags & TypeFlag.IS_SECRET
+
+
+# ignore files and secrets (can't render them properly.. yet?)
+DEFAULT_VALUE_FILTER = filter_field_exclude_blob_and_secret
 
 
 def _render_prop(node: Node, name: str, value: Any) -> str:
