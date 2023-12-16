@@ -61,15 +61,15 @@ class BenchError(ValueError):
 
 @node(NodeType.ISSUE)
 class Issue(Node):
-    parent: Union["Statement", "File", None] = node_parent(NodeType.STATEMENT, NodeType.FILE)
-    type: IssueType = struct_property(is_required=True, validate=enum_validator(IssueType))
-    kind: IssueKind = struct_property(default=None, validate=enum_validator(IssueKind))
-    message: str = struct_property(default=None)
+    parent: Union["Statement", "File", None] = node_parent(3, NodeType.STATEMENT, NodeType.FILE)
+    type: IssueType = struct_property(20, is_required=True, validate=enum_validator(IssueType))
+    kind: IssueKind = struct_property(21, default=None, validate=enum_validator(IssueKind))
+    message: str = struct_property(22, default=None)
     subject: Union["Statement", "File"] = struct_property(
-        default=None, references=(NodeType.STATEMENT, NodeType.FILE)
+        23, default=None, references=(NodeType.STATEMENT, NodeType.FILE)
     )
-    path: Optional[str] = struct_property(default=None)
-    properties: list[str] = struct_property(default=None)
+    path: Optional[str] = struct_property(24, default=None)
+    properties: list[str] = struct_property(25, default=None)
 
     def _init_inner(self):
         # make message

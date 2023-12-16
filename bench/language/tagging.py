@@ -1,5 +1,6 @@
 import typing
-from typing import Union, Optional
+from copy import deepcopy
+from typing import Optional, Union
 
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodeType, StatementType
@@ -12,8 +13,10 @@ from bench.language.module import (
     node_component,
     node_parent,
     struct_internal,
+    struct_property,
 )
 from bench.language.value import HasValue
+from bench.sql.core import ColumnType
 from bench.utils.func import dict_minus
 
 if typing.TYPE_CHECKING:
@@ -25,11 +28,14 @@ class Tagging(HasValue, Node):
     """An association between a tag and a statement (with optional value)."""
 
     parent: Union["File", "Statement", "Field"] | None = node_parent(
-        NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
+        3, NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
     )
-    key: str = struct_internal()
+    key: str = struct_internal(20)
+    value: typing.Any | None = struct_property(
+        21, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+    )
     reference: Optional["Statement"] = struct_internal(
-        default=None, is_required=False, references=NodeType.STATEMENT
+        22, default=None, is_required=False, references=NodeType.STATEMENT
     )
 
     @staticmethod

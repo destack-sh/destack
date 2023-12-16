@@ -14,7 +14,6 @@ from typing import (
     NamedTuple,
     Optional,
     Union,
-    get_args,
     get_origin,
     get_type_hints,
     is_typeddict,
@@ -46,7 +45,7 @@ from bench.language.secret import Secret
 from bench.language.session import Session
 from bench.language.statement import Statement
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
-from bench.utils.func import try_to_uuid, strip_py_type
+from bench.utils.func import strip_py_type, try_to_uuid
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 logger = structlog.get_logger(__name__)

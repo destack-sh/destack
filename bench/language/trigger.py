@@ -33,15 +33,15 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 class Trigger(Node):
     """A trigger for a statement to run."""
 
-    parent: "Statement" = node_parent(NodeType.STATEMENT)
-    type: TriggerType = struct_property(is_required=True, validate=enum_validator(TriggerType))
-    active: bool = struct_property(default=True)
+    parent: "Statement" = node_parent(3, NodeType.STATEMENT)
+    type: TriggerType = struct_property(20, is_required=True, validate=enum_validator(TriggerType))
+    active: bool = struct_property(21, default=True)
     schedule_type: Optional[ScheduleType] = struct_property(
-        default=None, validate=enum_validator(ScheduleType)
+        22, default=None, validate=enum_validator(ScheduleType)
     )
-    timezone: Optional[str] = struct_property(default=pytz.utc.zone)
-    interval: Optional[int] = struct_property(default=None)
-    cron: Optional[str] = struct_property(default=None)
+    timezone: Optional[str] = struct_property(23, default=pytz.utc.zone)
+    interval: Optional[int] = struct_property(24, default=None)
+    cron: Optional[str] = struct_property(25, default=None)
 
     @staticmethod
     def new(

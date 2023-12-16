@@ -29,11 +29,11 @@ class Blob(Node):
     :BlobType
     """
 
-    sha512: str = struct_internal()
-    content_length: int = struct_internal()
-    content_type: str = struct_internal()
-    name: str = struct_internal()
-    status: BlobStatus = struct_internal(default=BlobStatus.PREPARED)
+    sha512: str = struct_internal(20)
+    content_length: int = struct_internal(21)
+    content_type: str = struct_internal(22)
+    name: str = struct_internal(23)
+    status: BlobStatus = struct_internal(24, default=BlobStatus.PREPARED)
 
     _cached_bytes: Optional[bytes] = struct_runtime(default=None)
 

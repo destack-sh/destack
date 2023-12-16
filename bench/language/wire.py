@@ -22,6 +22,7 @@ from bench.language.const import (
     NodeTrackingLevel,
     NodeType,
     ProjectRegion,
+    RunErrorKind,
     RunStatus,
     ScheduleType,
     SessionAccessLevel,
@@ -36,7 +37,7 @@ from bench.language.const import (
     WorkerSetStatus,
 )
 from bench.language.module import Node, NodeStatus, NodeTree, ScopeNode
-from bench.language.run import Run, RunCodeFrame, RunErrorKind
+from bench.language.run import Run, RunCodeFrame
 from bench.language.session import LazyRun, Session
 from bench.language.text import patch_text_html
 from bench.utils.func import describe_type, get_subclasses

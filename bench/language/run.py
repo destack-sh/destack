@@ -1,8 +1,8 @@
 import asyncio
-import enum
 import hashlib
 import sys
 import traceback
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
@@ -13,6 +13,7 @@ import msgpack
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
     NodeType,
+    RunErrorKind,
     RunStatus,
     SessionAccessLevel,
     StructType,
@@ -22,15 +23,15 @@ from bench.language.module import (
     NS,
     Module,
     Node,
+    ScopeNode,
     Struct,
     node,
     node_ancestor,
+    node_children,
     node_component,
     node_parent,
     struct,
     struct_internal,
-    ScopeNode,
-    node_children,
 )
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
@@ -147,24 +148,33 @@ class Run(ScopeNode, HasValue):
       and because it's unclear run/session edits should interact with 'regular' module edits)
     """
 
-    parent: Union["Session", "Run"] = node_parent(NodeType.SESSION, NodeType.RUN)
-    session: "Session" = node_ancestor(NodeType.SESSION, store=True)
+    parent: Union["Session", "Run"] = node_parent(3, NodeType.SESSION, NodeType.RUN)
+    session: "Session" = node_ancestor(20, NodeType.SESSION, store=True)
     root: Optional["Run"] = node_ancestor(
-        NodeType.RUN, nearest=False, include_self=False, store=True
+        21, NodeType.RUN, nearest=False, include_self=False, store=True
     )
     runs: list["Run"] = node_children(NodeType.RUN)
-    statement: Optional["Statement"] = struct_internal(default=None, references=NodeType.STATEMENT)
-    statement_path: Optional[str] = struct_internal(default=None)
-    scheduled_at: Optional[datetime] = struct_internal(default=None)
-    started_at: Optional[datetime] = struct_internal(default=None)
-    terminated_at: Optional[datetime] = struct_internal(default=None)
-    trigger_type: Optional[TriggerType] = struct_internal(default=None)
-    trigger: Optional["Trigger"] = struct_internal(default=None, references=NodeType.TRIGGER)
-    access_level: Optional["SessionAccessLevel"] = struct_internal(default=None)
-    status: RunStatus = struct_internal()
-    inputs: Optional[dict[str, Any]] = struct_internal(default=None, store_as=ColumnType.JSON)
-    outputs: Optional[dict[str, Any]] = struct_internal(default=None, store_as=ColumnType.JSON)
-    error: Optional["RunError"] = struct_internal(default=None, store_as=ColumnType.JSON)
+    statement: Optional["Statement"] = struct_internal(
+        22, default=None, references=NodeType.STATEMENT
+    )
+    statement_path: Optional[str] = struct_internal(23, default=None)
+    scheduled_at: Optional[datetime] = struct_internal(24, default=None)
+    started_at: Optional[datetime] = struct_internal(25, default=None)
+    terminated_at: Optional[datetime] = struct_internal(26, default=None)
+    trigger_type: Optional[TriggerType] = struct_internal(27, default=None)
+    trigger: Optional["Trigger"] = struct_internal(28, default=None, references=NodeType.TRIGGER)
+    access_level: Optional["SessionAccessLevel"] = struct_internal(29, default=None)
+    status: RunStatus = struct_internal(30)
+    inputs: Optional[dict[str, Any]] = struct_internal(31, default=None, store_as=ColumnType.JSON)
+    outputs: Optional[dict[str, Any]] = struct_internal(32, default=None, store_as=ColumnType.JSON)
+    error: Optional["RunError"] = struct_internal(33, default=None, store_as=ColumnType.JSON)
+    value: Any | None = struct_internal(
+        34,
+        default_factory=dict,
+        copy=deepcopy,
+        store_as=ColumnType.JSON,
+        ignore_conflicts_with=(HasValue,),
+    )
 
     def __str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
@@ -215,11 +225,11 @@ _IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in _IGNORED_PACK
 
 @struct(StructType.RUN_CODE_FRAME)
 class RunCodeFrame(Struct):
-    filename: str = struct_internal()
-    lineno: int = struct_internal()
-    name: str = struct_internal()
-    locals: Optional[dict[str, Any]] = struct_internal(default=None, store_as=ColumnType.JSON)
-    line: str = struct_internal()
+    filename: str = struct_internal(20)
+    lineno: int = struct_internal(21)
+    name: str = struct_internal(22)
+    locals: Optional[dict[str, Any]] = struct_internal(23, default=None, store_as=ColumnType.JSON)
+    line: str = struct_internal(24)
 
     @staticmethod
     def from_dict(data: dict[str, Any]) -> "RunCodeFrame":
@@ -296,23 +306,17 @@ class RunCodeFrame(Struct):
         return [f for f in cleaned_stack if f.line]
 
 
-class RunErrorKind(enum.StrEnum):
-    Internal = "Internal"
-    Parse = "Parse"
-    Validation = "Validation"
-    Runtime = "Runtime"
-    Untrusted = "Untrusted"
-
-
 @struct(StructType.RUN_ERROR)
 class RunError(Struct, Exception):  # can this really be a subclass of Exception?
     """Wire-able representation of an exception."""
 
-    kind: RunErrorKind = struct_internal()
-    type: str = struct_internal()
-    message: Optional[str] = struct_internal(default=None)
-    statement: Optional["Statement"] = struct_internal(default=None, references=NodeType.STATEMENT)
-    traceback: list[RunCodeFrame] = struct_internal(default_factory=list)
+    kind: RunErrorKind = struct_internal(20)
+    type: str = struct_internal(21)
+    message: Optional[str] = struct_internal(22, default=None)
+    statement: Optional["Statement"] = struct_internal(
+        23, default=None, references=NodeType.STATEMENT
+    )
+    traceback: list[RunCodeFrame] = struct_internal(24, default_factory=list)
 
     @staticmethod
     def from_exception(e: BaseException, statement: Optional["Statement"]) -> "RunError":
@@ -335,17 +339,25 @@ class RunError(Struct, Exception):  # can this really be a subclass of Exception
 
 @struct(StructType.LOG_ENTRY)
 class LogEntry(Struct):
-    id: UUID = struct_internal(default_factory=uuid4)
-    module: Module = struct_internal(references=NodeType.MODULE)
-    created_at: datetime = struct_internal(default_factory=utcnow_with_tz)
-    stream: str = struct_internal()
-    session: "Session" = struct_internal(references=NodeType.SESSION)
-    level: Optional[str] = struct_internal(default=None)
-    logger: Optional[str] = struct_internal(default=None)
-    statement: Optional["Statement"] = struct_internal(default=None, references=NodeType.STATEMENT)
-    run: Optional["Run"] = struct_internal(default=None, references=NodeType.RUN)
-    message: Optional[str] = struct_internal(default=None)
-    value: dict[str, Any] | None = struct_internal(default=None, store_as=ColumnType.JSON)
+    id: UUID = struct_internal(20, default_factory=uuid4)
+    module: Module = struct_internal(21, references=NodeType.MODULE)
+    created_at: datetime = struct_internal(22, default_factory=utcnow_with_tz)
+    stream: str = struct_internal(23)
+    session: "Session" = struct_internal(24, references=NodeType.SESSION)
+    level: Optional[str] = struct_internal(25, default=None)
+    logger: Optional[str] = struct_internal(26, default=None)
+    statement: Optional["Statement"] = struct_internal(
+        27, default=None, references=NodeType.STATEMENT
+    )
+    run: Optional["Run"] = struct_internal(28, default=None, references=NodeType.RUN)
+    message: Optional[str] = struct_internal(29, default=None)
+    value: dict[str, Any] | None = struct_internal(
+        30,
+        is_required=False,
+        default=None,
+        store_as=ColumnType.JSON,
+        ignore_conflicts_with=(HasValue,),
+    )
 
     def __str__(self):
         return f"'{self.message}' ({self.created_at})"

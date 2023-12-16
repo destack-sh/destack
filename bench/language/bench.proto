@@ -1,2 +1,653 @@
 syntax = "proto3";
 
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/struct.proto";
+
+enum AggregationOp {
+  UNSET = 0;
+  COUNT = 1;
+  SUM = 2;
+  AVERAGE = 3;
+  MIN = 4;
+  MAX = 5;
+  MEDIAN = 6;
+  HISTOGRAM = 7;
+}
+
+enum BlobStatus {
+  UNSET = 0;
+  PREPARED = 1;
+  UPLOADING = 2;
+  AVAILABLE = 3;
+}
+
+enum ConditionalOp {
+  UNSET = 0;
+  TRUE = 1;
+  FALSE = 2;
+  NOT = 3;
+  AND = 4;
+  OR = 5;
+  EQUALS = 6;
+  NOT_EQUALS = 7;
+  GREATER_THAN = 8;
+  GREATER_THAN_OR_EQUALS = 9;
+  LESS_THAN = 10;
+  LESS_THAN_OR_EQUALS = 11;
+  MATCHES = 12;
+  STARTS_WITH = 13;
+  CONTAINS = 14;
+  NOT_CONTAINS = 15;
+  IN = 16;
+  NOT_IN = 17;
+  EXISTS = 18;
+  NOT_EXISTS = 19;
+  NEAR = 20;
+}
+
+enum ExpressionKind {
+  UNSET = 0;
+  CONDITIONAL = 1;
+  SORT = 2;
+  AGGREGATION = 3;
+}
+
+enum ExpressionOp {
+  UNSET = 0;
+  TRUE = 1;
+  FALSE = 2;
+  NOT = 3;
+  AND = 4;
+  OR = 5;
+  EQUALS = 6;
+  NOT_EQUALS = 7;
+  GREATER_THAN = 8;
+  GREATER_THAN_OR_EQUALS = 9;
+  LESS_THAN = 10;
+  LESS_THAN_OR_EQUALS = 11;
+  MATCHES = 12;
+  STARTS_WITH = 13;
+  CONTAINS = 14;
+  NOT_CONTAINS = 15;
+  IN = 16;
+  NOT_IN = 17;
+  EXISTS = 18;
+  NOT_EXISTS = 19;
+  NEAR = 20;
+  COUNT = 21;
+  SUM = 22;
+  AVERAGE = 23;
+  MIN = 24;
+  MAX = 25;
+  MEDIAN = 26;
+  HISTOGRAM = 27;
+  ASCENDING = 28;
+  DESCENDING = 29;
+}
+
+enum IdentifierType {
+  UNSET = 0;
+  METHOD = 1;
+  TYPE = 2;
+  CONSTANT = 3;
+  PATH = 4;
+  VARIABLE = 5;
+  FIELD = 6;
+}
+
+enum IssueKind {
+  UNSET = 0;
+  ERROR = 1;
+  WARNING = 2;
+  NOTICE = 3;
+}
+
+enum IssueType {
+  UNSET = 0;
+  INTERNAL = 1;
+  UNKNOWN_IMPORT_SOURCE = 2;
+  MISSING_REFERENCE = 3;
+  CIRCULAR_ANCESTRY = 4;
+  CIRCULAR_UNION = 5;
+  MISMATCHED_UNION = 6;
+  INVALID_DATA = 7;
+  AMBIGUOUS_DEFINITION = 8;
+  CODE_NOT_EXPORTABLE = 9;
+  CODE_NOT_CACHEABLE = 10;
+  CODE_REFERENCE_NOT_EXPORTED = 11;
+  TASK_MISSING_IO = 12;
+  TASK_IS_STATIC = 13;
+}
+
+enum NodeTrackingLevel {
+  option allow_alias = true;
+  NONE = 0;
+  ANONYMOUS = 1;
+  FULL = 2;
+}
+
+enum NodeType {
+  UNSET = 0;
+  MODULE = 1;
+  FILE = 2;
+  STATEMENT = 3;
+  TRIGGER = 4;
+  TAGGING = 5;
+  FIELD = 6;
+  RECORD = 7;
+  VIEW = 8;
+  ISSUE = 9;
+  RESOLVED_FIELD = 10;
+  USER = 11;
+  COMMENT = 12;
+  ACCESS = 13;
+  BLOB = 14;
+  SECRET = 15;
+  SESSION = 16;
+  RUN = 17;
+}
+
+enum ProjectRegion {
+  UNSET = 0;
+  US_WEST = 1;
+  EU_CENTRAL = 2;
+}
+
+enum QueryEngine {
+  UNSET = 0;
+  MODULE = 1;
+  HOST = 2;
+  OPENSEARCH = 3;
+  POSTGRES = 4;
+}
+
+enum RunErrorKind {
+  UNSET = 0;
+  Internal = 1;
+  Parse = 2;
+  Validation = 3;
+  Runtime = 4;
+  Untrusted = 5;
+}
+
+enum RunStatus {
+  UNSET = 0;
+  SCHEDULED = 1;
+  QUEUED = 2;
+  RUNNING = 3;
+  SUSPENDED = 4;
+  ABORTING = 5;
+  CANCELLED = 6;
+  ABORTED = 7;
+  FAILED = 8;
+  COMPLETED = 9;
+}
+
+enum ScheduleType {
+  UNSET = 0;
+  INTERVAL = 1;
+  CRON = 2;
+}
+
+enum SessionAccessLevel {
+  option allow_alias = true;
+  Zero = 0;
+  Read = 1;
+  Create = 2;
+  Update = 3;
+  Delete = 4;
+  Full = 4;
+}
+
+enum SessionStatus {
+  UNSET = 0;
+  ACTIVE = 1;
+  SUSPENDED = 2;
+  TERMINATED = 3;
+}
+
+enum SortMode {
+  UNSET = 0;
+  MAX = 1;
+  MIN = 2;
+  AVERAGE = 3;
+  SUM = 4;
+  MEDIAN = 5;
+}
+
+enum SortOp {
+  UNSET = 0;
+  ASCENDING = 1;
+  DESCENDING = 2;
+}
+
+enum StatementType {
+  UNSET = 0;
+  TAG = 1;
+  TEXT = 2;
+  BLANK = 3;
+  CLASS = 4;
+  CHOICE = 5;
+  TASK = 6;
+  CODE = 7;
+  FLOW = 8;
+  MODEL = 9;
+  VARIABLE = 10;
+  DATABASE = 11;
+  VIEW = 12;
+  GROUP = 13;
+}
+
+enum StructType {
+  UNSET = 0;
+  EXPRESSION = 1;
+  RUN_CODE_FRAME = 2;
+  RUN_ERROR = 3;
+  LOG_ENTRY = 4;
+  PROJECTION = 5;
+}
+
+enum TextHeadingLevel {
+  option allow_alias = true;
+  UNSET = 0;
+  H1 = 1;
+  H2 = 2;
+  H3 = 3;
+}
+
+enum TriggerType {
+  UNSET = 0;
+  INVOKE = 1;
+  TIME = 2;
+  RUN = 3;
+  EDIT = 4;
+  MESSAGE = 5;
+  USER = 6;
+  API = 7;
+}
+
+enum TypeFlag {
+  option allow_alias = true;
+  ZERO = 0;
+  IS_OUTPUT = 1;
+  IS_ARRAY = 2;
+  IS_OPTIONAL = 4;
+  IS_UNION_WITH = 8;
+  IS_SECRET = 16;
+  IS_STORE_ONLY = 32;
+  IS_ARRAYABLE = 64;
+  IS_META = 128;
+  IS_CONFIG = 256;
+  IS_HIDDEN = 512;
+}
+
+enum TypeHint {
+  UNSET = 0;
+  NAME = 1;
+  UUID = 2;
+  DATE = 3;
+  DATETIME = 4;
+  TIME = 5;
+  DURATION = 6;
+  EMAIL = 7;
+  URL = 8;
+  MARKDOWN = 9;
+  RICH_TEXT = 10;
+  HTML = 11;
+  CODE = 12;
+  KEY = 13;
+  INTEGER = 14;
+  FLOAT = 15;
+  SLIDER = 16;
+  PHONE = 17;
+  RATING = 18;
+  TOGGLE = 19;
+  CHECKBOX = 20;
+  THUMBS = 21;
+  EMBEDDING = 22;
+  IMAGE = 23;
+  VIDEO = 24;
+  AUDIO = 25;
+  FILE = 26;
+  STATEMENT = 27;
+  RECORD = 28;
+  FIELD = 29;
+  RUN = 30;
+  SECRET = 31;
+  BLOB = 32;
+}
+
+enum TypeStorageFormat {
+  UNSET = 0;
+  STRING = 1;
+  DOUBLE = 2;
+  LONG = 3;
+  VECTOR = 4;
+  BINARY = 5;
+  BOOLEAN = 6;
+  DATE = 7;
+  KEYWORD = 8;
+  OBJECT = 9;
+  RELATION = 10;
+}
+
+enum TypeTag {
+  UNSET = 0;
+  STRING = 1;
+  NUMBER = 2;
+  BOOLEAN = 3;
+  VECTOR = 4;
+  BLOB = 5;
+  STRUCT = 6;
+  JSON = 7;
+  FUNCTION = 8;
+  ENUM = 9;
+  LITERAL = 10;
+  TYPE_REFERENCE = 11;
+  NODE = 12;
+  ANY = 13;
+}
+
+enum ViewLayout {
+  UNSET = 0;
+  TABLE = 1;
+}
+
+enum WorkerProfile {
+  UNSET = 0;
+  TINY = 1;
+  SMALL = 2;
+  MEDIUM = 3;
+  LARGE = 4;
+  XLARGE_CPU = 5;
+  XLARGE_MEM = 6;
+}
+
+enum WorkerSetStatus {
+  UNSET = 0;
+  SLEEPING = 1;
+  PENDING = 2;
+  UPDATING = 3;
+  HEALTHY = 4;
+  UNHEALTHY = 5;
+  UNAVAILABLE = 6;
+  UNKNOWN = 7;
+}
+
+message ExpressionData {
+  ExpressionOp op = 21;
+  string field_ck = 22;
+  string field_key = 23;
+  repeated ExpressionData clauses = 24;
+  google.protobuf.Struct value = 25;
+  string mode = 26;
+}
+
+message LogEntryData {
+  string id = 20;
+  string module_ck = 21;
+  google.protobuf.Timestamp created_at = 22;
+  string stream = 23;
+  string session_ck = 24;
+  string level = 25;
+  string logger = 26;
+  string statement_ck = 27;
+  string run_ck = 28;
+  string message = 29;
+  google.protobuf.Struct value = 30;
+}
+
+message RunCodeFrameData {
+  string filename = 20;
+  int64 lineno = 21;
+  string name = 22;
+  google.protobuf.Struct locals = 23;
+  string line = 24;
+}
+
+message RunErrorData {
+  RunErrorKind kind = 20;
+  string type = 21;
+  string message = 22;
+  string statement_ck = 23;
+  repeated google.protobuf.Struct traceback = 24;
+}
+
+message BlobData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  string sha512 = 20;
+  int64 content_length = 21;
+  string content_type = 22;
+  string name = 23;
+  BlobStatus status = 24;
+}
+
+message FieldData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  string name = 21;
+  string order_key = 22;
+  string text = 23;
+  TypeTag tag = 24;
+  string key = 25;
+  google.protobuf.Struct value = 26;
+  string hint = 27;
+  int64 flags = 28;
+  string reference_ck = 29;
+}
+
+message FileData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  string name = 20;
+}
+
+message IssueData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  IssueType type = 20;
+  IssueKind kind = 21;
+  string message = 22;
+  string subject_ck = 23;
+  string path = 24;
+  repeated string properties = 25;
+}
+
+message ModuleData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  string name = 20;
+  bool committed = 21;
+}
+
+message RecordData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  google.protobuf.Struct value = 20;
+}
+
+message ResolvedFieldData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  string field_ck = 20;
+  string name = 21;
+  string order_key = 22;
+  string text = 23;
+  TypeTag tag = 24;
+  string key = 25;
+  google.protobuf.Struct value = 26;
+  string hint = 27;
+  int64 flags = 28;
+  string reference_ck = 29;
+}
+
+message RunData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  string statement_ck = 22;
+  string statement_path = 23;
+  google.protobuf.Timestamp scheduled_at = 24;
+  google.protobuf.Timestamp started_at = 25;
+  google.protobuf.Timestamp terminated_at = 26;
+  string trigger_type = 27;
+  string trigger_ck = 28;
+  int64 access_level = 29;
+  RunStatus status = 30;
+  google.protobuf.Struct inputs = 31;
+  google.protobuf.Struct outputs = 32;
+  google.protobuf.Struct error = 33;
+  google.protobuf.Struct value = 34;
+}
+
+message SecretData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  string sha512 = 20;
+}
+
+message SessionData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  int64 access_level = 20;
+  string worker_node_id = 21;
+  string worker_process_id = 22;
+  TriggerType trigger_type = 23;
+  string trigger_id = 24;
+  google.protobuf.Timestamp opened_at = 25;
+  google.protobuf.Timestamp closed_at = 26;
+  int64 inference_timeout = 27;
+  int64 inference_retries = 28;
+}
+
+message StatementData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  StatementType type = 20;
+  string name = 22;
+  string order_key = 23;
+  string reference_ck = 24;
+  int64 heading_level = 25;
+  string text = 26;
+  string key = 27;
+  string code = 28;
+  google.protobuf.Struct value = 29;
+  bool versioned = 30;
+  string external_name = 31;
+}
+
+message TaggingData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  string key = 20;
+  google.protobuf.Struct value = 21;
+  string reference_ck = 22;
+}
+
+message TriggerData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  TriggerType type = 20;
+  bool active = 21;
+  string schedule_type = 22;
+  string timezone = 23;
+  int64 interval = 24;
+  string cron = 25;
+}
+
+message ViewData {
+  string id = 1;
+  string ck = 2;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+  google.protobuf.Timestamp deleted_at = 12;
+  google.protobuf.Timestamp last_edited_at = 13;
+  google.protobuf.Timestamp last_changed_at = 14;
+  int64 revision = 15;
+  string name = 20;
+  ViewLayout layout = 21;
+  google.protobuf.Struct query = 22;
+  repeated google.protobuf.Struct sort = 23;
+}
+

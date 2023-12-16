@@ -12,13 +12,13 @@ if typing.TYPE_CHECKING:
 
 @node(NodeType.VIEW)
 class View(ScopeNode):
-    parent: typing.Union["Statement", "File"] = node_parent(NodeType.STATEMENT, NodeType.FILE)
-    name: str | None = struct_property(default=None)
+    parent: typing.Union["Statement", "File"] = node_parent(3, NodeType.STATEMENT, NodeType.FILE)
+    name: str | None = struct_property(20, default=None)
     layout: ViewLayout = struct_property(
-        default=ViewLayout.TABLE, validate=enum_validator(ViewLayout)
+        21, default=ViewLayout.TABLE, validate=enum_validator(ViewLayout)
     )
-    query: Optional[Expression] = struct_property(default=None)
-    sort: Optional[list[Expression]] = struct_property(default=None)
+    query: Optional[Expression] = struct_property(22, default=None)
+    sort: Optional[list[Expression]] = struct_property(23, default=None)
 
     def __str__(self):
         return f"{self.parent.path}:{self.name} ({self.layout})"

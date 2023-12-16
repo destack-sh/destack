@@ -402,6 +402,14 @@ PENDING_RUN_STATUSES = {
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.SUSPENDED, RunStatus.ABORTING}
 
 
+class RunErrorKind(enum.StrEnum):
+    Internal = "Internal"
+    Parse = "Parse"
+    Validation = "Validation"
+    Runtime = "Runtime"
+    Untrusted = "Untrusted"
+
+
 class WorkerProfile(enum.StrEnum):
     TINY = "TINY"
     SMALL = "SMALL"

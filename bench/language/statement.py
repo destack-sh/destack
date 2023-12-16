@@ -5,14 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from bench.language.code_ import HasCode
-from bench.language.const import (
-    NodeType,
-    StatementReference,
-    StatementType,
-    TextHeadingLevel,
-    TypeFlag,
-    TypeTag,
-)
+from bench.language.const import NodeType, StatementType, TextHeadingLevel, TypeFlag, TypeTag
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
 from bench.language.model import HasModel
@@ -183,30 +176,29 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node]] = tuple(
 class Statement(ScopeNode, HasTags):
     """A Bench statement."""
 
-    file: Optional["File"] = node_ancestor(NodeType.FILE)
-    parent: Union["Statement", "File"] = node_parent(NodeType.STATEMENT, NodeType.FILE)
+    parent: Union["Statement", "File"] = node_parent(3, NodeType.STATEMENT, NodeType.FILE)
     children: NodeList["Statement"] = node_children(
         NodeType.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
-    type: StatementType = struct_internal(default=StatementType.BLANK)
-    name: str | None = struct_property(default=None, validate=validate_name)
-    order_key: str | None = struct_internal(default=None)
-
+    type: StatementType = struct_internal(20, default=StatementType.BLANK)
+    file: Optional["File"] = node_ancestor(21, NodeType.FILE)
+    name: str | None = struct_property(22, default=None, validate=validate_name)
+    order_key: str | None = struct_internal(23, default=None)
     reference: Optional["Statement"] = struct_property(
-        default=None, copy=identity, references=NodeType.STATEMENT
+        24, default=None, copy=identity, references=NodeType.STATEMENT
     )
     heading_level: Optional["TextHeadingLevel"] = struct_property(
-        default=None, validate=enum_validator(TextHeadingLevel)
+        25, default=None, validate=enum_validator(TextHeadingLevel)
     )
-    text: str | None = struct_property(default=None, validate=validate_is_str)
-    key: str | None = struct_internal(default=None)
-    code: str | None = struct_property(default=None, validate=validate_is_str)
+    text: str | None = struct_property(26, default=None, validate=validate_is_str)
+    key: str | None = struct_internal(27, default=None)
+    code: str | None = struct_property(28, default=None, validate=validate_is_str)
     value: Any | None = struct_property(
-        default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+        29, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
     )
-    versioned: bool = struct_internal(default=True)
-    external_name: str | None = struct_internal(default=None)  # for model, to be moved into value
+    versioned: bool = struct_internal(30, default=True)
+    external_name: str | None = struct_internal(31, default=None)
 
     @staticmethod
     def new(

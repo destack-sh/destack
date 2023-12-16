@@ -1,5 +1,6 @@
 import enum
 import typing
+from copy import deepcopy
 from typing import Optional
 from uuid import UUID
 
@@ -31,11 +32,12 @@ from bench.language.module import (
     node_children,
     node_component,
     node_parent,
+    struct_property,
     struct_runtime,
 )
 from bench.language.value import HasValue
 from bench.search.core import DocumentType
-from bench.sql.core import EPHEMERAL_RECORD_TABLE, Table
+from bench.sql.core import EPHEMERAL_RECORD_TABLE, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import flatten
@@ -52,7 +54,10 @@ RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 @node(NodeType.RECORD, passthrough=(("value", _Passthrough.Full),))
 class Record(HasValue, Node):
-    parent: "Statement" = node_parent(NodeType.STATEMENT)
+    parent: "Statement" = node_parent(3, NodeType.STATEMENT)
+    value: typing.Any | None = struct_property(
+        20, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+    )
 
     @staticmethod
     def new(

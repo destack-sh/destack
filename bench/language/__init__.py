@@ -1,6 +1,3 @@
-from itertools import chain
-
-from ..utils.func import get_subclasses
 from .blob import Blob
 from .const import (
     ConditionalOp,

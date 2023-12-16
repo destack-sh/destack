@@ -13,7 +13,7 @@ SecretValueT = typing.TypeVar("SecretValueT")
 class Secret(Node, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 
-    sha512: str = struct_property()
+    sha512: str = struct_property(20)
     value: Optional[SecretValueT] = struct_runtime(default=None)
 
     def __str__(self):
