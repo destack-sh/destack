@@ -276,7 +276,7 @@ class _FieldExpressionBase:
     def asc(self) -> "Expression":
         from bench.language.expression import S
 
-        return S(SortOp.ASCENDING, self._as_field)
+        return S(SortOp.ASCENDING, field=self._as_field)
 
     ascending = asc
 
@@ -284,7 +284,7 @@ class _FieldExpressionBase:
     def desc(self) -> "Expression":
         from bench.language.expression import S
 
-        return S(SortOp.DESCENDING, self._as_field)
+        return S(SortOp.DESCENDING, field=self._as_field)
 
     descending = desc
 
@@ -2095,7 +2095,7 @@ class Struct(abc.ABC):
 
     def _visit_inner(self, visitor: "NodeVisitor"):
         # visit node references :NodeReferences
-        for prop in self.__properties__.values():
+        for prop in self.__reference_properties__.values():
             value = getattr(self, prop.name)
             if isinstance(value, Node):
                 visitor.visit_reference(value)

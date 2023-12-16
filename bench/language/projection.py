@@ -91,17 +91,13 @@ class Projection:
     async def view_records(self, nodes: Collection[Node], limit: int) -> dict[UUID, Node]:
         from bench.language.database import HasDatabase
 
-        databases = []
-        for node in nodes:
-            if node.node_type == NodeType.STATEMENT and HasDatabase in node._components:
-                databases.append(node)
         seen_by_ck: dict[UUID, Node] = {}
-        for database in databases:
+        for node in nodes:
+            if node.node_type != NodeType.STATEMENT or HasDatabase not in node._components:
+                continue
             # sort by ck for consistency
             records = (
-                await database.records.sort(S(SortOp.ASCENDING, field_key="ck"))
-                .first(limit)
-                .tolist()
+                await node.records.sort(S(SortOp.ASCENDING, field_key="ck")).first(limit).tolist()
             )
             for record in records:
                 seen_by_ck[record.ck] = record
