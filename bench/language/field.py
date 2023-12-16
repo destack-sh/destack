@@ -1,6 +1,7 @@
 import dataclasses
 import typing
 import uuid
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Collection, Optional, Union
 from uuid import UUID
@@ -24,6 +25,7 @@ from bench.language.issue import IssueHandler
 from bench.language.module import (
     _NC,
     NS,
+    UNSET,
     Node,
     NodeList,
     NRel,
@@ -45,9 +47,11 @@ from bench.language.validation import (
     ValidationHandler,
     enum_validator,
     flag_validator,
+    validate_is_str,
     validate_name,
 )
 from bench.language.value import HasValue
+from bench.sql.core import ColumnType
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import dict_minus, nextn
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
@@ -295,7 +299,7 @@ for hint in TypeHint:
 
 @node_component
 class HasType(Node):
-    key: str | None = struct_internal(default=None)
+    key: str | None = struct_internal(UNSET, default=None)
 
     @property
     def resolved_fields(self) -> NodeList["ResolvedField"]:
@@ -346,14 +350,19 @@ class HasType(Node):
 
 @node(NodeType.FIELD)
 class Field(HasText, HasValue, HasType, _FieldExpressionBase):
-    parent: Union["Statement", None] = node_parent(NodeType.STATEMENT)
-    name: str | None = struct_property(default=None, validate=validate_name)
-    order_key: str | None = struct_internal(default=None)
-    tag: TypeTag = struct_property(is_required=True, validate=enum_validator(TypeTag))
-    hint: TypeHint | None = struct_property(default=None, validate=enum_validator(TypeHint))
-    flags: TypeFlag = struct_property(default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
+    parent: Union["Statement", None] = node_parent(3, NodeType.STATEMENT)
+    name: str | None = struct_property(21, default=None, validate=validate_name)
+    order_key: str | None = struct_internal(22, default=None)
+    text: str | None = struct_property(23, default=None, validate=validate_is_str)
+    tag: TypeTag = struct_property(24, is_required=True, validate=enum_validator(TypeTag))
+    key: str | None = struct_internal(25, default=None)
+    value: Any | None = struct_property(
+        26, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+    )
+    hint: TypeHint | None = struct_property(27, default=None, validate=enum_validator(TypeHint))
+    flags: TypeFlag = struct_property(28, default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
     reference: Optional["Statement"] = struct_internal(
-        default=None, is_required=False, references=NodeType.STATEMENT
+        29, default=None, is_required=False, references=NodeType.STATEMENT
     )
     _reflected: bool = struct_runtime(default=False)
 
@@ -546,8 +555,8 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
 
 @node(NodeType.RESOLVED_FIELD)
 class ResolvedField(Field):
-    parent: "Statement" = node_parent(NodeType.STATEMENT)
-    field: Field = struct_internal(references=NodeType.FIELD)
+    parent: "Statement" = node_parent(3, NodeType.STATEMENT)
+    field: Field = struct_internal(20, references=NodeType.FIELD)
 
     @property
     def resolved_fields(self):

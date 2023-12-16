@@ -5,7 +5,14 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import NodeReference, NodeType, TypedNodeReference
-from bench.language.module import Node, ScopeNode, node_component, struct_property, struct_runtime
+from bench.language.module import (
+    UNSET,
+    Node,
+    ScopeNode,
+    node_component,
+    struct_property,
+    struct_runtime,
+)
 from bench.language.projection import NodeVisitor
 from bench.language.validation import validate_is_str
 
@@ -17,7 +24,7 @@ if TYPE_CHECKING:
 class HasText(Node):
     """Some instruction text with optional references."""
 
-    text: str | None = struct_property(default=None, validate=validate_is_str)
+    text: str | None = struct_property(UNSET, default=None, validate=validate_is_str)
     _text_parsed: Optional["Text"] = struct_runtime(default=None, copy=lambda v: deepcopy(v))
 
     @property

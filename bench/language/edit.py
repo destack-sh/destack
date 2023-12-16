@@ -627,7 +627,7 @@ DEFAULT_VALUE_FILTER = filter_field_exclude_blob_and_secret
 def _render_prop(node: Node, name: str, value: Any) -> str:
     """
     Render a non-relational prop (may be a reference, but not a parent/child relation).
-    TODO @Broken: _render_prop recursively (see typing)
+    TODO @Broken: _render_prop recursively with all nodes/structs (blobs, secrets, etc. see typing)
     """
     from bench.language.packer import render_value
     from bench.language.text import HasText
@@ -646,8 +646,6 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         return f"'{value.name}'"  # this isn't quite right, may be shadowed/scoped
     elif isinstance(value, (int, float, bool)):
         return repr(value)
-    # TODO @Broken: render & parse in-value references properly (e.g. secret, file, node)
-    #   Related: figure out good way to set/'coerce' secrets, files, etc. as values
     elif isinstance(value, (str, Text)):
         # render text into simple form
         if isinstance(value, Text):

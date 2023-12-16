@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 
 @node(NodeType.FILE, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
-    parent: Union["File", Module] = node_parent(NodeType.FILE, NodeType.MODULE)
-    name: Optional[str] = struct_property(validate=validate_name)
+    parent: Union["File", Module] = node_parent(3, NodeType.FILE, NodeType.MODULE)
+    name: Optional[str] = struct_property(20, validate=validate_name)
 
     children: NodeList[Union["File", "Statement"]] = node_children(
         NodeType.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped

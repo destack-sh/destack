@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Literal, Optional, Union
 
 import structlog
 
-from bench.language.const import IssueType, NodeType, TypeFlag
+from bench.language.const import IssueType, NodeType, RunErrorKind, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.model import HasModel
 from bench.language.module import Node, ScopeNode, node_component, struct_runtime
@@ -228,7 +228,7 @@ async def run_task(
 
 
 # avoid circular import
-from .run import RunError, RunErrorKind  # noqa: E402
+from .run import RunError  # noqa: E402
 
 
 class TaskError(RunError):

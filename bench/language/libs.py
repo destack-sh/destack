@@ -1184,7 +1184,6 @@ for name, module in DEFAULT_MODULES.items():
             node._update_lists(node)
     # patch references
     for node in nodes:
-        # TODO @Broken: use same reference patching as in wire (and share with hot reload, etc.)
         if node.node_type == NodeType.STATEMENT and HasText in node._components:
             # only patching text here is fine since we clear after all ids/cks are updated
             # and only in-text references are not automatically updated
