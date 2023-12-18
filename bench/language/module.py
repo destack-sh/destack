@@ -850,10 +850,24 @@ def _process_struct_base_cls(
         if not prop.ancestor_node_type or detached:
             cls.__annotations__[name] = prop.py_type_raw
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
+
+    # register components and basic properties index
     cls.__static_components__ = tuple(static_components)
     cls.__dynamic_components__ = tuple(dynamic_components or ())
     cls.__properties__ = frozendict(properties_by_name)
-    # nocheckin: collect properties_by_id (to check for conflicts)
+    properties_by_id: dict[int, Property] = {}
+    for prop in properties_by_name.values():
+        if prop.id is not None and prop.store and not prop.reference_key:
+            existing = properties_by_id.get(prop.id, None)
+            if existing is not None:
+                raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
+            properties_by_id[prop.id] = prop
+    props = properties_by_name.values()
+    cls.__properties_by_id__ = frozendict(properties_by_id)
+    cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
+    cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
+    cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
+    cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
 
     return cls, properties_by_name
 
@@ -870,11 +884,6 @@ def struct_component(
     def decorate(cls):
         cls, properties = _process_struct_base_cls(cls=cls)
         cls.__struct_type__ = struct_type
-        props = properties.values()
-        cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
-        cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
-        cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
-        cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
 
         # register struct
         if struct_type:
@@ -934,10 +943,6 @@ def node_component(
         cls.__list_properties__ = frozendict(list_properties)
         cls.__list_properties_by_child__ = frozendict(list_properties_by_child)
         cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_node_type})
-        cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
-        cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
-        cls.__reference_properties__ = frozendict({p.name: p for p in props if p.is_node_reference})
-        cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
         cls.__is_detached__ = detached
 
         # register as concrete node class for node_type
