@@ -4,6 +4,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Collection, Union
 
 from bench.sql.core import ColumnType
+from bench.utils.utils import to_all_caps
 
 if TYPE_CHECKING:
     from bench.language import Node, Property, Struct
@@ -40,10 +41,7 @@ class Proto(ProtoThing):
         """Create a proto file from types. Figures out imports."""
         # just add default imports for all the well-known types we use
         imports = [
-            "google/protobuf/any.proto",
             "google/protobuf/timestamp.proto",
-            "google/protobuf/duration.proto",
-            "google/protobuf/empty.proto",
             "google/protobuf/struct.proto",
         ]
         return Proto(name=name, imports=imports, types=types)
@@ -208,21 +206,24 @@ def _bench_enum_to_proto(
     bench_t: type[enum.StrEnum] | type[enum.IntFlag], cache: dict[_BenchType, ProtoThing]
 ) -> Enum:
     # TODO @Broken: assign static ids to enum values (or use int enums) for proto serialization
+    enum_prefix = to_all_caps(bench_t.__name__) + "_"
     if issubclass(bench_t, enum.StrEnum):
         enum_values = [
-            EnumValue(id=0, name="UNSET"),  # add 'unset' value (required in proto3)
-            *(EnumValue(id=i + 1, name=name) for i, name in enumerate(bench_t.__members__.keys())),
+            EnumValue(id=i + 1, name=enum_prefix + name)
+            for i, name in enumerate(bench_t.__members__.keys())
         ]
-        return Enum(name=bench_t.__name__, values=enum_values)
     elif issubclass(bench_t, (enum.IntFlag, enum.IntEnum)):
         # use int values as ids
-        enum_values = [EnumValue(id=name, name=id_) for id_, name in bench_t.__members__.items()]
-        # add unset if not already present
-        if not any(v.id == 0 for v in enum_values):
-            enum_values = [EnumValue(id=0, name="UNSET"), *enum_values]
-        return Enum(name=bench_t.__name__, values=enum_values, allow_alias=True)
+        enum_values = [
+            EnumValue(id=name, name=enum_prefix + id_) for id_, name in bench_t.__members__.items()
+        ]
     else:
         raise TypeError(f"invalid type: {bench_t!r}")
+    # add unset if not already present
+    if not any(v.id == 0 for v in enum_values):
+        enum_values = [EnumValue(id=0, name=enum_prefix + "UNSET"), *enum_values]
+    has_duplicates = len(enum_values) != len(set(v.id for v in enum_values))
+    return Enum(name=bench_t.__name__, values=enum_values, allow_alias=has_duplicates)
 
 
 def bench_to_proto(bench_t: _BenchType, cache: dict[_BenchType, ProtoThing]) -> ProtoThing:

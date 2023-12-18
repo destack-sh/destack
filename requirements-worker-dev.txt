@@ -52,7 +52,7 @@ bcrypt==4.0.0
     # via -r requirements-worker.in
 beautifulsoup4==4.11.1
     # via -r requirements-worker.in
-betterproto==1.2.5
+betterproto==2.0.0b6
     # via -r requirements-worker.in
 bio==1.6.0
     # via -r requirements-worker.in
@@ -472,6 +472,7 @@ pytest==7.2.0
     # via -r requirements-worker.in
 python-dateutil==2.8.2
     # via
+    #   betterproto
     #   botocore
     #   croniter
     #   dateparser
@@ -594,8 +595,6 @@ sqlparse==0.4.4
     #   django
 stone==3.3.1
     # via dropbox
-stringcase==1.2.0
-    # via betterproto
 structlog==23.1.0
     # via -r requirements-worker.in
 tabulate==0.9.0
