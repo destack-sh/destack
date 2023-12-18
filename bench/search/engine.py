@@ -354,12 +354,12 @@ def compile_os_conditional(ctx: CompilationContext, cond: Expression) -> dict[st
     elif cond.op in ExpressionOps.COND_LOGICAL:
         clauses = [compile_os_conditional(ctx, c) for c in cond.clauses]
         return {"bool": {OS_CONDITIONAL_OP_BY_BENCH[cond.op]: clauses}}
-    elif cond.op == ConditionalOp.EQUALS:
+    elif cond.op in (ConditionalOp.EQUALS, ConditionalOp.IN):
         if isinstance(cond.value, list):
             return {"terms": {key: cond.value}}
         else:
             return {"term": {key: cond.value}}
-    elif cond.op == ConditionalOp.NOT_EQUALS:
+    elif cond.op in (ConditionalOp.NOT_EQUALS, ConditionalOp.NOT_IN):
         return {"bool": {"must_not": {"term": {key: cond.value}}}}
     elif cond.op in (
         ConditionalOp.GREATER_THAN,

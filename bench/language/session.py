@@ -20,7 +20,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import asgiref.sync
 import psycopg
@@ -34,6 +34,7 @@ from bench.language.const import (
     NodeType,
     RunStatus,
     SessionAccessLevel,
+    StructType,
     TriggerType,
     TypeFlag,
     TypeTag,
@@ -47,15 +48,19 @@ from bench.language.module import (
     NodeList,
     NRel,
     ScopeNode,
+    Struct,
     node,
     node_children,
+    struct,
     struct_internal,
     struct_runtime,
 )
-from bench.language.run import LogEntry, Run, RunError
+from bench.language.run import Run, RunError
 from bench.language.statement import Statement
+from bench.language.value import HasValue
 from bench.search.client import get_os_errors, os_client
 from bench.sql.client import get_pg_connection_pool
+from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
@@ -104,6 +109,35 @@ class RuntimeHost(abc.ABC):
 
     async def run_proxy_inference(self, statement: Statement, inputs: dict, timeout: float) -> dict:
         raise NotImplementedError
+
+
+@struct(StructType.LOG_ENTRY)
+class LogEntry(Struct):
+    id: UUID = struct_internal(20, default_factory=uuid4)
+    module: Module = struct_internal(21, references=NodeType.MODULE)
+    created_at: datetime = struct_internal(22, default_factory=utcnow_with_tz)
+    stream: str = struct_internal(23)
+    session: "Session" = struct_internal(24, references=NodeType.SESSION)
+    level: Optional[str] = struct_internal(25, default=None)
+    logger: Optional[str] = struct_internal(26, default=None)
+    statement: Optional["Statement"] = struct_internal(
+        27, default=None, references=NodeType.STATEMENT
+    )
+    run: Optional["Run"] = struct_internal(28, default=None, references=NodeType.RUN)
+    message: Optional[str] = struct_internal(29, default=None)
+    value: dict[str, Any] | None = struct_internal(
+        30,
+        is_required=False,
+        default=None,
+        store_as=ColumnType.JSON,
+        ignore_conflicts_with=(HasValue,),
+    )
+
+    def __str__(self):
+        return f"'{self.message}' ({self.created_at})"
+
+    def __repr__(self):
+        return f"<LogEntry {self}>"
 
 
 @node(NodeType.SESSION, detached=True)

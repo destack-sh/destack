@@ -155,6 +155,7 @@ def to_pyidentifier_multi(*parts: str, type: IdentifierType) -> str:
     return ".".join(to_pyidentifier(part, type) for part in parts)
 
 
+@cachetools.cached(cache={})
 def to_camel_case(snake_str: str) -> str:
     components = snake_str.split("_")
     return components[0] + "".join(x.capitalize() if x else "_" for x in components[1:])

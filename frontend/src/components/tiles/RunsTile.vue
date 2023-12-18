@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { TriggerType, type Conditional, type Sort, type Run } from "@/gql/graphql";
-import { useRuns, getRunStatusColor, getRunStatusIconSolid } from "@/state/session";
+import { useRuns, getRunStatusColor, getRunStatusIconSolid, RUN_STATUS_NAME } from "@/state/session";
 import { useCurrentModule, useNavigation, type NodeBase, type InterpStatement } from "@/state/module";
 import { useKeyModifier } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -126,7 +126,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
               class="h-4 w-4"
               :class="[getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
             />
-            <span>{{ run.status }}</span>
+            <span>{{ RUN_STATUS_NAME[run.status] }}</span>
             <!-- Duration -->
             <span v-if="run.startedAt != null">
               {{ run.terminatedAt != null ? "in" : "for" }}

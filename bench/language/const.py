@@ -49,6 +49,15 @@ class NodeType(enum.StrEnum):
         return NODE_TYPE_CAMEL_CASE[self]
 
 
+class StructType(enum.StrEnum):
+    EXPRESSION = "EXPRESSION"
+    RUN_CODE_FRAME = "RUN_CODE_FRAME"
+    RUN_ERROR = "RUN_ERROR"
+    LOG_ENTRY = "LOG_ENTRY"
+    PROJECTION = "PROJECTION"
+    WORKER_SET = "WORKER_SET"
+
+
 # local = only stored in user Bench, not host
 LOCAL_NODE_TYPES = (NodeType.RECORD,)
 OUT_OF_LINE_NODE_TYPES = (
@@ -60,14 +69,6 @@ OUT_OF_LINE_NODE_TYPES = (
 )
 INLINE_NODE_TYPES = (nt for nt in NodeType if nt not in OUT_OF_LINE_NODE_TYPES)
 HOST_NODE_TYPES = (nt for nt in NodeType if nt not in LOCAL_NODE_TYPES)
-
-
-class StructType(enum.StrEnum):
-    EXPRESSION = "EXPRESSION"
-    RUN_CODE_FRAME = "RUN_CODE_FRAME"
-    RUN_ERROR = "RUN_ERROR"
-    LOG_ENTRY = "LOG_ENTRY"
-    PROJECTION = "PROJECTION"
 
 
 class StatementType(enum.StrEnum):
@@ -470,10 +471,10 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
     ConditionalOp.MATCHES: "~=",
     ConditionalOp.STARTS_WITH: "^=",
     # containment
-    ConditionalOp.CONTAINS: "contains",
-    ConditionalOp.NOT_CONTAINS: "!contains",
-    ConditionalOp.IN: "in",
-    ConditionalOp.NOT_IN: "!in",
+    ConditionalOp.CONTAINS: "∋",
+    ConditionalOp.NOT_CONTAINS: "!∋",
+    ConditionalOp.IN: "∈",
+    ConditionalOp.NOT_IN: "!∈",
     # existence
     ConditionalOp.EXISTS: "?",
     ConditionalOp.NOT_EXISTS: "!?",

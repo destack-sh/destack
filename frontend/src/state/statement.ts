@@ -46,7 +46,6 @@ import {
 import { computed, type Ref } from "vue";
 import { useNavigationContext, type CopiedStatement } from "@/state/file";
 import uFuzzy from "@leeoniya/ufuzzy";
-import type { State } from "monaco-languageclient/.";
 
 function _computedEmptyIfDisabled<T>(func: () => T, enabled?: Ref<boolean>) {
   return computed(() => (enabled?.value !== false ? func() : []));
