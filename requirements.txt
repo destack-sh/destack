@@ -50,7 +50,7 @@ automat==22.10.0
     # via twisted
 backoff==2.2.1
     # via posthog
-betterproto==1.2.5
+betterproto==2.0.0b6
     # via -r requirements.in
 boto3==1.26.125
     # via -r requirements.in
@@ -349,6 +349,7 @@ pyopenssl==23.2.0
     # via twisted
 python-dateutil==2.8.2
     # via
+    #   betterproto
     #   botocore
     #   croniter
     #   kubernetes
@@ -440,8 +441,6 @@ strawberry-graphql[channels,debug-server,opentelemetry]==0.204.0
     #   strawberry-graphql-django
 strawberry-graphql-django==0.16.0
     # via -r requirements.in
-stringcase==1.2.0
-    # via betterproto
 structlog==23.1.0
     # via django-structlog
 tokenizers==0.13.3
