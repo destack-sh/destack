@@ -19,6 +19,7 @@ from bench.language.const import (
 )
 from bench.language.module import Node, Struct, struct, struct_property
 from bench.sql.core import ColumnType
+from bench.utils.utils import to_camel_case
 
 if TYPE_CHECKING:
     from bench.language import Field, HasFields
@@ -83,7 +84,7 @@ class Expression(Struct):
         return self.op.name
 
     def __repr__(self):
-        return f"<{self.kind.name} {self}>"
+        return f"<{to_camel_case(self.kind.name)} {self}>"
 
     def __invert__(self):
         if self.op == ConditionalOp.TRUE:

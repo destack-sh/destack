@@ -21,7 +21,7 @@ import { newRunId, newSessionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useSessionOps } from "@/state/operations/session";
 import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQuery } from "@/utils/connection";
-import { wrapValueRefs } from "@/utils/functools";
+import { getUUIDFromGlobalID, wrapValueRefs } from "@/utils/functools";
 import {
   CheckCircleIcon as CheckCircleIconOutline,
   ClockIcon as ClockIconOutline,
@@ -745,7 +745,11 @@ export function useRuns(
       clauses.push(filter.query.value);
     }
     if (filter.projectId.value != null) {
-      clauses.push({ op: ConditionalOp.Equals, field: "project_id", value: filter.projectId.value });
+      clauses.push({
+        op: ConditionalOp.Equals,
+        field: "project_id",
+        value: getUUIDFromGlobalID(filter.projectId.value),
+      });
     }
     if (filter.statementCks.value?.length) {
       clauses.push({ op: ConditionalOp.In, field: "statement_ck", value: filter.statementCks.value });

@@ -8,6 +8,7 @@ mkdir -p $TARGET_PY_DIR
 echo "generate $TARGET_PY_DIR"
 protoc -I . --python_betterproto_out=$TARGET_PY_DIR bench/language/bench.proto
 mv $TARGET_PY_DIR/__init__.py $TARGET_PY_DIR.py
+rm -r $TARGET_PY_DIR
 
 # TS
 rm -rf $TARGET_TS_DIR

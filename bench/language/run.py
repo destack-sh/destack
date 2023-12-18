@@ -6,7 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import msgpack
 
@@ -21,7 +21,6 @@ from bench.language.const import (
 )
 from bench.language.module import (
     NS,
-    Module,
     Node,
     ScopeNode,
     Struct,
@@ -335,32 +334,3 @@ class RunError(Struct, Exception):  # can this really be a subclass of Exception
             statement=statement,
             traceback=stack,
         )
-
-
-@struct(StructType.LOG_ENTRY)
-class LogEntry(Struct):
-    id: UUID = struct_internal(20, default_factory=uuid4)
-    module: Module = struct_internal(21, references=NodeType.MODULE)
-    created_at: datetime = struct_internal(22, default_factory=utcnow_with_tz)
-    stream: str = struct_internal(23)
-    session: "Session" = struct_internal(24, references=NodeType.SESSION)
-    level: Optional[str] = struct_internal(25, default=None)
-    logger: Optional[str] = struct_internal(26, default=None)
-    statement: Optional["Statement"] = struct_internal(
-        27, default=None, references=NodeType.STATEMENT
-    )
-    run: Optional["Run"] = struct_internal(28, default=None, references=NodeType.RUN)
-    message: Optional[str] = struct_internal(29, default=None)
-    value: dict[str, Any] | None = struct_internal(
-        30,
-        is_required=False,
-        default=None,
-        store_as=ColumnType.JSON,
-        ignore_conflicts_with=(HasValue,),
-    )
-
-    def __str__(self):
-        return f"'{self.message}' ({self.created_at})"
-
-    def __repr__(self):
-        return f"<LogEntry {self}>"
