@@ -1,40 +1,173 @@
-from typing import Union
+from collections import OrderedDict
+from typing import Union, Any
+from uuid import UUID
+
+import structlog
 
 from bench.language import Session, wire
-from bench.language.const import NodeType
-from bench.language.module import Node, Struct
+from bench.language.const import NodeType, BenchType
+from bench.language.module import (
+    Node,
+    Struct,
+    STRUCT_CLASS_BY_STRUCT_TYPE,
+    Property,
+    NODE_CLASS_BY_NODE_TYPE,
+    NodeTree,
+    ScopeNode,
+    NodeStatus,
+)
+from bench.sql.core import ColumnType
 
+logger = structlog.get_logger(__name__)
 # nocheckin: auto-gen AnyNodeData/AnyStructData?
 AnyNodeData = Union[wire.ModuleData, wire.FileData, wire.StatementData, wire.FieldData]
+AnyStructData = Union[wire.StructType]
+
+# :ProtoSchema
+PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
+    _type: getattr(wire, _type.name + "Data") for _type in BenchType
+}
 
 
-def pack_struct(struct: Struct) -> wire.SomeNodeData:
+def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    if value is None:
+        return None
+    elif prop.is_array and not ignore_array:
+        return [_pack_struct_prop(prop, v, ignore_array=True) for v in value]
+    elif prop.is_struct:
+        return pack_struct(value)
+    elif prop.is_enum:
+        proto_enum_cls = getattr(wire, prop.py_type_raw.__name__)
+        return proto_enum_cls(value)
+    elif prop.store_as == ColumnType.UUID:
+        return str(value)  # uuids are wired as strings
+    else:
+        return value
+
+
+def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    if value is None:
+        return None
+    elif prop.is_array and not ignore_array:
+        return [_unpack_struct_prop(prop, v, ignore_array=True) for v in value]
+    elif prop.is_struct:
+        return unpack_struct(value)
+    elif prop.is_enum:
+        return prop.py_type_raw(value)
+    elif prop.store_as == ColumnType.UUID:
+        return str(value)  # uuids are wired as strings
+    else:
+        return value
+
+
+def pack_struct(struct: Struct) -> AnyStructData:
     """Pack a struct and any contained structs."""
-    raise NotImplementedError("nocheckin: pack_struct")
+    data_cls = PROTO_CLASS_BY_TYPE[struct._type]
+    data_kwargs = {}
+    for prop in struct.__stored_properties__.values():
+        value = getattr(struct, prop.name)
+        data_kwargs[prop.name] = _pack_struct_prop(prop, value, ignore_array=False)
+    return data_cls(**data_kwargs)
 
 
-def unpack_struct(struct: Struct) -> wire.SomeStructData:
+def unpack_struct(struct: AnyStructData) -> Struct:
     """Unpack a struct and any contained structs."""
-    raise NotImplementedError("nocheckin: unpack_struct")
+    struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[struct._type]
+    struct_kwargs = {}
+    for prop in struct.__stored_properties__.values():
+        value = getattr(struct, prop.name)
+        struct_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
+    return struct_cls(**struct_kwargs)
 
 
-def pack_node(node: Node) -> wire.SomeNodeData:
-    raise NotImplementedError("nocheckin: pack_node_flat")
+def pack_node(node: Node) -> AnyNodeData:
+    node_cls = PROTO_CLASS_BY_TYPE[node._type]
+    node_kwargs = {}
+    for prop in node.__stored_properties__.values():
+        value = getattr(node, prop.name)
+        node_kwargs[prop.name] = _pack_struct_prop(prop, value, ignore_array=False)
+    return node_cls(**node_kwargs)
 
 
 def unpack_node(data: wire.SomeNodeData, parent: Node, session: Session | None) -> Node:
-    raise NotImplementedError("nocheckin: unpack_node_flat")
+    node_cls = NODE_CLASS_BY_NODE_TYPE[data._type]
+    node_kwargs = {}
+    for prop in node_cls.__stored_properties__.values():
+        value = getattr(data, prop.name)
+        node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
+    return node_cls(**node_kwargs)
 
 
-def pack_node_inline(root: Node, exclude: set[NodeType] = None) -> wire.SomeNodeData:
+def pack_node_inline(
+    root: Node, exclude: set[NodeType] = None
+) -> tuple[AnyNodeData, list[AnyNodeData]]:
     """Pack a node and all its inline descendants"""
-    raise NotImplementedError("nocheckin: pack_node_inline")
+    exclude = exclude or ()
+    packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
+
+    to_pack = root._local_root_tree.get_descendants(root.ck, include_self=True, recursive=True)
+    for node in to_pack:
+        if node._type in exclude:
+            continue
+        packed_by_id[node.ck] = pack_node(node)
+
+    return packed_by_id[root.id], list(packed_by_id.values())
 
 
 def unpack_node_inline(
-    nodes: list[wire.SomeNodeData], parent: Node | None, session: Session | None
+    source_tree: NodeTree[AnyNodeData],
+    parent: Node | None,
+    session: Session | None = None,
+    exclude: set[NodeType] = None,
 ) -> Node:
-    raise NotImplementedError("nocheckin: unpack_node")
+    exclude = exclude or tuple()
+    unpacked_tree = NodeTree()
+
+    # unpack all nodes top down (breadth first)
+    for node_data in source_tree.walk_bfs():
+        if node_data.node_type in exclude:
+            continue
+
+        if node_data.parent_id is None:
+            node_parent = parent
+        elif node_data.parent_id not in unpacked_tree.nodes_by_id:
+            if parent is not None and node_data.parent_id == parent.id:
+                node_parent = parent
+            else:
+                logger.warn(
+                    f"node {node_data!r} parent {node_data.parent_id} not found in unpacked {unpacked_tree!r}"
+                )
+                continue  # can happen if there was a race condition in delete cascade and create
+        else:
+            node_parent = unpacked_tree.nodes_by_id[node_data.parent_id]
+        node = unpack_node(node_data, node_parent, session=session)
+
+        # keep parent instance if it was passed (update in place)
+        if parent is not None and node.id == parent.id:
+            for prop in parent.__properties__.values():
+                if not prop.is_runtime and not prop.is_tree_relation:
+                    setattr(parent, prop.name, getattr(node, prop.name))
+            node = parent
+
+        unpacked_tree.add(node)
+
+    # index & recover node lists
+    root = unpacked_tree.root
+    if isinstance(root, ScopeNode):
+        root._local_root_tree.set(unpacked_tree.nodes_by_ck.values())
+    for node in unpacked_tree.nodes_by_id.values():
+        node._status = NodeStatus.SOURCE  # status is auto-set to interpreted if a session is active
+        if isinstance(node, ScopeNode):
+            node._update_lists(node)
+
+    if isinstance(root, ScopeNode):
+        root._index_rec()
+    elif isinstance(root, Node):
+        root._index_self()
+    else:
+        raise ValueError(f"unexpected root {root} ({type(root)})")
+
+    return root
 
 
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:

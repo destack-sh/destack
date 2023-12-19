@@ -21,11 +21,6 @@ def _prepare_dataclass_fields(cls: typing.Type) -> dict[str, dataclasses.Field]:
             fields[field.name] = field
     except (ValueError, NameError, TypeError) as e:
         raise TypeError(f"failed to prepare dataclass fields for {cls}") from e
-
-    if "id" in fields:
-        # ids must be UUID
-        if fields["id"].type != UUID:
-            raise TypeError(f"id field must be UUID, got {fields['id'].type} in {cls}")
     return fields
 
 

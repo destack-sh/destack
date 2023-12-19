@@ -35,6 +35,8 @@ from bench.utils.utils import format_python, omit_empty
 
 if TYPE_CHECKING:
     from bench.language import File, Run, Statement
+    from bench.language.wire import ModuleTreeData
+    from bench.language.wiring import AnyNodeData
 
 
 class EditType(enum.StrEnum):
@@ -252,7 +254,7 @@ class Edit:
     @property
     def scope(self) -> NodeType:
         """The type of node that was edited. Usually the same as node_type except for truncate."""
-        return self.node.node_type
+        return self.node._type
 
     @property
     def node_type(self) -> NodeType:
@@ -279,23 +281,21 @@ class EditData:
 
     @classmethod
     def decode_some_attrs(cls, data: dict[str, Any]) -> dict[str, Any]:
-        from bench.language import wire
+        from bench.language import wiring
 
         _node = data.get("_node")
         if _node is not None:
-            _data_cls = wire.DATA_CLASS_BY_NODE_TYPE[data["_node_type"]]
+            _data_cls = wiring.PROTO_CLASS_BY_TYPE[data["_node_type"]]
             _node = from_dict(_data_cls, _node)
         return {"_node": _node}
 
     @property
-    def node(self) -> Optional["NodeData"]:
+    def node(self) -> Optional["AnyNodeData"]:
         return self._node
 
     @node.setter
-    def node(self, node: "NodeData"):
-        from bench.language import wire
-
-        self._node_type = wire.NODE_TYPE_BY_DATA_CLASS[type(node)]
+    def node(self, node: "AnyNodeData"):
+        self._node_type = node._type
         self._node = node
 
     @property
@@ -316,7 +316,7 @@ class EditData:
         return replace(self, type=new_type)
 
     def __str__(self):
-        data_str = f"{self.node.node_type} {self.node.id} " if self.node else ""
+        data_str = f"{self.node._type} {self.node.id} " if self.node else ""
         properties_str = (" [" + ", ".join(self.properties) + "]") if self.properties else ""
         return f"{self.type} {data_str}{self.revision}{properties_str}"
 
@@ -353,7 +353,7 @@ class NodeTreeEditor:
         self.edits = []
 
     def _make_edit(
-        self, type: EditType, node: "NodeData", properties: list[str] = None
+        self, type: EditType, node: "AnyNodeData", properties: list[str] = None
     ) -> "EditData":
         from bench.language import wire
 
@@ -379,7 +379,7 @@ class NodeTreeEditor:
         edit = EditData(
             type=type,
             project_version_id=self.module_id,
-            revision=node.revision if isinstance(node, wire.HasCrud) else None,
+            revision=getattr(node, "revision", None),
             file_id=file_id,
             statement_id=statement_id,
             properties=properties,
@@ -406,21 +406,21 @@ class NodeTreeEditor:
 
     def create(self, node: Union["AnyNodeData", Node]) -> "EditData":
         return self._make_edit(
-            EditType.from_nt(EditKind.CREATE, node.node_type),
+            EditType.from_nt(EditKind.CREATE, node._type),
             node=self._pack_node_flat_if_needed(node),
         )
 
     def update(self, node: Union["AnyNodeData", Node], properties: list[str] = None) -> "EditData":
         assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
         return self._make_edit(
-            type=EditType.from_nt(EditKind.UPDATE, node.node_type),
+            type=EditType.from_nt(EditKind.UPDATE, node._type),
             node=self._pack_node_flat_if_needed(node),
             properties=properties,
         )
 
     def move(self, node: Union["AnyNodeData", Node]) -> "EditData":
         return self._make_edit(
-            type=EditType.from_nt(EditKind.MOVE, node.node_type),
+            type=EditType.from_nt(EditKind.MOVE, node._type),
             node=self._pack_node_flat_if_needed(node),
         )
 
@@ -433,22 +433,20 @@ class NodeTreeEditor:
         self, node: Union["AnyNodeData", Node], deleted_at: datetime | None = None
     ) -> "EditData":
         # sneakily convert soft delete into hard delete for interp types
-        if node.node_type in INTERP_NODE_TYPES:
+        if node._type in INTERP_NODE_TYPES:
             return self.delete(node)
         node = self._pack_node_flat_if_needed(node)
         node.deleted_at = deleted_at or utcnow_with_tz()
-        return self._make_edit(
-            type=EditType.from_nt(EditKind.SOFT_DELETE, node.node_type), node=node
-        )
+        return self._make_edit(type=EditType.from_nt(EditKind.SOFT_DELETE, node._type), node=node)
 
     def restore(self, node: Union["AnyNodeData", Node]) -> "EditData":
         node = self._pack_node_flat_if_needed(node)
         node.deleted_at = None
-        return self._make_edit(type=EditType.from_nt(EditKind.RESTORE, node.node_type), node=node)
+        return self._make_edit(type=EditType.from_nt(EditKind.RESTORE, node._type), node=node)
 
     def delete(self, node: Union["AnyNodeData", Node]) -> "EditData":
         return self._make_edit(
-            type=EditType.from_nt(EditKind.DELETE, node.node_type),
+            type=EditType.from_nt(EditKind.DELETE, node._type),
             node=self._pack_node_flat_if_needed(node),
         )
 
@@ -517,7 +515,7 @@ def diff_modules(
     new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():
-        if new_node.node_type == NodeType.MODULE:
+        if new_node._type == NodeType.MODULE:
             continue  # ignore module itself
         if new_node.id not in old_tree.nodes_by_id:
             old_tree.apply_edit(editor.create(new_node))
@@ -526,7 +524,7 @@ def diff_modules(
             if not new_node.equals_content(old_node):
                 old_tree.apply_edit(editor.update(new_node))
     for old_node in old_tree.walk_bfs():
-        if old_node.node_type == NodeType.MODULE:
+        if old_node._type == NodeType.MODULE:
             continue
         if old_node.id not in new_tree.nodes_by_id:
             old_tree.apply_edit(editor.delete(old_node))
@@ -584,11 +582,11 @@ def render(
                     file = None
                     statement = None
                 for n in descendants:
-                    if n.ck in seen_node_cks or n.node_type in INTERP_NODE_TYPES:
+                    if n.ck in seen_node_cks or n._type in INTERP_NODE_TYPES:
                         continue
                     seen_node_cks.add(n.ck)
                     edit = Edit(
-                        type=EditType(f"CREATE_{n.node_type.caps_name}"),
+                        type=EditType(f"CREATE_{n._type.caps_name}"),
                         module=n.module,
                         node=n,
                         file=file or tree.get_ancestor(n.ck, NodeType.FILE),
@@ -739,11 +737,11 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
             if node.parent and node.parent.ck in nodes_by_ck:
                 attach_to_prop = first(
                     p
-                    for p in node.parent.__list_properties_by_child__[node.node_type]
+                    for p in node.parent.__list_properties_by_child__[node._type]
                     if not p.children_flags & NRel.Flat
                 )
                 parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
-                if node.node_type in (NodeType.RECORD, NodeType.TAGGING, NodeType.TRIGGER):
+                if node._type in (NodeType.RECORD, NodeType.TAGGING, NodeType.TRIGGER):
                     op = _Op(parent_str, _OpType.CREATE, [init_node])
                 else:
                     op = _Op(parent_str, _OpType.APPEND, [init_node])
@@ -779,7 +777,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         for node in nodes:
             n, init_name, init_args, init_kwargs = node
             # inline record value (see Record.new)
-            if n.node_type == NodeType.RECORD:
+            if n._type == NodeType.RECORD:
                 from bench.language.packer import render_value
 
                 kwargs_str = _sep(

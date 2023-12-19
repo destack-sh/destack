@@ -214,7 +214,7 @@ class Command(BaseCommand):
 
                 # wipe project version
                 host_nodes, record_nodes = partition(
-                    lambda n: n.node_type == NodeType.RECORD, module_data.nodes
+                    lambda n: n._type == NodeType.RECORD, module_data.nodes
                 )
                 logger.info(
                     "load",

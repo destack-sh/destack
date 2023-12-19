@@ -174,9 +174,7 @@ def pack_module_host(
 ) -> wire.ModuleTreeData:
     """Pack a module (convenience wrapper)"""
     packed = pack_node_host(module, filter=filter, excluded=excluded)
-    tree = wire.ModuleTreeData(
-        **packed.roots[0].__dict__, module=packed.roots[0], nodes=packed.nodes_list()
-    )
+    tree = wire.ModuleTreeData(module=packed.roots[0], nodes=packed.nodes_list())
     return tree
 
 
@@ -347,10 +345,7 @@ def unpack_nodes(
     ancestors_by_id = {project_v.id: project_v}
     for node in nodes:
         # runs aren't technically detached but sessions (their parents) are
-        detached = (
-            NODE_CLASS_BY_NODE_TYPE[node.node_type].__is_detached__
-            or node.node_type == NodeType.RUN
-        )
+        detached = NODE_CLASS_BY_NODE_TYPE[node._type].__is_detached__ or node._type == NodeType.RUN
         # node may be detached or ancestor may already be unpacked
         if not detached and node.parent_id not in ancestors_by_id:
             ancestors = module.get_ancestors(node.parent_id, include_self=True)

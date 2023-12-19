@@ -452,6 +452,7 @@ class WorkerSetData(betterproto.Message):
 class BlobData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -469,6 +470,7 @@ class BlobData(betterproto.Message):
 class FieldData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -490,6 +492,7 @@ class FieldData(betterproto.Message):
 class FileData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -503,6 +506,7 @@ class FileData(betterproto.Message):
 class IssueData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -521,6 +525,7 @@ class IssueData(betterproto.Message):
 class ModuleData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -535,6 +540,7 @@ class ModuleData(betterproto.Message):
 class BaseNodeData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -547,6 +553,7 @@ class BaseNodeData(betterproto.Message):
 class RecordData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -560,6 +567,7 @@ class RecordData(betterproto.Message):
 class ResolvedFieldData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -582,6 +590,7 @@ class ResolvedFieldData(betterproto.Message):
 class RunData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -607,6 +616,7 @@ class RunData(betterproto.Message):
 class SecretData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -620,6 +630,7 @@ class SecretData(betterproto.Message):
 class SessionData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -641,6 +652,7 @@ class SessionData(betterproto.Message):
 class StatementData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -664,6 +676,7 @@ class StatementData(betterproto.Message):
 class TaggingData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -679,6 +692,7 @@ class TaggingData(betterproto.Message):
 class TriggerData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)
@@ -697,6 +711,7 @@ class TriggerData(betterproto.Message):
 class ViewData(betterproto.Message):
     id: str = betterproto.string_field(1)
     ck: str = betterproto.string_field(2)
+    parent_id: str = betterproto.string_field(3)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
     deleted_at: datetime = betterproto.message_field(12)

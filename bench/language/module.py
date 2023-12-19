@@ -42,6 +42,7 @@ from bench.language.const import (
     TypeTag,
     parse_absolute_node_reference,
     parse_node_path,
+    BenchType,
 )
 from bench.language.validation import (
     PropertyValidationHandler,
@@ -315,6 +316,7 @@ class Property(_FieldExpressionBase):
     is_internal: bool = False
     is_runtime: bool = False
     is_cru: bool = False
+    is_computed: bool = False
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
@@ -323,7 +325,7 @@ class Property(_FieldExpressionBase):
     reference_key: Optional["Property"] = None  # for reference relations
     parent_node_types: tuple[NodeType, ...] | None = None
     ancestor_node_type: NodeType | None = None
-    store: bool = UNSET  # auto-detect (false for runtime properties)
+    is_stored: bool = UNSET  # auto-detect (false for runtime properties)
     store_as: ColumnType | None = UNSET  # auto-detect (yes for most non-runtime properties)
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
@@ -432,10 +434,10 @@ class Property(_FieldExpressionBase):
         """Analyzes the final type and configures storage options. Must run after complete setup."""
         # store property if not runtime (and not marked as _not_ store)
         if self.is_tree_relation or self.is_runtime or self.reference_types:
-            self.store = False
+            self.is_stored = False
             self.store_as = None
-        elif self.store is UNSET:
-            self.store = True
+        elif self.is_stored is UNSET:
+            self.is_stored = True
 
         # resolve py type
         if (
@@ -459,7 +461,7 @@ class Property(_FieldExpressionBase):
                 self.is_array = info.is_array
 
         # determine storage type
-        if self.store_as is UNSET and self.store:
+        if self.store_as is UNSET and self.is_stored:
             # map to column type
             assert isinstance(py_type, type), f"invalid type {py_type!r} for {self!r}"
             if issubclass(py_type, enum.StrEnum):
@@ -481,6 +483,7 @@ class Property(_FieldExpressionBase):
         """Contribute any extra properties required by this property."""
 
         if self.parent_node_types is not None:
+            # special reference to parent (via id, resolved before instantiating)
             parent_id_prop = Property(
                 id=self.id,  # re-use id, not actually stored
                 name=self.name + "_id",
@@ -489,11 +492,13 @@ class Property(_FieldExpressionBase):
                 default=None,
                 is_required=self.is_required,
                 is_internal=True,
-                store=True,
+                is_computed=True,
+                is_stored=True,
                 store_as=ColumnType.UUID,
             )
-            return (parent_id_prop,)  # nocheckin: store parent_id
+            return (parent_id_prop,)
         elif self.reference_types is not None:
+            # regular reference to node (via ck, resolved during interp)
             assert not self.reference_key, f"cannot call contribute_properties twice: {self!r}"
             reference_ck_prop = Property(
                 id=self.id,  # re-use id, not actually stored
@@ -503,7 +508,7 @@ class Property(_FieldExpressionBase):
                 default=None,
                 is_required=self.is_required,
                 is_internal=True,
-                store=True,
+                is_stored=True,
                 store_as=ColumnType.UUID,
             )
             self.reference_key = reference_ck_prop
@@ -596,7 +601,7 @@ def struct_internal(
         is_reflected=reflect,
         reference_types=try_tuple(references),
         ignore_conflicts_with=ignore_conflicts_with,
-        store=store,
+        is_stored=store,
         struct_type=struct_t,
         store_as=store_as,
     )
@@ -622,7 +627,7 @@ def struct_runtime(
 def node_parent(id: int, *node_type: NodeType):
     """The parent of a node, must be of one of the given types."""
     return Property(
-        id=id, parent_node_types=tuple(node_type), default=None, is_internal=True, store=False
+        id=id, parent_node_types=tuple(node_type), default=None, is_internal=True, is_stored=False
     )
 
 
@@ -639,9 +644,10 @@ def node_ancestor(
         ancestor_node_type=node_type,
         default=None,
         is_internal=True,
+        is_computed=True,
         is_ancestor_nearest=nearest,
         is_ancestor_self=include_self,
-        store=store,
+        is_stored=store,
     )
 
 
@@ -753,13 +759,30 @@ def _get_component_methods(
     return methods
 
 
+TYPE_DISCRIMINATOR_PROPERTY = Property(
+    id=0,
+    name="_type",
+    default=None,
+    py_type_raw=BenchType,
+    is_internal=True,
+    is_required=True,
+    is_reflected=True,
+    is_computed=True,  # set statically in runtime
+    is_stored=True,
+    store_as=ColumnType.STRING,
+)
+
+
 def _process_struct_base_cls(
     cls: Union[type["Node"], type["Struct"]],
     dynamic_components: tuple[type["Node"], ...] = (),
     detached: bool = False,
+    reserved: set[str | int] = None,
 ) -> tuple[type["Node"], dict[str, Property]]:
     """Process a struct base class and return the processed class and its properties."""
-    properties_by_name: dict[str, Property] = {}
+    properties_by_name: dict[str, Property] = {
+        TYPE_DISCRIMINATOR_PROPERTY.name: TYPE_DISCRIMINATOR_PROPERTY
+    }
     static_components: list[type["Node"] | type["Struct"]] = [cls]
 
     # check that no forbidden methods are defined in non-base classes
@@ -815,16 +838,18 @@ def _process_struct_base_cls(
                     f"property conflict '{p.name}': {p!r}, {properties_by_name[prop.name]!r}"
                 )
             properties_by_name[p.name] = p
-            setattr(cls, p.name, p)
+            if not p.is_computed:
+                setattr(cls, p.name, p)
     cls.__own_properties__ = frozendict(properties_by_name)  # copy own properties
 
     # collect properties from all components (static and dynamic, least to most specific)
     is_node = cls.__name__ in CORE_TYPES or issubclass(cls, Node)
     cls.__properties__ = {**properties_by_name}  # start with own properties
+    reserved_properties: set[str | int] = set(reserved or ())
     for component in chain(reversed(static_components), reversed(dynamic_components)):
         for name, prop in component.__own_properties__.items():
             existing = properties_by_name.get(name, None)
-            # override parent & id with more specific
+            # override parent & id with more specific property
             if existing is None or name == "parent" or existing.id is UNSET:
                 # register all static and any non-runtime dynamic properties
                 if not prop.is_runtime or component not in dynamic_components:
@@ -838,6 +863,9 @@ def _process_struct_base_cls(
             # check that only nodes have node relations
             if not is_node and prop.is_tree_relation:
                 raise ValueError(f"non-node {cls} has node-only relation {prop}")
+        # add any resolved fields
+        reserved_properties.update(component.__reserved_properties__)
+    cls.__reserved_properties__ = frozenset(reserved_properties)
 
     # collect methods implemented in this class (specifically)
     for meth_type in ComponentMethod:
@@ -847,14 +875,19 @@ def _process_struct_base_cls(
         ):
             _COMPONENT_METHODS[(meth_type, cls)] = meth
 
-    # create class (map to dataclass)
+    # create class (map properties to dataclass fields)
     for name, prop in properties_by_name.items():
         if not prop.child_node_type and not hasattr(cls, name):  # may be inherited
             continue
+        if detached and prop.ancestor_node_type or not prop.is_computed:
+            cls.__annotations__[name] = prop.py_type_raw
+        else:  # computer properties can't be fields
+            if name in cls.__annotations__:
+                del cls.__annotations__[name]
+            continue
+        # map to dataclass field
         if prop.ancestor_node_type and not detached:
             setattr(cls, name, _node_ancestor_prop(prop))
-            if name in cls.__annotations__:  # computed property doesn't need a dataclass field
-                del cls.__annotations__[name]
         elif prop.child_node_type:
             setattr(cls, name, dataclasses.field(default=None))
         elif prop.default is not UNSET:
@@ -863,17 +896,15 @@ def _process_struct_base_cls(
             setattr(cls, name, dataclasses.field(default_factory=prop.default_factory))
         else:
             setattr(cls, name, required_field())
-        if not prop.ancestor_node_type or detached:
-            cls.__annotations__[name] = prop.py_type_raw
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
 
-    # register components and basic properties index
+    # register components and index properties
     cls.__static_components__ = tuple(static_components)
     cls.__dynamic_components__ = tuple(dynamic_components or ())
     cls.__properties__ = frozendict(properties_by_name)
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
-        if prop.id is not None and prop.store and not prop.reference_key:
+        if prop.id is not None and prop.is_stored and not prop.reference_key:
             existing = properties_by_id.get(prop.id, None)
             if existing is not None:
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
@@ -884,6 +915,7 @@ def _process_struct_base_cls(
     cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
     cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
+    cls.__stored_properties__ = frozendict({p.name: p for p in props if p.is_stored})
 
     return cls, properties_by_name
 
@@ -899,13 +931,12 @@ def struct_component(
     """
 
     def decorate(cls):
-        cls, properties = _process_struct_base_cls(cls=cls)
+        cls, properties = _process_struct_base_cls(cls=cls, reserved=reserved)
         cls.__struct_type__ = struct_type
-        cls.__reserved_properties__ = frozenset(reserved or ())
 
         # register struct
         if struct_type:
-            cls.struct_type = struct_type
+            cls._type = struct_type
             if struct_type in STRUCT_CLASS_BY_STRUCT_TYPE:
                 raise ValueError(
                     f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_STRUCT_TYPE[struct_type]}"
@@ -943,7 +974,7 @@ def node_component(
 
     def decorate(cls):
         cls, properties = _process_struct_base_cls(
-            cls=cls, dynamic_components=dynamic_components, detached=detached
+            cls=cls, dynamic_components=dynamic_components, detached=detached, reserved=reserved
         )
         cls.__static_passthrough__ = passthrough
         # register node properties
@@ -963,12 +994,11 @@ def node_component(
         cls.__list_properties__ = frozendict(list_properties)
         cls.__list_properties_by_child__ = frozendict(list_properties_by_child)
         cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_node_type})
-        cls.__reserved_properties__ = frozenset(reserved or ())
         cls.__is_detached__ = detached
 
         # register as concrete node class for node_type
         if node_type:
-            cls.node_type = node_type
+            cls._type = node_type
             if node_type in NODE_CLASS_BY_NODE_TYPE:
                 raise ValueError(
                     f"node class conflict for {node_type}: {cls}, {NODE_CLASS_BY_NODE_TYPE[node_type]}"
@@ -1015,7 +1045,7 @@ def _node_ancestor_prop(prop: Property) -> property:
         def get_nearest(self: NodeT) -> Optional[NodeT]:
             parent = self if prop.is_ancestor_self else self.parent
             while parent is not None:
-                if parent.node_type == prop.ancestor_node_type:
+                if parent._type == prop.ancestor_node_type:
                     return parent
                 if parent.__is_detached__:
                     parent = parent.module
@@ -1030,7 +1060,7 @@ def _node_ancestor_prop(prop: Property) -> property:
             parent = self if prop.is_ancestor_self else self.parent
             farthest = None
             while parent is not None:
-                if parent.node_type == prop.ancestor_node_type:
+                if parent._type == prop.ancestor_node_type:
                     farthest = parent
                 if parent.__is_detached__:
                     parent = parent.module
@@ -1041,7 +1071,7 @@ def _node_ancestor_prop(prop: Property) -> property:
         get = get_farthest
 
     def set(self: NodeT, value: NodeT):
-        raise NotImplementedError(f"cannot set computed ancestor property {prop}")
+        raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
 
     return property(get, set)
 
@@ -1113,7 +1143,7 @@ class _ChangeEffect:
         assert from_parent or to_parent, f"cannot create update on {changed!r} without parent"
 
         # collect ancestors to update their affected node lists
-        affected_node_types = set([n.node_type for n in changed])
+        affected_node_types = set([n._type for n in changed])
         ancestors = []
         if level >= _NC.UpdateLists:
             parent = from_parent
@@ -1137,7 +1167,7 @@ class _ChangeEffect:
                         )
                     )
             # filter out interp types
-            affected_nodes = [n for n in affected_nodes if n.node_type not in INTERP_NODE_TYPES]
+            affected_nodes = [n for n in affected_nodes if n._type not in INTERP_NODE_TYPES]
         else:
             affected_nodes = None
 
@@ -1477,7 +1507,7 @@ class NodeList(NodeListBase[NodeT]):
         if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
             return self.get(obj) is not None
         elif isinstance(obj, Node):
-            if obj.node_type != self._property.child_node_type:
+            if obj._type != self._property.child_node_type:
                 raise TypeError(f"{self!r} cannot contain {obj!r}")
             return obj in self._nodes
         else:
@@ -1727,7 +1757,7 @@ class NodeTree(NodeTreeBase[NT]):
     def add_tree(self, tree: Union["NodeTree", "DetachedNodeTree"]):
         if isinstance(tree, DetachedNodeTree):
             for node in tree.nodes_by_ck.values():
-                if node.node_type != NodeType.RECORD:  # remove hoisted records :TempRecordTree
+                if node._type != NodeType.RECORD:  # remove hoisted records :TempRecordTree
                     self.add(node)
         else:
             self.nodes_by_id.update(tree.nodes_by_id)
@@ -1847,7 +1877,7 @@ class NodeTree(NodeTreeBase[NT]):
                     self.get_descendants(child.id, node_type, prefilter=prefilter, recursive=True)
                 )
         if not prefilter and node_type:
-            descendants = [n for n in descendants if n.node_type == node_type]
+            descendants = [n for n in descendants if n._type == node_type]
         return descendants
 
     def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
@@ -1876,7 +1906,7 @@ class NodeTree(NodeTreeBase[NT]):
             raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
         node = self.nodes_by_id.get(node_id)
         while node:
-            if not node_type or node.node_type == node_type:
+            if not node_type or node._type == node_type:
                 return node
             if node.parent_id is None:
                 return None
@@ -1897,7 +1927,7 @@ class NodeTree(NodeTreeBase[NT]):
         if include_self:
             ancestors.append(node)
         while node:
-            if not node_type or node.node_type == node_type:
+            if not node_type or node._type == node_type:
                 ancestors.append(node)
             if node.parent_id is None:
                 break
@@ -1999,7 +2029,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         children = [
             child
             for child in self.nodes_by_parent_ck.get(node_id_or_ck, [])
-            if not node_type or not prefilter or child.node_type == node_type
+            if not node_type or not prefilter or child._type == node_type
         ]
         descendants = []
         if include_self:
@@ -2013,7 +2043,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
                     self.get_descendants(child.ck, node_type, prefilter=prefilter, recursive=True)
                 )
         if not prefilter and node_type:
-            descendants = [n for n in descendants if n.node_type == node_type]
+            descendants = [n for n in descendants if n._type == node_type]
         return descendants
 
     def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
@@ -2036,7 +2066,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         if node is None:
             raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
         while node:
-            if not node_type or node.node_type == node_type:
+            if not node_type or node._type == node_type:
                 return node
             if node.parent is None:
                 return None
@@ -2101,14 +2131,14 @@ class _Passthrough(enum.StrEnum):
     Scope = "scope"
 
 
-@struct_component
+@struct_component(reserved={0})
 class Struct(abc.ABC):
     """
     A non-node data structure, usually inside a node (which is the only way to store/retrieve it).
     Will activate, track, etc. when we start using these in nodes.
     """
 
-    struct_type: ClassVar[StructType]
+    _type: ClassVar[StructType]  # type discriminator is field 0 if needed?
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __properties__: ClassVar[dict[str, Property]] = {}
@@ -2118,6 +2148,7 @@ class Struct(abc.ABC):
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __reference_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
+    __stored_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
 
     _status: NodeStatus = struct_runtime(default=None)
@@ -2247,7 +2278,7 @@ class Node(Struct):
     The id is derived from the module id, so it's only assigned when the node is attached.
     """
 
-    node_type: ClassVar[NodeType]  # set in @node decorator
+    _type: ClassVar[NodeType]  # type discriminator is field 0 if needed?
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __properties__: ClassVar[dict[str, Property]] = {}
@@ -2260,8 +2291,9 @@ class Node(Struct):
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __reference_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
-    __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
+    __stored_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
+    __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __has_scope__: ClassVar[bool] = False
     __is_detached__: ClassVar[bool] = False
 
@@ -2315,6 +2347,8 @@ class Node(Struct):
 
     @property
     def parent_id(self) -> Optional[UUID]:
+        # special node reference where the node must always exist if parent_id exists,
+        # so we can't set parent_id on its own (only parent, which is why this is computed)
         return self.parent.id if self.parent is not None else None
 
     @property
@@ -2569,7 +2603,7 @@ class Node(Struct):
         """
         props = {}
         for name, prop in self.__properties__.items():
-            if prop.is_tree_relation:
+            if prop.is_tree_relation or prop.is_computed:
                 continue
             props[name] = prop.copy(getattr(self, name))
         if keep_parent:
@@ -2847,8 +2881,8 @@ class ModuleChange:
     all_edits: list["EditData"] = dataclasses.field(init=False)
 
     def __post_init__(self):
-        self.touched_types = {n.node_type for n in self.touched} | {
-            n.type for n in self.touched if n.node_type == NodeType.STATEMENT
+        self.touched_types = {n._type for n in self.touched} | {
+            n.type for n in self.touched if n._type == NodeType.STATEMENT
         }
         self.all_edits = self.source_edits + self.interp_edits
 
@@ -3043,7 +3077,7 @@ class Module(ScopeNode):
         if self.module._tree.nodes:  # may be force-reset (_rec methods wouldn't work)
             self.module._clear_rec()
         self.module._tree.clear()
-        _ = unpack_node_inline(self._source, parent=self, session=None, exclude=INTERP_NODE_TYPES)
+        _ = unpack_node_inline(self._source, parent=self, exclude=INTERP_NODE_TYPES)
         self.module._interp_rec()
 
         if prev_session:
@@ -3075,7 +3109,7 @@ class Module(ScopeNode):
         for n in new_nodes.values():
             if n.ck in old_source.nodes_by_ck:
                 if (
-                    n.node_type not in INTERP_NODE_TYPES
+                    n._type not in INTERP_NODE_TYPES
                     and n.revision != old_source.nodes_by_ck[n.ck].revision
                 ):
                     updated.append(n)
@@ -3087,7 +3121,7 @@ class Module(ScopeNode):
         old_editor = NodeTreeEditor(old_source, self._project_id, self.id)
         for node in removed:
             # :InterpEditFilter
-            if node.node_type in INTERP_NODE_TYPES:
+            if node._type in INTERP_NODE_TYPES:
                 if node.ck not in old_source.nodes_by_ck:
                     # need to investigate
                     logger.warning(f"node {node!r} not found in old source for {self!r}")
@@ -3096,7 +3130,7 @@ class Module(ScopeNode):
                 old_editor.delete(old_source.nodes_by_ck[node.ck])
         new_editor = NodeTreeEditor(self._source, self._project_id, self.id)
         for node in added:
-            if node.node_type in INTERP_NODE_TYPES:
+            if node._type in INTERP_NODE_TYPES:
                 new_editor.create(node)
 
         return ModuleChange(
@@ -3108,11 +3142,11 @@ class Module(ScopeNode):
         )
 
     @staticmethod
-    def make(source: list["NodeData"], project_id: UUID, os_name: str, pg_name: str) -> "Module":
+    def make(source: list["AnyNodeData"], project_id: UUID, os_name: str, pg_name: str) -> "Module":
         """Create an interpreted Module from a source module node tree."""
         from bench.language import libs, wiring
 
-        module = wiring.unpack_module(source, exclude=INTERP_NODE_TYPES, session=None)
+        module = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
         module._source = NodeTree(source)
         module._project_id = project_id
         module._os_name = os_name

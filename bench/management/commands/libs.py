@@ -101,8 +101,8 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
         project_v.save()
 
     blank_module_data = packer.pack_module_host(project_v, filter=DEFAULT_PACK_FILTER)
-    wiring.unpack_node_inline(blank_module_data.nodes, parent=None, session=None)
-    new_module = wiring.pack_module_inline(module, exclude=set())
+    wiring.unpack_node_inline(blank_module_data.nodes, parent=None)
+    _, new_module_nodes = wiring.pack_node_inline(module, exclude=set())
     edits = diff_modules(blank_module_data, new_module, project_id=project.id)
     packer.write_host_db_edits(project_v, NodeTree(blank_module_data.nodes), edits, validate=False)
     project_v.commit()

@@ -206,7 +206,7 @@ def render_text_html(text_spans: list[TextSpan]) -> str:
         if isinstance(span, TextMention):
             if isinstance(span.reference, Node):
                 ref = TEXT_MENTION_TEMPLATE.format(
-                    type=span.reference.node_type, ck=span.reference.ck, path=""
+                    type=span.reference._type, ck=span.reference.ck, path=""
                 )
             else:
                 ref = TEXT_MENTION_TEMPLATE.format(

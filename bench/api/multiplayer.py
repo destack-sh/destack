@@ -66,9 +66,7 @@ class ModuleChange(Change):
     edits: list[Edit]
 
 
-async def unpack_module_edits(
-    edits: list[edit.EditData], project_v: models.ProjectVersion
-) -> list[Edit]:
+async def unpack_edits(edits: list[edit.EditData], project_v: models.ProjectVersion) -> list[Edit]:
     unpacked_edits = []
     for e in edits:
         # :RawMutations
@@ -192,5 +190,5 @@ class MultiplayerSubscription:
                 if change.p.origin.type == "user"
                 else None
             )
-            edits = await unpack_module_edits(change.p.edits, project_version)
+            edits = await unpack_edits(change.p.edits, project_version)
             yield ModuleChange(id=change.id, client_id=origin_id, edits=edits)

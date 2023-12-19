@@ -201,7 +201,7 @@ def _bench_struct_to_proto(
     struct = Message(name=alias or node.__name__, reserved_names=[], reserved_ids=[], fields=[])
     cache[node] = struct  # to solve recursive references
     for prop in node.__properties__.values():
-        if not prop.store:
+        if not prop.is_stored:
             continue
         field = _bench_property_to_proto(prop, cache)
         struct.fields.append(field)
@@ -268,7 +268,7 @@ def generate_proto_schema(
     extras: list[Enum | Message],
     message_postfix: str = "",
 ) -> Proto:
-    """Maps a collection of Bench types to a Proto schema."""
+    """Maps a collection of Bench types to a Proto schema :ProtoSchema."""
     from bench.language import Node, Struct
 
     proto_types_cache: dict[type[_BenchType], ProtoThing] = {}
