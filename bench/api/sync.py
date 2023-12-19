@@ -167,7 +167,7 @@ def map_edit_from_api(
         input=input_to_gql_jsonable(input),
         thing=thing,
     )
-    edit.node = packer.pack_node_flat(thing) if not isinstance(thing, wire.NodeData) else thing
+    edit.node = packer.pack_node_flat(thing) if isinstance(thing, models.CrudModel) else thing
     # guesstimate changed properties
     edit.properties = [
         k for k in input.__dict__.keys() if k in edit._node.__dict__ and k not in ("id", "ck")

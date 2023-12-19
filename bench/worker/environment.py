@@ -24,6 +24,3 @@ def _collect_environment() -> EnvironmentData:
         platform=f"{osinfo.system} {osinfo.release}".split("-")[0],
         packages=packages,
     )
-
-
-WORKER_ENVIRONMENT_DATA = _collect_environment()

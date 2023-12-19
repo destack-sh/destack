@@ -67,7 +67,6 @@ if TYPE_CHECKING:
     from bench.language import Expression, Field, File, Issue, NodeVisitor, Session
     from bench.language.edit import EditData
     from bench.language.issue import IssueHandler
-    from bench.language.wire import NodeData
 
 logger = structlog.get_logger(__name__)
 
@@ -451,9 +450,9 @@ class Property(_FieldExpressionBase):
             # resolve manually if needed
             if isinstance(py_type, (str, typing.ForwardRef)):
                 py_type = py_type.__forward_arg__ if not isinstance(py_type, str) else py_type
-                if py_type not in _KNOWN_BENCH_TYPES_BY_NAME:
+                if py_type not in _FINAL_BENCH_TYPES_BY_NAME:
                     raise ValueError(f"cannot resolve type for {self!r}: {py_type!r}")
-                py_type = _KNOWN_BENCH_TYPES_BY_NAME[py_type]
+                py_type = _FINAL_BENCH_TYPES_BY_NAME[py_type]
             self.py_type_stripped = py_type
             # update info from annotation
             if self.is_array is UNSET:
@@ -876,6 +875,7 @@ def _process_struct_base_cls(
 def struct_component(
     cls: Optional[typing.Type] = None,
     struct_type: StructType = None,
+    reserved: set[str | int] = None,
 ):
     """
     Mark a class as a struct component (or concrete struct for a StructType).
@@ -884,6 +884,7 @@ def struct_component(
     def decorate(cls):
         cls, properties = _process_struct_base_cls(cls=cls)
         cls.__struct_type__ = struct_type
+        cls.__reserved_properties__ = frozenset(reserved or ())
 
         # register struct
         if struct_type:
@@ -902,9 +903,10 @@ def struct_component(
 
 def struct(
     struct_type: StructType,
+    reserved: set[str | int] = None,
 ):
     def decorate(cls):
-        return struct_component(cls, struct_type=struct_type)
+        return struct_component(cls, struct_type=struct_type, reserved=reserved)
 
     return decorate
 
@@ -916,6 +918,7 @@ def node_component(
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
     detached: bool = False,
+    reserved: set[str | int] = None,
 ):
     """
     Mark a class as a node component (or concrete node for a NodeType).
@@ -943,6 +946,7 @@ def node_component(
         cls.__list_properties__ = frozendict(list_properties)
         cls.__list_properties_by_child__ = frozendict(list_properties_by_child)
         cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_node_type})
+        cls.__reserved_properties__ = frozenset(reserved or ())
         cls.__is_detached__ = detached
 
         # register as concrete node class for node_type
@@ -968,6 +972,7 @@ def node(
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
     detached: bool = False,
+    reserved: set[str | int] = None,
 ):
     def decorate(cls):
         return node_component(
@@ -976,6 +981,7 @@ def node(
             passthrough=passthrough,
             dynamic_components=dynamic_components,
             detached=detached,
+            reserved=reserved,
         )
 
     return decorate
@@ -2095,6 +2101,7 @@ class Struct(abc.ABC):
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __reference_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
+    __reserved_properties__: ClassVar[set[int | str]] = set()
 
     _status: NodeStatus = struct_runtime(default=None)
 
@@ -2237,6 +2244,7 @@ class Node(Struct):
     __reference_properties__: ClassVar[dict[str, Property]] = {}
     __struct_properties__: ClassVar[dict[str, Property]] = {}
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
+    __reserved_properties__: ClassVar[set[int | str]] = set()
     __has_scope__: ClassVar[bool] = False
     __is_detached__: ClassVar[bool] = False
 
@@ -2255,7 +2263,8 @@ class Node(Struct):
     last_changed_at: datetime = struct_internal(14, default=None, is_cru=True, reflect=True)
     revision: int = struct_internal(15, default=0, is_cru=True, reflect=True)
 
-    # 20+ for 'user' node properties
+    # 20+ for 'user' node/struct properties
+    # <... defined in concrete node type ...>
 
     _session: Optional["Session"] = struct_runtime(default=None)
     _status: NodeStatus = struct_runtime(default=None)
@@ -3004,7 +3013,7 @@ class Module(ScopeNode):
 
     def _reset_from_source(self, source: Optional["NodeTree"] = None):
         """Resets the module completely from the source."""
-        from bench.language.wire import unpack_node
+        from bench.language.wiring import unpack_node_inline
 
         if source is not None:
             self._source = source
@@ -3017,7 +3026,7 @@ class Module(ScopeNode):
         if self.module._tree.nodes:  # may be force-reset (_rec methods wouldn't work)
             self.module._clear_rec()
         self.module._tree.clear()
-        _ = unpack_node(self._source, parent=self, session=None, exclude=INTERP_NODE_TYPES)
+        _ = unpack_node_inline(self._source, parent=self, session=None, exclude=INTERP_NODE_TYPES)
         self.module._interp_rec()
 
         if prev_session:
@@ -3084,9 +3093,9 @@ class Module(ScopeNode):
     @staticmethod
     def make(source: list["NodeData"], project_id: UUID, os_name: str, pg_name: str) -> "Module":
         """Create an interpreted Module from a source module node tree."""
-        from bench.language import libs, wire
+        from bench.language import libs, wiring
 
-        module = wire.unpack_module(source, exclude=INTERP_NODE_TYPES, session=None)
+        module = wiring.unpack_module(source, exclude=INTERP_NODE_TYPES, session=None)
         module._source = NodeTree(source)
         module._project_id = project_id
         module._os_name = os_name
@@ -3106,22 +3115,22 @@ class Module(ScopeNode):
         return module
 
 
-_KNOWN_BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
-KNOWN_BENCH_TYPES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
+_FINAL_BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
+FINAL_BENCH_TYPES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
 
 
 def complete_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    global KNOWN_BENCH_TYPES
+    global FINAL_BENCH_TYPES
     from bench.language import const
 
     # populate known types
     for bench_t in chain(NODE_CLASS_BY_NODE_TYPE.values(), STRUCT_CLASS_BY_STRUCT_TYPE.values()):
-        _KNOWN_BENCH_TYPES_BY_NAME[bench_t.__name__] = bench_t
+        _FINAL_BENCH_TYPES_BY_NAME[bench_t.__name__] = bench_t
     for maybe_bench_t in const.__dict__.values():
         if isinstance(maybe_bench_t, type) and issubclass(maybe_bench_t, enum.Enum):
-            _KNOWN_BENCH_TYPES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
-    KNOWN_BENCH_TYPES = frozenset(_KNOWN_BENCH_TYPES_BY_NAME.values())
+            _FINAL_BENCH_TYPES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
+    FINAL_BENCH_TYPES = frozenset(_FINAL_BENCH_TYPES_BY_NAME.values())
 
     # misc finalization on properties
     for cls in chain(get_subclasses(Node), get_subclasses(Struct)):

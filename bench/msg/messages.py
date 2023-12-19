@@ -1,4 +1,3 @@
-# increment when making backwards-incompatible changes to messages
 import abc
 import enum
 import typing
@@ -20,15 +19,11 @@ from bench.language.edit import EditData
 from bench.language.model import ModelErrorType
 from bench.language.wire import (
     BlobData,
-    EnvironmentData,
     ExpressionData,
     LogEntryData,
-    ModuleTreeData,
-    NodeData,
     RecordData,
     RunData,
     SecretData,
-    WorkerSetData,
 )
 from bench.utils.func import try_to_uuid
 from bench.utils.utils import required_field
@@ -310,7 +305,7 @@ class RunsChangedGlobalPayload(Payload):
 
 @payload(NMessageType.WORKERS_CHANGED)
 class WorkersChangedPayload(ProjectScoped, Payload):
-    worker_sets: list[WorkerSetData]
+    worker_sets: list["WorkerSetData"]
 
 
 @payload(NMessageType.LOGS_CHANGED)
@@ -325,7 +320,7 @@ class ReqReadModulePayload(Payload):
 
 @payload(NMessageType.READ_MODULE_REP)
 class RepReadModulePayload(Payload):
-    module: ModuleTreeData
+    module: "ModuleTreeData"
     project_id: UUID
     os_name: str
     pg_name: str
@@ -340,7 +335,7 @@ class ReqWriteEditsPayload(Payload):
 
 @payload(NMessageType.WRITE_EDITS_REP)
 class RepWriteEditsPayload(Payload):
-    nodes: list[NodeData]
+    nodes: list["NodeData"]
     success: bool
     error: Optional[str] = None
 
@@ -359,7 +354,7 @@ class ReqPasteNodesPayload(Payload):
 
 @payload(NMessageType.PASTE_NODES_REP)
 class RepPasteNodesPayload(Payload):
-    nodes: list[NodeData]
+    nodes: list["NodeData"]
     success: bool
     error: Optional[str] = None
 
@@ -557,7 +552,7 @@ class ReqGetEnvironmentPayload(ProjectScoped, Payload):
 
 @payload(NMessageType.GET_ENVIRONMENT_REP)
 class RepGetEnvironmentPayload(Payload):
-    environment: EnvironmentData
+    environment: "EnvironmentData"
 
 
 @payload(NMessageType.PING_WORKER_SET)

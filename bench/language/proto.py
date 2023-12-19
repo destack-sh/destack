@@ -1,10 +1,12 @@
+import dataclasses
 import enum
+import textwrap
 from dataclasses import dataclass
 from itertools import chain
 from typing import TYPE_CHECKING, Collection, Union
 
 from bench.sql.core import ColumnType
-from bench.utils.utils import to_all_caps
+from bench.utils.utils import to_all_caps, to_snake_case
 
 if TYPE_CHECKING:
     from bench.language import Node, Property, Struct
@@ -52,9 +54,9 @@ class Message(ProtoThing):
     """Proto message."""
 
     name: str
-    reserved_names: list[str]
-    reserved_ids: list[int]
     fields: list["Field"]
+    reserved_names: list[str] = dataclasses.field(default_factory=list)
+    reserved_ids: list[int] = dataclasses.field(default_factory=list)
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
@@ -64,7 +66,7 @@ class Message(ProtoThing):
         if self.reserved_ids:
             source += f"  reserved {', '.join(str(id) for id in self.reserved_ids)};\n"
         for field in self.fields:
-            source += f"  {field.to_proto_source()};\n"
+            source += f"{textwrap.indent(field.to_proto_source(), '  ')};\n"
         source += "}"
         return source
 
@@ -126,9 +128,9 @@ class EnumValue(ProtoThing):
 
 @dataclass
 class Field(ProtoThing):
-    id: int
+    id: int | None
     name: str
-    type: FieldType | Enum | Message
+    type: FieldType | Enum | Message | str
     repeated: bool = False
     key_type: FieldType | None = None  # for map
     value_type: FieldType | None = None  # for map
@@ -147,12 +149,15 @@ class Field(ProtoThing):
         elif self.type == FieldType.ONE_OF:
             type = f"{repeated}oneof {self.name} {{\n"
             for sub_field in self.sub_fields:
-                type += f"  {sub_field.to_proto_source()}\n"
+                type += f"  {sub_field.to_proto_source()};\n"
             type += "}"
+            return type  # no id for one of
         elif isinstance(self.type, (Enum, Message)):
             type = f"{repeated}{self.type.name}"
-        else:
+        elif isinstance(self.type, FieldType):
             type = f"{repeated}{self.type.value}"
+        else:
+            type = f"{repeated}{self.type}"
         return f"{type} {self.name} = {self.id}"
 
 
@@ -190,23 +195,34 @@ def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThin
         raise TypeError(f"cannot map to proto type: {prop!r}")
 
 
-def _bench_node_to_proto(node: type["Struct"], cache: dict[_BenchType, ProtoThing]) -> Message:
-    struct = Message(name=node.__name__, reserved_names=[], reserved_ids=[], fields=[])
+def _bench_struct_to_proto(
+    node: type["Struct"], cache: dict[_BenchType, ProtoThing], alias: str = None
+) -> Message:
+    struct = Message(name=alias or node.__name__, reserved_names=[], reserved_ids=[], fields=[])
     cache[node] = struct  # to solve recursive references
     for prop in node.__properties__.values():
         if not prop.store:
             continue
         field = _bench_property_to_proto(prop, cache)
         struct.fields.append(field)
+    for reserved in node.__reserved_properties__:
+        if isinstance(reserved, str):
+            struct.reserved_names.append(reserved)
+        elif isinstance(reserved, int):
+            struct.reserved_ids.append(reserved)
+        else:
+            raise TypeError(f"invalid reserved property: {reserved!r}")
     struct.fields.sort(key=lambda f: f.id)
     return struct
 
 
 def _bench_enum_to_proto(
-    bench_t: type[enum.StrEnum] | type[enum.IntFlag], cache: dict[_BenchType, ProtoThing]
+    bench_t: type[enum.StrEnum] | type[enum.IntFlag],
+    cache: dict[_BenchType, ProtoThing],
+    alias: str = None,
 ) -> Enum:
     # TODO @Broken: assign static ids to enum values (or use int enums) for proto serialization
-    enum_prefix = to_all_caps(bench_t.__name__) + "_"
+    enum_prefix = to_all_caps(alias or bench_t.__name__) + "_"
     if issubclass(bench_t, enum.StrEnum):
         enum_values = [
             EnumValue(id=i + 1, name=enum_prefix + name)
@@ -223,10 +239,12 @@ def _bench_enum_to_proto(
     if not any(v.id == 0 for v in enum_values):
         enum_values = [EnumValue(id=0, name=enum_prefix + "UNSET"), *enum_values]
     has_duplicates = len(enum_values) != len(set(v.id for v in enum_values))
-    return Enum(name=bench_t.__name__, values=enum_values, allow_alias=has_duplicates)
+    return Enum(name=alias or bench_t.__name__, values=enum_values, allow_alias=has_duplicates)
 
 
-def bench_to_proto(bench_t: _BenchType, cache: dict[_BenchType, ProtoThing]) -> ProtoThing:
+def bench_to_proto(
+    bench_t: _BenchType, cache: dict[_BenchType, ProtoThing], alias: str = None
+) -> ProtoThing:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
     from bench.language import Node, Struct
 
@@ -234,9 +252,9 @@ def bench_to_proto(bench_t: _BenchType, cache: dict[_BenchType, ProtoThing]) -> 
     if bench_t in cache:
         return cache[bench_t]
     if issubclass(bench_t, (Node, Struct)):
-        ret = _bench_node_to_proto(bench_t, cache)
+        ret = _bench_struct_to_proto(bench_t, cache, alias=alias)
     elif issubclass(bench_t, enum.Enum):
-        ret = _bench_enum_to_proto(bench_t, cache)
+        ret = _bench_enum_to_proto(bench_t, cache, alias=alias)
     else:
         raise TypeError(f"invalid type: {bench_t!r}")
     cache[bench_t] = ret
@@ -245,6 +263,9 @@ def bench_to_proto(bench_t: _BenchType, cache: dict[_BenchType, ProtoThing]) -> 
 
 def generate_proto_schema(
     bench_types: Collection[type[Union["Node", "Struct", enum.Enum]]],
+    aliases: dict[type[Union["Node", "Struct", enum.Enum]], str],
+    unions: dict[str, tuple[str, list[type[Union["Node", "Struct", enum.Enum]]]]],
+    extras: list[Enum | Message],
     message_postfix: str = "",
 ) -> Proto:
     """Maps a collection of Bench types to a Proto schema."""
@@ -252,8 +273,9 @@ def generate_proto_schema(
 
     proto_types_cache: dict[type[_BenchType], ProtoThing] = {}
     for thing in bench_types:
-        _ = bench_to_proto(thing, proto_types_cache)  # added to proto_types
+        _ = bench_to_proto(thing, proto_types_cache, alias=aliases.get(thing))
 
+    # collect proto types
     collected_enums: list[type[enum.Enum]] = [t for t in bench_types if issubclass(t, enum.Enum)]
     collected_structs: list[type["Struct"]] = [
         t for t in bench_types if issubclass(t, Struct) and not issubclass(t, Node)
@@ -265,6 +287,24 @@ def generate_proto_schema(
     proto_types: list[Enum | Message] = [
         proto_types_cache[t] for t in chain(collected_enums, collected_structs, collected_nodes)
     ]
+
+    # add custom union types
+    for union_name, (wrapper_field_name, unioned_types) in unions.items():
+        sub_fields = [
+            Field(
+                id=i + 1, name=to_snake_case(t.__name__), type=bench_to_proto(t, proto_types_cache)
+            )
+            for i, t in enumerate(unioned_types)
+        ]
+        wrapper_field = Field(
+            id=None, name=wrapper_field_name, type=FieldType.ONE_OF, sub_fields=sub_fields
+        )
+        wrapper_message = Message(
+            name=union_name, reserved_names=[], reserved_ids=[], fields=[wrapper_field]
+        )
+        proto_types.append(wrapper_message)
+    # and other extra types
+    proto_types.extend(extras)
 
     if message_postfix:  # apply postfix to messages
         for proto_type in proto_types:

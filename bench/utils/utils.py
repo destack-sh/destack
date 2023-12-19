@@ -161,7 +161,8 @@ def to_camel_case(snake_str: str) -> str:
     return components[0] + "".join(x.capitalize() if x else "_" for x in components[1:])
 
 
-def from_camel_case(camel_str: str) -> str:
+@cachetools.cached(cache={})
+def to_snake_case(camel_str: str) -> str:
     """From camel case to snake case."""
     components = re.split(r"(?<=[a-z])(?=[A-Z0-9])", camel_str)
     return "_".join(components).lower()

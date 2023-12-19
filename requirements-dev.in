@@ -3,7 +3,7 @@
 -c requirements.txt
 
 black==23.7.0
-betterproto[compiler]==2.0.0-beta6
+betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.git@bd7de20
 django-stubs==4.2.3
 djangorestframework-stubs==3.14.2
 flake8-import-order==0.18.1

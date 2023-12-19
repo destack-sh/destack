@@ -23,6 +23,7 @@ from bench.language import (
     TriggerType,
     libs,
     wire,
+    wiring,
 )
 from bench.language.builtin import symbolx_lib
 from bench.language.cache import Cache
@@ -643,7 +644,7 @@ class RuntimeHost:
         self.log.debug("runtime.reset_interp_state")
         # gather interp changes (reset to 0)
         editor = self._edit()
-        module_data = wire.pack_node_flat(self.module)
+        module_data = wiring.pack_node(self.module)
         for node_type in INTERP_NODE_TYPES:
             editor.truncate(module_data, node_type)
         for node in self.module._nodes:

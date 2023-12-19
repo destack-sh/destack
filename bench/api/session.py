@@ -410,9 +410,9 @@ class SessionQuery:
         except (TimeoutError, RuntimeError, MessagingError, NoRespondersError) as e:
             # worker unavailable, return default environment
             logger.debug("environment.failed", project_id=project_id, exc_info=e)
-            from bench.worker.environment import WORKER_ENVIRONMENT_DATA
+            from bench.worker.environment import _collect_environment
 
-            environment_data = WORKER_ENVIRONMENT_DATA
+            environment_data = _collect_environment()
 
         return Environment(
             language=environment_data.language,

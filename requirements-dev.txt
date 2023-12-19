@@ -71,7 +71,7 @@ backoff==2.2.1
     # via
     #   -c requirements.txt
     #   posthog
-betterproto[compiler]==2.0.0b6
+betterproto[compiler] @ git+https://github.com/danielgtaylor/python-betterproto.git@bd7de20
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in
@@ -824,6 +824,7 @@ typing-extensions==4.7.1
     #   -c requirements.txt
     #   alembic
     #   anthropic
+    #   betterproto
     #   django-stubs
     #   django-stubs-ext
     #   djangorestframework-stubs
