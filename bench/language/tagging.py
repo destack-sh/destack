@@ -71,7 +71,7 @@ class Tagging(HasValue, Node):
         node: "Tagging", props: dict, for_parent: Union["File", "Statement", "Field"] = None
     ) -> tuple[str, dict, dict]:
         assert node.reference is not None, f"missing reference for {node!r}"
-        if isinstance(node.reference, Node) and node.reference.node_type == NodeType.STATEMENT:
+        if isinstance(node.reference, Node) and node.reference._type == NodeType.STATEMENT:
             reference = node.reference.name
         else:
             reference = node.reference

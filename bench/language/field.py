@@ -409,9 +409,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
             kwargs["tag"] = TypeTag.NUMBER
         elif type is bool:
             kwargs["tag"] = TypeTag.BOOLEAN
-        elif (
-            isinstance(type, Node) and type.node_type == NodeType.STATEMENT or isinstance(type, str)
-        ):
+        elif isinstance(type, Node) and type._type == NodeType.STATEMENT or isinstance(type, str):
             kwargs["tag"] = TypeTag.TYPE_REFERENCE
             kwargs["reference"] = type
         else:
@@ -660,7 +658,7 @@ class HasFields(HasType):
                 resolved_fields.append(ResolvedField.from_field(self, field))
 
         # add any special inlined fields
-        if self.node_type == NodeType.STATEMENT and self.type == StatementType.TASK:
+        if self._type == NodeType.STATEMENT and self.type == StatementType.TASK:
             run_config = symbolx_lib.resolve(".reflect.TaskRunConfig")
             resolved_fields.extend(ResolvedField.from_field(self, f) for f in run_config.fields)
 

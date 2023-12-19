@@ -30,6 +30,7 @@ class Command(BaseCommand):
             STRUCT_CLASS_BY_STRUCT_TYPE[t] for t in StructType if t in STRUCT_CLASS_BY_STRUCT_TYPE
         ]
         node_ts = [NODE_CLASS_BY_NODE_TYPE[t] for t in NodeType if t in NODE_CLASS_BY_NODE_TYPE]
+        # :ProtoSchema
         proto = generate_proto_schema(
             bench_types=[*FINAL_BENCH_TYPES, Node],
             aliases={Node: "BaseNode"},

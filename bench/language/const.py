@@ -59,6 +59,11 @@ class StructType(enum.StrEnum):
     ENVIRONMENT = "ENVIRONMENT"
 
 
+if typing.TYPE_CHECKING:
+    BenchType = NodeType | StructType
+else:
+    BenchType = enum.StrEnum("BenchType", {**NodeType.__members__, **StructType.__members__})
+
 # local = only stored in user Bench, not host
 LOCAL_NODE_TYPES = (NodeType.RECORD,)
 OUT_OF_LINE_NODE_TYPES = (

@@ -88,9 +88,7 @@ from bench.msg.messages import (
     SessionChangedPayload,
     StartRunErrorType,
 )
-from bench.search import mirror
 from bench.search.engine import update_os_schema
-from bench.server import search
 from bench.server.k8 import WorkerObserver
 from bench.server.search import write_edits_to_os, write_records_to_os
 from bench.sql.client import async_pg_cursor
@@ -144,21 +142,12 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
 
 async def interp_module(ref: ModuleReference | UUID) -> tuple[Module, models.Project]:
     module, project = await read_module(ref)
-    module = wire.unpack_module(module.nodes, exclude=INTERP_NODE_TYPES, session=None)
+    module = wiring.unpack_node_inline(module.nodes, parent=None, exclude=INTERP_NODE_TYPES)
     for dependency in libs.DEFAULT_MODULES.values():
         module.add_dependency(dependency)
     module.add_builtin(symbolx_lib.files.get("builtins"))
     module._interp_rec()
     return module, project
-
-
-async def fetch(ref: ModuleReference) -> wire.ModuleTreeData:
-    return (await read_module(ref))[0]
-
-
-def _unpack_run(run: mirror.Run):
-    doc = mirror.Run.from_dict(run["_source"], run["_id"])
-    return search.unpack_node_flat(doc)
 
 
 def _get_projects_to_manage() -> list[models.Project]:
@@ -633,7 +622,7 @@ class RuntimeHost:
         self, edits: list[EditData], origins: tuple[ClientOrigin, ...] = None
     ):
         # these are separate right now because sessions/runs aren't fully 'regular' nodes yet
-        runs = [e.node for e in edits if e.node.node_type == NodeType.RUN]
+        runs = [e.node for e in edits if e.node._type == NodeType.RUN]
         await publish(
             NMessageType.SESSION_CHANGED,
             SessionChangedPayload(project_id=self.project_id, module_id=self.module_id, runs=runs),
@@ -648,7 +637,7 @@ class RuntimeHost:
         for node_type in INTERP_NODE_TYPES:
             editor.truncate(module_data, node_type)
         for node in self.module._nodes:
-            if node.node_type in INTERP_NODE_TYPES:
+            if node._type in INTERP_NODE_TYPES:
                 editor.create(node)
         # write
         await sync_to_async(write_host_db_edits)(
@@ -682,9 +671,9 @@ class RuntimeHost:
         for edit in edits:
             if edit.kind in (EditKind.UPDATE, EditKind.MOVE):
                 edit.revision = edit.node.revision = edit.node.revision + 1
-        host_edits, local_edits = partition(lambda e: e.node_type == NodeType.RECORD, edits)
+        host_edits, local_edits = partition(lambda e: e._type == NodeType.RECORD, edits)
         host_module_edits, host_session_edits = partition(
-            lambda e: e.node_type in (NodeType.RUN, NodeType.SESSION), host_edits
+            lambda e: e._type in (NodeType.RUN, NodeType.SESSION), host_edits
         )
         del edits  # refer explicitly to host/local edits
         log = self.log.bind(
@@ -995,8 +984,10 @@ class RuntimeHost:
         (Full module state is needed to query the local database).
         """
         try:
-            filter = wire.unpack_struct(msg.p.query, self.module) if msg.p.query else None
-            sort = [wire.unpack_struct(s, self.module) for s in msg.p.sort] if msg.p.sort else None
+            filter = wiring.unpack_struct(msg.p.query, self.module) if msg.p.query else None
+            sort = (
+                [wiring.unpack_struct(s, self.module) for s in msg.p.sort] if msg.p.sort else None
+            )
             if (
                 not sort
                 and filter is not None

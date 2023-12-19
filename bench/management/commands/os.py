@@ -65,7 +65,7 @@ class Command(BaseCommand):
                 databases = [
                     n
                     for n in module._nodes
-                    if n.node_type == NodeType.STATEMENT and n.type == StatementType.DATABASE
+                    if n._type == NodeType.STATEMENT and n.type == StatementType.DATABASE
                 ]
                 loop.run_until_complete(sync_databases_to_os(module, databases))
                 enable_os_strict_mapping(project.os_name)

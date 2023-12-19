@@ -614,7 +614,7 @@ class SessionTracer:
         self, kind: EditKind, node: Node, properties: list[str] = None, target: NodeType = None
     ):
         """Register an edit to a node (local or host)."""
-        is_local = node.node_type == NodeType.RECORD
+        is_local = node._type == NodeType.RECORD
         if not is_local:
             tree = self.session.module._local_tree
             file = tree.get_ancestor(node.ck, NodeType.FILE)
@@ -622,7 +622,7 @@ class SessionTracer:
         else:
             file, statement = None, None
         edit = EditEvent(
-            type=EditType.from_nt(kind, target or node.node_type),
+            type=EditType.from_nt(kind, target or node._type),
             node=node,
             properties=properties,
             file_id=file.id if file else None,
@@ -663,9 +663,9 @@ class SessionTracer:
         # assumes you've called node_create_preflight first (to check permission)
         with self._tracing_lock:  # do it
             for n in nodes:
-                if n.node_type == NodeType.FIELD or n.node_type == NodeType.RESOLVED_FIELD:
+                if n._type == NodeType.FIELD or n._type == NodeType.RESOLVED_FIELD:
                     self._schema_changed = True
-                if n.node_type in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
+                if n._type in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
                 self._edit(EditKind.CREATE, node=n)
 
@@ -673,15 +673,15 @@ class SessionTracer:
         # used to check permission before modifying state locally
         # (only for create since this is the only edit fired 'after' making an irreversible change)
         if (
-            any(n for n in nodes if n.node_type not in INTERP_NODE_TYPES and n._track & NTL.FULL)
+            any(n for n in nodes if n._type not in INTERP_NODE_TYPES and n._track & NTL.FULL)
             and self.session.access_level < SessionAccessLevel.Create
         ):
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
 
     def node_update(self, node: Node, properties: list[str]):
-        if node.node_type == NodeType.FIELD or node.node_type == NodeType.RESOLVED_FIELD:
+        if node._type == NodeType.FIELD or node._type == NodeType.RESOLVED_FIELD:
             self._schema_changed = True
-        if node.node_type in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
+        if node._type in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
             return
         if self.session.access_level < SessionAccessLevel.Update:
             raise PermissionError(f"{self.session!r} may not update {node!r}")
@@ -693,7 +693,7 @@ class SessionTracer:
 
     def node_delete(self, *nodes: Node):
         if (
-            any(n for n in nodes if n.node_type not in INTERP_NODE_TYPES and n._track & NTL.FULL)
+            any(n for n in nodes if n._type not in INTERP_NODE_TYPES and n._track & NTL.FULL)
             and self.session.access_level < SessionAccessLevel.Delete
         ):
             raise PermissionError(f"{self.session!r} may not delete {nodes!r}")
@@ -710,15 +710,15 @@ class SessionTracer:
 
         with self._tracing_lock:  # do it
             for n in nodes:
-                if n.node_type == NodeType.FIELD or n.node_type == NodeType.RESOLVED_FIELD:
+                if n._type == NodeType.FIELD or n._type == NodeType.RESOLVED_FIELD:
                     self._schema_changed = True
                 # :InterpFilter
-                if n.node_type in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
+                if n._type in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
                 self._edit(EditKind.DELETE, node=n)
 
     def node_truncate(self, node: Node, node_type: NodeType):
-        if node.node_type in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
+        if node._type in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
             return
         if self.session.access_level < SessionAccessLevel.Delete:
             raise PermissionError(f"{self.session!r} may not truncate {node!r}")
@@ -982,11 +982,11 @@ class SessionTracer:
                 )
                 properties = (
                     self.DEFAULT_RUN_UPDATE_PROPERTIES
-                    if edit_kind == EditKind.UPDATE and n.node_type == NodeType.RUN
+                    if edit_kind == EditKind.UPDATE and n._type == NodeType.RUN
                     else None
                 )
                 edit = EditData(
-                    type=EditType.from_nt(edit_kind, n.node_type),
+                    type=EditType.from_nt(edit_kind, n._type),
                     project_version_id=n.module.id,
                     file_id=None,
                     statement_id=None,

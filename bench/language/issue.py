@@ -91,10 +91,6 @@ class Issue(Node):
         return f"<Issue {self}>"
 
     @property
-    def parent_id(self) -> UUID | None:
-        return self.parent.id if self.parent is not None else None
-
-    @property
     def subject_id(self) -> UUID | None:
         return self.parent.id if self.parent is not None else None
 

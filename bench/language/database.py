@@ -101,10 +101,6 @@ class Record(HasValue, Node):
         return f"<Record {self}>"
 
     @property
-    def parent_id(self):
-        return self.parent.id
-
-    @property
     def _type_of_value(self) -> Optional["Statement"]:
         return self.parent
 
@@ -292,7 +288,7 @@ class RecordQuery:
 
     async def _fetch(self, *, _no_flush: bool = False) -> list[Record]:
         """Fetches the result set for this query."""
-        from bench.language import wire
+        from bench.language import wiring
 
         session = self._database.session
         if not _no_flush and session._tracer._local_edits:
@@ -300,7 +296,7 @@ class RecordQuery:
         fetched = await self._do_fetch(pg_cursor=await self._database._get_pg_cursor())
         records: list[Record] = []
         for record_data in fetched.records:
-            record: Record = wire.unpack_node_flat(record_data, self._database, session)
+            record: Record = wiring.unpack_node(record_data, self._database, session)
             record._activate_self(session)
             records.append(record)
 

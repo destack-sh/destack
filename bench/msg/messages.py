@@ -24,6 +24,8 @@ from bench.language.wire import (
     RecordData,
     RunData,
     SecretData,
+    WorkerSetData,
+    ModuleTreeData,
 )
 from bench.utils.func import try_to_uuid
 from bench.utils.utils import required_field
@@ -305,7 +307,7 @@ class RunsChangedGlobalPayload(Payload):
 
 @payload(NMessageType.WORKERS_CHANGED)
 class WorkersChangedPayload(ProjectScoped, Payload):
-    worker_sets: list["WorkerSetData"]
+    worker_sets: list[WorkerSetData]
 
 
 @payload(NMessageType.LOGS_CHANGED)
@@ -320,7 +322,7 @@ class ReqReadModulePayload(Payload):
 
 @payload(NMessageType.READ_MODULE_REP)
 class RepReadModulePayload(Payload):
-    module: "ModuleTreeData"
+    module: ModuleTreeData
     project_id: UUID
     os_name: str
     pg_name: str
@@ -335,7 +337,7 @@ class ReqWriteEditsPayload(Payload):
 
 @payload(NMessageType.WRITE_EDITS_REP)
 class RepWriteEditsPayload(Payload):
-    nodes: list["NodeData"]
+    nodes: list["AnyNodeData"]
     success: bool
     error: Optional[str] = None
 
@@ -354,7 +356,7 @@ class ReqPasteNodesPayload(Payload):
 
 @payload(NMessageType.PASTE_NODES_REP)
 class RepPasteNodesPayload(Payload):
-    nodes: list["NodeData"]
+    nodes: list["AnyNodeData"]
     success: bool
     error: Optional[str] = None
 
