@@ -1196,22 +1196,6 @@ for name, module in DEFAULT_MODULES.items():
         raise RuntimeError(f"default module {module.name} has issues: {module.issues}")
     module._validate_rec()
 
-    # extra sanity checks for debugging
-    if DEBUG or LOCAL:
-        # also check for issues after reload to prevent any sneaky reference bugs
-        from bench.language import wire
-
-        module_data = wire.pack_module_inline(module, exclude=INTERP_NODE_TYPES)
-        module_reloaded = wire.unpack_module(module_data.nodes, session=None)
-        if module_reloaded.name != "symbolx.lib":
-            module_reloaded.add_dependency(symbolx_lib)
-        module_reloaded._interp_rec()
-
-        if module_reloaded.issues:  # maybe something got lost in pack/unpack
-            raise RuntimeError(
-                f"module {module_reloaded} has flaky issues: {module_reloaded.issues}"
-            )
-
     # manually 'deactivate session' for module since we're outside a session
     for node in module._nodes:
         if node.node_type == NodeType.STATEMENT and HasDatabase in node._components:

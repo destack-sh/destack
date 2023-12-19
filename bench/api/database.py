@@ -22,7 +22,7 @@ from bench.api.utils import (
     Sort,
     ThingBatch,
 )
-from bench.language import wire
+from bench.language import wire, wiring
 from bench.models import ModuleAccessLevel
 from bench.msg import NMessage
 from bench.msg.core import request
@@ -226,8 +226,8 @@ class RecordQuery:
             statement_id=statement.id,
             statement_ck=statement.ck,
             statement_key=statement.key,
-            query=wire.pack_struct(query) if query is not None else None,
-            sort=[wire.pack_struct(s) for s in sort] if sort is not None else None,
+            query=wiring.pack_struct(query) if query is not None else None,
+            sort=[wiring.pack_struct(s) for s in sort] if sort is not None else None,
             limit=effective_limit + 1,
             after=after,
             count=count or False,

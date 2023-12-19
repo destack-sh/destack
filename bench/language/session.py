@@ -32,12 +32,15 @@ from bench.language.const import (
     NTL,
     NodeTrackingLevel,
     NodeType,
+    ProjectRegion,
     RunStatus,
     SessionAccessLevel,
     StructType,
     TriggerType,
     TypeFlag,
     TypeTag,
+    WorkerProfile,
+    WorkerSetStatus,
 )
 from bench.language.edit import EditData, EditKind, EditType
 from bench.language.module import (
@@ -113,6 +116,10 @@ class RuntimeHost(abc.ABC):
 
 @struct(StructType.LOG_ENTRY)
 class LogEntry(Struct):
+    """
+    An entry. In a log.
+    """
+
     id: UUID = struct_internal(20, default_factory=uuid4)
     module: Module = struct_internal(21, references=NodeType.MODULE)
     created_at: datetime = struct_internal(22, default_factory=utcnow_with_tz)
@@ -138,6 +145,35 @@ class LogEntry(Struct):
 
     def __repr__(self):
         return f"<LogEntry {self}>"
+
+
+@struct(StructType.WORKER_SET)
+class WorkerSet(Struct):
+    """
+    Set of workers to run a Bench's modules.
+    """
+
+    id: UUID = struct_internal(1, default_factory=uuid4)
+    created_at: datetime = struct_internal(10, default_factory=utcnow_with_tz)
+    updated_at: datetime = struct_internal(11, default_factory=utcnow_with_tz)
+    project_id: UUID = struct_internal(20)
+    region: ProjectRegion = struct_internal(21)
+    profile: WorkerProfile = struct_internal(22)
+    sleeping: bool = struct_internal(23)
+    status: WorkerSetStatus = struct_internal(24)
+    desired_replicas: int = struct_internal(25)
+    target_replicas: int = struct_internal(26)
+    available_replicas: int = struct_internal(27)
+    ready_replicas: int = struct_internal(28)
+    last_active_at: datetime = struct_internal(29, default_factory=utcnow_with_tz)
+
+
+@struct(StructType.ENVIRONMENT)
+class Environment(Struct):
+    language: str = struct_internal(20)
+    version: str = struct_internal(21)
+    platform: str = struct_internal(22)
+    packages: dict[str, str] = struct_internal(23, store_as=ColumnType.JSON)
 
 
 @node(NodeType.SESSION, detached=True)
@@ -396,7 +432,7 @@ class Session(ScopeNode):
         self._log.debug("session.close.done")
 
     async def _write_logs(self, logs: list[LogEntry]) -> None:
-        from bench.language import wire
+        from bench.language import wiring
         from bench.search import mirror
 
         if not logs:
@@ -404,7 +440,7 @@ class Session(ScopeNode):
         self._log.debug("session.write_logs", logs=len(logs))
         ops: list[dict] = []
         os_name = self.module.os_name
-        logs = [wire.pack_struct(log) for log in logs]
+        logs = [wiring.pack_struct(log) for log in logs]
         for log in logs:
             ops.append({"index": {"_index": os_name, "_id": str(log.id)}})
             ops.append(mirror.unpack_node_flat(self.module, log, None).to_dict())
@@ -522,7 +558,7 @@ class SessionTracer:
         Local edits = any record edits.
         """
         from bench.language import Record
-        from bench.language.wire import pack_node_flat
+        from bench.language.wiring import pack_node
 
         module = self.session.module
         with self._tracing_lock:
@@ -538,7 +574,7 @@ class SessionTracer:
                     statement_id=node.parent.id,
                     properties=event.properties,
                 )
-                edit.node = pack_node_flat(node)
+                edit.node = pack_node(node)
                 if not include_host:  # not needed if including everything
                     local_seen_cks.add(node.ck)
                 local_edits.append(edit)
@@ -556,7 +592,7 @@ class SessionTracer:
                         statement_id=event.statement_id,
                         properties=event.properties,
                     )
-                    edit.node = pack_node_flat(node)
+                    edit.node = pack_node(node)
                     host_edits.append(edit)
                 self._host_module_edits.clear()
 
@@ -915,7 +951,7 @@ class SessionTracer:
 
     async def _flush(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session data."""
-        from bench.language import wire
+        from bench.language import wiring
 
         if not force and not self._pending_logs and not self._pending_runs:
             return  # skip if nothing to commit
@@ -957,7 +993,7 @@ class SessionTracer:
                     properties=properties,
                     revision=n.revision,
                 )
-                run_data: RunData = wire.pack_node_flat(n)
+                run_data: RunData = wiring.pack_node(n)
                 edit.node = run_data
                 session_edits.append(edit)
                 if edit.node_type == NodeType.RUN:

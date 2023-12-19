@@ -18,6 +18,7 @@ from bench.language import (
     Secret,
     Statement,
     wire,
+    wiring,
 )
 from bench.language.builtin import symbolx_lib
 from bench.language.const import (
@@ -76,8 +77,8 @@ from bench.msg.messages import (
     ReqStartRunPayload,
     ReqUploadBlobPayload,
     ReqWriteEditsPayload,
-    StartRunErrorType,
     SessionChangedPayload,
+    StartRunErrorType,
 )
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
@@ -86,7 +87,9 @@ from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, required_field, sentry_capture
 from bench.utils.uuidt import UUIDT
-from bench.worker.environment import WORKER_ENVIRONMENT_DATA
+from bench.worker.environment import _collect_environment
+
+()
 
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 3000, type_cast=int)
 WORKER_ACTIVE_TIMEOUT = timedelta(seconds=30)
@@ -334,12 +337,12 @@ class WorkerNode(Monitored):
         # (this doesn't feel like the right place for this, but we always need to do it to reply)
         if job.session and job.session._tracer.runs:
             run = job.session._tracer.runs[job.run_data.id]
-            job.run_data = wire.pack_node_flat(run)
+            job.run_data = wiring.pack_node(run)
             last_logs = job.session._tracer.cached_logs[:50]
         else:
             last_logs = None
 
-        logs = [wire.pack_struct(log) for log in last_logs] if last_logs else None
+        logs = [wiring.pack_struct(log) for log in last_logs] if last_logs else None
         run_data = job.run_data if job else None
         if not msg.p.keyed_return:
             # unkey inputs/outputs/value
@@ -363,7 +366,7 @@ class WorkerNode(Monitored):
 
     @message_handler
     async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
-        await msg.reply(RepGetEnvironmentPayload(environment=WORKER_ENVIRONMENT_DATA))
+        await msg.reply(RepGetEnvironmentPayload(environment=_collect_environment()))
 
     @message_handler
     async def ping(self, msg: NMessage[ReqPingWorkerSetPayload]):
@@ -833,7 +836,7 @@ class ModuleWorkerProcess(RuntimeHost):
     async def download_blob(self, blob: "Blob") -> str:
         rep: NMessage[RepDownloadBlobPayload] = await request(
             NMessageType.DOWNLOAD_BLOB,
-            ReqDownloadBlobPayload(blobs=[wire.pack_node_flat(blob)]),
+            ReqDownloadBlobPayload(blobs=[wiring.pack_node(blob)]),
             reply_t=RepDownloadBlobPayload,
             timeout=5,
         )
@@ -847,19 +850,19 @@ class ModuleWorkerProcess(RuntimeHost):
         # first get POST url to upload the object
         rep: NMessage[RepUploadBlobPayload] = await request(
             NMessageType.UPLOAD_BLOB,
-            ReqUploadBlobPayload(module_id=self.module.id, blobs=[wire.pack_node_flat(blob)]),
+            ReqUploadBlobPayload(module_id=self.module.id, blobs=[wiring.pack_node(blob)]),
             reply_t=RepUploadBlobPayload,
         )
         blob_data = rep.p.blobs[0]
         post_url = rep.p.post_urls[0] if rep.p.post_urls else None
-        blob = wire.unpack_node_flat(blob_data, None, blob._session)
+        blob = wiring.unpack_node(blob_data, None, blob._session)
         return blob, post_url
 
     async def mark_uploaded_blob(self, blob: "Blob") -> None:
         logger.debug("blob.mark_uploaded", object=self)
         rep: NMessage[RepMarkUploadedBlobPayload] = await request(
             NMessageType.MARK_UPLOADED_BLOB,
-            ReqMarkUploadedBlobPayload(blobs=[wire.pack_node_flat(blob)]),
+            ReqMarkUploadedBlobPayload(blobs=[wiring.pack_node(blob)]),
             reply_t=RepMarkUploadedBlobPayload,
         )
         if not rep.p.success:
@@ -869,7 +872,7 @@ class ModuleWorkerProcess(RuntimeHost):
         logger.debug("secret.reveal", secret=secret)
         rep: NMessage[RepRevealSecretPayload] = await request(
             NMessageType.REVEAL_SECRET,
-            ReqRevealSecretPayload(secrets=[wire.pack_node_flat(secret)]),
+            ReqRevealSecretPayload(secrets=[wiring.pack_node(secret)]),
             reply_t=RepRevealSecretPayload,
             timeout=10,
         )

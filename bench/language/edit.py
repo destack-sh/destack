@@ -35,7 +35,6 @@ from bench.utils.utils import format_python, omit_empty
 
 if TYPE_CHECKING:
     from bench.language import File, Run, Statement
-    from bench.language.wire import ModuleTreeData, NodeData
 
 
 class EditType(enum.StrEnum):
@@ -325,15 +324,6 @@ class EditData:
         return f"<Edit {self}>"
 
 
-def pack_node_flat_if_needed(node: Union[Node, "NodeData"]) -> "NodeData":
-    from bench.language import wire
-
-    if isinstance(node, wire.NodeData):
-        return node
-    else:
-        return wire.pack_node_flat(node)
-
-
 class NodeTreeEditor:
     """Create edits to a module node tree."""
 
@@ -399,12 +389,12 @@ class NodeTreeEditor:
         return edit
 
     def _pack_node_flat_if_needed(self, node: Union[Node, "NodeData"]) -> "NodeData":
-        from bench.language import wire
+        from bench.language import wire, wiring
 
         if isinstance(node, wire.NodeData):
             return replace(node)  # shallow copy
         else:
-            return wire.pack_node_flat(node)
+            return wiring.pack_node(node)
 
     def truncate(self, node: Union["NodeData", Node], node_type: NodeType) -> "EditData":
         return self._make_edit(

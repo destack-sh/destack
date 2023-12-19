@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 import structlog
 from django.core.management import BaseCommand
@@ -7,8 +6,7 @@ from django.core.management.base import CommandParser
 from django.db import transaction
 
 from bench import models
-from bench.language import wire
-from bench.language.const import INTERP_NODE_TYPES
+from bench.language import wire, wiring
 from bench.language.edit import diff_modules
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.module import NodeTree
@@ -40,9 +38,6 @@ class Command(BaseCommand):
         if action == "upsert":
             for module in modules:
                 _upsert_module(module, os.environ["VERSION"], sanity_check=DEBUG or TEST or LOCAL)
-        elif action == "dump":
-            for module in modules:
-                _dump_module(module)
         else:
             raise ValueError(f"unknown action: {action}")
 
@@ -106,26 +101,10 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
         project_v.save()
 
     blank_module_data = packer.pack_module_host(project_v, filter=DEFAULT_PACK_FILTER)
-    wire.unpack_module(blank_module_data.nodes, session=None)
-    new_module = wire.pack_module_inline(module, exclude=set())
+    wiring.unpack_node_inline(blank_module_data.nodes, parent=None, session=None)
+    new_module = wiring.pack_module_inline(module, exclude=set())
     edits = diff_modules(blank_module_data, new_module, project_id=project.id)
     packer.write_host_db_edits(project_v, NodeTree(blank_module_data.nodes), edits, validate=False)
     project_v.commit()
 
     log.info("lib.upsert.done", nodes=len(new_module.nodes))
-
-
-_LIB_DUMP_DIR = "/tmp/bench_libs"
-
-
-def _get_module_dump_path(module_name: str):
-    return os.path.join(_LIB_DUMP_DIR, f"{module_name}.bench")
-
-
-def _dump_module(module_name: str):
-    module = DEFAULT_MODULES[module_name]
-    module_data = wire.pack_module_inline(module, exclude=INTERP_NODE_TYPES)
-    module_bytes = wire.serialize_module(module_data)
-    module_path = _get_module_dump_path(module_name)
-    os.makedirs(os.path.dirname(module_path), exist_ok=True)
-    Path(module_path).write_bytes(module_bytes)

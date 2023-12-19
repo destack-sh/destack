@@ -35,7 +35,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import flatten
 
 ParentsT = set[NodeType]
-NodeDataT = TypeVar("NodeDataT", bound=wire.NodeData)
+NodeDataT = TypeVar("NodeDataT", bound=wire.BaseNodeData)
 NodeT = TypeVar("NodeT", bound=Model)
 DataT = TypeVar("DataT")
 ModelT = TypeVar("ModelT", bound=Model)

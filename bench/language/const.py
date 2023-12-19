@@ -56,6 +56,7 @@ class StructType(enum.StrEnum):
     LOG_ENTRY = "LOG_ENTRY"
     PROJECTION = "PROJECTION"
     WORKER_SET = "WORKER_SET"
+    ENVIRONMENT = "ENVIRONMENT"
 
 
 # local = only stored in user Bench, not host
