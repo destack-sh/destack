@@ -2233,7 +2233,7 @@ export interface RunErrorData {
   type: string;
   message: string;
   statementCk: string;
-  traceback: { [key: string]: any }[];
+  traceback: RunCodeFrameData[];
 }
 
 export interface WorkerSetData {
@@ -2494,51 +2494,37 @@ export interface ViewData {
   revision: number;
   name: string;
   layout: ViewLayout;
-  query: { [key: string]: any } | undefined;
-  sort: { [key: string]: any }[];
+  query: ExpressionData | undefined;
+  sort: ExpressionData[];
 }
 
 export interface SomeNodeData {
   node?:
-    | { $case: "tagging"; tagging: TaggingData }
-    | { $case: "file"; file: FileData }
-    | { $case: "blob"; blob: BlobData }
-    | { $case: "field"; field: FieldData }
-    | { $case: "run"; run: RunData }
-    | { $case: "trigger"; trigger: TriggerData }
-    | { $case: "record"; record: RecordData }
-    | { $case: "resolvedField"; resolvedField: ResolvedFieldData }
-    | { $case: "issue"; issue: IssueData }
-    | { $case: "session"; session: SessionData }
-    | { $case: "statement"; statement: StatementData }
     | { $case: "module"; module: ModuleData }
-    | { $case: "secret"; secret: SecretData }
+    | { $case: "file"; file: FileData }
+    | { $case: "statement"; statement: StatementData }
+    | { $case: "trigger"; trigger: TriggerData }
+    | { $case: "tagging"; tagging: TaggingData }
+    | { $case: "field"; field: FieldData }
+    | { $case: "record"; record: RecordData }
     | { $case: "view"; view: ViewData }
+    | { $case: "issue"; issue: IssueData }
+    | { $case: "resolvedField"; resolvedField: ResolvedFieldData }
+    | { $case: "blob"; blob: BlobData }
+    | { $case: "secret"; secret: SecretData }
+    | { $case: "session"; session: SessionData }
+    | { $case: "run"; run: RunData }
     | undefined;
 }
 
 export interface SomeStructData {
   struct?:
-    | { $case: "logEntry"; logEntry: LogEntryData }
-    | { $case: "tagging"; tagging: TaggingData }
-    | { $case: "file"; file: FileData }
-    | { $case: "blob"; blob: BlobData }
-    | { $case: "field"; field: FieldData }
-    | { $case: "run"; run: RunData }
-    | { $case: "runError"; runError: RunErrorData }
-    | { $case: "trigger"; trigger: TriggerData }
-    | { $case: "environment"; environment: EnvironmentData }
-    | { $case: "record"; record: RecordData }
     | { $case: "expression"; expression: ExpressionData }
-    | { $case: "resolvedField"; resolvedField: ResolvedFieldData }
-    | { $case: "issue"; issue: IssueData }
-    | { $case: "session"; session: SessionData }
-    | { $case: "statement"; statement: StatementData }
-    | { $case: "module"; module: ModuleData }
-    | { $case: "secret"; secret: SecretData }
-    | { $case: "workerSet"; workerSet: WorkerSetData }
-    | { $case: "view"; view: ViewData }
     | { $case: "runCodeFrame"; runCodeFrame: RunCodeFrameData }
+    | { $case: "runError"; runError: RunErrorData }
+    | { $case: "logEntry"; logEntry: LogEntryData }
+    | { $case: "workerSet"; workerSet: WorkerSetData }
+    | { $case: "environment"; environment: EnvironmentData }
     | undefined;
 }
 
@@ -3146,7 +3132,7 @@ export const RunErrorData = {
       writer.uint32(186).string(message.statementCk);
     }
     for (const v of message.traceback) {
-      Struct.encode(Struct.wrap(v!), writer.uint32(194).fork()).ldelim();
+      RunCodeFrameData.encode(v!, writer.uint32(194).fork()).ldelim();
     }
     return writer;
   },
@@ -3191,7 +3177,7 @@ export const RunErrorData = {
             break;
           }
 
-          message.traceback.push(Struct.unwrap(Struct.decode(reader, reader.uint32())));
+          message.traceback.push(RunCodeFrameData.decode(reader, reader.uint32()));
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -3208,7 +3194,9 @@ export const RunErrorData = {
       type: isSet(object.type) ? globalThis.String(object.type) : "",
       message: isSet(object.message) ? globalThis.String(object.message) : "",
       statementCk: isSet(object.statementCk) ? globalThis.String(object.statementCk) : "",
-      traceback: globalThis.Array.isArray(object?.traceback) ? [...object.traceback] : [],
+      traceback: globalThis.Array.isArray(object?.traceback)
+        ? object.traceback.map((e: any) => RunCodeFrameData.fromJSON(e))
+        : [],
     };
   },
 
@@ -3227,7 +3215,7 @@ export const RunErrorData = {
       obj.statementCk = message.statementCk;
     }
     if (message.traceback?.length) {
-      obj.traceback = message.traceback;
+      obj.traceback = message.traceback.map((e) => RunCodeFrameData.toJSON(e));
     }
     return obj;
   },
@@ -3241,7 +3229,7 @@ export const RunErrorData = {
     message.type = object.type ?? "";
     message.message = object.message ?? "";
     message.statementCk = object.statementCk ?? "";
-    message.traceback = object.traceback?.map((e) => e) || [];
+    message.traceback = object.traceback?.map((e) => RunCodeFrameData.fromPartial(e)) || [];
     return message;
   },
 };
@@ -7205,10 +7193,10 @@ export const ViewData = {
       writer.uint32(168).int32(message.layout);
     }
     if (message.query !== undefined) {
-      Struct.encode(Struct.wrap(message.query), writer.uint32(178).fork()).ldelim();
+      ExpressionData.encode(message.query, writer.uint32(178).fork()).ldelim();
     }
     for (const v of message.sort) {
-      Struct.encode(Struct.wrap(v!), writer.uint32(186).fork()).ldelim();
+      ExpressionData.encode(v!, writer.uint32(186).fork()).ldelim();
     }
     return writer;
   },
@@ -7295,14 +7283,14 @@ export const ViewData = {
             break;
           }
 
-          message.query = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          message.query = ExpressionData.decode(reader, reader.uint32());
           continue;
         case 23:
           if (tag !== 186) {
             break;
           }
 
-          message.sort.push(Struct.unwrap(Struct.decode(reader, reader.uint32())));
+          message.sort.push(ExpressionData.decode(reader, reader.uint32()));
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -7325,8 +7313,8 @@ export const ViewData = {
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       layout: isSet(object.layout) ? viewLayoutFromJSON(object.layout) : 0,
-      query: isObject(object.query) ? object.query : undefined,
-      sort: globalThis.Array.isArray(object?.sort) ? [...object.sort] : [],
+      query: isSet(object.query) ? ExpressionData.fromJSON(object.query) : undefined,
+      sort: globalThis.Array.isArray(object?.sort) ? object.sort.map((e: any) => ExpressionData.fromJSON(e)) : [],
     };
   },
 
@@ -7363,10 +7351,10 @@ export const ViewData = {
       obj.layout = viewLayoutToJSON(message.layout);
     }
     if (message.query !== undefined) {
-      obj.query = message.query;
+      obj.query = ExpressionData.toJSON(message.query);
     }
     if (message.sort?.length) {
-      obj.sort = message.sort;
+      obj.sort = message.sort.map((e) => ExpressionData.toJSON(e));
     }
     return obj;
   },
@@ -7386,8 +7374,10 @@ export const ViewData = {
     message.revision = object.revision ?? 0;
     message.name = object.name ?? "";
     message.layout = object.layout ?? 0;
-    message.query = object.query ?? undefined;
-    message.sort = object.sort?.map((e) => e) || [];
+    message.query = (object.query !== undefined && object.query !== null)
+      ? ExpressionData.fromPartial(object.query)
+      : undefined;
+    message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     return message;
   },
 };
@@ -7399,47 +7389,47 @@ function createBaseSomeNodeData(): SomeNodeData {
 export const SomeNodeData = {
   encode(message: SomeNodeData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     switch (message.node?.$case) {
-      case "tagging":
-        TaggingData.encode(message.node.tagging, writer.uint32(10).fork()).ldelim();
+      case "module":
+        ModuleData.encode(message.node.module, writer.uint32(10).fork()).ldelim();
         break;
       case "file":
         FileData.encode(message.node.file, writer.uint32(18).fork()).ldelim();
         break;
-      case "blob":
-        BlobData.encode(message.node.blob, writer.uint32(26).fork()).ldelim();
-        break;
-      case "field":
-        FieldData.encode(message.node.field, writer.uint32(34).fork()).ldelim();
-        break;
-      case "run":
-        RunData.encode(message.node.run, writer.uint32(42).fork()).ldelim();
+      case "statement":
+        StatementData.encode(message.node.statement, writer.uint32(26).fork()).ldelim();
         break;
       case "trigger":
-        TriggerData.encode(message.node.trigger, writer.uint32(50).fork()).ldelim();
+        TriggerData.encode(message.node.trigger, writer.uint32(34).fork()).ldelim();
+        break;
+      case "tagging":
+        TaggingData.encode(message.node.tagging, writer.uint32(42).fork()).ldelim();
+        break;
+      case "field":
+        FieldData.encode(message.node.field, writer.uint32(50).fork()).ldelim();
         break;
       case "record":
         RecordData.encode(message.node.record, writer.uint32(58).fork()).ldelim();
         break;
-      case "resolvedField":
-        ResolvedFieldData.encode(message.node.resolvedField, writer.uint32(66).fork()).ldelim();
+      case "view":
+        ViewData.encode(message.node.view, writer.uint32(66).fork()).ldelim();
         break;
       case "issue":
         IssueData.encode(message.node.issue, writer.uint32(74).fork()).ldelim();
         break;
-      case "session":
-        SessionData.encode(message.node.session, writer.uint32(82).fork()).ldelim();
+      case "resolvedField":
+        ResolvedFieldData.encode(message.node.resolvedField, writer.uint32(82).fork()).ldelim();
         break;
-      case "statement":
-        StatementData.encode(message.node.statement, writer.uint32(90).fork()).ldelim();
-        break;
-      case "module":
-        ModuleData.encode(message.node.module, writer.uint32(98).fork()).ldelim();
+      case "blob":
+        BlobData.encode(message.node.blob, writer.uint32(90).fork()).ldelim();
         break;
       case "secret":
-        SecretData.encode(message.node.secret, writer.uint32(106).fork()).ldelim();
+        SecretData.encode(message.node.secret, writer.uint32(98).fork()).ldelim();
         break;
-      case "view":
-        ViewData.encode(message.node.view, writer.uint32(114).fork()).ldelim();
+      case "session":
+        SessionData.encode(message.node.session, writer.uint32(106).fork()).ldelim();
+        break;
+      case "run":
+        RunData.encode(message.node.run, writer.uint32(114).fork()).ldelim();
         break;
     }
     return writer;
@@ -7457,7 +7447,7 @@ export const SomeNodeData = {
             break;
           }
 
-          message.node = { $case: "tagging", tagging: TaggingData.decode(reader, reader.uint32()) };
+          message.node = { $case: "module", module: ModuleData.decode(reader, reader.uint32()) };
           continue;
         case 2:
           if (tag !== 18) {
@@ -7471,28 +7461,28 @@ export const SomeNodeData = {
             break;
           }
 
-          message.node = { $case: "blob", blob: BlobData.decode(reader, reader.uint32()) };
+          message.node = { $case: "statement", statement: StatementData.decode(reader, reader.uint32()) };
           continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
-          message.node = { $case: "field", field: FieldData.decode(reader, reader.uint32()) };
+          message.node = { $case: "trigger", trigger: TriggerData.decode(reader, reader.uint32()) };
           continue;
         case 5:
           if (tag !== 42) {
             break;
           }
 
-          message.node = { $case: "run", run: RunData.decode(reader, reader.uint32()) };
+          message.node = { $case: "tagging", tagging: TaggingData.decode(reader, reader.uint32()) };
           continue;
         case 6:
           if (tag !== 50) {
             break;
           }
 
-          message.node = { $case: "trigger", trigger: TriggerData.decode(reader, reader.uint32()) };
+          message.node = { $case: "field", field: FieldData.decode(reader, reader.uint32()) };
           continue;
         case 7:
           if (tag !== 58) {
@@ -7506,7 +7496,7 @@ export const SomeNodeData = {
             break;
           }
 
-          message.node = { $case: "resolvedField", resolvedField: ResolvedFieldData.decode(reader, reader.uint32()) };
+          message.node = { $case: "view", view: ViewData.decode(reader, reader.uint32()) };
           continue;
         case 9:
           if (tag !== 74) {
@@ -7520,35 +7510,35 @@ export const SomeNodeData = {
             break;
           }
 
-          message.node = { $case: "session", session: SessionData.decode(reader, reader.uint32()) };
+          message.node = { $case: "resolvedField", resolvedField: ResolvedFieldData.decode(reader, reader.uint32()) };
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.node = { $case: "statement", statement: StatementData.decode(reader, reader.uint32()) };
+          message.node = { $case: "blob", blob: BlobData.decode(reader, reader.uint32()) };
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.node = { $case: "module", module: ModuleData.decode(reader, reader.uint32()) };
+          message.node = { $case: "secret", secret: SecretData.decode(reader, reader.uint32()) };
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.node = { $case: "secret", secret: SecretData.decode(reader, reader.uint32()) };
+          message.node = { $case: "session", session: SessionData.decode(reader, reader.uint32()) };
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.node = { $case: "view", view: ViewData.decode(reader, reader.uint32()) };
+          message.node = { $case: "run", run: RunData.decode(reader, reader.uint32()) };
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -7561,81 +7551,81 @@ export const SomeNodeData = {
 
   fromJSON(object: any): SomeNodeData {
     return {
-      node: isSet(object.tagging)
-        ? { $case: "tagging", tagging: TaggingData.fromJSON(object.tagging) }
+      node: isSet(object.module)
+        ? { $case: "module", module: ModuleData.fromJSON(object.module) }
         : isSet(object.file)
         ? { $case: "file", file: FileData.fromJSON(object.file) }
-        : isSet(object.blob)
-        ? { $case: "blob", blob: BlobData.fromJSON(object.blob) }
-        : isSet(object.field)
-        ? { $case: "field", field: FieldData.fromJSON(object.field) }
-        : isSet(object.run)
-        ? { $case: "run", run: RunData.fromJSON(object.run) }
-        : isSet(object.trigger)
-        ? { $case: "trigger", trigger: TriggerData.fromJSON(object.trigger) }
-        : isSet(object.record)
-        ? { $case: "record", record: RecordData.fromJSON(object.record) }
-        : isSet(object.resolvedField)
-        ? { $case: "resolvedField", resolvedField: ResolvedFieldData.fromJSON(object.resolvedField) }
-        : isSet(object.issue)
-        ? { $case: "issue", issue: IssueData.fromJSON(object.issue) }
-        : isSet(object.session)
-        ? { $case: "session", session: SessionData.fromJSON(object.session) }
         : isSet(object.statement)
         ? { $case: "statement", statement: StatementData.fromJSON(object.statement) }
-        : isSet(object.module)
-        ? { $case: "module", module: ModuleData.fromJSON(object.module) }
-        : isSet(object.secret)
-        ? { $case: "secret", secret: SecretData.fromJSON(object.secret) }
+        : isSet(object.trigger)
+        ? { $case: "trigger", trigger: TriggerData.fromJSON(object.trigger) }
+        : isSet(object.tagging)
+        ? { $case: "tagging", tagging: TaggingData.fromJSON(object.tagging) }
+        : isSet(object.field)
+        ? { $case: "field", field: FieldData.fromJSON(object.field) }
+        : isSet(object.record)
+        ? { $case: "record", record: RecordData.fromJSON(object.record) }
         : isSet(object.view)
         ? { $case: "view", view: ViewData.fromJSON(object.view) }
+        : isSet(object.issue)
+        ? { $case: "issue", issue: IssueData.fromJSON(object.issue) }
+        : isSet(object.resolvedField)
+        ? { $case: "resolvedField", resolvedField: ResolvedFieldData.fromJSON(object.resolvedField) }
+        : isSet(object.blob)
+        ? { $case: "blob", blob: BlobData.fromJSON(object.blob) }
+        : isSet(object.secret)
+        ? { $case: "secret", secret: SecretData.fromJSON(object.secret) }
+        : isSet(object.session)
+        ? { $case: "session", session: SessionData.fromJSON(object.session) }
+        : isSet(object.run)
+        ? { $case: "run", run: RunData.fromJSON(object.run) }
         : undefined,
     };
   },
 
   toJSON(message: SomeNodeData): unknown {
     const obj: any = {};
-    if (message.node?.$case === "tagging") {
-      obj.tagging = TaggingData.toJSON(message.node.tagging);
+    if (message.node?.$case === "module") {
+      obj.module = ModuleData.toJSON(message.node.module);
     }
     if (message.node?.$case === "file") {
       obj.file = FileData.toJSON(message.node.file);
     }
-    if (message.node?.$case === "blob") {
-      obj.blob = BlobData.toJSON(message.node.blob);
-    }
-    if (message.node?.$case === "field") {
-      obj.field = FieldData.toJSON(message.node.field);
-    }
-    if (message.node?.$case === "run") {
-      obj.run = RunData.toJSON(message.node.run);
+    if (message.node?.$case === "statement") {
+      obj.statement = StatementData.toJSON(message.node.statement);
     }
     if (message.node?.$case === "trigger") {
       obj.trigger = TriggerData.toJSON(message.node.trigger);
     }
+    if (message.node?.$case === "tagging") {
+      obj.tagging = TaggingData.toJSON(message.node.tagging);
+    }
+    if (message.node?.$case === "field") {
+      obj.field = FieldData.toJSON(message.node.field);
+    }
     if (message.node?.$case === "record") {
       obj.record = RecordData.toJSON(message.node.record);
     }
-    if (message.node?.$case === "resolvedField") {
-      obj.resolvedField = ResolvedFieldData.toJSON(message.node.resolvedField);
+    if (message.node?.$case === "view") {
+      obj.view = ViewData.toJSON(message.node.view);
     }
     if (message.node?.$case === "issue") {
       obj.issue = IssueData.toJSON(message.node.issue);
     }
-    if (message.node?.$case === "session") {
-      obj.session = SessionData.toJSON(message.node.session);
+    if (message.node?.$case === "resolvedField") {
+      obj.resolvedField = ResolvedFieldData.toJSON(message.node.resolvedField);
     }
-    if (message.node?.$case === "statement") {
-      obj.statement = StatementData.toJSON(message.node.statement);
-    }
-    if (message.node?.$case === "module") {
-      obj.module = ModuleData.toJSON(message.node.module);
+    if (message.node?.$case === "blob") {
+      obj.blob = BlobData.toJSON(message.node.blob);
     }
     if (message.node?.$case === "secret") {
       obj.secret = SecretData.toJSON(message.node.secret);
     }
-    if (message.node?.$case === "view") {
-      obj.view = ViewData.toJSON(message.node.view);
+    if (message.node?.$case === "session") {
+      obj.session = SessionData.toJSON(message.node.session);
+    }
+    if (message.node?.$case === "run") {
+      obj.run = RunData.toJSON(message.node.run);
     }
     return obj;
   },
@@ -7645,26 +7635,32 @@ export const SomeNodeData = {
   },
   fromPartial<I extends Exact<DeepPartial<SomeNodeData>, I>>(object: I): SomeNodeData {
     const message = createBaseSomeNodeData();
-    if (object.node?.$case === "tagging" && object.node?.tagging !== undefined && object.node?.tagging !== null) {
-      message.node = { $case: "tagging", tagging: TaggingData.fromPartial(object.node.tagging) };
+    if (object.node?.$case === "module" && object.node?.module !== undefined && object.node?.module !== null) {
+      message.node = { $case: "module", module: ModuleData.fromPartial(object.node.module) };
     }
     if (object.node?.$case === "file" && object.node?.file !== undefined && object.node?.file !== null) {
       message.node = { $case: "file", file: FileData.fromPartial(object.node.file) };
     }
-    if (object.node?.$case === "blob" && object.node?.blob !== undefined && object.node?.blob !== null) {
-      message.node = { $case: "blob", blob: BlobData.fromPartial(object.node.blob) };
-    }
-    if (object.node?.$case === "field" && object.node?.field !== undefined && object.node?.field !== null) {
-      message.node = { $case: "field", field: FieldData.fromPartial(object.node.field) };
-    }
-    if (object.node?.$case === "run" && object.node?.run !== undefined && object.node?.run !== null) {
-      message.node = { $case: "run", run: RunData.fromPartial(object.node.run) };
+    if (object.node?.$case === "statement" && object.node?.statement !== undefined && object.node?.statement !== null) {
+      message.node = { $case: "statement", statement: StatementData.fromPartial(object.node.statement) };
     }
     if (object.node?.$case === "trigger" && object.node?.trigger !== undefined && object.node?.trigger !== null) {
       message.node = { $case: "trigger", trigger: TriggerData.fromPartial(object.node.trigger) };
     }
+    if (object.node?.$case === "tagging" && object.node?.tagging !== undefined && object.node?.tagging !== null) {
+      message.node = { $case: "tagging", tagging: TaggingData.fromPartial(object.node.tagging) };
+    }
+    if (object.node?.$case === "field" && object.node?.field !== undefined && object.node?.field !== null) {
+      message.node = { $case: "field", field: FieldData.fromPartial(object.node.field) };
+    }
     if (object.node?.$case === "record" && object.node?.record !== undefined && object.node?.record !== null) {
       message.node = { $case: "record", record: RecordData.fromPartial(object.node.record) };
+    }
+    if (object.node?.$case === "view" && object.node?.view !== undefined && object.node?.view !== null) {
+      message.node = { $case: "view", view: ViewData.fromPartial(object.node.view) };
+    }
+    if (object.node?.$case === "issue" && object.node?.issue !== undefined && object.node?.issue !== null) {
+      message.node = { $case: "issue", issue: IssueData.fromPartial(object.node.issue) };
     }
     if (
       object.node?.$case === "resolvedField" &&
@@ -7676,23 +7672,17 @@ export const SomeNodeData = {
         resolvedField: ResolvedFieldData.fromPartial(object.node.resolvedField),
       };
     }
-    if (object.node?.$case === "issue" && object.node?.issue !== undefined && object.node?.issue !== null) {
-      message.node = { $case: "issue", issue: IssueData.fromPartial(object.node.issue) };
-    }
-    if (object.node?.$case === "session" && object.node?.session !== undefined && object.node?.session !== null) {
-      message.node = { $case: "session", session: SessionData.fromPartial(object.node.session) };
-    }
-    if (object.node?.$case === "statement" && object.node?.statement !== undefined && object.node?.statement !== null) {
-      message.node = { $case: "statement", statement: StatementData.fromPartial(object.node.statement) };
-    }
-    if (object.node?.$case === "module" && object.node?.module !== undefined && object.node?.module !== null) {
-      message.node = { $case: "module", module: ModuleData.fromPartial(object.node.module) };
+    if (object.node?.$case === "blob" && object.node?.blob !== undefined && object.node?.blob !== null) {
+      message.node = { $case: "blob", blob: BlobData.fromPartial(object.node.blob) };
     }
     if (object.node?.$case === "secret" && object.node?.secret !== undefined && object.node?.secret !== null) {
       message.node = { $case: "secret", secret: SecretData.fromPartial(object.node.secret) };
     }
-    if (object.node?.$case === "view" && object.node?.view !== undefined && object.node?.view !== null) {
-      message.node = { $case: "view", view: ViewData.fromPartial(object.node.view) };
+    if (object.node?.$case === "session" && object.node?.session !== undefined && object.node?.session !== null) {
+      message.node = { $case: "session", session: SessionData.fromPartial(object.node.session) };
+    }
+    if (object.node?.$case === "run" && object.node?.run !== undefined && object.node?.run !== null) {
+      message.node = { $case: "run", run: RunData.fromPartial(object.node.run) };
     }
     return message;
   },
@@ -7705,65 +7695,23 @@ function createBaseSomeStructData(): SomeStructData {
 export const SomeStructData = {
   encode(message: SomeStructData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     switch (message.struct?.$case) {
-      case "logEntry":
-        LogEntryData.encode(message.struct.logEntry, writer.uint32(10).fork()).ldelim();
-        break;
-      case "tagging":
-        TaggingData.encode(message.struct.tagging, writer.uint32(18).fork()).ldelim();
-        break;
-      case "file":
-        FileData.encode(message.struct.file, writer.uint32(26).fork()).ldelim();
-        break;
-      case "blob":
-        BlobData.encode(message.struct.blob, writer.uint32(34).fork()).ldelim();
-        break;
-      case "field":
-        FieldData.encode(message.struct.field, writer.uint32(42).fork()).ldelim();
-        break;
-      case "run":
-        RunData.encode(message.struct.run, writer.uint32(50).fork()).ldelim();
-        break;
-      case "runError":
-        RunErrorData.encode(message.struct.runError, writer.uint32(58).fork()).ldelim();
-        break;
-      case "trigger":
-        TriggerData.encode(message.struct.trigger, writer.uint32(66).fork()).ldelim();
-        break;
-      case "environment":
-        EnvironmentData.encode(message.struct.environment, writer.uint32(74).fork()).ldelim();
-        break;
-      case "record":
-        RecordData.encode(message.struct.record, writer.uint32(82).fork()).ldelim();
-        break;
       case "expression":
-        ExpressionData.encode(message.struct.expression, writer.uint32(90).fork()).ldelim();
-        break;
-      case "resolvedField":
-        ResolvedFieldData.encode(message.struct.resolvedField, writer.uint32(98).fork()).ldelim();
-        break;
-      case "issue":
-        IssueData.encode(message.struct.issue, writer.uint32(106).fork()).ldelim();
-        break;
-      case "session":
-        SessionData.encode(message.struct.session, writer.uint32(114).fork()).ldelim();
-        break;
-      case "statement":
-        StatementData.encode(message.struct.statement, writer.uint32(122).fork()).ldelim();
-        break;
-      case "module":
-        ModuleData.encode(message.struct.module, writer.uint32(130).fork()).ldelim();
-        break;
-      case "secret":
-        SecretData.encode(message.struct.secret, writer.uint32(138).fork()).ldelim();
-        break;
-      case "workerSet":
-        WorkerSetData.encode(message.struct.workerSet, writer.uint32(146).fork()).ldelim();
-        break;
-      case "view":
-        ViewData.encode(message.struct.view, writer.uint32(154).fork()).ldelim();
+        ExpressionData.encode(message.struct.expression, writer.uint32(10).fork()).ldelim();
         break;
       case "runCodeFrame":
-        RunCodeFrameData.encode(message.struct.runCodeFrame, writer.uint32(162).fork()).ldelim();
+        RunCodeFrameData.encode(message.struct.runCodeFrame, writer.uint32(18).fork()).ldelim();
+        break;
+      case "runError":
+        RunErrorData.encode(message.struct.runError, writer.uint32(26).fork()).ldelim();
+        break;
+      case "logEntry":
+        LogEntryData.encode(message.struct.logEntry, writer.uint32(34).fork()).ldelim();
+        break;
+      case "workerSet":
+        WorkerSetData.encode(message.struct.workerSet, writer.uint32(42).fork()).ldelim();
+        break;
+      case "environment":
+        EnvironmentData.encode(message.struct.environment, writer.uint32(50).fork()).ldelim();
         break;
     }
     return writer;
@@ -7781,140 +7729,42 @@ export const SomeStructData = {
             break;
           }
 
-          message.struct = { $case: "logEntry", logEntry: LogEntryData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "expression", expression: ExpressionData.decode(reader, reader.uint32()) };
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.struct = { $case: "tagging", tagging: TaggingData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "runCodeFrame", runCodeFrame: RunCodeFrameData.decode(reader, reader.uint32()) };
           continue;
         case 3:
           if (tag !== 26) {
             break;
           }
 
-          message.struct = { $case: "file", file: FileData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "runError", runError: RunErrorData.decode(reader, reader.uint32()) };
           continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
-          message.struct = { $case: "blob", blob: BlobData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "logEntry", logEntry: LogEntryData.decode(reader, reader.uint32()) };
           continue;
         case 5:
           if (tag !== 42) {
             break;
           }
 
-          message.struct = { $case: "field", field: FieldData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "workerSet", workerSet: WorkerSetData.decode(reader, reader.uint32()) };
           continue;
         case 6:
           if (tag !== 50) {
             break;
           }
 
-          message.struct = { $case: "run", run: RunData.decode(reader, reader.uint32()) };
-          continue;
-        case 7:
-          if (tag !== 58) {
-            break;
-          }
-
-          message.struct = { $case: "runError", runError: RunErrorData.decode(reader, reader.uint32()) };
-          continue;
-        case 8:
-          if (tag !== 66) {
-            break;
-          }
-
-          message.struct = { $case: "trigger", trigger: TriggerData.decode(reader, reader.uint32()) };
-          continue;
-        case 9:
-          if (tag !== 74) {
-            break;
-          }
-
           message.struct = { $case: "environment", environment: EnvironmentData.decode(reader, reader.uint32()) };
-          continue;
-        case 10:
-          if (tag !== 82) {
-            break;
-          }
-
-          message.struct = { $case: "record", record: RecordData.decode(reader, reader.uint32()) };
-          continue;
-        case 11:
-          if (tag !== 90) {
-            break;
-          }
-
-          message.struct = { $case: "expression", expression: ExpressionData.decode(reader, reader.uint32()) };
-          continue;
-        case 12:
-          if (tag !== 98) {
-            break;
-          }
-
-          message.struct = { $case: "resolvedField", resolvedField: ResolvedFieldData.decode(reader, reader.uint32()) };
-          continue;
-        case 13:
-          if (tag !== 106) {
-            break;
-          }
-
-          message.struct = { $case: "issue", issue: IssueData.decode(reader, reader.uint32()) };
-          continue;
-        case 14:
-          if (tag !== 114) {
-            break;
-          }
-
-          message.struct = { $case: "session", session: SessionData.decode(reader, reader.uint32()) };
-          continue;
-        case 15:
-          if (tag !== 122) {
-            break;
-          }
-
-          message.struct = { $case: "statement", statement: StatementData.decode(reader, reader.uint32()) };
-          continue;
-        case 16:
-          if (tag !== 130) {
-            break;
-          }
-
-          message.struct = { $case: "module", module: ModuleData.decode(reader, reader.uint32()) };
-          continue;
-        case 17:
-          if (tag !== 138) {
-            break;
-          }
-
-          message.struct = { $case: "secret", secret: SecretData.decode(reader, reader.uint32()) };
-          continue;
-        case 18:
-          if (tag !== 146) {
-            break;
-          }
-
-          message.struct = { $case: "workerSet", workerSet: WorkerSetData.decode(reader, reader.uint32()) };
-          continue;
-        case 19:
-          if (tag !== 154) {
-            break;
-          }
-
-          message.struct = { $case: "view", view: ViewData.decode(reader, reader.uint32()) };
-          continue;
-        case 20:
-          if (tag !== 162) {
-            break;
-          }
-
-          message.struct = { $case: "runCodeFrame", runCodeFrame: RunCodeFrameData.decode(reader, reader.uint32()) };
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -7927,111 +7777,41 @@ export const SomeStructData = {
 
   fromJSON(object: any): SomeStructData {
     return {
-      struct: isSet(object.logEntry)
-        ? { $case: "logEntry", logEntry: LogEntryData.fromJSON(object.logEntry) }
-        : isSet(object.tagging)
-        ? { $case: "tagging", tagging: TaggingData.fromJSON(object.tagging) }
-        : isSet(object.file)
-        ? { $case: "file", file: FileData.fromJSON(object.file) }
-        : isSet(object.blob)
-        ? { $case: "blob", blob: BlobData.fromJSON(object.blob) }
-        : isSet(object.field)
-        ? { $case: "field", field: FieldData.fromJSON(object.field) }
-        : isSet(object.run)
-        ? { $case: "run", run: RunData.fromJSON(object.run) }
-        : isSet(object.runError)
-        ? { $case: "runError", runError: RunErrorData.fromJSON(object.runError) }
-        : isSet(object.trigger)
-        ? { $case: "trigger", trigger: TriggerData.fromJSON(object.trigger) }
-        : isSet(object.environment)
-        ? { $case: "environment", environment: EnvironmentData.fromJSON(object.environment) }
-        : isSet(object.record)
-        ? { $case: "record", record: RecordData.fromJSON(object.record) }
-        : isSet(object.expression)
+      struct: isSet(object.expression)
         ? { $case: "expression", expression: ExpressionData.fromJSON(object.expression) }
-        : isSet(object.resolvedField)
-        ? { $case: "resolvedField", resolvedField: ResolvedFieldData.fromJSON(object.resolvedField) }
-        : isSet(object.issue)
-        ? { $case: "issue", issue: IssueData.fromJSON(object.issue) }
-        : isSet(object.session)
-        ? { $case: "session", session: SessionData.fromJSON(object.session) }
-        : isSet(object.statement)
-        ? { $case: "statement", statement: StatementData.fromJSON(object.statement) }
-        : isSet(object.module)
-        ? { $case: "module", module: ModuleData.fromJSON(object.module) }
-        : isSet(object.secret)
-        ? { $case: "secret", secret: SecretData.fromJSON(object.secret) }
-        : isSet(object.workerSet)
-        ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
-        : isSet(object.view)
-        ? { $case: "view", view: ViewData.fromJSON(object.view) }
         : isSet(object.runCodeFrame)
         ? { $case: "runCodeFrame", runCodeFrame: RunCodeFrameData.fromJSON(object.runCodeFrame) }
+        : isSet(object.runError)
+        ? { $case: "runError", runError: RunErrorData.fromJSON(object.runError) }
+        : isSet(object.logEntry)
+        ? { $case: "logEntry", logEntry: LogEntryData.fromJSON(object.logEntry) }
+        : isSet(object.workerSet)
+        ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
+        : isSet(object.environment)
+        ? { $case: "environment", environment: EnvironmentData.fromJSON(object.environment) }
         : undefined,
     };
   },
 
   toJSON(message: SomeStructData): unknown {
     const obj: any = {};
-    if (message.struct?.$case === "logEntry") {
-      obj.logEntry = LogEntryData.toJSON(message.struct.logEntry);
+    if (message.struct?.$case === "expression") {
+      obj.expression = ExpressionData.toJSON(message.struct.expression);
     }
-    if (message.struct?.$case === "tagging") {
-      obj.tagging = TaggingData.toJSON(message.struct.tagging);
-    }
-    if (message.struct?.$case === "file") {
-      obj.file = FileData.toJSON(message.struct.file);
-    }
-    if (message.struct?.$case === "blob") {
-      obj.blob = BlobData.toJSON(message.struct.blob);
-    }
-    if (message.struct?.$case === "field") {
-      obj.field = FieldData.toJSON(message.struct.field);
-    }
-    if (message.struct?.$case === "run") {
-      obj.run = RunData.toJSON(message.struct.run);
+    if (message.struct?.$case === "runCodeFrame") {
+      obj.runCodeFrame = RunCodeFrameData.toJSON(message.struct.runCodeFrame);
     }
     if (message.struct?.$case === "runError") {
       obj.runError = RunErrorData.toJSON(message.struct.runError);
     }
-    if (message.struct?.$case === "trigger") {
-      obj.trigger = TriggerData.toJSON(message.struct.trigger);
-    }
-    if (message.struct?.$case === "environment") {
-      obj.environment = EnvironmentData.toJSON(message.struct.environment);
-    }
-    if (message.struct?.$case === "record") {
-      obj.record = RecordData.toJSON(message.struct.record);
-    }
-    if (message.struct?.$case === "expression") {
-      obj.expression = ExpressionData.toJSON(message.struct.expression);
-    }
-    if (message.struct?.$case === "resolvedField") {
-      obj.resolvedField = ResolvedFieldData.toJSON(message.struct.resolvedField);
-    }
-    if (message.struct?.$case === "issue") {
-      obj.issue = IssueData.toJSON(message.struct.issue);
-    }
-    if (message.struct?.$case === "session") {
-      obj.session = SessionData.toJSON(message.struct.session);
-    }
-    if (message.struct?.$case === "statement") {
-      obj.statement = StatementData.toJSON(message.struct.statement);
-    }
-    if (message.struct?.$case === "module") {
-      obj.module = ModuleData.toJSON(message.struct.module);
-    }
-    if (message.struct?.$case === "secret") {
-      obj.secret = SecretData.toJSON(message.struct.secret);
+    if (message.struct?.$case === "logEntry") {
+      obj.logEntry = LogEntryData.toJSON(message.struct.logEntry);
     }
     if (message.struct?.$case === "workerSet") {
       obj.workerSet = WorkerSetData.toJSON(message.struct.workerSet);
     }
-    if (message.struct?.$case === "view") {
-      obj.view = ViewData.toJSON(message.struct.view);
-    }
-    if (message.struct?.$case === "runCodeFrame") {
-      obj.runCodeFrame = RunCodeFrameData.toJSON(message.struct.runCodeFrame);
+    if (message.struct?.$case === "environment") {
+      obj.environment = EnvironmentData.toJSON(message.struct.environment);
     }
     return obj;
   },
@@ -8042,92 +7822,11 @@ export const SomeStructData = {
   fromPartial<I extends Exact<DeepPartial<SomeStructData>, I>>(object: I): SomeStructData {
     const message = createBaseSomeStructData();
     if (
-      object.struct?.$case === "logEntry" &&
-      object.struct?.logEntry !== undefined &&
-      object.struct?.logEntry !== null
-    ) {
-      message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
-    }
-    if (object.struct?.$case === "tagging" && object.struct?.tagging !== undefined && object.struct?.tagging !== null) {
-      message.struct = { $case: "tagging", tagging: TaggingData.fromPartial(object.struct.tagging) };
-    }
-    if (object.struct?.$case === "file" && object.struct?.file !== undefined && object.struct?.file !== null) {
-      message.struct = { $case: "file", file: FileData.fromPartial(object.struct.file) };
-    }
-    if (object.struct?.$case === "blob" && object.struct?.blob !== undefined && object.struct?.blob !== null) {
-      message.struct = { $case: "blob", blob: BlobData.fromPartial(object.struct.blob) };
-    }
-    if (object.struct?.$case === "field" && object.struct?.field !== undefined && object.struct?.field !== null) {
-      message.struct = { $case: "field", field: FieldData.fromPartial(object.struct.field) };
-    }
-    if (object.struct?.$case === "run" && object.struct?.run !== undefined && object.struct?.run !== null) {
-      message.struct = { $case: "run", run: RunData.fromPartial(object.struct.run) };
-    }
-    if (
-      object.struct?.$case === "runError" &&
-      object.struct?.runError !== undefined &&
-      object.struct?.runError !== null
-    ) {
-      message.struct = { $case: "runError", runError: RunErrorData.fromPartial(object.struct.runError) };
-    }
-    if (object.struct?.$case === "trigger" && object.struct?.trigger !== undefined && object.struct?.trigger !== null) {
-      message.struct = { $case: "trigger", trigger: TriggerData.fromPartial(object.struct.trigger) };
-    }
-    if (
-      object.struct?.$case === "environment" &&
-      object.struct?.environment !== undefined &&
-      object.struct?.environment !== null
-    ) {
-      message.struct = { $case: "environment", environment: EnvironmentData.fromPartial(object.struct.environment) };
-    }
-    if (object.struct?.$case === "record" && object.struct?.record !== undefined && object.struct?.record !== null) {
-      message.struct = { $case: "record", record: RecordData.fromPartial(object.struct.record) };
-    }
-    if (
       object.struct?.$case === "expression" &&
       object.struct?.expression !== undefined &&
       object.struct?.expression !== null
     ) {
       message.struct = { $case: "expression", expression: ExpressionData.fromPartial(object.struct.expression) };
-    }
-    if (
-      object.struct?.$case === "resolvedField" &&
-      object.struct?.resolvedField !== undefined &&
-      object.struct?.resolvedField !== null
-    ) {
-      message.struct = {
-        $case: "resolvedField",
-        resolvedField: ResolvedFieldData.fromPartial(object.struct.resolvedField),
-      };
-    }
-    if (object.struct?.$case === "issue" && object.struct?.issue !== undefined && object.struct?.issue !== null) {
-      message.struct = { $case: "issue", issue: IssueData.fromPartial(object.struct.issue) };
-    }
-    if (object.struct?.$case === "session" && object.struct?.session !== undefined && object.struct?.session !== null) {
-      message.struct = { $case: "session", session: SessionData.fromPartial(object.struct.session) };
-    }
-    if (
-      object.struct?.$case === "statement" &&
-      object.struct?.statement !== undefined &&
-      object.struct?.statement !== null
-    ) {
-      message.struct = { $case: "statement", statement: StatementData.fromPartial(object.struct.statement) };
-    }
-    if (object.struct?.$case === "module" && object.struct?.module !== undefined && object.struct?.module !== null) {
-      message.struct = { $case: "module", module: ModuleData.fromPartial(object.struct.module) };
-    }
-    if (object.struct?.$case === "secret" && object.struct?.secret !== undefined && object.struct?.secret !== null) {
-      message.struct = { $case: "secret", secret: SecretData.fromPartial(object.struct.secret) };
-    }
-    if (
-      object.struct?.$case === "workerSet" &&
-      object.struct?.workerSet !== undefined &&
-      object.struct?.workerSet !== null
-    ) {
-      message.struct = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.struct.workerSet) };
-    }
-    if (object.struct?.$case === "view" && object.struct?.view !== undefined && object.struct?.view !== null) {
-      message.struct = { $case: "view", view: ViewData.fromPartial(object.struct.view) };
     }
     if (
       object.struct?.$case === "runCodeFrame" &&
@@ -8138,6 +7837,30 @@ export const SomeStructData = {
         $case: "runCodeFrame",
         runCodeFrame: RunCodeFrameData.fromPartial(object.struct.runCodeFrame),
       };
+    }
+    if (
+      object.struct?.$case === "runError" && object.struct?.runError !== undefined && object.struct?.runError !== null
+    ) {
+      message.struct = { $case: "runError", runError: RunErrorData.fromPartial(object.struct.runError) };
+    }
+    if (
+      object.struct?.$case === "logEntry" && object.struct?.logEntry !== undefined && object.struct?.logEntry !== null
+    ) {
+      message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
+    }
+    if (
+      object.struct?.$case === "workerSet" &&
+      object.struct?.workerSet !== undefined &&
+      object.struct?.workerSet !== null
+    ) {
+      message.struct = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.struct.workerSet) };
+    }
+    if (
+      object.struct?.$case === "environment" &&
+      object.struct?.environment !== undefined &&
+      object.struct?.environment !== null
+    ) {
+      message.struct = { $case: "environment", environment: EnvironmentData.fromPartial(object.struct.environment) };
     }
     return message;
   },
@@ -8211,8 +7934,9 @@ export const ModuleTreeData = {
   },
   fromPartial<I extends Exact<DeepPartial<ModuleTreeData>, I>>(object: I): ModuleTreeData {
     const message = createBaseModuleTreeData();
-    message.module =
-      object.module !== undefined && object.module !== null ? ModuleTreeData.fromPartial(object.module) : undefined;
+    message.module = (object.module !== undefined && object.module !== null)
+      ? ModuleTreeData.fromPartial(object.module)
+      : undefined;
     message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
     return message;
   },
@@ -8220,21 +7944,15 @@ export const ModuleTreeData = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends globalThis.Array<infer U>
-  ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string }
-  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin
-  ? P
+export type Exact<P, I extends P> = P extends Builtin ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

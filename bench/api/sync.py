@@ -16,6 +16,7 @@ from bench.api.type import PMT, EditType
 from bench.api.utils import get_client_origin_from_info, wrap_exceptions
 from bench.language import wire
 from bench.language.edit import EditData, EditKind, NodeType
+from bench.language.wiring import AnyNodeData
 from bench.models import ModuleAccessLevel, packer
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
@@ -106,7 +107,7 @@ def bench_edit(
                 raise RuntimeError(f"failed to write edits: {rep.p.error}")
 
             # use returned nodes as return value (assuming their values, ignore any other new nodes)
-            edited_nodes_by_id: dict[UUID, wire.NodeData] = {n.id: n for n in rep.p.nodes}
+            edited_nodes_by_id: dict[UUID, AnyNodeData] = {n.id: n for n in rep.p.nodes}
             for thing in things:
                 updated_node = edited_nodes_by_id[thing.id]
                 for key in updated_node.__dict__.keys():

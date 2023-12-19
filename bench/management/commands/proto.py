@@ -2,7 +2,13 @@ from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
 from django.db import transaction
 
-from bench.language.module import FINAL_BENCH_TYPES, Node, Struct
+from bench.language.const import NodeType, StructType
+from bench.language.module import (
+    FINAL_BENCH_TYPES,
+    Node,
+    NODE_CLASS_BY_NODE_TYPE,
+    STRUCT_CLASS_BY_STRUCT_TYPE,
+)
 from bench.language.proto import Field, Message, generate_proto_schema
 
 
@@ -20,13 +26,14 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, *args, **options):
+        struct_ts = [
+            STRUCT_CLASS_BY_STRUCT_TYPE[t] for t in StructType if t in STRUCT_CLASS_BY_STRUCT_TYPE
+        ]
+        node_ts = [NODE_CLASS_BY_NODE_TYPE[t] for t in NodeType if t in NODE_CLASS_BY_NODE_TYPE]
         proto = generate_proto_schema(
             bench_types=[*FINAL_BENCH_TYPES, Node],
             aliases={Node: "BaseNode"},
-            unions={
-                "SomeNode": ("node", [t for t in FINAL_BENCH_TYPES if issubclass(t, Node)]),
-                "SomeStruct": ("struct", [t for t in FINAL_BENCH_TYPES if issubclass(t, Struct)]),
-            },
+            unions={"SomeNode": ("node", node_ts), "SomeStruct": ("struct", struct_ts)},
             extras=[
                 Message(
                     name="ModuleTree",

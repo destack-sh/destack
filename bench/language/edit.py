@@ -388,29 +388,29 @@ class NodeTreeEditor:
         self.edits.append(edit)
         return edit
 
-    def _pack_node_flat_if_needed(self, node: Union[Node, "NodeData"]) -> "NodeData":
-        from bench.language import wire, wiring
+    def _pack_node_flat_if_needed(self, node: Union[Node, "AnyNodeData"]) -> "AnyNodeData":
+        from bench.language import wiring
 
-        if isinstance(node, wire.NodeData):
-            return replace(node)  # shallow copy
-        else:
+        if isinstance(node, Node):
             return wiring.pack_node(node)
+        else:
+            return replace(node)  # shallow copy
 
-    def truncate(self, node: Union["NodeData", Node], node_type: NodeType) -> "EditData":
+    def truncate(self, node: Union["AnyNodeData", Node], node_type: NodeType) -> "EditData":
         return self._make_edit(
             EditType(f"TRUNCATE_{node_type.caps_name}S"), node=self._pack_node_flat_if_needed(node)
         )
 
-    def create_many(self, *nodes: Union["NodeData", Node]) -> list["EditData"]:
+    def create_many(self, *nodes: Union["AnyNodeData", Node]) -> list["EditData"]:
         return [self.create(node) for node in nodes]
 
-    def create(self, node: Union["NodeData", Node]) -> "EditData":
+    def create(self, node: Union["AnyNodeData", Node]) -> "EditData":
         return self._make_edit(
             EditType.from_nt(EditKind.CREATE, node.node_type),
             node=self._pack_node_flat_if_needed(node),
         )
 
-    def update(self, node: Union["NodeData", Node], properties: list[str] = None) -> "EditData":
+    def update(self, node: Union["AnyNodeData", Node], properties: list[str] = None) -> "EditData":
         assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
         return self._make_edit(
             type=EditType.from_nt(EditKind.UPDATE, node.node_type),
@@ -418,19 +418,19 @@ class NodeTreeEditor:
             properties=properties,
         )
 
-    def move(self, node: Union["NodeData", Node]) -> "EditData":
+    def move(self, node: Union["AnyNodeData", Node]) -> "EditData":
         return self._make_edit(
             type=EditType.from_nt(EditKind.MOVE, node.node_type),
             node=self._pack_node_flat_if_needed(node),
         )
 
     def soft_delete_many(
-        self, *nodes: Union["NodeData", Node], deleted_at: datetime | None = None
+        self, *nodes: Union["AnyNodeData", Node], deleted_at: datetime | None = None
     ) -> list["EditData"]:
         return [self.soft_delete(node, deleted_at) for node in nodes]
 
     def soft_delete(
-        self, node: Union["NodeData", Node], deleted_at: datetime | None = None
+        self, node: Union["AnyNodeData", Node], deleted_at: datetime | None = None
     ) -> "EditData":
         # sneakily convert soft delete into hard delete for interp types
         if node.node_type in INTERP_NODE_TYPES:
@@ -441,12 +441,12 @@ class NodeTreeEditor:
             type=EditType.from_nt(EditKind.SOFT_DELETE, node.node_type), node=node
         )
 
-    def restore(self, node: Union["NodeData", Node]) -> "EditData":
+    def restore(self, node: Union["AnyNodeData", Node]) -> "EditData":
         node = self._pack_node_flat_if_needed(node)
         node.deleted_at = None
         return self._make_edit(type=EditType.from_nt(EditKind.RESTORE, node.node_type), node=node)
 
-    def delete(self, node: Union["NodeData", Node]) -> "EditData":
+    def delete(self, node: Union["AnyNodeData", Node]) -> "EditData":
         return self._make_edit(
             type=EditType.from_nt(EditKind.DELETE, node.node_type),
             node=self._pack_node_flat_if_needed(node),
