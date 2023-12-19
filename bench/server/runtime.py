@@ -665,7 +665,7 @@ class RuntimeHost:
         self,
         edits: list[EditData],
         origins: tuple[ClientOrigin] = None,
-    ) -> list[wire.NodeData]:
+    ) -> list["AnyNodeData"]:
         """
         Writes the edits to the source of truth (DB) and locally,
          publishes the complete changes and then mirrors them into the search index.
@@ -744,7 +744,7 @@ class RuntimeHost:
             log.debug("runtime.write_edits.restore", restored=restore_edits, deleted_at=deleted_at)
 
         # apply
-        edited_nodes: list[wire.NodeData] = []
+        edited_nodes: list[AnyNodeData] = []
         try:
             # apply edits to source directly (in memory)
             #  (restore edits were already applied above)
@@ -777,7 +777,7 @@ class RuntimeHost:
             old_source = await sync_to_async(packer.pack_module_host)(
                 self.project_version, excluded=INTERP_NODE_TYPES
             )
-            old_source = wire.NodeTree(old_source.nodes)
+            old_source = NodeTree(old_source.nodes)
             self.module._reset_from_source(old_source)
             raise
 

@@ -416,7 +416,7 @@ message RunErrorData {
   string type = 21;
   string message = 22;
   string statement_ck = 23;
-  repeated google.protobuf.Struct traceback = 24;
+  repeated RunCodeFrameData traceback = 24;
 }
 
 message WorkerSetData {
@@ -677,51 +677,37 @@ message ViewData {
   int64 revision = 15;
   string name = 20;
   ViewLayout layout = 21;
-  google.protobuf.Struct query = 22;
-  repeated google.protobuf.Struct sort = 23;
+  ExpressionData query = 22;
+  repeated ExpressionData sort = 23;
 }
 
 message SomeNodeData {
   oneof node {
-    TaggingData tagging = 1;
+    ModuleData module = 1;
     FileData file = 2;
-    BlobData blob = 3;
-    FieldData field = 4;
-    RunData run = 5;
-    TriggerData trigger = 6;
+    StatementData statement = 3;
+    TriggerData trigger = 4;
+    TaggingData tagging = 5;
+    FieldData field = 6;
     RecordData record = 7;
-    ResolvedFieldData resolved_field = 8;
+    ViewData view = 8;
     IssueData issue = 9;
-    SessionData session = 10;
-    StatementData statement = 11;
-    ModuleData module = 12;
-    SecretData secret = 13;
-    ViewData view = 14;
+    ResolvedFieldData resolved_field = 10;
+    BlobData blob = 11;
+    SecretData secret = 12;
+    SessionData session = 13;
+    RunData run = 14;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    LogEntryData log_entry = 1;
-    TaggingData tagging = 2;
-    FileData file = 3;
-    BlobData blob = 4;
-    FieldData field = 5;
-    RunData run = 6;
-    RunErrorData run_error = 7;
-    TriggerData trigger = 8;
-    EnvironmentData environment = 9;
-    RecordData record = 10;
-    ExpressionData expression = 11;
-    ResolvedFieldData resolved_field = 12;
-    IssueData issue = 13;
-    SessionData session = 14;
-    StatementData statement = 15;
-    ModuleData module = 16;
-    SecretData secret = 17;
-    WorkerSetData worker_set = 18;
-    ViewData view = 19;
-    RunCodeFrameData run_code_frame = 20;
+    ExpressionData expression = 1;
+    RunCodeFrameData run_code_frame = 2;
+    RunErrorData run_error = 3;
+    LogEntryData log_entry = 4;
+    WorkerSetData worker_set = 5;
+    EnvironmentData environment = 6;
   };
 }
 

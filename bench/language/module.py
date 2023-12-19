@@ -467,6 +467,7 @@ class Property(_FieldExpressionBase):
             elif issubclass(py_type, (enum.IntFlag, enum.IntEnum)):
                 self.store_as = ColumnType.BIGINT
             elif issubclass(py_type, Struct):
+                assert self.struct_type is not None, f"missing struct type for {self!r}"
                 self.store_as = ColumnType.JSON
             elif issubclass(py_type, Node):
                 raise ValueError(f"cannot store node directly: {self!r}")
@@ -478,7 +479,21 @@ class Property(_FieldExpressionBase):
 
     def contribute_properties(self) -> tuple["Property"]:
         """Contribute any extra properties required by this property."""
-        if self.reference_types is not None:
+
+        if self.parent_node_types is not None:
+            parent_id_prop = Property(
+                id=self.id,  # re-use id, not actually stored
+                name=self.name + "_id",
+                component=self.component,
+                py_type_raw=UUID,
+                default=None,
+                is_required=self.is_required,
+                is_internal=True,
+                store=True,
+                store_as=ColumnType.UUID,
+            )
+            return (parent_id_prop,)  # nocheckin: store parent_id
+        elif self.reference_types is not None:
             assert not self.reference_key, f"cannot call contribute_properties twice: {self!r}"
             reference_ck_prop = Property(
                 id=self.id,  # re-use id, not actually stored
@@ -699,6 +714,8 @@ _FORBIDDEN_NODE_METHODS = (
 NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
 STRUCT_CLASS_BY_STRUCT_TYPE: dict[StructType, type["Struct"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
+STRUCT_TYPE_BY_STRUCT_CLASS: dict[type["Struct"], StructType] = {}
+NODE_TYPE_BY_NODE_CLASS: dict[type["Node"], NodeType] = {}
 _COMPONENT_METHODS: dict[[ComponentMethod, type["Node"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
     "Node",

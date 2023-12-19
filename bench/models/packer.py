@@ -395,7 +395,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
             deleted_at=module.deleted_at,
             last_edited_at=module.last_edited_at,
             last_changed_at=module.last_changed_at,
-            revision=-1,  # no revision for module
+            revision=-1,  # no revision for module?
         )
 
 

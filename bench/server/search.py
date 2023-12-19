@@ -288,11 +288,9 @@ async def write_edits_to_os(
         ):
             if isinstance(node, models.Node):
                 mirrored_data = mirror.mirror_node(module, node).to_dict()
-            elif isinstance(node, wire.NodeData):
+            else:
                 parent = module.resolve(node.parent_id)
                 mirrored_data = mirror.unpack_node_flat(module, node, parent).to_dict()
-            else:
-                raise ValueError(f"unexpected node type: {node!r}")
             ops.append({"index": {"_index": index, "_id": str(node.id)}})
             ops.append(mirrored_data)
         elif edit.type.kind == EditKind.DELETE:

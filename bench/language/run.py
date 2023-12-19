@@ -315,7 +315,9 @@ class RunError(Struct, Exception):  # can this really be a subclass of Exception
     statement: Optional["Statement"] = struct_internal(
         23, default=None, references=NodeType.STATEMENT
     )
-    traceback: list[RunCodeFrame] = struct_internal(24, default_factory=list)
+    traceback: list[RunCodeFrame] = struct_internal(
+        24, default_factory=list, struct_t=StructType.RUN_CODE_FRAME
+    )
 
     @staticmethod
     def from_exception(e: BaseException, statement: Optional["Statement"]) -> "RunError":

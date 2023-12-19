@@ -1,3 +1,5 @@
+set -e
+
 TARGET_PY_DIR="bench/language/wire"
 TARGET_TS_DIR="frontend/src/wire"
 GENERATED_PROTO_FILE="bench/language/wire.proto"
