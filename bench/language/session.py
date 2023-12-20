@@ -127,10 +127,8 @@ class LogEntry(Struct):
     session: "Session" = struct_internal(24, references=NodeType.SESSION)
     level: Optional[str] = struct_internal(25, default=None)
     logger: Optional[str] = struct_internal(26, default=None)
-    statement: Optional["Statement"] = struct_internal(
-        27, default=None, references=NodeType.STATEMENT
-    )
-    run: Optional["Run"] = struct_internal(28, default=None, references=NodeType.RUN)
+    statement: Optional["Statement"] = struct_internal(27, references=NodeType.STATEMENT)
+    run: Optional["Run"] = struct_internal(28, references=NodeType.RUN)
     message: Optional[str] = struct_internal(29, default=None)
     value: dict[str, Any] | None = struct_internal(
         30,

@@ -12,6 +12,7 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_module_node_access
 from bench.api.utils import ModuleNode
+from bench.language.const import NodeType
 from bench.language.module import FLATTENED_RELATIONS
 from bench.models import ModuleAccessLevel, packer
 from bench.models.packer import NODE_TYPE_BY_MODEL_CLASS
@@ -144,12 +145,12 @@ def read_module_node(
 
     # figure out which nodes to query (naively filter by selected fields)
     root_selections = _inline_fragments((root_fragment or info.selected_fields[0]).selections)
-    included = {models.ProjectVersion, models.File, models.Statement}
+    included = {NodeType.MODULE, NodeType.FILE, NodeType.STATEMENT}
     for field in _inline_fragments(root_selections, recursive=True):
         base_model = _BASE_MODEL_BY_FIELD_NAME.get(field.name)
-        if base_model and base_model not in included:
-            included.add(base_model)
-    excluded = NODE_TYPE_BY_MODEL_CLASS.keys() - included
+        if base_model and base_model not in included and base_model in NODE_TYPE_BY_MODEL_CLASS:
+            included.add(NODE_TYPE_BY_MODEL_CLASS[base_model])
+    excluded: set[NodeType] = set(NodeType) - included
 
     # collect them
     tree = packer.collect_node_host(node, excluded=excluded, recurse_flat_root=False)

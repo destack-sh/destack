@@ -186,7 +186,7 @@ class Statement(ScopeNode, HasTags):
     name: str | None = struct_property(22, default=None, validate=validate_name)
     order_key: str | None = struct_internal(23, default=None)
     reference: Optional["Statement"] = struct_property(
-        24, default=None, copy=identity, references=NodeType.STATEMENT
+        24, copy=identity, references=NodeType.STATEMENT
     )
     heading_level: Optional["TextHeadingLevel"] = struct_property(
         25, default=None, validate=enum_validator(TextHeadingLevel)

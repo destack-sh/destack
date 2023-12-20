@@ -46,6 +46,7 @@ from bench.language.module import NodeTree, on_issue_raise, walk_bfs
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
+from bench.language.wiring import AnyNodeData
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import get_default_pack_filters, write_host_db_edits
 from bench.models.user import loops_request
@@ -122,9 +123,7 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
         if ref.version != "x":
             raise RuntimeError("versioned module fetch not supported (must be head)")
         project_version = (
-            await Project.objects.filter(
-                slug=project,
-            )
+            await Project.objects.filter(slug=project)
             .filter(
                 models.Q(organization__owner_slug_id=owner) | models.Q(user__owner_slug_id=owner)
             )

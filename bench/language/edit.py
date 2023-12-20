@@ -30,6 +30,7 @@ from bench.language.const import (
 from bench.language.module import UNSET, Module, Node, NodeTree, NRel
 from bench.language.text import Text, render_text_simple
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.func import to_uuid
 from bench.utils.serialize import from_dict
 from bench.utils.utils import format_python, omit_empty
 
@@ -359,7 +360,7 @@ class NodeTreeEditor:
 
         if isinstance(node, wire.StatementData):
             statement_id = node.id
-            file_id = self.file_id or self.tree.get_ancestor(node.parent_id, NodeType.FILE).id
+            file_id = self.file_id or self.tree.ancestor(to_uuid(node.parent_id), NodeType.FILE).id
         elif isinstance(node, wire.FileData):
             statement_id = None
             file_id = node.id
@@ -370,12 +371,12 @@ class NodeTreeEditor:
             if self.statement_id:
                 statement_id = self.statement_id
             else:
-                statement = self.tree.get_ancestor(node.parent_id, NodeType.STATEMENT)
+                statement = self.tree.get_ancestor(to_uuid(node.parent_id), NodeType.STATEMENT)
                 statement_id = statement.id if statement else None
             if self.file_id:
                 file_id = self.file_id
             else:
-                file_id = self.tree.get_ancestor(node.parent_id, NodeType.FILE).id
+                file_id = self.tree.ancestor(to_uuid(node.parent_id), NodeType.FILE).id
         edit = EditData(
             type=type,
             project_version_id=self.module_id,

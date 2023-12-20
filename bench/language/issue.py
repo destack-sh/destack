@@ -66,7 +66,7 @@ class Issue(Node):
     kind: IssueKind = struct_property(21, default=None, validate=enum_validator(IssueKind))
     message: str = struct_property(22, default=None)
     subject: Union["Statement", "File"] = struct_property(
-        23, default=None, references=(NodeType.STATEMENT, NodeType.FILE)
+        23, references=(NodeType.STATEMENT, NodeType.FILE)
     )
     path: Optional[str] = struct_property(24, default=None)
     properties: list[str] = struct_property(25, default=None)

@@ -153,15 +153,13 @@ class Run(ScopeNode, HasValue):
         21, NodeType.RUN, nearest=False, include_self=False, store=True
     )
     runs: list["Run"] = node_children(NodeType.RUN)
-    statement: Optional["Statement"] = struct_internal(
-        22, default=None, references=NodeType.STATEMENT
-    )
+    statement: Optional["Statement"] = struct_internal(22, references=NodeType.STATEMENT)
     statement_path: Optional[str] = struct_internal(23, default=None)
     scheduled_at: Optional[datetime] = struct_internal(24, default=None)
     started_at: Optional[datetime] = struct_internal(25, default=None)
     terminated_at: Optional[datetime] = struct_internal(26, default=None)
     trigger_type: Optional[TriggerType] = struct_internal(27, default=None)
-    trigger: Optional["Trigger"] = struct_internal(28, default=None, references=NodeType.TRIGGER)
+    trigger: Optional["Trigger"] = struct_internal(28, references=NodeType.TRIGGER)
     access_level: Optional["SessionAccessLevel"] = struct_internal(29, default=None)
     status: RunStatus = struct_internal(30)
     inputs: Optional[dict[str, Any]] = struct_internal(31, default=None, store_as=ColumnType.JSON)
@@ -312,9 +310,7 @@ class RunError(Struct, Exception):  # can this really be a subclass of Exception
     kind: RunErrorKind = struct_internal(20)
     type: str = struct_internal(21)
     message: Optional[str] = struct_internal(22, default=None)
-    statement: Optional["Statement"] = struct_internal(
-        23, default=None, references=NodeType.STATEMENT
-    )
+    statement: Optional["Statement"] = struct_internal(23, references=NodeType.STATEMENT)
     traceback: list[RunCodeFrame] = struct_internal(
         24, default_factory=list, struct_t=StructType.RUN_CODE_FRAME
     )

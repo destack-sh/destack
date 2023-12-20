@@ -6,7 +6,6 @@ import inspect
 import typing
 import uuid
 from collections import defaultdict, deque
-from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
@@ -26,6 +25,7 @@ from uuid import UUID, uuid4
 import structlog
 from cachetools import cached
 
+from bench.language import wire
 from bench.language.const import (
     INTERP_NODE_TYPES,
     BenchType,
@@ -53,7 +53,14 @@ from bench.language.validation import (
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
-from bench.utils.func import did_you_mean_str, get_subclasses, nextn, strip_py_type, try_tuple
+from bench.utils.func import (
+    did_you_mean_str,
+    get_subclasses,
+    nextn,
+    strip_py_type,
+    to_uuid,
+    try_tuple,
+)
 from bench.utils.utils import (
     DEBUG,
     LOCAL,
@@ -354,6 +361,10 @@ class Property(_FieldExpressionBase):
             and self.default_factory is None
         ):
             raise ValueError(f"missing default for {self!r}")
+        if self.reference_types:
+            if self.default is not UNSET:
+                raise ValueError(f"cannot set default for reference property {self!r}")
+            self.default = None
 
     def __str__(self):
         if self.component is None:
@@ -362,7 +373,27 @@ class Property(_FieldExpressionBase):
 
     def __repr__(self):
         non_default = []
-        for k, v in self.__dict__.items():
+        if self.id is not None:
+            non_default.append(str(self.id))
+        if isinstance(self.py_type_stripped, type):
+            non_default.append(self.py_type_stripped.__name__)
+        for k in (
+            "alias",
+            "is_array",
+            "is_required",
+            "is_internal",
+            "is_runtime",
+            "is_cru",
+            "is_computed",
+            "is_reflected",
+            "is_ancestor_nearest",
+            "is_ancestor_self",
+            "struct_type",
+            "reference_types",
+            "parent_node_types",
+            "ancestor_node_type",
+        ):
+            v = getattr(self, k)
             if v is UNSET or not v:
                 continue
             elif k == "id":
@@ -378,23 +409,14 @@ class Property(_FieldExpressionBase):
                 types_str = "|".join(t.name for t in v)
                 if types_str:
                     non_default.append(f"to={types_str}")
-            elif k not in (
-                # ignore these
-                "name",
-                "component",
-                "ignore_conflicts_with",
-                "store",
-                "store_as",
-                "py_type_raw",
-                "py_type_stripped",
-            ):
+            else:
                 if isinstance(v, bool):
                     non_default.append(k)
                 else:
                     non_default.append(f"{k}={v}")
         attrs_str = ", ".join(non_default)
         attrs_str = f" ({attrs_str})" if attrs_str else ""
-        return f"<{self.__class__.__name__} {self}{attrs_str}>"
+        return f"<{self.__class__.__name__} {str(self)}{attrs_str}>"
 
     @property
     def is_tree_relation(self) -> bool:
@@ -725,7 +747,7 @@ _FORBIDDEN_NODE_METHODS = (
 NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_STRUCT_TYPE: dict[StructType, type["Struct"]] = {}
-BENCH_CLASS_BY_BENCH_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
+BENCH_CLASS_BY_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
 _COMPONENT_METHODS: dict[[ComponentMethod, type["Node"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
     "Node",
@@ -1562,15 +1584,12 @@ def walk_bfs(nodes: Collection[NT]) -> Iterator[NT]:
         queue.extend(nodes_by_parent_id[node.id])
 
 
-NodeId = UUID | str
-
-
 class NodeTreeBase(abc.ABC, typing.Generic[NT]):
     @property
     def nodes(self) -> Collection[NT]:
         raise NotImplementedError
 
-    def get(self, node_id: NodeId) -> Optional[NT]:
+    def get(self, node_id: UUID) -> Optional[NT]:
         """Gets a node by id or ck"""
         raise NotImplementedError
 
@@ -1616,7 +1635,7 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
 
     def get_descendants(
         self,
-        node_id: NodeId,
+        node_id: UUID,
         node_type: NodeType | None = None,
         recursive: bool = False,
         prefilter: bool = False,
@@ -1629,9 +1648,16 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
         """Gets all descendants in BFS order"""
         raise NotImplementedError
 
-    def get_ancestor(self, node_id: NodeId, node_type: NodeType | None = None) -> Optional["NT"]:
+    def get_ancestor(self, node_id: UUID, node_type: NodeType | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
         raise NotImplementedError
+
+    def ancestor(self, node_id: UUID, node_type: NodeType | None = None) -> "NT":
+        """Gets the next ancestor of the given type (including self)"""
+        node = self.get_ancestor(node_id, node_type)
+        if node is None:
+            raise LookupError(f"no ancestor of type {node_type} for node {node_id!r}")
+        return node
 
     def apply_edit(self, edit: "EditData"):
         """Applies a list of edits to the tree"""
@@ -1647,13 +1673,20 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
             raise ValueError(f"unexpected edit: {edit!r}")
 
 
+def to_bench_metatype(_type: Union[BenchType, wire.BenchType]) -> BenchType:
+    if isinstance(_type, wire.BenchType):
+        assert _type.name != "UNSPECIFIED", f"cannot convert unspecified type {_type!r}"
+        return BenchType[_type.name]
+    return _type
+
+
 class NodeTree(NodeTreeBase[NT]):
     """An indexed tree of module nodes. Can be either language or data nodes."""
 
     def __init__(self, nodes: Collection[NT] | "NodeTree" = None):
-        self.nodes_by_id: dict[NodeId, NT] = {}
-        self.nodes_by_ck: dict[NodeId, NT] = {}
-        self.node_id_by_parent_id: dict[NodeId, list[NodeId]] = {}
+        self.nodes_by_id: dict[UUID, NT] = {}
+        self.nodes_by_ck: dict[UUID, NT] = {}
+        self.node_id_by_parent_id: dict[UUID, list[UUID]] = {}
         if isinstance(nodes, list):
             for node in nodes or []:
                 self.add(node)
@@ -1674,7 +1707,9 @@ class NodeTree(NodeTreeBase[NT]):
         return NodeTree(self)
 
     def deepcopy(self):
-        nodes = [deepcopy(node) for node in self.nodes]
+        from bench.language.wiring import copy_struct_data
+
+        nodes = [copy_struct_data(node) for node in self.nodes]
         return NodeTree(nodes)
 
     #
@@ -1690,63 +1725,73 @@ class NodeTree(NodeTreeBase[NT]):
     def add(self, node: NT):
         """Add a node to the tree (error if node already exists)"""
         assert node.id is not None, f"cannot add {node!r} to {self!r} without id"
-        if node.id in self.nodes_by_id:
-            existing = self.nodes_by_id[node.id]
+        node_id = to_uuid(node.id)
+        if node_id in self.nodes_by_id:
+            existing = self.nodes_by_id[node_id]
             raise ValueError(
-                f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r} (id={existing.id})"
+                f"node {node!r} (id={node_id}) already exists in {self!r}: {existing!r} (id={existing.id})"
             )
-        self.nodes_by_id[node.id] = node
-        self.nodes_by_ck[node.ck] = node
-        if node.parent_id is not None:
-            if node.parent_id not in self.node_id_by_parent_id:
-                self.node_id_by_parent_id[node.parent_id] = []
-            self.node_id_by_parent_id[node.parent_id].append(node.id)
+        self.nodes_by_id[node_id] = node
+        self.nodes_by_ck[to_uuid(node.ck)] = node
+        parent_id = to_uuid(node.parent_id)
+        if parent_id is not None:
+            if parent_id not in self.node_id_by_parent_id:
+                self.node_id_by_parent_id[parent_id] = []
+            self.node_id_by_parent_id[parent_id].append(node_id)
 
     def update(self, node: NT):
         """Updates a node in this tree (must exist)"""
-        existing = self.nodes_by_id.get(node.id)
+        node_id = to_uuid(node.id)
+        existing = self.nodes_by_id.get(node_id)
         if existing is None:
             raise ValueError(f"node {node!r} does not exist in {self!r}")
-        self.nodes_by_id[node.id] = node
-        self.nodes_by_ck[node.ck] = node
+        self.nodes_by_id[node_id] = node
+        self.nodes_by_ck[to_uuid(node.ck)] = node
         if existing.parent_id is not None:
             self.node_id_by_parent_id[existing.parent_id].remove(existing.id)
-        if node.parent_id is not None:
-            if node.parent_id not in self.node_id_by_parent_id:
-                self.node_id_by_parent_id[node.parent_id] = []
-            if node.id not in self.node_id_by_parent_id[node.parent_id]:
-                self.node_id_by_parent_id[node.parent_id].append(node.id)
+        parent_id = to_uuid(node.parent_id)
+        if parent_id is not None:
+            if parent_id not in self.node_id_by_parent_id:
+                self.node_id_by_parent_id[parent_id] = []
+            if node_id not in self.node_id_by_parent_id[parent_id]:
+                self.node_id_by_parent_id[parent_id].append(node_id)
 
     def replace(self, node: NT):
         """Upsert a node in the tree (replace if node already exists)"""
-        old_node = self.nodes_by_id.get(node.id)
+        node_id = to_uuid(node.id)
+        old_node = self.nodes_by_id.get(node_id)
         if old_node is not None and old_node.parent_id is not None:
-            self.node_id_by_parent_id[old_node.parent_id].remove(node.id)
+            self.node_id_by_parent_id[old_node.parent_id].remove(node_id)
         self.update(node)
 
     def remove(self, node: NT):
         """Remove a node from the tree (incl. all descendants if recursive)"""
         descendants = self.get_descendants(node.id, recursive=True, include_self=True)
         for descendant in descendants:
-            if descendant.id in self.nodes_by_id:
-                self.nodes_by_id.pop(descendant.id)
-            if descendant.ck in self.nodes_by_ck:
-                self.nodes_by_ck.pop(descendant.ck)
-            if descendant.id in self.node_id_by_parent_id:
-                self.node_id_by_parent_id.pop(descendant.id)
-            if descendant.parent_id in self.node_id_by_parent_id:
-                self.node_id_by_parent_id[descendant.parent_id].remove(descendant.id)
+            descendant_id = to_uuid(descendant.id)
+            descendant_ck = to_uuid(descendant.ck)
+            if descendant_id in self.nodes_by_id:
+                self.nodes_by_id.pop(descendant_id)
+            if descendant_ck in self.nodes_by_ck:
+                self.nodes_by_ck.pop(descendant_ck)
+            if descendant_id in self.node_id_by_parent_id:
+                self.node_id_by_parent_id.pop(descendant_id)
+            descendant_parent_id = to_uuid(descendant.parent_id)
+            if descendant_parent_id in self.node_id_by_parent_id:
+                self.node_id_by_parent_id[descendant_parent_id].remove(descendant_id)
 
     def truncate(self, node: NT, node_type: NodeType, recursive: bool = True):
         """Truncate descendants of a node"""
-        descendants = self.get_descendants(node.id, node_type, recursive=recursive)
+        descendants = self.get_descendants(to_uuid(node.id), node_type, recursive=recursive)
         for descendant in descendants:
-            if descendant.id in self.node_id_by_parent_id:
-                self.node_id_by_parent_id.pop(descendant.id)
-            if descendant.parent_id in self.node_id_by_parent_id:
-                self.node_id_by_parent_id[descendant.parent_id].remove(descendant.id)
-            self.nodes_by_id.pop(descendant.id)
-            self.nodes_by_ck.pop(descendant.ck)
+            descendant_id = to_uuid(descendant.id)
+            if descendant_id in self.node_id_by_parent_id:
+                self.node_id_by_parent_id.pop(descendant_id)
+            descendant_parent_id = to_uuid(descendant.parent_id)
+            if descendant_parent_id in self.node_id_by_parent_id:
+                self.node_id_by_parent_id[descendant_parent_id].remove(descendant_id)
+            self.nodes_by_id.pop(descendant_id)
+            self.nodes_by_ck.pop(to_uuid(descendant.ck))
 
     def prune(self, t: type[NT]):
         """Prune all nodes of the given type"""
@@ -1766,19 +1811,22 @@ class NodeTree(NodeTreeBase[NT]):
 
     def remove_tree(self, tree: "NodeTree"):
         for node in tree.nodes_by_id.values():
-            if node.id in self.nodes_by_id:
-                self.nodes_by_id.pop(node.id)
-            if node.ck in self.nodes_by_ck:
-                self.nodes_by_ck.pop(node.ck)
-            if node.id in self.node_id_by_parent_id:
-                self.node_id_by_parent_id.pop(node.id)
+            node_id = to_uuid(node.id)
+            node_ck = to_uuid(node.ck)
+            if node_id in self.nodes_by_id:
+                self.nodes_by_id.pop(node_id)
+            if node_ck in self.nodes_by_ck:
+                self.nodes_by_ck.pop(node_ck)
+            if node_id in self.node_id_by_parent_id:
+                self.node_id_by_parent_id.pop(node_id)
 
     #
     # Read only
     #
 
-    def get(self, node_id: NodeId) -> Optional[NT]:
+    def get(self, node_id: UUID) -> Optional[NT]:
         """Gets a node by id"""
+        assert isinstance(node_id, UUID), f"expected UUID, got {node_id!r}"
         node = self.nodes_by_id.get(node_id)
         return node if node is not None else self.nodes_by_ck.get(node_id)
 
@@ -1793,7 +1841,7 @@ class NodeTree(NodeTreeBase[NT]):
         path = []
         while node:
             path.insert(0, node)
-            node = self.nodes_by_id.get(node.parent_id)
+            node = self.nodes_by_id.get(to_uuid(node.parent_id))
         return path
 
     @property
@@ -1801,7 +1849,7 @@ class NodeTree(NodeTreeBase[NT]):
         return [
             node
             for node in self.nodes_by_id.values()
-            if node.parent_id is None or node.parent_id not in self.nodes_by_id
+            if node.parent_id is None or to_uuid(node.parent_id) not in self.nodes_by_id
         ]
 
     @property
@@ -1819,7 +1867,7 @@ class NodeTree(NodeTreeBase[NT]):
             current_node = queue.popleft()
             num_traversed += 1
             yield current_node
-            for child_id in self.node_id_by_parent_id.get(current_node.id, []):
+            for child_id in self.node_id_by_parent_id.get(to_uuid(current_node.id), []):
                 queue.append(self.nodes_by_id[child_id])
         if roots == self.roots and num_traversed != len(self.nodes_by_id):
             raise ValueError(
@@ -1846,13 +1894,14 @@ class NodeTree(NodeTreeBase[NT]):
 
     def get_descendants(
         self,
-        node_id: NodeId,
+        node_id: UUID,
         node_type: NodeType | None = None,
         recursive: bool = False,
         prefilter: bool = False,
         include_self: bool = False,
     ) -> list["NT"]:
         """Gets all children descendants as filtered in BFS order"""
+        assert isinstance(node_id, UUID), f"expected UUID, got {node_id!r}"
         if node_id in self.nodes_by_id:
             node_id = node_id
         elif node_id in self.nodes_by_ck:
@@ -1862,7 +1911,9 @@ class NodeTree(NodeTreeBase[NT]):
         children = [
             self.nodes_by_id[child_id]
             for child_id in self.node_id_by_parent_id.get(node_id, [])
-            if not node_type or not prefilter or self.nodes_by_id[child_id].metatype == node_type
+            if not node_type
+            or not prefilter
+            or to_bench_metatype(self.nodes_by_id[child_id].metatype) == node_type
         ]
 
         descendants = []
@@ -1877,7 +1928,7 @@ class NodeTree(NodeTreeBase[NT]):
                     self.get_descendants(child.id, node_type, prefilter=prefilter, recursive=True)
                 )
         if not prefilter and node_type:
-            descendants = [n for n in descendants if n.metatype == node_type]
+            descendants = [n for n in descendants if to_bench_metatype(n.metatype) == node_type]
         return descendants
 
     def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
@@ -1894,8 +1945,9 @@ class NodeTree(NodeTreeBase[NT]):
                     )
         return descendants_by_ck.values()
 
-    def get_ancestor(self, node_id: NodeId, node_type: NodeType | None = None) -> Optional["NT"]:
+    def get_ancestor(self, node_id: UUID, node_type: NodeType | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
+        assert isinstance(node_id, UUID), f"expected UUID, got {node_id!r}"
         if node_id in self.nodes_by_id:
             node_id = node_id
         elif node_id in self.nodes_by_ck:
@@ -1904,20 +1956,21 @@ class NodeTree(NodeTreeBase[NT]):
             raise ValueError(f"node {node_id} is not in {self!r}")
         node = self.nodes_by_id.get(node_id)
         while node:
-            if not node_type or node.metatype == node_type:
+            if not node_type or to_bench_metatype(node.metatype) == node_type:
                 return node
             if node.parent_id is None:
                 return None
-            node = self.nodes_by_id[node.parent_id]
+            node = self.nodes_by_id[to_uuid(node.parent_id)]
         return None
 
     def get_ancestors(
         self,
-        node_id: NodeId,
+        node_id: UUID,
         node_type: NodeType | None = None,
         include_self: bool = False,
     ) -> list["NT"]:
         """Finds all ancestors of the given type"""
+        assert isinstance(node_id, UUID), f"expected UUID, got {node_id!r}"
         ancestors = []
         node = self.nodes_by_id.get(node_id)
         if node is None:
@@ -1925,11 +1978,11 @@ class NodeTree(NodeTreeBase[NT]):
         if include_self:
             ancestors.append(node)
         while node:
-            if not node_type or node.metatype == node_type:
+            if not node_type or to_bench_metatype(node.metatype) == node_type:
                 ancestors.append(node)
             if node.parent_id is None:
                 break
-            node = self.nodes_by_id[node.parent_id]
+            node = self.nodes_by_id[to_uuid(node.parent_id)]
         return ancestors
 
 
@@ -1941,8 +1994,8 @@ class DetachedNodeTree(NodeTreeBase[NT]):
     """
 
     def __init__(self):
-        self.nodes_by_ck: dict[NodeId, "Node"] = {}
-        self.nodes_by_parent_ck: dict[NodeId, list[Node]] = defaultdict(list)
+        self.nodes_by_ck: dict[UUID, "Node"] = {}
+        self.nodes_by_parent_ck: dict[UUID, list[Node]] = defaultdict(list)
 
     def __str__(self):
         return f"{len(self.nodes_by_ck)} nodes"
@@ -1954,8 +2007,9 @@ class DetachedNodeTree(NodeTreeBase[NT]):
     def nodes(self) -> Collection[NT]:
         return self.nodes_by_ck.values()
 
-    def get(self, node_ck: NodeId) -> Optional[NT]:
+    def get(self, node_ck: UUID) -> Optional[NT]:
         """Gets a node by id"""
+        assert isinstance(node_ck, UUID), f"expected UUID, got {node_ck!r}"
         return self.nodes_by_ck.get(node_ck)
 
     def __getitem__(self, item):
@@ -1971,22 +2025,25 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
     def add(self, node: "Node"):
         """Add a node to the tree (error if node already exists)"""
-        if node.ck in self.nodes_by_ck and self.nodes_by_ck[node.ck] is not node:
-            raise ValueError(f"node {node!r} (ck={node.ck}) already exists in {self!r}")
-        self.nodes_by_ck[node.ck] = node
+        node_ck = to_uuid(node.ck)
+        if node_ck in self.nodes_by_ck and self.nodes_by_ck[node_ck] is not node:
+            raise ValueError(f"node {node!r} (ck={node_ck}) already exists in {self!r}")
+        self.nodes_by_ck[node_ck] = node
         if node.parent is not None:
             self.nodes_by_parent_ck[node.parent.ck].append(node)
 
     def update(self, node: "Node"):
         """Updates the node in this tree (must exist)"""
-        existing = self.nodes_by_ck.get(node.ck)
+        node_ck = to_uuid(node.ck)
+        node_parent_ck = to_uuid(node.parent.ck)
+        existing = self.nodes_by_ck.get(node_ck)
         if existing is None:
-            raise ValueError(f"node {node!r} (ck={node.ck}) does not exist in {self!r}")
-        self.nodes_by_ck[node.ck] = node
+            raise ValueError(f"node {node!r} (ck={node_ck}) does not exist in {self!r}")
+        self.nodes_by_ck[node_ck] = node
         if existing.parent is not None and existing.parent in self.nodes_by_parent_ck:
             self.nodes_by_parent_ck[existing.parent_id].remove(existing)
-        if node.parent is not None and node not in self.nodes_by_parent_ck[node.parent.ck]:
-            self.nodes_by_parent_ck[node.parent.ck].append(node)
+        if node.parent is not None and node not in self.nodes_by_parent_ck[node_parent_ck]:
+            self.nodes_by_parent_ck[node_parent_ck].append(node)
 
     def add_tree(self, tree: "DetachedNodeTree"):
         assert type(self) == type(tree), f"cannot add {tree!r} to {self!r}"
@@ -1996,18 +2053,19 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
     def remove(self, node: "Node"):
         """Remove a node from the tree (incl. all descendants if recursive)"""
-        descendants = self.get_descendants(node.ck, recursive=True, include_self=True)
+        descendants = self.get_descendants(to_uuid(node.ck), recursive=True, include_self=True)
         for descendant in descendants:
-            if descendant.ck in self.nodes_by_parent_ck:
-                self.nodes_by_parent_ck.pop(descendant.ck)
-            if descendant.parent and descendant.parent.ck in self.nodes_by_parent_ck:
-                self.nodes_by_parent_ck[descendant.parent.ck].remove(descendant)
-            if descendant.ck in self.nodes_by_ck:
-                self.nodes_by_ck.pop(descendant.ck)
+            descendant_ck = to_uuid(descendant.ck)
+            if descendant_ck in self.nodes_by_parent_ck:
+                self.nodes_by_parent_ck.pop(descendant_ck)
+            if descendant.parent and to_uuid(descendant.parent.ck) in self.nodes_by_parent_ck:
+                self.nodes_by_parent_ck[to_uuid(descendant.parent.ck)].remove(descendant)
+            if descendant_ck in self.nodes_by_ck:
+                self.nodes_by_ck.pop(descendant_ck)
 
     def truncate(self, node: "Node", node_type: NodeType):
         """Remove all descendants of a node"""
-        descendants = self.get_descendants(node.ck, node_type, recursive=True)
+        descendants = self.get_descendants(to_uuid(node.ck), node_type, recursive=True)
         for descendant in descendants:
             if descendant.ck in self.nodes_by_parent_ck:
                 self.nodes_by_parent_ck.pop(descendant.ck)
@@ -2017,13 +2075,14 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
     def get_descendants(
         self,
-        node_id: NodeId,
+        node_id: UUID,
         node_type: NodeType | None = None,
         recursive: bool = False,
         prefilter: bool = False,
         include_self: bool = False,
     ) -> list["NT"]:
         """Gets all children descendants as filtered in BFS order"""
+        assert isinstance(node_id, UUID), f"expected UUID, got {node_id!r}"
         children = [
             child
             for child in self.nodes_by_parent_ck.get(node_id, [])
@@ -2035,10 +2094,11 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         descendants.extend(children)
         if recursive:
             for child in children:
-                if child.ck not in self.nodes_by_parent_ck:
+                child_ck = to_uuid(child.ck)
+                if child_ck not in self.nodes_by_parent_ck:
                     continue
                 descendants.extend(
-                    self.get_descendants(child.ck, node_type, prefilter=prefilter, recursive=True)
+                    self.get_descendants(child_ck, node_type, prefilter=prefilter, recursive=True)
                 )
         if not prefilter and node_type:
             descendants = [n for n in descendants if n.metatype == node_type]
@@ -2046,18 +2106,20 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
     def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
         """Gets all descendants in BFS order"""
-        descendants_by_ck: dict[NodeId, NT] = {}
+        descendants_by_ck: dict[UUID, NT] = {}
         children = deque(nodes)
         while children:
             child = children.popleft()
-            if child.ck not in descendants_by_ck:
-                descendants_by_ck[child.ck] = child
-                if child.ck in self.nodes_by_parent_ck:
-                    children.extend(self.nodes_by_parent_ck[child.ck])
+            child_ck = to_uuid(child.ck)
+            if child_ck not in descendants_by_ck:
+                descendants_by_ck[child_ck] = child
+                if child_ck in self.nodes_by_parent_ck:
+                    children.extend(self.nodes_by_parent_ck[child_ck])
         return descendants_by_ck.values()
 
-    def get_ancestor(self, node_id: NodeId, node_type: NodeType | None = None) -> Optional["NT"]:
+    def get_ancestor(self, node_id: UUID, node_type: NodeType | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
+        assert isinstance(node_id, UUID), f"expected UUID, got {node_id!r}"
         node = self.nodes_by_ck.get(node_id)
         if node is None:
             raise ValueError(f"node {node_id} is not in {self!r}")
@@ -3178,6 +3240,10 @@ def complete_setup():
         if isinstance(maybe_bench_t, type) and issubclass(maybe_bench_t, enum.Enum):
             _FINAL_BENCH_TYPES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
     FINAL_BENCH_TYPES = frozenset(_FINAL_BENCH_TYPES_BY_NAME.values())
+    for node_t in NodeType:
+        BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_NODE_TYPE[node_t]
+    for struct_t in StructType:
+        BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_STRUCT_TYPE[struct_t]
 
     # misc finalization on properties
     for cls in chain(get_subclasses(Node), get_subclasses(Struct)):

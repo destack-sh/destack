@@ -362,7 +362,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
     hint: TypeHint | None = struct_property(27, default=None, validate=enum_validator(TypeHint))
     flags: TypeFlag = struct_property(28, default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
     reference: Optional["Statement"] = struct_internal(
-        29, default=None, is_required=False, references=NodeType.STATEMENT
+        29, is_required=False, references=NodeType.STATEMENT
     )
     _reflected: bool = struct_runtime(default=False)
 
