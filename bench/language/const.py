@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 import re
 import typing
+from itertools import chain
 from typing import NamedTuple
 from uuid import UUID
 
@@ -29,10 +30,10 @@ class NodeType(enum.StrEnum):
     # interp
     ISSUE = "ISSUE"
     RESOLVED_FIELD = "RESOLVED_FIELD"
-    # user
-    USER = "USER"
-    COMMENT = "COMMENT"
-    ACCESS = "ACCESS"
+    # user (not used yet)
+    # USER = "USER"
+    # COMMENT = "COMMENT"
+    # ACCESS = "ACCESS"
     # remote
     BLOB = "BLOB"
     SECRET = "SECRET"
@@ -42,11 +43,11 @@ class NodeType(enum.StrEnum):
 
     @property
     def caps_name(self):
-        return NODE_TYPE_CAPS_CASE[self]
+        return BENCH_TYPE_CAPS_CASE[self]
 
     @property
     def camel_name(self):
-        return NODE_TYPE_CAMEL_CASE[self]
+        return BENCH_TYPE_CAMEL_CASE[self]
 
 
 class StructType(enum.StrEnum):
@@ -54,15 +55,24 @@ class StructType(enum.StrEnum):
     RUN_CODE_FRAME = "RUN_CODE_FRAME"
     RUN_ERROR = "RUN_ERROR"
     LOG_ENTRY = "LOG_ENTRY"
-    PROJECTION = "PROJECTION"
     WORKER_SET = "WORKER_SET"
     ENVIRONMENT = "ENVIRONMENT"
+
+    @property
+    def caps_name(self):
+        return BENCH_TYPE_CAPS_CASE[self]
+
+    @property
+    def camel_name(self):
+        return BENCH_TYPE_CAMEL_CASE[self]
 
 
 if typing.TYPE_CHECKING:
     BenchType = NodeType | StructType
 else:
     BenchType = enum.StrEnum("BenchType", {**NodeType.__members__, **StructType.__members__})
+    BenchType.caps_name = NodeType.caps_name
+    BenchType.camel_name = NodeType.camel_name
 
 # local = only stored in user Bench, not host
 LOCAL_NODE_TYPES = (NodeType.RECORD,)
@@ -143,11 +153,11 @@ class SessionAccessLevel(enum.IntEnum):  # SessionAccessLevel
 
 
 NodeType = NodeType
-NODE_TYPE_CAPS_CASE: dict[NodeType, str] = {
-    node_type: to_all_caps(node_type) for node_type in NodeType
+BENCH_TYPE_CAPS_CASE: dict[NodeType | StructType, str] = {
+    _type: to_all_caps(_type) for _type in chain(NodeType, StructType)
 }
-NODE_TYPE_CAMEL_CASE: dict[NodeType, str] = {
-    node_type: to_pyidentifier(node_type, IdentifierType.TYPE) for node_type in NodeType
+BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
+    _type: to_pyidentifier(_type, IdentifierType.TYPE) for _type in chain(NodeType, StructType)
 }
 INTERP_NODE_TYPES = {NodeType.ISSUE, NodeType.RESOLVED_FIELD}
 

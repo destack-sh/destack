@@ -6,7 +6,7 @@ from django.core.management.base import CommandParser
 from django.db import transaction
 
 from bench import models
-from bench.language import wire, wiring
+from bench.language import wiring
 from bench.language.edit import diff_modules
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.module import NodeTree

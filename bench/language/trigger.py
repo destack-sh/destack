@@ -33,7 +33,7 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 class Trigger(Node):
     """A trigger for a statement to run."""
 
-    parent: "Statement" = node_parent(3, NodeType.STATEMENT)
+    parent: "Statement" = node_parent(4, NodeType.STATEMENT)
     type: TriggerType = struct_property(20, is_required=True, validate=enum_validator(TriggerType))
     active: bool = struct_property(21, default=True)
     schedule_type: Optional[ScheduleType] = struct_property(

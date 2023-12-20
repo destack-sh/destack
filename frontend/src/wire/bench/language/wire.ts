@@ -71,6 +71,149 @@ export function aggregationOpToJSON(object: AggregationOp): string {
   }
 }
 
+export enum BenchType {
+  UNSET = 0,
+  MODULE = 1,
+  FILE = 2,
+  STATEMENT = 3,
+  TRIGGER = 4,
+  TAGGING = 5,
+  FIELD = 6,
+  RECORD = 7,
+  VIEW = 8,
+  ISSUE = 9,
+  RESOLVED_FIELD = 10,
+  BLOB = 11,
+  SECRET = 12,
+  SESSION = 13,
+  RUN = 14,
+  EXPRESSION = 15,
+  RUN_CODE_FRAME = 16,
+  RUN_ERROR = 17,
+  LOG_ENTRY = 18,
+  WORKER_SET = 19,
+  ENVIRONMENT = 20,
+}
+
+export function benchTypeFromJSON(object: any): BenchType {
+  switch (object) {
+    case 0:
+    case "BENCH_TYPE_UNSET":
+      return BenchType.UNSET;
+    case 1:
+    case "BENCH_TYPE_MODULE":
+      return BenchType.MODULE;
+    case 2:
+    case "BENCH_TYPE_FILE":
+      return BenchType.FILE;
+    case 3:
+    case "BENCH_TYPE_STATEMENT":
+      return BenchType.STATEMENT;
+    case 4:
+    case "BENCH_TYPE_TRIGGER":
+      return BenchType.TRIGGER;
+    case 5:
+    case "BENCH_TYPE_TAGGING":
+      return BenchType.TAGGING;
+    case 6:
+    case "BENCH_TYPE_FIELD":
+      return BenchType.FIELD;
+    case 7:
+    case "BENCH_TYPE_RECORD":
+      return BenchType.RECORD;
+    case 8:
+    case "BENCH_TYPE_VIEW":
+      return BenchType.VIEW;
+    case 9:
+    case "BENCH_TYPE_ISSUE":
+      return BenchType.ISSUE;
+    case 10:
+    case "BENCH_TYPE_RESOLVED_FIELD":
+      return BenchType.RESOLVED_FIELD;
+    case 11:
+    case "BENCH_TYPE_BLOB":
+      return BenchType.BLOB;
+    case 12:
+    case "BENCH_TYPE_SECRET":
+      return BenchType.SECRET;
+    case 13:
+    case "BENCH_TYPE_SESSION":
+      return BenchType.SESSION;
+    case 14:
+    case "BENCH_TYPE_RUN":
+      return BenchType.RUN;
+    case 15:
+    case "BENCH_TYPE_EXPRESSION":
+      return BenchType.EXPRESSION;
+    case 16:
+    case "BENCH_TYPE_RUN_CODE_FRAME":
+      return BenchType.RUN_CODE_FRAME;
+    case 17:
+    case "BENCH_TYPE_RUN_ERROR":
+      return BenchType.RUN_ERROR;
+    case 18:
+    case "BENCH_TYPE_LOG_ENTRY":
+      return BenchType.LOG_ENTRY;
+    case 19:
+    case "BENCH_TYPE_WORKER_SET":
+      return BenchType.WORKER_SET;
+    case 20:
+    case "BENCH_TYPE_ENVIRONMENT":
+      return BenchType.ENVIRONMENT;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum BenchType");
+  }
+}
+
+export function benchTypeToJSON(object: BenchType): string {
+  switch (object) {
+    case BenchType.UNSET:
+      return "BENCH_TYPE_UNSET";
+    case BenchType.MODULE:
+      return "BENCH_TYPE_MODULE";
+    case BenchType.FILE:
+      return "BENCH_TYPE_FILE";
+    case BenchType.STATEMENT:
+      return "BENCH_TYPE_STATEMENT";
+    case BenchType.TRIGGER:
+      return "BENCH_TYPE_TRIGGER";
+    case BenchType.TAGGING:
+      return "BENCH_TYPE_TAGGING";
+    case BenchType.FIELD:
+      return "BENCH_TYPE_FIELD";
+    case BenchType.RECORD:
+      return "BENCH_TYPE_RECORD";
+    case BenchType.VIEW:
+      return "BENCH_TYPE_VIEW";
+    case BenchType.ISSUE:
+      return "BENCH_TYPE_ISSUE";
+    case BenchType.RESOLVED_FIELD:
+      return "BENCH_TYPE_RESOLVED_FIELD";
+    case BenchType.BLOB:
+      return "BENCH_TYPE_BLOB";
+    case BenchType.SECRET:
+      return "BENCH_TYPE_SECRET";
+    case BenchType.SESSION:
+      return "BENCH_TYPE_SESSION";
+    case BenchType.RUN:
+      return "BENCH_TYPE_RUN";
+    case BenchType.EXPRESSION:
+      return "BENCH_TYPE_EXPRESSION";
+    case BenchType.RUN_CODE_FRAME:
+      return "BENCH_TYPE_RUN_CODE_FRAME";
+    case BenchType.RUN_ERROR:
+      return "BENCH_TYPE_RUN_ERROR";
+    case BenchType.LOG_ENTRY:
+      return "BENCH_TYPE_LOG_ENTRY";
+    case BenchType.WORKER_SET:
+      return "BENCH_TYPE_WORKER_SET";
+    case BenchType.ENVIRONMENT:
+      return "BENCH_TYPE_ENVIRONMENT";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum BenchType");
+  }
+}
+
 export enum BlobStatus {
   UNSET = 0,
   PREPARED = 1,
@@ -741,13 +884,10 @@ export enum NodeType {
   VIEW = 8,
   ISSUE = 9,
   RESOLVED_FIELD = 10,
-  USER = 11,
-  COMMENT = 12,
-  ACCESS = 13,
-  BLOB = 14,
-  SECRET = 15,
-  SESSION = 16,
-  RUN = 17,
+  BLOB = 11,
+  SECRET = 12,
+  SESSION = 13,
+  RUN = 14,
 }
 
 export function nodeTypeFromJSON(object: any): NodeType {
@@ -786,24 +926,15 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case "NODE_TYPE_RESOLVED_FIELD":
       return NodeType.RESOLVED_FIELD;
     case 11:
-    case "NODE_TYPE_USER":
-      return NodeType.USER;
-    case 12:
-    case "NODE_TYPE_COMMENT":
-      return NodeType.COMMENT;
-    case 13:
-    case "NODE_TYPE_ACCESS":
-      return NodeType.ACCESS;
-    case 14:
     case "NODE_TYPE_BLOB":
       return NodeType.BLOB;
-    case 15:
+    case 12:
     case "NODE_TYPE_SECRET":
       return NodeType.SECRET;
-    case 16:
+    case 13:
     case "NODE_TYPE_SESSION":
       return NodeType.SESSION;
-    case 17:
+    case 14:
     case "NODE_TYPE_RUN":
       return NodeType.RUN;
     default:
@@ -835,12 +966,6 @@ export function nodeTypeToJSON(object: NodeType): string {
       return "NODE_TYPE_ISSUE";
     case NodeType.RESOLVED_FIELD:
       return "NODE_TYPE_RESOLVED_FIELD";
-    case NodeType.USER:
-      return "NODE_TYPE_USER";
-    case NodeType.COMMENT:
-      return "NODE_TYPE_COMMENT";
-    case NodeType.ACCESS:
-      return "NODE_TYPE_ACCESS";
     case NodeType.BLOB:
       return "NODE_TYPE_BLOB";
     case NodeType.SECRET:
@@ -1390,9 +1515,8 @@ export enum StructType {
   RUN_CODE_FRAME = 2,
   RUN_ERROR = 3,
   LOG_ENTRY = 4,
-  PROJECTION = 5,
-  WORKER_SET = 6,
-  ENVIRONMENT = 7,
+  WORKER_SET = 5,
+  ENVIRONMENT = 6,
 }
 
 export function structTypeFromJSON(object: any): StructType {
@@ -1413,12 +1537,9 @@ export function structTypeFromJSON(object: any): StructType {
     case "STRUCT_TYPE_LOG_ENTRY":
       return StructType.LOG_ENTRY;
     case 5:
-    case "STRUCT_TYPE_PROJECTION":
-      return StructType.PROJECTION;
-    case 6:
     case "STRUCT_TYPE_WORKER_SET":
       return StructType.WORKER_SET;
-    case 7:
+    case 6:
     case "STRUCT_TYPE_ENVIRONMENT":
       return StructType.ENVIRONMENT;
     default:
@@ -1438,8 +1559,6 @@ export function structTypeToJSON(object: StructType): string {
       return "STRUCT_TYPE_RUN_ERROR";
     case StructType.LOG_ENTRY:
       return "STRUCT_TYPE_LOG_ENTRY";
-    case StructType.PROJECTION:
-      return "STRUCT_TYPE_PROJECTION";
     case StructType.WORKER_SET:
       return "STRUCT_TYPE_WORKER_SET";
     case StructType.ENVIRONMENT:
@@ -2191,6 +2310,7 @@ export function workerSetStatusToJSON(object: WorkerSetStatus): string {
 }
 
 export interface EnvironmentData {
+  Type: BenchType;
   language: string;
   version: string;
   platform: string;
@@ -2198,6 +2318,7 @@ export interface EnvironmentData {
 }
 
 export interface ExpressionData {
+  Type: BenchType;
   op: ExpressionOp;
   fieldCk: string;
   fieldKey: string;
@@ -2207,6 +2328,7 @@ export interface ExpressionData {
 }
 
 export interface LogEntryData {
+  Type: BenchType;
   id: string;
   moduleCk: string;
   createdAt: Date | undefined;
@@ -2221,6 +2343,7 @@ export interface LogEntryData {
 }
 
 export interface RunCodeFrameData {
+  Type: BenchType;
   filename: string;
   lineno: number;
   name: string;
@@ -2229,6 +2352,7 @@ export interface RunCodeFrameData {
 }
 
 export interface RunErrorData {
+  Type: BenchType;
   kind: RunErrorKind;
   type: string;
   message: string;
@@ -2237,6 +2361,7 @@ export interface RunErrorData {
 }
 
 export interface WorkerSetData {
+  Type: BenchType;
   id: string;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
@@ -2253,6 +2378,7 @@ export interface WorkerSetData {
 }
 
 export interface BlobData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2270,6 +2396,7 @@ export interface BlobData {
 }
 
 export interface FieldData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2291,6 +2418,7 @@ export interface FieldData {
 }
 
 export interface FileData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2304,6 +2432,7 @@ export interface FileData {
 }
 
 export interface IssueData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2322,6 +2451,7 @@ export interface IssueData {
 }
 
 export interface ModuleData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2336,6 +2466,7 @@ export interface ModuleData {
 }
 
 export interface BaseNodeData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2348,6 +2479,7 @@ export interface BaseNodeData {
 }
 
 export interface RecordData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2361,6 +2493,7 @@ export interface RecordData {
 }
 
 export interface ResolvedFieldData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2383,6 +2516,7 @@ export interface ResolvedFieldData {
 }
 
 export interface RunData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2408,6 +2542,7 @@ export interface RunData {
 }
 
 export interface SecretData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2421,6 +2556,7 @@ export interface SecretData {
 }
 
 export interface SessionData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2442,6 +2578,7 @@ export interface SessionData {
 }
 
 export interface StatementData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2465,6 +2602,7 @@ export interface StatementData {
 }
 
 export interface TaggingData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2480,6 +2618,7 @@ export interface TaggingData {
 }
 
 export interface TriggerData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2498,6 +2637,7 @@ export interface TriggerData {
 }
 
 export interface ViewData {
+  Type: BenchType;
   id: string;
   ck: string;
   parentId: string;
@@ -2549,11 +2689,14 @@ export interface ModuleTreeData {
 }
 
 function createBaseEnvironmentData(): EnvironmentData {
-  return { language: "", version: "", platform: "", packages: undefined };
+  return { Type: 0, language: "", version: "", platform: "", packages: undefined };
 }
 
 export const EnvironmentData = {
   encode(message: EnvironmentData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.language !== "") {
       writer.uint32(162).string(message.language);
     }
@@ -2576,6 +2719,13 @@ export const EnvironmentData = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.Type = reader.int32() as any;
+          continue;
         case 20:
           if (tag !== 162) {
             break;
@@ -2615,6 +2765,7 @@ export const EnvironmentData = {
 
   fromJSON(object: any): EnvironmentData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       language: isSet(object.language) ? globalThis.String(object.language) : "",
       version: isSet(object.version) ? globalThis.String(object.version) : "",
       platform: isSet(object.platform) ? globalThis.String(object.platform) : "",
@@ -2624,6 +2775,9 @@ export const EnvironmentData = {
 
   toJSON(message: EnvironmentData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.language !== "") {
       obj.language = message.language;
     }
@@ -2644,6 +2798,7 @@ export const EnvironmentData = {
   },
   fromPartial<I extends Exact<DeepPartial<EnvironmentData>, I>>(object: I): EnvironmentData {
     const message = createBaseEnvironmentData();
+    message.Type = object.Type ?? 0;
     message.language = object.language ?? "";
     message.version = object.version ?? "";
     message.platform = object.platform ?? "";
@@ -2653,11 +2808,14 @@ export const EnvironmentData = {
 };
 
 function createBaseExpressionData(): ExpressionData {
-  return { op: 0, fieldCk: "", fieldKey: "", clauses: [], value: undefined, mode: "" };
+  return { Type: 0, op: 0, fieldCk: "", fieldKey: "", clauses: [], value: undefined, mode: "" };
 }
 
 export const ExpressionData = {
   encode(message: ExpressionData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.op !== 0) {
       writer.uint32(168).int32(message.op);
     }
@@ -2686,6 +2844,13 @@ export const ExpressionData = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.Type = reader.int32() as any;
+          continue;
         case 21:
           if (tag !== 168) {
             break;
@@ -2739,6 +2904,7 @@ export const ExpressionData = {
 
   fromJSON(object: any): ExpressionData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       op: isSet(object.op) ? expressionOpFromJSON(object.op) : 0,
       fieldCk: isSet(object.fieldCk) ? globalThis.String(object.fieldCk) : "",
       fieldKey: isSet(object.fieldKey) ? globalThis.String(object.fieldKey) : "",
@@ -2752,6 +2918,9 @@ export const ExpressionData = {
 
   toJSON(message: ExpressionData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.op !== 0) {
       obj.op = expressionOpToJSON(message.op);
     }
@@ -2778,6 +2947,7 @@ export const ExpressionData = {
   },
   fromPartial<I extends Exact<DeepPartial<ExpressionData>, I>>(object: I): ExpressionData {
     const message = createBaseExpressionData();
+    message.Type = object.Type ?? 0;
     message.op = object.op ?? 0;
     message.fieldCk = object.fieldCk ?? "";
     message.fieldKey = object.fieldKey ?? "";
@@ -2790,6 +2960,7 @@ export const ExpressionData = {
 
 function createBaseLogEntryData(): LogEntryData {
   return {
+    Type: 0,
     id: "",
     moduleCk: "",
     createdAt: undefined,
@@ -2806,8 +2977,11 @@ function createBaseLogEntryData(): LogEntryData {
 
 export const LogEntryData = {
   encode(message: LogEntryData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(162).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.moduleCk !== "") {
       writer.uint32(170).string(message.moduleCk);
@@ -2849,8 +3023,15 @@ export const LogEntryData = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
-        case 20:
-          if (tag !== 162) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.Type = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
             break;
           }
 
@@ -2937,6 +3118,7 @@ export const LogEntryData = {
 
   fromJSON(object: any): LogEntryData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       moduleCk: isSet(object.moduleCk) ? globalThis.String(object.moduleCk) : "",
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
@@ -2953,6 +3135,9 @@ export const LogEntryData = {
 
   toJSON(message: LogEntryData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -2994,6 +3179,7 @@ export const LogEntryData = {
   },
   fromPartial<I extends Exact<DeepPartial<LogEntryData>, I>>(object: I): LogEntryData {
     const message = createBaseLogEntryData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.moduleCk = object.moduleCk ?? "";
     message.createdAt = object.createdAt ?? undefined;
@@ -3010,11 +3196,14 @@ export const LogEntryData = {
 };
 
 function createBaseRunCodeFrameData(): RunCodeFrameData {
-  return { filename: "", lineno: 0, name: "", locals: undefined, line: "" };
+  return { Type: 0, filename: "", lineno: 0, name: "", locals: undefined, line: "" };
 }
 
 export const RunCodeFrameData = {
   encode(message: RunCodeFrameData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.filename !== "") {
       writer.uint32(162).string(message.filename);
     }
@@ -3040,6 +3229,13 @@ export const RunCodeFrameData = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.Type = reader.int32() as any;
+          continue;
         case 20:
           if (tag !== 162) {
             break;
@@ -3086,6 +3282,7 @@ export const RunCodeFrameData = {
 
   fromJSON(object: any): RunCodeFrameData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       filename: isSet(object.filename) ? globalThis.String(object.filename) : "",
       lineno: isSet(object.lineno) ? globalThis.Number(object.lineno) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
@@ -3096,6 +3293,9 @@ export const RunCodeFrameData = {
 
   toJSON(message: RunCodeFrameData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.filename !== "") {
       obj.filename = message.filename;
     }
@@ -3119,6 +3319,7 @@ export const RunCodeFrameData = {
   },
   fromPartial<I extends Exact<DeepPartial<RunCodeFrameData>, I>>(object: I): RunCodeFrameData {
     const message = createBaseRunCodeFrameData();
+    message.Type = object.Type ?? 0;
     message.filename = object.filename ?? "";
     message.lineno = object.lineno ?? 0;
     message.name = object.name ?? "";
@@ -3129,11 +3330,14 @@ export const RunCodeFrameData = {
 };
 
 function createBaseRunErrorData(): RunErrorData {
-  return { kind: 0, type: "", message: "", statementCk: "", traceback: [] };
+  return { Type: 0, kind: 0, type: "", message: "", statementCk: "", traceback: [] };
 }
 
 export const RunErrorData = {
   encode(message: RunErrorData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.kind !== 0) {
       writer.uint32(160).int32(message.kind);
     }
@@ -3159,6 +3363,13 @@ export const RunErrorData = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.Type = reader.int32() as any;
+          continue;
         case 20:
           if (tag !== 160) {
             break;
@@ -3205,6 +3416,7 @@ export const RunErrorData = {
 
   fromJSON(object: any): RunErrorData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       kind: isSet(object.kind) ? runErrorKindFromJSON(object.kind) : 0,
       type: isSet(object.type) ? globalThis.String(object.type) : "",
       message: isSet(object.message) ? globalThis.String(object.message) : "",
@@ -3217,6 +3429,9 @@ export const RunErrorData = {
 
   toJSON(message: RunErrorData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.kind !== 0) {
       obj.kind = runErrorKindToJSON(message.kind);
     }
@@ -3240,6 +3455,7 @@ export const RunErrorData = {
   },
   fromPartial<I extends Exact<DeepPartial<RunErrorData>, I>>(object: I): RunErrorData {
     const message = createBaseRunErrorData();
+    message.Type = object.Type ?? 0;
     message.kind = object.kind ?? 0;
     message.type = object.type ?? "";
     message.message = object.message ?? "";
@@ -3251,6 +3467,7 @@ export const RunErrorData = {
 
 function createBaseWorkerSetData(): WorkerSetData {
   return {
+    Type: 0,
     id: "",
     createdAt: undefined,
     updatedAt: undefined,
@@ -3269,8 +3486,11 @@ function createBaseWorkerSetData(): WorkerSetData {
 
 export const WorkerSetData = {
   encode(message: WorkerSetData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -3319,7 +3539,14 @@ export const WorkerSetData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.Type = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
             break;
           }
 
@@ -3420,6 +3647,7 @@ export const WorkerSetData = {
 
   fromJSON(object: any): WorkerSetData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
@@ -3438,6 +3666,9 @@ export const WorkerSetData = {
 
   toJSON(message: WorkerSetData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -3485,6 +3716,7 @@ export const WorkerSetData = {
   },
   fromPartial<I extends Exact<DeepPartial<WorkerSetData>, I>>(object: I): WorkerSetData {
     const message = createBaseWorkerSetData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
@@ -3504,6 +3736,7 @@ export const WorkerSetData = {
 
 function createBaseBlobData(): BlobData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -3523,14 +3756,17 @@ function createBaseBlobData(): BlobData {
 
 export const BlobData = {
   encode(message: BlobData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -3576,21 +3812,28 @@ export const BlobData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -3684,6 +3927,7 @@ export const BlobData = {
 
   fromJSON(object: any): BlobData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -3703,6 +3947,9 @@ export const BlobData = {
 
   toJSON(message: BlobData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -3753,6 +4000,7 @@ export const BlobData = {
   },
   fromPartial<I extends Exact<DeepPartial<BlobData>, I>>(object: I): BlobData {
     const message = createBaseBlobData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -3773,6 +4021,7 @@ export const BlobData = {
 
 function createBaseFieldData(): FieldData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -3796,14 +4045,17 @@ function createBaseFieldData(): FieldData {
 
 export const FieldData = {
   encode(message: FieldData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -3861,21 +4113,28 @@ export const FieldData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -3997,6 +4256,7 @@ export const FieldData = {
 
   fromJSON(object: any): FieldData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -4020,6 +4280,9 @@ export const FieldData = {
 
   toJSON(message: FieldData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -4082,6 +4345,7 @@ export const FieldData = {
   },
   fromPartial<I extends Exact<DeepPartial<FieldData>, I>>(object: I): FieldData {
     const message = createBaseFieldData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -4106,6 +4370,7 @@ export const FieldData = {
 
 function createBaseFileData(): FileData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -4121,14 +4386,17 @@ function createBaseFileData(): FileData {
 
 export const FileData = {
   encode(message: FileData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -4162,21 +4430,28 @@ export const FileData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -4242,6 +4517,7 @@ export const FileData = {
 
   fromJSON(object: any): FileData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -4257,6 +4533,9 @@ export const FileData = {
 
   toJSON(message: FileData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -4295,6 +4574,7 @@ export const FileData = {
   },
   fromPartial<I extends Exact<DeepPartial<FileData>, I>>(object: I): FileData {
     const message = createBaseFileData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -4311,6 +4591,7 @@ export const FileData = {
 
 function createBaseIssueData(): IssueData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -4331,14 +4612,17 @@ function createBaseIssueData(): IssueData {
 
 export const IssueData = {
   encode(message: IssueData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -4387,21 +4671,28 @@ export const IssueData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -4502,6 +4793,7 @@ export const IssueData = {
 
   fromJSON(object: any): IssueData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -4524,6 +4816,9 @@ export const IssueData = {
 
   toJSON(message: IssueData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -4577,6 +4872,7 @@ export const IssueData = {
   },
   fromPartial<I extends Exact<DeepPartial<IssueData>, I>>(object: I): IssueData {
     const message = createBaseIssueData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -4598,6 +4894,7 @@ export const IssueData = {
 
 function createBaseModuleData(): ModuleData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -4614,14 +4911,17 @@ function createBaseModuleData(): ModuleData {
 
 export const ModuleData = {
   encode(message: ModuleData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -4658,21 +4958,28 @@ export const ModuleData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -4745,6 +5052,7 @@ export const ModuleData = {
 
   fromJSON(object: any): ModuleData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -4761,6 +5069,9 @@ export const ModuleData = {
 
   toJSON(message: ModuleData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -4802,6 +5113,7 @@ export const ModuleData = {
   },
   fromPartial<I extends Exact<DeepPartial<ModuleData>, I>>(object: I): ModuleData {
     const message = createBaseModuleData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -4819,6 +5131,7 @@ export const ModuleData = {
 
 function createBaseBaseNodeData(): BaseNodeData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -4833,14 +5146,17 @@ function createBaseBaseNodeData(): BaseNodeData {
 
 export const BaseNodeData = {
   encode(message: BaseNodeData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -4871,21 +5187,28 @@ export const BaseNodeData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -4944,6 +5267,7 @@ export const BaseNodeData = {
 
   fromJSON(object: any): BaseNodeData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -4958,6 +5282,9 @@ export const BaseNodeData = {
 
   toJSON(message: BaseNodeData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -4993,6 +5320,7 @@ export const BaseNodeData = {
   },
   fromPartial<I extends Exact<DeepPartial<BaseNodeData>, I>>(object: I): BaseNodeData {
     const message = createBaseBaseNodeData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -5008,6 +5336,7 @@ export const BaseNodeData = {
 
 function createBaseRecordData(): RecordData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -5023,14 +5352,17 @@ function createBaseRecordData(): RecordData {
 
 export const RecordData = {
   encode(message: RecordData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -5064,21 +5396,28 @@ export const RecordData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -5144,6 +5483,7 @@ export const RecordData = {
 
   fromJSON(object: any): RecordData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -5159,6 +5499,9 @@ export const RecordData = {
 
   toJSON(message: RecordData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -5197,6 +5540,7 @@ export const RecordData = {
   },
   fromPartial<I extends Exact<DeepPartial<RecordData>, I>>(object: I): RecordData {
     const message = createBaseRecordData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -5213,6 +5557,7 @@ export const RecordData = {
 
 function createBaseResolvedFieldData(): ResolvedFieldData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -5237,14 +5582,17 @@ function createBaseResolvedFieldData(): ResolvedFieldData {
 
 export const ResolvedFieldData = {
   encode(message: ResolvedFieldData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -5305,21 +5653,28 @@ export const ResolvedFieldData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -5448,6 +5803,7 @@ export const ResolvedFieldData = {
 
   fromJSON(object: any): ResolvedFieldData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -5472,6 +5828,9 @@ export const ResolvedFieldData = {
 
   toJSON(message: ResolvedFieldData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -5537,6 +5896,7 @@ export const ResolvedFieldData = {
   },
   fromPartial<I extends Exact<DeepPartial<ResolvedFieldData>, I>>(object: I): ResolvedFieldData {
     const message = createBaseResolvedFieldData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -5562,6 +5922,7 @@ export const ResolvedFieldData = {
 
 function createBaseRunData(): RunData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -5589,14 +5950,17 @@ function createBaseRunData(): RunData {
 
 export const RunData = {
   encode(message: RunData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -5666,21 +6030,28 @@ export const RunData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -5830,6 +6201,7 @@ export const RunData = {
 
   fromJSON(object: any): RunData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -5857,6 +6229,9 @@ export const RunData = {
 
   toJSON(message: RunData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -5931,6 +6306,7 @@ export const RunData = {
   },
   fromPartial<I extends Exact<DeepPartial<RunData>, I>>(object: I): RunData {
     const message = createBaseRunData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -5959,6 +6335,7 @@ export const RunData = {
 
 function createBaseSecretData(): SecretData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -5974,14 +6351,17 @@ function createBaseSecretData(): SecretData {
 
 export const SecretData = {
   encode(message: SecretData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -6015,21 +6395,28 @@ export const SecretData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -6095,6 +6482,7 @@ export const SecretData = {
 
   fromJSON(object: any): SecretData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -6110,6 +6498,9 @@ export const SecretData = {
 
   toJSON(message: SecretData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -6148,6 +6539,7 @@ export const SecretData = {
   },
   fromPartial<I extends Exact<DeepPartial<SecretData>, I>>(object: I): SecretData {
     const message = createBaseSecretData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -6164,6 +6556,7 @@ export const SecretData = {
 
 function createBaseSessionData(): SessionData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -6187,14 +6580,17 @@ function createBaseSessionData(): SessionData {
 
 export const SessionData = {
   encode(message: SessionData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -6252,21 +6648,28 @@ export const SessionData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -6388,6 +6791,7 @@ export const SessionData = {
 
   fromJSON(object: any): SessionData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -6411,6 +6815,9 @@ export const SessionData = {
 
   toJSON(message: SessionData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -6473,6 +6880,7 @@ export const SessionData = {
   },
   fromPartial<I extends Exact<DeepPartial<SessionData>, I>>(object: I): SessionData {
     const message = createBaseSessionData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -6497,6 +6905,7 @@ export const SessionData = {
 
 function createBaseStatementData(): StatementData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -6522,14 +6931,17 @@ function createBaseStatementData(): StatementData {
 
 export const StatementData = {
   encode(message: StatementData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -6593,21 +7005,28 @@ export const StatementData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -6743,6 +7162,7 @@ export const StatementData = {
 
   fromJSON(object: any): StatementData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -6768,6 +7188,9 @@ export const StatementData = {
 
   toJSON(message: StatementData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -6836,6 +7259,7 @@ export const StatementData = {
   },
   fromPartial<I extends Exact<DeepPartial<StatementData>, I>>(object: I): StatementData {
     const message = createBaseStatementData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -6862,6 +7286,7 @@ export const StatementData = {
 
 function createBaseTaggingData(): TaggingData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -6879,14 +7304,17 @@ function createBaseTaggingData(): TaggingData {
 
 export const TaggingData = {
   encode(message: TaggingData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -6926,21 +7354,28 @@ export const TaggingData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -7020,6 +7455,7 @@ export const TaggingData = {
 
   fromJSON(object: any): TaggingData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -7037,6 +7473,9 @@ export const TaggingData = {
 
   toJSON(message: TaggingData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -7081,6 +7520,7 @@ export const TaggingData = {
   },
   fromPartial<I extends Exact<DeepPartial<TaggingData>, I>>(object: I): TaggingData {
     const message = createBaseTaggingData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -7099,6 +7539,7 @@ export const TaggingData = {
 
 function createBaseTriggerData(): TriggerData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -7119,14 +7560,17 @@ function createBaseTriggerData(): TriggerData {
 
 export const TriggerData = {
   encode(message: TriggerData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -7175,21 +7619,28 @@ export const TriggerData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -7290,6 +7741,7 @@ export const TriggerData = {
 
   fromJSON(object: any): TriggerData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -7310,6 +7762,9 @@ export const TriggerData = {
 
   toJSON(message: TriggerData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -7363,6 +7818,7 @@ export const TriggerData = {
   },
   fromPartial<I extends Exact<DeepPartial<TriggerData>, I>>(object: I): TriggerData {
     const message = createBaseTriggerData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -7384,6 +7840,7 @@ export const TriggerData = {
 
 function createBaseViewData(): ViewData {
   return {
+    Type: 0,
     id: "",
     ck: "",
     parentId: "",
@@ -7402,14 +7859,17 @@ function createBaseViewData(): ViewData {
 
 export const ViewData = {
   encode(message: ViewData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.Type !== 0) {
+      writer.uint32(8).int32(message.Type);
+    }
     if (message.id !== "") {
-      writer.uint32(10).string(message.id);
+      writer.uint32(18).string(message.id);
     }
     if (message.ck !== "") {
-      writer.uint32(18).string(message.ck);
+      writer.uint32(26).string(message.ck);
     }
     if (message.parentId !== "") {
-      writer.uint32(26).string(message.parentId);
+      writer.uint32(34).string(message.parentId);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
@@ -7452,21 +7912,28 @@ export const ViewData = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1:
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.id = reader.string();
+          message.Type = reader.int32() as any;
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.ck = reader.string();
+          message.id = reader.string();
           continue;
         case 3:
           if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
             break;
           }
 
@@ -7553,6 +8020,7 @@ export const ViewData = {
 
   fromJSON(object: any): ViewData {
     return {
+      Type: isSet(object.Type) ? benchTypeFromJSON(object.Type) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
@@ -7571,6 +8039,9 @@ export const ViewData = {
 
   toJSON(message: ViewData): unknown {
     const obj: any = {};
+    if (message.Type !== 0) {
+      obj.Type = benchTypeToJSON(message.Type);
+    }
     if (message.id !== "") {
       obj.id = message.id;
     }
@@ -7618,6 +8089,7 @@ export const ViewData = {
   },
   fromPartial<I extends Exact<DeepPartial<ViewData>, I>>(object: I): ViewData {
     const message = createBaseViewData();
+    message.Type = object.Type ?? 0;
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
@@ -7629,9 +8101,8 @@ export const ViewData = {
     message.revision = object.revision ?? 0;
     message.name = object.name ?? "";
     message.layout = object.layout ?? 0;
-    message.query = (object.query !== undefined && object.query !== null)
-      ? ExpressionData.fromPartial(object.query)
-      : undefined;
+    message.query =
+      object.query !== undefined && object.query !== null ? ExpressionData.fromPartial(object.query) : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     return message;
   },
@@ -8094,12 +8565,16 @@ export const SomeStructData = {
       };
     }
     if (
-      object.struct?.$case === "runError" && object.struct?.runError !== undefined && object.struct?.runError !== null
+      object.struct?.$case === "runError" &&
+      object.struct?.runError !== undefined &&
+      object.struct?.runError !== null
     ) {
       message.struct = { $case: "runError", runError: RunErrorData.fromPartial(object.struct.runError) };
     }
     if (
-      object.struct?.$case === "logEntry" && object.struct?.logEntry !== undefined && object.struct?.logEntry !== null
+      object.struct?.$case === "logEntry" &&
+      object.struct?.logEntry !== undefined &&
+      object.struct?.logEntry !== null
     ) {
       message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
     }
@@ -8189,9 +8664,8 @@ export const ModuleTreeData = {
   },
   fromPartial<I extends Exact<DeepPartial<ModuleTreeData>, I>>(object: I): ModuleTreeData {
     const message = createBaseModuleTreeData();
-    message.module = (object.module !== undefined && object.module !== null)
-      ? ModuleTreeData.fromPartial(object.module)
-      : undefined;
+    message.module =
+      object.module !== undefined && object.module !== null ? ModuleTreeData.fromPartial(object.module) : undefined;
     message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
     return message;
   },
@@ -8199,15 +8673,21 @@ export const ModuleTreeData = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+  ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U>
+  ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string }
+  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {}
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

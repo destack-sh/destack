@@ -120,7 +120,7 @@ class LogEntry(Struct):
     An entry. In a log.
     """
 
-    id: UUID = struct_internal(20, default_factory=uuid4)
+    id: UUID = struct_internal(2, default_factory=uuid4)
     module: Module = struct_internal(21, references=NodeType.MODULE)
     created_at: datetime = struct_internal(22, default_factory=utcnow_with_tz)
     stream: str = struct_internal(23)
@@ -153,7 +153,7 @@ class WorkerSet(Struct):
     Set of workers to run a Bench's modules.
     """
 
-    id: UUID = struct_internal(1, default_factory=uuid4)
+    id: UUID = struct_internal(2, default_factory=uuid4)
     created_at: datetime = struct_internal(10, default_factory=utcnow_with_tz)
     updated_at: datetime = struct_internal(11, default_factory=utcnow_with_tz)
     project_id: UUID = struct_internal(20)
