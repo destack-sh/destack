@@ -237,7 +237,7 @@ def _bench_enum_to_proto(
         raise TypeError(f"invalid type: {bench_t!r}")
     # add unset if not already present
     if not any(v.id == 0 for v in enum_values):
-        enum_values = [EnumValue(id=0, name=enum_prefix + "UNSET"), *enum_values]
+        enum_values = [EnumValue(id=0, name=enum_prefix + "UNSPECIFIED"), *enum_values]
     has_duplicates = len(enum_values) != len(set(v.id for v in enum_values))
     return Enum(name=alias or bench_t.__name__, values=enum_values, allow_alias=has_duplicates)
 

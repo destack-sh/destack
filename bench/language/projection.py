@@ -58,7 +58,7 @@ class Projection:
         seen_by_ck: dict[UUID, Node] = {}
         for origin in origins:
             parent = origin
-            while parent is not None and parent._type != ancestors_up_to:
+            while parent is not None and parent.metatype != ancestors_up_to:
                 seen_by_ck[parent.ck] = parent
                 parent = parent.parent
 
@@ -93,7 +93,7 @@ class Projection:
 
         seen_by_ck: dict[UUID, Node] = {}
         for node in nodes:
-            if node._type != NodeType.STATEMENT or HasDatabase not in node._components:
+            if node.metatype != NodeType.STATEMENT or HasDatabase not in node._components:
                 continue
             # sort by ck for consistency
             records = (

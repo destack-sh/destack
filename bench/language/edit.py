@@ -254,7 +254,7 @@ class Edit:
     @property
     def scope(self) -> NodeType:
         """The type of node that was edited. Usually the same as node_type except for truncate."""
-        return self.node._type
+        return self.node.metatype
 
     @property
     def node_type(self) -> NodeType:
@@ -295,7 +295,7 @@ class EditData:
 
     @node.setter
     def node(self, node: "AnyNodeData"):
-        self._node_type = node._type
+        self._node_type = node.metatype
         self._node = node
 
     @property
@@ -316,7 +316,7 @@ class EditData:
         return replace(self, type=new_type)
 
     def __str__(self):
-        data_str = f"{self.node._type} {self.node.id} " if self.node else ""
+        data_str = f"{self.node.metatype} {self.node.id} " if self.node else ""
         properties_str = (" [" + ", ".join(self.properties) + "]") if self.properties else ""
         return f"{self.type} {data_str}{self.revision}{properties_str}"
 
@@ -406,21 +406,21 @@ class NodeTreeEditor:
 
     def create(self, node: Union["AnyNodeData", Node]) -> "EditData":
         return self._make_edit(
-            EditType.from_nt(EditKind.CREATE, node._type),
+            EditType.from_nt(EditKind.CREATE, node.metatype),
             node=self._pack_node_flat_if_needed(node),
         )
 
     def update(self, node: Union["AnyNodeData", Node], properties: list[str] = None) -> "EditData":
         assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
         return self._make_edit(
-            type=EditType.from_nt(EditKind.UPDATE, node._type),
+            type=EditType.from_nt(EditKind.UPDATE, node.metatype),
             node=self._pack_node_flat_if_needed(node),
             properties=properties,
         )
 
     def move(self, node: Union["AnyNodeData", Node]) -> "EditData":
         return self._make_edit(
-            type=EditType.from_nt(EditKind.MOVE, node._type),
+            type=EditType.from_nt(EditKind.MOVE, node.metatype),
             node=self._pack_node_flat_if_needed(node),
         )
 
@@ -433,20 +433,22 @@ class NodeTreeEditor:
         self, node: Union["AnyNodeData", Node], deleted_at: datetime | None = None
     ) -> "EditData":
         # sneakily convert soft delete into hard delete for interp types
-        if node._type in INTERP_NODE_TYPES:
+        if node.metatype in INTERP_NODE_TYPES:
             return self.delete(node)
         node = self._pack_node_flat_if_needed(node)
         node.deleted_at = deleted_at or utcnow_with_tz()
-        return self._make_edit(type=EditType.from_nt(EditKind.SOFT_DELETE, node._type), node=node)
+        return self._make_edit(
+            type=EditType.from_nt(EditKind.SOFT_DELETE, node.metatype), node=node
+        )
 
     def restore(self, node: Union["AnyNodeData", Node]) -> "EditData":
         node = self._pack_node_flat_if_needed(node)
         node.deleted_at = None
-        return self._make_edit(type=EditType.from_nt(EditKind.RESTORE, node._type), node=node)
+        return self._make_edit(type=EditType.from_nt(EditKind.RESTORE, node.metatype), node=node)
 
     def delete(self, node: Union["AnyNodeData", Node]) -> "EditData":
         return self._make_edit(
-            type=EditType.from_nt(EditKind.DELETE, node._type),
+            type=EditType.from_nt(EditKind.DELETE, node.metatype),
             node=self._pack_node_flat_if_needed(node),
         )
 
@@ -515,7 +517,7 @@ def diff_modules(
     new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():
-        if new_node._type == NodeType.MODULE:
+        if new_node.metatype == NodeType.MODULE:
             continue  # ignore module itself
         if new_node.id not in old_tree.nodes_by_id:
             old_tree.apply_edit(editor.create(new_node))
@@ -524,7 +526,7 @@ def diff_modules(
             if not new_node.equals_content(old_node):
                 old_tree.apply_edit(editor.update(new_node))
     for old_node in old_tree.walk_bfs():
-        if old_node._type == NodeType.MODULE:
+        if old_node.metatype == NodeType.MODULE:
             continue
         if old_node.id not in new_tree.nodes_by_id:
             old_tree.apply_edit(editor.delete(old_node))
@@ -582,11 +584,11 @@ def render(
                     file = None
                     statement = None
                 for n in descendants:
-                    if n.ck in seen_node_cks or n._type in INTERP_NODE_TYPES:
+                    if n.ck in seen_node_cks or n.metatype in INTERP_NODE_TYPES:
                         continue
                     seen_node_cks.add(n.ck)
                     edit = Edit(
-                        type=EditType(f"CREATE_{n._type.caps_name}"),
+                        type=EditType(f"CREATE_{n.metatype.caps_name}"),
                         module=n.module,
                         node=n,
                         file=file or tree.get_ancestor(n.ck, NodeType.FILE),
@@ -651,7 +653,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
     elif name == "value" and HasValue in node._components and isinstance(value, Mapping):
         value = render_value(
             value,
-            node._type_of_value,
+            node.metatype_of_value,
             get_k=lambda f: f.py_ident,
             filter_v=DEFAULT_VALUE_FILTER,
             ignore_array=True,
@@ -737,11 +739,11 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
             if node.parent and node.parent.ck in nodes_by_ck:
                 attach_to_prop = first(
                     p
-                    for p in node.parent.__list_properties_by_child__[node._type]
+                    for p in node.parent.__list_properties_by_child__[node.metatype]
                     if not p.children_flags & NRel.Flat
                 )
                 parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
-                if node._type in (NodeType.RECORD, NodeType.TAGGING, NodeType.TRIGGER):
+                if node.metatype in (NodeType.RECORD, NodeType.TAGGING, NodeType.TRIGGER):
                     op = _Op(parent_str, _OpType.CREATE, [init_node])
                 else:
                     op = _Op(parent_str, _OpType.APPEND, [init_node])
@@ -777,13 +779,13 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         for node in nodes:
             n, init_name, init_args, init_kwargs = node
             # inline record value (see Record.new)
-            if n._type == NodeType.RECORD:
+            if n.metatype == NodeType.RECORD:
                 from bench.language.packer import render_value
 
                 kwargs_str = _sep(
-                    f"{k}={render_value(v, n._type_of_value.resolved_fields.get(k), filter_v=DEFAULT_VALUE_FILTER)}"
+                    f"{k}={render_value(v, n.metatype_of_value.resolved_fields.get(k), filter_v=DEFAULT_VALUE_FILTER)}"
                     for k, v in n.value.items()
-                    if v and DEFAULT_VALUE_FILTER(v, n._type_of_value.resolved_fields.get(k))
+                    if v and DEFAULT_VALUE_FILTER(v, n.metatype_of_value.resolved_fields.get(k))
                 )
                 nodes_strs.append(f"Record.new({_sep(kwargs_str)})")
                 continue

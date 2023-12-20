@@ -345,7 +345,9 @@ def unpack_nodes(
     ancestors_by_id = {project_v.id: project_v}
     for node in nodes:
         # runs aren't technically detached but sessions (their parents) are
-        detached = NODE_CLASS_BY_NODE_TYPE[node._type].__is_detached__ or node._type == NodeType.RUN
+        detached = (
+            NODE_CLASS_BY_NODE_TYPE[node.metatype].__is_detached__ or node.metatype == NodeType.RUN
+        )
         # node may be detached or ancestor may already be unpacked
         if not detached and node.parent_id not in ancestors_by_id:
             ancestors = module.get_ancestors(node.parent_id, include_self=True)
@@ -380,6 +382,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
 
     def pack(self, module: models.ProjectVersion) -> wire.ModuleData:
         return wire.ModuleData(
+            metatype=wire.BenchType.MODULE,
             id=module.id,
             ck=module.project_id,
             name=module.project.path,
@@ -404,6 +407,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
 
     def pack(self, file: models.File) -> wire.FileData:
         return wire.FileData(
+            metatype=wire.BenchType.FILE,
             id=file.id,
             ck=file.ck,
             parent_id=file.project_version_id if file.parent_id is None else file.parent_id,
@@ -446,6 +450,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
 
     def pack(self, statement: models.Statement) -> wire.StatementData:
         return wire.StatementData(
+            metatype=wire.BenchType.STATEMENT,
             id=statement.id,
             ck=statement.ck,
             parent_id=statement.parent_id,
@@ -497,6 +502,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
 class FieldPacker(NodePacker[wire.FieldData, models.Field]):
     def pack(self, field: models.Field) -> wire.FieldData:
         return wire.FieldData(
+            metatype=wire.BenchType.FIELD,
             id=field.id,
             ck=field.ck,
             parent_id=field.statement_id,
@@ -539,6 +545,7 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
 class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
     def pack(self, trigger: models.Trigger) -> wire.TriggerData:
         return wire.TriggerData(
+            metatype=wire.BenchType.TRIGGER,
             id=trigger.id,
             ck=trigger.ck,
             parent_id=trigger.statement_id,
@@ -575,6 +582,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
 class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
     def pack(self, tagging: models.Tagging) -> wire.TaggingData:
         return wire.TaggingData(
+            metatype=wire.BenchType.TAGGING,
             id=tagging.id,
             ck=tagging.ck,
             parent_id=tagging.statement_id,
@@ -608,6 +616,7 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
 class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
     def pack(self, issue: models.Issue) -> wire.IssueData:
         return wire.IssueData(
+            metatype=wire.BenchType.ISSUE,
             id=issue.id,
             ck=issue.ck,
             parent_id=issue.parent_statement_id or issue.parent_file_id or issue.project_version_id,
@@ -649,6 +658,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
 class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedField]):
     def pack(self, resolved_field: models.ResolvedField) -> wire.ResolvedFieldData:
         return wire.ResolvedFieldData(
+            metatype=wire.BenchType.RESOLVED_FIELD,
             id=resolved_field.id,
             ck=resolved_field.ck,
             parent_id=resolved_field.statement_id,
@@ -728,6 +738,7 @@ def unpack_struct(data: DataT) -> ModelT:
 class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
     def pack(self, data: models.Blob) -> wire.BlobData:
         return wire.BlobData(
+            metatype=wire.BenchType.BLOB,
             id=data.id,
             ck=data.ck,
             created_at=data.created_at,
@@ -765,6 +776,7 @@ class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
 class SecretPacker(NodePacker[wire.SecretData, models.Secret]):
     def pack(self, data: models.Secret) -> wire.SecretData:
         return wire.SecretData(
+            metatype=wire.BenchType.SECRET,
             id=data.id,
             ck=data.ck,
             created_at=data.created_at,
@@ -797,6 +809,7 @@ class SecretPacker(NodePacker[wire.SecretData, models.Secret]):
 class SessionPacker(NodePacker[wire.SessionData, models.Session]):
     def pack(self, data: models.Session) -> wire.SessionData:
         return wire.SessionData(
+            metatype=wire.BenchType.SESSION,
             id=data.id,
             ck=data.ck,
             created_at=data.created_at,
@@ -846,6 +859,7 @@ class SessionPacker(NodePacker[wire.SessionData, models.Session]):
 class RunPacker(NodePacker[wire.RunData, models.Run]):
     def pack(self, model: models.Run) -> wire.RunData:
         return wire.RunData(
+            metatype=wire.BenchType.RUN,
             id=model.id,
             ck=model.ck,
             project_id=model.project_id,
@@ -925,6 +939,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
 class WorkerSetPacker(StructPacker[wire.WorkerSetData, models.WorkerSet]):
     def pack(self, model: models.WorkerSet) -> wire.WorkerSetData:
         return wire.WorkerSetData(
+            metatype=wire.BenchType.WORKER_SET,
             id=model.id,
             project_id=model.project_id,
             region=model.region,
