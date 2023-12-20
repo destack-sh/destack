@@ -17,7 +17,7 @@ from bench.language.const import (
     TypeStorageFormat,
     TypeTag,
 )
-from bench.language.module import Node, Struct, struct, struct_property, TYPE_DISCRIMINATOR_PROPERTY
+from bench.language.module import Node, Struct, struct, struct_property
 from bench.sql.core import ColumnType
 from bench.utils.utils import to_camel_case
 
@@ -320,7 +320,7 @@ S = functools.partial(E, _expect_t=ExpressionKind.SORT)
 A = functools.partial(E, _expect_t=ExpressionKind.AGGREGATION)
 
 SCORE_KEY = "_score"  # for ranking
-TYPE_DISCRIMINATOR_KEY = TYPE_DISCRIMINATOR_PROPERTY.name
+TYPE_DISCRIMINATOR_KEY = "_type"
 
 
 #

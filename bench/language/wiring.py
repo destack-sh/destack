@@ -1,3 +1,4 @@
+import enum
 from collections import OrderedDict
 from typing import Any, Union
 from uuid import UUID
@@ -6,7 +7,7 @@ import betterproto
 import structlog
 
 from bench.language import Session, wire
-from bench.language.const import BenchType, NodeType
+from bench.language.const import BenchType, NodeType, StructType
 from bench.language.module import (
     NODE_CLASS_BY_NODE_TYPE,
     STRUCT_CLASS_BY_STRUCT_TYPE,
@@ -29,6 +30,19 @@ AnyStructData = Union[wire.StructType]
 PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
     _type: getattr(wire, _type.camel_name + "Data") for _type in BenchType
 }
+
+
+def to_uuid(id: str | UUID | None) -> UUID | None:
+    if not id:
+        return None  # ignore empty strings
+    if isinstance(id, str):
+        try:
+            return UUID(id)
+        except ValueError as e:
+            raise ValueError(f"invalid UUID: {id!r}") from e
+    if isinstance(id, UUID):
+        return id
+    raise TypeError(f"unexpected id type: {id!r}")
 
 
 def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
@@ -55,16 +69,20 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.is_struct:
         return unpack_struct(value)
     elif prop.is_enum:
-        return prop.py_type_raw(value)
+        if isinstance(value, int):
+            return prop.py_type_raw(value)
+        elif value.name == "UNSPECIFIED":
+            return None  # revert to default
+        return prop.py_type_raw[value.name]
     elif prop.store_as == ColumnType.UUID:
-        return str(value)  # uuids are wired as strings
+        return to_uuid(value)  # uuids are wired as strings
     else:
         return value
 
 
 def pack_struct(struct: Struct) -> AnyStructData:
     """Pack a struct and any contained structs."""
-    data_cls = PROTO_CLASS_BY_TYPE[struct._type]
+    data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
     data_kwargs = {}
     for prop in struct.__stored_properties__.values():
         value = getattr(struct, prop.name)
@@ -72,18 +90,20 @@ def pack_struct(struct: Struct) -> AnyStructData:
     return data_cls(**data_kwargs)
 
 
-def unpack_struct(struct: AnyStructData) -> Struct:
+def unpack_struct(data: AnyStructData) -> Struct:
     """Unpack a struct and any contained structs."""
-    struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[struct._type]
+    struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[StructType(data.metatype.name)]
     struct_kwargs = {}
-    for prop in struct.__stored_properties__.values():
-        value = getattr(struct, prop.name)
+    for prop in data.__stored_properties__.values():
+        if prop.is_computed:
+            continue
+        value = getattr(data, prop.name)
         struct_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
     return struct_cls(**struct_kwargs)
 
 
 def pack_node(node: Node) -> AnyNodeData:
-    node_cls = PROTO_CLASS_BY_TYPE[node._type]
+    node_cls = PROTO_CLASS_BY_TYPE[node.metatype]
     node_kwargs = {}
     for prop in node.__stored_properties__.values():
         value = getattr(node, prop.name)
@@ -92,9 +112,11 @@ def pack_node(node: Node) -> AnyNodeData:
 
 
 def unpack_node(data: AnyNodeData, parent: Node, session: Session | None) -> Node:
-    node_cls = NODE_CLASS_BY_NODE_TYPE[data._type]
+    node_cls = NODE_CLASS_BY_NODE_TYPE[NodeType(data.metatype.name)]
     node_kwargs = {}
     for prop in node_cls.__stored_properties__.values():
+        if prop.is_computed:
+            continue
         value = getattr(data, prop.name)
         node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
     return node_cls(**node_kwargs, parent=parent, _session=session)
@@ -109,7 +131,7 @@ def pack_node_inline(
 
     to_pack = root._local_root_tree.get_descendants(root.ck, include_self=True, recursive=True)
     for node in to_pack:
-        if node._type in exclude:
+        if node.metatype in exclude:
             continue
         packed_by_id[node.ck] = pack_node(node)
 
@@ -127,21 +149,22 @@ def unpack_node_inline(
 
     # unpack all nodes top down (breadth first)
     for node_data in source_tree.walk_bfs():
-        if node_data.node_type in exclude:
+        if node_data.metatype in exclude:
             continue
 
-        if node_data.parent_id is None:
+        parent_id = to_uuid(node_data.parent_id)
+        if parent_id is None:
             node_parent = parent
-        elif node_data.parent_id not in unpacked_tree.nodes_by_id:
-            if parent is not None and node_data.parent_id == parent.id:
+        elif parent_id not in unpacked_tree.nodes_by_id:
+            if parent is not None and parent_id == parent.id:
                 node_parent = parent
             else:
                 logger.warn(
-                    f"node {node_data!r} parent {node_data.parent_id} not found in unpacked {unpacked_tree!r}"
+                    f"node {node_data.id} parent {parent_id} not found in unpacked {unpacked_tree!r}"
                 )
                 continue  # can happen if there was a race condition in delete cascade and create
         else:
-            node_parent = unpacked_tree.nodes_by_id[UUID(node_data.parent_id)]
+            node_parent = unpacked_tree.nodes_by_id[parent_id]
         node = unpack_node(node_data, node_parent, session=session)
 
         # keep parent instance if it was passed (update in place)
@@ -174,7 +197,7 @@ def unpack_node_inline(
 
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
     """Wraps a concrete node type into a generic node message."""
-    field_name = to_snake_case(node._type)
+    field_name = to_snake_case(node.metatype)
     wrapper = wire.SomeNodeData()
     setattr(wrapper, field_name, node)
     return wrapper

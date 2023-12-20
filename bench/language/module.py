@@ -68,6 +68,7 @@ if TYPE_CHECKING:
     from bench.language import Expression, Field, File, Issue, NodeVisitor, Session
     from bench.language.edit import EditData
     from bench.language.issue import IssueHandler
+    from bench.language.wiring import AnyNodeData
 
 logger = structlog.get_logger(__name__)
 
@@ -619,6 +620,7 @@ def struct_runtime(
         is_internal=True,
         is_runtime=True,
         is_required=False,
+        is_stored=False,
         default=default,
         default_factory=default_factory,
         custom_copy=copy,
@@ -666,6 +668,7 @@ def node_children(
         is_required=True,
         default=None,  # set in our custom init
         list_type=custom_list or NodeList,
+        is_stored=False,
         alias=alias,
     )
 
@@ -720,10 +723,9 @@ _FORBIDDEN_NODE_METHODS = (
     + ["__post_init__", "__del__"]
 )
 NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
-STRUCT_CLASS_BY_STRUCT_TYPE: dict[StructType, type["Struct"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
-STRUCT_TYPE_BY_STRUCT_CLASS: dict[type["Struct"], StructType] = {}
-NODE_TYPE_BY_NODE_CLASS: dict[type["Node"], NodeType] = {}
+STRUCT_CLASS_BY_STRUCT_TYPE: dict[StructType, type["Struct"]] = {}
+BENCH_CLASS_BY_BENCH_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
 _COMPONENT_METHODS: dict[[ComponentMethod, type["Node"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
     "Node",
@@ -763,7 +765,7 @@ def _get_component_methods(
 
 TYPE_DISCRIMINATOR_PROPERTY = Property(
     id=1,
-    name="_type",
+    name="metatype",
     default=None,
     py_type_raw=BenchType,
     is_internal=True,
@@ -914,7 +916,6 @@ def _process_struct_base_cls(
     cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
     cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
-    cls.__stored_properties__ = frozendict({p.name: p for p in props if p.is_stored})
 
     return cls, properties_by_name
 
@@ -931,11 +932,10 @@ def struct_component(
 
     def decorate(cls):
         cls, properties = _process_struct_base_cls(cls=cls, reserved=reserved)
-        cls._type = struct_type
 
         # register struct
         if struct_type:
-            cls._type = struct_type
+            cls.metatype = struct_type
             if struct_type in STRUCT_CLASS_BY_STRUCT_TYPE:
                 raise ValueError(
                     f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_STRUCT_TYPE[struct_type]}"
@@ -997,7 +997,7 @@ def node_component(
 
         # register as concrete node class for node_type
         if node_type:
-            cls._type = node_type
+            cls.metatype = node_type
             if node_type in NODE_CLASS_BY_NODE_TYPE:
                 raise ValueError(
                     f"node class conflict for {node_type}: {cls}, {NODE_CLASS_BY_NODE_TYPE[node_type]}"
@@ -1044,7 +1044,7 @@ def _node_ancestor_prop(prop: Property) -> property:
         def get_nearest(self: NodeT) -> Optional[NodeT]:
             parent = self if prop.is_ancestor_self else self.parent
             while parent is not None:
-                if parent._type == prop.ancestor_node_type:
+                if parent.metatype == prop.ancestor_node_type:
                     return parent
                 if parent.__is_detached__:
                     parent = parent.module
@@ -1059,7 +1059,7 @@ def _node_ancestor_prop(prop: Property) -> property:
             parent = self if prop.is_ancestor_self else self.parent
             farthest = None
             while parent is not None:
-                if parent._type == prop.ancestor_node_type:
+                if parent.metatype == prop.ancestor_node_type:
                     farthest = parent
                 if parent.__is_detached__:
                     parent = parent.module
@@ -1142,7 +1142,7 @@ class _ChangeEffect:
         assert from_parent or to_parent, f"cannot create update on {changed!r} without parent"
 
         # collect ancestors to update their affected node lists
-        affected_node_types = set([n._type for n in changed])
+        affected_node_types = set([n.metatype for n in changed])
         ancestors = []
         if level >= _NC.UpdateLists:
             parent = from_parent
@@ -1166,7 +1166,7 @@ class _ChangeEffect:
                         )
                     )
             # filter out interp types
-            affected_nodes = [n for n in affected_nodes if n._type not in INTERP_NODE_TYPES]
+            affected_nodes = [n for n in affected_nodes if n.metatype not in INTERP_NODE_TYPES]
         else:
             affected_nodes = None
 
@@ -1506,7 +1506,7 @@ class NodeList(NodeListBase[NodeT]):
         if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
             return self.get(obj) is not None
         elif isinstance(obj, Node):
-            if obj._type != self._property.child_node_type:
+            if obj.metatype != self._property.child_node_type:
                 raise TypeError(f"{self!r} cannot contain {obj!r}")
             return obj in self._nodes
         else:
@@ -1562,12 +1562,15 @@ def walk_bfs(nodes: Collection[NT]) -> Iterator[NT]:
         queue.extend(nodes_by_parent_id[node.id])
 
 
+NodeId = UUID | str
+
+
 class NodeTreeBase(abc.ABC, typing.Generic[NT]):
     @property
     def nodes(self) -> Collection[NT]:
         raise NotImplementedError
 
-    def get(self, node_id_or_ck: UUID) -> Optional[NT]:
+    def get(self, node_id: NodeId) -> Optional[NT]:
         """Gets a node by id or ck"""
         raise NotImplementedError
 
@@ -1613,7 +1616,7 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
 
     def get_descendants(
         self,
-        node_id_or_ck: UUID,
+        node_id: NodeId,
         node_type: NodeType | None = None,
         recursive: bool = False,
         prefilter: bool = False,
@@ -1626,9 +1629,7 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
         """Gets all descendants in BFS order"""
         raise NotImplementedError
 
-    def get_ancestor(
-        self, node_id_or_ck: UUID, node_type: NodeType | None = None
-    ) -> Optional["NT"]:
+    def get_ancestor(self, node_id: NodeId, node_type: NodeType | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
         raise NotImplementedError
 
@@ -1650,9 +1651,9 @@ class NodeTree(NodeTreeBase[NT]):
     """An indexed tree of module nodes. Can be either language or data nodes."""
 
     def __init__(self, nodes: Collection[NT] | "NodeTree" = None):
-        self.nodes_by_id: dict[UUID, NT] = {}
-        self.nodes_by_ck: dict[UUID, NT] = {}
-        self.node_id_by_parent_id: dict[UUID, list[UUID]] = {}
+        self.nodes_by_id: dict[NodeId, NT] = {}
+        self.nodes_by_ck: dict[NodeId, NT] = {}
+        self.node_id_by_parent_id: dict[NodeId, list[NodeId]] = {}
         if isinstance(nodes, list):
             for node in nodes or []:
                 self.add(node)
@@ -1756,7 +1757,7 @@ class NodeTree(NodeTreeBase[NT]):
     def add_tree(self, tree: Union["NodeTree", "DetachedNodeTree"]):
         if isinstance(tree, DetachedNodeTree):
             for node in tree.nodes_by_ck.values():
-                if node._type != NodeType.RECORD:  # remove hoisted records :TempRecordTree
+                if node.metatype != NodeType.RECORD:  # remove hoisted records :TempRecordTree
                     self.add(node)
         else:
             self.nodes_by_id.update(tree.nodes_by_id)
@@ -1776,10 +1777,10 @@ class NodeTree(NodeTreeBase[NT]):
     # Read only
     #
 
-    def get(self, node_id_or_ck: UUID) -> Optional[NT]:
+    def get(self, node_id: NodeId) -> Optional[NT]:
         """Gets a node by id"""
-        node = self.nodes_by_id.get(node_id_or_ck)
-        return node if node is not None else self.nodes_by_ck.get(node_id_or_ck)
+        node = self.nodes_by_id.get(node_id)
+        return node if node is not None else self.nodes_by_ck.get(node_id)
 
     def __getitem__(self, item):
         return self.get(item)
@@ -1845,23 +1846,23 @@ class NodeTree(NodeTreeBase[NT]):
 
     def get_descendants(
         self,
-        node_id_or_ck: UUID,
+        node_id: NodeId,
         node_type: NodeType | None = None,
         recursive: bool = False,
         prefilter: bool = False,
         include_self: bool = False,
     ) -> list["NT"]:
         """Gets all children descendants as filtered in BFS order"""
-        if node_id_or_ck in self.nodes_by_id:
-            node_id = node_id_or_ck
-        elif node_id_or_ck in self.nodes_by_ck:
-            node_id = self.nodes_by_ck[node_id_or_ck].id
+        if node_id in self.nodes_by_id:
+            node_id = node_id
+        elif node_id in self.nodes_by_ck:
+            node_id = self.nodes_by_ck[node_id].id
         else:
-            raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
+            raise ValueError(f"node {node_id} is not in {self!r}")
         children = [
             self.nodes_by_id[child_id]
             for child_id in self.node_id_by_parent_id.get(node_id, [])
-            if not node_type or not prefilter or self.nodes_by_id[child_id]._type == node_type
+            if not node_type or not prefilter or self.nodes_by_id[child_id].metatype == node_type
         ]
 
         descendants = []
@@ -1876,7 +1877,7 @@ class NodeTree(NodeTreeBase[NT]):
                     self.get_descendants(child.id, node_type, prefilter=prefilter, recursive=True)
                 )
         if not prefilter and node_type:
-            descendants = [n for n in descendants if n._type == node_type]
+            descendants = [n for n in descendants if n.metatype == node_type]
         return descendants
 
     def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
@@ -1893,19 +1894,17 @@ class NodeTree(NodeTreeBase[NT]):
                     )
         return descendants_by_ck.values()
 
-    def get_ancestor(
-        self, node_id_or_ck: UUID, node_type: NodeType | None = None
-    ) -> Optional["NT"]:
+    def get_ancestor(self, node_id: NodeId, node_type: NodeType | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
-        if node_id_or_ck in self.nodes_by_id:
-            node_id = node_id_or_ck
-        elif node_id_or_ck in self.nodes_by_ck:
-            node_id = self.nodes_by_ck[node_id_or_ck].id
+        if node_id in self.nodes_by_id:
+            node_id = node_id
+        elif node_id in self.nodes_by_ck:
+            node_id = self.nodes_by_ck[node_id].id
         else:
-            raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
+            raise ValueError(f"node {node_id} is not in {self!r}")
         node = self.nodes_by_id.get(node_id)
         while node:
-            if not node_type or node._type == node_type:
+            if not node_type or node.metatype == node_type:
                 return node
             if node.parent_id is None:
                 return None
@@ -1914,7 +1913,7 @@ class NodeTree(NodeTreeBase[NT]):
 
     def get_ancestors(
         self,
-        node_id: UUID,
+        node_id: NodeId,
         node_type: NodeType | None = None,
         include_self: bool = False,
     ) -> list["NT"]:
@@ -1926,7 +1925,7 @@ class NodeTree(NodeTreeBase[NT]):
         if include_self:
             ancestors.append(node)
         while node:
-            if not node_type or node._type == node_type:
+            if not node_type or node.metatype == node_type:
                 ancestors.append(node)
             if node.parent_id is None:
                 break
@@ -1942,8 +1941,8 @@ class DetachedNodeTree(NodeTreeBase[NT]):
     """
 
     def __init__(self):
-        self.nodes_by_ck: dict[UUID, "Node"] = {}
-        self.nodes_by_parent_ck: dict[UUID, list[Node]] = defaultdict(list)
+        self.nodes_by_ck: dict[NodeId, "Node"] = {}
+        self.nodes_by_parent_ck: dict[NodeId, list[Node]] = defaultdict(list)
 
     def __str__(self):
         return f"{len(self.nodes_by_ck)} nodes"
@@ -1955,7 +1954,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
     def nodes(self) -> Collection[NT]:
         return self.nodes_by_ck.values()
 
-    def get(self, node_ck: UUID) -> Optional[NT]:
+    def get(self, node_ck: NodeId) -> Optional[NT]:
         """Gets a node by id"""
         return self.nodes_by_ck.get(node_ck)
 
@@ -2018,7 +2017,7 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
     def get_descendants(
         self,
-        node_id_or_ck: UUID,
+        node_id: NodeId,
         node_type: NodeType | None = None,
         recursive: bool = False,
         prefilter: bool = False,
@@ -2027,12 +2026,12 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         """Gets all children descendants as filtered in BFS order"""
         children = [
             child
-            for child in self.nodes_by_parent_ck.get(node_id_or_ck, [])
-            if not node_type or not prefilter or child._type == node_type
+            for child in self.nodes_by_parent_ck.get(node_id, [])
+            if not node_type or not prefilter or child.metatype == node_type
         ]
         descendants = []
         if include_self:
-            descendants.append(self.nodes_by_ck[node_id_or_ck])
+            descendants.append(self.nodes_by_ck[node_id])
         descendants.extend(children)
         if recursive:
             for child in children:
@@ -2042,12 +2041,12 @@ class DetachedNodeTree(NodeTreeBase[NT]):
                     self.get_descendants(child.ck, node_type, prefilter=prefilter, recursive=True)
                 )
         if not prefilter and node_type:
-            descendants = [n for n in descendants if n._type == node_type]
+            descendants = [n for n in descendants if n.metatype == node_type]
         return descendants
 
     def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
         """Gets all descendants in BFS order"""
-        descendants_by_ck: dict[UUID, NT] = {}
+        descendants_by_ck: dict[NodeId, NT] = {}
         children = deque(nodes)
         while children:
             child = children.popleft()
@@ -2057,15 +2056,13 @@ class DetachedNodeTree(NodeTreeBase[NT]):
                     children.extend(self.nodes_by_parent_ck[child.ck])
         return descendants_by_ck.values()
 
-    def get_ancestor(
-        self, node_id_or_ck: UUID, node_type: NodeType | None = None
-    ) -> Optional["NT"]:
+    def get_ancestor(self, node_id: NodeId, node_type: NodeType | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type (including self)"""
-        node = self.nodes_by_ck.get(node_id_or_ck)
+        node = self.nodes_by_ck.get(node_id)
         if node is None:
-            raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
+            raise ValueError(f"node {node_id} is not in {self!r}")
         while node:
-            if not node_type or node._type == node_type:
+            if not node_type or node.metatype == node_type:
                 return node
             if node.parent is None:
                 return None
@@ -2137,7 +2134,7 @@ class Struct(abc.ABC):
     Will activate, track, etc. when we start using these in nodes.
     """
 
-    _type: ClassVar[StructType]  # type discriminator is field 0 if needed?
+    metatype: ClassVar[StructType]  # type discriminator is field 0 if needed?
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __properties__: ClassVar[dict[str, Property]] = {}
@@ -2277,7 +2274,7 @@ class Node(Struct):
     The id is derived from the module id, so it's only assigned when the node is attached.
     """
 
-    _type: ClassVar[NodeType]  # type discriminator is field 0 if needed?
+    metatype: ClassVar[NodeType]  # type discriminator is field 0 if needed?
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __properties__: ClassVar[dict[str, Property]] = {}
@@ -2879,8 +2876,8 @@ class ModuleChange:
     all_edits: list["EditData"] = dataclasses.field(init=False)
 
     def __post_init__(self):
-        self.touched_types = {n._type for n in self.touched} | {
-            n.type for n in self.touched if n._type == NodeType.STATEMENT
+        self.touched_types = {n.metatype for n in self.touched} | {
+            n.type for n in self.touched if n.metatype == NodeType.STATEMENT
         }
         self.all_edits = self.source_edits + self.interp_edits
 
@@ -3107,7 +3104,7 @@ class Module(ScopeNode):
         for n in new_nodes.values():
             if n.ck in old_source.nodes_by_ck:
                 if (
-                    n._type not in INTERP_NODE_TYPES
+                    n.metatype not in INTERP_NODE_TYPES
                     and n.revision != old_source.nodes_by_ck[n.ck].revision
                 ):
                     updated.append(n)
@@ -3119,7 +3116,7 @@ class Module(ScopeNode):
         old_editor = NodeTreeEditor(old_source, self._project_id, self.id)
         for node in removed:
             # :InterpEditFilter
-            if node._type in INTERP_NODE_TYPES:
+            if node.metatype in INTERP_NODE_TYPES:
                 if node.ck not in old_source.nodes_by_ck:
                     # need to investigate
                     logger.warning(f"node {node!r} not found in old source for {self!r}")
@@ -3128,7 +3125,7 @@ class Module(ScopeNode):
                 old_editor.delete(old_source.nodes_by_ck[node.ck])
         new_editor = NodeTreeEditor(self._source, self._project_id, self.id)
         for node in added:
-            if node._type in INTERP_NODE_TYPES:
+            if node.metatype in INTERP_NODE_TYPES:
                 new_editor.create(node)
 
         return ModuleChange(
@@ -3144,8 +3141,9 @@ class Module(ScopeNode):
         """Create an interpreted Module from a source module node tree."""
         from bench.language import libs, wiring
 
+        source = NodeTree(source)
         module = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
-        module._source = NodeTree(source)
+        module._source = source
         module._project_id = project_id
         module._os_name = os_name
         module._pg_name = pg_name
@@ -3206,3 +3204,8 @@ def complete_setup():
                     )
                 if STRUCT_CLASS_BY_STRUCT_TYPE[prop.struct_type] is not prop.py_type_raw:
                     raise ValueError(f"{prop!r} {prop.struct_type} != {prop.py_type_raw}")
+
+        # set stored properties now that storage info is determined
+        cls.__stored_properties__ = frozendict(
+            {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
+        )

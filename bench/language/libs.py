@@ -1148,7 +1148,7 @@ for name, module in DEFAULT_MODULES.items():
     assert module.name == name
 
     # assign stable cks / versioned ids
-    nodes = [n for n in module._walk_rec() if n._type not in INTERP_NODE_TYPES]
+    nodes = [n for n in module._walk_rec() if n.metatype not in INTERP_NODE_TYPES]
     node_by_path: dict[str, Node] = {}
     target_cks: dict[UUID, UUID] = {}
     for node in nodes:
@@ -1184,7 +1184,7 @@ for name, module in DEFAULT_MODULES.items():
             node._update_lists(node)
     # patch references
     for node in nodes:
-        if node._type == NodeType.STATEMENT and HasText in node._components:
+        if node.metatype == NodeType.STATEMENT and HasText in node._components:
             # only patching text here is fine since we clear after all ids/cks are updated
             # and only in-text references are not automatically updated
             node.text = patch_text_html(node.text, target_cks)
@@ -1198,7 +1198,7 @@ for name, module in DEFAULT_MODULES.items():
 
     # manually 'deactivate session' for module since we're outside a session
     for node in module._nodes:
-        if node._type == NodeType.STATEMENT and HasDatabase in node._components:
+        if node.metatype == NodeType.STATEMENT and HasDatabase in node._components:
             for record in node.records:
                 record._set_untracked("value", record._raw_value(_force=True))
 

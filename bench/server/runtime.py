@@ -622,7 +622,7 @@ class RuntimeHost:
         self, edits: list[EditData], origins: tuple[ClientOrigin, ...] = None
     ):
         # these are separate right now because sessions/runs aren't fully 'regular' nodes yet
-        runs = [e.node for e in edits if e.node._type == NodeType.RUN]
+        runs = [e.node for e in edits if e.node.metatype == NodeType.RUN]
         await publish(
             NMessageType.SESSION_CHANGED,
             SessionChangedPayload(project_id=self.project_id, module_id=self.module_id, runs=runs),
@@ -637,7 +637,7 @@ class RuntimeHost:
         for node_type in INTERP_NODE_TYPES:
             editor.truncate(module_data, node_type)
         for node in self.module._nodes:
-            if node._type in INTERP_NODE_TYPES:
+            if node.metatype in INTERP_NODE_TYPES:
                 editor.create(node)
         # write
         await sync_to_async(write_host_db_edits)(
@@ -671,9 +671,9 @@ class RuntimeHost:
         for edit in edits:
             if edit.kind in (EditKind.UPDATE, EditKind.MOVE):
                 edit.revision = edit.node.revision = edit.node.revision + 1
-        host_edits, local_edits = partition(lambda e: e._type == NodeType.RECORD, edits)
+        host_edits, local_edits = partition(lambda e: e.metatype == NodeType.RECORD, edits)
         host_module_edits, host_session_edits = partition(
-            lambda e: e._type in (NodeType.RUN, NodeType.SESSION), host_edits
+            lambda e: e.metatype in (NodeType.RUN, NodeType.SESSION), host_edits
         )
         del edits  # refer explicitly to host/local edits
         log = self.log.bind(

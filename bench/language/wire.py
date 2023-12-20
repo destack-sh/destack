@@ -12,7 +12,7 @@ import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 
 
 class AggregationOp(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     COUNT = 1
     SUM = 2
     AVERAGE = 3
@@ -23,7 +23,7 @@ class AggregationOp(betterproto.Enum):
 
 
 class BenchType(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     MODULE = 1
     FILE = 2
     STATEMENT = 3
@@ -47,14 +47,14 @@ class BenchType(betterproto.Enum):
 
 
 class BlobStatus(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     PREPARED = 1
     UPLOADING = 2
     AVAILABLE = 3
 
 
 class ConditionalOp(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     TRUE = 1
     FALSE = 2
     NOT = 3
@@ -78,14 +78,14 @@ class ConditionalOp(betterproto.Enum):
 
 
 class ExpressionKind(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     CONDITIONAL = 1
     SORT = 2
     AGGREGATION = 3
 
 
 class ExpressionOp(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     TRUE = 1
     FALSE = 2
     NOT = 3
@@ -118,7 +118,7 @@ class ExpressionOp(betterproto.Enum):
 
 
 class IdentifierType(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     METHOD = 1
     TYPE = 2
     CONSTANT = 3
@@ -128,14 +128,14 @@ class IdentifierType(betterproto.Enum):
 
 
 class IssueKind(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     ERROR = 1
     WARNING = 2
     NOTICE = 3
 
 
 class IssueType(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     INTERNAL = 1
     UNKNOWN_IMPORT_SOURCE = 2
     MISSING_REFERENCE = 3
@@ -158,7 +158,7 @@ class NodeTrackingLevel(betterproto.Enum):
 
 
 class NodeType(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     MODULE = 1
     FILE = 2
     STATEMENT = 3
@@ -176,13 +176,13 @@ class NodeType(betterproto.Enum):
 
 
 class ProjectRegion(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     US_WEST = 1
     EU_CENTRAL = 2
 
 
 class QueryEngine(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     MODULE = 1
     HOST = 2
     OPENSEARCH = 3
@@ -190,7 +190,7 @@ class QueryEngine(betterproto.Enum):
 
 
 class RunErrorKind(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     Internal = 1
     Parse = 2
     Validation = 3
@@ -199,7 +199,7 @@ class RunErrorKind(betterproto.Enum):
 
 
 class RunStatus(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     SCHEDULED = 1
     QUEUED = 2
     RUNNING = 3
@@ -212,7 +212,7 @@ class RunStatus(betterproto.Enum):
 
 
 class ScheduleType(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     INTERVAL = 1
     CRON = 2
 
@@ -227,14 +227,14 @@ class SessionAccessLevel(betterproto.Enum):
 
 
 class SessionStatus(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     ACTIVE = 1
     SUSPENDED = 2
     TERMINATED = 3
 
 
 class SortMode(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     MAX = 1
     MIN = 2
     AVERAGE = 3
@@ -243,13 +243,13 @@ class SortMode(betterproto.Enum):
 
 
 class SortOp(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     ASCENDING = 1
     DESCENDING = 2
 
 
 class StatementType(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     TAG = 1
     TEXT = 2
     BLANK = 3
@@ -266,7 +266,7 @@ class StatementType(betterproto.Enum):
 
 
 class StructType(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     EXPRESSION = 1
     RUN_CODE_FRAME = 2
     RUN_ERROR = 3
@@ -276,14 +276,14 @@ class StructType(betterproto.Enum):
 
 
 class TextHeadingLevel(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     H1 = 1
     H2 = 2
     H3 = 3
 
 
 class TriggerType(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     INVOKE = 1
     TIME = 2
     RUN = 3
@@ -308,7 +308,7 @@ class TypeFlag(betterproto.Enum):
 
 
 class TypeHint(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     NAME = 1
     UUID = 2
     DATE = 3
@@ -344,7 +344,7 @@ class TypeHint(betterproto.Enum):
 
 
 class TypeStorageFormat(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     STRING = 1
     DOUBLE = 2
     LONG = 3
@@ -358,7 +358,7 @@ class TypeStorageFormat(betterproto.Enum):
 
 
 class TypeTag(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     STRING = 1
     NUMBER = 2
     BOOLEAN = 3
@@ -375,12 +375,12 @@ class TypeTag(betterproto.Enum):
 
 
 class ViewLayout(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     TABLE = 1
 
 
 class WorkerProfile(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     TINY = 1
     SMALL = 2
     MEDIUM = 3
@@ -390,7 +390,7 @@ class WorkerProfile(betterproto.Enum):
 
 
 class WorkerSetStatus(betterproto.Enum):
-    UNSET = 0
+    UNSPECIFIED = 0
     SLEEPING = 1
     PENDING = 2
     UPDATING = 3
@@ -402,7 +402,7 @@ class WorkerSetStatus(betterproto.Enum):
 
 @dataclass(eq=False, repr=False)
 class EnvironmentData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     language: str = betterproto.string_field(20)
     version: str = betterproto.string_field(21)
     platform: str = betterproto.string_field(22)
@@ -411,7 +411,7 @@ class EnvironmentData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ExpressionData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     op: "ExpressionOp" = betterproto.enum_field(21)
     field_ck: str = betterproto.string_field(22)
     field_key: str = betterproto.string_field(23)
@@ -422,7 +422,7 @@ class ExpressionData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LogEntryData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     module_ck: str = betterproto.string_field(21)
     created_at: datetime = betterproto.message_field(22)
@@ -438,7 +438,7 @@ class LogEntryData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunCodeFrameData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     filename: str = betterproto.string_field(20)
     lineno: int = betterproto.int64_field(21)
     name: str = betterproto.string_field(22)
@@ -448,7 +448,7 @@ class RunCodeFrameData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunErrorData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     kind: "RunErrorKind" = betterproto.enum_field(20)
     type: str = betterproto.string_field(21)
     message: str = betterproto.string_field(22)
@@ -458,7 +458,7 @@ class RunErrorData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WorkerSetData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     created_at: datetime = betterproto.message_field(10)
     updated_at: datetime = betterproto.message_field(11)
@@ -476,7 +476,7 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BlobData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -495,7 +495,7 @@ class BlobData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class FieldData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -518,7 +518,7 @@ class FieldData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class FileData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -533,7 +533,7 @@ class FileData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class IssueData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -553,7 +553,7 @@ class IssueData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ModuleData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -569,7 +569,7 @@ class ModuleData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BaseNodeData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -583,7 +583,7 @@ class BaseNodeData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RecordData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -598,7 +598,7 @@ class RecordData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ResolvedFieldData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -622,7 +622,7 @@ class ResolvedFieldData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -649,7 +649,7 @@ class RunData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SecretData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -664,7 +664,7 @@ class SecretData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SessionData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -687,7 +687,7 @@ class SessionData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StatementData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -712,7 +712,7 @@ class StatementData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TaggingData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -729,7 +729,7 @@ class TaggingData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
@@ -749,7 +749,7 @@ class TriggerData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ViewData(betterproto.Message):
-    type: "BenchType" = betterproto.enum_field(1)
+    metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)

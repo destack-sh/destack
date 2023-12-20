@@ -658,7 +658,7 @@ class HasFields(HasType):
                 resolved_fields.append(ResolvedField.from_field(self, field))
 
         # add any special inlined fields
-        if self._type == NodeType.STATEMENT and self.type == StatementType.TASK:
+        if self.metatype == NodeType.STATEMENT and self.type == StatementType.TASK:
             run_config = symbolx_lib.resolve(".reflect.TaskRunConfig")
             resolved_fields.extend(ResolvedField.from_field(self, f) for f in run_config.fields)
 
