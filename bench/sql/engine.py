@@ -119,7 +119,7 @@ async def update_pg_schema(pg_name: str, module: Module) -> None:
     databases: list[lang.Statement] = [
         s
         for s in module._nodes
-        if s.node_type == NodeType.STATEMENT and HasDatabase in s._components and not s.ephemeral
+        if s.metatype == NodeType.STATEMENT and HasDatabase in s._components and not s.ephemeral
     ]
     tables = (*INTERNAL_TABLES, *(s._table for s in databases if s._table))
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))

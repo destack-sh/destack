@@ -5,22 +5,16 @@ import functools
 import random
 import secrets
 import string
+import types
+import typing
 from asyncio import CancelledError
 from collections import OrderedDict
 from itertools import filterfalse, tee
-import types
-import typing
-from typing import (
-    Any,
-    Collection,
-    Coroutine,
-    Iterable,
-    Mapping,
-    TypeVar,
-)
+from typing import Any, Collection, Coroutine, Iterable, Mapping, TypeVar
 from uuid import UUID
 
 import structlog
+from cachetools import cached
 
 from bench.utils.utils import sentry_capture
 
@@ -39,6 +33,21 @@ def try_to_uuid(id: UUID | str) -> UUID | str:
         return UUID(id)
     except (ValueError, TypeError):
         return id
+
+
+@cached(cache={})
+def to_uuid(id: str | UUID | None) -> UUID | None:
+    if not id:
+        return None  # ignore empty strings
+    elif isinstance(id, str):
+        try:
+            return UUID(id)
+        except ValueError as e:
+            raise ValueError(f"invalid UUID: {id!r} ({type(id)})") from e
+    elif isinstance(id, UUID):
+        return id
+    else:
+        raise TypeError(f"unexpected id type: {id!r}")
 
 
 def get_first(obj: dict, keys: Iterable[str]):

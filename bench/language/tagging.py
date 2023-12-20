@@ -35,7 +35,7 @@ class Tagging(HasValue, Node):
         21, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
     )
     reference: Optional["Statement"] = struct_internal(
-        22, default=None, is_required=False, references=NodeType.STATEMENT
+        22, is_required=False, references=NodeType.STATEMENT
     )
 
     @staticmethod

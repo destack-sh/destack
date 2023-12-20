@@ -1,16 +1,19 @@
 import enum
 from collections import OrderedDict
+from copy import copy
 from typing import Any, Union
 from uuid import UUID
 
 import betterproto
 import structlog
 
-from bench.language import Session, wire
+from bench.language import wire
 from bench.language.const import BenchType, NodeType, StructType
 from bench.language.module import (
+    BENCH_CLASS_BY_TYPE,
     NODE_CLASS_BY_NODE_TYPE,
     STRUCT_CLASS_BY_STRUCT_TYPE,
+    TYPE_DISCRIMINATOR_PROPERTY,
     Node,
     NodeStatus,
     NodeTree,
@@ -18,13 +21,15 @@ from bench.language.module import (
     ScopeNode,
     Struct,
 )
+from bench.language.session import Session
 from bench.sql.core import ColumnType
+from bench.utils.func import to_uuid
 from bench.utils.utils import to_snake_case
 
 logger = structlog.get_logger(__name__)
 # nocheckin: auto-gen AnyNodeData/AnyStructData?
 AnyNodeData = Union[wire.ModuleData, wire.FileData, wire.StatementData, wire.FieldData]
-AnyStructData = Union[wire.StructType]
+AnyStructData = Union[wire.EnvironmentData, wire.ExpressionData]
 
 # :ProtoSchema
 PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
@@ -32,17 +37,36 @@ PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = 
 }
 
 
-def to_uuid(id: str | UUID | None) -> UUID | None:
-    if not id:
-        return None  # ignore empty strings
-    if isinstance(id, str):
-        try:
-            return UUID(id)
-        except ValueError as e:
-            raise ValueError(f"invalid UUID: {id!r}") from e
-    if isinstance(id, UUID):
-        return id
-    raise TypeError(f"unexpected id type: {id!r}")
+def copy_struct_data(data: AnyStructData) -> AnyStructData:
+    """Deepcopy a struct data object."""
+    data_cls = PROTO_CLASS_BY_TYPE[data.metatype.name]
+    bench_cls = BENCH_CLASS_BY_TYPE[data.metatype.name]
+    data_kwargs = {}
+    try:
+        for prop in bench_cls.__stored_properties__.values():
+            if (
+                prop.is_computed
+                and prop.id != TYPE_DISCRIMINATOR_PROPERTY.id
+                and prop.name != "parent_id"
+            ):
+                continue
+            value = getattr(data, prop.name)
+            if value is None or value == "" and not prop.is_required:
+                data_kwargs[prop.name] = None
+            elif prop.is_array:
+                if prop.is_struct:
+                    data_kwargs[prop.name] = [copy_struct_data(v) for v in value]
+                else:
+                    data_kwargs[prop.name] = list(value)
+            elif prop.is_struct:
+                data_kwargs[prop.name] = copy_struct_data(value)
+            elif prop.store_as == ColumnType.JSON:
+                data_kwargs[prop.name] = copy(value)
+            else:
+                data_kwargs[prop.name] = value
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ValueError(f"could not copy {data.metatype.name}: {data!r}") from e
+    return data_cls(**data_kwargs)
 
 
 def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
@@ -53,8 +77,11 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.is_struct:
         return pack_struct(value)
     elif prop.is_enum:
-        proto_enum_cls = getattr(wire, prop.py_type_raw.__name__)
-        return proto_enum_cls(value)
+        if issubclass(prop.py_type_stripped, enum.IntFlag):
+            return int(value)
+        else:
+            proto_enum_cls = getattr(wire, prop.py_type_raw.__name__)
+            return proto_enum_cls[value.name]
     elif prop.store_as == ColumnType.UUID:
         return str(value)  # uuids are wired as strings
     else:
@@ -62,64 +89,74 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
 
 
 def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
-    if value is None:
-        return None
-    elif prop.is_array and not ignore_array:
-        return [_unpack_struct_prop(prop, v, ignore_array=True) for v in value]
-    elif prop.is_struct:
-        return unpack_struct(value)
-    elif prop.is_enum:
-        if isinstance(value, int):
-            return prop.py_type_raw(value)
-        elif value.name == "UNSPECIFIED":
-            return None  # revert to default
-        return prop.py_type_raw[value.name]
-    elif prop.store_as == ColumnType.UUID:
-        return to_uuid(value)  # uuids are wired as strings
-    else:
-        return value
+    try:
+        if value is None:
+            return None
+        elif prop.is_array and not ignore_array:
+            return [_unpack_struct_prop(prop, v, ignore_array=True) for v in value]
+        elif prop.is_struct:
+            return unpack_struct(value)
+        elif prop.is_enum:
+            if issubclass(prop.py_type_stripped, int):
+                return prop.py_type_raw(value)
+            elif type(value) == str:
+                return prop.py_type_raw(value)
+            elif value.name == "UNSPECIFIED":
+                return None  # revert to default
+            else:
+                return prop.py_type_raw[value.name]
+        elif prop.store_as == ColumnType.UUID:
+            return to_uuid(value)  # uuids are wired as strings
+        else:
+            return value
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ValueError(f"could not unpack value: {value!r} for {prop!r}") from e
 
 
 def pack_struct(struct: Struct) -> AnyStructData:
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
     data_kwargs = {}
-    for prop in struct.__stored_properties__.values():
-        value = getattr(struct, prop.name)
-        data_kwargs[prop.name] = _pack_struct_prop(prop, value, ignore_array=False)
-    return data_cls(**data_kwargs)
+    try:
+        for prop in struct.__stored_properties__.values():
+            value = getattr(struct, prop.name)
+            data_kwargs[prop.name] = _pack_struct_prop(prop, value, ignore_array=False)
+        return data_cls(**data_kwargs)
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ValueError(f"could not pack {struct.metatype.name}: {struct!r}") from e
 
 
 def unpack_struct(data: AnyStructData) -> Struct:
     """Unpack a struct and any contained structs."""
     struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[StructType(data.metatype.name)]
     struct_kwargs = {}
-    for prop in data.__stored_properties__.values():
-        if prop.is_computed:
-            continue
-        value = getattr(data, prop.name)
-        struct_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
-    return struct_cls(**struct_kwargs)
+    try:
+        for prop in data.__stored_properties__.values():
+            if prop.is_computed:
+                continue
+            value = getattr(data, prop.name)
+            struct_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
+        return struct_cls(**struct_kwargs)
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ValueError(f"could not unpack {data.metatype.name}: {data!r}") from e
 
 
 def pack_node(node: Node) -> AnyNodeData:
-    node_cls = PROTO_CLASS_BY_TYPE[node.metatype]
-    node_kwargs = {}
-    for prop in node.__stored_properties__.values():
-        value = getattr(node, prop.name)
-        node_kwargs[prop.name] = _pack_struct_prop(prop, value, ignore_array=False)
-    return node_cls(**node_kwargs)
+    return pack_struct(node)
 
 
 def unpack_node(data: AnyNodeData, parent: Node, session: Session | None) -> Node:
     node_cls = NODE_CLASS_BY_NODE_TYPE[NodeType(data.metatype.name)]
     node_kwargs = {}
-    for prop in node_cls.__stored_properties__.values():
-        if prop.is_computed:
-            continue
-        value = getattr(data, prop.name)
-        node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
-    return node_cls(**node_kwargs, parent=parent, _session=session)
+    try:
+        for prop in node_cls.__stored_properties__.values():
+            if prop.is_computed:
+                continue
+            value = getattr(data, prop.name)
+            node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
+        return node_cls(**node_kwargs, parent=parent, _session=session)
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ValueError(f"could not unpack {data.metatype.name}: {data!r}") from e
 
 
 def pack_node_inline(

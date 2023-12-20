@@ -47,7 +47,7 @@ FieldReference = UUID | str  # str as an alias for fields that we don't have ref
 @struct(StructType.EXPRESSION)
 class Expression(Struct):
     op: ExpressionOp = struct_property(21, is_required=True)
-    field: Optional["Field"] = struct_property(22, default=None, references=NodeType.FIELD)
+    field: Optional["Field"] = struct_property(22, references=NodeType.FIELD)
     field_key: Optional[str] = struct_property(23, default=None)
     clauses: list["Expression"] | None = struct_property(
         24, default=None, struct_t=StructType.EXPRESSION
