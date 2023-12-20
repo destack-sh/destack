@@ -176,7 +176,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node]] = tuple(
 class Statement(ScopeNode, HasTags):
     """A Bench statement."""
 
-    parent: Union["Statement", "File"] = node_parent(3, NodeType.STATEMENT, NodeType.FILE)
+    parent: Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
     children: NodeList["Statement"] = node_children(
         NodeType.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
     )

@@ -28,7 +28,7 @@ class Tagging(HasValue, Node):
     """An association between a tag and a statement (with optional value)."""
 
     parent: Union["File", "Statement", "Field"] | None = node_parent(
-        3, NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
+        4, NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
     )
     key: str = struct_internal(20)
     value: typing.Any | None = struct_property(

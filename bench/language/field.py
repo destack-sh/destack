@@ -350,7 +350,7 @@ class HasType(Node):
 
 @node(NodeType.FIELD)
 class Field(HasText, HasValue, HasType, _FieldExpressionBase):
-    parent: Union["Statement", None] = node_parent(3, NodeType.STATEMENT)
+    parent: Union["Statement", None] = node_parent(4, NodeType.STATEMENT)
     name: str | None = struct_property(21, default=None, validate=validate_name)
     order_key: str | None = struct_internal(22, default=None)
     text: str | None = struct_property(23, default=None, validate=validate_is_str)
@@ -553,7 +553,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
 
 @node(NodeType.RESOLVED_FIELD)
 class ResolvedField(Field):
-    parent: "Statement" = node_parent(3, NodeType.STATEMENT)
+    parent: "Statement" = node_parent(4, NodeType.STATEMENT)
     field: Field = struct_internal(20, references=NodeType.FIELD)
 
     @property

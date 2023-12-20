@@ -1,22 +1,24 @@
 from collections import OrderedDict
-from typing import Union, Any
+from typing import Any, Union
 from uuid import UUID
 
+import betterproto
 import structlog
 
 from bench.language import Session, wire
-from bench.language.const import NodeType, BenchType
+from bench.language.const import BenchType, NodeType
 from bench.language.module import (
-    Node,
-    Struct,
-    STRUCT_CLASS_BY_STRUCT_TYPE,
-    Property,
     NODE_CLASS_BY_NODE_TYPE,
-    NodeTree,
-    ScopeNode,
+    STRUCT_CLASS_BY_STRUCT_TYPE,
+    Node,
     NodeStatus,
+    NodeTree,
+    Property,
+    ScopeNode,
+    Struct,
 )
 from bench.sql.core import ColumnType
+from bench.utils.utils import to_snake_case
 
 logger = structlog.get_logger(__name__)
 # nocheckin: auto-gen AnyNodeData/AnyStructData?
@@ -25,7 +27,7 @@ AnyStructData = Union[wire.StructType]
 
 # :ProtoSchema
 PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
-    _type: getattr(wire, _type.name + "Data") for _type in BenchType
+    _type: getattr(wire, _type.camel_name + "Data") for _type in BenchType
 }
 
 
@@ -89,13 +91,13 @@ def pack_node(node: Node) -> AnyNodeData:
     return node_cls(**node_kwargs)
 
 
-def unpack_node(data: wire.SomeNodeData, parent: Node, session: Session | None) -> Node:
+def unpack_node(data: AnyNodeData, parent: Node, session: Session | None) -> Node:
     node_cls = NODE_CLASS_BY_NODE_TYPE[data._type]
     node_kwargs = {}
     for prop in node_cls.__stored_properties__.values():
         value = getattr(data, prop.name)
         node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
-    return node_cls(**node_kwargs)
+    return node_cls(**node_kwargs, parent=parent, _session=session)
 
 
 def pack_node_inline(
@@ -139,7 +141,7 @@ def unpack_node_inline(
                 )
                 continue  # can happen if there was a race condition in delete cascade and create
         else:
-            node_parent = unpacked_tree.nodes_by_id[node_data.parent_id]
+            node_parent = unpacked_tree.nodes_by_id[UUID(node_data.parent_id)]
         node = unpack_node(node_data, node_parent, session=session)
 
         # keep parent instance if it was passed (update in place)
@@ -171,10 +173,15 @@ def unpack_node_inline(
 
 
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
-    """Wraps a concrete node type into a generic node type (different message type!)."""
-    raise NotImplementedError("nocheckin: wrap_some_node")
+    """Wraps a concrete node type into a generic node message."""
+    field_name = to_snake_case(node._type)
+    wrapper = wire.SomeNodeData()
+    setattr(wrapper, field_name, node)
+    return wrapper
 
 
 def unwrap_some_node(node: wire.SomeNodeData) -> AnyNodeData:
-    """Unwraps a generic node type into a concrete node type (different message type!)."""
-    raise NotImplementedError("nocheckin: unwrap_some_node")
+    """Unwraps a generic node type into a concrete node type."""
+    _, wrapped_node = betterproto.which_one_of(node, "node")
+    assert wrapped_node is not None, f"node not set in {node!r}"
+    return wrapped_node

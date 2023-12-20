@@ -1,7 +1,7 @@
 import typing
 from typing import Optional
 
-from bench.language.const import NodeType, ViewLayout, StructType
+from bench.language.const import NodeType, StructType, ViewLayout
 from bench.language.expression import Expression
 from bench.language.module import ScopeNode, node, node_parent, struct_property
 from bench.language.validation import enum_validator
@@ -12,7 +12,7 @@ if typing.TYPE_CHECKING:
 
 @node(NodeType.VIEW)
 class View(ScopeNode):
-    parent: typing.Union["Statement", "File"] = node_parent(3, NodeType.STATEMENT, NodeType.FILE)
+    parent: typing.Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
     name: str | None = struct_property(20, default=None)
     layout: ViewLayout = struct_property(
         21, default=ViewLayout.TABLE, validate=enum_validator(ViewLayout)

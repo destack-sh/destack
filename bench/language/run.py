@@ -147,7 +147,7 @@ class Run(ScopeNode, HasValue):
       and because it's unclear run/session edits should interact with 'regular' module edits)
     """
 
-    parent: Union["Session", "Run"] = node_parent(3, NodeType.SESSION, NodeType.RUN)
+    parent: Union["Session", "Run"] = node_parent(4, NodeType.SESSION, NodeType.RUN)
     session: "Session" = node_ancestor(20, NodeType.SESSION, store=True)
     root: Optional["Run"] = node_ancestor(
         21, NodeType.RUN, nearest=False, include_self=False, store=True

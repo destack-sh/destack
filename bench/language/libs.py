@@ -60,7 +60,7 @@ from bench.language.task import (
     TaskErrorType,
 )
 from bench.language.text import Text, patch_text_html, render_text_simple
-from bench.utils.utils import DEBUG, LOCAL, UnreachableError, format_python, omit_empty
+from bench.utils.utils import UnreachableError, format_python, omit_empty
 
 #
 # symbolx.lib
