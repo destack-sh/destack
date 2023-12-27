@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     from bench.language import Expression, Field, File, Issue, NodeVisitor, Session
     from bench.language.edit import EditData
     from bench.language.issue import IssueHandler
-    from bench.language.wiring import AnyNodeData
+    from bench.language.wire import SomeNodeData
 
 logger = structlog.get_logger(__name__)
 
@@ -507,9 +507,9 @@ class Property(_FieldExpressionBase):
     def contribute_properties(self) -> tuple["Property"]:
         """Contribute any extra properties required by this property."""
 
-        if self.parent_node_types is not None:
+        if self.parent_node_types is not None or self.ancestor_node_type and self.is_stored is True:
             # special reference to parent (via id, resolved before instantiating)
-            parent_id_prop = Property(
+            ancestor_id_prop = Property(
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_id",
                 component=self.component,
@@ -521,7 +521,8 @@ class Property(_FieldExpressionBase):
                 is_stored=True,
                 store_as=ColumnType.UUID,
             )
-            return (parent_id_prop,)
+            self.reference_key = ancestor_id_prop
+            return (ancestor_id_prop,)
         elif self.reference_types is not None:
             # regular reference to node (via ck, resolved during interp)
             reference_ck_prop = Property(
@@ -902,20 +903,23 @@ def _process_struct_base_cls(
         if not hasattr(cls, name) and not prop.child_node_type:
             continue  # ignore inherited properties
         # map property to class attribute or dataclass field
-        if prop.ancestor_node_type and not detached:
-            field = _node_ancestor_prop(prop)
+        if prop.ancestor_node_type:
+            if not detached:
+                attr = _node_ancestor_prop(prop)
+            else:
+                attr = required_field()
         elif prop.is_computed:
-            field = None
+            attr = None
         elif prop.default is not UNSET:
-            field = dataclasses.field(default=prop.default)
+            attr = dataclasses.field(default=prop.default)
         elif prop.default_factory is not None:
-            field = dataclasses.field(default_factory=prop.default_factory)
+            attr = dataclasses.field(default_factory=prop.default_factory)
         else:
-            field = required_field()
+            attr = required_field()
         # set attribute and annotation accordingly
-        if field is not None:
-            setattr(cls, name, field)
-        if isinstance(field, dataclasses.Field):
+        if attr is not None:
+            setattr(cls, name, attr)
+        if isinstance(attr, dataclasses.Field):
             cls.__annotations__[name] = prop.py_type_raw
         elif name in cls.__annotations__:
             del cls.__annotations__[name]
@@ -1988,7 +1992,7 @@ class NodeTree(NodeTreeBase[NT]):
 
 class DetachedNodeTree(NodeTreeBase[NT]):
     """
-    A minimal NodeTree for working with instantiated nodes that may not have ids yet.
+    A minimal NodeTree for nodes that may not have ids yet (are 'detached' from a module).
     We have a separate tree for this because wire nodes work with ids only (for parent),
      and we don't need to support all operations since it's only for detached nodes.
     """
@@ -3199,10 +3203,13 @@ class Module(ScopeNode):
         )
 
     @staticmethod
-    def make(source: list["AnyNodeData"], project_id: UUID, os_name: str, pg_name: str) -> "Module":
+    def make(
+        source: list["SomeNodeData"], project_id: UUID, os_name: str, pg_name: str
+    ) -> "Module":
         """Create an interpreted Module from a source module node tree."""
         from bench.language import libs, wiring
 
+        source = [wiring.unwrap_some_node(s) for s in source]
         source = NodeTree(source)
         module = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
         module._source = source

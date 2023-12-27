@@ -9,6 +9,8 @@ from functools import cache
 from typing import get_type_hints
 from uuid import UUID
 
+import betterproto
+
 
 @cache
 def _prepare_dataclass_fields(cls: typing.Type) -> dict[str, dataclasses.Field]:
@@ -57,7 +59,7 @@ def to_dict(obj: typing.Any, omit_empty: bool = False) -> typing.Any:
         return str(obj)
     elif isinstance(obj, (int, float, str, bool, bytes, bytearray)):
         return obj
-    elif isinstance(obj, enum.Enum):
+    elif isinstance(obj, (enum.Enum, betterproto.Enum)):
         return obj.value
     elif obj is None:
         return None
@@ -122,7 +124,7 @@ def from_dict(
         if not isinstance(data, bool):
             raise TypeError(f"expected bool, got {type(data)} in {data}")
         return data
-    elif isinstance(cls, type) and issubclass(cls, enum.Enum):
+    elif isinstance(cls, type) and issubclass(cls, (enum.Enum, betterproto.Enum)):
         if issubclass(cls, enum.IntEnum):
             return cls(int(data))
         else:

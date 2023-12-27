@@ -38,7 +38,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.language import Session, Statement, Trigger
+    from bench.language import Session, Statement
 
 
 @node_component
@@ -144,7 +144,7 @@ class Run(ScopeNode, HasValue):
     A run of a statement (in a session).
     NOTE we don't 'activate' runs in sessions yet
      (because we don't edit them outside of the source session,
-      and because it's unclear run/session edits should interact with 'regular' module edits)
+      and because it's unclear how run/session edits should interact with 'regular' module edits)
     """
 
     parent: Union["Session", "Run"] = node_parent(4, NodeType.SESSION, NodeType.RUN)
@@ -153,20 +153,23 @@ class Run(ScopeNode, HasValue):
         21, NodeType.RUN, nearest=False, include_self=False, store=True
     )
     runs: list["Run"] = node_children(NodeType.RUN)
-    statement: Optional["Statement"] = struct_internal(22, references=NodeType.STATEMENT)
-    statement_path: Optional[str] = struct_internal(23, default=None)
-    scheduled_at: Optional[datetime] = struct_internal(24, default=None)
-    started_at: Optional[datetime] = struct_internal(25, default=None)
-    terminated_at: Optional[datetime] = struct_internal(26, default=None)
-    trigger_type: Optional[TriggerType] = struct_internal(27, default=None)
-    trigger: Optional["Trigger"] = struct_internal(28, references=NodeType.TRIGGER)
-    access_level: Optional["SessionAccessLevel"] = struct_internal(29, default=None)
-    status: RunStatus = struct_internal(30)
-    inputs: Optional[dict[str, Any]] = struct_internal(31, default=None, store_as=ColumnType.JSON)
-    outputs: Optional[dict[str, Any]] = struct_internal(32, default=None, store_as=ColumnType.JSON)
-    error: Optional["RunError"] = struct_internal(33, default=None, store_as=ColumnType.JSON)
+    project_id: str = struct_internal(22, reflect=True)
+    worker_node_id: str = struct_internal(23, reflect=True)
+    worker_process_id: Optional[str] = struct_internal(24, reflect=True)
+    statement: Optional["Statement"] = struct_internal(25, references=NodeType.STATEMENT)
+    statement_path: Optional[str] = struct_internal(26, default=None)
+    scheduled_at: Optional[datetime] = struct_internal(27, default=None)
+    started_at: Optional[datetime] = struct_internal(28, default=None)
+    terminated_at: Optional[datetime] = struct_internal(29, default=None)
+    trigger_type: Optional[TriggerType] = struct_internal(30, default=None)
+    trigger_id: Optional[UUID] = struct_internal(31, default=None, reflect=True)
+    access_level: Optional["SessionAccessLevel"] = struct_internal(32, default=None)
+    status: RunStatus = struct_internal(33)
+    inputs: Optional[dict[str, Any]] = struct_internal(34, default=None, store_as=ColumnType.JSON)
+    outputs: Optional[dict[str, Any]] = struct_internal(35, default=None, store_as=ColumnType.JSON)
+    error: Optional["RunError"] = struct_internal(36, default=None, store_as=ColumnType.JSON)
     value: Any | None = struct_internal(
-        34,
+        37,
         default_factory=dict,
         copy=deepcopy,
         store_as=ColumnType.JSON,

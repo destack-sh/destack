@@ -100,7 +100,7 @@ from bench.sql.engine import (
     write_local_edits_to_pg,
 )
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import partition
+from bench.utils.func import partition, to_uuid
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, sentry_capture
@@ -983,10 +983,8 @@ class RuntimeHost:
         (Full module state is needed to query the local database).
         """
         try:
-            filter = wiring.unpack_struct(msg.p.query, self.module) if msg.p.query else None
-            sort = (
-                [wiring.unpack_struct(s, self.module) for s in msg.p.sort] if msg.p.sort else None
-            )
+            filter = wiring.unpack_struct(msg.p.query) if msg.p.query else None
+            sort = [wiring.unpack_struct(s) for s in msg.p.sort] if msg.p.sort else None
             if (
                 not sort
                 and filter is not None
@@ -1202,16 +1200,16 @@ class RuntimeHost:
             # send out run requests (could do this in parallel but doesn't matter for now)
             for run in runs_to_start.values():
                 req = ReqStartRunPayload(
-                    project_id=run.project_id,
-                    module_id=run.module_id,
-                    session_id=run.session_id,
-                    run_id=run.id,
+                    project_id=to_uuid(run.project_id),
+                    module_id=self.module_id,
+                    session_id=to_uuid(run.session_id),
+                    run_id=to_uuid(run.id),
                     statement=run.statement_ck,
                     inputs=run.inputs,
                     block=None,
                     keyed=True,
                     trigger_type=run.trigger_type,
-                    trigger_id=run.trigger_id,
+                    trigger_id=to_uuid(run.trigger_id),
                     scheduled_at=run.scheduled_at,
                     root_value=run.value,
                     access_level=run.access_level,

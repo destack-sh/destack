@@ -889,9 +889,12 @@ class SessionTracer:
         run = Run(
             id=run_id,
             ck=run_id,  # "detached"
+            project_id=self.session.module.project_id,
+            worker_node_id=self.session.worker_node_id,
+            worker_process_id=self.session.worker_process_id,
             statement=statement,
             trigger_type=trigger_type,
-            trigger=trigger,
+            trigger_id=trigger.id if not isinstance(trigger, UUID) else trigger,
             started_at=utcnow_with_tz(),
             inputs=inputs,
             status=RunStatus.QUEUED if queue_position is not None else RunStatus.RUNNING,

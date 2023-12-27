@@ -279,8 +279,7 @@ class WorkerNode(Monitored):
             run_data = RunData(
                 id=run_id,
                 ck=run_id,
-                project_id=worker.project_id,
-                module_id=msg.p.module_id,
+                project_id=str(worker.project_id),
                 worker_node_id=self.worker_node_id,
                 worker_process_id=None,
                 statement_ck=statement.ck if statement else None,
@@ -389,7 +388,7 @@ class WorkerNode(Monitored):
             timeout=10,
             retry_delay=10,
         )
-        if module_rep.p.module.committed:
+        if module_rep.p.module.module.committed:
             self._cached_module_source[ref] = module_rep.p.module, module_rep.p.project_id
         log.debug("module.fetch", cached=False)
         return module_rep.p.module, ModuleInfo(
