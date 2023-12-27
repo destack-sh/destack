@@ -131,7 +131,7 @@ def unpack_struct(data: AnyStructData) -> Struct:
     struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[StructType(data.metatype.name)]
     struct_kwargs = {}
     try:
-        for prop in data.__stored_properties__.values():
+        for prop in struct_cls.__stored_properties__.values():
             if prop.is_computed:
                 continue
             value = getattr(data, prop.name)
@@ -234,8 +234,8 @@ def unpack_node_inline(
 
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
     """Wraps a concrete node type into a generic node message."""
-    field_name = to_snake_case(node.metatype)
     wrapper = wire.SomeNodeData()
+    field_name = to_snake_case(node.metatype.name)
     setattr(wrapper, field_name, node)
     return wrapper
 

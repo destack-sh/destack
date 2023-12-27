@@ -20,12 +20,10 @@ from django.db.models import F, Model, QuerySet
 from django.db.models.expressions import RawSQL
 
 from bench import models
-from bench.language import IssueType, StatementType, TypeHint, TypeTag, wire
+from bench.language import TypeTag, wire, wiring
 from bench.language.const import (
     HOST_NODE_TYPES,
     INTERP_NODE_TYPES,
-    BlobStatus,
-    IssueKind,
     NodeType,
     TriggerType,
 )
@@ -173,7 +171,8 @@ def pack_module_host(
 ) -> wire.ModuleTreeData:
     """Pack a module (convenience wrapper)"""
     packed = pack_node_host(module, filter=filter, excluded=excluded)
-    tree = wire.ModuleTreeData(module=packed.roots[0], nodes=packed.nodes_list())
+    wrapped_nodes = [wiring.wrap_some_node(n) for n in packed.nodes_by_id.values()]
+    tree = wire.ModuleTreeData(module=packed.roots[0], nodes=wrapped_nodes)
     return tree
 
 
@@ -461,7 +460,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             ck=str(statement.ck),
             parent_id=str(statement.parent_id),
             order_key=statement.order_key,
-            type=StatementType(statement.type),
+            type=wire.StatementType[statement.type.upper()],
             name=statement.name,
             heading_level=statement.heading_level,
             text=statement.text,
@@ -488,7 +487,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             file_id=parent.id if isinstance(parent, models.File) else parent.file_id,
             revision=data.revision,
             order_key=data.order_key,
-            type=data.type.value,
+            type=data.type.name,
             name=data.name,
             heading_level=data.heading_level,
             versioned=data.versioned,
@@ -513,8 +512,8 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
             ck=str(field.ck),
             parent_id=str(field.statement_id),
             name=field.name,
-            tag=TypeTag(field.tag),
-            hint=TypeHint(field.hint) if field.hint else None,
+            tag=wire.TypeTag[TypeTag(field.tag).name],
+            hint=wire.TypeHint[field.hint.upper()] if field.hint else None,
             key=field.key,
             order_key=field.order_key,
             text=field.text,
@@ -537,8 +536,8 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
             key=data.key,
             order_key=data.order_key,
             name=data.name,
-            tag=data.tag.value,
-            hint=data.hint.value if data.hint else None,
+            tag=data.tag.name,
+            hint=data.hint.name if data.hint else None,
             text=data.text,
             flags=data.flags,
             reference_ck=data.reference_ck,
@@ -555,7 +554,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
             id=str(trigger.id),
             ck=str(trigger.ck),
             parent_id=str(trigger.statement_id),
-            type=trigger.type,
+            type=wire.TriggerType[trigger.type.upper()],
             active=trigger.active,
             schedule_type=trigger.schedule_type,
             timezone=trigger.timezone,
@@ -574,7 +573,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
             id=data.id,
             ck=data.ck,
             statement_id=data.parent_id,
-            type=data.type,
+            type=data.type.name,
             active=data.active,
             schedule_type=data.schedule_type,
             timezone=data.timezone,
@@ -628,8 +627,8 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
             parent_id=str(issue.parent_statement_id)
             or issue.parent_file_id
             or issue.project_version_id,
-            kind=IssueKind(issue.kind),
-            type=IssueType(issue.type),
+            kind=wire.IssueKind[issue.kind],
+            type=wire.IssueType[issue.type],
             message=issue.message,
         )
 
@@ -656,8 +655,8 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
             project_version_id=project_version_id,
             parent_file_id=parent_file_id,
             parent_statement_id=parent_statement_id,
-            kind=data.kind.value,
-            type=data.type.value,
+            kind=data.kind.name,
+            type=data.type.name,
             message=data.message,
         )
 
@@ -759,7 +758,7 @@ class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
             content_length=data.content_length,
             content_type=data.content_type,
             name=data.name,
-            status=BlobStatus(data.status),
+            status=wire.BlobStatus[data.status],
         )
 
     def unpack(self, data: wire.BlobData, parent: None) -> models.Blob:
@@ -776,7 +775,7 @@ class BlobPacker(NodePacker[wire.BlobData, models.Blob]):
             content_length=data.content_length,
             content_type=data.content_type,
             name=data.name,
-            status=data.status.value,
+            status=data.status.name,
         )
 
 
@@ -873,7 +872,6 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             project_id=str(model.project_id),
             worker_node_id=model.worker_node_id,
             worker_process_id=model.worker_process_id,
-            module_id=str(model.project_version_id),
             session_id=str(model.session_id),
             trigger_type=model.trigger_type,
             trigger_id=str(model.trigger_id) if model.trigger_id else None,
@@ -890,7 +888,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             scheduled_at=model.scheduled_at,
             started_at=model.started_at,
             terminated_at=model.terminated_at,
-            status=model.status,
+            status=wire.RunStatus[model.status.upper()],
             inputs=model.inputs,
             outputs=model.outputs,
             error=wire.RunErrorData.from_dict(model.error) if model.error else None,
@@ -913,7 +911,6 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             id=data.id,
             ck=data.ck,
             project_id=data.project_id,
-            project_version_id=data.module_id,
             parent_run_id=data.parent_id if data.root_id else None,  # hack hack
             worker_node_id=data.worker_node_id,
             worker_process_id=data.worker_process_id,
@@ -934,7 +931,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             scheduled_at=data.scheduled_at,
             started_at=data.started_at,
             terminated_at=data.terminated_at,
-            status=data.status,
+            status=data.status.name,
             inputs=data.inputs,
             outputs=data.outputs,
             error=data.error.to_dict() if data.error else None,
@@ -950,10 +947,10 @@ class WorkerSetPacker(StructPacker[wire.WorkerSetData, models.WorkerSet]):
             metatype=wire.BenchType.WORKER_SET,
             id=str(model.id),
             project_id=str(model.project_id),
-            region=model.region,
-            profile=model.profile,
+            region=wire.ProjectRegion[model.region.upper()],
+            profile=wire.WorkerProfile[model.profile.upper()],
             sleeping=model.sleeping,
-            status=model.status,
+            status=wire.WorkerSetStatus[model.status.upper()],
             desired_replicas=model.desired_replicas,
             target_replicas=model.target_replicas,
             available_replicas=model.available_replicas,
@@ -967,10 +964,10 @@ class WorkerSetPacker(StructPacker[wire.WorkerSetData, models.WorkerSet]):
         return models.WorkerSet(
             id=data.id,
             project_id=data.project_id,
-            region=data.region,
-            profile=data.profile,
+            region=data.region.name,
+            profile=data.profile.name,
             sleeping=data.sleeping,
-            status=data.status,
+            status=data.status.name,
             desired_replicas=data.desired_replicas,
             target_replicas=data.target_replicas,
             available_replicas=data.available_replicas,
@@ -1007,14 +1004,14 @@ def write_host_db_edits(
     now = utcnow_with_tz()
     edited_nodes: list[NodeDataT] = []
 
-    for edit_type, batch in edits.batched_apply(source, raise_on_error=raise_on_apply_error):
+    for edit_type, edit_batch in edits.batched_apply(source, raise_on_error=raise_on_apply_error):
         if edit_type.node_type in (NodeType.RECORD,):  # can't do local edits in host..
-            raise RuntimeError(f"unexpected host edit {edit_type}: {batch!r}")
+            raise RuntimeError(f"unexpected host edit {edit_type}: {edit_batch!r}")
         if edit_type.kind == EditKind.TRUNCATE:
             # remove children of a certain type by scope
             # this is a bit unwieldy...
-            statement_ids = [e.statement_id for e in batch if e.statement_id is not None]
-            file_ids = [e.file_id for e in batch if e.file_id is not None]
+            statement_ids = [e.statement_id for e in edit_batch if e.statement_id is not None]
+            file_ids = [e.file_id for e in edit_batch if e.file_id is not None]
             model_cls = MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
             if statement_ids:
                 if hasattr(model_cls, "statement"):
@@ -1031,15 +1028,15 @@ def write_host_db_edits(
 
         elif edit_type.kind == EditKind.CREATE:
             # create nodes
-            nodes = unpack_nodes(project_v, source, [e.node for e in batch])
+            nodes = unpack_nodes(project_v, source, [e.node for e in edit_batch])
             model_cls = MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
             model_cls.objects.bulk_create(nodes)
             # reload nodes (e.g., for revisions)
-            nodes = model_cls._base_manager.filter(id__in=[e.node.id for e in batch])
-            for e, node in zip(batch, nodes):
+            nodes = model_cls._base_manager.filter(id__in=[e.node.id for e in edit_batch])
+            for e, node in zip(edit_batch, nodes):
                 e.node = pack_node_flat(node)
                 e.thing = node  # keep node model for downstream indexing in opensearch
-            edited_nodes.extend(e.node for e in batch)
+            edited_nodes.extend(e.node for e in edit_batch)
 
         elif edit_type.kind in (
             EditKind.UPDATE,
@@ -1048,7 +1045,7 @@ def write_host_db_edits(
             EditKind.RESTORE,
         ):
             # update nodes in place
-            nodes = unpack_nodes(project_v, source, [e.node for e in batch])
+            nodes = unpack_nodes(project_v, source, [e.node for e in edit_batch])
             model_cls = MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
             if edit_type.kind == EditKind.SOFT_DELETE:
                 for node in nodes:
@@ -1065,7 +1062,7 @@ def write_host_db_edits(
                 cru_properties = ["updated_at", "revision"]
             # different properties may be updated, so group by properties
             nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
-            for e, node in zip(batch, nodes):
+            for e, node in zip(edit_batch, nodes):
                 properties = flatten(
                     *(
                         REMAP_PROPERTIES.get((edit_type.node_type, p), [p])
@@ -1094,15 +1091,15 @@ def write_host_db_edits(
                         f"failed to update {len(nodes)} {model_cls} ({properties}, got {num_updated})"
                     )
             # reload nodes (e.g., for revisions)
-            nodes = model_cls._base_manager.filter(id__in=[e.node.id for e in batch])
-            for e, node in zip(batch, nodes):
+            nodes = model_cls._base_manager.filter(id__in=[e.node.id for e in edit_batch])
+            for e, node in zip(edit_batch, nodes):
                 e.node = pack_node_flat(node)
                 e.thing = node  # keep node model for downstream indexing in opensearch
-            edited_nodes.extend(e.node for e in batch)
+            edited_nodes.extend(e.node for e in edit_batch)
 
         elif edit_type.kind == EditKind.DELETE:
             model_cls = MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
-            model_cls._base_manager.filter(id__in=[e.node.id for e in batch]).delete()
+            model_cls._base_manager.filter(id__in=[e.node.id for e in edit_batch]).delete()
 
     return edited_nodes
 

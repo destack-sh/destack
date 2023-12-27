@@ -780,8 +780,6 @@ class SessionSubscription:
         def _filter_run(run: wire.RunData) -> bool:
             if run.project_id != project_id:
                 return False
-            if project_version_id is not None and run.module_id != project_version_id:
-                return False
             return True
 
         def _collect_runs(runs: list[wire.RunData]) -> list[Run]:

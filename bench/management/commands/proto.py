@@ -5,9 +5,9 @@ from django.db import transaction
 from bench.language.const import NodeType, StructType
 from bench.language.module import (
     FINAL_BENCH_TYPES,
-    Node,
     NODE_CLASS_BY_NODE_TYPE,
     STRUCT_CLASS_BY_STRUCT_TYPE,
+    Node,
 )
 from bench.language.proto import Field, Message, generate_proto_schema
 
@@ -39,7 +39,7 @@ class Command(BaseCommand):
                 Message(
                     name="ModuleTree",
                     fields=[
-                        Field(id=1, name="module", type="ModuleTreeData"),
+                        Field(id=1, name="module", type="ModuleData"),
                         Field(id=2, name="nodes", type="SomeNodeData", repeated=True),
                     ],
                 )
