@@ -906,10 +906,10 @@ def _process_struct_base_cls(
         if prop.ancestor_node_type and cls.__name__ not in ("ScopeNode", "Node"):
             # (don't set computed ancestor property in base nodes, so we can override it with
             #  a non-computed/static property in detached subclass nodes)
-            if not detached:
-                attr = _node_ancestor_prop(prop)
+            if detached:
+                attr = dataclasses.field(default=None)
             else:
-                attr = required_field()
+                attr = _node_ancestor_prop(prop)
         elif prop.is_computed:
             attr = None
         elif prop.default is not UNSET:
@@ -925,6 +925,9 @@ def _process_struct_base_cls(
             cls.__annotations__[name] = prop.py_type_raw
         elif name in cls.__annotations__:
             del cls.__annotations__[name]
+        # also set extra computed parent/ancestor id property
+        if prop.name == "parent" or prop.ancestor_node_type:
+            setattr(cls, prop.name + "_id", _node_ancestor_id_prop(prop))
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
 
     # register components and index properties
@@ -1065,7 +1068,7 @@ NodeT = typing.TypeVar("NodeT", bound="Node")
 
 
 def _node_ancestor_prop(prop: Property) -> property:
-    """Computed ancestor property for ModuleNode instances."""
+    """Computed ancestor property for Node instances."""
 
     if prop.is_ancestor_nearest:
 
@@ -1098,6 +1101,21 @@ def _node_ancestor_prop(prop: Property) -> property:
         get = get_farthest
 
     def set(self: NodeT, value: NodeT):
+        raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
+
+    return property(get, set)
+
+
+def _node_ancestor_id_prop(prop: Property) -> property:
+    """Computed ancestor/parent id property for Node classes."""
+
+    def get(self: NodeT) -> Optional[UUID]:
+        ancestor = getattr(self, prop.name)
+        if ancestor is None:
+            return None
+        return ancestor.id
+
+    def set(self: NodeT, value: Optional[UUID]):
         raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
 
     return property(get, set)
@@ -2408,12 +2426,6 @@ class Node(Struct):
         self._init_self()
         if self._status == NS.INTERP and self._session is not None:
             self._activate_self(self._session)
-
-    @property
-    def parent_id(self) -> Optional[UUID]:
-        # special node reference where the node must always exist if parent_id exists,
-        # so we can't set parent_id on its own (only parent, which is why this is computed)
-        return self.parent.id if self.parent is not None else None
 
     @property
     def _components(self) -> tuple[type["Node"], ...]:

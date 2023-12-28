@@ -656,14 +656,15 @@ message SessionData {
   google.protobuf.Timestamp last_changed_at = 14;
   int64 revision = 15;
   int64 access_level = 20;
-  string worker_node_id = 21;
-  string worker_process_id = 22;
-  TriggerType trigger_type = 23;
-  string trigger_id = 24;
-  google.protobuf.Timestamp opened_at = 25;
-  google.protobuf.Timestamp closed_at = 26;
-  int64 inference_timeout = 27;
-  int64 inference_retries = 28;
+  string project_id = 21;
+  string worker_node_id = 22;
+  string worker_process_id = 23;
+  TriggerType trigger_type = 24;
+  string trigger_id = 25;
+  google.protobuf.Timestamp opened_at = 26;
+  google.protobuf.Timestamp closed_at = 27;
+  int64 inference_timeout = 28;
+  int64 inference_retries = 29;
 }
 
 message StatementData {

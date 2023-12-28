@@ -694,6 +694,7 @@ class ModuleWorkerProcess(RuntimeHost):
                 id=job.session_id,
                 ck=job.session_id,
                 module=self.module,
+                project_id=self.project_id,
                 access_level=job.run_data.access_level or SessionAccessLevel.Read,
                 worker_node_id=self.node.worker_node_id,
                 worker_process_id=None,

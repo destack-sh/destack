@@ -2572,6 +2572,7 @@ export interface SessionData {
   lastChangedAt: Date | undefined;
   revision: number;
   accessLevel: number;
+  projectId: string;
   workerNodeId: string;
   workerProcessId: string;
   triggerType: TriggerType;
@@ -6652,6 +6653,7 @@ function createBaseSessionData(): SessionData {
     lastChangedAt: undefined,
     revision: 0,
     accessLevel: 0,
+    projectId: "",
     workerNodeId: "",
     workerProcessId: "",
     triggerType: 0,
@@ -6698,29 +6700,32 @@ export const SessionData = {
     if (message.accessLevel !== 0) {
       writer.uint32(160).int64(message.accessLevel);
     }
+    if (message.projectId !== "") {
+      writer.uint32(170).string(message.projectId);
+    }
     if (message.workerNodeId !== "") {
-      writer.uint32(170).string(message.workerNodeId);
+      writer.uint32(178).string(message.workerNodeId);
     }
     if (message.workerProcessId !== "") {
-      writer.uint32(178).string(message.workerProcessId);
+      writer.uint32(186).string(message.workerProcessId);
     }
     if (message.triggerType !== 0) {
-      writer.uint32(184).int32(message.triggerType);
+      writer.uint32(192).int32(message.triggerType);
     }
     if (message.triggerId !== "") {
-      writer.uint32(194).string(message.triggerId);
+      writer.uint32(202).string(message.triggerId);
     }
     if (message.openedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.openedAt), writer.uint32(202).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.openedAt), writer.uint32(210).fork()).ldelim();
     }
     if (message.closedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.closedAt), writer.uint32(210).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.closedAt), writer.uint32(218).fork()).ldelim();
     }
     if (message.inferenceTimeout !== 0) {
-      writer.uint32(216).int64(message.inferenceTimeout);
+      writer.uint32(224).int64(message.inferenceTimeout);
     }
     if (message.inferenceRetries !== 0) {
-      writer.uint32(224).int64(message.inferenceRetries);
+      writer.uint32(232).int64(message.inferenceRetries);
     }
     return writer;
   },
@@ -6814,52 +6819,59 @@ export const SessionData = {
             break;
           }
 
-          message.workerNodeId = reader.string();
+          message.projectId = reader.string();
           continue;
         case 22:
           if (tag !== 178) {
             break;
           }
 
-          message.workerProcessId = reader.string();
+          message.workerNodeId = reader.string();
           continue;
         case 23:
-          if (tag !== 184) {
+          if (tag !== 186) {
+            break;
+          }
+
+          message.workerProcessId = reader.string();
+          continue;
+        case 24:
+          if (tag !== 192) {
             break;
           }
 
           message.triggerType = reader.int32() as any;
-          continue;
-        case 24:
-          if (tag !== 194) {
-            break;
-          }
-
-          message.triggerId = reader.string();
           continue;
         case 25:
           if (tag !== 202) {
             break;
           }
 
-          message.openedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.triggerId = reader.string();
           continue;
         case 26:
           if (tag !== 210) {
             break;
           }
 
-          message.closedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.openedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 27:
-          if (tag !== 216) {
+          if (tag !== 218) {
+            break;
+          }
+
+          message.closedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 28:
+          if (tag !== 224) {
             break;
           }
 
           message.inferenceTimeout = longToNumber(reader.int64() as Long);
           continue;
-        case 28:
-          if (tag !== 224) {
+        case 29:
+          if (tag !== 232) {
             break;
           }
 
@@ -6887,6 +6899,7 @@ export const SessionData = {
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       accessLevel: isSet(object.accessLevel) ? globalThis.Number(object.accessLevel) : 0,
+      projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
       workerNodeId: isSet(object.workerNodeId) ? globalThis.String(object.workerNodeId) : "",
       workerProcessId: isSet(object.workerProcessId) ? globalThis.String(object.workerProcessId) : "",
       triggerType: isSet(object.triggerType) ? triggerTypeFromJSON(object.triggerType) : 0,
@@ -6933,6 +6946,9 @@ export const SessionData = {
     if (message.accessLevel !== 0) {
       obj.accessLevel = Math.round(message.accessLevel);
     }
+    if (message.projectId !== "") {
+      obj.projectId = message.projectId;
+    }
     if (message.workerNodeId !== "") {
       obj.workerNodeId = message.workerNodeId;
     }
@@ -6976,6 +6992,7 @@ export const SessionData = {
     message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.revision = object.revision ?? 0;
     message.accessLevel = object.accessLevel ?? 0;
+    message.projectId = object.projectId ?? "";
     message.workerNodeId = object.workerNodeId ?? "";
     message.workerProcessId = object.workerProcessId ?? "";
     message.triggerType = object.triggerType ?? 0;
