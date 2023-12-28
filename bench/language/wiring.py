@@ -68,6 +68,8 @@ class PatchedStruct(BetterprotoStruct):
         return output
 
 
+# ensure 'Value' is in namespace the first time a Struct-like class is created
+# if we don't do this here calls will fail mysteriously later
 from betterproto.lib.google.protobuf import Value  # noqa
 
 PatchedStruct()

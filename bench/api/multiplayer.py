@@ -95,8 +95,7 @@ async def unpack_edits(edits: list[edit.EditData], project_v: models.ProjectVers
         else:  # ignore other data types
             data = None
 
-        properties = wire.remap_properties(e.type.node_type, e.properties)
-        properties = [to_camel_case(p) for p in properties] if properties is not None else None
+        properties = [to_camel_case(p) for p in e.properties] if e.properties is not None else None
         unpacked_edit = Edit(
             type=e.type,
             project_version_id=to_global_id("ProjectVersion", e.project_version_id),

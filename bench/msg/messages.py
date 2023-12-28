@@ -21,11 +21,11 @@ from bench.language.wire import (
     BlobData,
     ExpressionData,
     LogEntryData,
+    ModuleTreeData,
     RecordData,
     RunData,
     SecretData,
     WorkerSetData,
-    ModuleTreeData,
 )
 from bench.utils.func import try_to_uuid
 from bench.utils.utils import required_field
@@ -62,9 +62,8 @@ class NMessageType(StrEnum):
     CLIENT_CHANGED = "client.changed"
     PROJECT_CHANGED = "project.changed"
     MODULE_CHANGED = "module.changed"
-    SESSION_CHANGED = (
-        "session.changed"  # TODO @Architecture: merge SESSION_CHANGED into MODULE_CHANGED?
-    )
+    # TODO @Architecture: merge SESSION_CHANGED into MODULE_CHANGED?
+    SESSION_CHANGED = "session.changed"
     RUNS_CHANGED_GLOBAL = "runs.changed"
     LOGS_CHANGED = "logs.changed"
     WORKERS_CHANGED = "workers.changed"

@@ -32,8 +32,8 @@ class HasTriggeredBy(Model):
 
 
 class Session(CrudNode, HasTriggeredBy):
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="sessions"
+    project = models.ForeignKey(
+        "Project", on_delete=models.CASCADE, related_name="sessions", null=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

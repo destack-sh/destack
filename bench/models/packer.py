@@ -22,7 +22,13 @@ from django.db.models.expressions import RawSQL
 
 from bench import models
 from bench.language import TypeTag, wire, wiring
-from bench.language.const import HOST_NODE_TYPES, INTERP_NODE_TYPES, NodeType, TriggerType
+from bench.language.const import (
+    HOST_NODE_TYPES,
+    INTERP_NODE_TYPES,
+    NodeType,
+    RunStatus,
+    TriggerType,
+)
 from bench.language.edit import EditBundle, EditData, EditKind
 from bench.language.module import NODE_CLASS_BY_NODE_TYPE, NodeTree, to_bench_metatype
 from bench.utils.dt import utcnow_with_tz
@@ -821,7 +827,7 @@ class SessionPacker(NodePacker[wire.SessionData, models.Session]):
             last_changed_at=data.last_changed_at,
             last_edited_at=data.last_edited_at,
             revision=data.revision,
-            module_id=data.project_version_id,
+            project_id=data.project_id,
             opened_at=data.opened_at,
             closed_at=data.closed_at,
             trigger_id=data.trigger_id,
@@ -848,9 +854,9 @@ class SessionPacker(NodePacker[wire.SessionData, models.Session]):
             last_changed_at=data.last_changed_at,
             last_edited_at=data.last_edited_at,
             revision=data.revision,
-            project_version_id=data.module_id,
             opened_at=data.opened_at,
             closed_at=data.closed_at,
+            project_id=data.project_id,
             trigger_type=data.trigger_type,
             trigger_access_token_id=access_token_id,
             trigger_user_id=user_id,
@@ -927,7 +933,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             scheduled_at=data.scheduled_at,
             started_at=data.started_at,
             terminated_at=data.terminated_at,
-            status=data.status.name,
+            status=RunStatus[data.status.name],
             inputs=data.inputs.to_dict() if data.inputs else None,
             outputs=data.outputs.to_dict() if data.outputs else None,
             error=data.error.to_dict() if data.error else None,

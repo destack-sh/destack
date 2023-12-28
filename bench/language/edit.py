@@ -274,7 +274,9 @@ class EditData:
     properties: Optional[list[str]] = None  # changed properties (by language name), see :Edit
     thing: Optional[Any] = None  # in-memory object that was mutated, not serialized
     _node_type: Optional[NodeType] = None  # discriminator for 'union'
-    _node: Optional[Any] = None  # the actual data, custom encode/decoded as union
+    _node: Optional[
+        AnyNodeData if TYPE_CHECKING else Any
+    ] = None  # the actual data, custom encode/decoded as union
 
     def encode_some_attrs(self):  # see serialize and :WireFormat
         # no special encoding of data here
@@ -296,7 +298,7 @@ class EditData:
 
     @node.setter
     def node(self, node: "AnyNodeData"):
-        self._node_type = node.metatype
+        self._node_type = NodeType(node.metatype.name)
         self._node = node
 
     @property

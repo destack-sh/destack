@@ -670,9 +670,9 @@ class RuntimeHost:
         for edit in edits:
             if edit.kind in (EditKind.UPDATE, EditKind.MOVE):
                 edit.revision = edit.node.revision = edit.node.revision + 1
-        host_edits, local_edits = partition(lambda e: e.metatype == NodeType.RECORD, edits)
+        host_edits, local_edits = partition(lambda e: e.node_type == NodeType.RECORD, edits)
         host_module_edits, host_session_edits = partition(
-            lambda e: e.metatype in (NodeType.RUN, NodeType.SESSION), host_edits
+            lambda e: e.node_type in (NodeType.RUN, NodeType.SESSION), host_edits
         )
         del edits  # refer explicitly to host/local edits
         log = self.log.bind(
@@ -765,7 +765,7 @@ class RuntimeHost:
             old_source = await sync_to_async(packer.pack_module_host)(
                 self.project_version, excluded=INTERP_NODE_TYPES
             )
-            old_source = NodeTree(old_source.nodes)
+            old_source = NodeTree([wiring.unwrap_some_node(n) for n in old_source.nodes])
             self.module._reset_from_source(old_source)
             raise
 
