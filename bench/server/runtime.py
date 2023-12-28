@@ -235,7 +235,7 @@ class RuntimeSupervisor(Monitored):
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
         logger.debug("module.read", msg=msg)
         module, project = await read_module(msg.p.ref)
-        logger.debug("module.read.done", msg=msg, module=module, project=project)
+        logger.debug("module.read.done", msg=msg, module=module.module, project=project)
         await msg.reply(
             RepReadModulePayload(
                 module=module,
