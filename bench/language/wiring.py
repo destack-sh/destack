@@ -1,11 +1,13 @@
 import enum
 from collections import OrderedDict
 from copy import copy
-from typing import Any, Union
+from dataclasses import dataclass
+from typing import Any, Mapping, Self, Union
 from uuid import UUID
 
 import betterproto
 import structlog
+from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
 from bench.language import wire
 from bench.language.const import BenchType, NodeType, StructType
@@ -24,12 +26,54 @@ from bench.language.module import (
 from bench.language.session import Session
 from bench.sql.core import ColumnType
 from bench.utils.func import to_uuid
-from bench.utils.utils import to_snake_case
+from bench.utils.utils import hybridmethod, to_snake_case
 
 logger = structlog.get_logger(__name__)
 # nocheckin: auto-gen AnyNodeData/AnyStructData?
 AnyNodeData = Union[wire.ModuleData, wire.FileData, wire.StatementData, wire.FieldData]
 AnyStructData = Union[wire.EnvironmentData, wire.ExpressionData]
+
+
+# monkey-patch betterproto 'Struct' to fix from_dict/to_dict
+#  pulls ahead changes from https://github.com/danielgtaylor/python-betterproto/pull/551
+#  see https://github.com/danielgtaylor/python-betterproto/issues/332
+
+
+@dataclass(eq=False, repr=False)
+class PatchedStruct(BetterprotoStruct):
+    @hybridmethod
+    def from_dict(cls: type[Self], value: Mapping[str, Any]) -> Self:  # noqa
+        self = cls()
+        return self.from_dict(value)
+
+    @from_dict.instancemethod
+    def from_dict(self, value: Mapping[str, Any]) -> Self:
+        fields = {**value}
+        for k in fields:
+            if hasattr(fields[k], "from_dict"):
+                fields[k] = fields[k].from_dict()
+
+        self.fields = fields
+        return self
+
+    def to_dict(
+        self,
+        casing: betterproto.Casing = betterproto.Casing.CAMEL,
+        include_default_values: bool = False,
+    ) -> dict[str, Any]:
+        output = {**self.fields}
+        for k in self.fields:
+            if hasattr(self.fields[k], "to_dict"):
+                output[k] = self.fields[k].to_dict(casing, include_default_values)
+        return output
+
+
+from betterproto.lib.google.protobuf import Value  # noqa
+
+PatchedStruct()
+
+BetterprotoStruct.from_dict = PatchedStruct.from_dict
+BetterprotoStruct.to_dict = PatchedStruct.to_dict
 
 # :ProtoSchema
 PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
@@ -84,6 +128,8 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
             return proto_enum_cls[value.name]
     elif prop.store_as == ColumnType.UUID:
         return str(value)  # uuids are wired as strings
+    elif prop.store_as == ColumnType.JSON:
+        return BetterprotoStruct.from_dict(value)
     else:
         return value
 
@@ -107,6 +153,8 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
                 return prop.py_type_raw[value.name]
         elif prop.store_as == ColumnType.UUID:
             return to_uuid(value)  # uuids are wired as strings
+        elif prop.store_as == ColumnType.JSON:
+            return value.to_dict()
         else:
             return value
     except (AttributeError, TypeError, ValueError, KeyError) as e:
@@ -126,37 +174,37 @@ def pack_struct(struct: Struct) -> AnyStructData:
         raise ValueError(f"could not pack {struct.metatype.name}: {struct!r}") from e
 
 
-def unpack_struct(data: AnyStructData) -> Struct:
+def unpack_struct(struct_data: AnyStructData) -> Struct:
     """Unpack a struct and any contained structs."""
-    struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[StructType(data.metatype.name)]
+    struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[StructType(struct_data.metatype.name)]
     struct_kwargs = {}
     try:
         for prop in struct_cls.__stored_properties__.values():
             if prop.is_computed:
                 continue
-            value = getattr(data, prop.name)
+            value = getattr(struct_data, prop.name)
             struct_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
         return struct_cls(**struct_kwargs)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not unpack {data.metatype.name}: {data!r}") from e
+        raise ValueError(f"could not unpack {struct_data.metatype.name}: {struct_data!r}") from e
 
 
 def pack_node(node: Node) -> AnyNodeData:
     return pack_struct(node)
 
 
-def unpack_node(data: AnyNodeData, parent: Node, session: Session | None) -> Node:
-    node_cls = NODE_CLASS_BY_NODE_TYPE[NodeType(data.metatype.name)]
+def unpack_node(node_data: AnyNodeData, parent: Node, session: Session | None) -> Node:
+    node_cls = NODE_CLASS_BY_NODE_TYPE[NodeType(node_data.metatype.name)]
     node_kwargs = {}
     try:
         for prop in node_cls.__stored_properties__.values():
             if prop.is_computed:
                 continue
-            value = getattr(data, prop.name)
+            value = getattr(node_data, prop.name)
             node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
         return node_cls(**node_kwargs, parent=parent, _session=session)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not unpack {data.metatype.name}: {data!r}") from e
+        raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
 
 
 def pack_node_inline(
@@ -181,6 +229,7 @@ def unpack_node_inline(
     session: Session | None = None,
     exclude: set[NodeType] = None,
 ) -> Node:
+    """Unpack a node and all its inline descendants"""
     exclude = exclude or tuple()
     unpacked_tree = NodeTree()
 

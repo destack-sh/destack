@@ -15,18 +15,14 @@ from typing import Collection, Optional, TypeVar
 from uuid import UUID
 
 import structlog
+from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 from django.db import transaction
 from django.db.models import F, Model, QuerySet
 from django.db.models.expressions import RawSQL
 
 from bench import models
 from bench.language import TypeTag, wire, wiring
-from bench.language.const import (
-    HOST_NODE_TYPES,
-    INTERP_NODE_TYPES,
-    NodeType,
-    TriggerType,
-)
+from bench.language.const import HOST_NODE_TYPES, INTERP_NODE_TYPES, NodeType, TriggerType
 from bench.language.edit import EditBundle, EditData, EditKind
 from bench.language.module import NODE_CLASS_BY_NODE_TYPE, NodeTree, to_bench_metatype
 from bench.utils.dt import utcnow_with_tz
@@ -466,7 +462,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             text=statement.text,
             key=statement.key,
             code=statement.code,
-            value=statement.value,
+            value=BetterprotoStruct.from_dict(statement.value) if statement.value else None,
             versioned=statement.versioned,
             revision=statement.revision,
             created_at=statement.created_at,
@@ -494,7 +490,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             text=data.text,
             key=data.key,
             code=data.code,
-            value=data.value,
+            value=data.value.to_dict() if data.value else None,
             created_at=data.created_at,
             updated_at=data.updated_at,
             deleted_at=data.deleted_at,
@@ -519,7 +515,7 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
             text=field.text,
             flags=field.flags,
             reference_ck=str(field.reference_ck) if field.reference_ck else None,
-            value=field.value,
+            value=field.value.to_dict() if field.value else None,
             revision=field.revision,
             created_at=field.created_at,
             updated_at=field.updated_at,
@@ -593,7 +589,7 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
             parent_id=str(tagging.statement_id),
             key=tagging.key,
             reference_ck=str(tagging.reference_ck) if tagging.reference_ck else None,
-            value=tagging.value,
+            value=tagging.value.to_dict() if tagging.value else None,
             revision=tagging.revision,
             created_at=tagging.created_at,
             updated_at=tagging.updated_at,
@@ -869,10 +865,10 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             metatype=wire.BenchType.RUN,
             id=str(model.id),
             ck=str(model.ck),
-            project_id=str(model.project_id),
+            project_id=str(model.project_id) if model.project_id else None,
             worker_node_id=model.worker_node_id,
             worker_process_id=model.worker_process_id,
-            session_id=str(model.session_id),
+            session_id=str(model.session_id) if model.session_id else None,
             trigger_type=model.trigger_type,
             trigger_id=str(model.trigger_id) if model.trigger_id else None,
             root_id=str(model.root_id) if model.root_id else None,
@@ -889,10 +885,10 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             started_at=model.started_at,
             terminated_at=model.terminated_at,
             status=wire.RunStatus[model.status.upper()],
-            inputs=model.inputs,
-            outputs=model.outputs,
+            inputs=BetterprotoStruct.from_dict(model.inputs) if model.inputs else None,
+            outputs=BetterprotoStruct.from_dict(model.outputs) if model.outputs else None,
             error=wire.RunErrorData.from_dict(model.error) if model.error else None,
-            value=model.value,
+            value=BetterprotoStruct.from_dict(model.value) if model.value else None,
             access_level=model.access_level,
         )
 
@@ -932,10 +928,10 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             started_at=data.started_at,
             terminated_at=data.terminated_at,
             status=data.status.name,
-            inputs=data.inputs,
-            outputs=data.outputs,
+            inputs=data.inputs.to_dict() if data.inputs else None,
+            outputs=data.outputs.to_dict() if data.outputs else None,
             error=data.error.to_dict() if data.error else None,
-            value=data.value,
+            value=data.value.to_dict() if data.value else None,
             access_level=data.access_level.value if data.access_level else None,
         )
 

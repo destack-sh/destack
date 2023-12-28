@@ -903,7 +903,9 @@ def _process_struct_base_cls(
         if not hasattr(cls, name) and not prop.child_node_type:
             continue  # ignore inherited properties
         # map property to class attribute or dataclass field
-        if prop.ancestor_node_type:
+        if prop.ancestor_node_type and cls.__name__ not in ("ScopeNode", "Node"):
+            # (don't set computed ancestor property in base nodes, so we can override it with
+            #  a non-computed/static property in detached subclass nodes)
             if not detached:
                 attr = _node_ancestor_prop(prop)
             else:

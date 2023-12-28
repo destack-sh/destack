@@ -10,6 +10,7 @@ from typing import get_type_hints
 from uuid import UUID
 
 import betterproto
+from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
 
 @cache
@@ -34,7 +35,9 @@ def deepcopy(obj: typing.Any) -> typing.Any:
 
 def to_dict(obj: typing.Any, omit_empty: bool = False) -> typing.Any:
     """Convert any "reasonable" object to dict-able representation."""
-    if dataclasses.is_dataclass(obj):
+    if isinstance(obj, BetterprotoStruct):
+        return obj.to_dict()
+    elif dataclasses.is_dataclass(obj):
         fields = _prepare_dataclass_fields(obj.__class__)
         if hasattr(obj, "encode_some_attrs"):
             encoded = obj.encode_some_attrs()  # hack until :WireFormat
@@ -75,11 +78,15 @@ def from_dict(
         _path = ["<root>"]
     if not cls or not data:
         return data
-    if cls is typing.Any:
+    elif cls is typing.Any:
         return data
+    elif cls is BetterprotoStruct:
+        if not isinstance(data, dict):
+            raise TypeError(f"expected dict, got {type(data)}: {data}")
+        return cls.from_dict(data)
     elif dataclasses.is_dataclass(cls):
         if not isinstance(data, dict):
-            raise TypeError(f"expected dict, got {type(data)} in {data}")
+            raise TypeError(f"expected dict, got {type(data)}: {data}")
         if hasattr(cls, "cls_from_attrs"):
             new_cls = cls.cls_from_attrs(data)  # hack until :WireFormat
             if new_cls:
