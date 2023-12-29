@@ -45,12 +45,12 @@ class BenchType(betterproto.Enum):
     SECRET = 12
     SESSION = 13
     RUN = 14
-    EXPRESSION = 15
-    RUN_CODE_FRAME = 16
-    RUN_ERROR = 17
-    LOG_ENTRY = 18
-    WORKER_SET = 19
-    ENVIRONMENT = 20
+    EXPRESSION = 101
+    RUN_CODE_FRAME = 102
+    RUN_ERROR = 103
+    LOG_ENTRY = 104
+    WORKER_SET = 105
+    ENVIRONMENT = 106
 
 
 class BlobStatus(betterproto.Enum):
@@ -113,15 +113,15 @@ class ExpressionOp(betterproto.Enum):
     EXISTS = 18
     NOT_EXISTS = 19
     NEAR = 20
-    COUNT = 21
-    SUM = 22
-    AVERAGE = 23
-    MIN = 24
-    MAX = 25
-    MEDIAN = 26
-    HISTOGRAM = 27
-    ASCENDING = 28
-    DESCENDING = 29
+    COUNT = 1
+    SUM = 2
+    AVERAGE = 3
+    MIN = 4
+    MAX = 5
+    MEDIAN = 6
+    HISTOGRAM = 7
+    ASCENDING = 1
+    DESCENDING = 2
 
 
 class IdentifierType(betterproto.Enum):
@@ -186,6 +186,10 @@ class ProjectRegion(betterproto.Enum):
     UNSPECIFIED = 0
     US_WEST = 1
     EU_CENTRAL = 2
+
+
+class ProtoStrEnum(betterproto.Enum):
+    UNSPECIFIED = 0
 
 
 class QueryEngine(betterproto.Enum):
@@ -274,12 +278,12 @@ class StatementType(betterproto.Enum):
 
 class StructType(betterproto.Enum):
     UNSPECIFIED = 0
-    EXPRESSION = 1
-    RUN_CODE_FRAME = 2
-    RUN_ERROR = 3
-    LOG_ENTRY = 4
-    WORKER_SET = 5
-    ENVIRONMENT = 6
+    EXPRESSION = 101
+    RUN_CODE_FRAME = 102
+    RUN_ERROR = 103
+    LOG_ENTRY = 104
+    WORKER_SET = 105
+    ENVIRONMENT = 106
 
 
 class TextHeadingLevel(betterproto.Enum):
@@ -379,11 +383,6 @@ class TypeTag(betterproto.Enum):
     TYPE_REFERENCE = 11
     NODE = 12
     ANY = 13
-
-
-class ViewLayout(betterproto.Enum):
-    UNSPECIFIED = 0
-    TABLE = 1
 
 
 class WorkerProfile(betterproto.Enum):
@@ -578,6 +577,9 @@ class ModuleData(betterproto.Message):
     revision: int = betterproto.int64_field(15)
     name: str = betterproto.string_field(20)
     committed: bool = betterproto.bool_field(21)
+    project_id: str = betterproto.string_field(22)
+    os_name: str = betterproto.string_field(23)
+    pg_name: str = betterproto.string_field(24)
 
 
 @dataclass(eq=False, repr=False)
@@ -779,7 +781,6 @@ class ViewData(betterproto.Message):
     last_changed_at: datetime = betterproto.message_field(14)
     revision: int = betterproto.int64_field(15)
     name: str = betterproto.string_field(20)
-    layout: "ViewLayout" = betterproto.enum_field(21)
     query: "ExpressionData" = betterproto.message_field(22)
     sort: List["ExpressionData"] = betterproto.message_field(23)
 
@@ -843,9 +844,6 @@ class ReadModuleRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ReadModuleResponse(betterproto.Message):
     module: "ModuleTreeData" = betterproto.message_field(1)
-    project_id: str = betterproto.string_field(2)
-    os_name: str = betterproto.string_field(3)
-    pg_name: str = betterproto.string_field(4)
 
 
 class RuntimeHostStub(betterproto.ServiceStub):

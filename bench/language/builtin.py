@@ -85,7 +85,7 @@ def _make_builtin_lib_module(name: str) -> Module:
     # :BuiltinLibs
     ck = uuid5(BENCH_UUID_NAMESPACE, f"builtin:{name}")
     id = uuid5(ck, os.environ["VERSION"])
-    return Module(name=name, ck=ck, id=id, _project_id=ck)
+    return Module(name=name, ck=ck, id=id, project_id=ck)
 
 
 symbolx_lib = _make_builtin_lib_module("symbolx.lib")

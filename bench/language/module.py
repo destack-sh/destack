@@ -50,6 +50,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto import wire
+from bench.proto.core import ProtoStrEnum
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -495,7 +496,7 @@ class Property(_FieldExpressionBase):
                 self.store_as = ColumnType.BIGINT
             elif issubclass(py_type, Struct):
                 assert self.struct_type is not None, f"missing struct type for {self!r}"
-                self.store_as = ColumnType.JSON
+                self.store_as = ColumnType.BYTES
             elif issubclass(py_type, Node):
                 raise ValueError(f"cannot store node directly: {self!r}")
             else:
@@ -2976,8 +2977,11 @@ class ModuleChange:
 @node(NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
     parent: None = node_parent(4)
-    name: str = struct_internal(20)  # can't change this yet
+    name: str = struct_internal(20)  # can't change this (yet?)
     committed: bool = struct_internal(21, default=False)
+    project_id: Optional[UUID] = struct_internal(22, default=None)
+    os_name: Optional[str] = struct_internal(23, default=None)
+    pg_name: Optional[str] = struct_internal(24, default=None)
 
     files: NodeList["File"] = node_children(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
     dependencies: dict[str, Union["Module", ModuleReference]] = struct_runtime(default_factory=dict)
@@ -2985,9 +2989,6 @@ class Module(ScopeNode):
 
     _lookup_cache: dict[str, NodeT] = struct_runtime(default_factory=dict)
     _source: Optional[NodeTree] = struct_runtime(default=None)
-    _project_id: Optional[UUID] = struct_runtime(default=None)
-    _os_name: Optional[str] = struct_runtime(default=None)
-    _pg_name: Optional[str] = struct_runtime(default=None)
 
     def __str__(self):
         if self.issues:
@@ -3019,21 +3020,6 @@ class Module(ScopeNode):
     @property
     def path(self) -> str:
         return self.py_ident
-
-    @property
-    def project_id(self):
-        assert self._project_id is not None, f"no project id set in {self!r}"
-        return self._project_id
-
-    @property
-    def os_name(self):
-        assert self._os_name is not None, f"no search index name set in {self!r}"
-        return self._os_name
-
-    @property
-    def pg_name(self):
-        assert self._pg_name is not None, f"no database name set in {self!r}"
-        return self._pg_name
 
     @property
     def py_ident(self) -> str:
@@ -3227,10 +3213,10 @@ class Module(ScopeNode):
         source = [wiring.unwrap_some_node(s) for s in source]
         source = NodeTree(source)
         module = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
+        module.project_id = project_id
+        module.os_name = os_name
+        module.pg_name = pg_name
         module._source = source
-        module._project_id = project_id
-        module._os_name = os_name
-        module._pg_name = pg_name
         old_source = module._source.copy()
 
         for dependency in libs.DEFAULT_MODULES.values():
@@ -3297,3 +3283,14 @@ def complete_setup():
         cls.__stored_properties__ = frozendict(
             {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
         )
+
+    if DEBUG:
+        # check that all enum types are valid proto-able enums
+        for struct_t in chain(
+            STRUCT_CLASS_BY_STRUCT_TYPE.values(), NODE_CLASS_BY_NODE_TYPE.values()
+        ):
+            for prop in struct_t.__properties__.values():
+                if prop.is_enum and not issubclass(
+                    prop.py_type_stripped, (ProtoStrEnum, enum.IntEnum, enum.IntFlag)
+                ):
+                    raise ValueError(f"{prop!r} is not a valid proto enum")

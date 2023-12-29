@@ -2,10 +2,27 @@ import dataclasses
 import enum
 import textwrap
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Union
+from typing import ClassVar, Union
 
-if TYPE_CHECKING:
-    pass
+
+class ProtoStrEnum(enum.StrEnum):
+    """
+    enum.StrEnum with an additional id per value.
+    TODO @Cleanup: convert ProtoStrEnum to 'regular' int enum
+     (keep this class, but stop specifying name for everything and store all enums as int)
+    """
+
+    _ignore_ = ["RESERVED_NAMES", "RESERVED_IDS"]
+    RESERVED_NAMES: ClassVar[set[str]] = set()
+    RESERVED_IDS: ClassVar[set[int]] = set()
+
+    def __new__(cls, value: str, id: int):
+        """Create a new instance."""
+        obj = str.__new__(cls, value)
+        obj._value_ = value
+        assert id > 0 or value == "UNSPECIFIED", f"invalid id {id} for {value}"
+        obj.id = id
+        return obj
 
 
 class ProtoThing:

@@ -87,12 +87,12 @@ export enum BenchType {
   SECRET = 12,
   SESSION = 13,
   RUN = 14,
-  EXPRESSION = 15,
-  RUN_CODE_FRAME = 16,
-  RUN_ERROR = 17,
-  LOG_ENTRY = 18,
-  WORKER_SET = 19,
-  ENVIRONMENT = 20,
+  EXPRESSION = 101,
+  RUN_CODE_FRAME = 102,
+  RUN_ERROR = 103,
+  LOG_ENTRY = 104,
+  WORKER_SET = 105,
+  ENVIRONMENT = 106,
 }
 
 export function benchTypeFromJSON(object: any): BenchType {
@@ -142,22 +142,22 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 14:
     case "BENCH_TYPE_RUN":
       return BenchType.RUN;
-    case 15:
+    case 101:
     case "BENCH_TYPE_EXPRESSION":
       return BenchType.EXPRESSION;
-    case 16:
+    case 102:
     case "BENCH_TYPE_RUN_CODE_FRAME":
       return BenchType.RUN_CODE_FRAME;
-    case 17:
+    case 103:
     case "BENCH_TYPE_RUN_ERROR":
       return BenchType.RUN_ERROR;
-    case 18:
+    case 104:
     case "BENCH_TYPE_LOG_ENTRY":
       return BenchType.LOG_ENTRY;
-    case 19:
+    case 105:
     case "BENCH_TYPE_WORKER_SET":
       return BenchType.WORKER_SET;
-    case 20:
+    case 106:
     case "BENCH_TYPE_ENVIRONMENT":
       return BenchType.ENVIRONMENT;
     default:
@@ -461,15 +461,15 @@ export enum ExpressionOp {
   EXISTS = 18,
   NOT_EXISTS = 19,
   NEAR = 20,
-  COUNT = 21,
-  SUM = 22,
-  AVERAGE = 23,
-  MIN = 24,
-  MAX = 25,
-  MEDIAN = 26,
-  HISTOGRAM = 27,
-  ASCENDING = 28,
-  DESCENDING = 29,
+  COUNT = 1,
+  SUM = 2,
+  AVERAGE = 3,
+  MIN = 4,
+  MAX = 5,
+  MEDIAN = 6,
+  HISTOGRAM = 7,
+  ASCENDING = 1,
+  DESCENDING = 2,
 }
 
 export function expressionOpFromJSON(object: any): ExpressionOp {
@@ -537,31 +537,31 @@ export function expressionOpFromJSON(object: any): ExpressionOp {
     case 20:
     case "EXPRESSION_OP_NEAR":
       return ExpressionOp.NEAR;
-    case 21:
+    case 1:
     case "EXPRESSION_OP_COUNT":
       return ExpressionOp.COUNT;
-    case 22:
+    case 2:
     case "EXPRESSION_OP_SUM":
       return ExpressionOp.SUM;
-    case 23:
+    case 3:
     case "EXPRESSION_OP_AVERAGE":
       return ExpressionOp.AVERAGE;
-    case 24:
+    case 4:
     case "EXPRESSION_OP_MIN":
       return ExpressionOp.MIN;
-    case 25:
+    case 5:
     case "EXPRESSION_OP_MAX":
       return ExpressionOp.MAX;
-    case 26:
+    case 6:
     case "EXPRESSION_OP_MEDIAN":
       return ExpressionOp.MEDIAN;
-    case 27:
+    case 7:
     case "EXPRESSION_OP_HISTOGRAM":
       return ExpressionOp.HISTOGRAM;
-    case 28:
+    case 1:
     case "EXPRESSION_OP_ASCENDING":
       return ExpressionOp.ASCENDING;
-    case 29:
+    case 2:
     case "EXPRESSION_OP_DESCENDING":
       return ExpressionOp.DESCENDING;
     default:
@@ -1011,6 +1011,29 @@ export function projectRegionToJSON(object: ProjectRegion): string {
       return "PROJECT_REGION_EU_CENTRAL";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum ProjectRegion");
+  }
+}
+
+export enum ProtoStrEnum {
+  UNSPECIFIED = 0,
+}
+
+export function protoStrEnumFromJSON(object: any): ProtoStrEnum {
+  switch (object) {
+    case 0:
+    case "PROTO_STR_ENUM_UNSPECIFIED":
+      return ProtoStrEnum.UNSPECIFIED;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ProtoStrEnum");
+  }
+}
+
+export function protoStrEnumToJSON(object: ProtoStrEnum): string {
+  switch (object) {
+    case ProtoStrEnum.UNSPECIFIED:
+      return "PROTO_STR_ENUM_UNSPECIFIED";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ProtoStrEnum");
   }
 }
 
@@ -1511,12 +1534,12 @@ export function statementTypeToJSON(object: StatementType): string {
 
 export enum StructType {
   UNSPECIFIED = 0,
-  EXPRESSION = 1,
-  RUN_CODE_FRAME = 2,
-  RUN_ERROR = 3,
-  LOG_ENTRY = 4,
-  WORKER_SET = 5,
-  ENVIRONMENT = 6,
+  EXPRESSION = 101,
+  RUN_CODE_FRAME = 102,
+  RUN_ERROR = 103,
+  LOG_ENTRY = 104,
+  WORKER_SET = 105,
+  ENVIRONMENT = 106,
 }
 
 export function structTypeFromJSON(object: any): StructType {
@@ -1524,22 +1547,22 @@ export function structTypeFromJSON(object: any): StructType {
     case 0:
     case "STRUCT_TYPE_UNSPECIFIED":
       return StructType.UNSPECIFIED;
-    case 1:
+    case 101:
     case "STRUCT_TYPE_EXPRESSION":
       return StructType.EXPRESSION;
-    case 2:
+    case 102:
     case "STRUCT_TYPE_RUN_CODE_FRAME":
       return StructType.RUN_CODE_FRAME;
-    case 3:
+    case 103:
     case "STRUCT_TYPE_RUN_ERROR":
       return StructType.RUN_ERROR;
-    case 4:
+    case 104:
     case "STRUCT_TYPE_LOG_ENTRY":
       return StructType.LOG_ENTRY;
-    case 5:
+    case 105:
     case "STRUCT_TYPE_WORKER_SET":
       return StructType.WORKER_SET;
-    case 6:
+    case 106:
     case "STRUCT_TYPE_ENVIRONMENT":
       return StructType.ENVIRONMENT;
     default:
@@ -2156,35 +2179,6 @@ export function typeTagToJSON(object: TypeTag): string {
   }
 }
 
-export enum ViewLayout {
-  UNSPECIFIED = 0,
-  TABLE = 1,
-}
-
-export function viewLayoutFromJSON(object: any): ViewLayout {
-  switch (object) {
-    case 0:
-    case "VIEW_LAYOUT_UNSPECIFIED":
-      return ViewLayout.UNSPECIFIED;
-    case 1:
-    case "VIEW_LAYOUT_TABLE":
-      return ViewLayout.TABLE;
-    default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ViewLayout");
-  }
-}
-
-export function viewLayoutToJSON(object: ViewLayout): string {
-  switch (object) {
-    case ViewLayout.UNSPECIFIED:
-      return "VIEW_LAYOUT_UNSPECIFIED";
-    case ViewLayout.TABLE:
-      return "VIEW_LAYOUT_TABLE";
-    default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ViewLayout");
-  }
-}
-
 export enum WorkerProfile {
   UNSPECIFIED = 0,
   TINY = 1,
@@ -2464,6 +2458,9 @@ export interface ModuleData {
   revision: number;
   name: string;
   committed: boolean;
+  projectId: string;
+  osName: string;
+  pgName: string;
 }
 
 export interface BaseNodeData {
@@ -2655,7 +2652,6 @@ export interface ViewData {
   lastChangedAt: Date | undefined;
   revision: number;
   name: string;
-  layout: ViewLayout;
   query: ExpressionData | undefined;
   sort: ExpressionData[];
 }
@@ -4929,6 +4925,9 @@ function createBaseModuleData(): ModuleData {
     revision: 0,
     name: "",
     committed: false,
+    projectId: "",
+    osName: "",
+    pgName: "",
   };
 }
 
@@ -4969,6 +4968,15 @@ export const ModuleData = {
     }
     if (message.committed === true) {
       writer.uint32(168).bool(message.committed);
+    }
+    if (message.projectId !== "") {
+      writer.uint32(178).string(message.projectId);
+    }
+    if (message.osName !== "") {
+      writer.uint32(186).string(message.osName);
+    }
+    if (message.pgName !== "") {
+      writer.uint32(194).string(message.pgName);
     }
     return writer;
   },
@@ -5064,6 +5072,27 @@ export const ModuleData = {
 
           message.committed = reader.bool();
           continue;
+        case 22:
+          if (tag !== 178) {
+            break;
+          }
+
+          message.projectId = reader.string();
+          continue;
+        case 23:
+          if (tag !== 186) {
+            break;
+          }
+
+          message.osName = reader.string();
+          continue;
+        case 24:
+          if (tag !== 194) {
+            break;
+          }
+
+          message.pgName = reader.string();
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -5087,6 +5116,9 @@ export const ModuleData = {
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       committed: isSet(object.committed) ? globalThis.Boolean(object.committed) : false,
+      projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
+      osName: isSet(object.osName) ? globalThis.String(object.osName) : "",
+      pgName: isSet(object.pgName) ? globalThis.String(object.pgName) : "",
     };
   },
 
@@ -5128,6 +5160,15 @@ export const ModuleData = {
     if (message.committed === true) {
       obj.committed = message.committed;
     }
+    if (message.projectId !== "") {
+      obj.projectId = message.projectId;
+    }
+    if (message.osName !== "") {
+      obj.osName = message.osName;
+    }
+    if (message.pgName !== "") {
+      obj.pgName = message.pgName;
+    }
     return obj;
   },
 
@@ -5148,6 +5189,9 @@ export const ModuleData = {
     message.revision = object.revision ?? 0;
     message.name = object.name ?? "";
     message.committed = object.committed ?? false;
+    message.projectId = object.projectId ?? "";
+    message.osName = object.osName ?? "";
+    message.pgName = object.pgName ?? "";
     return message;
   },
 };
@@ -7970,7 +8014,6 @@ function createBaseViewData(): ViewData {
     lastChangedAt: undefined,
     revision: 0,
     name: "",
-    layout: 0,
     query: undefined,
     sort: [],
   };
@@ -8010,9 +8053,6 @@ export const ViewData = {
     }
     if (message.name !== "") {
       writer.uint32(162).string(message.name);
-    }
-    if (message.layout !== 0) {
-      writer.uint32(168).int32(message.layout);
     }
     if (message.query !== undefined) {
       ExpressionData.encode(message.query, writer.uint32(178).fork()).ldelim();
@@ -8107,13 +8147,6 @@ export const ViewData = {
 
           message.name = reader.string();
           continue;
-        case 21:
-          if (tag !== 168) {
-            break;
-          }
-
-          message.layout = reader.int32() as any;
-          continue;
         case 22:
           if (tag !== 178) {
             break;
@@ -8150,7 +8183,6 @@ export const ViewData = {
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
-      layout: isSet(object.layout) ? viewLayoutFromJSON(object.layout) : 0,
       query: isSet(object.query) ? ExpressionData.fromJSON(object.query) : undefined,
       sort: globalThis.Array.isArray(object?.sort) ? object.sort.map((e: any) => ExpressionData.fromJSON(e)) : [],
     };
@@ -8191,9 +8223,6 @@ export const ViewData = {
     if (message.name !== "") {
       obj.name = message.name;
     }
-    if (message.layout !== 0) {
-      obj.layout = viewLayoutToJSON(message.layout);
-    }
     if (message.query !== undefined) {
       obj.query = ExpressionData.toJSON(message.query);
     }
@@ -8219,7 +8248,6 @@ export const ViewData = {
     message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.revision = object.revision ?? 0;
     message.name = object.name ?? "";
-    message.layout = object.layout ?? 0;
     message.query =
       object.query !== undefined && object.query !== null ? ExpressionData.fromPartial(object.query) : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];

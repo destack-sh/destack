@@ -25,7 +25,16 @@ from bench.language.module import (
 )
 from bench.language.session import Session
 from bench.proto import wire
-from bench.proto.core import Enum, EnumValue, Field, FieldType, Message, Proto, ProtoThing
+from bench.proto.core import (
+    Enum,
+    EnumValue,
+    Field,
+    FieldType,
+    Message,
+    Proto,
+    ProtoStrEnum,
+    ProtoThing,
+)
 from bench.sql.core import ColumnType
 from bench.utils.func import to_uuid
 from bench.utils.utils import hybridmethod, to_all_caps, to_snake_case
@@ -364,16 +373,18 @@ def _bench_struct_to_proto(
 
 
 def _bench_enum_to_proto(
-    bench_t: type[enum.StrEnum] | type[enum.IntFlag],
+    bench_t: type[ProtoStrEnum] | type[enum.IntEnum] | type[enum.IntFlag],
     cache: dict[_BenchType, ProtoThing],
     alias: str = None,
 ) -> Enum:
+    assert issubclass(
+        bench_t, (ProtoStrEnum, enum.IntEnum, enum.IntFlag)
+    ), f"invalid enum: {bench_t!r}"
     # TODO @Broken: assign static ids to enum values (or use int enums) for proto serialization
     enum_prefix = to_all_caps(alias or bench_t.__name__) + "_"
-    if issubclass(bench_t, enum.StrEnum):
+    if issubclass(bench_t, ProtoStrEnum):
         enum_values = [
-            EnumValue(id=i + 1, name=enum_prefix + name)
-            for i, name in enumerate(bench_t.__members__.keys())
+            EnumValue(id=member.id, name=enum_prefix + member.name) for member in bench_t
         ]
     elif issubclass(bench_t, (enum.IntFlag, enum.IntEnum)):
         # use int values as ids
