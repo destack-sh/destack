@@ -18,13 +18,6 @@ import bench.language
 from bench import models, settings
 from bench.language.const import ProjectRegion, WorkerProfile, WorkerSetStatus
 from bench.models import packer
-from bench.msg import NMessage, NMessageType
-from bench.msg.core import request, subscribe
-from bench.msg.messages import (
-    RepWakeWorkerSetPayload,
-    ReqWakeWorkerSetPayload,
-    WorkersChangedPayload,
-)
 from bench.settings.k8 import (
     KUBERNETES_WORKER_ENV_VARS_STR,
     KUBERNETES_WORKER_IMAGE,
@@ -461,13 +454,6 @@ class WorkerObserver:
 
     async def start(self):
         logger.info("worker_observer.start")
-        self._subs = [
-            await subscribe(
-                f"{NMessageType.WORKERS_CHANGED}.>",
-                payload_t=WorkersChangedPayload,
-                cb=self._on_workers_changed,
-            )
-        ]
         self._worker_sets_by_project_id = {
             ws.project_id: ws
             async for ws in models.WorkerSet.objects.select_related(

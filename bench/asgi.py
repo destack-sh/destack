@@ -19,7 +19,7 @@ from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
-from bench.msg.core import drain_nats, init_nats, process_soon_queue
+from bench.proto.messaging import drain_nats, init_nats
 from bench.settings import (
     BROTLI_COMPRESSION_ENABLED,
     CORS_ALLOWED_ORIGINS,
@@ -74,7 +74,6 @@ task = reactor._asyncioEventloop.create_task(wrap_task(init_nats()))
 reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
 
 # start 'soon' publish queue
-task = reactor._asyncioEventloop.create_task(wrap_task(process_soon_queue()))
 reactor._asyncioEventloop.create_task(test_redis_connection())
 
 # run servers alongside API server (for development)

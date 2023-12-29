@@ -1,7 +1,8 @@
 import platform
 import sys
 
-from bench.language.wire import EnvironmentData
+from bench.proto.wire import EnvironmentData
+from bench.proto.wiring import pack_jsonable
 
 
 def _collect_environment() -> EnvironmentData:
@@ -22,5 +23,5 @@ def _collect_environment() -> EnvironmentData:
         language="python",
         version=version,
         platform=f"{osinfo.system} {osinfo.release}".split("-")[0],
-        packages=packages,
+        packages=pack_jsonable(packages),
     )

@@ -70,9 +70,6 @@ class RunManager(models.Manager):
 
 class Run(CrudNode, HasTriggeredBy):
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="runs")
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="runs"
-    )
     worker_node_id = models.CharField(max_length=64, null=True, blank=True)
     worker_process_id = models.CharField(max_length=64, null=True, blank=True)
     session = models.ForeignKey(

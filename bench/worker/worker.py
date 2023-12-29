@@ -9,17 +9,7 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import (
-    Blob,
-    File,
-    HasDatabase,
-    Module,
-    RunError,
-    Secret,
-    Statement,
-    wire,
-    wiring,
-)
+from bench.language import Blob, File, HasDatabase, Module, RunError, Secret, Statement
 from bench.language.builtin import symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
@@ -36,50 +26,8 @@ from bench.language.module import _NodeChange
 from bench.language.packer import map_value, unkey_value, unpack_value_flat
 from bench.language.run import RunErrorKind
 from bench.language.session import RuntimeHost, Session
-from bench.language.wire import RunData
-from bench.msg.core import (
-    NMessage,
-    handle_reply,
-    message_handler,
-    nc_init,
-    publish,
-    request,
-    subscribe,
-)
-from bench.msg.messages import (
-    ClientOrigin,
-    LogsChangedPayload,
-    ModuleChangedPayload,
-    NMessageType,
-    RepDownloadBlobPayload,
-    RepGetEnvironmentPayload,
-    RepKillRunPayload,
-    RepMarkUploadedBlobPayload,
-    RepPingWorkerSetPayload,
-    RepPullWorkerRunsPayload,
-    RepReadModulePayload,
-    RepRevealSecretPayload,
-    RepRunInferencePayload,
-    RepRunStatementPayload,
-    RepStartRunPayload,
-    RepUploadBlobPayload,
-    RepWriteEditsPayload,
-    ReqDownloadBlobPayload,
-    ReqGetEnvironmentPayload,
-    ReqKillRunPayload,
-    ReqMarkUploadedBlobPayload,
-    ReqPingWorkerSetPayload,
-    ReqPullWorkerRunsPayload,
-    ReqReadModulePayload,
-    ReqRevealSecretPayload,
-    ReqRunInferencePayload,
-    ReqRunStatementPayload,
-    ReqStartRunPayload,
-    ReqUploadBlobPayload,
-    ReqWriteEditsPayload,
-    SessionChangedPayload,
-    StartRunErrorType,
-)
+from bench.proto import wire, wiring
+from bench.proto.wire import RunData
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import wrap_task
@@ -88,8 +36,6 @@ from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, required_field, sentry_capture
 from bench.utils.uuidt import UUIDT
 from bench.worker.environment import _collect_environment
-
-()
 
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 3000, type_cast=int)
 WORKER_ACTIVE_TIMEOUT = timedelta(seconds=30)

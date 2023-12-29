@@ -56,7 +56,7 @@ COPY bench/worker bench/worker
 COPY bench/language bench/language
 COPY bench/sql bench/sql
 COPY bench/search bench/search
-COPY bench/msg bench/msg
+COPY bench/proto bench/proto
 COPY manageworker.py .
 COPY pyproject.toml .
 COPY version .

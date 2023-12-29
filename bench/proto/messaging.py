@@ -1,30 +1,21 @@
 import asyncio
 import dataclasses
-import json
+import enum
 import os
 import typing
 import uuid
-from asyncio import Queue, create_task
-from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
-from typing import Any, Awaitable, Callable, Generic, Type, TypeVar
+from typing import Any, Awaitable, Callable, Generic, Type
 from uuid import UUID
 
-import janus as janus
 import msgpack
 import nats
 import nats.aio.client
 import structlog
 from nats.aio.subscription import Subscription
 
-from bench.msg.messages import (
-    REGISTERED_MESSAGE_PAYLOADS,
-    REPLY_BY_REQUEST_TYPE,
-    NMessageType,
-    Payload,
-)
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.serialize import from_dict, to_dict
 from bench.utils.utils import get_from_env, required_field, sentry_capture
@@ -76,9 +67,11 @@ async def drain_nats():
     await nc.drain()
 
 
-PayloadT = TypeVar("PayloadT", bound=Payload)
-
 VERSION = os.environ["VERSION"]
+
+
+class NMessageType(enum.StrEnum):
+    pass
 
 
 @dataclass(repr=False)
@@ -262,7 +255,7 @@ async def request(
     return reply_msg
 
 
-async def handle_reply(type: str, cb, *, group: str = "") -> Subscription:
+async def _handle_reply(type: str, cb, *, group: str = "") -> Subscription:
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
     # topic is type for request/reply
@@ -271,17 +264,13 @@ async def handle_reply(type: str, cb, *, group: str = "") -> Subscription:
 
 
 async def publish(type: NMessageType, payload: Any) -> None:
-    message = prepare_publish(type, payload, payload.topic)
-    message.sent_at = utcnow_with_tz()
-    await do_publish(message, message.topic)
-
-
-def prepare_publish(type: NMessageType, payload: Any, topic: str) -> NMessage:
     if not isinstance(payload, REGISTERED_MESSAGE_PAYLOADS[type]):
         raise TypeError(f"expected message {type} for {payload}")
-    message = NMessage(type=type, topic=topic, payload=payload, sent_at=utcnow_with_tz())
-    _serialize_message(message)  # check that message is serializable for debugging
-    return message
+    message1 = NMessage(type=type, topic=payload.topic, payload=payload, sent_at=utcnow_with_tz())
+    _serialize_message(message1)  # check that message is serializable for debugging
+    message = message1
+    message.sent_at = utcnow_with_tz()
+    await do_publish(message, message.topic)
 
 
 async def do_publish(message: NMessage, topic: str):
@@ -290,93 +279,6 @@ async def do_publish(message: NMessage, topic: str):
     serialized = _serialize_message(message)
     log.debug("publish", topic=topic, message=message, bytes=len(serialized))
     await nc.publish(topic, serialized)
-
-
-_soon_queue_unbatched: janus.Queue[NMessage] | None = None
-_soon_queue_batched: list[tuple[str, NMessage]] | None = None
-_soon_queue_batch_lock: asyncio.Lock | None = None
-
-
-def get_batch_key(message: NMessage) -> str | None:
-    return None  # not used anymore.. probably remove this soon?
-
-
-def batch(messages: list[tuple[str, NMessage]]) -> list[NMessage]:
-    # aggregate by batch key
-    messages_by_key = defaultdict(list)
-    for batch_key, message in messages:
-        messages_by_key[batch_key].append(message)
-    # actually batch them
-    batched_messages = []
-    for batchable_messages in messages_by_key.values():
-        if len(batchable_messages) == 1:
-            batched_messages.append(batchable_messages[0])
-        else:
-            payload_cls = type(batchable_messages[0].payload)
-            batchable_messages[0].payload = payload_cls.batch(
-                list(b.payload for b in batchable_messages)
-            )
-            batched_messages.append(batchable_messages[0])
-    return batched_messages
-
-
-def publish_soon(type: NMessageType, payload: Payload, *, skip_batch: bool = None) -> None:
-    global _soon_queue_unbatched
-    global _soon_queue_batched
-    if _soon_queue_batched is None:
-        raise RuntimeError("publish_soon called before process_soon_queue started")
-    message = prepare_publish(type, payload, payload.topic)
-    batch_key = get_batch_key(message)
-    if batch_key is None or skip_batch is False:
-        _soon_queue_unbatched.sync_q.put_nowait(message)
-    else:
-        _soon_queue_batched.append((batch_key, message))
-
-
-async def _process_soon_queue_unbatched(q: Queue[NMessage]):
-    while True:
-        try:
-            message = await q.get()
-            log.debug("publish_soon", message=message)
-            await do_publish(message, message.topic)
-        except asyncio.CancelledError:
-            break
-        except Exception as e:
-            log.exception("publish_soon_issue", exc_info=True, e=e)
-
-
-async def _process_soon_queue_batched(q: list[tuple[str, NMessage]], flush_interval: float):
-    # TODO @Robustness: flush message queue on shutdown
-    while True:
-        await asyncio.sleep(flush_interval)
-        if not q:
-            continue
-        log.debug("publish_soon_flush", queue=len(q))
-        batched_messages = batch(list(q))
-        q.clear()
-        for message in batched_messages:
-            try:
-                log.debug("publish_soon_flush", message=message)
-                await do_publish(message, message.topic)
-            except Exception as e:
-                log.exception("publish_soon_issue", exc_info=True, e=e)
-
-
-async def process_soon_queue():
-    global _soon_queue_unbatched
-    global _soon_queue_batched
-    global _soon_queue_batch_lock
-    if _soon_queue_batched is not None:
-        raise RuntimeError("process_soon_queue already started")
-
-    _soon_queue_unbatched = janus.Queue()
-    _soon_queue_batched = []
-    _soon_queue_batch_lock = asyncio.Lock()
-
-    await asyncio.gather(
-        create_task(_process_soon_queue_unbatched(_soon_queue_unbatched.async_q)),
-        create_task(_process_soon_queue_batched(_soon_queue_batched, flush_interval=0.5)),
-    )
 
 
 class NSubscription(Generic[PayloadT]):
@@ -436,24 +338,3 @@ async def subscribe_many(
     for topic in topics:
         await nc.subscribe(topic, cb=subscription._on_msg)
     return subscription
-
-
-class MessageJSONEncoder(json.JSONEncoder):
-    """
-    JSONEncoder subclass that knows how to encode datetimes and UUIDs.
-    Trimmed down and customised DjangoJSONEncoder without the dependency.
-    """
-
-    def default(self, o):
-        # See "Date Time String Format" in the ECMA-262 specification.
-        if isinstance(o, datetime):
-            r = o.isoformat()
-            if o.microsecond:  # trim microseconds
-                r = r[:23] + r[26:]
-            if r.endswith("+00:00"):  # trim timezone
-                r = r[:-6] + "Z"
-            return r
-        elif isinstance(o, UUID):
-            return str(o)
-        else:
-            return super().default(o)

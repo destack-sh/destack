@@ -15,12 +15,12 @@ from django.db.models import Q
 from pgcrypto.fields import TextPGPSymmetricKeyField
 from strawberry_django.descriptors import model_property
 
-from bench.language import wire
 from bench.language.const import StatementType, new_dynamic_node_key
 from bench.language.validation import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 from bench.models.blob import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, CrudNode, Node, UUIDModel, create_models_bfs
+from bench.proto import wire
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import (

@@ -25,7 +25,6 @@ from uuid import UUID, uuid4
 import structlog
 from cachetools import cached
 
-from bench.language import wire
 from bench.language.const import (
     INTERP_NODE_TYPES,
     BenchType,
@@ -50,6 +49,7 @@ from bench.language.validation import (
     ValidationHandler,
     on_invalid_raise,
 )
+from bench.proto import wire
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -75,7 +75,7 @@ if TYPE_CHECKING:
     from bench.language import Expression, Field, File, Issue, NodeVisitor, Session
     from bench.language.edit import EditData
     from bench.language.issue import IssueHandler
-    from bench.language.wire import SomeNodeData
+    from bench.proto.wire import SomeNodeData
 
 logger = structlog.get_logger(__name__)
 
@@ -1731,7 +1731,7 @@ class NodeTree(NodeTreeBase[NT]):
         return NodeTree(self)
 
     def deepcopy(self):
-        from bench.language.wiring import copy_struct_data
+        from bench.proto.wiring import copy_struct_data
 
         nodes = [copy_struct_data(node) for node in self.nodes]
         return NodeTree(nodes)
@@ -3139,7 +3139,7 @@ class Module(ScopeNode):
 
     def _reset_from_source(self, source: Optional["NodeTree"] = None):
         """Resets the module completely from the source."""
-        from bench.language.wiring import unpack_node_inline
+        from bench.proto.wiring import unpack_node_inline
 
         if source is not None:
             self._source = source
@@ -3221,7 +3221,8 @@ class Module(ScopeNode):
         source: list["SomeNodeData"], project_id: UUID, os_name: str, pg_name: str
     ) -> "Module":
         """Create an interpreted Module from a source module node tree."""
-        from bench.language import libs, wiring
+        from bench.language import libs
+        from bench.proto import wiring
 
         source = [wiring.unwrap_some_node(s) for s in source]
         source = NodeTree(source)

@@ -22,7 +22,6 @@ import bench.language.const
 from bench import models
 from bench.language import const
 from bench.language import expression as expr
-from bench.msg.messages import ClientOrigin
 from bench.utils.utils import DEBUG, LOCAL, sentry_capture
 
 if typing.TYPE_CHECKING:
@@ -180,7 +179,7 @@ def to_global_id(type: str, id: UUID | None) -> GlobalID | None:
     return GlobalID(type, str(id))
 
 
-def get_client_origin_from_info(info: Info) -> ClientOrigin:
+def get_client_origin_from_info(info: Info) -> "ClientOrigin":
     scope = get_scope_from_info(info)
     client_id = scope["session"]["client_id"]
     # get nonce from list of headers

@@ -17,14 +17,6 @@ from rest_framework_dataclasses.serializers import DataclassSerializer
 
 from bench import models
 from bench.language import TriggerType
-from bench.msg import NMessageType
-from bench.msg.core import MessagingError, NMessage, request
-from bench.msg.messages import (
-    RepStartRunPayload,
-    RepWakeWorkerSetPayload,
-    ReqStartRunPayload,
-    ReqWakeWorkerSetPayload,
-)
 from bench.utils.utils import sentry_capture
 
 logger = structlog.get_logger(__name__)

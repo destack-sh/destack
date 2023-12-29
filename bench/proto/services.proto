@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+import "bench/proto/bench.proto";
+
+enum ClientType {
+  WEB = 0;
+  WORKER = 1;
+}
+
+message ClientOrigin {
+  ClientType client_type = 1;
+  string client_id = 2;
+  string nonce = 3;
+}
+
+
+message PingRuntimeRequest {
+}
+
+message PingRuntimeResponse {
+}
+
+// read/write module
+
+message ReadModuleRequest {
+}
+
+message ReadModuleResponse {
+  ModuleTreeData module = 1;
+  string project_id = 2;
+  string os_name = 3;
+  string pg_name = 4;
+}
+
+service RuntimeHost {
+  rpc PingRuntime(PingRuntimeRequest) returns (PingRuntimeResponse);
+
+  // subscriptions
+  //  rpc ProjectChanged(ProjectChangedRequest) returns (stream ProjectChangedResponse);
+  //  rpc ModuleChanged(ModuleChangedRequest) returns (stream ModuleChangedResponse);
+  //  rpc RunsChanged(RunsChangedRequest) returns (stream RunsChangedResponse);
+  //  rpc LogsChanged(LogsChangedRequest) returns (stream LogsChangedResponse);
+  //  rpc WorkersChanged(WorkersChangedRequest) returns (stream WorkersChangedResponse);
+
+  // read/write module
+  rpc ReadModule(ReadModuleRequest) returns (ReadModuleResponse);
+  //  rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
+  //  rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
+  //  rpc SnapshotModule(SnapshotModuleRequest) returns (SnapshotModuleResponse);
+  //  rpc SearchRecords(SearchRecordsRequest) returns (SearchRecordsResponse);
+  //  rpc DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
+  //  rpc UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
+  //  rpc MarkUploadedBlob(MarkUploadedBlobRequest) returns (MarkUploadedBlobResponse);
+  //  rpc RevealSecret(RevealSecretRequest) returns (RevealSecretResponse);
+  //  rpc RunProxyInference(RunProxyInferenceRequest) returns (RunProxyInferenceResponse);
+  //  rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
+
+  // worker management
+  //  rpc ConfigureWorkerSet(ConfigureWorkerSetRequest) returns (ConfigureWorkerSetResponse);
+  //  rpc WakeWorkerSet(WakeWorkerSetRequest) returns (WakeWorkerSetResponse);
+  //  rpc RestartWorkerSet(RestartWorkerSetRequest) returns (RestartWorkerSetResponse);
+  //  rpc GetEnvironment(GetEnvironmentRequest) returns (GetEnvironmentResponse);
+  //  rpc PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
+
+  // runs
+  //  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  //  rpc KillRun(KillRunRequest) returns (KillRunResponse);
+  //  rpc PullWorkerRuns(PullWorkerRunsRequest) returns (PullWorkerRunsResponse);
+}
+
+service WorkerNode {
+  // worker management
+  //  rpc RestartWorker(RestartWorkerRequest) returns (RestartWorkerResponse);
+
+  // runs
+  //  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  //  rpc KillRun(KillRunRequest) returns (KillRunResponse);
+}
+

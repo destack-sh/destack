@@ -20,7 +20,6 @@ from strawberry_django.fields.types import OperationInfo, OperationMessage
 
 from bench import models
 from bench.api.utils import get_param_from_info, get_user_from_info
-from bench.language import wire
 from bench.models import (
     ModuleAccessLevel,
     Organization,
@@ -31,6 +30,7 @@ from bench.models import (
 )
 from bench.models.notification import create_notifications_on_signup
 from bench.models.owner import OwnerSlug, slugify
+from bench.proto import wire
 
 logger = structlog.get_logger(__name__)
 

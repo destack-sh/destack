@@ -36,8 +36,8 @@ from bench.utils.utils import format_python, omit_empty
 
 if TYPE_CHECKING:
     from bench.language import File, Run, Statement
-    from bench.language.wire import ModuleTreeData
-    from bench.language.wiring import AnyNodeData
+    from bench.proto.wire import ModuleTreeData
+    from bench.proto.wiring import AnyNodeData
 
 
 class EditType(enum.StrEnum):
@@ -227,7 +227,7 @@ assert set(EditType) == set(_MODULE_EDIT_MAP.keys()), "not all edits are mapped"
 class Edit:
     """
     An edit to a module/node.
-    TODO @Cleanup @Architecture: use new :Edit where possible (see :BE-114)
+    nocheckin: use new :Edit where possible (see :BE-114)
      also track Edit.edited_by (for Run to enable undo)
     """
 
@@ -265,12 +265,12 @@ class Edit:
 
 @dataclass
 class EditData:
+    # nocheckin: new edits 2.0
     type: EditType
     project_version_id: UUID
     file_id: Optional[UUID] = None
     statement_id: Optional[UUID] = None
     revision: Optional[int] = None
-    input: Optional[dict[str, Any]] = None  # for GQL edits
     properties: Optional[list[str]] = None  # changed properties (by language name), see :Edit
     thing: Optional[Any] = None  # in-memory object that was mutated, not serialized
     _node_type: Optional[NodeType] = None  # discriminator for 'union'
@@ -284,7 +284,7 @@ class EditData:
 
     @classmethod
     def decode_some_attrs(cls, data: dict[str, Any]) -> dict[str, Any]:
-        from bench.language import wiring
+        from bench.proto import wiring
 
         _node = data.get("_node")
         if _node is not None:
@@ -358,7 +358,7 @@ class NodeTreeEditor:
     def _make_edit(
         self, type: EditType, node: "AnyNodeData", properties: list[str] = None
     ) -> "EditData":
-        from bench.language import wire
+        from bench.proto import wire
 
         if isinstance(node, wire.StatementData):
             statement_id = node.id
@@ -392,7 +392,7 @@ class NodeTreeEditor:
         return edit
 
     def _pack_node_flat_if_needed(self, node: Union[Node, "AnyNodeData"]) -> "AnyNodeData":
-        from bench.language import wiring
+        from bench.proto import wiring
 
         if isinstance(node, Node):
             return wiring.pack_node(node)

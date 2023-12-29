@@ -71,7 +71,7 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import Blob, HasDatabase, HasFields, Secret, Trigger
     from bench.language.cache import Cache
-    from bench.language.wire import LogEntryData, RunData
+    from bench.proto.wire import LogEntryData, RunData
 
 logger = structlog.get_logger(__name__)
 
@@ -121,6 +121,7 @@ class LogEntry(Struct):
     """
 
     id: UUID = struct_internal(2, default_factory=uuid4)
+    project_id: UUID = struct_internal(20)
     module: Module = struct_internal(21, references=NodeType.MODULE)
     created_at: datetime = struct_internal(22, default_factory=utcnow_with_tz)
     stream: str = struct_internal(23)
@@ -431,7 +432,7 @@ class Session(ScopeNode):
         self._log.debug("session.close.done")
 
     async def _write_logs(self, logs: list[LogEntry]) -> None:
-        from bench.language import wiring
+        from bench.proto import wiring
         from bench.search import mirror
 
         if not logs:
@@ -557,7 +558,7 @@ class SessionTracer:
         Local edits = any record edits.
         """
         from bench.language import Record
-        from bench.language.wiring import pack_node
+        from bench.proto.wiring import pack_node
 
         module = self.session.module
         with self._tracing_lock:
@@ -953,7 +954,7 @@ class SessionTracer:
 
     async def _flush(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session data."""
-        from bench.language import wiring
+        from bench.proto import wiring
 
         if not force and not self._pending_logs and not self._pending_runs:
             return  # skip if nothing to commit
@@ -1082,9 +1083,11 @@ class LogCollector:
         else:
             statement = None
             run = None
+        module = self.session.module
         log_entry = LogEntry(
             id=UUIDT(),
-            module=self.session.module,
+            project_id=module.project_id,
+            module=module,
             created_at=utcnow_with_tz(),
             stream=self.stream,
             session=self.session,

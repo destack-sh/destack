@@ -84,6 +84,7 @@ import SharingPopover from "@/components/bench/SharingPopover.vue";
 import type { Project, ProjectVersion } from "@/gql/graphql";
 import { useElementRefs } from "@/composables/useGrid";
 import { DateTime } from "luxon";
+import { AggregationOp } from "@/wire";
 
 const props = defineProps<{
   owner: string;

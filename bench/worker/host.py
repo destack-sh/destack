@@ -9,13 +9,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.msg import nc_init
-from bench.msg.core import NMessage, handle_reply, message_handler
-from bench.msg.messages import (
-    NMessageType,
-    RepDoRestartWorkerNodePayload,
-    ReqDoRestartWorkerNodePayload,
-)
+from bench.proto.messaging import nc_init
 
 logger = structlog.get_logger(__name__)
 
@@ -38,7 +32,6 @@ class WorkerHost:
         self.project_id = project_id
         self.module_id = module_id
         self.worker_process: Popen | None = None
-        self.subs = []
         self._stopped = False
 
     def __str__(self):
@@ -57,12 +50,6 @@ class WorkerHost:
             }
         else:
             routing_ids = (">",)
-        self.subs = [
-            await handle_reply(
-                f"{NMessageType.DO_RESTART_WORKER_NODE}.{r}", self.do_restart_worker_node
-            )
-            for r in routing_ids
-        ]
         # launch worker process
         suspiciously_rapid_restarts = 0
         while not self._stopped:
@@ -113,4 +100,3 @@ class WorkerHost:
 
     async def stop(self):
         self.stop_sync()
-        await asyncio.gather(*[sub.unsubscribe() for sub in self.subs])
