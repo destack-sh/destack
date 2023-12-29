@@ -74,6 +74,14 @@ def partition(pred, iterable) -> tuple[list[Any], list[Any]]:
     return list(filterfalse(pred, t1)), list(filter(pred, t2))
 
 
+def group_by(iterable, key: callable) -> dict[Any, list[Any]]:
+    """Groups an iterable by a key function"""
+    result = {}
+    for item in iterable:
+        result.setdefault(key(item), []).append(item)
+    return result
+
+
 def try_tuple(obj: T) -> tuple[T, ...] | None:
     """To tuple if not None and not already a tuple"""
     if obj is None:

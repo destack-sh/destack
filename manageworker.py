@@ -7,6 +7,8 @@ from uuid import UUID
 import dotenv
 import structlog
 
+from bench.proto.messaging import init_nats
+
 # must come first
 os.environ["VERSION"] = Path("version").read_text().strip()
 dotenv.load_dotenv(verbose=True)
@@ -17,7 +19,6 @@ from bench.utils.logging import configure_logging  # noqa: E402
 logger = structlog.get_logger(__name__)
 configure_logging(apply_logging=True, apply_structlog=True)
 
-from bench.msg.core import init_nats, process_soon_queue  # noqa: E402
 from bench.utils.analytics import init_sentry  # noqa: E402
 from bench.utils.cache import test_redis_connection  # noqa: E402
 from bench.utils.monitoring import restart_on_file_changes  # noqa: E402
@@ -54,7 +55,6 @@ else:
 async def _run_node():
     await init_nats(nats_name)
     await test_redis_connection()
-    asyncio.create_task(process_soon_queue())
     worker = WorkerNode(
         worker_set_id=worker_set_id,
         worker_node_id=worker_node_id,
@@ -69,7 +69,6 @@ async def _run_node():
 async def _run_host():
     await init_nats(nats_name)
     await test_redis_connection()
-    asyncio.create_task(process_soon_queue())
     host = WorkerHost(
         worker_set_id=worker_set_id,
         worker_node_id=worker_node_id,

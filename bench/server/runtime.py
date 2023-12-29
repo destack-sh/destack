@@ -14,17 +14,7 @@ from django.db import transaction
 from more_itertools import first
 
 from bench import models, settings
-from bench.language import (
-    HasDatabase,
-    Module,
-    SortOp,
-    Statement,
-    Trigger,
-    TriggerType,
-    libs,
-    wire,
-    wiring,
-)
+from bench.language import HasDatabase, Module, SortOp, Statement, Trigger, TriggerType, libs
 from bench.language.builtin import symbolx_lib
 from bench.language.cache import Cache
 from bench.language.const import (
@@ -46,49 +36,11 @@ from bench.language.module import NodeTree, on_issue_raise, walk_bfs
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
-from bench.language.wiring import AnyNodeData
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import get_default_pack_filters, write_host_db_edits
 from bench.models.user import loops_request
-from bench.msg import NMessage
-from bench.msg.core import VERSION, handle_reply, message_handler, nc_init, publish, request
-from bench.msg.messages import (
-    ClientOrigin,
-    ModuleChangedPayload,
-    NMessageType,
-    ProjectChangedPayload,
-    RepDownloadBlobPayload,
-    RepMarkUploadedBlobPayload,
-    RepPasteNodesPayload,
-    RepPullWorkerRunsPayload,
-    RepReadModulePayload,
-    RepRevealSecretPayload,
-    RepRunInferencePayload,
-    RepRunStatementPayload,
-    RepSearchRecordsPayload,
-    RepSnapshotModulePayload,
-    RepStartRunPayload,
-    RepUploadBlobPayload,
-    RepWakeRuntimePayload,
-    RepWriteEditsPayload,
-    ReqDownloadBlobPayload,
-    ReqMarkUploadedBlobPayload,
-    ReqPasteNodesPayload,
-    ReqPullWorkerRunsPayload,
-    ReqReadModulePayload,
-    ReqRevealSecretPayload,
-    ReqRunInferencePayload,
-    ReqRunStatementPayload,
-    ReqSearchRecordsPayload,
-    ReqSnapshotModulePayload,
-    ReqStartRunPayload,
-    ReqUploadBlobPayload,
-    ReqWakeRuntimePayload,
-    ReqWriteEditsPayload,
-    RunsChangedGlobalPayload,
-    SessionChangedPayload,
-    StartRunErrorType,
-)
+from bench.proto import wire, wiring
+from bench.proto.wiring import AnyNodeData
 from bench.search.engine import update_os_schema
 from bench.server.k8 import WorkerObserver
 from bench.server.search import write_edits_to_os, write_records_to_os
@@ -173,7 +125,6 @@ class RuntimeSupervisor(Monitored):
     def __init__(self):
         self.id = UUIDT()
         self.runtimes: dict[UUID, RuntimeHost] = {}
-        self.subs = []
         self.tasks = TaskManager()
         self.workers = WorkerObserver()
         self._ready = False
@@ -181,22 +132,6 @@ class RuntimeSupervisor(Monitored):
     async def run(self):
         await nc_init.wait()
         logger.info("start")
-        self.subs = [
-            # ideally most of these should be delegated to the RuntimeHost directly
-            await handle_reply(NMessageType.READ_MODULE, self.read_module),
-            await handle_reply(NMessageType.WRITE_EDITS, self.write_edits),
-            await handle_reply(NMessageType.PASTE_NODES, self.paste_nodes),
-            await handle_reply(NMessageType.PULL_WORKER_RUNS, self.pull_runs),
-            await handle_reply(NMessageType.WAKE_RUNTIME, self.wake_runtime),
-            await handle_reply(NMessageType.SNAPSHOT_MODULE, self.snapshot),
-            await handle_reply(NMessageType.SEARCH_RECORDS, self.search_records),
-            await handle_reply(NMessageType.DOWNLOAD_BLOB, self.read_blob),
-            await handle_reply(NMessageType.UPLOAD_BLOB, self.write_blob),
-            await handle_reply(NMessageType.MARK_UPLOADED_BLOB, self.mark_uploaded_blob),
-            await handle_reply(NMessageType.REVEAL_SECRET, self.reveal_secret),
-            await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
-            await handle_reply(NMessageType.RUN_PROXY_STATEMENT, self.run_statement),
-        ]
 
         logger.info("load_modules")
         projects = await sync_to_async(_get_projects_to_manage)()

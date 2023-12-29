@@ -414,6 +414,7 @@ message ExpressionData {
 message LogEntryData {
   BenchType metatype = 1;
   string id = 2;
+  string project_id = 20;
   string module_ck = 21;
   google.protobuf.Timestamp created_at = 22;
   string stream = 23;

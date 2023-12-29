@@ -44,7 +44,7 @@ from bench.utils.utils import flatten
 
 if typing.TYPE_CHECKING:
     from bench.language import Field, Statement, View
-    from bench.language.wire import RecordData  # noqa: F401
+    from bench.proto.wire import RecordData  # noqa: F401
 
 logger = structlog.get_logger(__name__)
 

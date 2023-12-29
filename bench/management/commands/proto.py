@@ -9,7 +9,8 @@ from bench.language.module import (
     STRUCT_CLASS_BY_STRUCT_TYPE,
     Node,
 )
-from bench.language.proto import Field, Message, generate_proto_schema
+from bench.proto.core import Field, Message
+from bench.proto.wiring import generate_proto_schema
 
 
 def write_schema(path: str, schema):

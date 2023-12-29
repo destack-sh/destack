@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Collection, Optional
 from uuid import UUID
@@ -11,26 +12,13 @@ from bench import models
 from bench.language.const import ACTIVE_RUN_STATUSES, PENDING_RUN_STATUSES, WorkerSetStatus
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
-from bench.msg import nc_init
-from bench.msg.core import NMessage, handle_reply, message_handler, publish, request
-from bench.msg.messages import (
-    NMessageType,
-    RepConfigureWorkerSetPayload,
-    RepDoRestartWorkerNodePayload,
-    RepRestartWorkerSetPayload,
-    RepWakeWorkerSetPayload,
-    ReqConfigureWorkerSetPayload,
-    ReqDoRestartWorkerNodePayload,
-    ReqRestartWorkerSetPayload,
-    ReqWakeWorkerSetPayload,
-    RunsChangedGlobalPayload,
-    WorkersChangedPayload,
-)
+from bench.proto.messaging import nc_init
 from bench.server import k8
 from bench.server.search import write_runs_to_os
 from bench.settings import KUBERNETES_ENABLED
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.func import group_by
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import sentry_capture
@@ -229,9 +217,11 @@ class OrchestrationServer(Monitored):
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
         dead_runs_data = [packer.pack_node_flat(r) for r in dead_runs]
         await sync_to_async(write_runs_to_os)(project_vs, dead_runs_data)
-        await publish(
-            NMessageType.RUNS_CHANGED_GLOBAL, RunsChangedGlobalPayload(runs=dead_runs_data)
-        )
+        dead_runs_data_by_project_id = group_by(dead_runs_data, lambda r: r.project_id)
+        for project_id, dead_runs_data in dead_runs_data_by_project_id.items():
+            await publish(
+                NMessageType.RUNS_CHANGED_GLOBAL, RunsChangedGlobalPayload(runs=dead_runs_data)
+            )
 
     async def _watch_worker_sets_in_k8_forever(self, k8_marker: k8.VersionMarker):
         """Watch k8 deployments and update worker sets accordingly."""

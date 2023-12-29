@@ -13,7 +13,6 @@ from bench.language.validation import MAX_DESCRIPTION_LENGTH
 from bench.models.organization import Organization, OrganizationMembership
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
-from bench.msg.messages import ClientData
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL
 
@@ -242,43 +241,3 @@ class Client(UUIDModel):
         return f"<Client {self}>"
 
     objects = ClientManager()
-
-
-def pack_client(client: Client) -> ClientData:
-    return ClientData(
-        id=client.id,
-        created_at=client.created_at,
-        last_seen_at=client.last_seen_at,
-        closed_at=client.closed_at,
-        user_id=client.user_id,
-        type=client.type,
-        device_name=client.device_name,
-        browser_name=client.browser_name,
-        project_id=client.project_id,
-        project_version_id=client.project_version_id,
-        file_id=client.file_id,
-        statement_id=client.statement_id,
-        field_id=client.field_id,
-        record_id=client.record_id,
-        path=client.path,
-    )
-
-
-def unpack_client(client_data: ClientData) -> Client:
-    return Client(
-        id=client_data.id,
-        created_at=client_data.created_at,
-        last_seen_at=client_data.last_seen_at,
-        closed_at=client_data.closed_at,
-        user_id=client_data.user_id,
-        type=client_data.type,
-        device_name=client_data.device_name,
-        browser_name=client_data.browser_name,
-        project_id=client_data.project_id,
-        project_version_id=client_data.project_version_id,
-        file_id=client_data.file_id,
-        statement_id=client_data.statement_id,
-        field_id=client_data.field_id,
-        record_id=client_data.record_id,
-        path=client_data.path,
-    )

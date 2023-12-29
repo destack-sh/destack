@@ -8,10 +8,10 @@ from psycopg import sql
 
 from bench import language as lang
 from bench import models
-from bench.language import wire
 from bench.language.const import NodeType
 from bench.models import packer
 from bench.models.utils import create_models_bfs
+from bench.proto import wire
 from bench.search.engine import update_os_schema
 from bench.sql.client import async_pg_cursor
 from bench.sql.engine import (

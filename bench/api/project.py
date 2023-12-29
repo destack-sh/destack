@@ -3,7 +3,6 @@ from uuid import UUID
 
 import strawberry
 import strawberry_django
-from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from strawberry import UNSET, auto, lazy, relay
@@ -13,25 +12,14 @@ from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_module_access, has_module_access, is_owner_or_member
-from bench.api.utils import (
-    HasCrud,
-    ModuleNode,
-    asafe_mutation,
-    get_client_origin_from_info,
-    get_user_from_info,
-    safe_mutation,
-)
+from bench.api.utils import HasCrud, ModuleNode, get_user_from_info, safe_mutation
 from bench.language import const
 from bench.language.cache import _get_usage_key
 from bench.models import ModuleAccessLevel
-from bench.msg.core import NMessage, request
-from bench.msg.messages import NMessageType, RepSnapshotModulePayload, ReqSnapshotModulePayload
 from bench.utils.cache import redis_sync
 
 if TYPE_CHECKING:
-    from bench.api.file import File
     from bench.api.organization import Organization
-    from bench.api.session import WorkerSet
     from bench.api.user import User
 
 StatementType = strawberry.enum(const.StatementType)
@@ -120,8 +108,6 @@ class Project(relay.Node):
         "ProjectVersion"
     ] = strawberry_django.connection(filters=ProjectVersionFilter)
 
-    worker_set: Annotated["WorkerSet", lazy(".session")]
-    worker_sets: list[Annotated["WorkerSet", lazy(".session")]]
     usage: ProjectUsage = strawberry_django.field(resolver=get_project_usage)
 
     @strawberry_django.field
@@ -161,7 +147,6 @@ class ProjectVersion(HasCrud, ModuleNode, relay.Node):
     children: list["ProjectVersion"]
     committed: auto
     committed_at: auto
-    files: list[Annotated["File", lazy(".file")]] = strawberry_django.field(filters=FileFilter)
 
 
 @strawberry.input
@@ -322,26 +307,3 @@ class ProjectVersionMutation:
         project_v.tag = input.tag
         project_v.save()
         return project_v
-
-    @asafe_mutation
-    async def snapshot(self, info, input: SnapshotInput) -> SnapshotPayload | OperationInfo:
-        head = await models.ProjectVersion.objects.select_related("project").aget(
-            id=input.project_version_id.node_id
-        )
-        project = head.project
-        if head.id != project.head_id:
-            raise ValueError("cannot commit version that's not the head")
-        await sync_to_async(check_module_access)(info, project, ModuleAccessLevel.Edit)
-
-        req = ReqSnapshotModulePayload(
-            module_id=head.id,
-            name=input.name,
-            tag=input.tag,
-            description=input.description,
-            client=get_client_origin_from_info(info),
-        )
-        rep: NMessage[RepSnapshotModulePayload] = await request(NMessageType.SNAPSHOT_MODULE, req)
-        if not rep.p.success:
-            raise RuntimeError(f"failed to create snapshot: {rep.p.error}")
-
-        return SnapshotPayload(project=project)

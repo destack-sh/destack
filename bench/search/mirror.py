@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from uuid import UUID
 
 import bench.search.core as os
-from bench.language import wire
 from bench.language.const import RunStatus
+from bench.proto import wire
 from bench.utils.utils import IS_WORKER
 
 if TYPE_CHECKING or not IS_WORKER:
@@ -258,7 +258,6 @@ class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
 @document(os.DocumentType.RUN)
 class Run(os.Document):
     project_id: UUID = os.field(os.FT.KEYWORD)
-    project_version_id: UUID = os.field(os.FT.KEYWORD)
     worker_node_id: Optional[str] = os.field(os.FT.KEYWORD)
     worker_process_id: Optional[str] = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
@@ -285,7 +284,6 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
         return Run(
             id=node.id,
             project_id=node.project_id,
-            project_version_id=node.project_version_id,
             worker_node_id=node.worker_node_id,
             worker_process_id=node.worker_process_id,
             session_id=node.session_id,
@@ -344,7 +342,6 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
         return Run(
             id=data.id,
             project_id=data.project_id,
-            project_version_id=data.module_id,
             worker_node_id=data.worker_node_id,
             worker_process_id=data.worker_process_id,
             session_id=data.session_id,
@@ -368,7 +365,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
 
 @document(os.DocumentType.LOG_ENTRY)
 class LogEntry(os.Document):
-    project_version_id: UUID = os.field(os.FT.KEYWORD)
+    project_id: UUID = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     run_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
@@ -386,6 +383,7 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
     def pack(self, mirror: LogEntry) -> wire.LogEntryData:
         return wire.LogEntryData(
             id=mirror.id,
+            project_id=mirror.project_id,
             module_id=mirror.project_version_id,
             session_id=mirror.session_id,
             run_id=mirror.run_id,
@@ -404,6 +402,7 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
     ) -> LogEntry:
         return LogEntry(
             id=data.id,
+            project_id=data.project_id,
             project_version_id=project_v.id,
             session_id=data.session_id,
             run_id=data.run_id,

@@ -1,12 +1,11 @@
 import os
 import typing
-from typing import TYPE_CHECKING, Annotated, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import strawberry
 import strawberry_django
 from django.contrib.auth.models import AnonymousUser
 from graphql import GraphQLError, NoSchemaIntrospectionCustomRule
-from strawberry import lazy
 from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
 from strawberry.relay import GlobalID
 from strawberry.types import ExecutionContext, Info
@@ -14,33 +13,19 @@ from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
 from bench.api.auth import HasModuleAccess, IsOwner
-from bench.api.blob import Blob, BlobMutation
-from bench.api.database import RecordMutation, RecordQuery
-from bench.api.file import File, FileMutation
-from bench.api.module import read_module_node_by_id
-from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
 from bench.api.organization import Organization, OrganizationMutation
-from bench.api.project import (
-    Project,
-    ProjectMutation,
-    ProjectVersion,
-    ProjectVersionMutation,
-    ProjectVisibility,
-)
-from bench.api.secret import Secret, SecretMutation
+from bench.api.project import Project, ProjectMutation, ProjectVersion, ProjectVisibility
 from bench.api.sentry import SentryPerformanceExtension
-from bench.api.session import SessionMutation, SessionQuery, SessionSubscription
-from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessToken, AccessTokenMutation
-from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
+from bench.api.user import User, UserFilter, UserMutation
 from bench.api.utils import HasCrud, get_user_from_info
-from bench.models import ModuleAccessLevel, OwnerSlug
+from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
 from bench.utils.utils import sentry_capture
 
 if TYPE_CHECKING:
-    from bench.api.statement import Statement
+    pass
 
 PyType = typing.Type
 
@@ -117,7 +102,7 @@ def get_featured_projects(self) -> typing.Iterable[Project]:
 
 
 @strawberry.type
-class Query(SessionQuery, ClientQuery, RecordQuery):
+class Query:
     system_info: SystemInfo = strawberry_django.field(resolver=lambda: SYSTEM_INFO)
 
     # users/orgs
@@ -150,19 +135,6 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
         Project
     ] = strawberry_django.connection(resolver=get_featured_projects)
 
-    # module
-    module: Optional[ProjectVersion] = strawberry_django.field(resolver=read_module_node_by_id)
-    file: Optional[File] = strawberry_django.field(resolver=read_module_node_by_id)
-    statement: Optional[Annotated["Statement", lazy(".statement")]] = strawberry_django.field(
-        resolver=read_module_node_by_id
-    )
-    blob: Optional[Blob] = strawberry_django.node(
-        extensions=[HasModuleAccess(map=lambda obj: obj.project)]
-    )
-    secret: Optional[Secret] = strawberry_django.node(
-        extensions=[HasModuleAccess(map=lambda obj: obj.project, level=ModuleAccessLevel.Edit)]
-    )
-
 
 @strawberry.type
 class Mutation(
@@ -171,23 +143,6 @@ class Mutation(
     AccessTokenMutation,
     NotificationMutation,
     ProjectMutation,
-    ProjectVersionMutation,
-    StatementMutation,
-    SymbolMutation,
-    RecordMutation,
-    FileMutation,
-    SessionMutation,
-    BlobMutation,
-    SecretMutation,
-):
-    pass
-
-
-@strawberry.type
-class Subscription(
-    ClientSubscription,
-    MultiplayerSubscription,
-    SessionSubscription,
 ):
     pass
 
@@ -217,10 +172,4 @@ class SentryCaptureSchema(strawberry.Schema):
         super().process_errors(errors, execution_context)
 
 
-schema = SentryCaptureSchema(
-    Query,
-    Mutation,
-    Subscription,
-    extensions=extensions,
-    types=[HasCrud],
-)
+schema = SentryCaptureSchema(Query, Mutation, extensions=extensions, types=[HasCrud])

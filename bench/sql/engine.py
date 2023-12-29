@@ -15,7 +15,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 import bench.language as lang
-from bench.language import ConditionalOp, Field, HasDatabase, Module, QueryEngine, wire
+from bench.language import ConditionalOp, Field, HasDatabase, Module, QueryEngine
 from bench.language.const import NodeType, TypeFlag, TypeStorageFormat
 from bench.language.edit import EditData, EditKind
 from bench.language.expression import (
@@ -25,7 +25,7 @@ from bench.language.expression import (
     QueryEngineIncapableError,
 )
 from bench.language.module import UNSET, get_node_id
-from bench.language.wiring import AnyNodeData
+from bench.proto import wire
 from bench.sql.client import async_pg_cursor
 from bench.sql.core import (
     BASE_RECORD_TABLE,
@@ -45,6 +45,9 @@ from bench.sql.core import (
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL
+
+if typing.TYPE_CHECKING:
+    from bench.proto.wiring import AnyNodeData
 
 logger = structlog.get_logger(__name__)
 
@@ -884,7 +887,7 @@ async def write_local_edits_to_pg(
     *,
     return_nodes: bool = False,
     old_databases_by_id: dict[UUID, "HasDatabase"] | None = None,
-) -> list[AnyNodeData] | None:
+) -> list["AnyNodeData"] | None:
     """
     Writes *local* edits to the database. Returns the updated nodes (i.e. records).
     Pass in databases for statements that are no longer in the module (i.e. deleted record parent).
@@ -896,7 +899,7 @@ async def write_local_edits_to_pg(
 
     async def _write_record_edit_batch(
         edit_kind: EditKind, database_id: UUID, batch: list[EditData]
-    ) -> list[AnyNodeData] | None:
+    ) -> list["AnyNodeData"] | None:
         database = module.lookup(database_id) or old_databases_by_id[database_id]
         table = database._table
         materialized_value_columns = tuple(c for c in table.columns if c.name.startswith("value_"))

@@ -2330,6 +2330,7 @@ export interface ExpressionData {
 export interface LogEntryData {
   metatype: BenchType;
   id: string;
+  projectId: string;
   moduleCk: string;
   createdAt: Date | undefined;
   stream: string;
@@ -2968,6 +2969,7 @@ function createBaseLogEntryData(): LogEntryData {
   return {
     metatype: 0,
     id: "",
+    projectId: "",
     moduleCk: "",
     createdAt: undefined,
     stream: "",
@@ -2988,6 +2990,9 @@ export const LogEntryData = {
     }
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
+    }
+    if (message.projectId !== "") {
+      writer.uint32(162).string(message.projectId);
     }
     if (message.moduleCk !== "") {
       writer.uint32(170).string(message.moduleCk);
@@ -3042,6 +3047,13 @@ export const LogEntryData = {
           }
 
           message.id = reader.string();
+          continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.projectId = reader.string();
           continue;
         case 21:
           if (tag !== 170) {
@@ -3126,6 +3138,7 @@ export const LogEntryData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
+      projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
       moduleCk: isSet(object.moduleCk) ? globalThis.String(object.moduleCk) : "",
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       stream: isSet(object.stream) ? globalThis.String(object.stream) : "",
@@ -3146,6 +3159,9 @@ export const LogEntryData = {
     }
     if (message.id !== "") {
       obj.id = message.id;
+    }
+    if (message.projectId !== "") {
+      obj.projectId = message.projectId;
     }
     if (message.moduleCk !== "") {
       obj.moduleCk = message.moduleCk;
@@ -3187,6 +3203,7 @@ export const LogEntryData = {
     const message = createBaseLogEntryData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
+    message.projectId = object.projectId ?? "";
     message.moduleCk = object.moduleCk ?? "";
     message.createdAt = object.createdAt ?? undefined;
     message.stream = object.stream ?? "";
