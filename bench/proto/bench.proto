@@ -30,12 +30,12 @@ enum BenchType {
   BENCH_TYPE_SECRET = 12;
   BENCH_TYPE_SESSION = 13;
   BENCH_TYPE_RUN = 14;
-  BENCH_TYPE_EXPRESSION = 15;
-  BENCH_TYPE_RUN_CODE_FRAME = 16;
-  BENCH_TYPE_RUN_ERROR = 17;
-  BENCH_TYPE_LOG_ENTRY = 18;
-  BENCH_TYPE_WORKER_SET = 19;
-  BENCH_TYPE_ENVIRONMENT = 20;
+  BENCH_TYPE_EXPRESSION = 101;
+  BENCH_TYPE_RUN_CODE_FRAME = 102;
+  BENCH_TYPE_RUN_ERROR = 103;
+  BENCH_TYPE_LOG_ENTRY = 104;
+  BENCH_TYPE_WORKER_SET = 105;
+  BENCH_TYPE_ENVIRONMENT = 106;
 }
 
 enum BlobStatus {
@@ -77,6 +77,7 @@ enum ExpressionKind {
 }
 
 enum ExpressionOp {
+  option allow_alias = true;
   EXPRESSION_OP_UNSPECIFIED = 0;
   EXPRESSION_OP_TRUE = 1;
   EXPRESSION_OP_FALSE = 2;
@@ -98,15 +99,15 @@ enum ExpressionOp {
   EXPRESSION_OP_EXISTS = 18;
   EXPRESSION_OP_NOT_EXISTS = 19;
   EXPRESSION_OP_NEAR = 20;
-  EXPRESSION_OP_COUNT = 21;
-  EXPRESSION_OP_SUM = 22;
-  EXPRESSION_OP_AVERAGE = 23;
-  EXPRESSION_OP_MIN = 24;
-  EXPRESSION_OP_MAX = 25;
-  EXPRESSION_OP_MEDIAN = 26;
-  EXPRESSION_OP_HISTOGRAM = 27;
-  EXPRESSION_OP_ASCENDING = 28;
-  EXPRESSION_OP_DESCENDING = 29;
+  EXPRESSION_OP_COUNT = 1;
+  EXPRESSION_OP_SUM = 2;
+  EXPRESSION_OP_AVERAGE = 3;
+  EXPRESSION_OP_MIN = 4;
+  EXPRESSION_OP_MAX = 5;
+  EXPRESSION_OP_MEDIAN = 6;
+  EXPRESSION_OP_HISTOGRAM = 7;
+  EXPRESSION_OP_ASCENDING = 1;
+  EXPRESSION_OP_DESCENDING = 2;
 }
 
 enum IdentifierType {
@@ -171,6 +172,10 @@ enum ProjectRegion {
   PROJECT_REGION_UNSPECIFIED = 0;
   PROJECT_REGION_US_WEST = 1;
   PROJECT_REGION_EU_CENTRAL = 2;
+}
+
+enum ProtoStrEnum {
+  PROTO_STR_ENUM_UNSPECIFIED = 0;
 }
 
 enum QueryEngine {
@@ -260,12 +265,12 @@ enum StatementType {
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_EXPRESSION = 1;
-  STRUCT_TYPE_RUN_CODE_FRAME = 2;
-  STRUCT_TYPE_RUN_ERROR = 3;
-  STRUCT_TYPE_LOG_ENTRY = 4;
-  STRUCT_TYPE_WORKER_SET = 5;
-  STRUCT_TYPE_ENVIRONMENT = 6;
+  STRUCT_TYPE_EXPRESSION = 101;
+  STRUCT_TYPE_RUN_CODE_FRAME = 102;
+  STRUCT_TYPE_RUN_ERROR = 103;
+  STRUCT_TYPE_LOG_ENTRY = 104;
+  STRUCT_TYPE_WORKER_SET = 105;
+  STRUCT_TYPE_ENVIRONMENT = 106;
 }
 
 enum TextHeadingLevel {
@@ -365,11 +370,6 @@ enum TypeTag {
   TYPE_TAG_TYPE_REFERENCE = 11;
   TYPE_TAG_NODE = 12;
   TYPE_TAG_ANY = 13;
-}
-
-enum ViewLayout {
-  VIEW_LAYOUT_UNSPECIFIED = 0;
-  VIEW_LAYOUT_TABLE = 1;
 }
 
 enum WorkerProfile {
@@ -548,6 +548,9 @@ message ModuleData {
   int64 revision = 15;
   string name = 20;
   bool committed = 21;
+  string project_id = 22;
+  string os_name = 23;
+  string pg_name = 24;
 }
 
 message BaseNodeData {
@@ -739,7 +742,6 @@ message ViewData {
   google.protobuf.Timestamp last_changed_at = 14;
   int64 revision = 15;
   string name = 20;
-  ViewLayout layout = 21;
   ExpressionData query = 22;
   repeated ExpressionData sort = 23;
 }

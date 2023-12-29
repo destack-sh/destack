@@ -7,6 +7,7 @@ from itertools import chain
 from typing import NamedTuple
 from uuid import UUID
 
+from bench.proto.core import ProtoStrEnum
 from bench.utils.func import cyrb53a
 from bench.utils.utils import IdentifierType, to_all_caps, to_pyidentifier
 
@@ -17,29 +18,30 @@ if typing.TYPE_CHECKING:
 BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
 
 
-class NodeType(enum.StrEnum):
+class NodeType(ProtoStrEnum):
     # source
-    MODULE = "MODULE"
-    FILE = "FILE"
-    STATEMENT = "STATEMENT"
-    TRIGGER = "TRIGGER"
-    TAGGING = "TAGGING"
-    FIELD = "FIELD"
-    RECORD = "RECORD"
-    VIEW = "VIEW"
+    MODULE = "MODULE", 1
+    FILE = "FILE", 2
+    STATEMENT = "STATEMENT", 3
+    TRIGGER = "TRIGGER", 4
+    TAGGING = "TAGGING", 5
+    FIELD = "FIELD", 6
+    RECORD = "RECORD", 7
+    VIEW = "VIEW", 8
     # interp
-    ISSUE = "ISSUE"
-    RESOLVED_FIELD = "RESOLVED_FIELD"
+    ISSUE = "ISSUE", 9
+    RESOLVED_FIELD = "RESOLVED_FIELD", 10
+    # remote
+    BLOB = "BLOB", 11
+    SECRET = "SECRET", 12
+    # session
+    SESSION = "SESSION", 13
+    RUN = "RUN", 14
+
     # user (not used yet)
     # USER = "USER"
     # COMMENT = "COMMENT"
     # ACCESS = "ACCESS"
-    # remote
-    BLOB = "BLOB"
-    SECRET = "SECRET"
-    # session
-    SESSION = "SESSION"
-    RUN = "RUN"
 
     @property
     def caps_name(self):
@@ -50,13 +52,14 @@ class NodeType(enum.StrEnum):
         return BENCH_TYPE_CAMEL_CASE[self]
 
 
-class StructType(enum.StrEnum):
-    EXPRESSION = "EXPRESSION"
-    RUN_CODE_FRAME = "RUN_CODE_FRAME"
-    RUN_ERROR = "RUN_ERROR"
-    LOG_ENTRY = "LOG_ENTRY"
-    WORKER_SET = "WORKER_SET"
-    ENVIRONMENT = "ENVIRONMENT"
+class StructType(ProtoStrEnum):
+    # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
+    EXPRESSION = "EXPRESSION", 101
+    RUN_CODE_FRAME = "RUN_CODE_FRAME", 102
+    RUN_ERROR = "RUN_ERROR", 103
+    LOG_ENTRY = "LOG_ENTRY", 104
+    WORKER_SET = "WORKER_SET", 105
+    ENVIRONMENT = "ENVIRONMENT", 106
 
     @property
     def caps_name(self):
@@ -70,7 +73,10 @@ class StructType(enum.StrEnum):
 if typing.TYPE_CHECKING:
     BenchType = NodeType | StructType
 else:
-    BenchType = enum.StrEnum("BenchType", {**NodeType.__members__, **StructType.__members__})
+    BenchType = ProtoStrEnum(
+        "BenchType",
+        {bt.name: (bt.name, bt.id) for bt in chain(NodeType, StructType)},
+    )
     BenchType.caps_name = NodeType.caps_name
     BenchType.camel_name = NodeType.camel_name
 
@@ -87,20 +93,20 @@ INLINE_NODE_TYPES = (nt for nt in NodeType if nt not in OUT_OF_LINE_NODE_TYPES)
 HOST_NODE_TYPES = (nt for nt in NodeType if nt not in LOCAL_NODE_TYPES)
 
 
-class StatementType(enum.StrEnum):
-    TAG = "tag"
-    TEXT = "text"
-    BLANK = "blank"
-    CLASS = "class"
-    CHOICE = "choice"
-    TASK = "task"
-    CODE = "code"
-    FLOW = "flow"
-    MODEL = "model"
-    VARIABLE = "variable"
-    DATABASE = "database"
-    VIEW = "view"
-    GROUP = "group"
+class StatementType(ProtoStrEnum):
+    TAG = "tag", 1
+    TEXT = "text", 2
+    BLANK = "blank", 3
+    CLASS = "class", 4
+    CHOICE = "choice", 5
+    TASK = "task", 6
+    CODE = "code", 7
+    FLOW = "flow", 8
+    MODEL = "model", 9
+    VARIABLE = "variable", 10
+    DATABASE = "database", 11
+    VIEW = "view", 12
+    GROUP = "group", 13
 
     @property
     def camel_name(self):
@@ -201,80 +207,74 @@ class TextHeadingLevel(enum.IntEnum):
     H3 = 3
 
 
-class ViewLayout(enum.StrEnum):
-    """The layout of a database view."""
-
-    TABLE = "table"
-
-
 # TODO @Architecture: simplify the TypeTag/TypeHint/TypeFlag/TypeStorageFormat mess
 #  (should probably? just be type + flags with display hints in metadata)
 #  IS_ARRAYABLE -> real unions of X | list[X] or whatever
 #  IS_UNION_WITH -> inherit? from type (could remain flag, though that's not great)
 
 
-class TypeTag(enum.StrEnum):
+class TypeTag(ProtoStrEnum):
     """The Bench primitive type of a field/type."""
 
-    STRING = "string"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    VECTOR = "vector"
-    BLOB = "blob"
-    STRUCT = "struct"
-    JSON = "json"
-    FUNCTION = "function"
-    ENUM = "enum"
-    LITERAL = "literal"
-    TYPE_REFERENCE = "ref"
-    NODE = "node"
-    ANY = "any"
+    STRING = "string", 1
+    NUMBER = "number", 2
+    BOOLEAN = "boolean", 3
+    VECTOR = "vector", 4
+    BLOB = "blob", 5
+    STRUCT = "struct", 6
+    JSON = "json", 7
+    FUNCTION = "function", 8
+    ENUM = "enum", 9
+    LITERAL = "literal", 10
+    TYPE_REFERENCE = "ref", 11
+    NODE = "node", 12
+    ANY = "any", 13
 
 
 RESERVED_TYPE_TAGS = (TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.STRUCT)
 
 
-class TypeHint(enum.StrEnum):
+class TypeHint(ProtoStrEnum):
     """Extra representation/semantics of a field/type."""
 
     # string
-    NAME = "name"
-    UUID = "uuid"
-    DATE = "date"
-    DATETIME = "datetime"
-    TIME = "time"
-    DURATION = "duration"
-    EMAIL = "email"
-    URL = "url"
-    MARKDOWN = "markdown"
-    RICH_TEXT = "rich_text"
-    HTML = "html"
-    CODE = "code"
-    KEY = "key"
+    NAME = "name", 1
+    UUID = "uuid", 2
+    DATE = "date", 3
+    DATETIME = "datetime", 4
+    TIME = "time", 5
+    DURATION = "duration", 6
+    EMAIL = "email", 7
+    URL = "url", 8
+    MARKDOWN = "markdown", 9
+    RICH_TEXT = "rich_text", 10
+    HTML = "html", 11
+    CODE = "code", 12
+    KEY = "key", 13
     # number
-    INTEGER = "integer"
-    FLOAT = "float"
-    SLIDER = "slider"
-    PHONE = "phone"
-    RATING = "rating"
+    INTEGER = "integer", 14
+    FLOAT = "float", 15
+    SLIDER = "slider", 16
+    PHONE = "phone", 17
+    RATING = "rating", 18
     # boolean
-    TOGGLE = "toggle"
-    CHECKBOX = "checkbox"
-    THUMBS = "thumbs"
+    TOGGLE = "toggle", 19
+    CHECKBOX = "checkbox", 20
+    THUMBS = "thumbs", 21
     # vector
-    EMBEDDING = "embedding"
+    EMBEDDING = "embedding", 22
     # blob
-    IMAGE = "image"
-    VIDEO = "video"
-    AUDIO = "audio"
+    IMAGE = "image", 23
+    VIDEO = "video", 24
+    AUDIO = "audio", 25
     # node (relation)
-    FILE = "file"
-    STATEMENT = "statement"
-    RECORD = "record"  # for relations
-    FIELD = "field"
-    RUN = "run"  # not used yet
-    SECRET = "secret"  # not used as a node yet
-    BLOB = "blob"  # not used as a node yet
+    FILE = "file", 26
+    STATEMENT = "statement", 27
+    RECORD = "record", 28  # for relations
+    FIELD = "field", 29
+    RUN = "run", 30  # not used yet
+    SECRET = "secret", 31  # not used as a node yet
+    BLOB = "blob", 32  # not used as a node yet
 
 
 class TypeFlag(enum.IntFlag):
@@ -298,7 +298,7 @@ class TypeFlag(enum.IntFlag):
         return self.name.replace("Is", "")
 
 
-class TypeStorageFormat(enum.StrEnum):
+class TypeStorageFormat(ProtoStrEnum):
     """
     The fundamental form of a field/type.
     Since we're using OpenSearch for our user data backend, this
@@ -307,100 +307,100 @@ class TypeStorageFormat(enum.StrEnum):
     :TypeStorageFormat
     """
 
-    STRING = "str"
-    DOUBLE = "f64"
-    LONG = "s64"
-    VECTOR = "vec"
-    BINARY = "bin"
-    BOOLEAN = "bool"
-    DATE = "date"
-    KEYWORD = "key"
-    OBJECT = "obj"
-    RELATION = "rel"
+    STRING = "str", 1
+    DOUBLE = "f64", 2
+    LONG = "s64", 3
+    VECTOR = "vec", 4
+    BINARY = "bin", 5
+    BOOLEAN = "bool", 6
+    DATE = "date", 7
+    KEYWORD = "key", 8
+    OBJECT = "obj", 9
+    RELATION = "rel", 10
 
 
-class BlobStatus(enum.StrEnum):
-    PREPARED = "prepared"
-    UPLOADING = "uploading"
-    AVAILABLE = "available"
+class BlobStatus(ProtoStrEnum):
+    PREPARED = "prepared", 1
+    UPLOADING = "uploading", 2
+    AVAILABLE = "available", 3
 
 
-class TriggerType(enum.StrEnum):
+class TriggerType(ProtoStrEnum):
     """Triggers for statements (for both actual runs and pre-defined triggers)."""
 
-    INVOKE = "invoke"
-    TIME = "time"
-    RUN = "run"
-    EDIT = "edit"
-    MESSAGE = "message"
-    USER = "user"
-    API = "api"
+    INVOKE = "invoke", 1
+    TIME = "time", 2
+    RUN = "run", 3
+    EDIT = "edit", 4
+    MESSAGE = "message", 5
+    USER = "user", 6
+    API = "api", 7
 
 
-class ScheduleType(enum.StrEnum):
+class ScheduleType(ProtoStrEnum):
     """Schedules for statements."""
 
-    INTERVAL = "interval"
-    CRON = "cron"
+    INTERVAL = "interval", 1
+    CRON = "cron", 2
 
 
-class IssueKind(enum.StrEnum):
-    ERROR = "Error"
-    WARNING = "Warning"
-    NOTICE = "Notice"
+class IssueKind(ProtoStrEnum):
+    ERROR = "Error", 1
+    WARNING = "Warning", 2
+    NOTICE = "Notice", 3
 
 
-class IssueType(enum.StrEnum):
+class IssueType(ProtoStrEnum):
     # errors
-    INTERNAL = "INTERNAL"
-    UNKNOWN_IMPORT_SOURCE = "UNKNOWN_IMPORT_SOURCE"
-    MISSING_REFERENCE = "MISSING_REFERENCE"
-    CIRCULAR_ANCESTRY = "CIRCULAR_ANCESTRY"
-    CIRCULAR_UNION = "CIRCULAR_UNION"
-    MISMATCHED_UNION = "MISMATCHED_UNION"
-    INVALID_DATA = "INVALID_DATA"
+    INTERNAL = "INTERNAL", 1
+    UNKNOWN_IMPORT_SOURCE = "UNKNOWN_IMPORT_SOURCE", 2
+    MISSING_REFERENCE = "MISSING_REFERENCE", 3
+    CIRCULAR_ANCESTRY = "CIRCULAR_ANCESTRY", 4
+    CIRCULAR_UNION = "CIRCULAR_UNION", 5
+    MISMATCHED_UNION = "MISMATCHED_UNION", 6
+    INVALID_DATA = "INVALID_DATA", 7
     # warnings
-    AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION"
-    CODE_NOT_EXPORTABLE = "CODE_NOT_EXPORTABLE"
-    CODE_NOT_CACHEABLE = "CODE_NOT_CACHEABLE"
-    CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED"
-    TASK_MISSING_IO = "TASK_MISSING_IO"
+    AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION", 8
+    CODE_NOT_EXPORTABLE = "CODE_NOT_EXPORTABLE", 9
+    CODE_NOT_CACHEABLE = "CODE_NOT_CACHEABLE", 10
+    CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED", 11
+    TASK_MISSING_IO = "TASK_MISSING_IO", 12
     # notices
-    TASK_IS_STATIC = "TASK_IS_STATIC"
+    TASK_IS_STATIC = "TASK_IS_STATIC", 13
 
 
-class ProjectRegion(enum.StrEnum):
-    US_WEST = "US_WEST"
-    EU_CENTRAL = "EU_CENTRAL"
+class ProjectRegion(ProtoStrEnum):
+    US_WEST = "US_WEST", 1
+    EU_CENTRAL = "EU_CENTRAL", 2
 
 
-class WorkerSetStatus(enum.StrEnum):
-    SLEEPING = "SLEEPING"
-    PENDING = "PENDING"
-    UPDATING = "UPDATING"
-    HEALTHY = "HEALTHY"
-    UNHEALTHY = "UNHEALTHY"
-    UNAVAILABLE = "UNAVAILABLE"
-    UNKNOWN = "UNKNOWN"
+class WorkerSetStatus(ProtoStrEnum):
+    SLEEPING = "SLEEPING", 1
+    PENDING = "PENDING", 2
+    UPDATING = "UPDATING", 3
+    HEALTHY = "HEALTHY", 4
+    UNHEALTHY = "UNHEALTHY", 5
+    UNAVAILABLE = "UNAVAILABLE", 6
+    UNKNOWN = "UNKNOWN", 7
 
 
-class SessionStatus(enum.StrEnum):
-    ACTIVE = "ACTIVE"
-    SUSPENDED = "SUSPENDED"
-    TERMINATED = "TERMINATED"
+class SessionStatus(ProtoStrEnum):
+    ACTIVE = "ACTIVE", 1
+    SUSPENDED = "SUSPENDED", 2
+    TERMINATED = "TERMINATED", 3
 
 
-class RunStatus(enum.StrEnum):
-    SCHEDULED = "Scheduled"
-    QUEUED = "Queued"
-    RUNNING = "Running"
-    SUSPENDED = "Suspended"
-    ABORTING = "Aborting"
+class RunStatus(ProtoStrEnum):
+    SCHEDULED = "Scheduled", 1
+    QUEUED = "Queued", 2
+    RUNNING = "Running", 3
+    SUSPENDED = "Suspended", 4
+    ABORTING = "Aborting", 5
     # terminal statuses
-    CANCELLED = "Cancelled"
-    ABORTED = "Aborted"
-    FAILED = "Failed"
-    COMPLETED = "Completed"
+    CANCELLED = "Cancelled", 6
+    ABORTED = "Aborted", 7
+    FAILED = "Failed", 8
+    COMPLETED = "Completed", 9
 
 
 TERMINAL_RUN_STATUSES = {
@@ -419,56 +419,56 @@ PENDING_RUN_STATUSES = {
 ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.SUSPENDED, RunStatus.ABORTING}
 
 
-class RunErrorKind(enum.StrEnum):
-    Internal = "Internal"
-    Parse = "Parse"
-    Validation = "Validation"
-    Runtime = "Runtime"
-    Untrusted = "Untrusted"
+class RunErrorKind(ProtoStrEnum):
+    Internal = "Internal", 1
+    Parse = "Parse", 2
+    Validation = "Validation", 3
+    Runtime = "Runtime", 4
+    Untrusted = "Untrusted", 5
 
 
-class WorkerProfile(enum.StrEnum):
-    TINY = "TINY"
-    SMALL = "SMALL"
-    MEDIUM = "MEDIUM"
-    LARGE = "LARGE"
-    XLARGE_CPU = "XLARGE_CPU"
-    XLARGE_MEM = "XLARGE_MEM"
+class WorkerProfile(ProtoStrEnum):
+    TINY = "TINY", 1
+    SMALL = "SMALL", 2
+    MEDIUM = "MEDIUM", 3
+    LARGE = "LARGE", 4
+    XLARGE_CPU = "XLARGE_CPU", 5
+    XLARGE_MEM = "XLARGE_MEM", 6
 
 
-class ExpressionKind(enum.StrEnum):
-    CONDITIONAL = "CONDITIONAL"
-    SORT = "SORT"
-    AGGREGATION = "AGGREGATION"
+class ExpressionKind(ProtoStrEnum):
+    CONDITIONAL = "CONDITIONAL", 1
+    SORT = "SORT", 2
+    AGGREGATION = "AGGREGATION", 3
 
 
-class ConditionalOp(enum.StrEnum):
+class ConditionalOp(ProtoStrEnum):
     # logical
-    TRUE = "TRUE"
-    FALSE = "FALSE"
-    NOT = "NOT"
-    AND = "AND"
-    OR = "OR"
+    TRUE = "TRUE", 1
+    FALSE = "FALSE", 2
+    NOT = "NOT", 3
+    AND = "AND", 4
+    OR = "OR", 5
     # comparison
-    EQUALS = "EQUALS"
-    NOT_EQUALS = "NOT_EQUALS"
-    GREATER_THAN = "GREATER_THAN"
-    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
-    LESS_THAN = "LESS_THAN"
-    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
+    EQUALS = "EQUALS", 6
+    NOT_EQUALS = "NOT_EQUALS", 7
+    GREATER_THAN = "GREATER_THAN", 8
+    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS", 9
+    LESS_THAN = "LESS_THAN", 10
+    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS", 11
     # string comparison
-    MATCHES = "MATCHES"
-    STARTS_WITH = "STARTS_WITH"
+    MATCHES = "MATCHES", 12
+    STARTS_WITH = "STARTS_WITH", 13
     # containment
-    CONTAINS = "CONTAINS"
-    NOT_CONTAINS = "NOT_CONTAINS"
-    IN = "IN"
-    NOT_IN = "NOT_IN"
+    CONTAINS = "CONTAINS", 14
+    NOT_CONTAINS = "NOT_CONTAINS", 15
+    IN = "IN", 16
+    NOT_IN = "NOT_IN", 17
     # existence
-    EXISTS = "EXISTS"
-    NOT_EXISTS = "DOES_NOT_EXIST"
+    EXISTS = "EXISTS", 18
+    NOT_EXISTS = "DOES_NOT_EXIST", 19
     # vector
-    NEAR = "NEAR"
+    NEAR = "NEAR", 20
 
 
 _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
@@ -499,42 +499,42 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 }
 
 
-class AggregationOp(enum.StrEnum):
+class AggregationOp(ProtoStrEnum):
     # Single value
-    COUNT = "COUNT"
-    SUM = "SUM"
-    AVERAGE = "AVERAGE"
-    MIN = "MIN"
-    MAX = "MAX"
-    MEDIAN = "MEDIAN"
+    COUNT = "COUNT", 1
+    SUM = "SUM", 2
+    AVERAGE = "AVERAGE", 3
+    MIN = "MIN", 4
+    MAX = "MAX", 5
+    MEDIAN = "MEDIAN", 6
     # Bucket value
-    HISTOGRAM = "HISTOGRAM"
+    HISTOGRAM = "HISTOGRAM", 7
 
 
-class SortOp(enum.StrEnum):
-    ASCENDING = "ASCENDING"
-    DESCENDING = "DESCENDING"
+class SortOp(ProtoStrEnum):
+    ASCENDING = "ASCENDING", 1
+    DESCENDING = "DESCENDING", 2
 
 
-class QueryEngine(enum.StrEnum):
-    MODULE = "MODULE"
-    HOST = "HOST"
-    OPENSEARCH = "OS"
-    POSTGRES = "PG"
+class QueryEngine(ProtoStrEnum):
+    MODULE = "MODULE", 1
+    HOST = "HOST", 2
+    OPENSEARCH = "OS", 3
+    POSTGRES = "PG", 4
 
 
-class SortMode(enum.StrEnum):
-    MAX = "MAX"
-    MIN = "MIN"
-    AVERAGE = "AVERAGE"
-    SUM = "SUM"
-    MEDIAN = "MEDIAN"
+class SortMode(ProtoStrEnum):
+    MAX = "MAX", 1
+    MIN = "MIN", 2
+    AVERAGE = "AVERAGE", 3
+    SUM = "SUM", 4
+    MEDIAN = "MEDIAN", 5
 
 
 if typing.TYPE_CHECKING:
     ExpressionOp = ConditionalOp | AggregationOp | SortOp
 else:
-    ExpressionOp = enum.StrEnum(
+    ExpressionOp = ProtoStrEnum(
         "ExpressionOp",
-        {**ConditionalOp.__members__, **AggregationOp.__members__, **SortOp.__members__},
+        {op.name: (op.name, op.id) for op in chain(ConditionalOp, AggregationOp, SortOp)},
     )

@@ -1,10 +1,9 @@
 import typing
 from typing import Optional
 
-from bench.language.const import NodeType, StructType, ViewLayout
+from bench.language.const import NodeType, StructType
 from bench.language.expression import Expression
 from bench.language.module import ScopeNode, node, node_parent, struct_property
-from bench.language.validation import enum_validator
 
 if typing.TYPE_CHECKING:
     from bench.language import File, Statement
@@ -14,9 +13,6 @@ if typing.TYPE_CHECKING:
 class View(ScopeNode):
     parent: typing.Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
     name: str | None = struct_property(20, default=None)
-    layout: ViewLayout = struct_property(
-        21, default=ViewLayout.TABLE, validate=enum_validator(ViewLayout)
-    )
     query: Optional[Expression] = struct_property(22, default=None, struct_t=StructType.EXPRESSION)
     sort: Optional[list[Expression]] = struct_property(
         23, default=None, struct_t=StructType.EXPRESSION

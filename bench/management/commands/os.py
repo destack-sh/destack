@@ -59,8 +59,8 @@ class Command(BaseCommand):
                 # ignore fields not in mapping during reindex
                 #  (fields may have existed in between snapshots)
                 module, _ = async_to_sync(interp_module)(project.head_id)
-                module._os_name = project.os_name
-                module._pg_name = project.pg_name
+                module.os_name = project.os_name
+                module.pg_name = project.pg_name
                 loop.run_until_complete(update_os_schema(module, dynamic="false"))
                 databases = [
                     n

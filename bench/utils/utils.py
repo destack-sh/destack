@@ -1,4 +1,3 @@
-import enum
 import inspect
 import os
 import re
@@ -10,6 +9,8 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
 
 import cachetools
 import sentry_sdk
+
+from bench.proto.core import ProtoStrEnum
 
 
 class UnreachableError(Exception):
@@ -84,13 +85,13 @@ def get_method_source(method) -> str:
 # :IdentifierStrings
 
 
-class IdentifierType(enum.StrEnum):
-    METHOD = "method"
-    TYPE = "type"
-    CONSTANT = "constant"
-    PATH = "path"
-    VARIABLE = "variable"
-    FIELD = "field"
+class IdentifierType(ProtoStrEnum):
+    METHOD = "method", 1
+    TYPE = "type", 2
+    CONSTANT = "constant", 3
+    PATH = "path", 4
+    VARIABLE = "variable", 5
+    FIELD = "field", 6
 
 
 IdentT = IdentifierType

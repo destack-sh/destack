@@ -27,9 +27,6 @@ message ReadModuleRequest {
 
 message ReadModuleResponse {
   ModuleTreeData module = 1;
-  string project_id = 2;
-  string os_name = 3;
-  string pg_name = 4;
 }
 
 service RuntimeHost {

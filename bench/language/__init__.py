@@ -12,7 +12,6 @@ from .const import (
     TypeFlag,
     TypeHint,
     TypeTag,
-    ViewLayout,
 )
 from .database import HasDatabase, Record
 from .edit import render, render_as_python
@@ -86,7 +85,6 @@ __all__ = [
     "TypeStorageFormat",
     "TypeTag",
     "View",
-    "ViewLayout",
 ]
 
 # after all the imports, we can finalize
