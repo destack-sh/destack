@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "bench/proto/bench.proto";
+import "google/protobuf/empty.proto";
 
 enum ClientType {
   WEB = 0;
@@ -13,31 +14,50 @@ message ClientOrigin {
   string nonce = 3;
 }
 
-
-message PingRuntimeRequest {
+enum ServiceType {
+  SERVICE_TYPE_UNSPECIFIED = 0;
+  SERVICE_TYPE_RUNTIME_SUPERVISOR = 1;
+  SERVICE_TYPE_RUNTIME_HOST = 2;
+  SERVICE_TYPE_WORKER_NODE = 3;
 }
 
-message PingRuntimeResponse {
+//
+// Runtime supervisor
+//
+
+message DidCreateProjectRequest {
+  string project_id = 2;
 }
 
-// read/write module
+service RuntimeSupervisor {// global (not yet sharded)
+  rpc DidCreateProject(DidCreateProjectRequest) returns (google.protobuf.Empty);
 
-message ReadModuleRequest {
+  // worker management
+  //  rpc WorkersChanged(WorkersChangedRequest) returns (stream WorkersChangedResponse);
+  //  rpc ConfigureWorkerSet(ConfigureWorkerSetRequest) returns (ConfigureWorkerSetResponse);
+  //  rpc WakeWorkerSet(WakeWorkerSetRequest) returns (WakeWorkerSetResponse);
+  //  rpc RestartWorkerSet(RestartWorkerSetRequest) returns (RestartWorkerSetResponse);
+  //  rpc GetEnvironment(GetEnvironmentRequest) returns (GetEnvironmentResponse);
+  //  rpc PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
 }
+
+//
+// Runtime host
+//
+
+message ReadModuleRequest {}
 
 message ReadModuleResponse {
   ModuleTreeData module = 1;
 }
 
-service RuntimeHost {
-  rpc PingRuntime(PingRuntimeRequest) returns (PingRuntimeResponse);
 
+service RuntimeHost {// scoped to project_id/module_id
   // subscriptions
   //  rpc ProjectChanged(ProjectChangedRequest) returns (stream ProjectChangedResponse);
   //  rpc ModuleChanged(ModuleChangedRequest) returns (stream ModuleChangedResponse);
   //  rpc RunsChanged(RunsChangedRequest) returns (stream RunsChangedResponse);
   //  rpc LogsChanged(LogsChangedRequest) returns (stream LogsChangedResponse);
-  //  rpc WorkersChanged(WorkersChangedRequest) returns (stream WorkersChangedResponse);
 
   // read/write module
   rpc ReadModule(ReadModuleRequest) returns (ReadModuleResponse);
@@ -52,24 +72,18 @@ service RuntimeHost {
   //  rpc RunProxyInference(RunProxyInferenceRequest) returns (RunProxyInferenceResponse);
   //  rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
 
-  // worker management
-  //  rpc ConfigureWorkerSet(ConfigureWorkerSetRequest) returns (ConfigureWorkerSetResponse);
-  //  rpc WakeWorkerSet(WakeWorkerSetRequest) returns (WakeWorkerSetResponse);
-  //  rpc RestartWorkerSet(RestartWorkerSetRequest) returns (RestartWorkerSetResponse);
-  //  rpc GetEnvironment(GetEnvironmentRequest) returns (GetEnvironmentResponse);
-  //  rpc PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
-
   // runs
   //  rpc StartRun(StartRunRequest) returns (StartRunResponse);
   //  rpc KillRun(KillRunRequest) returns (KillRunResponse);
   //  rpc PullWorkerRuns(PullWorkerRunsRequest) returns (PullWorkerRunsResponse);
 }
 
-service WorkerNode {
-  // worker management
-  //  rpc RestartWorker(RestartWorkerRequest) returns (RestartWorkerResponse);
+//
+// Worker node
+//
 
-  // runs
+service WorkerNode {// scoped to project_id/worker_set_id
+  //  rpc RestartWorker(RestartWorkerRequest) returns (RestartWorkerResponse);
   //  rpc StartRun(StartRunRequest) returns (StartRunResponse);
   //  rpc KillRun(KillRunRequest) returns (KillRunResponse);
 }

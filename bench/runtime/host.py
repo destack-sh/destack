@@ -3,7 +3,7 @@ import json
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Collection
 from uuid import UUID, uuid4
 
 import aiohttp
@@ -26,6 +26,7 @@ from bench.language.const import (
     SessionAccessLevel,
     StatementType,
     parse_absolute_node_reference,
+    WorkerSetStatus,
 )
 from bench.language.database import RecordQuery
 from bench.language.edit import EditData, EditKind, NodeTreeEditor
@@ -41,9 +42,7 @@ from bench.models.packer import get_default_pack_filters, write_host_db_edits
 from bench.models.user import loops_request
 from bench.proto import wire, wiring
 from bench.proto.wiring import AnyNodeData
-from bench.search.engine import update_os_schema
-from bench.server.k8 import WorkerObserver
-from bench.server.search import write_edits_to_os, write_records_to_os
+from bench.search.engine import update_os_schema, write_edits_to_os, write_records_to_os
 from bench.sql.client import async_pg_cursor
 from bench.sql.engine import (
     SqlUndefinedConstruct,
@@ -57,7 +56,6 @@ from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, sentry_capture
 from bench.utils.uuidt import UUIDT
-from bench.worker.edit import get_api_edit_from_internal
 
 logger = structlog.get_logger(__name__)
 
@@ -126,8 +124,79 @@ class RuntimeSupervisor(Monitored):
         self.id = UUIDT()
         self.runtimes: dict[UUID, RuntimeHost] = {}
         self.tasks = TaskManager()
-        self.workers = WorkerObserver()
         self._ready = False
+        self._worker_sets_by_project_id: dict[UUID, models.WorkerSet] = {}
+        self._worker_healthy_waiters: dict[UUID, asyncio.Event] = {}
+
+    @property
+    def worker_sets(self) -> Collection[models.WorkerSet]:
+        return self._worker_sets_by_project_id.values()
+
+    async def _on_workers_changed(self, msg: NMessage[WorkersChangedPayload]):
+        logger.debug("worker_observer.change", msg=msg)
+        for updated_ws in msg.p.worker_sets:
+            # upsert properties in local worker set
+            updated_ws: models.WorkerSet = packer.unpack_struct(updated_ws)
+            if updated_ws.project_id not in self._worker_sets_by_project_id:
+                ws = await models.WorkerSet.objects.select_related(
+                    "project", "project__organization", "project__user"
+                ).aget(project_id=updated_ws.project_id)
+            else:
+                ws = self._worker_sets_by_project_id[updated_ws.project_id]
+            for field in models.WorkerSet._meta.fields:
+                # skip relational fields
+                if field.is_relation:
+                    continue
+                setattr(ws, field.name, getattr(updated_ws, field.name))
+
+            # fire 'until healthy' wait events
+            if (
+                ws.status == WorkerSetStatus.HEALTHY
+                and ws.project_id in self._worker_healthy_waiters
+            ):
+                self._worker_healthy_waiters[ws.project_id].set()
+
+    def is_healthy(self, project_id: UUID) -> bool:
+        """Return whether the worker set is healthy."""
+        worker_set = self._worker_sets_by_project_id.get(project_id)
+        return worker_set and worker_set.status == WorkerSetStatus.HEALTHY
+
+    def get(self, project_id: UUID) -> Optional[models.WorkerSet]:
+        """Return the worker set if it exists."""
+        return self._worker_sets_by_project_id.get(project_id)
+
+    async def wake_until_healthy(self, project_id: UUID, timeout: Optional[int] = None):
+        """If not already healthy, wake the worker set and wait until it is healthy."""
+        worker_set = self._worker_sets_by_project_id.get(project_id)
+        log = logger.bind(project_id=project_id, worker_set=worker_set)
+        log.info("worker_observer.wait_until_healthy")
+        if worker_set and worker_set.status == WorkerSetStatus.HEALTHY:
+            return  # already good
+
+        # create waiter
+        if project_id not in self._worker_healthy_waiters:
+            self._worker_healthy_waiters[project_id] = asyncio.Event()
+
+        # wake if needed
+        if not worker_set or worker_set.sleeping:
+            log.info("worker_observer.wait_until_healthy.wake")
+            rep: NMessage[RepWakeWorkerSetPayload] = await request(
+                NMessageType.WAKE_WORKER_SET,
+                ReqWakeWorkerSetPayload(project_id=project_id),
+                reply_t=RepWakeWorkerSetPayload,
+                retry=3,
+            )
+            if not rep.p.success:
+                raise RuntimeError(f"failed to wake worker set {worker_set}: {rep.p.error}")
+
+        # and wait
+        if timeout:
+            await asyncio.wait_for(self._worker_healthy_waiters[project_id].wait(), timeout)
+        else:
+            await self._worker_healthy_waiters[project_id].wait()
+        if project_id in self._worker_healthy_waiters:
+            del self._worker_healthy_waiters[project_id]
+        log.info("worker_observer.wait_until_healthy.done")
 
     async def run(self):
         await nc_init.wait()
@@ -135,9 +204,13 @@ class RuntimeSupervisor(Monitored):
 
         logger.info("load_modules")
         projects = await sync_to_async(_get_projects_to_manage)()
+        self._worker_sets_by_project_id = {
+            ws.project_id: ws
+            async for ws in models.WorkerSet.objects.select_related(
+                "project", "project__organization", "project__user"
+            ).all()
+        }
         await asyncio.gather(*[self._prepare_runtime_host(project.head_id) for project in projects])
-
-        await self.workers.start()
 
         logger.info("ready")
         self._ready = True
@@ -159,278 +232,16 @@ class RuntimeSupervisor(Monitored):
                 "project", "project__user", "project__organization"
             ).aget(id=module_id)
             project = project_version.project
-            runtime = RuntimeHost(self.id, self.tasks, self.workers, project, project_version)
+            runtime = RuntimeHost(self.id, self.tasks, self, project, project_version)
             self.runtimes[module_id] = runtime
             self.tasks.start(runtime.run(), f"worker-{module_id}")
         if not runtime.ready.is_set():
             await runtime.ready.wait()
         return runtime
 
-    @message_handler
-    async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
-        logger.debug("module.read", msg=msg)
-        module, project = await read_module(msg.p.ref)
-        logger.debug("module.read.done", msg=msg, module=module.module, project=project)
-        await msg.reply(
-            RepReadModulePayload(
-                module=module,
-                project_id=project.id,
-                os_name=project.os_name,
-                pg_name=project.pg_name,
-            )
-        )
-
-    @message_handler
-    async def write_edits(self, msg: NMessage[ReqWriteEditsPayload]) -> None:
-        # TODO @Security!: check if msg origin has write access to module
-        runtime = await self._prepare_runtime_host(msg.p.module_id)
-        try:
-            edited_nodes = await runtime.write_edits(msg.p.edits, origins=(msg.p.client,))
-            success = True
-            error = None
-        except Exception as e:
-            sentry_capture(e)
-            logger.error("module.write.failed", msg=msg, exc_info=True)
-            edited_nodes = []
-            error = str(e)
-            success = False
-        await msg.reply(RepWriteEditsPayload(nodes=edited_nodes, success=success, error=error))
-
-    @message_handler
-    async def paste_nodes(self, msg: NMessage[ReqPasteNodesPayload]) -> None:
-        # TODO @Security!: check if msg origin has read/write access
-        runtime = await self._prepare_runtime_host(msg.p.target_module_id)
-        try:
-            edited_nodes = await runtime.paste_nodes(
-                source_module_id=msg.p.source_module_id,
-                source_ids=msg.p.source_ids,
-                target_ids=msg.p.target_ids,
-                target_cks=msg.p.target_cks,
-                target_parent_ids=msg.p.target_parent_ids,
-                target_order_keys=msg.p.target_order_keys,
-                origins=(msg.p.client,),
-            )
-            success = True
-            error = None
-        except Exception as e:
-            sentry_capture(e)
-            logger.error("module.paste.failed", msg=msg, exc_info=True)
-            edited_nodes = []
-            error = str(e)
-            success = False
-        await msg.reply(RepPasteNodesPayload(nodes=edited_nodes, success=success, error=error))
-
-    @message_handler
-    async def pull_runs(self, msg: NMessage[ReqPullWorkerRunsPayload]) -> None:
-        logger.debug("run.pull", msg=msg)
-        runtime = await self._prepare_runtime_host(msg.p.module_id)
-        try:
-            runs = await runtime.pull_runs(
-                worker_set_id=msg.p.worker_set_id,
-                worker_node_id=msg.p.worker_node_id,
-                worker_process_id=msg.p.worker_process_id,
-            )
-            logger.debug("run.pull.done", msg=msg, runs=runs)
-            success = True
-        except Exception as e:
-            sentry_capture(e)
-            logger.error("run.pull.failed", msg=msg, exc_info=True)
-            success = False
-            runs = []
-        await msg.reply(RepPullWorkerRunsPayload(runs=runs, success=success))
-
-    @message_handler
-    async def snapshot(self, msg: NMessage[ReqSnapshotModulePayload]) -> None:
-        logger.debug("module.snapshot", msg=msg)
-        runtime = await self._prepare_runtime_host(msg.p.module_id)
-        try:
-            await runtime.snapshot(name=msg.p.name, tag=msg.p.tag, description=msg.p.description)
-            success = True
-            error = None
-        except Exception as e:
-            sentry_capture(e)
-            logger.error("module.snapshot.failed", msg=msg, exc_info=True)
-            success = False
-            error = str(e)
-        await msg.reply(RepSnapshotModulePayload(success=success, error=error))
-
-    @message_handler
-    async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
-        runtime = await self._prepare_runtime_host(msg.p.module_id)
-        await runtime.search_records(msg)
-
-    @message_handler
-    async def read_blob(self, msg: NMessage[ReqDownloadBlobPayload]) -> None:
-        logger.debug("blob.read", msg=msg)
-        # TODO @Security!: check if msg origin has read access to object
-        get_urls: list[str | None] = []
-        async for model_obj in models.Blob.objects.filter(id__in=(obj.id for obj in msg.p.blobs)):
-            model_obj: models.Blob
-            obj_data = msg.p.blobs[len(get_urls)]
-            if obj_data.sha512 != model_obj.sha512:
-                logger.warning(
-                    "blob.read.sha512_mismatch", msg=msg, obj=model_obj, obj_data=obj_data
-                )
-                get_urls.append(None)
-            else:
-                get_urls.append(model_obj.presigned_get)
-        logger.debug("blob.read.rep", msg=msg, get_urls=[url is not None for url in get_urls])
-        await msg.reply(RepDownloadBlobPayload(get_urls=get_urls))
-
-    @message_handler
-    async def write_blob(self, msg: NMessage[ReqUploadBlobPayload]) -> None:
-        logger.debug("blob.write", msg=msg)
-        # TODO @Security!: check if msg origin has write access to object
-        project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
-        post_urls: list[str | None] = []
-        for obj_data in msg.p.blobs:
-            model_blob: models.Blob = packer.unpack_node_flat(obj_data, None)
-            model_blob.project_id = project_v.project_id
-            existing_blob = await project_v.project.blobs.filter(sha512=model_blob.sha512).afirst()
-            if existing_blob is not None:
-                obj_data.id = existing_blob.id
-                if existing_blob.status == models.BlobStatus.AVAILABLE:
-                    obj_data.status = models.BlobStatus.AVAILABLE
-                    post_urls.append(None)
-                else:
-                    existing_blob.generate_presigned_post()
-                    post_urls.append(existing_blob.presigned_post)
-            else:
-                model_blob.generate_presigned_post()
-                post_urls.append(model_blob.presigned_post)
-                await model_blob.asave()  # create
-        logger.debug("blob.write.rep", msg=msg, post_urls=[url is not None for url in post_urls])
-        await msg.reply(RepUploadBlobPayload(blobs=msg.p.blobs, post_urls=post_urls))
-
-    @message_handler
-    async def mark_uploaded_blob(self, msg: NMessage[ReqMarkUploadedBlobPayload]) -> None:
-        logger.debug("blob.mark_uploaded", msg=msg)
-        try:
-            for obj_data in msg.p.blobs:
-                blob: models.Blob = await models.Blob.objects.aget(id=obj_data.id)
-                blob.mark_available_if_exists_in_s3()
-                await blob.asave()
-            success = True
-        except ValidationError:
-            logger.error("blob.mark_uploaded.failed", msg=msg, exc_info=True)
-            success = False
-        await msg.reply(RepMarkUploadedBlobPayload(success=success))
-
-    @message_handler
-    async def reveal_secret(self, msg: NMessage[ReqRevealSecretPayload]) -> None:
-        logger.debug("secret.read", msg=msg)
-        # TODO @Security!!: check if msg origin has read access to secret
-        secrets = []
-        async for secret in models.Secret.objects.filter(id__in=(s.id for s in msg.p.secrets)):
-            secret_data = packer.pack_node_flat(secret)
-            secret_data.value = json.loads(secret_data.value)  # :SecretJson
-            secrets.append(secret_data)
-        await msg.reply(RepRevealSecretPayload(secrets=secrets))
-
-    @message_handler
-    async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
-        module_name, localized_path = parse_absolute_node_reference(msg.p.model_path)
-        log = logger.bind(model=msg.p.model_path, msg=msg)
-        try:
-            log.debug("inference.run")
-            # remotely proxied inference if the worker doesn't have the required model api key
-            # we call the underlying model implementation directly (the worker does the tracing)
-            # :LibImplementation
-            module = DEFAULT_MODULES[module_name]
-            model = module.resolve(localized_path)
-            cache_subkey = get_run_cache_subkey(inputs_raw=msg.p.inputs)
-            log = log.bind(cache_subkey=cache_subkey)
-            cache = Cache(module=None, subkey=model.ck.hex, project_id=msg.p.project_id)
-            inputs = unpack_value(msg.p.inputs, model, is_output=False)
-            inference = model._inference(
-                inputs=inputs,
-                cache_subkey=cache_subkey,
-                log=log,
-                cache=cache,
-                run_id=msg.p.run_id,
-            )
-            outputs = await asyncio.wait_for(asyncio.shield(inference), msg.p.timeout)
-            outputs = pack_value(outputs, model, is_output=True, ignore_outer=True)
-            error_kind, error_message = None, None
-        except Exception as e:
-            log.error("inference.exception", exc_info=True, sentry=sentry_capture(e))
-            outputs = None
-            if isinstance(e, asyncio.TimeoutError):
-                error_kind = ModelErrorType.Timeout
-            elif isinstance(e, ModelError):
-                error_kind = e.type
-            else:
-                error_kind = ModelErrorType.Unknown
-            error_message = str(e)
-        await msg.reply(
-            RepRunInferencePayload(
-                outputs=outputs, error_kind=error_kind, error_message=error_message
-            )
-        )
-
-    @message_handler
-    async def run_statement(self, msg: NMessage[ReqRunStatementPayload]) -> None:
-        statement = symbolx_lib.resolve(msg.p.statement)
-        log = logger.bind(statement=msg.p.statement, msg=msg)
-        try:
-            log.debug("statement.run")
-            inputs = unpack_value(msg.p.inputs, statement, is_output=False)
-            if statement.name == "send email":
-                if not await models.User.objects.filter(email=inputs["to"]).aexists():
-                    raise RuntimeError(f"{inputs['to']} is not a Bench user")
-                byline = f"<br><br><i>Sent via {msg.p.module_name} (Bench {VERSION})</i>"
-                inputs["body"] = inputs["body"] + byline
-                if not settings.LOCAL:
-                    loops_request(
-                        "POST",
-                        "transactional",
-                        {
-                            "email": inputs["to"],
-                            "transactionalId": settings.LOOPS_USER_TRANSACTIONAL_ID,
-                            "dataVariables": {
-                                "subject": inputs["subject"],
-                                "body": inputs["body"],
-                            },
-                        },
-                    )
-                else:
-                    log.warning("statement.run.local", inputs=inputs)
-                outputs = {}
-            elif statement.name == "get website html":
-                token = get_from_env("BROWSERLESS_API_KEY")
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
-                        f"https://chrome.browserless.io/content?token={token}",
-                        headers={"Content-Type": "application/json"},
-                        data='{ "url": "' + inputs["url"] + '"}',
-                    ) as response:
-                        if response.status != 200:
-                            raise RuntimeError(
-                                f"browserless.io returned {response.status}: {await response.text()}"
-                            )
-                        html = await response.text()
-                outputs = {"html": html[: 1024 * 32]}
-            else:
-                raise RuntimeError(f"unknown proxy statement {statement}")
-            error = None
-        except Exception as e:
-            log.error("statement.exception", exc_info=True, sentry=sentry_capture(e))
-            outputs = None
-            error = f"{e.__class__.__name__}: {e}"
-        if outputs:
-            outputs = pack_value(outputs, statement, is_output=True, ignore_outer=True)
-        await msg.reply(RepRunStatementPayload(outputs=outputs, error=error))
-
-    @message_handler
-    async def wake_runtime(self, msg: NMessage[ReqWakeRuntimePayload]):
-        logger.debug("runtime.wake", msg=msg)
-        await self._prepare_runtime_host(msg.p.module_id)
-        await msg.reply(RepWakeRuntimePayload(module_id=msg.p.module_id))
-
     async def stop(self):
         logger.info("stop")
         self._ready = False
-        await asyncio.gather(*[sub.unsubscribe() for sub in self.subs])
 
 
 # :MinTriggerInterval (because less than pre send window won't work)
@@ -458,13 +269,13 @@ class RuntimeHost:
         self,
         host_id: UUID,
         tasks: TaskManager,
-        workers: WorkerObserver,
+        supervisor: RuntimeSupervisor,
         project: models.Project,
         project_version: models.ProjectVersion,
     ):
         self.server_id = host_id
         self.tasks = tasks
-        self.workers = workers
+        self.supervisor = supervisor
         self.project = project
         self.project_version = project_version
         self.ready = asyncio.Event()
@@ -738,7 +549,6 @@ class RuntimeHost:
         target_cks: dict[UUID, UUID],
         target_parent_ids: dict[UUID, UUID],
         target_order_keys: dict[UUID, str],
-        origins: tuple[ClientOrigin] = None,
     ):
         # get copy
         same_module = source_module_id == self.module_id
@@ -964,6 +774,162 @@ class RuntimeHost:
                 records=None, cursors=None, total=None, limit=msg.p.limit, error=str(e), engine=None
             )
         await msg.reply(rep)
+
+    async def read_blob(self, msg: NMessage[ReqDownloadBlobPayload]) -> None:
+        logger.debug("blob.read", msg=msg)
+        # TODO @Security!: check if msg origin has read access to object
+        get_urls: list[str | None] = []
+        async for model_obj in models.Blob.objects.filter(id__in=(obj.id for obj in msg.p.blobs)):
+            model_obj: models.Blob
+            obj_data = msg.p.blobs[len(get_urls)]
+            if obj_data.sha512 != model_obj.sha512:
+                logger.warning(
+                    "blob.read.sha512_mismatch", msg=msg, obj=model_obj, obj_data=obj_data
+                )
+                get_urls.append(None)
+            else:
+                get_urls.append(model_obj.presigned_get)
+        logger.debug("blob.read.rep", msg=msg, get_urls=[url is not None for url in get_urls])
+        await msg.reply(RepDownloadBlobPayload(get_urls=get_urls))
+
+    async def write_blob(self, msg: NMessage[ReqUploadBlobPayload]) -> None:
+        logger.debug("blob.write", msg=msg)
+        # TODO @Security!: check if msg origin has write access to object
+        project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
+        post_urls: list[str | None] = []
+        for obj_data in msg.p.blobs:
+            model_blob: models.Blob = packer.unpack_node_flat(obj_data, None)
+            model_blob.project_id = project_v.project_id
+            existing_blob = await project_v.project.blobs.filter(sha512=model_blob.sha512).afirst()
+            if existing_blob is not None:
+                obj_data.id = existing_blob.id
+                if existing_blob.status == models.BlobStatus.AVAILABLE:
+                    obj_data.status = models.BlobStatus.AVAILABLE
+                    post_urls.append(None)
+                else:
+                    existing_blob.generate_presigned_post()
+                    post_urls.append(existing_blob.presigned_post)
+            else:
+                model_blob.generate_presigned_post()
+                post_urls.append(model_blob.presigned_post)
+                await model_blob.asave()  # create
+        logger.debug("blob.write.rep", msg=msg, post_urls=[url is not None for url in post_urls])
+        await msg.reply(RepUploadBlobPayload(blobs=msg.p.blobs, post_urls=post_urls))
+
+    async def mark_uploaded_blob(self, msg: NMessage[ReqMarkUploadedBlobPayload]) -> None:
+        logger.debug("blob.mark_uploaded", msg=msg)
+        try:
+            for obj_data in msg.p.blobs:
+                blob: models.Blob = await models.Blob.objects.aget(id=obj_data.id)
+                blob.mark_available_if_exists_in_s3()
+                await blob.asave()
+            success = True
+        except ValidationError:
+            logger.error("blob.mark_uploaded.failed", msg=msg, exc_info=True)
+            success = False
+        await msg.reply(RepMarkUploadedBlobPayload(success=success))
+
+    async def reveal_secret(self, msg: NMessage[ReqRevealSecretPayload]) -> None:
+        logger.debug("secret.read", msg=msg)
+        # TODO @Security!!: check if msg origin has read access to secret
+        secrets = []
+        async for secret in models.Secret.objects.filter(id__in=(s.id for s in msg.p.secrets)):
+            secret_data = packer.pack_node_flat(secret)
+            secret_data.value = json.loads(secret_data.value)  # :SecretJson
+            secrets.append(secret_data)
+        await msg.reply(RepRevealSecretPayload(secrets=secrets))
+
+    async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
+        module_name, localized_path = parse_absolute_node_reference(msg.p.model_path)
+        log = logger.bind(model=msg.p.model_path, msg=msg)
+        try:
+            log.debug("inference.run")
+            # remotely proxied inference if the worker doesn't have the required model api key
+            # we call the underlying model implementation directly (the worker does the tracing)
+            # :LibImplementation
+            module = DEFAULT_MODULES[module_name]
+            model = module.resolve(localized_path)
+            cache_subkey = get_run_cache_subkey(inputs_raw=msg.p.inputs)
+            log = log.bind(cache_subkey=cache_subkey)
+            cache = Cache(module=None, subkey=model.ck.hex, project_id=msg.p.project_id)
+            inputs = unpack_value(msg.p.inputs, model, is_output=False)
+            inference = model._inference(
+                inputs=inputs,
+                cache_subkey=cache_subkey,
+                log=log,
+                cache=cache,
+                run_id=msg.p.run_id,
+            )
+            outputs = await asyncio.wait_for(asyncio.shield(inference), msg.p.timeout)
+            outputs = pack_value(outputs, model, is_output=True, ignore_outer=True)
+            error_kind, error_message = None, None
+        except Exception as e:
+            log.error("inference.exception", exc_info=True, sentry=sentry_capture(e))
+            outputs = None
+            if isinstance(e, asyncio.TimeoutError):
+                error_kind = ModelErrorType.Timeout
+            elif isinstance(e, ModelError):
+                error_kind = e.type
+            else:
+                error_kind = ModelErrorType.Unknown
+            error_message = str(e)
+        await msg.reply(
+            RepRunInferencePayload(
+                outputs=outputs, error_kind=error_kind, error_message=error_message
+            )
+        )
+
+    async def run_statement(self, msg: NMessage[ReqRunStatementPayload]) -> None:
+        statement = symbolx_lib.resolve(msg.p.statement)
+        log = logger.bind(statement=msg.p.statement, msg=msg)
+        try:
+            log.debug("statement.run")
+            inputs = unpack_value(msg.p.inputs, statement, is_output=False)
+            if statement.name == "send email":
+                if not await models.User.objects.filter(email=inputs["to"]).aexists():
+                    raise RuntimeError(f"{inputs['to']} is not a Bench user")
+                byline = f"<br><br><i>Sent via {msg.p.module_name} (Bench {VERSION})</i>"
+                inputs["body"] = inputs["body"] + byline
+                if not settings.LOCAL:
+                    loops_request(
+                        "POST",
+                        "transactional",
+                        {
+                            "email": inputs["to"],
+                            "transactionalId": settings.LOOPS_USER_TRANSACTIONAL_ID,
+                            "dataVariables": {
+                                "subject": inputs["subject"],
+                                "body": inputs["body"],
+                            },
+                        },
+                    )
+                else:
+                    log.warning("statement.run.local", inputs=inputs)
+                outputs = {}
+            elif statement.name == "get website html":
+                token = get_from_env("BROWSERLESS_API_KEY")
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"https://chrome.browserless.io/content?token={token}",
+                        headers={"Content-Type": "application/json"},
+                        data='{ "url": "' + inputs["url"] + '"}',
+                    ) as response:
+                        if response.status != 200:
+                            raise RuntimeError(
+                                f"browserless.io returned {response.status}: {await response.text()}"
+                            )
+                        html = await response.text()
+                outputs = {"html": html[: 1024 * 32]}
+            else:
+                raise RuntimeError(f"unknown proxy statement {statement}")
+            error = None
+        except Exception as e:
+            log.error("statement.exception", exc_info=True, sentry=sentry_capture(e))
+            outputs = None
+            error = f"{e.__class__.__name__}: {e}"
+        if outputs:
+            outputs = pack_value(outputs, statement, is_output=True, ignore_outer=True)
+        await msg.reply(RepRunStatementPayload(outputs=outputs, error=error))
 
     #
     # Triggers

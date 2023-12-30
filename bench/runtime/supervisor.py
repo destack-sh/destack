@@ -1,5 +1,4 @@
 import asyncio
-from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Collection, Optional
 from uuid import UUID
@@ -13,8 +12,8 @@ from bench.language.const import ACTIVE_RUN_STATUSES, PENDING_RUN_STATUSES, Work
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.proto.messaging import nc_init
-from bench.server import k8
-from bench.server.search import write_runs_to_os
+from bench.runtime import k8
+from bench.search.engine import write_runs_to_os
 from bench.settings import KUBERNETES_ENABLED
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
@@ -30,7 +29,7 @@ WORKER_SET_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
 WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
-class OrchestrationServer(Monitored):
+class ComputeOrchestrator(Monitored):
     """
     Singleton server to orchestrate workers in k8s requests.
     There can only be one master globally for now, which is "enforced" by deploying as StatefulSet.
@@ -39,7 +38,6 @@ class OrchestrationServer(Monitored):
 
     def __init__(self):
         self.id = UUIDT()
-        self.subs = []
         self.tasks = TaskManager()
         self.worker_sets_by_project_id: dict[UUID, models.WorkerSet] = {}
         self.worker_sets_by_id: dict[UUID, models.WorkerSet] = {}
@@ -125,11 +123,6 @@ class OrchestrationServer(Monitored):
 
         # start for real
         self.tasks.start(self._manage_worker_lifecycle_forever())
-        self.subs = [
-            await handle_reply(NMessageType.CONFIGURE_WORKER_SET, self.configure_worker_set),
-            await handle_reply(NMessageType.WAKE_WORKER_SET, self.wake_worker_set),
-            await handle_reply(NMessageType.RESTART_WORKER_SET, self.restart_worker_set),
-        ]
         self._ready = True
         logger.info("ready")
 
@@ -327,7 +320,6 @@ class OrchestrationServer(Monitored):
         else:
             return worker_set
 
-    @message_handler
     async def configure_worker_set(self, msg: NMessage[ReqConfigureWorkerSetPayload]) -> None:
         try:
             logger.info("workers.configure", msg=msg)
@@ -346,7 +338,6 @@ class OrchestrationServer(Monitored):
             success = False
         await msg.reply(RepConfigureWorkerSetPayload(success=success))
 
-    @message_handler
     async def wake_worker_set(self, msg: NMessage[ReqWakeWorkerSetPayload]) -> None:
         try:
             logger.info("workers.wake", msg=msg)
@@ -373,7 +364,6 @@ class OrchestrationServer(Monitored):
             )
         )
 
-    @message_handler
     async def restart_worker_set(self, msg: NMessage[ReqRestartWorkerSetPayload]) -> None:
         worker_set = await self._get_project_worker_set(msg.p.project_id)
         logger.info("workers.restart", worker_set=worker_set)
