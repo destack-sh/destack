@@ -95,14 +95,26 @@ class ProjectManager(models.Manager["Project"]):
 
         # infra
         if create_infra:
-            from bench.server.search import create_local_os_index
-            from bench.server.sql import create_local_pg_database
+            from bench.search.engine import create_local_os_index
+            from bench.sql.engine import create_local_pg_database
 
             logger.info("project.create_infra", project=project)
             start_time = datetime.now()
-            create_local_worker_set(project, upsert=False)
-            create_local_os_index(project, upsert=False)
-            async_to_sync(create_local_pg_database)(project, upsert=False)
+            create_local_worker_set(project)
+            create_local_os_index(
+                os_name=project.os_name,
+                os_username=project.os_username,
+                os_password=project.os_password,
+                is_public=project.visibility == ProjectVisibility.PUBLIC,
+                upsert=False,
+            )
+            async_to_sync(create_local_pg_database)(
+                pg_name=project.pg_name,
+                pg_username=project.pg_username,
+                pg_password=project.pg_password,
+                is_public=project.visibility == ProjectVisibility.PUBLIC,
+                upsert=False,
+            )
 
             duration = datetime.now() - start_time
             logger.info(

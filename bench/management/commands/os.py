@@ -7,17 +7,17 @@ from django.db import transaction
 
 from bench import models
 from bench.language.const import NodeType, StatementType
-from bench.models import Project
+from bench.models import Project, ProjectVisibility
 from bench.search.client import os_client_sync
-from bench.search.engine import update_os_schema
-from bench.server.runtime import interp_module
-from bench.server.search import (
+from bench.search.engine import (
+    update_os_schema,
     create_global_os_index,
     create_global_os_role,
     create_local_os_index,
-    enable_os_strict_mapping,
     sync_databases_to_os,
+    enable_os_strict_mapping,
 )
+from bench.runtime.host import interp_module
 
 logger = structlog.get_logger(__name__)
 
@@ -49,7 +49,13 @@ class Command(BaseCommand):
             create_global_os_role()
         elif action == "create":
             for project in projects:
-                create_local_os_index(project, upsert=True)
+                create_local_os_index(
+                    os_name=project.os_name,
+                    os_username=project.os_username,
+                    os_password=project.os_password,
+                    is_public=project.visibility == ProjectVisibility.PUBLIC,
+                    upsert=True,
+                )
         elif action == "delete":
             for project in projects:
                 logger.info("opensearch.delete", project=project)

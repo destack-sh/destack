@@ -72,7 +72,7 @@ class WorkerNode(Monitored):
         self.worker_node_id = worker_node_id
         self.project_id = project_id
         self.module_id = module_id
-        self.workers: dict[UUID, ModuleWorkerProcess] = {}
+        self.workers: dict[UUID, WorkerProcess] = {}
         self.subs = []
         self.tasks = TaskManager()
         self._cached_module_source: dict[
@@ -155,15 +155,15 @@ class WorkerNode(Monitored):
         finally:
             await self.stop()
 
-    def _get_worker(self, module_id: UUID) -> "ModuleWorkerProcess":
+    def _get_worker(self, module_id: UUID) -> "WorkerProcess":
         if module_id not in self.workers:
             # start module worker if not already started
-            worker = ModuleWorkerProcess(module_id=module_id, node=self, process_id=None)
+            worker = WorkerProcess(module_id=module_id, node=self, process_id=None)
             self.workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         return self.workers[module_id]
 
-    async def _prepare_worker(self, module_id: UUID) -> "ModuleWorkerProcess":
+    async def _prepare_worker(self, module_id: UUID) -> "WorkerProcess":
         worker = self._get_worker(module_id)
         if not worker.ready.is_set():
             await worker.ready.wait()
@@ -184,7 +184,6 @@ class WorkerNode(Monitored):
                 await self._mark_worker_as_active()
             await asyncio.sleep(interval)
 
-    @message_handler
     async def module_changed(self, msg: NMessage[ModuleChangedPayload]):
         if msg.p.module_id not in self.workers:
             # ignore if we don't have a worker for this module
@@ -193,7 +192,6 @@ class WorkerNode(Monitored):
             worker = await self._prepare_worker(msg.p.module_id)
             await worker.on_module_changed(msg.p.edits)
 
-    @message_handler
     async def start_run(self, msg: NMessage[ReqStartRunPayload]):
         self.log.debug("run.start", msg=msg, block=msg.p.block)
         worker = await self._prepare_worker(msg.p.module_id)
@@ -300,7 +298,6 @@ class WorkerNode(Monitored):
         rep = RepStartRunPayload(error=error, run=run_data, run_id=run_id, logs=logs)
         await msg.reply(rep)
 
-    @message_handler
     async def kill_run(self, msg: NMessage[ReqKillRunPayload]):
         logger.debug("run.kill", msg=msg)
         if msg.p.module_id not in self.workers:
@@ -310,11 +307,9 @@ class WorkerNode(Monitored):
             success = await worker.kill_run(msg.p.run_id)
             await msg.reply(RepKillRunPayload(success=success))
 
-    @message_handler
     async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
         await msg.reply(RepGetEnvironmentPayload(environment=_collect_environment()))
 
-    @message_handler
     async def ping(self, msg: NMessage[ReqPingWorkerSetPayload]):
         await msg.reply(RepPingWorkerSetPayload(success=self.healthy))
 
@@ -395,10 +390,9 @@ class RunStartError(Exception):
         self.type = type
 
 
-class ModuleWorkerProcess(RuntimeHost):
+class WorkerProcess(RuntimeHost):
     """
     A user worker that helps run a specific module.
-    Generally, a worker process is intended to process one run at a time (for now).
     """
 
     def __init__(self, module_id: UUID, node: "WorkerNode", process_id: Optional[str]):

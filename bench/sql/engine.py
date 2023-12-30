@@ -26,7 +26,7 @@ from bench.language.expression import (
 )
 from bench.language.module import UNSET, get_node_id
 from bench.proto import wire
-from bench.sql.client import async_pg_cursor
+from bench.sql.client import async_pg_cursor, GLOBAL_RO_USERNAME, GLOBAL_RO_PASSWORD
 from bench.sql.core import (
     BASE_RECORD_TABLE,
     CONSTRUCT_TABLE,
@@ -1058,3 +1058,101 @@ else:
 
     def sql_to_str(c: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
         return s.as_string(c)
+
+
+USER_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES"
+
+
+async def create_local_pg_database(
+    *, pg_name: str, pg_username: str, pg_password: str, is_public: bool, upsert: bool
+) -> None:
+    """
+    Creates the local Postgres database and corresponding roles/user for a project.
+    """
+    log = logger.bind(pg_name=pg_name, upsert=upsert)
+    log.info("pg.create_db")
+
+    # create database from the default one (if not exists)
+    async with async_pg_cursor("postgres", autocommit=True) as cur:
+        await cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (pg_name,))
+        exists = bool(await cur.fetchone())
+        if not exists:
+            log.info("pg.create_db.create")
+            await cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(pg_name)))
+        else:
+            log.info("pg.create_db.already_exists")
+
+    # connect to local database and setup auth
+    async with async_pg_cursor(pg_name, autocommit=False) as cur:
+        # create 'owner' user (if not exists)
+        log.info("pg.create_db.create_owner", username=pg_username)
+        await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (pg_username,))
+        exists = bool(await cur.fetchone())
+        if not exists:
+            log.info("pg.create_db.create_owner.create", username=pg_username)
+            await cur.execute(
+                sql.SQL("CREATE USER {} WITH PASSWORD {}").format(
+                    sql.Identifier(pg_username), sql.Literal(pg_password)
+                ),
+            )
+        else:
+            log.info("pg.create_db.create_owner.already_exists", username=pg_username)
+        # grant full regular CRUD access to 'owner' user (no trigger or such)
+        log.info("pg.create_db.create_owner.grant")
+        # grant new
+        await cur.execute(
+            sql.SQL("GRANT {} ON ALL TABLES IN SCHEMA public TO {}").format(
+                sql.SQL(USER_PRIVILEGES),
+                sql.Identifier(pg_username),
+            )
+        )
+        # alter default privileges (to apply to all new tables)
+        await cur.execute(
+            sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT {} ON TABLES TO {}").format(
+                sql.SQL(USER_PRIVILEGES),
+                sql.Identifier(pg_username),
+            )
+        )
+
+        # if public, add global read only user (if not exists)
+        await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (GLOBAL_RO_USERNAME,))
+        exists = bool(await cur.fetchone())
+        if is_public:
+            if not exists:
+                log.info("pg.create_db.create_global_ro.create")
+                await cur.execute(
+                    sql.SQL("CREATE USER {} WITH PASSWORD {}").format(
+                        sql.Identifier(GLOBAL_RO_USERNAME), sql.Literal(GLOBAL_RO_PASSWORD)
+                    ),
+                )
+            # grant read only
+            log.info("pg.create_db.create_global_ro.grant")
+            await cur.execute(
+                sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA public TO {}").format(
+                    sql.Identifier(GLOBAL_RO_USERNAME),
+                )
+            )
+        elif exists:
+            log.info("pg.create_db.create_global_ro.remove")
+            await cur.execute(
+                sql.SQL("REVOKE ALL ON SCHEMA PUBLIC FROM {}").format(
+                    sql.Identifier(GLOBAL_RO_USERNAME)
+                )
+            )
+
+    log.info("pg.create_db.done")
+
+
+async def delete_local_pg_database(pg_name: str, pg_username: str) -> None:
+    """
+    Deletes the local Postgres database and corresponding roles/user for a project.
+    """
+    log = logger.bind(pg_name=pg_name)
+    log.info("pg.delete_db")
+
+    # connect to default database and drop the database
+    async with async_pg_cursor("postgres", autocommit=True) as cur:
+        log.info("pg.delete_db.drop", username=pg_username)
+        await cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(pg_name)))
+
+    log.info("pg.delete_db.done")

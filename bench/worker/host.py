@@ -77,7 +77,6 @@ class WorkerHost:
         # see https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
         os.killpg(os.getpgid(self.worker_process.pid), signal.SIGTERM)
 
-    @message_handler
     async def do_restart_worker_node(self, msg: NMessage[ReqDoRestartWorkerNodePayload]):
         logger.info("host.restart", worker_process=self.worker_process)
         self._terminate_worker()

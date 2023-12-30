@@ -42,15 +42,15 @@ async def _run(names: list[str]):
 
     servers = []
     if "language" in names or "all" in names:
-        from bench.server import RuntimeSupervisor
+        from bench.runtime import RuntimeSupervisor
 
         server = RuntimeSupervisor()
         asyncio.create_task(server.run())
         servers.append(server)
     if "orchestration" in names or "all" in names:
-        from bench.server import OrchestrationServer
+        from bench.runtime import ComputeOrchestrator
 
-        server = OrchestrationServer()
+        server = ComputeOrchestrator()
         asyncio.create_task(server.run())
         servers.append(server)
     if not servers:

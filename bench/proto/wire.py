@@ -5,12 +5,18 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -194,8 +200,8 @@ class ProtoStrEnum(betterproto.Enum):
 
 class QueryEngine(betterproto.Enum):
     UNSPECIFIED = 0
-    MODULE = 1
-    HOST = 2
+    LOCAL = 1
+    RUNTIME = 2
     OPENSEARCH = 3
     POSTGRES = 4
 
@@ -409,6 +415,13 @@ class WorkerSetStatus(betterproto.Enum):
 class ClientType(betterproto.Enum):
     WEB = 0
     WORKER = 1
+
+
+class ServiceType(betterproto.Enum):
+    UNSPECIFIED = 0
+    RUNTIME_SUPERVISOR = 1
+    RUNTIME_HOST = 2
+    WORKER_NODE = 3
 
 
 @dataclass(eq=False, repr=False)
@@ -827,13 +840,8 @@ class ClientOrigin(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PingRuntimeRequest(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class PingRuntimeResponse(betterproto.Message):
-    pass
+class DidCreateProjectRequest(betterproto.Message):
+    project_id: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -846,24 +854,26 @@ class ReadModuleResponse(betterproto.Message):
     module: "ModuleTreeData" = betterproto.message_field(1)
 
 
-class RuntimeHostStub(betterproto.ServiceStub):
-    async def ping_runtime(
+class RuntimeSupervisorStub(betterproto.ServiceStub):
+    async def did_create_project(
         self,
-        ping_runtime_request: "PingRuntimeRequest",
+        did_create_project_request: "DidCreateProjectRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "PingRuntimeResponse":
+    ) -> "betterproto_lib_google_protobuf.Empty":
         return await self._unary_unary(
-            "/RuntimeHost/PingRuntime",
-            ping_runtime_request,
-            PingRuntimeResponse,
+            "/RuntimeSupervisor/DidCreateProject",
+            did_create_project_request,
+            betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
+
+class RuntimeHostStub(betterproto.ServiceStub):
     async def read_module(
         self,
         read_module_request: "ReadModuleRequest",
@@ -886,21 +896,36 @@ class WorkerNodeStub(betterproto.ServiceStub):
     pass
 
 
-class RuntimeHostBase(ServiceBase):
-    async def ping_runtime(
-        self, ping_runtime_request: "PingRuntimeRequest"
-    ) -> "PingRuntimeResponse":
+class RuntimeSupervisorBase(ServiceBase):
+    async def did_create_project(
+        self, did_create_project_request: "DidCreateProjectRequest"
+    ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def read_module(self, read_module_request: "ReadModuleRequest") -> "ReadModuleResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def __rpc_ping_runtime(
-        self, stream: "grpclib.server.Stream[PingRuntimeRequest, PingRuntimeResponse]"
+    async def __rpc_did_create_project(
+        self,
+        stream: "grpclib.server.Stream[DidCreateProjectRequest, betterproto_lib_google_protobuf.Empty]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.ping_runtime(request)
+        response = await self.did_create_project(request)
         await stream.send_message(response)
+
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {
+            "/RuntimeSupervisor/DidCreateProject": grpclib.const.Handler(
+                self.__rpc_did_create_project,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                DidCreateProjectRequest,
+                betterproto_lib_google_protobuf.Empty,
+            ),
+        }
+
+
+class RuntimeHostBase(ServiceBase):
+    async def read_module(
+        self, read_module_request: "ReadModuleRequest"
+    ) -> "ReadModuleResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_read_module(
         self, stream: "grpclib.server.Stream[ReadModuleRequest, ReadModuleResponse]"
@@ -911,12 +936,6 @@ class RuntimeHostBase(ServiceBase):
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/RuntimeHost/PingRuntime": grpclib.const.Handler(
-                self.__rpc_ping_runtime,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                PingRuntimeRequest,
-                PingRuntimeResponse,
-            ),
             "/RuntimeHost/ReadModule": grpclib.const.Handler(
                 self.__rpc_read_module,
                 grpclib.const.Cardinality.UNARY_UNARY,

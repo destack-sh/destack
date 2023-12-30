@@ -1039,8 +1039,8 @@ export function protoStrEnumToJSON(object: ProtoStrEnum): string {
 
 export enum QueryEngine {
   UNSPECIFIED = 0,
-  MODULE = 1,
-  HOST = 2,
+  LOCAL = 1,
+  RUNTIME = 2,
   OPENSEARCH = 3,
   POSTGRES = 4,
 }
@@ -1051,11 +1051,11 @@ export function queryEngineFromJSON(object: any): QueryEngine {
     case "QUERY_ENGINE_UNSPECIFIED":
       return QueryEngine.UNSPECIFIED;
     case 1:
-    case "QUERY_ENGINE_MODULE":
-      return QueryEngine.MODULE;
+    case "QUERY_ENGINE_LOCAL":
+      return QueryEngine.LOCAL;
     case 2:
-    case "QUERY_ENGINE_HOST":
-      return QueryEngine.HOST;
+    case "QUERY_ENGINE_RUNTIME":
+      return QueryEngine.RUNTIME;
     case 3:
     case "QUERY_ENGINE_OPENSEARCH":
       return QueryEngine.OPENSEARCH;
@@ -1071,10 +1071,10 @@ export function queryEngineToJSON(object: QueryEngine): string {
   switch (object) {
     case QueryEngine.UNSPECIFIED:
       return "QUERY_ENGINE_UNSPECIFIED";
-    case QueryEngine.MODULE:
-      return "QUERY_ENGINE_MODULE";
-    case QueryEngine.HOST:
-      return "QUERY_ENGINE_HOST";
+    case QueryEngine.LOCAL:
+      return "QUERY_ENGINE_LOCAL";
+    case QueryEngine.RUNTIME:
+      return "QUERY_ENGINE_RUNTIME";
     case QueryEngine.OPENSEARCH:
       return "QUERY_ENGINE_OPENSEARCH";
     case QueryEngine.POSTGRES:
@@ -8248,8 +8248,9 @@ export const ViewData = {
     message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.revision = object.revision ?? 0;
     message.name = object.name ?? "";
-    message.query =
-      object.query !== undefined && object.query !== null ? ExpressionData.fromPartial(object.query) : undefined;
+    message.query = (object.query !== undefined && object.query !== null)
+      ? ExpressionData.fromPartial(object.query)
+      : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     return message;
   },
@@ -8712,16 +8713,12 @@ export const SomeStructData = {
       };
     }
     if (
-      object.struct?.$case === "runError" &&
-      object.struct?.runError !== undefined &&
-      object.struct?.runError !== null
+      object.struct?.$case === "runError" && object.struct?.runError !== undefined && object.struct?.runError !== null
     ) {
       message.struct = { $case: "runError", runError: RunErrorData.fromPartial(object.struct.runError) };
     }
     if (
-      object.struct?.$case === "logEntry" &&
-      object.struct?.logEntry !== undefined &&
-      object.struct?.logEntry !== null
+      object.struct?.$case === "logEntry" && object.struct?.logEntry !== undefined && object.struct?.logEntry !== null
     ) {
       message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
     }
@@ -8811,8 +8808,9 @@ export const ModuleTreeData = {
   },
   fromPartial<I extends Exact<DeepPartial<ModuleTreeData>, I>>(object: I): ModuleTreeData {
     const message = createBaseModuleTreeData();
-    message.module =
-      object.module !== undefined && object.module !== null ? ModuleData.fromPartial(object.module) : undefined;
+    message.module = (object.module !== undefined && object.module !== null)
+      ? ModuleData.fromPartial(object.module)
+      : undefined;
     message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
     return message;
   },
@@ -8820,21 +8818,15 @@ export const ModuleTreeData = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends globalThis.Array<infer U>
-  ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string }
-  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin
-  ? P
+export type Exact<P, I extends P> = P extends Builtin ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

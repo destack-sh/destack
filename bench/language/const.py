@@ -517,8 +517,8 @@ class SortOp(ProtoStrEnum):
 
 
 class QueryEngine(ProtoStrEnum):
-    MODULE = "MODULE", 1
-    HOST = "HOST", 2
+    LOCAL = "LOCAL", 1
+    RUNTIME = "RUNTIME", 2
     OPENSEARCH = "OS", 3
     POSTGRES = "PG", 4
 
