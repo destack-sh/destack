@@ -9,10 +9,11 @@ from django.db.models import Q
 
 from bench import models
 from bench.language.const import ACTIVE_RUN_STATUSES, PENDING_RUN_STATUSES, WorkerSetStatus
+from bench.language.libs import DEFAULT_MODULES
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
-from bench.proto.messaging import nc_init
 from bench.runtime import k8
+from bench.runtime.host import RuntimeHost
 from bench.search.engine import write_runs_to_os
 from bench.settings import KUBERNETES_ENABLED
 from bench.utils.cache import redis
@@ -29,35 +30,149 @@ WORKER_SET_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
 WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
-class ComputeOrchestrator(Monitored):
-    """
-    Singleton server to orchestrate workers in k8s requests.
-    There can only be one master globally for now, which is "enforced" by deploying as StatefulSet.
-    TODO @Robustness: use k8 lease for master server election (failover)
-    """
+def _get_projects_to_manage() -> list[models.Project]:
+    projects = list(models.Project.objects.all())  # obviously will shard this later
 
+    # sanity check if default libs in code match those in DB
+    for lib in DEFAULT_MODULES.values():
+        project = first((p for p in projects if p.id == lib.ck), None)
+        if project is None:
+            raise RuntimeError(f"default lib {lib} not found in DB")
+        if project.head_id != lib.id:
+            raise RuntimeError(f"default lib {lib} head mismatch with {project}: {project.head}")
+    # and then exclude default projects since there's nothing to manage
+    projects = [p for p in projects if p.path not in DEFAULT_MODULES]
+
+    return projects
+
+
+class RuntimeSupervisor(Monitored):
     def __init__(self):
         self.id = UUIDT()
+        self.runtimes: dict[UUID, RuntimeHost] = {}
         self.tasks = TaskManager()
-        self.worker_sets_by_project_id: dict[UUID, models.WorkerSet] = {}
-        self.worker_sets_by_id: dict[UUID, models.WorkerSet] = {}
         self._ready = False
+        self._worker_sets_by_project_id: dict[UUID, models.WorkerSet] = {}
+        self._worker_healthy_waiters: dict[UUID, asyncio.Event] = {}
+        self._worker_sets_by_id: dict[UUID, models.WorkerSet] = {}
 
     @property
-    def ready(self):
+    def worker_sets(self) -> Collection[models.WorkerSet]:
+        return self._worker_sets_by_project_id.values()
+
+    async def _on_workers_changed(self, msg: NMessage[WorkersChangedPayload]):
+        logger.debug("worker_observer.change", msg=msg)
+        for updated_ws in msg.p.worker_sets:
+            # upsert properties in local worker set
+            updated_ws: models.WorkerSet = packer.unpack_struct(updated_ws)
+            if updated_ws.project_id not in self._worker_sets_by_project_id:
+                ws = await models.WorkerSet.objects.select_related(
+                    "project", "project__organization", "project__user"
+                ).aget(project_id=updated_ws.project_id)
+            else:
+                ws = self._worker_sets_by_project_id[updated_ws.project_id]
+            for field in models.WorkerSet._meta.fields:
+                # skip relational fields
+                if field.is_relation:
+                    continue
+                setattr(ws, field.name, getattr(updated_ws, field.name))
+
+            # fire 'until healthy' wait events
+            if (
+                ws.status == WorkerSetStatus.HEALTHY
+                and ws.project_id in self._worker_healthy_waiters
+            ):
+                self._worker_healthy_waiters[ws.project_id].set()
+
+    def is_healthy(self, project_id: UUID) -> bool:
+        """Return whether the worker set is healthy."""
+        worker_set = self._worker_sets_by_project_id.get(project_id)
+        return worker_set and worker_set.status == WorkerSetStatus.HEALTHY
+
+    def get(self, project_id: UUID) -> Optional[models.WorkerSet]:
+        """Return the worker set if it exists."""
+        return self._worker_sets_by_project_id.get(project_id)
+
+    async def wake_until_healthy(self, project_id: UUID, timeout: Optional[int] = None):
+        """If not already healthy, wake the worker set and wait until it is healthy."""
+        worker_set = self._worker_sets_by_project_id.get(project_id)
+        log = logger.bind(project_id=project_id, worker_set=worker_set)
+        log.info("worker_observer.wait_until_healthy")
+        if worker_set and worker_set.status == WorkerSetStatus.HEALTHY:
+            return  # already good
+
+        # create waiter
+        if project_id not in self._worker_healthy_waiters:
+            self._worker_healthy_waiters[project_id] = asyncio.Event()
+
+        # wake if needed
+        if not worker_set or worker_set.sleeping:
+            log.info("worker_observer.wait_until_healthy.wake")
+            rep: NMessage[RepWakeWorkerSetPayload] = await request(
+                NMessageType.WAKE_WORKER_SET,
+                ReqWakeWorkerSetPayload(project_id=project_id),
+                reply_t=RepWakeWorkerSetPayload,
+                retry=3,
+            )
+            if not rep.p.success:
+                raise RuntimeError(f"failed to wake worker set {worker_set}: {rep.p.error}")
+
+        # and wait
+        if timeout:
+            await asyncio.wait_for(self._worker_healthy_waiters[project_id].wait(), timeout)
+        else:
+            await self._worker_healthy_waiters[project_id].wait()
+        if project_id in self._worker_healthy_waiters:
+            del self._worker_healthy_waiters[project_id]
+        log.info("worker_observer.wait_until_healthy.done")
+
+    async def run(self):
+        await nc_init.wait()
+        logger.info("start")
+
+        logger.info("load_modules")
+        projects = await sync_to_async(_get_projects_to_manage)()
+        self._worker_sets_by_project_id = {
+            ws.project_id: ws
+            async for ws in models.WorkerSet.objects.select_related(
+                "project", "project__organization", "project__user"
+            ).all()
+        }
+        await asyncio.gather(*[self._prepare_runtime_host(project.head_id) for project in projects])
+
+        logger.info("ready")
+        self._ready = True
+
+    @property
+    def ready(self) -> bool:
         return self._ready
 
     @property
     def healthy(self):
-        return self.tasks.healthy and self.ready
+        return self.ready and self.tasks.healthy
 
-    @property
-    def worker_sets(self) -> Collection[models.WorkerSet]:
-        return self.worker_sets_by_project_id.values()
+    async def _prepare_runtime_host(self, module_id: UUID) -> "RuntimeHost":
+        runtime = self.runtimes.get(module_id)
+        if runtime is None:
+            logger.info("runtime.prepare", module_id=module_id)
+            # start language worker if not already started
+            project_version = await models.ProjectVersion.objects.select_related(
+                "project", "project__user", "project__organization"
+            ).aget(id=module_id)
+            project = project_version.project
+            runtime = RuntimeHost(self.id, self.tasks, self, project, project_version)
+            self.runtimes[module_id] = runtime
+            self.tasks.start(runtime.run(), f"worker-{module_id}")
+        if not runtime.ready.is_set():
+            await runtime.ready.wait()
+        return runtime
+
+    async def stop(self):
+        logger.info("stop")
+        self._ready = False
 
     async def run(self):
         await k8.init()
-        await nc_init.wait()
         logger.info("start")
 
         # load
@@ -305,7 +420,7 @@ class ComputeOrchestrator(Monitored):
 
     async def _get_project_worker_set(self, project_id: UUID):
         """Get worker set for a project (load if not already loaded, may have just been created)."""
-        worker_set = self.worker_sets_by_project_id.get(project_id)
+        worker_set = self._worker_sets_by_project_id.get(project_id)
         if worker_set is None:
             # newly created project, get from DB
             project = await models.Project.objects.select_related(
@@ -314,8 +429,8 @@ class ComputeOrchestrator(Monitored):
                 "worker_set__project__user",
                 "worker_set__project__organization",
             ).aget(id=project_id)
-            self.worker_sets_by_project_id[project_id] = project.worker_set
-            self.worker_sets_by_id[project.worker_set.id] = project.worker_set
+            self._worker_sets_by_project_id[project_id] = project.worker_set
+            self._worker_sets_by_id[project.worker_set.id] = project.worker_set
             return project.worker_set
         else:
             return worker_set

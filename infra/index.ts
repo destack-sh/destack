@@ -218,25 +218,6 @@ const redisReplicationGroup = new aws.elasticache.ReplicationGroup("redis", {
 const REDIS_ROOT_URL = pulumi.interpolate`rediss://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
 const REDIS_WORKER_URL = pulumi.interpolate`rediss://${redisWorkerUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
 
-// NATS (HELM)
-const nats = new k8s.helm.v3.Release("nats", {
-  namespace: "default",
-  chart: "nats",
-  version: "0.19.12",
-  repositoryOpts: {
-    repo: "https://nats-io.github.io/k8s/helm/charts/",
-  },
-  values: {
-    // disable natbox
-    natsbox: {
-      enabled: false,
-    },
-    limits: {
-      // 256MB max message size
-      maxPayload: 256 * 1024 * 1024,
-    },
-  },
-});
 
 // IAM access to manage bench-user S3 buckets
 const s3AccessKey = getBenchUserS3AccessKey();
@@ -292,10 +273,6 @@ const PUBLIC_BACKEND_VARS = [
   {
     name: "SENTRY_DSN",
     value: config.requireSecret("SENTRY_DSN"),
-  },
-  {
-    name: "NATS_SERVER",
-    value: nats.name.apply((name) => `nats://${name}:4222`),
   },
 ];
 

@@ -77,7 +77,10 @@ logger = structlog.get_logger(__name__)
 
 
 class RuntimeHost(abc.ABC):
-    """Central Bench runtime server for synchronizing modules and sessions."""
+    """
+    Central Bench runtime server for synchronizing modules and sessions.
+    nocheckin: inherit from RuntimeHost service?
+    """
 
     @property
     def session_lock(self) -> asyncio.Lock:

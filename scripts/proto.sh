@@ -24,6 +24,7 @@ protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto \
  --ts_proto_opt=oneof=unions \
  --ts_proto_opt=removeEnumPrefix=true \
  --ts_proto_opt=unrecognizedEnum=false \
+ --ts_proto_opt=outputClientImpl=grpc-web \
  --ts_proto_out=$TARGET_TS_DIR $GENERATED_PROTO_FILE $EXTRA_PROTO_FILES
 # re-export everything from the TS files to frontend/wire/index.ts
 echo "export * from \"@/proto/wire/bench/proto/bench\";" > $TARGET_TS_DIR/index.ts
