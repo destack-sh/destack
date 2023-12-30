@@ -17,7 +17,7 @@ from bench.search.engine import (
     sync_databases_to_os,
     enable_os_strict_mapping,
 )
-from bench.runtime.host import interp_module
+from bench.runtime.utils import interp_module
 
 logger = structlog.get_logger(__name__)
 

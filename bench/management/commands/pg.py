@@ -15,7 +15,7 @@ logger = structlog.get_logger(__name__)
 
 
 async def update_pg_schema_from_db(project_v: models.ProjectVersion) -> None:
-    from bench.runtime.host import interp_module
+    from bench.runtime.utils import interp_module
 
     logger.info("pg.update_mappings", project_version=repr(project_v))
     module, project = await interp_module(project_v.id)

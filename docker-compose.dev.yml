@@ -33,18 +33,6 @@ services:
     entrypoint: sh
     command: -c 'mkdir -p /data/bench && minio server --address ":19000" --console-address ":19001" /data'
 
-  nats:
-    image: nats:2.9
-    restart: on-failure
-    ports:
-      - '4222:4222'
-      - '6222:6222'
-      - '8222:8222'
-    volumes:
-      - ./infra/nats.conf:/nats-server.conf
-    command: ["-c", "nats-server", "--config", "/nats-server.conf"]
-
-
   redis:
     image: redis:7.0-bullseye
     restart: on-failure

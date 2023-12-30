@@ -3,7 +3,7 @@ import json
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional, Collection
+from typing import Optional
 from uuid import UUID, uuid4
 
 import aiohttp
@@ -14,7 +14,7 @@ from django.db import transaction
 from more_itertools import first
 
 from bench import models, settings
-from bench.language import HasDatabase, Module, SortOp, Statement, Trigger, TriggerType, libs
+from bench.language import HasDatabase, Module, SortOp, Statement, Trigger, TriggerType
 from bench.language.builtin import symbolx_lib
 from bench.language.cache import Cache
 from bench.language.const import (
@@ -26,7 +26,6 @@ from bench.language.const import (
     SessionAccessLevel,
     StatementType,
     parse_absolute_node_reference,
-    WorkerSetStatus,
 )
 from bench.language.database import RecordQuery
 from bench.language.edit import EditData, EditKind, NodeTreeEditor
@@ -37,11 +36,12 @@ from bench.language.module import NodeTree, on_issue_raise, walk_bfs
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
-from bench.models import Project, ProjectVersion, packer
+from bench.models import ProjectVersion, packer
 from bench.models.packer import get_default_pack_filters, write_host_db_edits
 from bench.models.user import loops_request
 from bench.proto import wire, wiring
 from bench.proto.wiring import AnyNodeData
+from bench.runtime.utils import read_module
 from bench.search.engine import update_os_schema, write_edits_to_os, write_records_to_os
 from bench.sql.client import async_pg_cursor
 from bench.sql.engine import (
@@ -52,197 +52,11 @@ from bench.sql.engine import (
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import partition, to_uuid
-from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, sentry_capture
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
-
-_cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, models.Project]] = {}
-
-
-async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, models.Project]:
-    if ref in _cached_modules:
-        return _cached_modules[ref]
-    id = ref if isinstance(ref, UUID) else ref.id
-    if id:
-        project_version = await ProjectVersion.objects.aget(id=id)
-    else:
-        owner, project = ref.name.split(".")
-        if ref.version != "x":
-            raise RuntimeError("versioned module fetch not supported (must be head)")
-        project_version = (
-            await Project.objects.filter(slug=project)
-            .filter(
-                models.Q(organization__owner_slug_id=owner) | models.Q(user__owner_slug_id=owner)
-            )
-            .select_related("head", "user", "organization")
-            .aget()
-        )
-        project_version = project_version.head
-    module = await sync_to_async(packer.pack_module_host)(
-        project_version, excluded=INTERP_NODE_TYPES
-    )
-    if project_version.committed:
-        _cached_modules[ref] = module, project_version.project
-    return module, project_version.project
-
-
-async def interp_module(ref: ModuleReference | UUID) -> tuple[Module, models.Project]:
-    module, project = await read_module(ref)
-    module = wiring.unpack_node_inline(module.nodes, parent=None, exclude=INTERP_NODE_TYPES)
-    for dependency in libs.DEFAULT_MODULES.values():
-        module.add_dependency(dependency)
-    module.add_builtin(symbolx_lib.files.get("builtins"))
-    module._interp_rec()
-    return module, project
-
-
-def _get_projects_to_manage() -> list[models.Project]:
-    projects = list(Project.objects.all())  # obviously will shard this later
-
-    # sanity check if default libs in code match those in DB
-    for lib in DEFAULT_MODULES.values():
-        project = first((p for p in projects if p.id == lib.ck), None)
-        if project is None:
-            raise RuntimeError(f"default lib {lib} not found in DB")
-        if project.head_id != lib.id:
-            raise RuntimeError(f"default lib {lib} head mismatch with {project}: {project.head}")
-    # and then exclude default projects since there's nothing to manage
-    projects = [p for p in projects if p.path not in DEFAULT_MODULES]
-
-    return projects
-
-
-class RuntimeSupervisor(Monitored):
-    """
-    Bench runtime server to host runtime hosts for each Bench.
-    """
-
-    def __init__(self):
-        self.id = UUIDT()
-        self.runtimes: dict[UUID, RuntimeHost] = {}
-        self.tasks = TaskManager()
-        self._ready = False
-        self._worker_sets_by_project_id: dict[UUID, models.WorkerSet] = {}
-        self._worker_healthy_waiters: dict[UUID, asyncio.Event] = {}
-
-    @property
-    def worker_sets(self) -> Collection[models.WorkerSet]:
-        return self._worker_sets_by_project_id.values()
-
-    async def _on_workers_changed(self, msg: NMessage[WorkersChangedPayload]):
-        logger.debug("worker_observer.change", msg=msg)
-        for updated_ws in msg.p.worker_sets:
-            # upsert properties in local worker set
-            updated_ws: models.WorkerSet = packer.unpack_struct(updated_ws)
-            if updated_ws.project_id not in self._worker_sets_by_project_id:
-                ws = await models.WorkerSet.objects.select_related(
-                    "project", "project__organization", "project__user"
-                ).aget(project_id=updated_ws.project_id)
-            else:
-                ws = self._worker_sets_by_project_id[updated_ws.project_id]
-            for field in models.WorkerSet._meta.fields:
-                # skip relational fields
-                if field.is_relation:
-                    continue
-                setattr(ws, field.name, getattr(updated_ws, field.name))
-
-            # fire 'until healthy' wait events
-            if (
-                ws.status == WorkerSetStatus.HEALTHY
-                and ws.project_id in self._worker_healthy_waiters
-            ):
-                self._worker_healthy_waiters[ws.project_id].set()
-
-    def is_healthy(self, project_id: UUID) -> bool:
-        """Return whether the worker set is healthy."""
-        worker_set = self._worker_sets_by_project_id.get(project_id)
-        return worker_set and worker_set.status == WorkerSetStatus.HEALTHY
-
-    def get(self, project_id: UUID) -> Optional[models.WorkerSet]:
-        """Return the worker set if it exists."""
-        return self._worker_sets_by_project_id.get(project_id)
-
-    async def wake_until_healthy(self, project_id: UUID, timeout: Optional[int] = None):
-        """If not already healthy, wake the worker set and wait until it is healthy."""
-        worker_set = self._worker_sets_by_project_id.get(project_id)
-        log = logger.bind(project_id=project_id, worker_set=worker_set)
-        log.info("worker_observer.wait_until_healthy")
-        if worker_set and worker_set.status == WorkerSetStatus.HEALTHY:
-            return  # already good
-
-        # create waiter
-        if project_id not in self._worker_healthy_waiters:
-            self._worker_healthy_waiters[project_id] = asyncio.Event()
-
-        # wake if needed
-        if not worker_set or worker_set.sleeping:
-            log.info("worker_observer.wait_until_healthy.wake")
-            rep: NMessage[RepWakeWorkerSetPayload] = await request(
-                NMessageType.WAKE_WORKER_SET,
-                ReqWakeWorkerSetPayload(project_id=project_id),
-                reply_t=RepWakeWorkerSetPayload,
-                retry=3,
-            )
-            if not rep.p.success:
-                raise RuntimeError(f"failed to wake worker set {worker_set}: {rep.p.error}")
-
-        # and wait
-        if timeout:
-            await asyncio.wait_for(self._worker_healthy_waiters[project_id].wait(), timeout)
-        else:
-            await self._worker_healthy_waiters[project_id].wait()
-        if project_id in self._worker_healthy_waiters:
-            del self._worker_healthy_waiters[project_id]
-        log.info("worker_observer.wait_until_healthy.done")
-
-    async def run(self):
-        await nc_init.wait()
-        logger.info("start")
-
-        logger.info("load_modules")
-        projects = await sync_to_async(_get_projects_to_manage)()
-        self._worker_sets_by_project_id = {
-            ws.project_id: ws
-            async for ws in models.WorkerSet.objects.select_related(
-                "project", "project__organization", "project__user"
-            ).all()
-        }
-        await asyncio.gather(*[self._prepare_runtime_host(project.head_id) for project in projects])
-
-        logger.info("ready")
-        self._ready = True
-
-    @property
-    def ready(self) -> bool:
-        return self._ready
-
-    @property
-    def healthy(self):
-        return self.ready and self.tasks.healthy
-
-    async def _prepare_runtime_host(self, module_id: UUID) -> "RuntimeHost":
-        runtime = self.runtimes.get(module_id)
-        if runtime is None:
-            logger.info("runtime.prepare", module_id=module_id)
-            # start language worker if not already started
-            project_version = await ProjectVersion.objects.select_related(
-                "project", "project__user", "project__organization"
-            ).aget(id=module_id)
-            project = project_version.project
-            runtime = RuntimeHost(self.id, self.tasks, self, project, project_version)
-            self.runtimes[module_id] = runtime
-            self.tasks.start(runtime.run(), f"worker-{module_id}")
-        if not runtime.ready.is_set():
-            await runtime.ready.wait()
-        return runtime
-
-    async def stop(self):
-        logger.info("stop")
-        self._ready = False
-
 
 # :MinTriggerInterval (because less than pre send window won't work)
 TIME_TRIGGER_PRE_SEND_WINDOW = 45  # seconds
@@ -269,7 +83,7 @@ class RuntimeHost:
         self,
         host_id: UUID,
         tasks: TaskManager,
-        supervisor: RuntimeSupervisor,
+        supervisor: "RuntimeSupervisor",
         project: models.Project,
         project_version: models.ProjectVersion,
     ):

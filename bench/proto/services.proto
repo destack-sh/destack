@@ -1,7 +1,13 @@
+/*
+All the services and any additional stuff not auto-generated in bench.proto.
+ */
+
 syntax = "proto3";
 
 import "bench/proto/bench.proto";
 import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
 
 enum ClientType {
   WEB = 0;
@@ -26,14 +32,18 @@ enum ServiceType {
 //
 
 message DidCreateProjectRequest {
-  string project_id = 2;
+  string project_id = 1;
 }
 
-service RuntimeSupervisor {// global (not yet sharded)
+// Runtime supervisor orchestrating all the runtime hosts in its realm (not yet sharded).
+// Also orchestrates the corresponding worker sets/nodes.
+service RuntimeSupervisor {
+
+  // Notify supervisor of a new Bench.
   rpc DidCreateProject(DidCreateProjectRequest) returns (google.protobuf.Empty);
 
   // worker management
-  //  rpc WorkersChanged(WorkersChangedRequest) returns (stream WorkersChangedResponse);
+  //  rpc GetWorkerChanges(GetWorkerChangesRequest) returns (stream GetWorkerChangesResponse);
   //  rpc ConfigureWorkerSet(ConfigureWorkerSetRequest) returns (ConfigureWorkerSetResponse);
   //  rpc WakeWorkerSet(WakeWorkerSetRequest) returns (WakeWorkerSetResponse);
   //  rpc RestartWorkerSet(RestartWorkerSetRequest) returns (RestartWorkerSetResponse);
@@ -45,21 +55,46 @@ service RuntimeSupervisor {// global (not yet sharded)
 // Runtime host
 //
 
-message ReadModuleRequest {}
+message GetBenchChangesRequest {
+  int64 after_change_marker = 1;
+}
+message GetBenchChangesResponse {
+}
 
+
+message GetModuleEditsRequest {
+  int64 after_edit_marker = 1;
+}
+message GetModuleEditsResponse {
+  //  repeated EditData edits = 1;
+}
+
+message GetLogsRequest {}
+message GetLogsResponse {
+  repeated LogEntryData logs = 1;
+}
+
+message ReadModuleRequest {}
 message ReadModuleResponse {
   ModuleTreeData module = 1;
 }
 
+// The Bench runtime host for a specific module.
+// Service is scoped to project_id/module_id.
+// Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
+service RuntimeHost {
 
-service RuntimeHost {// scoped to project_id/module_id
   // subscriptions
-  //  rpc ProjectChanged(ProjectChangedRequest) returns (stream ProjectChangedResponse);
-  //  rpc ModuleChanged(ModuleChangedRequest) returns (stream ModuleChangedResponse);
-  //  rpc RunsChanged(RunsChangedRequest) returns (stream RunsChangedResponse);
-  //  rpc LogsChanged(LogsChangedRequest) returns (stream LogsChangedResponse);
+  // Receive larger-than-module changes to a Bench.
+  rpc GetBenchChanges(GetBenchChangesRequest) returns (stream GetBenchChangesResponse);
+  // Receive any future edits to this module.
+  rpc GetModuleEdits(GetModuleEditsRequest) returns (stream GetModuleEditsResponse);
+  // Forwards all matching logs received from the workers.
+  rpc GetLogs(GetLogsRequest) returns (stream GetLogsResponse);
 
   // read/write module
+
+  // Reads the entire module tree.
   rpc ReadModule(ReadModuleRequest) returns (ReadModuleResponse);
   //  rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
   //  rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
@@ -73,18 +108,73 @@ service RuntimeHost {// scoped to project_id/module_id
   //  rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
 
   // runs
-  //  rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  //  rpc KillRun(KillRunRequest) returns (KillRunResponse);
+
+  // Starts a run in an appropriate worker (same request/response as for WorkerNode).
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  // Kills a run in the appropriate worker (same request/response as for WorkerNode).
+  rpc KillRun(KillRunRequest) returns (KillRunResponse);
   //  rpc PullWorkerRuns(PullWorkerRunsRequest) returns (PullWorkerRunsResponse);
+  //  rpc PushLogs(PushLogsRequest) returns (google.protobuf.Empty);
 }
 
 //
 // Worker node
 //
 
-service WorkerNode {// scoped to project_id/worker_set_id
-  //  rpc RestartWorker(RestartWorkerRequest) returns (RestartWorkerResponse);
-  //  rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  //  rpc KillRun(KillRunRequest) returns (KillRunResponse);
+message RestartWorkerRequest {}
+
+message StartRunRequest {
+  TriggerType trigger_type = 1;
+  string trigger_id = 2;
+  string run_id = 3;
+  string session_id = 4;
+  string statement = 5;
+  string scope = 6;
+  string code = 7;
+  google.protobuf.Timestamp scheduled_at = 8;
+  google.protobuf.Struct inputs = 9;
+  bool block = 10;
+  bool keyed = 11;
+  bool keyed_return = 12;
+  repeated string tags = 13;
+  google.protobuf.Struct root_value = 14;
+  google.protobuf.Struct global_value = 15;
+  SessionAccessLevel access_level = 16;
+}
+
+enum StartRunErrorType {
+  START_RUN_ERROR_TYPE_UNSPECIFIED = 0;
+  START_RUN_ERROR_TYPE_UNAVAILABLE = 1;
+  START_RUN_ERROR_TYPE_INVALID = 2;
+  START_RUN_ERROR_TYPE_INTERNAL = 3;
+  START_RUN_ERROR_TYPE_TIMEOUT = 4;
+  START_RUN_ERROR_TYPE_RUNTIME = 5;
+  START_RUN_ERROR_TYPE_DUPLICATE = 6;
+}
+
+message StartRunResponse {
+  StartRunErrorType error_type = 1;
+  string run_id = 2;
+  RunData run = 3;
+  repeated LogEntryData logs = 4;
+}
+
+message KillRunRequest {
+  string run_id = 1;
+}
+
+message KillRunResponse {
+  bool success = 1;
+}
+
+// The actual worker node running a Bench for a user.
+// Service is scoped to project_id/worker_set_id.
+service WorkerNode {
+  // Restart this worker immediately.
+  rpc RestartWorker(RestartWorkerRequest) returns (google.protobuf.Empty);
+  // Starts a run in this worker (if not already known).
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  // Kills a run in this worker.
+  rpc KillRun(KillRunRequest) returns (KillRunResponse);
 }
 
