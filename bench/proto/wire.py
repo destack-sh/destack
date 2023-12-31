@@ -5,19 +5,12 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -425,14 +418,14 @@ class ServiceType(betterproto.Enum):
     WORKER_NODE = 3
 
 
-class StartRunErrorType(betterproto.Enum):
-    UNSPECIFIED = 0
-    UNAVAILABLE = 1
-    INVALID = 2
-    INTERNAL = 3
-    TIMEOUT = 4
-    RUNTIME = 5
-    DUPLICATE = 6
+class StartRunResponseStartRunErrorType(betterproto.Enum):
+    START_RUN_ERROR_TYPE_UNSPECIFIED = 0
+    START_RUN_ERROR_TYPE_UNAVAILABLE = 1
+    START_RUN_ERROR_TYPE_INVALID = 2
+    START_RUN_ERROR_TYPE_INTERNAL = 3
+    START_RUN_ERROR_TYPE_TIMEOUT = 4
+    START_RUN_ERROR_TYPE_RUNTIME = 5
+    START_RUN_ERROR_TYPE_DUPLICATE = 6
 
 
 @dataclass(eq=False, repr=False)
@@ -856,6 +849,49 @@ class DidCreateProjectRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class GetWorkerChangesRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class GetWorkerChangesResponse(betterproto.Message):
+    worker_sets: List["WorkerSetData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class ConfigureWorkerSetRequest(betterproto.Message):
+    project_id: str = betterproto.string_field(1)
+    profile: "WorkerProfile" = betterproto.enum_field(2)
+    region: "ProjectRegion" = betterproto.enum_field(3)
+    target_replicas: int = betterproto.int32_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class ConfigureWorkerSetResponse(betterproto.Message):
+    worker_set: "WorkerSetData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class RestartWorkerSetRequest(betterproto.Message):
+    project_id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class GetEnvironmentRequest(betterproto.Message):
+    project_id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class GetEnvironmentResponse(betterproto.Message):
+    environment: "EnvironmentData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class PingWorkerSetRequest(betterproto.Message):
+    project_id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class GetBenchChangesRequest(betterproto.Message):
     after_change_marker: int = betterproto.int64_field(1)
 
@@ -896,6 +932,119 @@ class ReadModuleResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class SearchNodesRequest(betterproto.Message):
+    node_type: "NodeType" = betterproto.enum_field(1)
+    node_ck: str = betterproto.string_field(2)
+    filter: "ExpressionData" = betterproto.message_field(3)
+    sort: List["ExpressionData"] = betterproto.message_field(4)
+    limit: int = betterproto.int32_field(5)
+    after: str = betterproto.string_field(6)
+
+
+@dataclass(eq=False, repr=False)
+class SearchNodesResponse(betterproto.Message):
+    nodes: List["SomeNodeData"] = betterproto.message_field(1)
+    cursors: List[str] = betterproto.string_field(2)
+    start_cursor: str = betterproto.string_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class CommitEditsRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class CommitEditsResponse(betterproto.Message):
+    changed_nodes: List["SomeNodeData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class UploadBlobRequest(betterproto.Message):
+    blob: "BlobData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class UploadBlobResponse(betterproto.Message):
+    post_url: str = betterproto.string_field(1)
+    expires_at: datetime = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class DownloadBlobRequest(betterproto.Message):
+    blob: "BlobData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class DownloadBlobResponse(betterproto.Message):
+    get_url: str = betterproto.string_field(1)
+    expires_at: datetime = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class RevealSecretRequest(betterproto.Message):
+    secret: "SecretData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class RevealSecretResponse(betterproto.Message):
+    secret: "SecretData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class PasteNodesRequest(betterproto.Message):
+    source_module_id: str = betterproto.string_field(1)
+    source_ids: List[str] = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class PasteNodesResponse(betterproto.Message):
+    pasted_nodes: List["SomeNodeData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class SnapshotModuleRequest(betterproto.Message):
+    name: str = betterproto.string_field(1)
+    tag: str = betterproto.string_field(2)
+    description: str = betterproto.string_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class SnapshotModuleResponse(betterproto.Message):
+    snapshot_project_version_id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class PushWorkerLogsRequest(betterproto.Message):
+    logs: List["LogEntryData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class RunProxyStatementRequest(betterproto.Message):
+    statement: str = betterproto.string_field(1)
+    inputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
+    timeout_ms: int = betterproto.int32_field(3)
+    run_id: str = betterproto.string_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class RunProxyStatementResponse(betterproto.Message):
+    outputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(1)
+    error: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class PullWorkerRunsRequest(betterproto.Message):
+    worker_set_id: str = betterproto.string_field(1)
+    worker_node_id: str = betterproto.string_field(2)
+    worker_process_id: str = betterproto.string_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class PullWorkerRunsResponse(betterproto.Message):
+    runs: List["RunData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class RestartWorkerRequest(betterproto.Message):
     pass
 
@@ -915,18 +1064,14 @@ class StartRunRequest(betterproto.Message):
     keyed: bool = betterproto.bool_field(11)
     keyed_return: bool = betterproto.bool_field(12)
     tags: List[str] = betterproto.string_field(13)
-    root_values: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(
-        14
-    )
-    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(
-        15
-    )
+    root_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(14)
+    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(15)
     access_level: "SessionAccessLevel" = betterproto.enum_field(16)
 
 
 @dataclass(eq=False, repr=False)
 class StartRunResponse(betterproto.Message):
-    error_type: "StartRunErrorType" = betterproto.enum_field(1)
+    error_type: "StartRunResponseStartRunErrorType" = betterproto.enum_field(1)
     run_id: str = betterproto.string_field(2)
     run: "RunData" = betterproto.message_field(3)
     logs: List["LogEntryData"] = betterproto.message_field(4)
@@ -954,6 +1099,92 @@ class RuntimeSupervisorStub(betterproto.ServiceStub):
         return await self._unary_unary(
             "/RuntimeSupervisor/DidCreateProject",
             did_create_project_request,
+            betterproto_lib_google_protobuf.Empty,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def get_worker_changes(
+        self,
+        get_worker_changes_request: "GetWorkerChangesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> AsyncIterator["GetWorkerChangesResponse"]:
+        async for response in self._unary_stream(
+            "/RuntimeSupervisor/GetWorkerChanges",
+            get_worker_changes_request,
+            GetWorkerChangesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
+    async def configure_worker_set(
+        self,
+        configure_worker_set_request: "ConfigureWorkerSetRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "ConfigureWorkerSetResponse":
+        return await self._unary_unary(
+            "/RuntimeSupervisor/ConfigureWorkerSet",
+            configure_worker_set_request,
+            ConfigureWorkerSetResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def restart_worker_set(
+        self,
+        restart_worker_set_request: "RestartWorkerSetRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        return await self._unary_unary(
+            "/RuntimeSupervisor/RestartWorkerSet",
+            restart_worker_set_request,
+            betterproto_lib_google_protobuf.Empty,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def get_environment(
+        self,
+        get_environment_request: "GetEnvironmentRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "GetEnvironmentResponse":
+        return await self._unary_unary(
+            "/RuntimeSupervisor/GetEnvironment",
+            get_environment_request,
+            GetEnvironmentResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def ping_worker_set(
+        self,
+        ping_worker_set_request: "PingWorkerSetRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        return await self._unary_unary(
+            "/RuntimeSupervisor/PingWorkerSet",
+            ping_worker_set_request,
             betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
             deadline=deadline,
@@ -998,6 +1229,142 @@ class RuntimeHostStub(betterproto.ServiceStub):
         ):
             yield response
 
+    async def read_module(
+        self,
+        read_module_request: "ReadModuleRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "ReadModuleResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/ReadModule",
+            read_module_request,
+            ReadModuleResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def search_nodes(
+        self,
+        search_nodes_request: "SearchNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "SearchNodesResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/SearchNodes",
+            search_nodes_request,
+            SearchNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def commit_edits(
+        self,
+        commit_edits_request: "CommitEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "CommitEditsResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/CommitEdits",
+            commit_edits_request,
+            CommitEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def upload_blob(
+        self,
+        upload_blob_request: "UploadBlobRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "UploadBlobResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/UploadBlob",
+            upload_blob_request,
+            UploadBlobResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def download_blob(
+        self,
+        download_blob_request: "DownloadBlobRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "DownloadBlobResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/DownloadBlob",
+            download_blob_request,
+            DownloadBlobResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def reveal_secret(
+        self,
+        reveal_secret_request: "RevealSecretRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "RevealSecretResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/RevealSecret",
+            reveal_secret_request,
+            RevealSecretResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def paste_nodes(
+        self,
+        paste_nodes_request: "PasteNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "PasteNodesResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/PasteNodes",
+            paste_nodes_request,
+            PasteNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def snapshot_module(
+        self,
+        snapshot_module_request: "SnapshotModuleRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "SnapshotModuleResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/SnapshotModule",
+            snapshot_module_request,
+            SnapshotModuleResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def get_logs(
         self,
         get_logs_request: "GetLogsRequest",
@@ -1016,18 +1383,86 @@ class RuntimeHostStub(betterproto.ServiceStub):
         ):
             yield response
 
-    async def read_module(
+    async def start_run(
         self,
-        read_module_request: "ReadModuleRequest",
+        start_run_request: "StartRunRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "ReadModuleResponse":
+    ) -> "StartRunResponse":
         return await self._unary_unary(
-            "/RuntimeHost/ReadModule",
-            read_module_request,
-            ReadModuleResponse,
+            "/RuntimeHost/StartRun",
+            start_run_request,
+            StartRunResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def kill_run(
+        self,
+        kill_run_request: "KillRunRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "KillRunResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/KillRun",
+            kill_run_request,
+            KillRunResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def run_proxy_statement(
+        self,
+        run_proxy_statement_request: "RunProxyStatementRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "RunProxyStatementResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/RunProxyStatement",
+            run_proxy_statement_request,
+            RunProxyStatementResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def pull_worker_runs(
+        self,
+        pull_worker_runs_request: "PullWorkerRunsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "PullWorkerRunsResponse":
+        return await self._unary_unary(
+            "/RuntimeHost/PullWorkerRuns",
+            pull_worker_runs_request,
+            PullWorkerRunsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def push_worker_logs(
+        self,
+        push_worker_logs_request: "PushWorkerLogsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        return await self._unary_unary(
+            "/RuntimeHost/PushWorkerLogs",
+            push_worker_logs_request,
+            betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -1093,6 +1528,32 @@ class RuntimeSupervisorBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def get_worker_changes(
+        self, get_worker_changes_request: "GetWorkerChangesRequest"
+    ) -> AsyncIterator["GetWorkerChangesResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield GetWorkerChangesResponse()
+
+    async def configure_worker_set(
+        self, configure_worker_set_request: "ConfigureWorkerSetRequest"
+    ) -> "ConfigureWorkerSetResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def restart_worker_set(
+        self, restart_worker_set_request: "RestartWorkerSetRequest"
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def get_environment(
+        self, get_environment_request: "GetEnvironmentRequest"
+    ) -> "GetEnvironmentResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def ping_worker_set(
+        self, ping_worker_set_request: "PingWorkerSetRequest"
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def __rpc_did_create_project(
         self,
         stream: "grpclib.server.Stream[DidCreateProjectRequest, betterproto_lib_google_protobuf.Empty]",
@@ -1101,12 +1562,85 @@ class RuntimeSupervisorBase(ServiceBase):
         response = await self.did_create_project(request)
         await stream.send_message(response)
 
+    async def __rpc_get_worker_changes(
+        self,
+        stream: "grpclib.server.Stream[GetWorkerChangesRequest, GetWorkerChangesResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.get_worker_changes,
+            stream,
+            request,
+        )
+
+    async def __rpc_configure_worker_set(
+        self,
+        stream: "grpclib.server.Stream[ConfigureWorkerSetRequest, ConfigureWorkerSetResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.configure_worker_set(request)
+        await stream.send_message(response)
+
+    async def __rpc_restart_worker_set(
+        self,
+        stream: "grpclib.server.Stream[RestartWorkerSetRequest, betterproto_lib_google_protobuf.Empty]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.restart_worker_set(request)
+        await stream.send_message(response)
+
+    async def __rpc_get_environment(
+        self,
+        stream: "grpclib.server.Stream[GetEnvironmentRequest, GetEnvironmentResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.get_environment(request)
+        await stream.send_message(response)
+
+    async def __rpc_ping_worker_set(
+        self,
+        stream: "grpclib.server.Stream[PingWorkerSetRequest, betterproto_lib_google_protobuf.Empty]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.ping_worker_set(request)
+        await stream.send_message(response)
+
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
             "/RuntimeSupervisor/DidCreateProject": grpclib.const.Handler(
                 self.__rpc_did_create_project,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 DidCreateProjectRequest,
+                betterproto_lib_google_protobuf.Empty,
+            ),
+            "/RuntimeSupervisor/GetWorkerChanges": grpclib.const.Handler(
+                self.__rpc_get_worker_changes,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                GetWorkerChangesRequest,
+                GetWorkerChangesResponse,
+            ),
+            "/RuntimeSupervisor/ConfigureWorkerSet": grpclib.const.Handler(
+                self.__rpc_configure_worker_set,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                ConfigureWorkerSetRequest,
+                ConfigureWorkerSetResponse,
+            ),
+            "/RuntimeSupervisor/RestartWorkerSet": grpclib.const.Handler(
+                self.__rpc_restart_worker_set,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                RestartWorkerSetRequest,
+                betterproto_lib_google_protobuf.Empty,
+            ),
+            "/RuntimeSupervisor/GetEnvironment": grpclib.const.Handler(
+                self.__rpc_get_environment,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                GetEnvironmentRequest,
+                GetEnvironmentResponse,
+            ),
+            "/RuntimeSupervisor/PingWorkerSet": grpclib.const.Handler(
+                self.__rpc_ping_worker_set,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PingWorkerSetRequest,
                 betterproto_lib_google_protobuf.Empty,
             ),
         }
@@ -1125,15 +1659,65 @@ class RuntimeHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield GetModuleEditsResponse()
 
+    async def read_module(self, read_module_request: "ReadModuleRequest") -> "ReadModuleResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def search_nodes(
+        self, search_nodes_request: "SearchNodesRequest"
+    ) -> "SearchNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def commit_edits(
+        self, commit_edits_request: "CommitEditsRequest"
+    ) -> "CommitEditsResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def upload_blob(self, upload_blob_request: "UploadBlobRequest") -> "UploadBlobResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def download_blob(
+        self, download_blob_request: "DownloadBlobRequest"
+    ) -> "DownloadBlobResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def reveal_secret(
+        self, reveal_secret_request: "RevealSecretRequest"
+    ) -> "RevealSecretResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def snapshot_module(
+        self, snapshot_module_request: "SnapshotModuleRequest"
+    ) -> "SnapshotModuleResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def get_logs(
         self, get_logs_request: "GetLogsRequest"
     ) -> AsyncIterator["GetLogsResponse"]:
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield GetLogsResponse()
 
-    async def read_module(
-        self, read_module_request: "ReadModuleRequest"
-    ) -> "ReadModuleResponse":
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def run_proxy_statement(
+        self, run_proxy_statement_request: "RunProxyStatementRequest"
+    ) -> "RunProxyStatementResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def pull_worker_runs(
+        self, pull_worker_runs_request: "PullWorkerRunsRequest"
+    ) -> "PullWorkerRunsResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def push_worker_logs(
+        self, push_worker_logs_request: "PushWorkerLogsRequest"
+    ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_get_bench_changes(
@@ -1158,6 +1742,63 @@ class RuntimeHostBase(ServiceBase):
             request,
         )
 
+    async def __rpc_read_module(
+        self, stream: "grpclib.server.Stream[ReadModuleRequest, ReadModuleResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.read_module(request)
+        await stream.send_message(response)
+
+    async def __rpc_search_nodes(
+        self, stream: "grpclib.server.Stream[SearchNodesRequest, SearchNodesResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.search_nodes(request)
+        await stream.send_message(response)
+
+    async def __rpc_commit_edits(
+        self, stream: "grpclib.server.Stream[CommitEditsRequest, CommitEditsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.commit_edits(request)
+        await stream.send_message(response)
+
+    async def __rpc_upload_blob(
+        self, stream: "grpclib.server.Stream[UploadBlobRequest, UploadBlobResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.upload_blob(request)
+        await stream.send_message(response)
+
+    async def __rpc_download_blob(
+        self, stream: "grpclib.server.Stream[DownloadBlobRequest, DownloadBlobResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.download_blob(request)
+        await stream.send_message(response)
+
+    async def __rpc_reveal_secret(
+        self, stream: "grpclib.server.Stream[RevealSecretRequest, RevealSecretResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.reveal_secret(request)
+        await stream.send_message(response)
+
+    async def __rpc_paste_nodes(
+        self, stream: "grpclib.server.Stream[PasteNodesRequest, PasteNodesResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.paste_nodes(request)
+        await stream.send_message(response)
+
+    async def __rpc_snapshot_module(
+        self,
+        stream: "grpclib.server.Stream[SnapshotModuleRequest, SnapshotModuleResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.snapshot_module(request)
+        await stream.send_message(response)
+
     async def __rpc_get_logs(
         self, stream: "grpclib.server.Stream[GetLogsRequest, GetLogsResponse]"
     ) -> None:
@@ -1168,11 +1809,42 @@ class RuntimeHostBase(ServiceBase):
             request,
         )
 
-    async def __rpc_read_module(
-        self, stream: "grpclib.server.Stream[ReadModuleRequest, ReadModuleResponse]"
+    async def __rpc_start_run(
+        self, stream: "grpclib.server.Stream[StartRunRequest, StartRunResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.read_module(request)
+        response = await self.start_run(request)
+        await stream.send_message(response)
+
+    async def __rpc_kill_run(
+        self, stream: "grpclib.server.Stream[KillRunRequest, KillRunResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.kill_run(request)
+        await stream.send_message(response)
+
+    async def __rpc_run_proxy_statement(
+        self,
+        stream: "grpclib.server.Stream[RunProxyStatementRequest, RunProxyStatementResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.run_proxy_statement(request)
+        await stream.send_message(response)
+
+    async def __rpc_pull_worker_runs(
+        self,
+        stream: "grpclib.server.Stream[PullWorkerRunsRequest, PullWorkerRunsResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.pull_worker_runs(request)
+        await stream.send_message(response)
+
+    async def __rpc_push_worker_logs(
+        self,
+        stream: "grpclib.server.Stream[PushWorkerLogsRequest, betterproto_lib_google_protobuf.Empty]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.push_worker_logs(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
@@ -1189,17 +1861,89 @@ class RuntimeHostBase(ServiceBase):
                 GetModuleEditsRequest,
                 GetModuleEditsResponse,
             ),
+            "/RuntimeHost/ReadModule": grpclib.const.Handler(
+                self.__rpc_read_module,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                ReadModuleRequest,
+                ReadModuleResponse,
+            ),
+            "/RuntimeHost/SearchNodes": grpclib.const.Handler(
+                self.__rpc_search_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                SearchNodesRequest,
+                SearchNodesResponse,
+            ),
+            "/RuntimeHost/CommitEdits": grpclib.const.Handler(
+                self.__rpc_commit_edits,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CommitEditsRequest,
+                CommitEditsResponse,
+            ),
+            "/RuntimeHost/UploadBlob": grpclib.const.Handler(
+                self.__rpc_upload_blob,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                UploadBlobRequest,
+                UploadBlobResponse,
+            ),
+            "/RuntimeHost/DownloadBlob": grpclib.const.Handler(
+                self.__rpc_download_blob,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                DownloadBlobRequest,
+                DownloadBlobResponse,
+            ),
+            "/RuntimeHost/RevealSecret": grpclib.const.Handler(
+                self.__rpc_reveal_secret,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                RevealSecretRequest,
+                RevealSecretResponse,
+            ),
+            "/RuntimeHost/PasteNodes": grpclib.const.Handler(
+                self.__rpc_paste_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PasteNodesRequest,
+                PasteNodesResponse,
+            ),
+            "/RuntimeHost/SnapshotModule": grpclib.const.Handler(
+                self.__rpc_snapshot_module,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                SnapshotModuleRequest,
+                SnapshotModuleResponse,
+            ),
             "/RuntimeHost/GetLogs": grpclib.const.Handler(
                 self.__rpc_get_logs,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 GetLogsRequest,
                 GetLogsResponse,
             ),
-            "/RuntimeHost/ReadModule": grpclib.const.Handler(
-                self.__rpc_read_module,
+            "/RuntimeHost/StartRun": grpclib.const.Handler(
+                self.__rpc_start_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                ReadModuleRequest,
-                ReadModuleResponse,
+                StartRunRequest,
+                StartRunResponse,
+            ),
+            "/RuntimeHost/KillRun": grpclib.const.Handler(
+                self.__rpc_kill_run,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                KillRunRequest,
+                KillRunResponse,
+            ),
+            "/RuntimeHost/RunProxyStatement": grpclib.const.Handler(
+                self.__rpc_run_proxy_statement,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                RunProxyStatementRequest,
+                RunProxyStatementResponse,
+            ),
+            "/RuntimeHost/PullWorkerRuns": grpclib.const.Handler(
+                self.__rpc_pull_worker_runs,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PullWorkerRunsRequest,
+                PullWorkerRunsResponse,
+            ),
+            "/RuntimeHost/PushWorkerLogs": grpclib.const.Handler(
+                self.__rpc_push_worker_logs,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PushWorkerLogsRequest,
+                betterproto_lib_google_protobuf.Empty,
             ),
         }
 
@@ -1210,9 +1954,7 @@ class WorkerNodeBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def start_run(
-        self, start_run_request: "StartRunRequest"
-    ) -> "StartRunResponse":
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":

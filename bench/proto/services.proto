@@ -35,20 +35,53 @@ message DidCreateProjectRequest {
   string project_id = 1;
 }
 
+message GetWorkerChangesRequest {
+}
+message GetWorkerChangesResponse {
+  repeated WorkerSetData worker_sets = 1;
+}
+
+message ConfigureWorkerSetRequest {
+  string project_id = 1;
+  WorkerProfile profile = 2;
+  ProjectRegion region = 3;
+  int32 target_replicas = 4;
+}
+message ConfigureWorkerSetResponse {
+  WorkerSetData worker_set = 1;
+}
+
+message RestartWorkerSetRequest {
+  string project_id = 1;
+}
+
+message GetEnvironmentRequest {
+  string project_id = 1;
+}
+message GetEnvironmentResponse {
+  EnvironmentData environment = 1;
+}
+
+message PingWorkerSetRequest {
+  string project_id = 1;
+}
+
 // Runtime supervisor orchestrating all the runtime hosts in its realm (not yet sharded).
 // Also orchestrates the corresponding worker sets/nodes.
+// Frontend connects to this directly.
 service RuntimeSupervisor {
-
   // Notify supervisor of a new Bench.
   rpc DidCreateProject(DidCreateProjectRequest) returns (google.protobuf.Empty);
-
-  // worker management
-  //  rpc GetWorkerChanges(GetWorkerChangesRequest) returns (stream GetWorkerChangesResponse);
-  //  rpc ConfigureWorkerSet(ConfigureWorkerSetRequest) returns (ConfigureWorkerSetResponse);
-  //  rpc WakeWorkerSet(WakeWorkerSetRequest) returns (WakeWorkerSetResponse);
-  //  rpc RestartWorkerSet(RestartWorkerSetRequest) returns (RestartWorkerSetResponse);
-  //  rpc GetEnvironment(GetEnvironmentRequest) returns (GetEnvironmentResponse);
-  //  rpc PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
+  // Get all changes to the worker sets for a Bench.
+  rpc GetWorkerChanges(GetWorkerChangesRequest) returns (stream GetWorkerChangesResponse);
+  // Configure the worker set for a Bench.
+  rpc ConfigureWorkerSet(ConfigureWorkerSetRequest) returns (ConfigureWorkerSetResponse);
+  // Force restart the worker set for a Bench.
+  rpc RestartWorkerSet(RestartWorkerSetRequest) returns (google.protobuf.Empty);
+  // Gets the installed environment info from a worker set running a Bench.
+  rpc GetEnvironment(GetEnvironmentRequest) returns (GetEnvironmentResponse);
+  // Ensure the worker set for a Bench is running.
+  rpc PingWorkerSet(PingWorkerSetRequest) returns (google.protobuf.Empty);
 }
 
 //
@@ -79,42 +112,132 @@ message ReadModuleResponse {
   ModuleTreeData module = 1;
 }
 
+message SearchNodesRequest {
+  NodeType node_type = 1;
+  string node_ck = 2;
+  ExpressionData filter = 3;
+  repeated ExpressionData sort = 4;
+  int32 limit = 5;
+  string after = 6;
+}
+message SearchNodesResponse {
+  repeated SomeNodeData nodes = 1;
+  repeated string cursors = 2;
+  string start_cursor = 3;
+}
+
+message CommitEditsRequest {
+  //  repeated EditData edits = 1;
+}
+message CommitEditsResponse {
+  repeated SomeNodeData changed_nodes = 1;
+}
+
+message UploadBlobRequest {
+  BlobData blob = 1;
+}
+message UploadBlobResponse {
+  string post_url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message DownloadBlobRequest {
+  BlobData blob = 1;
+}
+message DownloadBlobResponse {
+  string get_url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message RevealSecretRequest {
+  SecretData secret = 1;
+}
+message RevealSecretResponse {
+  SecretData secret = 1;
+}
+
+message PasteNodesRequest {
+  string source_module_id = 1;
+  repeated string source_ids = 2;
+}
+message PasteNodesResponse {
+  repeated SomeNodeData pasted_nodes = 1;
+}
+
+message SnapshotModuleRequest {
+  string name = 1;
+  string tag = 2;
+  string description = 3;
+}
+message SnapshotModuleResponse {
+  string snapshot_project_version_id = 1;
+}
+
+message PushWorkerLogsRequest {
+  repeated LogEntryData logs = 1;
+}
+
+message RunProxyStatementRequest {
+  string statement = 1;
+  google.protobuf.Struct inputs = 2;
+  int32 timeout_ms = 3;
+  string run_id = 4;
+}
+
+message RunProxyStatementResponse {
+  google.protobuf.Struct outputs = 1;
+  google.protobuf.Struct error = 2;
+}
+
+message PullWorkerRunsRequest {
+  string worker_set_id = 1;
+  string worker_node_id = 2;
+  string worker_process_id = 3;
+}
+message PullWorkerRunsResponse {
+  repeated RunData runs = 1;
+}
+
 // The Bench runtime host for a specific module.
 // Service is scoped to project_id/module_id.
+// Frontend connects to this directly.
 // Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
 service RuntimeHost {
-
-  // subscriptions
-  // Receive larger-than-module changes to a Bench.
+  // Receive relevant outside-of-module changes to a Bench.
   rpc GetBenchChanges(GetBenchChangesRequest) returns (stream GetBenchChangesResponse);
   // Receive any future edits to this module.
   rpc GetModuleEdits(GetModuleEditsRequest) returns (stream GetModuleEditsResponse);
-  // Forwards all matching logs received from the workers.
-  rpc GetLogs(GetLogsRequest) returns (stream GetLogsResponse);
-
-  // read/write module
-
   // Reads the entire module tree.
   rpc ReadModule(ReadModuleRequest) returns (ReadModuleResponse);
-  //  rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
-  //  rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
-  //  rpc SnapshotModule(SnapshotModuleRequest) returns (SnapshotModuleResponse);
-  //  rpc SearchRecords(SearchRecordsRequest) returns (SearchRecordsResponse);
-  //  rpc DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
-  //  rpc UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
-  //  rpc MarkUploadedBlob(MarkUploadedBlobRequest) returns (MarkUploadedBlobResponse);
-  //  rpc RevealSecret(RevealSecretRequest) returns (RevealSecretResponse);
-  //  rpc RunProxyInference(RunProxyInferenceRequest) returns (RunProxyInferenceResponse);
-  //  rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
+  // Searches out-of-line nodes in the module.
+  rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  // Commits a set of edits to the module.
+  rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
+  // Get a signed URL to upload a blob.
+  rpc UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
+  // Get a signed URL to download a blob.
+  rpc DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
+  // Reveal the deferred/secret 'value' of a secret. (Not sure if this should be bundled into something else?)
+  rpc RevealSecret(RevealSecretRequest) returns (RevealSecretResponse);
+  // Paste specific inline nodes (and only those nodes) from this or another module.
+  rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
+  // Create a full snapshot of this Bench module (copy to another new Bench module).
+  rpc SnapshotModule(SnapshotModuleRequest) returns (SnapshotModuleResponse);
 
-  // runs
-
+  // Forwards all matching logs received from the workers.
+  rpc GetLogs(GetLogsRequest) returns (stream GetLogsResponse);
   // Starts a run in an appropriate worker (same request/response as for WorkerNode).
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
   // Kills a run in the appropriate worker (same request/response as for WorkerNode).
   rpc KillRun(KillRunRequest) returns (KillRunResponse);
-  //  rpc PullWorkerRuns(PullWorkerRunsRequest) returns (PullWorkerRunsResponse);
-  //  rpc PushLogs(PushLogsRequest) returns (google.protobuf.Empty);
+
+  // Runs a well-known internal statement in the host with our credentials.
+  rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
+  // Pulls the runs a worker should run immediately after starting (scheduled).
+  //  (Maybe merge this into ReadModule with a query later? search_records too? Not sure.)
+  rpc PullWorkerRuns(PullWorkerRunsRequest) returns (PullWorkerRunsResponse);
+  // Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
+  rpc PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
 }
 
 //
@@ -141,34 +264,33 @@ message StartRunRequest {
   google.protobuf.Struct global_value = 15;
   SessionAccessLevel access_level = 16;
 }
-
-enum StartRunErrorType {
-  START_RUN_ERROR_TYPE_UNSPECIFIED = 0;
-  START_RUN_ERROR_TYPE_UNAVAILABLE = 1;
-  START_RUN_ERROR_TYPE_INVALID = 2;
-  START_RUN_ERROR_TYPE_INTERNAL = 3;
-  START_RUN_ERROR_TYPE_TIMEOUT = 4;
-  START_RUN_ERROR_TYPE_RUNTIME = 5;
-  START_RUN_ERROR_TYPE_DUPLICATE = 6;
-}
-
 message StartRunResponse {
   StartRunErrorType error_type = 1;
   string run_id = 2;
   RunData run = 3;
   repeated LogEntryData logs = 4;
+
+  enum StartRunErrorType {
+    START_RUN_ERROR_TYPE_UNSPECIFIED = 0;
+    START_RUN_ERROR_TYPE_UNAVAILABLE = 1;
+    START_RUN_ERROR_TYPE_INVALID = 2;
+    START_RUN_ERROR_TYPE_INTERNAL = 3;
+    START_RUN_ERROR_TYPE_TIMEOUT = 4;
+    START_RUN_ERROR_TYPE_RUNTIME = 5;
+    START_RUN_ERROR_TYPE_DUPLICATE = 6;
+  }
 }
 
 message KillRunRequest {
   string run_id = 1;
 }
-
 message KillRunResponse {
   bool success = 1;
 }
 
 // The actual worker node running a Bench for a user.
 // Service is scoped to project_id/worker_set_id.
+// For internal connections only.
 service WorkerNode {
   // Restart this worker immediately.
   rpc RestartWorker(RestartWorkerRequest) returns (google.protobuf.Empty);

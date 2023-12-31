@@ -11,7 +11,7 @@ SecretValueT = typing.TypeVar("SecretValueT")
 
 @node(NodeType.SECRET, detached=True)
 class Secret(Node, typing.Generic[SecretValueT]):
-    """A proxy to a remotely stored secret."""
+    """A shared secret with a deferred value (loaded on demand)t."""
 
     sha512: str = struct_property(20)
     value: Optional[SecretValueT] = struct_runtime(default=None)
