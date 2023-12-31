@@ -8,15 +8,30 @@ import { Empty } from "../../google/protobuf/empty";
 import { Struct } from "../../google/protobuf/struct";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import {
+  BlobData,
+  EnvironmentData,
+  ExpressionData,
   LogEntryData,
   ModuleTreeData,
+  NodeType,
+  nodeTypeFromJSON,
+  nodeTypeToJSON,
+  ProjectRegion,
+  projectRegionFromJSON,
+  projectRegionToJSON,
   RunData,
+  SecretData,
   SessionAccessLevel,
   sessionAccessLevelFromJSON,
   sessionAccessLevelToJSON,
+  SomeNodeData,
   TriggerType,
   triggerTypeFromJSON,
   triggerTypeToJSON,
+  WorkerProfile,
+  workerProfileFromJSON,
+  workerProfileToJSON,
+  WorkerSetData,
 } from "./bench";
 import Long = require("long");
 
@@ -92,65 +107,6 @@ export function serviceTypeToJSON(object: ServiceType): string {
   }
 }
 
-export enum StartRunErrorType {
-  UNSPECIFIED = 0,
-  UNAVAILABLE = 1,
-  INVALID = 2,
-  INTERNAL = 3,
-  TIMEOUT = 4,
-  RUNTIME = 5,
-  DUPLICATE = 6,
-}
-
-export function startRunErrorTypeFromJSON(object: any): StartRunErrorType {
-  switch (object) {
-    case 0:
-    case "START_RUN_ERROR_TYPE_UNSPECIFIED":
-      return StartRunErrorType.UNSPECIFIED;
-    case 1:
-    case "START_RUN_ERROR_TYPE_UNAVAILABLE":
-      return StartRunErrorType.UNAVAILABLE;
-    case 2:
-    case "START_RUN_ERROR_TYPE_INVALID":
-      return StartRunErrorType.INVALID;
-    case 3:
-    case "START_RUN_ERROR_TYPE_INTERNAL":
-      return StartRunErrorType.INTERNAL;
-    case 4:
-    case "START_RUN_ERROR_TYPE_TIMEOUT":
-      return StartRunErrorType.TIMEOUT;
-    case 5:
-    case "START_RUN_ERROR_TYPE_RUNTIME":
-      return StartRunErrorType.RUNTIME;
-    case 6:
-    case "START_RUN_ERROR_TYPE_DUPLICATE":
-      return StartRunErrorType.DUPLICATE;
-    default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum StartRunErrorType");
-  }
-}
-
-export function startRunErrorTypeToJSON(object: StartRunErrorType): string {
-  switch (object) {
-    case StartRunErrorType.UNSPECIFIED:
-      return "START_RUN_ERROR_TYPE_UNSPECIFIED";
-    case StartRunErrorType.UNAVAILABLE:
-      return "START_RUN_ERROR_TYPE_UNAVAILABLE";
-    case StartRunErrorType.INVALID:
-      return "START_RUN_ERROR_TYPE_INVALID";
-    case StartRunErrorType.INTERNAL:
-      return "START_RUN_ERROR_TYPE_INTERNAL";
-    case StartRunErrorType.TIMEOUT:
-      return "START_RUN_ERROR_TYPE_TIMEOUT";
-    case StartRunErrorType.RUNTIME:
-      return "START_RUN_ERROR_TYPE_RUNTIME";
-    case StartRunErrorType.DUPLICATE:
-      return "START_RUN_ERROR_TYPE_DUPLICATE";
-    default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum StartRunErrorType");
-  }
-}
-
 export interface ClientOrigin {
   clientType: ClientType;
   clientId: string;
@@ -161,37 +117,158 @@ export interface DidCreateProjectRequest {
   projectId: string;
 }
 
+export interface GetWorkerChangesRequest {}
+
+export interface GetWorkerChangesResponse {
+  workerSets: WorkerSetData[];
+}
+
+export interface ConfigureWorkerSetRequest {
+  projectId: string;
+  profile: WorkerProfile;
+  region: ProjectRegion;
+  targetReplicas: number;
+}
+
+export interface ConfigureWorkerSetResponse {
+  workerSet: WorkerSetData | undefined;
+}
+
+export interface RestartWorkerSetRequest {
+  projectId: string;
+}
+
+export interface GetEnvironmentRequest {
+  projectId: string;
+}
+
+export interface GetEnvironmentResponse {
+  environment: EnvironmentData | undefined;
+}
+
+export interface PingWorkerSetRequest {
+  projectId: string;
+}
+
 export interface GetBenchChangesRequest {
   afterChangeMarker: number;
 }
 
-export interface GetBenchChangesResponse {
-}
+export interface GetBenchChangesResponse {}
 
 export interface GetModuleEditsRequest {
   afterEditMarker: number;
 }
 
 /** repeated EditData edits = 1; */
-export interface GetModuleEditsResponse {
-}
+export interface GetModuleEditsResponse {}
 
-export interface GetLogsRequest {
-}
+export interface GetLogsRequest {}
 
 export interface GetLogsResponse {
   logs: LogEntryData[];
 }
 
-export interface ReadModuleRequest {
-}
+export interface ReadModuleRequest {}
 
 export interface ReadModuleResponse {
   module: ModuleTreeData | undefined;
 }
 
-export interface RestartWorkerRequest {
+export interface SearchNodesRequest {
+  nodeType: NodeType;
+  nodeCk: string;
+  filter: ExpressionData | undefined;
+  sort: ExpressionData[];
+  limit: number;
+  after: string;
 }
+
+export interface SearchNodesResponse {
+  nodes: SomeNodeData[];
+  cursors: string[];
+  startCursor: string;
+}
+
+/** repeated EditData edits = 1; */
+export interface CommitEditsRequest {}
+
+export interface CommitEditsResponse {
+  changedNodes: SomeNodeData[];
+}
+
+export interface UploadBlobRequest {
+  blob: BlobData | undefined;
+}
+
+export interface UploadBlobResponse {
+  postUrl: string;
+  expiresAt: Date | undefined;
+}
+
+export interface DownloadBlobRequest {
+  blob: BlobData | undefined;
+}
+
+export interface DownloadBlobResponse {
+  getUrl: string;
+  expiresAt: Date | undefined;
+}
+
+export interface RevealSecretRequest {
+  secret: SecretData | undefined;
+}
+
+export interface RevealSecretResponse {
+  secret: SecretData | undefined;
+}
+
+export interface PasteNodesRequest {
+  sourceModuleId: string;
+  sourceIds: string[];
+}
+
+export interface PasteNodesResponse {
+  pastedNodes: SomeNodeData[];
+}
+
+export interface SnapshotModuleRequest {
+  name: string;
+  tag: string;
+  description: string;
+}
+
+export interface SnapshotModuleResponse {
+  snapshotProjectVersionId: string;
+}
+
+export interface PushWorkerLogsRequest {
+  logs: LogEntryData[];
+}
+
+export interface RunProxyStatementRequest {
+  statement: string;
+  inputs: { [key: string]: any } | undefined;
+  timeoutMs: number;
+  runId: string;
+}
+
+export interface RunProxyStatementResponse {
+  outputs: { [key: string]: any } | undefined;
+  error: { [key: string]: any } | undefined;
+}
+
+export interface PullWorkerRunsRequest {
+  workerSetId: string;
+  workerNodeId: string;
+  workerProcessId: string;
+}
+
+export interface PullWorkerRunsResponse {
+  runs: RunData[];
+}
+
+export interface RestartWorkerRequest {}
 
 export interface StartRunRequest {
   triggerType: TriggerType;
@@ -207,16 +284,75 @@ export interface StartRunRequest {
   keyed: boolean;
   keyedReturn: boolean;
   tags: string[];
-  rootValues: { [key: string]: any } | undefined;
+  rootValue: { [key: string]: any } | undefined;
   globalValue: { [key: string]: any } | undefined;
   accessLevel: SessionAccessLevel;
 }
 
 export interface StartRunResponse {
-  errorType: StartRunErrorType;
+  errorType: StartRunResponse_StartRunErrorType;
   runId: string;
   run: RunData | undefined;
   logs: LogEntryData[];
+}
+
+export enum StartRunResponse_StartRunErrorType {
+  UNSPECIFIED = 0,
+  UNAVAILABLE = 1,
+  INVALID = 2,
+  INTERNAL = 3,
+  TIMEOUT = 4,
+  RUNTIME = 5,
+  DUPLICATE = 6,
+}
+
+export function startRunResponse_StartRunErrorTypeFromJSON(object: any): StartRunResponse_StartRunErrorType {
+  switch (object) {
+    case 0:
+    case "START_RUN_ERROR_TYPE_UNSPECIFIED":
+      return StartRunResponse_StartRunErrorType.UNSPECIFIED;
+    case 1:
+    case "START_RUN_ERROR_TYPE_UNAVAILABLE":
+      return StartRunResponse_StartRunErrorType.UNAVAILABLE;
+    case 2:
+    case "START_RUN_ERROR_TYPE_INVALID":
+      return StartRunResponse_StartRunErrorType.INVALID;
+    case 3:
+    case "START_RUN_ERROR_TYPE_INTERNAL":
+      return StartRunResponse_StartRunErrorType.INTERNAL;
+    case 4:
+    case "START_RUN_ERROR_TYPE_TIMEOUT":
+      return StartRunResponse_StartRunErrorType.TIMEOUT;
+    case 5:
+    case "START_RUN_ERROR_TYPE_RUNTIME":
+      return StartRunResponse_StartRunErrorType.RUNTIME;
+    case 6:
+    case "START_RUN_ERROR_TYPE_DUPLICATE":
+      return StartRunResponse_StartRunErrorType.DUPLICATE;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum StartRunResponse_StartRunErrorType");
+  }
+}
+
+export function startRunResponse_StartRunErrorTypeToJSON(object: StartRunResponse_StartRunErrorType): string {
+  switch (object) {
+    case StartRunResponse_StartRunErrorType.UNSPECIFIED:
+      return "START_RUN_ERROR_TYPE_UNSPECIFIED";
+    case StartRunResponse_StartRunErrorType.UNAVAILABLE:
+      return "START_RUN_ERROR_TYPE_UNAVAILABLE";
+    case StartRunResponse_StartRunErrorType.INVALID:
+      return "START_RUN_ERROR_TYPE_INVALID";
+    case StartRunResponse_StartRunErrorType.INTERNAL:
+      return "START_RUN_ERROR_TYPE_INTERNAL";
+    case StartRunResponse_StartRunErrorType.TIMEOUT:
+      return "START_RUN_ERROR_TYPE_TIMEOUT";
+    case StartRunResponse_StartRunErrorType.RUNTIME:
+      return "START_RUN_ERROR_TYPE_RUNTIME";
+    case StartRunResponse_StartRunErrorType.DUPLICATE:
+      return "START_RUN_ERROR_TYPE_DUPLICATE";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum StartRunResponse_StartRunErrorType");
+  }
 }
 
 export interface KillRunRequest {
@@ -368,6 +504,505 @@ export const DidCreateProjectRequest = {
   },
   fromPartial<I extends Exact<DeepPartial<DidCreateProjectRequest>, I>>(object: I): DidCreateProjectRequest {
     const message = createBaseDidCreateProjectRequest();
+    message.projectId = object.projectId ?? "";
+    return message;
+  },
+};
+
+function createBaseGetWorkerChangesRequest(): GetWorkerChangesRequest {
+  return {};
+}
+
+export const GetWorkerChangesRequest = {
+  encode(_: GetWorkerChangesRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): GetWorkerChangesRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetWorkerChangesRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): GetWorkerChangesRequest {
+    return {};
+  },
+
+  toJSON(_: GetWorkerChangesRequest): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetWorkerChangesRequest>, I>>(base?: I): GetWorkerChangesRequest {
+    return GetWorkerChangesRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetWorkerChangesRequest>, I>>(_: I): GetWorkerChangesRequest {
+    const message = createBaseGetWorkerChangesRequest();
+    return message;
+  },
+};
+
+function createBaseGetWorkerChangesResponse(): GetWorkerChangesResponse {
+  return { workerSets: [] };
+}
+
+export const GetWorkerChangesResponse = {
+  encode(message: GetWorkerChangesResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.workerSets) {
+      WorkerSetData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): GetWorkerChangesResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetWorkerChangesResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.workerSets.push(WorkerSetData.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetWorkerChangesResponse {
+    return {
+      workerSets: globalThis.Array.isArray(object?.workerSets)
+        ? object.workerSets.map((e: any) => WorkerSetData.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: GetWorkerChangesResponse): unknown {
+    const obj: any = {};
+    if (message.workerSets?.length) {
+      obj.workerSets = message.workerSets.map((e) => WorkerSetData.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetWorkerChangesResponse>, I>>(base?: I): GetWorkerChangesResponse {
+    return GetWorkerChangesResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetWorkerChangesResponse>, I>>(object: I): GetWorkerChangesResponse {
+    const message = createBaseGetWorkerChangesResponse();
+    message.workerSets = object.workerSets?.map((e) => WorkerSetData.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseConfigureWorkerSetRequest(): ConfigureWorkerSetRequest {
+  return { projectId: "", profile: 0, region: 0, targetReplicas: 0 };
+}
+
+export const ConfigureWorkerSetRequest = {
+  encode(message: ConfigureWorkerSetRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.projectId !== "") {
+      writer.uint32(10).string(message.projectId);
+    }
+    if (message.profile !== 0) {
+      writer.uint32(16).int32(message.profile);
+    }
+    if (message.region !== 0) {
+      writer.uint32(24).int32(message.region);
+    }
+    if (message.targetReplicas !== 0) {
+      writer.uint32(32).int32(message.targetReplicas);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): ConfigureWorkerSetRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseConfigureWorkerSetRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.projectId = reader.string();
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.profile = reader.int32() as any;
+          continue;
+        case 3:
+          if (tag !== 24) {
+            break;
+          }
+
+          message.region = reader.int32() as any;
+          continue;
+        case 4:
+          if (tag !== 32) {
+            break;
+          }
+
+          message.targetReplicas = reader.int32();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ConfigureWorkerSetRequest {
+    return {
+      projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
+      profile: isSet(object.profile) ? workerProfileFromJSON(object.profile) : 0,
+      region: isSet(object.region) ? projectRegionFromJSON(object.region) : 0,
+      targetReplicas: isSet(object.targetReplicas) ? globalThis.Number(object.targetReplicas) : 0,
+    };
+  },
+
+  toJSON(message: ConfigureWorkerSetRequest): unknown {
+    const obj: any = {};
+    if (message.projectId !== "") {
+      obj.projectId = message.projectId;
+    }
+    if (message.profile !== 0) {
+      obj.profile = workerProfileToJSON(message.profile);
+    }
+    if (message.region !== 0) {
+      obj.region = projectRegionToJSON(message.region);
+    }
+    if (message.targetReplicas !== 0) {
+      obj.targetReplicas = Math.round(message.targetReplicas);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ConfigureWorkerSetRequest>, I>>(base?: I): ConfigureWorkerSetRequest {
+    return ConfigureWorkerSetRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ConfigureWorkerSetRequest>, I>>(object: I): ConfigureWorkerSetRequest {
+    const message = createBaseConfigureWorkerSetRequest();
+    message.projectId = object.projectId ?? "";
+    message.profile = object.profile ?? 0;
+    message.region = object.region ?? 0;
+    message.targetReplicas = object.targetReplicas ?? 0;
+    return message;
+  },
+};
+
+function createBaseConfigureWorkerSetResponse(): ConfigureWorkerSetResponse {
+  return { workerSet: undefined };
+}
+
+export const ConfigureWorkerSetResponse = {
+  encode(message: ConfigureWorkerSetResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.workerSet !== undefined) {
+      WorkerSetData.encode(message.workerSet, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): ConfigureWorkerSetResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseConfigureWorkerSetResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.workerSet = WorkerSetData.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ConfigureWorkerSetResponse {
+    return { workerSet: isSet(object.workerSet) ? WorkerSetData.fromJSON(object.workerSet) : undefined };
+  },
+
+  toJSON(message: ConfigureWorkerSetResponse): unknown {
+    const obj: any = {};
+    if (message.workerSet !== undefined) {
+      obj.workerSet = WorkerSetData.toJSON(message.workerSet);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ConfigureWorkerSetResponse>, I>>(base?: I): ConfigureWorkerSetResponse {
+    return ConfigureWorkerSetResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ConfigureWorkerSetResponse>, I>>(object: I): ConfigureWorkerSetResponse {
+    const message = createBaseConfigureWorkerSetResponse();
+    message.workerSet =
+      object.workerSet !== undefined && object.workerSet !== null
+        ? WorkerSetData.fromPartial(object.workerSet)
+        : undefined;
+    return message;
+  },
+};
+
+function createBaseRestartWorkerSetRequest(): RestartWorkerSetRequest {
+  return { projectId: "" };
+}
+
+export const RestartWorkerSetRequest = {
+  encode(message: RestartWorkerSetRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.projectId !== "") {
+      writer.uint32(10).string(message.projectId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): RestartWorkerSetRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRestartWorkerSetRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.projectId = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RestartWorkerSetRequest {
+    return { projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "" };
+  },
+
+  toJSON(message: RestartWorkerSetRequest): unknown {
+    const obj: any = {};
+    if (message.projectId !== "") {
+      obj.projectId = message.projectId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RestartWorkerSetRequest>, I>>(base?: I): RestartWorkerSetRequest {
+    return RestartWorkerSetRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RestartWorkerSetRequest>, I>>(object: I): RestartWorkerSetRequest {
+    const message = createBaseRestartWorkerSetRequest();
+    message.projectId = object.projectId ?? "";
+    return message;
+  },
+};
+
+function createBaseGetEnvironmentRequest(): GetEnvironmentRequest {
+  return { projectId: "" };
+}
+
+export const GetEnvironmentRequest = {
+  encode(message: GetEnvironmentRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.projectId !== "") {
+      writer.uint32(10).string(message.projectId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): GetEnvironmentRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetEnvironmentRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.projectId = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetEnvironmentRequest {
+    return { projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "" };
+  },
+
+  toJSON(message: GetEnvironmentRequest): unknown {
+    const obj: any = {};
+    if (message.projectId !== "") {
+      obj.projectId = message.projectId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetEnvironmentRequest>, I>>(base?: I): GetEnvironmentRequest {
+    return GetEnvironmentRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetEnvironmentRequest>, I>>(object: I): GetEnvironmentRequest {
+    const message = createBaseGetEnvironmentRequest();
+    message.projectId = object.projectId ?? "";
+    return message;
+  },
+};
+
+function createBaseGetEnvironmentResponse(): GetEnvironmentResponse {
+  return { environment: undefined };
+}
+
+export const GetEnvironmentResponse = {
+  encode(message: GetEnvironmentResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.environment !== undefined) {
+      EnvironmentData.encode(message.environment, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): GetEnvironmentResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseGetEnvironmentResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.environment = EnvironmentData.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): GetEnvironmentResponse {
+    return { environment: isSet(object.environment) ? EnvironmentData.fromJSON(object.environment) : undefined };
+  },
+
+  toJSON(message: GetEnvironmentResponse): unknown {
+    const obj: any = {};
+    if (message.environment !== undefined) {
+      obj.environment = EnvironmentData.toJSON(message.environment);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<GetEnvironmentResponse>, I>>(base?: I): GetEnvironmentResponse {
+    return GetEnvironmentResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<GetEnvironmentResponse>, I>>(object: I): GetEnvironmentResponse {
+    const message = createBaseGetEnvironmentResponse();
+    message.environment =
+      object.environment !== undefined && object.environment !== null
+        ? EnvironmentData.fromPartial(object.environment)
+        : undefined;
+    return message;
+  },
+};
+
+function createBasePingWorkerSetRequest(): PingWorkerSetRequest {
+  return { projectId: "" };
+}
+
+export const PingWorkerSetRequest = {
+  encode(message: PingWorkerSetRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.projectId !== "") {
+      writer.uint32(10).string(message.projectId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PingWorkerSetRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePingWorkerSetRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.projectId = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PingWorkerSetRequest {
+    return { projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "" };
+  },
+
+  toJSON(message: PingWorkerSetRequest): unknown {
+    const obj: any = {};
+    if (message.projectId !== "") {
+      obj.projectId = message.projectId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PingWorkerSetRequest>, I>>(base?: I): PingWorkerSetRequest {
+    return PingWorkerSetRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PingWorkerSetRequest>, I>>(object: I): PingWorkerSetRequest {
+    const message = createBasePingWorkerSetRequest();
     message.projectId = object.projectId ?? "";
     return message;
   },
@@ -770,9 +1405,1384 @@ export const ReadModuleResponse = {
   },
   fromPartial<I extends Exact<DeepPartial<ReadModuleResponse>, I>>(object: I): ReadModuleResponse {
     const message = createBaseReadModuleResponse();
-    message.module = (object.module !== undefined && object.module !== null)
-      ? ModuleTreeData.fromPartial(object.module)
-      : undefined;
+    message.module =
+      object.module !== undefined && object.module !== null ? ModuleTreeData.fromPartial(object.module) : undefined;
+    return message;
+  },
+};
+
+function createBaseSearchNodesRequest(): SearchNodesRequest {
+  return { nodeType: 0, nodeCk: "", filter: undefined, sort: [], limit: 0, after: "" };
+}
+
+export const SearchNodesRequest = {
+  encode(message: SearchNodesRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.nodeType !== 0) {
+      writer.uint32(8).int32(message.nodeType);
+    }
+    if (message.nodeCk !== "") {
+      writer.uint32(18).string(message.nodeCk);
+    }
+    if (message.filter !== undefined) {
+      ExpressionData.encode(message.filter, writer.uint32(26).fork()).ldelim();
+    }
+    for (const v of message.sort) {
+      ExpressionData.encode(v!, writer.uint32(34).fork()).ldelim();
+    }
+    if (message.limit !== 0) {
+      writer.uint32(40).int32(message.limit);
+    }
+    if (message.after !== "") {
+      writer.uint32(50).string(message.after);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): SearchNodesRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSearchNodesRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.nodeType = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.nodeCk = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.filter = ExpressionData.decode(reader, reader.uint32());
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.sort.push(ExpressionData.decode(reader, reader.uint32()));
+          continue;
+        case 5:
+          if (tag !== 40) {
+            break;
+          }
+
+          message.limit = reader.int32();
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.after = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SearchNodesRequest {
+    return {
+      nodeType: isSet(object.nodeType) ? nodeTypeFromJSON(object.nodeType) : 0,
+      nodeCk: isSet(object.nodeCk) ? globalThis.String(object.nodeCk) : "",
+      filter: isSet(object.filter) ? ExpressionData.fromJSON(object.filter) : undefined,
+      sort: globalThis.Array.isArray(object?.sort) ? object.sort.map((e: any) => ExpressionData.fromJSON(e)) : [],
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+      after: isSet(object.after) ? globalThis.String(object.after) : "",
+    };
+  },
+
+  toJSON(message: SearchNodesRequest): unknown {
+    const obj: any = {};
+    if (message.nodeType !== 0) {
+      obj.nodeType = nodeTypeToJSON(message.nodeType);
+    }
+    if (message.nodeCk !== "") {
+      obj.nodeCk = message.nodeCk;
+    }
+    if (message.filter !== undefined) {
+      obj.filter = ExpressionData.toJSON(message.filter);
+    }
+    if (message.sort?.length) {
+      obj.sort = message.sort.map((e) => ExpressionData.toJSON(e));
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    if (message.after !== "") {
+      obj.after = message.after;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SearchNodesRequest>, I>>(base?: I): SearchNodesRequest {
+    return SearchNodesRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SearchNodesRequest>, I>>(object: I): SearchNodesRequest {
+    const message = createBaseSearchNodesRequest();
+    message.nodeType = object.nodeType ?? 0;
+    message.nodeCk = object.nodeCk ?? "";
+    message.filter =
+      object.filter !== undefined && object.filter !== null ? ExpressionData.fromPartial(object.filter) : undefined;
+    message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
+    message.limit = object.limit ?? 0;
+    message.after = object.after ?? "";
+    return message;
+  },
+};
+
+function createBaseSearchNodesResponse(): SearchNodesResponse {
+  return { nodes: [], cursors: [], startCursor: "" };
+}
+
+export const SearchNodesResponse = {
+  encode(message: SearchNodesResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.nodes) {
+      SomeNodeData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    for (const v of message.cursors) {
+      writer.uint32(18).string(v!);
+    }
+    if (message.startCursor !== "") {
+      writer.uint32(26).string(message.startCursor);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): SearchNodesResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSearchNodesResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.nodes.push(SomeNodeData.decode(reader, reader.uint32()));
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.cursors.push(reader.string());
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.startCursor = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SearchNodesResponse {
+    return {
+      nodes: globalThis.Array.isArray(object?.nodes) ? object.nodes.map((e: any) => SomeNodeData.fromJSON(e)) : [],
+      cursors: globalThis.Array.isArray(object?.cursors) ? object.cursors.map((e: any) => globalThis.String(e)) : [],
+      startCursor: isSet(object.startCursor) ? globalThis.String(object.startCursor) : "",
+    };
+  },
+
+  toJSON(message: SearchNodesResponse): unknown {
+    const obj: any = {};
+    if (message.nodes?.length) {
+      obj.nodes = message.nodes.map((e) => SomeNodeData.toJSON(e));
+    }
+    if (message.cursors?.length) {
+      obj.cursors = message.cursors;
+    }
+    if (message.startCursor !== "") {
+      obj.startCursor = message.startCursor;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SearchNodesResponse>, I>>(base?: I): SearchNodesResponse {
+    return SearchNodesResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SearchNodesResponse>, I>>(object: I): SearchNodesResponse {
+    const message = createBaseSearchNodesResponse();
+    message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
+    message.cursors = object.cursors?.map((e) => e) || [];
+    message.startCursor = object.startCursor ?? "";
+    return message;
+  },
+};
+
+function createBaseCommitEditsRequest(): CommitEditsRequest {
+  return {};
+}
+
+export const CommitEditsRequest = {
+  encode(_: CommitEditsRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): CommitEditsRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCommitEditsRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(_: any): CommitEditsRequest {
+    return {};
+  },
+
+  toJSON(_: CommitEditsRequest): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CommitEditsRequest>, I>>(base?: I): CommitEditsRequest {
+    return CommitEditsRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CommitEditsRequest>, I>>(_: I): CommitEditsRequest {
+    const message = createBaseCommitEditsRequest();
+    return message;
+  },
+};
+
+function createBaseCommitEditsResponse(): CommitEditsResponse {
+  return { changedNodes: [] };
+}
+
+export const CommitEditsResponse = {
+  encode(message: CommitEditsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.changedNodes) {
+      SomeNodeData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): CommitEditsResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseCommitEditsResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.changedNodes.push(SomeNodeData.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): CommitEditsResponse {
+    return {
+      changedNodes: globalThis.Array.isArray(object?.changedNodes)
+        ? object.changedNodes.map((e: any) => SomeNodeData.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: CommitEditsResponse): unknown {
+    const obj: any = {};
+    if (message.changedNodes?.length) {
+      obj.changedNodes = message.changedNodes.map((e) => SomeNodeData.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<CommitEditsResponse>, I>>(base?: I): CommitEditsResponse {
+    return CommitEditsResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<CommitEditsResponse>, I>>(object: I): CommitEditsResponse {
+    const message = createBaseCommitEditsResponse();
+    message.changedNodes = object.changedNodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseUploadBlobRequest(): UploadBlobRequest {
+  return { blob: undefined };
+}
+
+export const UploadBlobRequest = {
+  encode(message: UploadBlobRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.blob !== undefined) {
+      BlobData.encode(message.blob, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): UploadBlobRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUploadBlobRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.blob = BlobData.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UploadBlobRequest {
+    return { blob: isSet(object.blob) ? BlobData.fromJSON(object.blob) : undefined };
+  },
+
+  toJSON(message: UploadBlobRequest): unknown {
+    const obj: any = {};
+    if (message.blob !== undefined) {
+      obj.blob = BlobData.toJSON(message.blob);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UploadBlobRequest>, I>>(base?: I): UploadBlobRequest {
+    return UploadBlobRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UploadBlobRequest>, I>>(object: I): UploadBlobRequest {
+    const message = createBaseUploadBlobRequest();
+    message.blob = object.blob !== undefined && object.blob !== null ? BlobData.fromPartial(object.blob) : undefined;
+    return message;
+  },
+};
+
+function createBaseUploadBlobResponse(): UploadBlobResponse {
+  return { postUrl: "", expiresAt: undefined };
+}
+
+export const UploadBlobResponse = {
+  encode(message: UploadBlobResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.postUrl !== "") {
+      writer.uint32(10).string(message.postUrl);
+    }
+    if (message.expiresAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.expiresAt), writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): UploadBlobResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUploadBlobResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.postUrl = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.expiresAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UploadBlobResponse {
+    return {
+      postUrl: isSet(object.postUrl) ? globalThis.String(object.postUrl) : "",
+      expiresAt: isSet(object.expiresAt) ? fromJsonTimestamp(object.expiresAt) : undefined,
+    };
+  },
+
+  toJSON(message: UploadBlobResponse): unknown {
+    const obj: any = {};
+    if (message.postUrl !== "") {
+      obj.postUrl = message.postUrl;
+    }
+    if (message.expiresAt !== undefined) {
+      obj.expiresAt = message.expiresAt.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UploadBlobResponse>, I>>(base?: I): UploadBlobResponse {
+    return UploadBlobResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UploadBlobResponse>, I>>(object: I): UploadBlobResponse {
+    const message = createBaseUploadBlobResponse();
+    message.postUrl = object.postUrl ?? "";
+    message.expiresAt = object.expiresAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseDownloadBlobRequest(): DownloadBlobRequest {
+  return { blob: undefined };
+}
+
+export const DownloadBlobRequest = {
+  encode(message: DownloadBlobRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.blob !== undefined) {
+      BlobData.encode(message.blob, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): DownloadBlobRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDownloadBlobRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.blob = BlobData.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DownloadBlobRequest {
+    return { blob: isSet(object.blob) ? BlobData.fromJSON(object.blob) : undefined };
+  },
+
+  toJSON(message: DownloadBlobRequest): unknown {
+    const obj: any = {};
+    if (message.blob !== undefined) {
+      obj.blob = BlobData.toJSON(message.blob);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DownloadBlobRequest>, I>>(base?: I): DownloadBlobRequest {
+    return DownloadBlobRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DownloadBlobRequest>, I>>(object: I): DownloadBlobRequest {
+    const message = createBaseDownloadBlobRequest();
+    message.blob = object.blob !== undefined && object.blob !== null ? BlobData.fromPartial(object.blob) : undefined;
+    return message;
+  },
+};
+
+function createBaseDownloadBlobResponse(): DownloadBlobResponse {
+  return { getUrl: "", expiresAt: undefined };
+}
+
+export const DownloadBlobResponse = {
+  encode(message: DownloadBlobResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.getUrl !== "") {
+      writer.uint32(10).string(message.getUrl);
+    }
+    if (message.expiresAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.expiresAt), writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): DownloadBlobResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDownloadBlobResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.getUrl = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.expiresAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DownloadBlobResponse {
+    return {
+      getUrl: isSet(object.getUrl) ? globalThis.String(object.getUrl) : "",
+      expiresAt: isSet(object.expiresAt) ? fromJsonTimestamp(object.expiresAt) : undefined,
+    };
+  },
+
+  toJSON(message: DownloadBlobResponse): unknown {
+    const obj: any = {};
+    if (message.getUrl !== "") {
+      obj.getUrl = message.getUrl;
+    }
+    if (message.expiresAt !== undefined) {
+      obj.expiresAt = message.expiresAt.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DownloadBlobResponse>, I>>(base?: I): DownloadBlobResponse {
+    return DownloadBlobResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DownloadBlobResponse>, I>>(object: I): DownloadBlobResponse {
+    const message = createBaseDownloadBlobResponse();
+    message.getUrl = object.getUrl ?? "";
+    message.expiresAt = object.expiresAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRevealSecretRequest(): RevealSecretRequest {
+  return { secret: undefined };
+}
+
+export const RevealSecretRequest = {
+  encode(message: RevealSecretRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.secret !== undefined) {
+      SecretData.encode(message.secret, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): RevealSecretRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRevealSecretRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.secret = SecretData.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RevealSecretRequest {
+    return { secret: isSet(object.secret) ? SecretData.fromJSON(object.secret) : undefined };
+  },
+
+  toJSON(message: RevealSecretRequest): unknown {
+    const obj: any = {};
+    if (message.secret !== undefined) {
+      obj.secret = SecretData.toJSON(message.secret);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RevealSecretRequest>, I>>(base?: I): RevealSecretRequest {
+    return RevealSecretRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RevealSecretRequest>, I>>(object: I): RevealSecretRequest {
+    const message = createBaseRevealSecretRequest();
+    message.secret =
+      object.secret !== undefined && object.secret !== null ? SecretData.fromPartial(object.secret) : undefined;
+    return message;
+  },
+};
+
+function createBaseRevealSecretResponse(): RevealSecretResponse {
+  return { secret: undefined };
+}
+
+export const RevealSecretResponse = {
+  encode(message: RevealSecretResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.secret !== undefined) {
+      SecretData.encode(message.secret, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): RevealSecretResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRevealSecretResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.secret = SecretData.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RevealSecretResponse {
+    return { secret: isSet(object.secret) ? SecretData.fromJSON(object.secret) : undefined };
+  },
+
+  toJSON(message: RevealSecretResponse): unknown {
+    const obj: any = {};
+    if (message.secret !== undefined) {
+      obj.secret = SecretData.toJSON(message.secret);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RevealSecretResponse>, I>>(base?: I): RevealSecretResponse {
+    return RevealSecretResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RevealSecretResponse>, I>>(object: I): RevealSecretResponse {
+    const message = createBaseRevealSecretResponse();
+    message.secret =
+      object.secret !== undefined && object.secret !== null ? SecretData.fromPartial(object.secret) : undefined;
+    return message;
+  },
+};
+
+function createBasePasteNodesRequest(): PasteNodesRequest {
+  return { sourceModuleId: "", sourceIds: [] };
+}
+
+export const PasteNodesRequest = {
+  encode(message: PasteNodesRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.sourceModuleId !== "") {
+      writer.uint32(10).string(message.sourceModuleId);
+    }
+    for (const v of message.sourceIds) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PasteNodesRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePasteNodesRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.sourceModuleId = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.sourceIds.push(reader.string());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PasteNodesRequest {
+    return {
+      sourceModuleId: isSet(object.sourceModuleId) ? globalThis.String(object.sourceModuleId) : "",
+      sourceIds: globalThis.Array.isArray(object?.sourceIds)
+        ? object.sourceIds.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: PasteNodesRequest): unknown {
+    const obj: any = {};
+    if (message.sourceModuleId !== "") {
+      obj.sourceModuleId = message.sourceModuleId;
+    }
+    if (message.sourceIds?.length) {
+      obj.sourceIds = message.sourceIds;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PasteNodesRequest>, I>>(base?: I): PasteNodesRequest {
+    return PasteNodesRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PasteNodesRequest>, I>>(object: I): PasteNodesRequest {
+    const message = createBasePasteNodesRequest();
+    message.sourceModuleId = object.sourceModuleId ?? "";
+    message.sourceIds = object.sourceIds?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBasePasteNodesResponse(): PasteNodesResponse {
+  return { pastedNodes: [] };
+}
+
+export const PasteNodesResponse = {
+  encode(message: PasteNodesResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.pastedNodes) {
+      SomeNodeData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PasteNodesResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePasteNodesResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.pastedNodes.push(SomeNodeData.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PasteNodesResponse {
+    return {
+      pastedNodes: globalThis.Array.isArray(object?.pastedNodes)
+        ? object.pastedNodes.map((e: any) => SomeNodeData.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: PasteNodesResponse): unknown {
+    const obj: any = {};
+    if (message.pastedNodes?.length) {
+      obj.pastedNodes = message.pastedNodes.map((e) => SomeNodeData.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PasteNodesResponse>, I>>(base?: I): PasteNodesResponse {
+    return PasteNodesResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PasteNodesResponse>, I>>(object: I): PasteNodesResponse {
+    const message = createBasePasteNodesResponse();
+    message.pastedNodes = object.pastedNodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseSnapshotModuleRequest(): SnapshotModuleRequest {
+  return { name: "", tag: "", description: "" };
+}
+
+export const SnapshotModuleRequest = {
+  encode(message: SnapshotModuleRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.tag !== "") {
+      writer.uint32(18).string(message.tag);
+    }
+    if (message.description !== "") {
+      writer.uint32(26).string(message.description);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): SnapshotModuleRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSnapshotModuleRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.tag = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SnapshotModuleRequest {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      tag: isSet(object.tag) ? globalThis.String(object.tag) : "",
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+    };
+  },
+
+  toJSON(message: SnapshotModuleRequest): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.tag !== "") {
+      obj.tag = message.tag;
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SnapshotModuleRequest>, I>>(base?: I): SnapshotModuleRequest {
+    return SnapshotModuleRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SnapshotModuleRequest>, I>>(object: I): SnapshotModuleRequest {
+    const message = createBaseSnapshotModuleRequest();
+    message.name = object.name ?? "";
+    message.tag = object.tag ?? "";
+    message.description = object.description ?? "";
+    return message;
+  },
+};
+
+function createBaseSnapshotModuleResponse(): SnapshotModuleResponse {
+  return { snapshotProjectVersionId: "" };
+}
+
+export const SnapshotModuleResponse = {
+  encode(message: SnapshotModuleResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.snapshotProjectVersionId !== "") {
+      writer.uint32(10).string(message.snapshotProjectVersionId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): SnapshotModuleResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSnapshotModuleResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.snapshotProjectVersionId = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SnapshotModuleResponse {
+    return {
+      snapshotProjectVersionId: isSet(object.snapshotProjectVersionId)
+        ? globalThis.String(object.snapshotProjectVersionId)
+        : "",
+    };
+  },
+
+  toJSON(message: SnapshotModuleResponse): unknown {
+    const obj: any = {};
+    if (message.snapshotProjectVersionId !== "") {
+      obj.snapshotProjectVersionId = message.snapshotProjectVersionId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SnapshotModuleResponse>, I>>(base?: I): SnapshotModuleResponse {
+    return SnapshotModuleResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SnapshotModuleResponse>, I>>(object: I): SnapshotModuleResponse {
+    const message = createBaseSnapshotModuleResponse();
+    message.snapshotProjectVersionId = object.snapshotProjectVersionId ?? "";
+    return message;
+  },
+};
+
+function createBasePushWorkerLogsRequest(): PushWorkerLogsRequest {
+  return { logs: [] };
+}
+
+export const PushWorkerLogsRequest = {
+  encode(message: PushWorkerLogsRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.logs) {
+      LogEntryData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PushWorkerLogsRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePushWorkerLogsRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.logs.push(LogEntryData.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PushWorkerLogsRequest {
+    return {
+      logs: globalThis.Array.isArray(object?.logs) ? object.logs.map((e: any) => LogEntryData.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: PushWorkerLogsRequest): unknown {
+    const obj: any = {};
+    if (message.logs?.length) {
+      obj.logs = message.logs.map((e) => LogEntryData.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PushWorkerLogsRequest>, I>>(base?: I): PushWorkerLogsRequest {
+    return PushWorkerLogsRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PushWorkerLogsRequest>, I>>(object: I): PushWorkerLogsRequest {
+    const message = createBasePushWorkerLogsRequest();
+    message.logs = object.logs?.map((e) => LogEntryData.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseRunProxyStatementRequest(): RunProxyStatementRequest {
+  return { statement: "", inputs: undefined, timeoutMs: 0, runId: "" };
+}
+
+export const RunProxyStatementRequest = {
+  encode(message: RunProxyStatementRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.statement !== "") {
+      writer.uint32(10).string(message.statement);
+    }
+    if (message.inputs !== undefined) {
+      Struct.encode(Struct.wrap(message.inputs), writer.uint32(18).fork()).ldelim();
+    }
+    if (message.timeoutMs !== 0) {
+      writer.uint32(24).int32(message.timeoutMs);
+    }
+    if (message.runId !== "") {
+      writer.uint32(34).string(message.runId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): RunProxyStatementRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRunProxyStatementRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.statement = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.inputs = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          continue;
+        case 3:
+          if (tag !== 24) {
+            break;
+          }
+
+          message.timeoutMs = reader.int32();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.runId = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RunProxyStatementRequest {
+    return {
+      statement: isSet(object.statement) ? globalThis.String(object.statement) : "",
+      inputs: isObject(object.inputs) ? object.inputs : undefined,
+      timeoutMs: isSet(object.timeoutMs) ? globalThis.Number(object.timeoutMs) : 0,
+      runId: isSet(object.runId) ? globalThis.String(object.runId) : "",
+    };
+  },
+
+  toJSON(message: RunProxyStatementRequest): unknown {
+    const obj: any = {};
+    if (message.statement !== "") {
+      obj.statement = message.statement;
+    }
+    if (message.inputs !== undefined) {
+      obj.inputs = message.inputs;
+    }
+    if (message.timeoutMs !== 0) {
+      obj.timeoutMs = Math.round(message.timeoutMs);
+    }
+    if (message.runId !== "") {
+      obj.runId = message.runId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RunProxyStatementRequest>, I>>(base?: I): RunProxyStatementRequest {
+    return RunProxyStatementRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RunProxyStatementRequest>, I>>(object: I): RunProxyStatementRequest {
+    const message = createBaseRunProxyStatementRequest();
+    message.statement = object.statement ?? "";
+    message.inputs = object.inputs ?? undefined;
+    message.timeoutMs = object.timeoutMs ?? 0;
+    message.runId = object.runId ?? "";
+    return message;
+  },
+};
+
+function createBaseRunProxyStatementResponse(): RunProxyStatementResponse {
+  return { outputs: undefined, error: undefined };
+}
+
+export const RunProxyStatementResponse = {
+  encode(message: RunProxyStatementResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.outputs !== undefined) {
+      Struct.encode(Struct.wrap(message.outputs), writer.uint32(10).fork()).ldelim();
+    }
+    if (message.error !== undefined) {
+      Struct.encode(Struct.wrap(message.error), writer.uint32(18).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): RunProxyStatementResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseRunProxyStatementResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.outputs = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.error = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): RunProxyStatementResponse {
+    return {
+      outputs: isObject(object.outputs) ? object.outputs : undefined,
+      error: isObject(object.error) ? object.error : undefined,
+    };
+  },
+
+  toJSON(message: RunProxyStatementResponse): unknown {
+    const obj: any = {};
+    if (message.outputs !== undefined) {
+      obj.outputs = message.outputs;
+    }
+    if (message.error !== undefined) {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<RunProxyStatementResponse>, I>>(base?: I): RunProxyStatementResponse {
+    return RunProxyStatementResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<RunProxyStatementResponse>, I>>(object: I): RunProxyStatementResponse {
+    const message = createBaseRunProxyStatementResponse();
+    message.outputs = object.outputs ?? undefined;
+    message.error = object.error ?? undefined;
+    return message;
+  },
+};
+
+function createBasePullWorkerRunsRequest(): PullWorkerRunsRequest {
+  return { workerSetId: "", workerNodeId: "", workerProcessId: "" };
+}
+
+export const PullWorkerRunsRequest = {
+  encode(message: PullWorkerRunsRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.workerSetId !== "") {
+      writer.uint32(10).string(message.workerSetId);
+    }
+    if (message.workerNodeId !== "") {
+      writer.uint32(18).string(message.workerNodeId);
+    }
+    if (message.workerProcessId !== "") {
+      writer.uint32(26).string(message.workerProcessId);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PullWorkerRunsRequest {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePullWorkerRunsRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.workerSetId = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.workerNodeId = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.workerProcessId = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PullWorkerRunsRequest {
+    return {
+      workerSetId: isSet(object.workerSetId) ? globalThis.String(object.workerSetId) : "",
+      workerNodeId: isSet(object.workerNodeId) ? globalThis.String(object.workerNodeId) : "",
+      workerProcessId: isSet(object.workerProcessId) ? globalThis.String(object.workerProcessId) : "",
+    };
+  },
+
+  toJSON(message: PullWorkerRunsRequest): unknown {
+    const obj: any = {};
+    if (message.workerSetId !== "") {
+      obj.workerSetId = message.workerSetId;
+    }
+    if (message.workerNodeId !== "") {
+      obj.workerNodeId = message.workerNodeId;
+    }
+    if (message.workerProcessId !== "") {
+      obj.workerProcessId = message.workerProcessId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PullWorkerRunsRequest>, I>>(base?: I): PullWorkerRunsRequest {
+    return PullWorkerRunsRequest.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PullWorkerRunsRequest>, I>>(object: I): PullWorkerRunsRequest {
+    const message = createBasePullWorkerRunsRequest();
+    message.workerSetId = object.workerSetId ?? "";
+    message.workerNodeId = object.workerNodeId ?? "";
+    message.workerProcessId = object.workerProcessId ?? "";
+    return message;
+  },
+};
+
+function createBasePullWorkerRunsResponse(): PullWorkerRunsResponse {
+  return { runs: [] };
+}
+
+export const PullWorkerRunsResponse = {
+  encode(message: PullWorkerRunsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.runs) {
+      RunData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PullWorkerRunsResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePullWorkerRunsResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.runs.push(RunData.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PullWorkerRunsResponse {
+    return { runs: globalThis.Array.isArray(object?.runs) ? object.runs.map((e: any) => RunData.fromJSON(e)) : [] };
+  },
+
+  toJSON(message: PullWorkerRunsResponse): unknown {
+    const obj: any = {};
+    if (message.runs?.length) {
+      obj.runs = message.runs.map((e) => RunData.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PullWorkerRunsResponse>, I>>(base?: I): PullWorkerRunsResponse {
+    return PullWorkerRunsResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PullWorkerRunsResponse>, I>>(object: I): PullWorkerRunsResponse {
+    const message = createBasePullWorkerRunsResponse();
+    message.runs = object.runs?.map((e) => RunData.fromPartial(e)) || [];
     return message;
   },
 };
@@ -835,7 +2845,7 @@ function createBaseStartRunRequest(): StartRunRequest {
     keyed: false,
     keyedReturn: false,
     tags: [],
-    rootValues: undefined,
+    rootValue: undefined,
     globalValue: undefined,
     accessLevel: 0,
   };
@@ -882,8 +2892,8 @@ export const StartRunRequest = {
     for (const v of message.tags) {
       writer.uint32(106).string(v!);
     }
-    if (message.rootValues !== undefined) {
-      Struct.encode(Struct.wrap(message.rootValues), writer.uint32(114).fork()).ldelim();
+    if (message.rootValue !== undefined) {
+      Struct.encode(Struct.wrap(message.rootValue), writer.uint32(114).fork()).ldelim();
     }
     if (message.globalValue !== undefined) {
       Struct.encode(Struct.wrap(message.globalValue), writer.uint32(122).fork()).ldelim();
@@ -997,7 +3007,7 @@ export const StartRunRequest = {
             break;
           }
 
-          message.rootValues = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          message.rootValue = Struct.unwrap(Struct.decode(reader, reader.uint32()));
           continue;
         case 15:
           if (tag !== 122) {
@@ -1037,7 +3047,7 @@ export const StartRunRequest = {
       keyed: isSet(object.keyed) ? globalThis.Boolean(object.keyed) : false,
       keyedReturn: isSet(object.keyedReturn) ? globalThis.Boolean(object.keyedReturn) : false,
       tags: globalThis.Array.isArray(object?.tags) ? object.tags.map((e: any) => globalThis.String(e)) : [],
-      rootValues: isObject(object.rootValues) ? object.rootValues : undefined,
+      rootValue: isObject(object.rootValue) ? object.rootValue : undefined,
       globalValue: isObject(object.globalValue) ? object.globalValue : undefined,
       accessLevel: isSet(object.accessLevel) ? sessionAccessLevelFromJSON(object.accessLevel) : 0,
     };
@@ -1084,8 +3094,8 @@ export const StartRunRequest = {
     if (message.tags?.length) {
       obj.tags = message.tags;
     }
-    if (message.rootValues !== undefined) {
-      obj.rootValues = message.rootValues;
+    if (message.rootValue !== undefined) {
+      obj.rootValue = message.rootValue;
     }
     if (message.globalValue !== undefined) {
       obj.globalValue = message.globalValue;
@@ -1114,7 +3124,7 @@ export const StartRunRequest = {
     message.keyed = object.keyed ?? false;
     message.keyedReturn = object.keyedReturn ?? false;
     message.tags = object.tags?.map((e) => e) || [];
-    message.rootValues = object.rootValues ?? undefined;
+    message.rootValue = object.rootValue ?? undefined;
     message.globalValue = object.globalValue ?? undefined;
     message.accessLevel = object.accessLevel ?? 0;
     return message;
@@ -1188,7 +3198,7 @@ export const StartRunResponse = {
 
   fromJSON(object: any): StartRunResponse {
     return {
-      errorType: isSet(object.errorType) ? startRunErrorTypeFromJSON(object.errorType) : 0,
+      errorType: isSet(object.errorType) ? startRunResponse_StartRunErrorTypeFromJSON(object.errorType) : 0,
       runId: isSet(object.runId) ? globalThis.String(object.runId) : "",
       run: isSet(object.run) ? RunData.fromJSON(object.run) : undefined,
       logs: globalThis.Array.isArray(object?.logs) ? object.logs.map((e: any) => LogEntryData.fromJSON(e)) : [],
@@ -1198,7 +3208,7 @@ export const StartRunResponse = {
   toJSON(message: StartRunResponse): unknown {
     const obj: any = {};
     if (message.errorType !== 0) {
-      obj.errorType = startRunErrorTypeToJSON(message.errorType);
+      obj.errorType = startRunResponse_StartRunErrorTypeToJSON(message.errorType);
     }
     if (message.runId !== "") {
       obj.runId = message.runId;
@@ -1219,7 +3229,7 @@ export const StartRunResponse = {
     const message = createBaseStartRunResponse();
     message.errorType = object.errorType ?? 0;
     message.runId = object.runId ?? "";
-    message.run = (object.run !== undefined && object.run !== null) ? RunData.fromPartial(object.run) : undefined;
+    message.run = object.run !== undefined && object.run !== null ? RunData.fromPartial(object.run) : undefined;
     message.logs = object.logs?.map((e) => LogEntryData.fromPartial(e)) || [];
     return message;
   },
@@ -1342,10 +3352,30 @@ export const KillRunResponse = {
 /**
  * Runtime supervisor orchestrating all the runtime hosts in its realm (not yet sharded).
  * Also orchestrates the corresponding worker sets/nodes.
+ * Frontend connects to this directly.
  */
 export interface RuntimeSupervisor {
   /** Notify supervisor of a new Bench. */
   DidCreateProject(request: DeepPartial<DidCreateProjectRequest>, metadata?: grpc.Metadata): Promise<Empty>;
+  /** Get all changes to the worker sets for a Bench. */
+  GetWorkerChanges(
+    request: DeepPartial<GetWorkerChangesRequest>,
+    metadata?: grpc.Metadata
+  ): Observable<GetWorkerChangesResponse>;
+  /** Configure the worker set for a Bench. */
+  ConfigureWorkerSet(
+    request: DeepPartial<ConfigureWorkerSetRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<ConfigureWorkerSetResponse>;
+  /** Force restart the worker set for a Bench. */
+  RestartWorkerSet(request: DeepPartial<RestartWorkerSetRequest>, metadata?: grpc.Metadata): Promise<Empty>;
+  /** Gets the installed environment info from a worker set running a Bench. */
+  GetEnvironment(
+    request: DeepPartial<GetEnvironmentRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<GetEnvironmentResponse>;
+  /** Ensure the worker set for a Bench is running. */
+  PingWorkerSet(request: DeepPartial<PingWorkerSetRequest>, metadata?: grpc.Metadata): Promise<Empty>;
 }
 
 export class RuntimeSupervisorClientImpl implements RuntimeSupervisor {
@@ -1354,14 +3384,60 @@ export class RuntimeSupervisorClientImpl implements RuntimeSupervisor {
   constructor(rpc: Rpc) {
     this.rpc = rpc;
     this.DidCreateProject = this.DidCreateProject.bind(this);
+    this.GetWorkerChanges = this.GetWorkerChanges.bind(this);
+    this.ConfigureWorkerSet = this.ConfigureWorkerSet.bind(this);
+    this.RestartWorkerSet = this.RestartWorkerSet.bind(this);
+    this.GetEnvironment = this.GetEnvironment.bind(this);
+    this.PingWorkerSet = this.PingWorkerSet.bind(this);
   }
 
   DidCreateProject(request: DeepPartial<DidCreateProjectRequest>, metadata?: grpc.Metadata): Promise<Empty> {
     return this.rpc.unary(
       RuntimeSupervisorDidCreateProjectDesc,
       DidCreateProjectRequest.fromPartial(request),
-      metadata,
+      metadata
     );
+  }
+
+  GetWorkerChanges(
+    request: DeepPartial<GetWorkerChangesRequest>,
+    metadata?: grpc.Metadata
+  ): Observable<GetWorkerChangesResponse> {
+    return this.rpc.invoke(
+      RuntimeSupervisorGetWorkerChangesDesc,
+      GetWorkerChangesRequest.fromPartial(request),
+      metadata
+    );
+  }
+
+  ConfigureWorkerSet(
+    request: DeepPartial<ConfigureWorkerSetRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<ConfigureWorkerSetResponse> {
+    return this.rpc.unary(
+      RuntimeSupervisorConfigureWorkerSetDesc,
+      ConfigureWorkerSetRequest.fromPartial(request),
+      metadata
+    );
+  }
+
+  RestartWorkerSet(request: DeepPartial<RestartWorkerSetRequest>, metadata?: grpc.Metadata): Promise<Empty> {
+    return this.rpc.unary(
+      RuntimeSupervisorRestartWorkerSetDesc,
+      RestartWorkerSetRequest.fromPartial(request),
+      metadata
+    );
+  }
+
+  GetEnvironment(
+    request: DeepPartial<GetEnvironmentRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<GetEnvironmentResponse> {
+    return this.rpc.unary(RuntimeSupervisorGetEnvironmentDesc, GetEnvironmentRequest.fromPartial(request), metadata);
+  }
+
+  PingWorkerSet(request: DeepPartial<PingWorkerSetRequest>, metadata?: grpc.Metadata): Promise<Empty> {
+    return this.rpc.unary(RuntimeSupervisorPingWorkerSetDesc, PingWorkerSetRequest.fromPartial(request), metadata);
   }
 }
 
@@ -1390,29 +3466,178 @@ export const RuntimeSupervisorDidCreateProjectDesc: UnaryMethodDefinitionish = {
   } as any,
 };
 
+export const RuntimeSupervisorGetWorkerChangesDesc: UnaryMethodDefinitionish = {
+  methodName: "GetWorkerChanges",
+  service: RuntimeSupervisorDesc,
+  requestStream: false,
+  responseStream: true,
+  requestType: {
+    serializeBinary() {
+      return GetWorkerChangesRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = GetWorkerChangesResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeSupervisorConfigureWorkerSetDesc: UnaryMethodDefinitionish = {
+  methodName: "ConfigureWorkerSet",
+  service: RuntimeSupervisorDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return ConfigureWorkerSetRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = ConfigureWorkerSetResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeSupervisorRestartWorkerSetDesc: UnaryMethodDefinitionish = {
+  methodName: "RestartWorkerSet",
+  service: RuntimeSupervisorDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return RestartWorkerSetRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = Empty.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeSupervisorGetEnvironmentDesc: UnaryMethodDefinitionish = {
+  methodName: "GetEnvironment",
+  service: RuntimeSupervisorDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return GetEnvironmentRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = GetEnvironmentResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeSupervisorPingWorkerSetDesc: UnaryMethodDefinitionish = {
+  methodName: "PingWorkerSet",
+  service: RuntimeSupervisorDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return PingWorkerSetRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = Empty.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
 /**
  * The Bench runtime host for a specific module.
  * Service is scoped to project_id/module_id.
+ * Frontend connects to this directly.
  * Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
  */
 export interface RuntimeHost {
-  /**
-   * subscriptions
-   * Receive larger-than-module changes to a Bench.
-   */
+  /** Receive relevant outside-of-module changes to a Bench. */
   GetBenchChanges(
     request: DeepPartial<GetBenchChangesRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetBenchChangesResponse>;
   /** Receive any future edits to this module. */
   GetModuleEdits(
     request: DeepPartial<GetModuleEditsRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetModuleEditsResponse>;
-  /** Forwards all matching logs received from the workers. */
-  GetLogs(request: DeepPartial<GetLogsRequest>, metadata?: grpc.Metadata): Observable<GetLogsResponse>;
   /** Reads the entire module tree. */
   ReadModule(request: DeepPartial<ReadModuleRequest>, metadata?: grpc.Metadata): Promise<ReadModuleResponse>;
+  /** Searches out-of-line nodes in the module. */
+  SearchNodes(request: DeepPartial<SearchNodesRequest>, metadata?: grpc.Metadata): Promise<SearchNodesResponse>;
+  /** Commits a set of edits to the module. */
+  CommitEdits(request: DeepPartial<CommitEditsRequest>, metadata?: grpc.Metadata): Promise<CommitEditsResponse>;
+  /** Get a signed URL to upload a blob. */
+  UploadBlob(request: DeepPartial<UploadBlobRequest>, metadata?: grpc.Metadata): Promise<UploadBlobResponse>;
+  /** Get a signed URL to download a blob. */
+  DownloadBlob(request: DeepPartial<DownloadBlobRequest>, metadata?: grpc.Metadata): Promise<DownloadBlobResponse>;
+  /** Reveal the deferred/secret 'value' of a secret. (Not sure if this should be bundled into something else?) */
+  RevealSecret(request: DeepPartial<RevealSecretRequest>, metadata?: grpc.Metadata): Promise<RevealSecretResponse>;
+  /** Paste specific inline nodes (and only those nodes) from this or another module. */
+  PasteNodes(request: DeepPartial<PasteNodesRequest>, metadata?: grpc.Metadata): Promise<PasteNodesResponse>;
+  /** Create a full snapshot of this Bench module (copy to another new Bench module). */
+  SnapshotModule(
+    request: DeepPartial<SnapshotModuleRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<SnapshotModuleResponse>;
+  /** Forwards all matching logs received from the workers. */
+  GetLogs(request: DeepPartial<GetLogsRequest>, metadata?: grpc.Metadata): Observable<GetLogsResponse>;
+  /** Starts a run in an appropriate worker (same request/response as for WorkerNode). */
+  StartRun(request: DeepPartial<StartRunRequest>, metadata?: grpc.Metadata): Promise<StartRunResponse>;
+  /** Kills a run in the appropriate worker (same request/response as for WorkerNode). */
+  KillRun(request: DeepPartial<KillRunRequest>, metadata?: grpc.Metadata): Promise<KillRunResponse>;
+  /** Runs a well-known internal statement in the host with our credentials. */
+  RunProxyStatement(
+    request: DeepPartial<RunProxyStatementRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<RunProxyStatementResponse>;
+  /**
+   * Pulls the runs a worker should run immediately after starting (scheduled).
+   *  (Maybe merge this into ReadModule with a query later? search_records too? Not sure.)
+   */
+  PullWorkerRuns(
+    request: DeepPartial<PullWorkerRunsRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<PullWorkerRunsResponse>;
+  /** Pushes logs from a worker *that are already stored* to notify frontend users connected to this host. */
+  PushWorkerLogs(request: DeepPartial<PushWorkerLogsRequest>, metadata?: grpc.Metadata): Promise<Empty>;
 }
 
 export class RuntimeHostClientImpl implements RuntimeHost {
@@ -1422,30 +3647,99 @@ export class RuntimeHostClientImpl implements RuntimeHost {
     this.rpc = rpc;
     this.GetBenchChanges = this.GetBenchChanges.bind(this);
     this.GetModuleEdits = this.GetModuleEdits.bind(this);
-    this.GetLogs = this.GetLogs.bind(this);
     this.ReadModule = this.ReadModule.bind(this);
+    this.SearchNodes = this.SearchNodes.bind(this);
+    this.CommitEdits = this.CommitEdits.bind(this);
+    this.UploadBlob = this.UploadBlob.bind(this);
+    this.DownloadBlob = this.DownloadBlob.bind(this);
+    this.RevealSecret = this.RevealSecret.bind(this);
+    this.PasteNodes = this.PasteNodes.bind(this);
+    this.SnapshotModule = this.SnapshotModule.bind(this);
+    this.GetLogs = this.GetLogs.bind(this);
+    this.StartRun = this.StartRun.bind(this);
+    this.KillRun = this.KillRun.bind(this);
+    this.RunProxyStatement = this.RunProxyStatement.bind(this);
+    this.PullWorkerRuns = this.PullWorkerRuns.bind(this);
+    this.PushWorkerLogs = this.PushWorkerLogs.bind(this);
   }
 
   GetBenchChanges(
     request: DeepPartial<GetBenchChangesRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetBenchChangesResponse> {
     return this.rpc.invoke(RuntimeHostGetBenchChangesDesc, GetBenchChangesRequest.fromPartial(request), metadata);
   }
 
   GetModuleEdits(
     request: DeepPartial<GetModuleEditsRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetModuleEditsResponse> {
     return this.rpc.invoke(RuntimeHostGetModuleEditsDesc, GetModuleEditsRequest.fromPartial(request), metadata);
+  }
+
+  ReadModule(request: DeepPartial<ReadModuleRequest>, metadata?: grpc.Metadata): Promise<ReadModuleResponse> {
+    return this.rpc.unary(RuntimeHostReadModuleDesc, ReadModuleRequest.fromPartial(request), metadata);
+  }
+
+  SearchNodes(request: DeepPartial<SearchNodesRequest>, metadata?: grpc.Metadata): Promise<SearchNodesResponse> {
+    return this.rpc.unary(RuntimeHostSearchNodesDesc, SearchNodesRequest.fromPartial(request), metadata);
+  }
+
+  CommitEdits(request: DeepPartial<CommitEditsRequest>, metadata?: grpc.Metadata): Promise<CommitEditsResponse> {
+    return this.rpc.unary(RuntimeHostCommitEditsDesc, CommitEditsRequest.fromPartial(request), metadata);
+  }
+
+  UploadBlob(request: DeepPartial<UploadBlobRequest>, metadata?: grpc.Metadata): Promise<UploadBlobResponse> {
+    return this.rpc.unary(RuntimeHostUploadBlobDesc, UploadBlobRequest.fromPartial(request), metadata);
+  }
+
+  DownloadBlob(request: DeepPartial<DownloadBlobRequest>, metadata?: grpc.Metadata): Promise<DownloadBlobResponse> {
+    return this.rpc.unary(RuntimeHostDownloadBlobDesc, DownloadBlobRequest.fromPartial(request), metadata);
+  }
+
+  RevealSecret(request: DeepPartial<RevealSecretRequest>, metadata?: grpc.Metadata): Promise<RevealSecretResponse> {
+    return this.rpc.unary(RuntimeHostRevealSecretDesc, RevealSecretRequest.fromPartial(request), metadata);
+  }
+
+  PasteNodes(request: DeepPartial<PasteNodesRequest>, metadata?: grpc.Metadata): Promise<PasteNodesResponse> {
+    return this.rpc.unary(RuntimeHostPasteNodesDesc, PasteNodesRequest.fromPartial(request), metadata);
+  }
+
+  SnapshotModule(
+    request: DeepPartial<SnapshotModuleRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<SnapshotModuleResponse> {
+    return this.rpc.unary(RuntimeHostSnapshotModuleDesc, SnapshotModuleRequest.fromPartial(request), metadata);
   }
 
   GetLogs(request: DeepPartial<GetLogsRequest>, metadata?: grpc.Metadata): Observable<GetLogsResponse> {
     return this.rpc.invoke(RuntimeHostGetLogsDesc, GetLogsRequest.fromPartial(request), metadata);
   }
 
-  ReadModule(request: DeepPartial<ReadModuleRequest>, metadata?: grpc.Metadata): Promise<ReadModuleResponse> {
-    return this.rpc.unary(RuntimeHostReadModuleDesc, ReadModuleRequest.fromPartial(request), metadata);
+  StartRun(request: DeepPartial<StartRunRequest>, metadata?: grpc.Metadata): Promise<StartRunResponse> {
+    return this.rpc.unary(RuntimeHostStartRunDesc, StartRunRequest.fromPartial(request), metadata);
+  }
+
+  KillRun(request: DeepPartial<KillRunRequest>, metadata?: grpc.Metadata): Promise<KillRunResponse> {
+    return this.rpc.unary(RuntimeHostKillRunDesc, KillRunRequest.fromPartial(request), metadata);
+  }
+
+  RunProxyStatement(
+    request: DeepPartial<RunProxyStatementRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<RunProxyStatementResponse> {
+    return this.rpc.unary(RuntimeHostRunProxyStatementDesc, RunProxyStatementRequest.fromPartial(request), metadata);
+  }
+
+  PullWorkerRuns(
+    request: DeepPartial<PullWorkerRunsRequest>,
+    metadata?: grpc.Metadata
+  ): Promise<PullWorkerRunsResponse> {
+    return this.rpc.unary(RuntimeHostPullWorkerRunsDesc, PullWorkerRunsRequest.fromPartial(request), metadata);
+  }
+
+  PushWorkerLogs(request: DeepPartial<PushWorkerLogsRequest>, metadata?: grpc.Metadata): Promise<Empty> {
+    return this.rpc.unary(RuntimeHostPushWorkerLogsDesc, PushWorkerLogsRequest.fromPartial(request), metadata);
   }
 }
 
@@ -1497,29 +3791,6 @@ export const RuntimeHostGetModuleEditsDesc: UnaryMethodDefinitionish = {
   } as any,
 };
 
-export const RuntimeHostGetLogsDesc: UnaryMethodDefinitionish = {
-  methodName: "GetLogs",
-  service: RuntimeHostDesc,
-  requestStream: false,
-  responseStream: true,
-  requestType: {
-    serializeBinary() {
-      return GetLogsRequest.encode(this).finish();
-    },
-  } as any,
-  responseType: {
-    deserializeBinary(data: Uint8Array) {
-      const value = GetLogsResponse.decode(data);
-      return {
-        ...value,
-        toObject() {
-          return value;
-        },
-      };
-    },
-  } as any,
-};
-
 export const RuntimeHostReadModuleDesc: UnaryMethodDefinitionish = {
   methodName: "ReadModule",
   service: RuntimeHostDesc,
@@ -1543,9 +3814,309 @@ export const RuntimeHostReadModuleDesc: UnaryMethodDefinitionish = {
   } as any,
 };
 
+export const RuntimeHostSearchNodesDesc: UnaryMethodDefinitionish = {
+  methodName: "SearchNodes",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return SearchNodesRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = SearchNodesResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostCommitEditsDesc: UnaryMethodDefinitionish = {
+  methodName: "CommitEdits",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return CommitEditsRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = CommitEditsResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostUploadBlobDesc: UnaryMethodDefinitionish = {
+  methodName: "UploadBlob",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return UploadBlobRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = UploadBlobResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostDownloadBlobDesc: UnaryMethodDefinitionish = {
+  methodName: "DownloadBlob",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return DownloadBlobRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = DownloadBlobResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostRevealSecretDesc: UnaryMethodDefinitionish = {
+  methodName: "RevealSecret",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return RevealSecretRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = RevealSecretResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostPasteNodesDesc: UnaryMethodDefinitionish = {
+  methodName: "PasteNodes",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return PasteNodesRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = PasteNodesResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostSnapshotModuleDesc: UnaryMethodDefinitionish = {
+  methodName: "SnapshotModule",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return SnapshotModuleRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = SnapshotModuleResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostGetLogsDesc: UnaryMethodDefinitionish = {
+  methodName: "GetLogs",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: true,
+  requestType: {
+    serializeBinary() {
+      return GetLogsRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = GetLogsResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostStartRunDesc: UnaryMethodDefinitionish = {
+  methodName: "StartRun",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return StartRunRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = StartRunResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostKillRunDesc: UnaryMethodDefinitionish = {
+  methodName: "KillRun",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return KillRunRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = KillRunResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostRunProxyStatementDesc: UnaryMethodDefinitionish = {
+  methodName: "RunProxyStatement",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return RunProxyStatementRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = RunProxyStatementResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostPullWorkerRunsDesc: UnaryMethodDefinitionish = {
+  methodName: "PullWorkerRuns",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return PullWorkerRunsRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = PullWorkerRunsResponse.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
+export const RuntimeHostPushWorkerLogsDesc: UnaryMethodDefinitionish = {
+  methodName: "PushWorkerLogs",
+  service: RuntimeHostDesc,
+  requestStream: false,
+  responseStream: false,
+  requestType: {
+    serializeBinary() {
+      return PushWorkerLogsRequest.encode(this).finish();
+    },
+  } as any,
+  responseType: {
+    deserializeBinary(data: Uint8Array) {
+      const value = Empty.decode(data);
+      return {
+        ...value,
+        toObject() {
+          return value;
+        },
+      };
+    },
+  } as any,
+};
+
 /**
  * The actual worker node running a Bench for a user.
  * Service is scoped to project_id/worker_set_id.
+ * For internal connections only.
  */
 export interface WorkerNode {
   /** Restart this worker immediately. */
@@ -1661,12 +4232,12 @@ interface Rpc {
   unary<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     request: any,
-    metadata: grpc.Metadata | undefined,
+    metadata: grpc.Metadata | undefined
   ): Promise<any>;
   invoke<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     request: any,
-    metadata: grpc.Metadata | undefined,
+    metadata: grpc.Metadata | undefined
   ): Observable<any>;
 }
 
@@ -1688,7 +4259,7 @@ export class GrpcWebImpl {
       debug?: boolean;
       metadata?: grpc.Metadata;
       upStreamRetryCodes?: number[];
-    },
+    }
   ) {
     this.host = host;
     this.options = options;
@@ -1697,12 +4268,13 @@ export class GrpcWebImpl {
   unary<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     _request: any,
-    metadata: grpc.Metadata | undefined,
+    metadata: grpc.Metadata | undefined
   ): Promise<any> {
     const request = { ..._request, ...methodDesc.requestType };
-    const maybeCombinedMetadata = metadata && this.options.metadata
-      ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
-      : metadata ?? this.options.metadata;
+    const maybeCombinedMetadata =
+      metadata && this.options.metadata
+        ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
+        : metadata ?? this.options.metadata;
     return new Promise((resolve, reject) => {
       grpc.unary(methodDesc, {
         request,
@@ -1725,15 +4297,16 @@ export class GrpcWebImpl {
   invoke<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     _request: any,
-    metadata: grpc.Metadata | undefined,
+    metadata: grpc.Metadata | undefined
   ): Observable<any> {
     const upStreamCodes = this.options.upStreamRetryCodes ?? [];
     const DEFAULT_TIMEOUT_TIME: number = 3_000;
     const request = { ..._request, ...methodDesc.requestType };
     const transport = this.options.streamingTransport ?? this.options.transport;
-    const maybeCombinedMetadata = metadata && this.options.metadata
-      ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
-      : metadata ?? this.options.metadata;
+    const maybeCombinedMetadata =
+      metadata && this.options.metadata
+        ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
+        : metadata ?? this.options.metadata;
     return new Observable((observer) => {
       const upStream = () => {
         const client = grpc.invoke(methodDesc, {
@@ -1765,15 +4338,21 @@ export class GrpcWebImpl {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+  ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U>
+  ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string }
+  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {}
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

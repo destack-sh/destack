@@ -2,7 +2,6 @@
 
 aiohttp==3.8.5
 aiostream==0.4.5
-alembic==1.12.0
 anthropic==0.3.11
 betterproto==2.0.0-beta6
 boto3==1.26.125
@@ -13,7 +12,6 @@ channels==4.0.0
 croniter==1.4.1
 dacite==1.7.0
 daphne==4.0.0
-dataclasses_json==0.5.7
 deepgram-sdk==2.11.0
 dj-database-url==1.0.0
 django-axes==5.39.0
@@ -28,20 +26,17 @@ django==4.2.3
 django_choices_field==2.1
 djangorestframework-dataclasses==1.1.1
 djangorestframework==3.14.0
-docstring-parser==0.14.1
 drf-exceptions-hog==0.2.0
 drf-extensions==0.7.1
 drf-nested-routers==0.93.4
 drf-spectacular==0.24.2
 gunicorn==21.2.0
 huggingface-hub==0.19.4
-janus==1.0.0
 json-stream==2.2.1
 kubernetes-asyncio==24.2.3
 kubernetes==27.2.0
 more-itertools==9.0.0
 msgpack==1.0.7
-nats-py==2.4.0
 numpy<2,>=1.20.0#
 openai==0.28.1
 opensearch-py[async]==2.3.1
@@ -55,7 +50,6 @@ pytz==2022.1
 redis[hiredis]==4.5.4
 sentry-sdk[django]==1.31.0
 social-auth-app-django==5.0.0
-sqlalchemy[asyncio]==2.0.22
 sqlparse==0.4.4
 strawberry-graphql-django==0.16.0
 strawberry-graphql[channels,debug-server,opentelemetry]==0.204
