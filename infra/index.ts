@@ -218,7 +218,6 @@ const redisReplicationGroup = new aws.elasticache.ReplicationGroup("redis", {
 const REDIS_ROOT_URL = pulumi.interpolate`rediss://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
 const REDIS_WORKER_URL = pulumi.interpolate`rediss://${redisWorkerUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
 
-
 // IAM access to manage bench-user S3 buckets
 const s3AccessKey = getBenchUserS3AccessKey();
 // put access key (id and secret) in a secret
@@ -449,7 +448,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
                 { name: "SEND_API_PUB_MSG", value: "" },
               ],
               command: ["/bin/sh", "-c"],
-              args: ["python manage.py migrate && python manage.py s3 create && python manage.py libs upsert all"],
+              args: ["python manage.py migrate && python manage.py s3 create"],
             },
           ],
           containers: [

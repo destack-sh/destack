@@ -12,15 +12,15 @@ class ProtoStrEnum(enum.StrEnum):
      (keep this class, but stop specifying name for everything and store all enums as int)
     """
 
-    _ignore_ = ["RESERVED_NAMES", "RESERVED_IDS"]
-    RESERVED_NAMES: ClassVar[set[str]] = set()
-    RESERVED_IDS: ClassVar[set[int]] = set()
+    _ignore_ = ["__RESERVED_NAMES__", "__RESERVED_IDS__"]
+    __RESERVED_NAMES__: ClassVar[set[str]] = set()
+    __RESERVED_IDS__: ClassVar[set[int]] = set()
 
     def __new__(cls, value: str, id: int):
         """Create a new instance."""
         obj = str.__new__(cls, value)
         obj._value_ = value
-        assert id > 0 or value == "UNSPECIFIED", f"invalid id {id} for {value}"
+        assert id > 0 or value == "UNSPECIFIED" and id == 0, f"invalid id {id} for {value}"
         obj.id = id
         return obj
 

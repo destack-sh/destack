@@ -30,6 +30,7 @@ from bench.language.builtin import _active_session, _auto_async_to_sync, symbolx
 from bench.language.const import (
     INTERP_NODE_TYPES,
     NTL,
+    EditKind,
     NodeTrackingLevel,
     NodeType,
     ProjectRegion,
@@ -42,7 +43,6 @@ from bench.language.const import (
     WorkerProfile,
     WorkerSetStatus,
 )
-from bench.language.edit import EditData, EditKind, EditType
 from bench.language.module import (
     _NC,
     UNSET,
@@ -54,6 +54,7 @@ from bench.language.module import (
     Struct,
     node,
     node_children,
+    node_parent,
     struct,
     struct_internal,
     struct_runtime,
@@ -71,7 +72,7 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import Blob, HasDatabase, HasFields, Secret, Trigger
     from bench.language.cache import Cache
-    from bench.proto.wire import LogEntryData, RunData
+    from bench.proto.wire import EditData, LogEntryData, RunData
 
 logger = structlog.get_logger(__name__)
 
@@ -184,6 +185,7 @@ class Session(ScopeNode):
     A managed context for running a Bench module (in a worker).
     """
 
+    parent: None = node_parent(4)
     access_level: SessionAccessLevel = struct_internal(20)
     project_id: str = struct_internal(21, reflect=True)
     worker_node_id: str = struct_internal(22, reflect=True)
@@ -458,12 +460,10 @@ class Session(ScopeNode):
 class EditEvent:
     """Tiny edit representation to capture every edit event. Later coalesce into real Edits."""
 
-    type: EditType
+    kind: EditKind
     node: Node
     target: NodeType | None = None
     properties: list[str] | None = None
-    file_id: UUID | None = None
-    statement_id: UUID | None = None
 
 
 class SessionTracer:
@@ -561,7 +561,7 @@ class SessionTracer:
         Local edits = any record edits.
         """
         from bench.language import Record
-        from bench.proto.wiring import pack_node
+        from bench.proto.wiring import pack_node, wrap_some_node
 
         module = self.session.module
         with self._tracing_lock:
@@ -573,8 +573,6 @@ class SessionTracer:
                 edit = EditData(
                     type=event.type,
                     project_version_id=module.id,
-                    file_id=node.parent.file.id,
-                    statement_id=node.parent.id,
                     properties=event.properties,
                 )
                 edit.node = pack_node(node)
@@ -587,15 +585,13 @@ class SessionTracer:
             host_edits: list[EditData] | None = [] if include_host else None
             if include_host:
                 for event in self._host_module_edits:
-                    node = event.node
                     edit = EditData(
-                        type=event.type,
-                        project_version_id=module.id,
-                        file_id=event.file_id,
-                        statement_id=event.statement_id,
+                        kind=event.kind,
+                        node=wrap_some_node(pack_node(event.node)),
+                        target=event.target,
+                        module_id=module.id,
                         properties=event.properties,
                     )
-                    edit.node = pack_node(node)
                     host_edits.append(edit)
                 self._host_module_edits.clear()
 
@@ -618,26 +614,18 @@ class SessionTracer:
     ):
         """Register an edit to a node (local or host)."""
         is_local = node.metatype == NodeType.RECORD
-        if not is_local:
-            tree = self.session.module._local_tree
-            file = tree.get_ancestor(node.ck, NodeType.FILE)
-            statement = tree.get_ancestor(node.ck, NodeType.STATEMENT)
-        else:
-            file, statement = None, None
         edit = EditEvent(
-            type=EditType.from_nt(kind, target or node.metatype),
+            kind=kind,
             node=node,
             properties=properties,
-            file_id=file.id if file else None,
-            statement_id=statement.id if statement else None,
             target=target,
         )
         assert not self.session.closed_at, f"cannot {edit!r} in closed session {self.session!r}"
         edits = self._local_edits if is_local else self._host_module_edits
 
-        if edit.type.kind == EditKind.CREATE:
+        if kind == EditKind.CREATE:
             self._created_nodes_ck.add(edit.node.ck)
-        elif edit.type.kind == EditKind.UPDATE:
+        elif kind == EditKind.UPDATE:
             if edit.node.ck in self._created_nodes_ck:
                 return  # ignore updates to newly created nodes
             # merge with previous update if there is one
@@ -651,9 +639,9 @@ class SessionTracer:
                 self._updated_nodes_event_by_ck[edit.node.ck] = len(edits)
         edits.append(edit)
 
-        if edit.type.node_type == NodeType.RECORD:
+        if node.metatype == NodeType.RECORD:
             self._changed_record_ids_by_db_id[edit.node.parent_id].add(edit.node.id)
-            self._touched_databases_by_id[edit.node.parent_id] = edit.node.parent
+            self._touched_databases_by_id[edit.node.parent_id] = node.parent
 
         if edit.node.ck in self.session._dangling_nodes_by_ck:
             del self.session._dangling_nodes_by_ck[edit.node.ck]
@@ -894,7 +882,7 @@ class SessionTracer:
         run = Run(
             id=run_id,
             ck=run_id,  # "detached"
-            project_id=self.session.module.project_id,
+            project_id=self.session.module.bench_id,
             worker_node_id=self.session.worker_node_id,
             worker_process_id=self.session.worker_process_id,
             statement=statement,
@@ -991,16 +979,14 @@ class SessionTracer:
                     if edit_kind == EditKind.UPDATE and n.metatype == NodeType.RUN
                     else None
                 )
+                run_data: RunData = wiring.pack_node(n)
                 edit = EditData(
-                    type=EditType.from_nt(edit_kind, n.metatype),
-                    project_version_id=n.module.id,
-                    file_id=None,
-                    statement_id=None,
+                    kind=edit_kind,
+                    module_id=n.module.id,
                     properties=properties,
+                    node=wiring.wrap_some_node(run_data),
                     revision=n.revision,
                 )
-                run_data: RunData = wiring.pack_node(n)
-                edit.node = run_data
                 session_edits.append(edit)
                 if edit.node_type == NodeType.RUN:
                     runs_data.append(run_data)
@@ -1089,7 +1075,7 @@ class LogCollector:
         module = self.session.module
         log_entry = LogEntry(
             id=UUIDT(),
-            project_id=module.project_id,
+            project_id=module.bench_id,
             module=module,
             created_at=utcnow_with_tz(),
             stream=self.stream,

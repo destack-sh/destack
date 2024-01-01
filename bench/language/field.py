@@ -99,7 +99,6 @@ PRIMITIVE_TYPES = [
     TypeTag.BOOLEAN,
     TypeTag.NUMBER,
     TypeTag.STRING,
-    TypeTag.BLOB,
     TypeTag.VECTOR,
     TypeTag.NODE,
 ]
@@ -135,11 +134,11 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.TOGGLE: TypeTag.BOOLEAN,
     TypeHint.CHECKBOX: TypeTag.BOOLEAN,
     TypeHint.THUMBS: TypeTag.BOOLEAN,
-    # file
-    TypeHint.IMAGE: TypeTag.BLOB,
-    TypeHint.VIDEO: TypeTag.BLOB,
-    TypeHint.AUDIO: TypeTag.BLOB,
     # node
+    TypeHint.BENCH: TypeTag.NODE,
+    TypeHint.IMAGE: TypeTag.NODE,
+    TypeHint.VIDEO: TypeTag.NODE,
+    TypeHint.AUDIO: TypeTag.NODE,
     TypeHint.FILE: TypeTag.NODE,
     TypeHint.STATEMENT: TypeTag.NODE,
     TypeHint.FIELD: TypeTag.NODE,
@@ -156,7 +155,6 @@ STORAGE_FORMAT_BY_TYPE_TAG = {
     TypeTag.NUMBER: TypeStorageFormat.DOUBLE,
     TypeTag.BOOLEAN: TypeStorageFormat.BOOLEAN,
     TypeTag.VECTOR: TypeStorageFormat.VECTOR,
-    TypeTag.BLOB: TypeStorageFormat.OBJECT,
     TypeTag.STRUCT: TypeStorageFormat.OBJECT,
     TypeTag.ENUM: TypeStorageFormat.KEYWORD,
     TypeTag.LITERAL: TypeStorageFormat.KEYWORD,

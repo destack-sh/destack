@@ -14,13 +14,13 @@ from .const import (
     TypeTag,
 )
 from .database import HasDatabase, Record
-from .edit import render, render_as_python
 from .expression import A, C, E, Expression, S
 from .field import Field, HasFields, HasType, ResolvedField, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
 from .module import Module, Node, Property, ScopeNode, Struct, complete_setup
 from .projection import NodeVisitor
+from .render import render, render_as_python
 from .run import HasRun, Run, RunError
 from .secret import Secret
 from .session import LogEntry, PermissionError, Session

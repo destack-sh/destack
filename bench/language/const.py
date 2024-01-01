@@ -19,29 +19,36 @@ BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
 
 
 class NodeType(ProtoStrEnum):
+    BENCH = "BENCH", 1
     # source
-    MODULE = "MODULE", 1
-    FILE = "FILE", 2
-    STATEMENT = "STATEMENT", 3
-    TRIGGER = "TRIGGER", 4
-    TAGGING = "TAGGING", 5
-    FIELD = "FIELD", 6
-    RECORD = "RECORD", 7
-    VIEW = "VIEW", 8
+    MODULE = "MODULE", 2
+    FILE = "FILE", 3
+    STATEMENT = "STATEMENT", 4
+    TRIGGER = "TRIGGER", 5
+    TAGGING = "TAGGING", 6
+    FIELD = "FIELD", 7
+    RECORD = "RECORD", 8
+    VIEW = "VIEW", 9
+    TILE = "TILE", 10
     # interp
-    ISSUE = "ISSUE", 9
-    RESOLVED_FIELD = "RESOLVED_FIELD", 10
+    ISSUE = "ISSUE", 20
+    RESOLVED_FIELD = "RESOLVED_FIELD", 21
     # remote
-    BLOB = "BLOB", 11
-    SECRET = "SECRET", 12
+    BLOB = "BLOB", 40
+    SECRET = "SECRET", 41
     # session
-    SESSION = "SESSION", 13
-    RUN = "RUN", 14
+    SESSION = "SESSION", 60
+    RUN = "RUN", 61
+    # WORKER_SET = "WORKER_SET", 64
+    # EVENT = "EVENT", 70
+    # INTERRUPT = "INTERRUPT", 71
+    # EDIT = "EDIT", 72
+    # user
+    USER = "USER", 80
+    ORGANIZATION = "ORGANIZATION", 81
 
-    # user (not used yet)
-    # USER = "USER"
-    # COMMENT = "COMMENT"
-    # ACCESS = "ACCESS"
+    # NOTIFICATION = "NOTIFICATION", 83
+    # COMMENT = "COMMENT", 90
 
     @property
     def caps_name(self):
@@ -54,12 +61,16 @@ class NodeType(ProtoStrEnum):
 
 class StructType(ProtoStrEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
-    EXPRESSION = "EXPRESSION", 101
-    RUN_CODE_FRAME = "RUN_CODE_FRAME", 102
-    RUN_ERROR = "RUN_ERROR", 103
-    LOG_ENTRY = "LOG_ENTRY", 104
-    WORKER_SET = "WORKER_SET", 105
-    ENVIRONMENT = "ENVIRONMENT", 106
+    ACCESS_CONTROL = "ACCESS_CONTROL", 200
+    ACCESS_CONTROL_RULE = "ACCESS_CONTROL_RULE", 201
+    EXPRESSION = "EXPRESSION", 210
+    LOG_ENTRY = "LOG_ENTRY", 220
+    RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
+    RUN_ERROR = "RUN_ERROR", 222
+    ENVIRONMENT = "ENVIRONMENT", 230
+    DEPENDENCY = "DEPENDENCY", 231
+    EDIT = "EDIT", 398  # for now, should be a node later
+    WORKER_SET = "WORKER_SET", 399  # for now, should be a node later
 
     @property
     def caps_name(self):
@@ -93,6 +104,17 @@ INLINE_NODE_TYPES = (nt for nt in NodeType if nt not in OUT_OF_LINE_NODE_TYPES)
 HOST_NODE_TYPES = (nt for nt in NodeType if nt not in LOCAL_NODE_TYPES)
 
 
+class EditKind(ProtoStrEnum):
+    CREATE = "CREATE", 1
+    UPDATE = "UPDATE", 2
+    MOVE = "MOVE", 3
+    SOFT_DELETE = "SOFT_DELETE", 4
+    RESTORE = "RESTORE", 5
+    BUMP = "BUMP", 6
+    DELETE = "DELETE", 7
+    TRUNCATE = "TRUNCATE", 8
+
+
 class StatementType(ProtoStrEnum):
     TAG = "tag", 1
     TEXT = "text", 2
@@ -106,7 +128,7 @@ class StatementType(ProtoStrEnum):
     VARIABLE = "variable", 10
     DATABASE = "database", 11
     VIEW = "view", 12
-    GROUP = "group", 13
+    SCREEN = "screen", 13
 
     @property
     def camel_name(self):
@@ -207,8 +229,8 @@ class TextHeadingLevel(enum.IntEnum):
     H3 = 3
 
 
-# TODO @Architecture: simplify the TypeTag/TypeHint/TypeFlag/TypeStorageFormat mess
-#  (should probably? just be type + flags with display hints in metadata)
+# TODO @Architecture: :SimpleTypes ... TypeTag/TypeHint/TypeFlag/TypeStorageFormat mess
+#  (should probably? just be type + flags as properties on Field + display hint Field)
 #  IS_ARRAYABLE -> real unions of X | list[X] or whatever
 #  IS_UNION_WITH -> inherit? from type (could remain flag, though that's not great)
 
@@ -216,19 +238,21 @@ class TextHeadingLevel(enum.IntEnum):
 class TypeTag(ProtoStrEnum):
     """The Bench primitive type of a field/type."""
 
+    __RESERVED_IDS__ = {5}
+    __RESERVED_NAMES__ = {"blob"}
+
     STRING = "string", 1
     NUMBER = "number", 2
     BOOLEAN = "boolean", 3
     VECTOR = "vector", 4
-    BLOB = "blob", 5
+    JSON = "json", 7  # == ANY
+    LITERAL = "literal", 10
+    NODE = "node", 11
+    # should retire these :SimpleTypes
     STRUCT = "struct", 6
-    JSON = "json", 7
     FUNCTION = "function", 8
     ENUM = "enum", 9
-    LITERAL = "literal", 10
-    TYPE_REFERENCE = "ref", 11
-    NODE = "node", 12
-    ANY = "any", 13
+    TYPE_REFERENCE = "ref", 13
 
 
 RESERVED_TYPE_TAGS = (TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.STRUCT)
@@ -263,18 +287,20 @@ class TypeHint(ProtoStrEnum):
     THUMBS = "thumbs", 21
     # vector
     EMBEDDING = "embedding", 22
-    # blob
-    IMAGE = "image", 23
-    VIDEO = "video", 24
-    AUDIO = "audio", 25
     # node (relation)
-    FILE = "file", 26
-    STATEMENT = "statement", 27
-    RECORD = "record", 28  # for relations
-    FIELD = "field", 29
-    RUN = "run", 30  # not used yet
-    SECRET = "secret", 31  # not used as a node yet
-    BLOB = "blob", 32  # not used as a node yet
+    BENCH = "bench", 30  # not used yet
+    # MODULE = "module", 31  # not used yet
+    FILE = "file", 32
+    STATEMENT = "statement", 33
+    RECORD = "record", 34
+    FIELD = "field", 35
+    SECRET = "secret", 36
+    BLOB = "blob", 37
+    RUN = "run", 38  # not used yet
+    # blob nodes
+    IMAGE = "image", 50
+    VIDEO = "video", 51
+    AUDIO = "audio", 52
 
 
 class TypeFlag(enum.IntFlag):
@@ -300,11 +326,7 @@ class TypeFlag(enum.IntFlag):
 
 class TypeStorageFormat(ProtoStrEnum):
     """
-    The fundamental form of a field/type.
-    Since we're using OpenSearch for our user data backend, this
-    needs to be compatible with OpenSearch's field types.
-    However, be mindful of other future storage/indexing backends.
-    :TypeStorageFormat
+    The fundamental form of a field/type.:TypeStorageFormat
     """
 
     STRING = "str", 1
