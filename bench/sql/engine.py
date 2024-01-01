@@ -17,7 +17,6 @@ from psycopg.types.json import Jsonb
 import bench.language as lang
 from bench.language import ConditionalOp, Field, HasDatabase, Module, QueryEngine
 from bench.language.const import NodeType, TypeFlag, TypeStorageFormat
-from bench.language.edit import EditData, EditKind
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     ExpressionOps,
@@ -25,8 +24,9 @@ from bench.language.expression import (
     QueryEngineIncapableError,
 )
 from bench.language.module import UNSET, get_node_id
+from bench.language.render import EditData, EditKind
 from bench.proto import wire
-from bench.sql.client import async_pg_cursor, GLOBAL_RO_USERNAME, GLOBAL_RO_PASSWORD
+from bench.sql.client import GLOBAL_RO_PASSWORD, GLOBAL_RO_USERNAME, async_pg_cursor
 from bench.sql.core import (
     BASE_RECORD_TABLE,
     CONSTRUCT_TABLE,

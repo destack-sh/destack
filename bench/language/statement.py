@@ -144,7 +144,6 @@ _s(
         ("resolved_fields", _Passthrough.Scope),
     ),
 )
-_s(StatementType.GROUP, (HasText,), IdentT.VARIABLE, passthrough=(("children", _Passthrough.Full),))
 _s(
     StatementType.VIEW,
     (HasFields, HasText),
@@ -198,7 +197,6 @@ class Statement(ScopeNode, HasTags):
         29, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
     )
     versioned: bool = struct_internal(30, default=True)
-    external_name: str | None = struct_internal(31, default=None)
 
     @staticmethod
     def new(

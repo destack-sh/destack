@@ -14,6 +14,13 @@ enum AggregationOp {
   AGGREGATION_OP_HISTOGRAM = 7;
 }
 
+enum EditKind {
+  EDIT_KIND_UNSPECIFIED = 0;
+  EDIT_KIND_CREATE = 1;
+  EDIT_KIND_UPDATE = 2;
+  EDIT_KIND_DELETE = 3;
+}
+
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_MODULE = 1;

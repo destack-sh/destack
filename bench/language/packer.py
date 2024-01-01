@@ -24,8 +24,7 @@ import pytz
 import structlog
 from more_itertools import first
 
-from bench.language.blob import Blob
-from bench.language.const import BlobStatus, TypeFlag, TypeHint, TypeTag
+from bench.language.const import TypeFlag, TypeHint, TypeTag
 from bench.language.expression import TYPE_DISCRIMINATOR_KEY
 from bench.language.field import (
     PRIMITIVE_TYPES,
@@ -41,7 +40,6 @@ from bench.language.field import (
     Vector,
 )
 from bench.language.module import NS, Node, ScopeNode
-from bench.language.secret import Secret
 from bench.language.session import Session
 from bench.language.statement import Statement
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
@@ -629,70 +627,6 @@ class NodeMapper(TypeMapper):
         return value.py_ident
 
 
-# TODO @Architecture @Cleanup: Blob/Secret references should just be flat ck references
-
-
-@dataclass
-class BlobMapper(TypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return py_type is Blob
-
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> HasType:
-        return Field(name=None, tag=TypeTag.BLOB)
-
-    def is_instance_value(self, type: HasType, value: Any) -> bool:
-        return isinstance(value, Blob)
-
-    def unpack_value(
-        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
-    ) -> Any:
-        return Blob(
-            id=UUID(value["id"]),
-            name=value["name"],
-            content_type=value["content_type"],
-            content_length=value["content_length"],
-            sha512=value["sha512"],
-            status=BlobStatus[value["status"]],
-            parent=scope,
-            _session=session,
-        )
-
-    def pack_value(self, type: HasType, value: Any) -> Any:
-        return {
-            TYPE_DISCRIMINATOR_KEY: BLOB_TYPENAME,
-            "id": str(value.id),
-            "name": value.name,
-            "content_type": value.content_type,
-            "content_length": value.content_length,
-            "sha512": value.sha512,
-            "status": value.status.name,
-        }
-
-
-@dataclass
-class SecretMapper(TypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return py_type is Secret
-
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> HasType:
-        return Field(name=None, tag=TypeTag.STRING, hint=TypeHint.SECRET, flags=TypeFlag.IS_SECRET)
-
-    def is_instance_value(self, type: HasType, value: Any) -> bool:
-        return isinstance(value, Secret)
-
-    def unpack_value(
-        self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
-    ) -> Any:
-        return Secret(id=UUID(value["id"]), sha512=value["sha512"], parent=scope, _session=session)
-
-    def pack_value(self, type: HasType, value: Any) -> Any:
-        return {
-            TYPE_DISCRIMINATOR_KEY: SECRET_TYPENAME,
-            "id": str(value.id),
-            "sha512": value.sha512,
-        }
-
-
 @dataclass
 class StructMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
@@ -1089,7 +1023,6 @@ register_mapper(
 )
 register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN])
 register_mapper(VectorTypeMapper(), tags=[TypeTag.VECTOR])
-register_mapper(BlobMapper(), tags=[TypeTag.BLOB])
 register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
 register_mapper(NodeMapper(), tags=[TypeTag.NODE])
 register_mapper(StructMapper(), tags=[TypeTag.STRUCT])
@@ -1106,5 +1039,3 @@ register_mapper(IsoDtTypeMapping(time, TypeTag.STRING), hints=[TypeHint.TIME])
 register_mapper(
     StaticPyTypeMapper(int, TypeTag.NUMBER, hint=TypeHint.INTEGER), hints=[TypeHint.INTEGER]
 )
-# other
-register_mapper(SecretMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IS_SECRET)

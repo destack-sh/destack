@@ -2,7 +2,7 @@ import enum
 
 import strawberry
 
-from bench.language.edit import EditType
+from bench.language.render import EditType
 
 EditType = strawberry.enum(EditType)
 

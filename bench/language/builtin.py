@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import uuid5
 
 from bench.language.const import BENCH_UUID_NAMESPACE
-from bench.language.module import Module
+from bench.language.module import Bench, Module
 from bench.utils.utils import DEBUG
 
 if TYPE_CHECKING:
@@ -81,15 +81,14 @@ def _without_validation() -> None:
         raise RuntimeError("cannot disable validation outside debug mode")
 
 
-def _make_builtin_lib_module(name: str) -> Module:
+def _make_builtin_bench(name: str) -> tuple[Bench, Module]:
     # :BuiltinLibs
-    ck = uuid5(BENCH_UUID_NAMESPACE, f"builtin:{name}")
-    id = uuid5(ck, os.environ["VERSION"])
-    return Module(name=name, ck=ck, id=id, project_id=ck)
+    bench_id = uuid5(BENCH_UUID_NAMESPACE, f"builtin:{name}")
+    bench = Bench(name=name, id=bench_id, ck=bench_id)
+    module_id = uuid5(bench_id, os.environ["VERSION"])
+    module = Module(parent=bench, id=module_id)
+    return bench, module
 
 
-symbolx_lib = _make_builtin_lib_module("symbolx.lib")
-openai_lib = _make_builtin_lib_module("openai.lib")
-anthropic_lib = _make_builtin_lib_module("anthropic.lib")
-deepgram_lib = _make_builtin_lib_module("deepgram.lib")
-huggingface_lib = _make_builtin_lib_module("huggingface.lib")
+# real data will be patched in at first runtime start
+symbolx_bench, symbolx_lib = _make_builtin_bench("symbolx.bench")

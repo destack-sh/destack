@@ -4,7 +4,7 @@ from typing import Optional
 from bench.language import Node
 from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import NodeType
-from bench.language.module import node, struct_property, struct_runtime
+from bench.language.module import node, struct_internal, struct_property
 
 SecretValueT = typing.TypeVar("SecretValueT")
 
@@ -14,7 +14,7 @@ class Secret(Node, typing.Generic[SecretValueT]):
     """A shared secret with a deferred value (loaded on demand)t."""
 
     sha512: str = struct_property(20)
-    value: Optional[SecretValueT] = struct_runtime(default=None)
+    value: Optional[SecretValueT] = struct_internal(21, default=None, defer=True, encrypt=True)
 
     def __str__(self):
         return f"{self.id} ({self.sha512[:8]})"

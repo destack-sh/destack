@@ -21,7 +21,7 @@ from django.db.models import F, Model, QuerySet
 from django.db.models.expressions import RawSQL
 
 from bench import models
-from bench.language import TypeTag, wire, wiring
+from bench.language import TypeTag
 from bench.language.const import (
     HOST_NODE_TYPES,
     INTERP_NODE_TYPES,
@@ -29,8 +29,9 @@ from bench.language.const import (
     RunStatus,
     TriggerType,
 )
-from bench.language.edit import EditBundle, EditData, EditKind
 from bench.language.module import NODE_CLASS_BY_NODE_TYPE, NodeTree, to_bench_metatype
+from bench.language.render import EditBundle, EditData, EditKind
+from bench.proto import wire, wiring
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import to_uuid
 from bench.utils.utils import flatten
@@ -389,7 +390,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
         return wire.ModuleData(
             metatype=wire.BenchType.MODULE,
             id=str(module.id),
-            ck=str(module.project_id),
+            ck=str(module.bench_id),
             name=module.project.path,
             committed=module.committed,
             parent_id=None,
@@ -1006,15 +1007,17 @@ def write_host_db_edits(
     now = utcnow_with_tz()
     edited_nodes: list[NodeDataT] = []
 
-    for edit_type, edit_batch in edits.batched_apply(source, raise_on_error=raise_on_apply_error):
-        if edit_type.node_type in (NodeType.RECORD,):  # can't do local edits in host..
-            raise RuntimeError(f"unexpected host edit {edit_type}: {edit_batch!r}")
-        if edit_type.kind == EditKind.TRUNCATE:
+    for (edit_kind, node_type, scope_type), edit_batch in edits.batched_apply(
+        source, raise_on_error=raise_on_apply_error
+    ):
+        if node_type in (NodeType.RECORD,):  # can't do local edits in host..
+            raise RuntimeError(f"unexpected host edit {edit_batch}: {edit_batch!r}")
+        if edit_kind == EditKind.TRUNCATE:
             # remove children of a certain type by scope
             # this is a bit unwieldy...
             statement_ids = [e.statement_id for e in edit_batch if e.statement_id is not None]
             file_ids = [e.file_id for e in edit_batch if e.file_id is not None]
-            model_cls = MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
+            model_cls = MODEL_CLASS_BY_NODE_TYPE[scope_type]
             if statement_ids:
                 if hasattr(model_cls, "statement"):
                     model_cls._base_manager.filter(statement_id__in=statement_ids).delete()
@@ -1028,10 +1031,10 @@ def write_host_db_edits(
             else:
                 model_cls._base_manager.filter(project_version_id=project_v.id).delete()
 
-        elif edit_type.kind == EditKind.CREATE:
+        elif edit_kind == EditKind.CREATE:
             # create nodes
             nodes = unpack_nodes(project_v, source, [e.node for e in edit_batch])
-            model_cls = MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
+            model_cls = MODEL_CLASS_BY_NODE_TYPE[node_type]
             model_cls.objects.bulk_create(nodes)
             # reload nodes (e.g., for revisions)
             nodes = model_cls._base_manager.filter(id__in=[e.node.id for e in edit_batch])
@@ -1040,7 +1043,7 @@ def write_host_db_edits(
                 e.thing = node  # keep node model for downstream indexing in opensearch
             edited_nodes.extend(e.node for e in edit_batch)
 
-        elif edit_type.kind in (
+        elif edit_kind in (
             EditKind.UPDATE,
             EditKind.MOVE,
             EditKind.SOFT_DELETE,
@@ -1048,12 +1051,12 @@ def write_host_db_edits(
         ):
             # update nodes in place
             nodes = unpack_nodes(project_v, source, [e.node for e in edit_batch])
-            model_cls = MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
-            if edit_type.kind == EditKind.SOFT_DELETE:
+            model_cls = MODEL_CLASS_BY_NODE_TYPE[node_type]
+            if edit_kind == EditKind.SOFT_DELETE:
                 for node in nodes:
                     node.deleted_at = node.deleted_at or now
                 cru_properties = ["deleted_at"]
-            elif edit_type.kind == EditKind.RESTORE:
+            elif edit_kind == EditKind.RESTORE:
                 for node in nodes:
                     node.deleted_at = None
                 cru_properties = ["deleted_at"]
@@ -1066,10 +1069,7 @@ def write_host_db_edits(
             nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
             for e, node in zip(edit_batch, nodes):
                 properties = flatten(
-                    *(
-                        REMAP_PROPERTIES.get((edit_type.node_type, p), [p])
-                        for p in e.properties or ()
-                    )
+                    *(REMAP_PROPERTIES.get((node_type, p), [p]) for p in e.properties or ())
                 )
                 properties = ";".join(properties)
                 nodes_by_props[properties].append(node)
@@ -1077,9 +1077,9 @@ def write_host_db_edits(
             for properties, nodes in nodes_by_props.items():
                 properties = [p for p in properties.split(";") if p]
                 # need to remap properties since edit data uses language names (see :Edit)
-                properties = wire.remap_properties(edit_type.node_type, properties)
+                properties = wire.remap_properties(node_type, properties)
                 # validate changed properties (records have no validation)
-                if validate and edit_type.node_type != NodeType.RECORD:
+                if validate and node_type != NodeType.RECORD:
                     unchanged_properties = [
                         f.name for f in model_cls._meta.fields if f.name not in properties
                     ]
@@ -1099,8 +1099,8 @@ def write_host_db_edits(
                 e.thing = node  # keep node model for downstream indexing in opensearch
             edited_nodes.extend(e.node for e in edit_batch)
 
-        elif edit_type.kind == EditKind.DELETE:
-            model_cls = MODEL_CLASS_BY_NODE_TYPE[edit_type.node_type]
+        elif edit_kind == EditKind.DELETE:
+            model_cls = MODEL_CLASS_BY_NODE_TYPE[node_type]
             model_cls._base_manager.filter(id__in=[e.node.id for e in edit_batch]).delete()
 
     return edited_nodes

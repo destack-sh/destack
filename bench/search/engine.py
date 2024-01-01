@@ -2,7 +2,7 @@ import base64
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, NamedTuple, Optional, Union, Type
+from typing import Any, NamedTuple, Optional, Type, Union
 from uuid import UUID
 
 import psycopg
@@ -23,7 +23,6 @@ from bench.language import (
     TypeTag,
 )
 from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
-from bench.language.edit import EditType, EditData, EditKind
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     Expression,
@@ -34,11 +33,12 @@ from bench.language.expression import (
     S,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
+from bench.language.render import EditData, EditKind, EditType
 from bench.proto import wire
-from bench.search import core as os, mirror
+from bench.search import core as os
 from bench.search import mirror
-from bench.search.client import os_client, os_client_sync, get_os_errors
-from bench.search.core import DocumentType, IndexType, SubfieldType, LOCAL_OS_NODE_TYPES
+from bench.search.client import get_os_errors, os_client, os_client_sync
+from bench.search.core import LOCAL_OS_NODE_TYPES, DocumentType, IndexType, SubfieldType
 
 logger = structlog.get_logger(__name__)
 
@@ -60,9 +60,7 @@ class FieldMapper:
         raise NotImplementedError
 
 
-TypeSignature = NamedTuple(
-    "TypeSignature", [("tag", TypeTag), ("hint", Optional[TypeHint]), ("flags", TypeFlag)]
-)
+TypeSignature = NamedTuple("TypeSignature", [("tag", TypeTag), ("hint", Optional[TypeHint])])
 
 field_mappers: dict[TypeSignature, FieldMapper] = {}
 
@@ -71,7 +69,6 @@ def register_mapper(
     mapper: os.Field | FieldMapper,
     tags: list[TypeTag] = None,
     hints: list[TypeHint] = None,
-    flags: TypeFlag = None,
 ) -> None:
     if not tags and not hints:
         raise ValueError("at least one tag or hint must be specified")
@@ -79,24 +76,22 @@ def register_mapper(
         mapper = StaticFieldMapper(mapper)
     tags = tags or []
     hints = hints or []
-    flags = flags or TypeFlag.ZERO
     for tag in tags:
-        field_mappers[TypeSignature(tag, None, flags)] = mapper
+        field_mappers[TypeSignature(tag, None)] = mapper
     for hint in hints:
         tag = TYPE_TAG_BY_TYPE_HINT[hint]
-        field_mappers[TypeSignature(tag, hint, flags)] = mapper
+        field_mappers[TypeSignature(tag, hint)] = mapper
 
 
 def get_mapper(type: Union[lang.Field, lang.Statement]) -> FieldMapper:
     if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Statement):
         return get_mapper(type.reference)  # skip the reference
-    stripped_flags = type.flags & TypeFlag.IS_SECRET
-    exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
+    exact_signature = TypeSignature(type.tag, type.hint)
     mapping = field_mappers.get(exact_signature)
     if mapping is not None:
         return mapping
     # no exact match, try generic without hint
-    stripped_signature = TypeSignature(type.tag, None, stripped_flags)
+    stripped_signature = TypeSignature(type.tag, None)
     mapping = field_mappers.get(stripped_signature)
     if mapping is not None:
         return mapping
@@ -164,25 +159,12 @@ register_mapper(
 )
 register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.NODE], hints=[TypeHint.UUID, TypeHint.KEY])
 register_mapper(os.Field(os.FT.DATE), hints=[TypeHint.DATE, TypeHint.DATETIME])
-# number
 register_mapper(os.Field(os.FT.DOUBLE), tags=[TypeTag.NUMBER], hints=[TypeHint.DURATION])
 register_mapper(os.Field(os.FT.LONG), hints=[TypeHint.INTEGER])
-# boolean
 register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
-# vector
 register_mapper(VectorFieldMapper(), tags=[TypeTag.VECTOR])
-# vector
 register_mapper(os.Field(os.FT.FLAT_OBJECT), tags=[TypeTag.JSON])
-# blob/secret will be replaced by node references soon
-# blob
-register_mapper(os.Field(os.FT.FLAT_OBJECT), tags=[TypeTag.BLOB])
-# secret
-register_mapper(
-    os.Field(os.FT.FLAT_OBJECT), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IS_SECRET
-)
-# struct
 register_mapper(StructFieldMapper(), tags=[TypeTag.STRUCT])
-# enum
 register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.ENUM])
 
 

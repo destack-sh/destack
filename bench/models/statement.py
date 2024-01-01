@@ -176,8 +176,7 @@ class Statement(CrudNode):
     text = models.TextField(null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
-    external_name = models.CharField(max_length=128, null=True, blank=True)
-    versioned = models.BooleanField(default=True)
+    versioned = models.BooleanField(default=True)  # nocheckin: negate & rename to ???
     fields: models.QuerySet[Field]  # noqa via Field.statement
     taggings: models.QuerySet[Tagging]  # noqa via Tagging.statement
     triggers: models.QuerySet[Trigger]  # noqa via Trigger.statement

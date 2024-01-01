@@ -9,6 +9,17 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
+// Edit describes an edit to a node in a Bench.
+// (Manually defined here since Node properties inside structs aren't supported.)
+message EditData {
+  EditKind kind = 1;
+  string module_id = 2;
+  SomeNodeData node = 3;
+  NodeType target = 4;
+  int64 revision = 5;
+  repeated string properties = 6;
+}
+
 enum ClientType {
   WEB = 0;
   WORKER = 1;
@@ -18,6 +29,14 @@ message ClientOrigin {
   ClientType client_type = 1;
   string client_id = 2;
   string nonce = 3;
+}
+
+message NodePointer {
+  NodeType node_type = 1;
+  oneof node {
+    string node_ck = 2;
+    string node_id = 3;
+  }
 }
 
 enum ServiceType {
@@ -92,6 +111,7 @@ message GetBenchChangesRequest {
   int64 after_change_marker = 1;
 }
 message GetBenchChangesResponse {
+  // nocheckin
 }
 
 
@@ -99,7 +119,7 @@ message GetModuleEditsRequest {
   int64 after_edit_marker = 1;
 }
 message GetModuleEditsResponse {
-  //  repeated EditData edits = 1;
+    repeated EditData edits = 1;
 }
 
 message GetLogsRequest {}
@@ -107,9 +127,12 @@ message GetLogsResponse {
   repeated LogEntryData logs = 1;
 }
 
-message ReadModuleRequest {}
-message ReadModuleResponse {
-  ModuleTreeData module = 1;
+message ReadNodesRequest {
+  repeated NodePointer roots = 1;
+  bool include_deferred_properties = 2;
+}
+message ReadNodesResponse {
+  repeated SomeNodeData nodes = 1;
 }
 
 message SearchNodesRequest {
@@ -127,7 +150,7 @@ message SearchNodesResponse {
 }
 
 message CommitEditsRequest {
-  //  repeated EditData edits = 1;
+    repeated EditData edits = 1;
 }
 message CommitEditsResponse {
   repeated SomeNodeData changed_nodes = 1;
@@ -208,7 +231,7 @@ service RuntimeHost {
   // Receive any future edits to this module.
   rpc GetModuleEdits(GetModuleEditsRequest) returns (stream GetModuleEditsResponse);
   // Reads the entire module tree.
-  rpc ReadModule(ReadModuleRequest) returns (ReadModuleResponse);
+  rpc ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
   // Searches out-of-line nodes in the module.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   // Commits a set of edits to the module.
@@ -234,7 +257,7 @@ service RuntimeHost {
   // Runs a well-known internal statement in the host with our credentials.
   rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
   // Pulls the runs a worker should run immediately after starting (scheduled).
-  //  (Maybe merge this into ReadModule with a query later? search_records too? Not sure.)
+  //  (Maybe merge this into ReadNodes with a query later? search_records too? Not sure.)
   rpc PullWorkerRuns(PullWorkerRunsRequest) returns (PullWorkerRunsResponse);
   // Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
   rpc PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);

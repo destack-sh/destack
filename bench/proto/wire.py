@@ -802,6 +802,12 @@ class ViewData(betterproto.Message):
     sort: List["ExpressionData"] = betterproto.message_field(23)
 
 
+@dataclass
+class EditData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+
+
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
     module: "ModuleData" = betterproto.message_field(1, group="node")

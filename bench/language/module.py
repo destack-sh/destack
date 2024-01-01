@@ -27,8 +27,10 @@ from cachetools import cached
 
 from bench.language.const import (
     INTERP_NODE_TYPES,
+    OUT_OF_LINE_NODE_TYPES,
     BenchType,
     ConditionalOp,
+    EditKind,
     ExpressionOp,
     IssueKind,
     IssueType,
@@ -51,6 +53,7 @@ from bench.language.validation import (
 )
 from bench.proto import wire
 from bench.proto.core import ProtoStrEnum
+from bench.proto.wire import EditData, ModuleTreeData, SomeNodeData
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -74,9 +77,8 @@ from bench.utils.utils import (
 
 if TYPE_CHECKING:
     from bench.language import Expression, Field, File, Issue, NodeVisitor, Session
-    from bench.language.edit import EditData
     from bench.language.issue import IssueHandler
-    from bench.proto.wire import SomeNodeData
+    from bench.proto.wiring import AnyNodeData
 
 logger = structlog.get_logger(__name__)
 
@@ -336,6 +338,8 @@ class Property(_FieldExpressionBase):
     ancestor_node_type: NodeType | None = None
     is_stored: bool = UNSET  # auto-detect (false for runtime properties)
     store_as: ColumnType | None = UNSET  # auto-detect (yes for most non-runtime properties)
+    is_deferred: bool = False  # not loaded immediately (only for node properties)
+    is_encrypted: bool = False  # encrypt at rest (only node properties)
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
     list_type: type["NodeListBase"] | None = None
@@ -389,6 +393,8 @@ class Property(_FieldExpressionBase):
             "is_reflected",
             "is_ancestor_nearest",
             "is_ancestor_self",
+            "is_deferred",
+            "is_encrypted",
             "struct_type",
             "reference_types",
             "parent_node_types",
@@ -614,6 +620,8 @@ def struct_internal(
     struct_t: StructType = None,
     store: bool = UNSET,
     store_as: ColumnType = UNSET,
+    defer: bool = False,
+    encrypt: bool = False,
 ):
     """Internal only struct/node property."""
     return Property(
@@ -630,6 +638,8 @@ def struct_internal(
         is_stored=store,
         struct_type=struct_t,
         store_as=store_as,
+        is_deferred=defer,
+        is_encrypted=encrypt,
     )
 
 
@@ -1684,9 +1694,9 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
             raise LookupError(f"no ancestor of type {node_type} for node {node_id!r}")
         return node
 
-    def apply_edit(self, edit: "EditData"):
+    def apply_edit(self, edit: EditData):
         """Applies a list of edits to the tree"""
-        from bench.language.edit import EditKind
+        from bench.language.render import EditKind
 
         if edit.kind in (EditKind.CREATE, EditKind.RESTORE):
             self.add(edit.node)
@@ -2385,15 +2395,16 @@ class Node(Struct):
     ck: UUID = struct_internal(3, default=None, reflect=True)
     parent: Optional["Node"] = node_parent(4)
     module: Optional["Module"] = node_ancestor(5, NodeType.MODULE)
-    # prototype: Optional["Node"] / instance_of_ck: UUID
+    # prototype / template: Optional["Node"]
 
     # 10-19: reserved for node tracking
-    created_at: datetime = struct_internal(10, default=None, is_cru=True, reflect=True)
-    updated_at: datetime = struct_internal(11, default=None, is_cru=True, reflect=True)
-    deleted_at: datetime = struct_internal(12, default=None, is_cru=True, reflect=True)
-    last_edited_at: datetime = struct_internal(13, default=None, is_cru=True, reflect=True)
-    last_changed_at: datetime = struct_internal(14, default=None, is_cru=True, reflect=True)
-    revision: int = struct_internal(15, default=0, is_cru=True, reflect=True)
+    revision: int = struct_internal(10, default=0, is_cru=True, reflect=True)
+    created_at: datetime = struct_internal(11, default=None, is_cru=True, reflect=True)
+    updated_at: datetime = struct_internal(12, default=None, is_cru=True, reflect=True)
+    deleted_at: datetime = struct_internal(13, default=None, is_cru=True, reflect=True)
+    archived_at: datetime = struct_internal(14, default=None, is_cru=True, reflect=True)
+    last_edited_at: datetime = struct_internal(16, default=None, is_cru=True, reflect=True)
+    last_changed_at: datetime = struct_internal(17, default=None, is_cru=True, reflect=True)
 
     # 20+ for 'user' node/struct properties
     # <... defined in concrete node type ...>
@@ -2946,15 +2957,34 @@ class ScopeNode(Node):
         return [i for i in self.errors or [] if i.parent == self]
 
 
+@node(NodeType.BENCH)
+class Bench(ScopeNode):
+    """
+    A Bench is the root of all modules and everything in a Bench project.
+    We don't use this on its own, only through Module.
+    """
+
+    parent: None = node_parent(4)
+    name: str = struct_internal(20)
+    os_name: Optional[str] = struct_internal(21, default=None)
+    pg_name: Optional[str] = struct_internal(22, default=None)
+
+    # versions: NodeList["Module"] = node_children(NodeType.MODULE, NRel.Remote)
+
+    @property
+    def attached(self) -> bool:
+        return True  # always "attached"
+
+
 @dataclass
 class ModuleChange:
-    source_edits: list["EditData"]  # incoming external edits
-    interp_edits: list["EditData"]  # resulting interp state change
+    source_edits: list[EditData]  # incoming external edits
+    interp_edits: list[EditData]  # resulting interp state change
     added: list[Node]
     updated: list[Node]
     removed: list[Node]
     touched_types: set[NodeType | StatementType] = dataclasses.field(init=False)
-    all_edits: list["EditData"] = dataclasses.field(init=False)
+    all_edits: list[EditData] = dataclasses.field(init=False)
 
     def __post_init__(self):
         self.touched_types = {n.metatype for n in self.touched} | {
@@ -2976,12 +3006,8 @@ class ModuleChange:
 
 @node(NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
-    parent: None = node_parent(4)
-    name: str = struct_internal(20)  # can't change this (yet?)
-    committed: bool = struct_internal(21, default=False)
-    project_id: Optional[UUID] = struct_internal(22, default=None)
-    os_name: Optional[str] = struct_internal(23, default=None)
-    pg_name: Optional[str] = struct_internal(24, default=None)
+    parent: Bench = node_parent(4, NodeType.BENCH)  # nocheckin: always set Module.parent Bench
+    is_main: bool = struct_internal(21, default=False)
 
     files: NodeList["File"] = node_children(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
     dependencies: dict[str, Union["Module", ModuleReference]] = struct_runtime(default_factory=dict)
@@ -3006,6 +3032,18 @@ class Module(ScopeNode):
         return f"<Module {str(self)}>"
 
     @property
+    def name(self):
+        return self.parent.name
+
+    @property
+    def pg_name(self) -> str:
+        return self.parent.pg_name
+
+    @property
+    def os_name(self) -> str:
+        return self.parent.os_name
+
+    @property
     def _tree(self) -> NodeTree:
         return self._local_tree
 
@@ -3015,7 +3053,7 @@ class Module(ScopeNode):
 
     @property
     def attached(self) -> bool:
-        return True  # module = root, so is always "attached"
+        return True  # always "attached"
 
     @property
     def path(self) -> str:
@@ -3033,7 +3071,7 @@ class Module(ScopeNode):
     def add_dependency(self, dependency: Union["Module", ModuleReference]) -> None:
         if dependency.name in self.dependencies:
             raise ValueError(
-                f"{self} has dependency {dependency.name}: {self.dependencies[dependency.name]}"
+                f"{self!r} already has dependency {dependency.name}: {self.dependencies[dependency.name]}"
             )
         self.dependencies[dependency.name] = dependency
 
@@ -3099,7 +3137,7 @@ class Module(ScopeNode):
             self._add_node_to_scope(builtin)
 
     def _apply_edits(
-        self, edits: list["EditData"], old_source: NodeTree | None = None
+        self, edits: list[EditData], old_source: NodeTree | None = None
     ) -> ModuleChange:
         """
         Applies the given external edits to the module.
@@ -3144,7 +3182,7 @@ class Module(ScopeNode):
         if prev_session:
             self.module._activate_rec(prev_session)
 
-    def _apply_edits_to_source(self, edits: list["EditData"]) -> None:
+    def _apply_edits_to_source(self, edits: list[EditData]) -> None:
         """Applies the edits directly to the source without any interp."""
 
         for edit in edits:
@@ -3158,12 +3196,10 @@ class Module(ScopeNode):
 
     def _compute_change(
         self,
-        source_edits: list["EditData"],
+        source_edits: list[EditData],
         old_source: NodeTree,
     ) -> ModuleChange:
         """Computes the change between the old and new module state."""
-        from bench.language.edit import NodeTreeEditor
-
         new_nodes: dict[UUID, Node] = self.module._tree.nodes_by_ck
         added = []
         updated = []
@@ -3213,9 +3249,6 @@ class Module(ScopeNode):
         source = [wiring.unwrap_some_node(s) for s in source]
         source = NodeTree(source)
         module = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
-        module.project_id = project_id
-        module.os_name = os_name
-        module.pg_name = pg_name
         module._source = source
         old_source = module._source.copy()
 
@@ -3230,6 +3263,204 @@ class Module(ScopeNode):
             module._apply_edits_to_source(change.interp_edits)
 
         return module
+
+
+# NOTE: we don't generate EditData yet because of missing nested node support
+#  EditData is defined manually in our extra proto file.
+# @struct(StructType.EDIT)
+# class Edit:
+#     """
+#     An edit to a module/node.
+#     """
+#
+#     kind: EditKind = struct_internal(20)
+#     module: "Module" = struct_internal(21, references=NodeType.MODULE)
+#     node: "Node" = ???
+#     scope: NodeType | None = struct_internal(23, default=None)  # select children for truncate
+#     revision: Optional[int] = struct_internal(23, default=None)
+#     properties: list[str] = struct_internal(24, default=None)
+
+
+EditableNode = Union[Node, "AnyNodeData"]
+
+
+class NodeTreeEditor:
+    """Create edits to a module node tree."""
+
+    def __init__(
+        self,
+        tree: "NodeTree",
+        project_id: UUID,
+        module_id: UUID,
+        # default file and statement id
+        file_id: UUID = None,
+        statement_id: UUID = None,
+    ):
+        self.tree = tree
+        self.project_id = project_id
+        self.module_id = module_id
+        self.file_id = file_id
+        self.statement_id = statement_id
+        self.edits = []
+
+    def __str__(self):
+        return f"edit {len(self.edits)} {self.module_id}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
+
+    def reset(self):
+        self.edits = []
+
+    def _make_edit(
+        self,
+        kind: EditKind,
+        node: EditableNode,
+        properties: list[str] = None,
+        scope: NodeType = None,
+    ) -> EditData:
+        from bench.proto.wiring import wrap_some_node
+
+        edit = EditData(
+            kind=kind,
+            module_id=self.module_id,
+            scope=scope,
+            properties=properties,
+            node=wrap_some_node(self._pack_node_flat_if_needed(node)),
+        )
+        self.edits.append(edit)
+        return edit
+
+    def _pack_node_flat_if_needed(self, node: Union[Node, EditableNode]) -> "AnyNodeData":
+        from bench.proto import wiring
+
+        if isinstance(node, Node):
+            return wiring.pack_node(node)
+        else:
+            return dataclasses.replace(node)  # shallow copy
+
+    def truncate(self, node: EditableNode, scope: NodeType) -> EditData:
+        return self._make_edit(EditKind.TRUNCATE, node, scope=scope)
+
+    def create_many(self, *nodes: EditableNode) -> list[EditData]:
+        return [self.create(node) for node in nodes]
+
+    def create(self, node: EditableNode) -> EditData:
+        return self._make_edit(EditKind.CREATE, node)
+
+    def update(self, node: EditableNode, properties: list[str] = None) -> EditData:
+        assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
+        return self._make_edit(EditKind.UPDATE, node, properties)
+
+    def move(self, node: EditableNode) -> EditData:
+        return self._make_edit(EditKind.MOVE, node)
+
+    def soft_delete_many(
+        self, *nodes: EditableNode, deleted_at: datetime | None = None
+    ) -> list[EditData]:
+        return [self.soft_delete(node, deleted_at) for node in nodes]
+
+    def soft_delete(self, node: EditableNode, deleted_at: datetime | None = None) -> EditData:
+        # sneakily convert soft delete into hard delete for interp types
+        if node.metatype in INTERP_NODE_TYPES:
+            return self.delete(node)
+        node = self._pack_node_flat_if_needed(node)
+        node.deleted_at = deleted_at or utcnow_with_tz()
+        return self._make_edit(EditKind.SOFT_DELETE, node)
+
+    def restore(self, node: EditableNode) -> EditData:
+        node = self._pack_node_flat_if_needed(node)
+        node.deleted_at = None
+        return self._make_edit(kind=EditKind.RESTORE, node=node)
+
+    def delete(self, node: EditableNode) -> EditData:
+        return self._make_edit(EditKind.DELETE, node)
+
+
+class EditBundle:
+    """Indexed access to a constant list of edits."""
+
+    def __init__(self, edits: list[EditData]):
+        self.edits = edits
+
+    def __str__(self):
+        return f"edit {len(self.edits)}"
+
+    def __repr__(self):
+        return f"<EditBundle {self}>"
+
+    def batched(self) -> Iterator[tuple[tuple[EditKind, NodeType, NodeType], list[EditData]]]:
+        """
+        Batch consecutive edits by type in order of appearance.
+        """
+
+        current_batch: list[EditData] = []
+        current_type: tuple[EditKind, NodeType, NodeType] | None = None
+
+        for edit in self.edits:
+            edit_type = (edit.kind, edit.node_type, edit.scope)
+            if edit_type != current_type:
+                if current_type is not None:
+                    yield current_type, current_batch
+                current_batch = [edit_type]
+            current_batch.append(edit)
+
+        if current_batch:
+            yield current_type, current_batch
+
+    def batched_apply(
+        self, tree: NodeTree, raise_on_error: bool = True
+    ) -> Iterator[tuple[tuple[EditKind, NodeType, NodeType], list[EditData]]]:
+        """
+        Batch consecutive edits by type in order of appearance
+         AND optionally concurrently apply them to the given module tree.
+        (there may be multiple batches of the same type).
+        """
+
+        for type, batch in self.batched():
+            yield type, batch
+            if type[2] in OUT_OF_LINE_NODE_TYPES:
+                continue  # ignore since it's not in the inline tree
+            for edit in batch:
+                try:
+                    tree.apply_edit(edit)
+                except ValueError:
+                    if raise_on_error:
+                        raise
+
+
+def diff_modules(
+    old_module: ModuleTreeData, new_module: ModuleTreeData, project_id: UUID
+) -> list[EditData]:
+    """
+    Get the edits needed to transform old_module into new_module.
+    Find nodes by their id (not ck).
+    """
+    old_tree = NodeTree(old_module.nodes)
+    editor = NodeTreeEditor(old_tree, old_module.id, project_id)
+    new_tree = NodeTree(new_module.nodes)
+
+    for new_node in new_tree.walk_bfs():
+        if new_node.metatype == NodeType.MODULE:
+            continue  # ignore module itself
+        if new_node.id not in old_tree.nodes_by_id:
+            old_tree.apply_edit(editor.create(new_node))
+        else:
+            old_node = old_tree.nodes_by_id[new_node.id]
+            if not new_node.equals_content(old_node):
+                old_tree.apply_edit(editor.update(new_node))
+    for old_node in old_tree.walk_bfs():
+        if old_node.metatype == NodeType.MODULE:
+            continue
+        if old_node.id not in new_tree.nodes_by_id:
+            old_tree.apply_edit(editor.delete(old_node))
+    # sort into delete -> create -> update
+    edits = [
+        *(e for e in editor.edits if e.type.kind == EditKind.DELETE),
+        *(e for e in editor.edits if e.type.kind == EditKind.CREATE),
+        *(e for e in editor.edits if e.type.kind == EditKind.UPDATE),
+    ]
+    return edits
 
 
 _FINAL_BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
@@ -3255,6 +3486,7 @@ def complete_setup():
 
     # misc finalization on properties
     for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
+        is_node = issubclass(cls, Node)
         for name, prop in cls.__properties__.items():
             prop: Property
             # determine final storage type
@@ -3264,6 +3496,12 @@ def complete_setup():
             if prop.is_reflected:
                 setattr(cls, name, prop)
                 prop._as_field  # noqa ensure the reflected field works (and cache it)
+
+            # check deferred/encrypted properties
+            if prop.is_deferred and not prop.is_stored:
+                raise ValueError(f"{prop!r} cannot be deferred and not stored on {cls!r}")
+            if not is_node and prop.is_deferred or prop.is_encrypted:
+                raise ValueError(f"{prop!r} cannot be deferred or encrypted on {cls!r}")
 
             # check py_type matches struct type as defined
             if (

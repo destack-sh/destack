@@ -8,16 +8,16 @@ from django.db import transaction
 from bench import models
 from bench.language.const import NodeType, StatementType
 from bench.models import Project, ProjectVisibility
+from bench.runtime.utils import interp_module
 from bench.search.client import os_client_sync
 from bench.search.engine import (
-    update_os_schema,
     create_global_os_index,
     create_global_os_role,
     create_local_os_index,
-    sync_databases_to_os,
     enable_os_strict_mapping,
+    sync_databases_to_os,
+    update_os_schema,
 )
-from bench.runtime.utils import interp_module
 
 logger = structlog.get_logger(__name__)
 
@@ -65,8 +65,6 @@ class Command(BaseCommand):
                 # ignore fields not in mapping during reindex
                 #  (fields may have existed in between snapshots)
                 module, _ = async_to_sync(interp_module)(project.head_id)
-                module.os_name = project.os_name
-                module.pg_name = project.pg_name
                 loop.run_until_complete(update_os_schema(module, dynamic="false"))
                 databases = [
                     n

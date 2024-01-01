@@ -28,12 +28,12 @@ from bench.language.const import (
     parse_absolute_node_reference,
 )
 from bench.language.database import RecordQuery
-from bench.language.edit import EditData, EditKind, NodeTreeEditor
 from bench.language.expression import SCORE_KEY, C, ExpressionOps, S
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.module import NodeTree, on_issue_raise, walk_bfs
 from bench.language.packer import pack_value, unpack_value
+from bench.language.render import EditData, EditKind, NodeTreeEditor
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.models import ProjectVersion, packer

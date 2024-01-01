@@ -19,11 +19,11 @@ from bench.language.const import (
     RunStatus,
     SessionAccessLevel,
 )
-from bench.language.edit import EditData, EditType
 from bench.language.libs import DEFAULT_DEPENDENCIES, DEFAULT_MODULES
 from bench.language.model import ModelError
 from bench.language.module import _NodeChange
 from bench.language.packer import map_value, unkey_value, unpack_value_flat
+from bench.language.render import EditData, EditType
 from bench.language.run import RunErrorKind
 from bench.language.session import RuntimeHost, Session
 from bench.proto import wire, wiring
@@ -109,9 +109,6 @@ class WorkerNode(Monitored):
         for module_name, module in DEFAULT_MODULES.items():
             module_ref = ModuleReference(name=module_name, version="x", id=None)
             module_loaded, info = await self.read_module(module_ref)
-            module.project_id = info.project_id
-            module.os_name = info.os_name
-            module.pg_name = info.pg_name
             self._cached_module_source[module_ref] = module, info
         # and add other default dependencies
         for module_name in DEFAULT_DEPENDENCIES:
@@ -823,7 +820,7 @@ class WorkerProcess(RuntimeHost):
 
     async def run_proxy_statement(self, statement: Statement, inputs: dict) -> dict:
         req = ReqRunStatementPayload(
-            project_id=statement.session.module.project_id,
+            project_id=statement.session.module.bench_id,
             module_name=statement.session.module.path,
             statement=statement.path,
             inputs=inputs,
@@ -841,7 +838,7 @@ class WorkerProcess(RuntimeHost):
 
     async def run_proxy_inference(self, statement: Statement, inputs: dict, timeout: float) -> dict:
         req = ReqRunInferencePayload(
-            project_id=statement.module.project_id,
+            project_id=statement.module.bench_id,
             model_path=statement.path,
             inputs=inputs,
             timeout=timeout,
