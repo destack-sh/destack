@@ -13,9 +13,7 @@ if TYPE_CHECKING:
 class ResolvedField(UUIDModel, Node):
     """A field that has been resolved to a statement."""
 
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="+"
-    )
+    bench_version = models.ForeignKey("BenchVersion", on_delete=models.CASCADE, related_name="+")
     statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="resolved_fields"
     )
@@ -34,10 +32,10 @@ class IssueKind(models.TextChoices):
 
 
 class Issue(UUIDModel, Node):
-    """An error/warning/... about a part of a project."""
+    """An error/warning/... about a part of a bench."""
 
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="issues"
+    bench_version = models.ForeignKey(
+        "BenchVersion", on_delete=models.CASCADE, related_name="issues"
     )
     parent_file = models.ForeignKey(
         "File", on_delete=models.CASCADE, related_name="issues", null=True
@@ -50,7 +48,7 @@ class Issue(UUIDModel, Node):
     message = models.CharField(max_length=512, null=True)
 
     def __str__(self):
-        return f"{self.parent_statement or self.parent_file or self.project_version} {self.type} {self.message}"
+        return f"{self.parent_statement or self.parent_file or self.bench_version} {self.type} {self.message}"
 
     def __repr__(self):
         return f"<Issue {self}>"

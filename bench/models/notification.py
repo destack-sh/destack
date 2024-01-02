@@ -7,7 +7,7 @@ from bench.utils.dt import utcnow_with_tz
 
 class NotificationType(models.TextChoices):
     ORGANIZATION_INVITE = "organization_invite"
-    PROJECT_INVITE = "project_invite"
+    PROJECT_INVITE = "bench_invite"
     RUN_FAILED = "run_failed"
     RUN_SUSPENDED = "run_suspended"
 
@@ -32,8 +32,8 @@ class Notification(UUIDModel):
     organization_invite = models.ForeignKey(
         "OrganizationInvite", on_delete=models.CASCADE, null=True, related_name="+"
     )
-    project_invite = models.ForeignKey(
-        "ProjectInvite", on_delete=models.CASCADE, null=True, related_name="+"
+    bench_invite = models.ForeignKey(
+        "BenchInvite", on_delete=models.CASCADE, null=True, related_name="+"
     )
     run = models.ForeignKey("Run", on_delete=models.CASCADE, null=True, related_name="+")
 
@@ -80,10 +80,10 @@ def create_notifications_on_signup(user: User):
         )
         for invite in user.organization_invites.all()
     ]
-    project_invites = [
-        Notification(type=NotificationType.PROJECT_INVITE, user=user, project_invite=invite)
-        for invite in user.project_invites.all()
+    bench_invites = [
+        Notification(type=NotificationType.PROJECT_INVITE, user=user, bench_invite=invite)
+        for invite in user.bench_invites.all()
     ]
 
     # bulk create notifications
-    Notification.objects.bulk_create(organization_invites + project_invites)
+    Notification.objects.bulk_create(organization_invites + bench_invites)

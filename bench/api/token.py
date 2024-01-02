@@ -37,7 +37,7 @@ class AccessToken(relay.Node):
         extensions=[
             # note that this doesn't seem to be working so the entire secret is >=Edit level
             HasModuleAccess(
-                level=ModuleAccessLevel.Edit, target=CheckTarget.ROOT, map=lambda s: s.project
+                level=ModuleAccessLevel.Edit, target=CheckTarget.ROOT, map=lambda s: s.bench
             )
         ],
     )

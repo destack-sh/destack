@@ -31,6 +31,7 @@ enum BenchType {
   BENCH_TYPE_SECRET = 41;
   BENCH_TYPE_SESSION = 60;
   BENCH_TYPE_RUN = 61;
+  BENCH_TYPE_WORKER_SET = 64;
   BENCH_TYPE_ACCESS_CONTROL = 200;
   BENCH_TYPE_ACCESS_CONTROL_RULE = 201;
   BENCH_TYPE_EXPRESSION = 210;
@@ -40,7 +41,6 @@ enum BenchType {
   BENCH_TYPE_INFERENCE = 223;
   BENCH_TYPE_ENVIRONMENT = 230;
   BENCH_TYPE_DEPENDENCY = 231;
-  BENCH_TYPE_WORKER_SET = 399;
 }
 
 enum BlobStatus {
@@ -184,6 +184,7 @@ enum NodeType {
   NODE_TYPE_SECRET = 41;
   NODE_TYPE_SESSION = 60;
   NODE_TYPE_RUN = 61;
+  NODE_TYPE_WORKER_SET = 64;
 }
 
 enum ProjectRegion {
@@ -292,7 +293,6 @@ enum StructType {
   STRUCT_TYPE_INFERENCE = 223;
   STRUCT_TYPE_ENVIRONMENT = 230;
   STRUCT_TYPE_DEPENDENCY = 231;
-  STRUCT_TYPE_WORKER_SET = 399;
 }
 
 enum TextHeadingLevel {
@@ -458,7 +458,7 @@ message InferenceData {
 message LogEntryData {
   BenchType metatype = 1;
   string id = 2;
-  string project_id = 20;
+  string bench_id = 20;
   string module_ck = 21;
   google.protobuf.Timestamp created_at = 22;
   string stream = 23;
@@ -487,23 +487,6 @@ message RunErrorData {
   string message = 22;
   string statement_ck = 23;
   repeated RunCodeFrameData traceback = 24;
-}
-
-message WorkerSetData {
-  BenchType metatype = 1;
-  string id = 2;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  string project_id = 20;
-  ProjectRegion region = 21;
-  WorkerProfile profile = 22;
-  bool sleeping = 23;
-  WorkerSetStatus status = 24;
-  int64 desired_replicas = 25;
-  int64 target_replicas = 26;
-  int64 available_replicas = 27;
-  int64 ready_replicas = 28;
-  google.protobuf.Timestamp last_active_at = 29;
 }
 
 message BenchData {
@@ -684,7 +667,7 @@ message RunData {
   google.protobuf.Timestamp last_changed_at = 17;
   string session_id = 20;
   string root_id = 21;
-  string project_id = 22;
+  string bench_id = 22;
   string worker_node_id = 23;
   string worker_process_id = 24;
   string statement_ck = 25;
@@ -731,7 +714,7 @@ message SessionData {
   google.protobuf.Timestamp last_edited_at = 16;
   google.protobuf.Timestamp last_changed_at = 17;
   int64 access_level = 20;
-  string project_id = 21;
+  string bench_id = 21;
   string worker_node_id = 22;
   string worker_process_id = 23;
   TriggerType trigger_type = 24;
@@ -820,6 +803,30 @@ message ViewData {
   repeated ExpressionData sort = 23;
 }
 
+message WorkerSetData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
+  string bench_id = 20;
+  ProjectRegion region = 21;
+  WorkerProfile profile = 22;
+  bool sleeping = 23;
+  WorkerSetStatus status = 24;
+  int64 desired_replicas = 25;
+  int64 target_replicas = 26;
+  int64 available_replicas = 27;
+  int64 ready_replicas = 28;
+  google.protobuf.Timestamp last_active_at = 29;
+}
+
 message SomeNodeData {
   oneof node {
     BenchData bench = 1;
@@ -837,6 +844,7 @@ message SomeNodeData {
     SecretData secret = 13;
     SessionData session = 14;
     RunData run = 15;
+    WorkerSetData worker_set = 16;
   };
 }
 
@@ -851,7 +859,6 @@ message SomeStructData {
     InferenceData inference = 7;
     EnvironmentData environment = 8;
     DependencyData dependency = 9;
-    WorkerSetData worker_set = 10;
   };
 }
 

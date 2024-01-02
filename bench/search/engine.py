@@ -717,7 +717,7 @@ def create_local_os_index(
     *, os_name: str, os_username: str, os_password: str, is_public: bool, upsert: bool
 ) -> None:
     """
-    Creates the OpenSearch index and corresponding roles/user for a project.
+    Creates the OpenSearch index and corresponding roles/user for a bench.
     """
     log = logger.bind(os_name=os_name)
     log.info("os.create_local_index")
@@ -764,7 +764,7 @@ def create_local_os_index(
         # revoke read access from global read only role (if exists)
         log.info("os.revoke_global_read_access")
 
-        # find index permission for this project
+        # find index permission for this bench
         permission_idx = -1
         for i, index_permission in enumerate(role["index_permissions"]):
             if index_permission["index_patterns"] == [os_name]:
@@ -781,7 +781,7 @@ def create_local_os_index(
         else:
             log.info("os.revoke_global_read_access.not_found")
 
-    # create write access role for project owner
+    # create write access role for bench owner
     log.info("os.create_owner_role")
     owner_role_name = f"{os_name}-rw"
     rep = os_client_sync.security.get_role(role=owner_role_name, ignore=404)
@@ -935,19 +935,19 @@ def enable_os_strict_mapping(index_name: str) -> None:
 
 
 def write_runs_to_os(
-    project_vs: models.ProjectVersion | list[models.ProjectVersion], runs: list[wire.RunData]
+    bench_vs: models.BenchVersion | list[models.BenchVersion], runs: list[wire.RunData]
 ) -> None:
-    """Writes/mirrors runs (from different sessions/projects) to OpenSearch."""
+    """Writes/mirrors runs (from different sessions/benches) to OpenSearch."""
 
     if not runs:
         return
-    if isinstance(project_vs, list) and len(project_vs) != len(runs):
-        raise ValueError(f"len(project_vs) != len(runs): {len(project_vs)} != {len(runs)}")
+    if isinstance(bench_vs, list) and len(bench_vs) != len(runs):
+        raise ValueError(f"len(bench_vs) != len(runs): {len(bench_vs)} != {len(runs)}")
     ops: list[dict] = []
     for i, run in enumerate(runs):
-        project_v = project_vs[i] if isinstance(project_vs, list) else project_vs
-        ops.append({"index": {"_index": project_v.os_name, "_id": str(run.id)}})
-        ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
+        bench_v = bench_vs[i] if isinstance(bench_vs, list) else bench_vs
+        ops.append({"index": {"_index": bench_v.os_name, "_id": str(run.id)}})
+        ops.append(mirror.unpack_node_flat(bench_v, run, None).to_dict())
     logger.debug("os.write_runs", operations=len(ops))
     ret = os_client_sync.bulk(ops)
     if ret.get("errors"):

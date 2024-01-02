@@ -27,7 +27,7 @@ else:
 @dataclass
 class ModuleInfo:
     id: UUID
-    project_id: UUID
+    bench_id: UUID
 
 
 NAME_FIELD = os.Field(
@@ -63,14 +63,14 @@ def document(type: os.DocumentType, *, store_type: bool = True):
 
 
 class Packer(Generic[ModelT, MirrorT, DataT]):
-    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: ModelT) -> MirrorT:
+    def mirror(self, bench_v: models.BenchVersion | ModuleInfo, node: ModelT) -> MirrorT:
         raise NotImplementedError(f"mirror not implemented for {type(self)}")
 
     def pack(self, mirror: MirrorT) -> DataT:
         raise NotImplementedError(f"pack not implemented for {type(self)}")
 
     def unpack(
-        self, project_v: models.ProjectVersion | ModuleInfo, data: DataT, parent: ModelT
+        self, bench_v: models.BenchVersion | ModuleInfo, data: DataT, parent: ModelT
     ) -> MirrorT:
         raise NotImplementedError(f"unpack not implemented for {type(self)}")
 
@@ -110,9 +110,9 @@ def has_mirror(node: ModelT) -> bool:
     return type(node) in _packers_by_model
 
 
-def mirror_node(project_v: models.ProjectVersion | ModuleInfo, node: ModelT) -> MirrorT:
+def mirror_node(bench_v: models.BenchVersion | ModuleInfo, node: ModelT) -> MirrorT:
     packer = _packers_by_model[type(node)]
-    return packer.mirror(project_v, node)
+    return packer.mirror(bench_v, node)
 
 
 def pack_node_flat(node: MirrorT) -> DataT:
@@ -121,10 +121,10 @@ def pack_node_flat(node: MirrorT) -> DataT:
 
 
 def unpack_node_flat(
-    project_v: models.ProjectVersion | ModuleInfo, data: DataT, parent: Optional[ModelT]
+    bench_v: models.BenchVersion | ModuleInfo, data: DataT, parent: Optional[ModelT]
 ) -> MirrorT:
     packer = _packers_by_data[type(data)]
-    return packer.unpack(project_v, data, parent)
+    return packer.unpack(bench_v, data, parent)
 
 
 def get_node_packer(mirror_t: type[MirrorT]) -> Packer[ModelT, MirrorT, DataT]:
@@ -153,7 +153,7 @@ class Revisioned(os.Document):
 
 @packer(models.CrudModel, CrudThing, None)
 class CrudThingPacker(Packer):
-    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: ModelT) -> MirrorT:
+    def mirror(self, bench_v: models.BenchVersion | ModuleInfo, node: ModelT) -> MirrorT:
         return CrudThing(
             id=node.id,
             created_at=node.created_at,
@@ -168,7 +168,7 @@ class CrudThingPacker(Packer):
 @document(os.DocumentType.RECORD)
 class Record(CrudThing, os.Document):
     ck: UUID = os.field(os.FT.KEYWORD)
-    project_version_id: UUID = os.field(os.FT.KEYWORD)
+    bench_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_key: Optional[str] = os.field(os.FT.KEYWORD)
     # single name field to copy all data names to :RecordNameField
     name: Optional[str] = replace(NAME_FIELD, can_set_directly=False, store=False)
@@ -178,11 +178,11 @@ class Record(CrudThing, os.Document):
 
 @packer(wire.RecordData, Record, wire.RecordData)
 class RecordPacker(CrudThingPacker, Packer[wire.RecordData, Record, wire.RecordData]):
-    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: Record) -> Record:
+    def mirror(self, bench_v: models.BenchVersion | ModuleInfo, node: Record) -> Record:
         return Record(
             id=node.id,
             ck=node.ck,
-            project_version_id=project_v.id,
+            bench_version_id=bench_v.id,
             statement_key=node.statement_key,
             value=node.value,
             revision=node.revision,
@@ -210,14 +210,14 @@ class RecordPacker(CrudThingPacker, Packer[wire.RecordData, Record, wire.RecordD
 
     def unpack(
         self,
-        project_v: models.ProjectVersion | ModuleInfo,
+        bench_v: models.BenchVersion | ModuleInfo,
         data: wire.RecordData,
         parent: models.Statement,
     ) -> Record:
         return Record(
             id=data.id,
             ck=data.ck,
-            project_version_id=project_v.id,
+            bench_version_id=bench_v.id,
             statement_key=parent.key,
             value=data.value,
             revision=data.revision,
@@ -235,7 +235,7 @@ class RecordPacker(CrudThingPacker, Packer[wire.RecordData, Record, wire.RecordD
 
 @document(os.DocumentType.SESSION)
 class Session(os.Document):
-    project_version_id: UUID = os.field(os.FT.KEYWORD)
+    bench_version_id: UUID = os.field(os.FT.KEYWORD)
     opened_at: Optional[datetime] = os.field(os.FT.DATE)
     closed_at: Optional[datetime] = os.field(os.FT.DATE)
     trigger_type: Optional[str] = os.field(os.FT.KEYWORD)
@@ -243,12 +243,10 @@ class Session(os.Document):
 
 @packer(models.Session, Session, wire.SessionData)
 class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
-    def mirror(
-        self, project_v: models.ProjectVersion | ModuleInfo, node: models.Session
-    ) -> Session:
+    def mirror(self, bench_v: models.BenchVersion | ModuleInfo, node: models.Session) -> Session:
         return Session(
             id=node.id,
-            project_version_id=node.project_version_id,
+            bench_version_id=node.bench_version_id,
             opened_at=node.opened_at,
             closed_at=node.closed_at,
             trigger_type=node.trigger_type,
@@ -257,7 +255,7 @@ class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
 
 @document(os.DocumentType.RUN)
 class Run(os.Document):
-    project_id: UUID = os.field(os.FT.KEYWORD)
+    bench_id: UUID = os.field(os.FT.KEYWORD)
     worker_node_id: Optional[str] = os.field(os.FT.KEYWORD)
     worker_process_id: Optional[str] = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
@@ -280,10 +278,10 @@ class Run(os.Document):
 
 @packer(models.Run, Run, wire.RunData)
 class RunPacker(Packer[models.Run, Run, wire.RunData]):
-    def mirror(self, project_v: models.ProjectVersion | ModuleInfo, node: models.Run) -> MirrorT:
+    def mirror(self, bench_v: models.BenchVersion | ModuleInfo, node: models.Run) -> MirrorT:
         return Run(
             id=node.id,
-            project_id=node.project_id,
+            bench_id=node.bench_id,
             worker_node_id=node.worker_node_id,
             worker_process_id=node.worker_process_id,
             session_id=node.session_id,
@@ -310,10 +308,10 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
         )
         return wire.RunData(
             id=mirror.id,
-            project_id=mirror.project_id,
+            bench_id=mirror.bench_id,
             worker_node_id=mirror.worker_node_id,
             worker_process_id=mirror.worker_process_id,
-            module_id=mirror.project_version_id,
+            module_id=mirror.bench_version_id,
             session_id=mirror.session_id,
             trigger_type=mirror.trigger_type,
             trigger_id=None,  # not stored
@@ -334,14 +332,14 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             value=mirror.value,
         )
 
-    def unpack(self, project_v: None, data: wire.RunData, parent: None) -> Run:
+    def unpack(self, bench_v: None, data: wire.RunData, parent: None) -> Run:
         if data.started_at and data.terminated_at:
             duration = (data.terminated_at - data.started_at).total_seconds()
         else:
             duration = None
         return Run(
             id=data.id,
-            project_id=data.project_id,
+            bench_id=data.bench_id,
             worker_node_id=data.worker_node_id,
             worker_process_id=data.worker_process_id,
             session_id=data.session_id,
@@ -365,7 +363,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
 
 @document(os.DocumentType.LOG_ENTRY)
 class LogEntry(os.Document):
-    project_id: UUID = os.field(os.FT.KEYWORD)
+    bench_id: UUID = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     run_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
@@ -383,8 +381,8 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
     def pack(self, mirror: LogEntry) -> wire.LogEntryData:
         return wire.LogEntryData(
             id=mirror.id,
-            project_id=mirror.project_id,
-            module_id=mirror.project_version_id,
+            bench_id=mirror.bench_id,
+            module_id=mirror.bench_version_id,
             session_id=mirror.session_id,
             run_id=mirror.run_id,
             statement_id=mirror.statement_id,
@@ -398,12 +396,12 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
         )
 
     def unpack(
-        self, project_v: models.ProjectVersion | ModuleInfo, data: wire.LogEntryData, parent: None
+        self, bench_v: models.BenchVersion | ModuleInfo, data: wire.LogEntryData, parent: None
     ) -> LogEntry:
         return LogEntry(
             id=data.id,
-            project_id=data.project_id,
-            project_version_id=project_v.id,
+            bench_id=data.bench_id,
+            bench_version_id=bench_v.id,
             session_id=data.session_id,
             run_id=data.run_id,
             statement_id=data.statement_id,

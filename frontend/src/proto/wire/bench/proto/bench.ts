@@ -88,6 +88,7 @@ export enum BenchType {
   SECRET = 41,
   SESSION = 60,
   RUN = 61,
+  WORKER_SET = 64,
   ACCESS_CONTROL = 200,
   ACCESS_CONTROL_RULE = 201,
   EXPRESSION = 210,
@@ -97,7 +98,6 @@ export enum BenchType {
   INFERENCE = 223,
   ENVIRONMENT = 230,
   DEPENDENCY = 231,
-  WORKER_SET = 399,
 }
 
 export function benchTypeFromJSON(object: any): BenchType {
@@ -150,6 +150,9 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 61:
     case "BENCH_TYPE_RUN":
       return BenchType.RUN;
+    case 64:
+    case "BENCH_TYPE_WORKER_SET":
+      return BenchType.WORKER_SET;
     case 200:
     case "BENCH_TYPE_ACCESS_CONTROL":
       return BenchType.ACCESS_CONTROL;
@@ -177,9 +180,6 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 231:
     case "BENCH_TYPE_DEPENDENCY":
       return BenchType.DEPENDENCY;
-    case 399:
-    case "BENCH_TYPE_WORKER_SET":
-      return BenchType.WORKER_SET;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum BenchType");
   }
@@ -219,6 +219,8 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_SESSION";
     case BenchType.RUN:
       return "BENCH_TYPE_RUN";
+    case BenchType.WORKER_SET:
+      return "BENCH_TYPE_WORKER_SET";
     case BenchType.ACCESS_CONTROL:
       return "BENCH_TYPE_ACCESS_CONTROL";
     case BenchType.ACCESS_CONTROL_RULE:
@@ -237,8 +239,6 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_ENVIRONMENT";
     case BenchType.DEPENDENCY:
       return "BENCH_TYPE_DEPENDENCY";
-    case BenchType.WORKER_SET:
-      return "BENCH_TYPE_WORKER_SET";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum BenchType");
   }
@@ -990,6 +990,7 @@ export enum NodeType {
   SECRET = 41,
   SESSION = 60,
   RUN = 61,
+  WORKER_SET = 64,
 }
 
 export function nodeTypeFromJSON(object: any): NodeType {
@@ -1042,6 +1043,9 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case 61:
     case "NODE_TYPE_RUN":
       return NodeType.RUN;
+    case 64:
+    case "NODE_TYPE_WORKER_SET":
+      return NodeType.WORKER_SET;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum NodeType");
   }
@@ -1081,6 +1085,8 @@ export function nodeTypeToJSON(object: NodeType): string {
       return "NODE_TYPE_SESSION";
     case NodeType.RUN:
       return "NODE_TYPE_RUN";
+    case NodeType.WORKER_SET:
+      return "NODE_TYPE_WORKER_SET";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum NodeType");
   }
@@ -1650,7 +1656,6 @@ export enum StructType {
   INFERENCE = 223,
   ENVIRONMENT = 230,
   DEPENDENCY = 231,
-  WORKER_SET = 399,
 }
 
 export function structTypeFromJSON(object: any): StructType {
@@ -1685,9 +1690,6 @@ export function structTypeFromJSON(object: any): StructType {
     case 231:
     case "STRUCT_TYPE_DEPENDENCY":
       return StructType.DEPENDENCY;
-    case 399:
-    case "STRUCT_TYPE_WORKER_SET":
-      return StructType.WORKER_SET;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum StructType");
   }
@@ -1715,8 +1717,6 @@ export function structTypeToJSON(object: StructType): string {
       return "STRUCT_TYPE_ENVIRONMENT";
     case StructType.DEPENDENCY:
       return "STRUCT_TYPE_DEPENDENCY";
-    case StructType.WORKER_SET:
-      return "STRUCT_TYPE_WORKER_SET";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum StructType");
   }
@@ -2472,7 +2472,7 @@ export interface InferenceData {
 export interface LogEntryData {
   metatype: BenchType;
   id: string;
-  projectId: string;
+  benchId: string;
   moduleCk: string;
   createdAt: Date | undefined;
   stream: string;
@@ -2501,23 +2501,6 @@ export interface RunErrorData {
   message: string;
   statementCk: string;
   traceback: RunCodeFrameData[];
-}
-
-export interface WorkerSetData {
-  metatype: BenchType;
-  id: string;
-  createdAt: Date | undefined;
-  updatedAt: Date | undefined;
-  projectId: string;
-  region: ProjectRegion;
-  profile: WorkerProfile;
-  sleeping: boolean;
-  status: WorkerSetStatus;
-  desiredReplicas: number;
-  targetReplicas: number;
-  availableReplicas: number;
-  readyReplicas: number;
-  lastActiveAt: Date | undefined;
 }
 
 export interface BenchData {
@@ -2698,7 +2681,7 @@ export interface RunData {
   lastChangedAt: Date | undefined;
   sessionId: string;
   rootId: string;
-  projectId: string;
+  benchId: string;
   workerNodeId: string;
   workerProcessId: string;
   statementCk: string;
@@ -2745,7 +2728,7 @@ export interface SessionData {
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
   accessLevel: number;
-  projectId: string;
+  benchId: string;
   workerNodeId: string;
   workerProcessId: string;
   triggerType: TriggerType;
@@ -2834,6 +2817,30 @@ export interface ViewData {
   sort: ExpressionData[];
 }
 
+export interface WorkerSetData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  lastChangedAt: Date | undefined;
+  benchId: string;
+  region: ProjectRegion;
+  profile: WorkerProfile;
+  sleeping: boolean;
+  status: WorkerSetStatus;
+  desiredReplicas: number;
+  targetReplicas: number;
+  availableReplicas: number;
+  readyReplicas: number;
+  lastActiveAt: Date | undefined;
+}
+
 export interface SomeNodeData {
   node?:
     | { $case: "bench"; bench: BenchData }
@@ -2851,6 +2858,7 @@ export interface SomeNodeData {
     | { $case: "secret"; secret: SecretData }
     | { $case: "session"; session: SessionData }
     | { $case: "run"; run: RunData }
+    | { $case: "workerSet"; workerSet: WorkerSetData }
     | undefined;
 }
 
@@ -2865,7 +2873,6 @@ export interface SomeStructData {
     | { $case: "inference"; inference: InferenceData }
     | { $case: "environment"; environment: EnvironmentData }
     | { $case: "dependency"; dependency: DependencyData }
-    | { $case: "workerSet"; workerSet: WorkerSetData }
     | undefined;
 }
 
@@ -3487,7 +3494,7 @@ function createBaseLogEntryData(): LogEntryData {
   return {
     metatype: 0,
     id: "",
-    projectId: "",
+    benchId: "",
     moduleCk: "",
     createdAt: undefined,
     stream: "",
@@ -3509,8 +3516,8 @@ export const LogEntryData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.projectId !== "") {
-      writer.uint32(162).string(message.projectId);
+    if (message.benchId !== "") {
+      writer.uint32(162).string(message.benchId);
     }
     if (message.moduleCk !== "") {
       writer.uint32(170).string(message.moduleCk);
@@ -3571,7 +3578,7 @@ export const LogEntryData = {
             break;
           }
 
-          message.projectId = reader.string();
+          message.benchId = reader.string();
           continue;
         case 21:
           if (tag !== 170) {
@@ -3656,7 +3663,7 @@ export const LogEntryData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       moduleCk: isSet(object.moduleCk) ? globalThis.String(object.moduleCk) : "",
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       stream: isSet(object.stream) ? globalThis.String(object.stream) : "",
@@ -3678,8 +3685,8 @@ export const LogEntryData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.projectId !== "") {
-      obj.projectId = message.projectId;
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
     }
     if (message.moduleCk !== "") {
       obj.moduleCk = message.moduleCk;
@@ -3721,7 +3728,7 @@ export const LogEntryData = {
     const message = createBaseLogEntryData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.projectId = object.projectId ?? "";
+    message.benchId = object.benchId ?? "";
     message.moduleCk = object.moduleCk ?? "";
     message.createdAt = object.createdAt ?? undefined;
     message.stream = object.stream ?? "";
@@ -4002,275 +4009,6 @@ export const RunErrorData = {
     message.message = object.message ?? "";
     message.statementCk = object.statementCk ?? "";
     message.traceback = object.traceback?.map((e) => RunCodeFrameData.fromPartial(e)) || [];
-    return message;
-  },
-};
-
-function createBaseWorkerSetData(): WorkerSetData {
-  return {
-    metatype: 0,
-    id: "",
-    createdAt: undefined,
-    updatedAt: undefined,
-    projectId: "",
-    region: 0,
-    profile: 0,
-    sleeping: false,
-    status: 0,
-    desiredReplicas: 0,
-    targetReplicas: 0,
-    availableReplicas: 0,
-    readyReplicas: 0,
-    lastActiveAt: undefined,
-  };
-}
-
-export const WorkerSetData = {
-  encode(message: WorkerSetData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.metatype !== 0) {
-      writer.uint32(8).int32(message.metatype);
-    }
-    if (message.id !== "") {
-      writer.uint32(18).string(message.id);
-    }
-    if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
-    }
-    if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
-    }
-    if (message.projectId !== "") {
-      writer.uint32(162).string(message.projectId);
-    }
-    if (message.region !== 0) {
-      writer.uint32(168).int32(message.region);
-    }
-    if (message.profile !== 0) {
-      writer.uint32(176).int32(message.profile);
-    }
-    if (message.sleeping === true) {
-      writer.uint32(184).bool(message.sleeping);
-    }
-    if (message.status !== 0) {
-      writer.uint32(192).int32(message.status);
-    }
-    if (message.desiredReplicas !== 0) {
-      writer.uint32(200).int64(message.desiredReplicas);
-    }
-    if (message.targetReplicas !== 0) {
-      writer.uint32(208).int64(message.targetReplicas);
-    }
-    if (message.availableReplicas !== 0) {
-      writer.uint32(216).int64(message.availableReplicas);
-    }
-    if (message.readyReplicas !== 0) {
-      writer.uint32(224).int64(message.readyReplicas);
-    }
-    if (message.lastActiveAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastActiveAt), writer.uint32(234).fork()).ldelim();
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): WorkerSetData {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseWorkerSetData();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 8) {
-            break;
-          }
-
-          message.metatype = reader.int32() as any;
-          continue;
-        case 2:
-          if (tag !== 18) {
-            break;
-          }
-
-          message.id = reader.string();
-          continue;
-        case 10:
-          if (tag !== 82) {
-            break;
-          }
-
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        case 11:
-          if (tag !== 90) {
-            break;
-          }
-
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        case 20:
-          if (tag !== 162) {
-            break;
-          }
-
-          message.projectId = reader.string();
-          continue;
-        case 21:
-          if (tag !== 168) {
-            break;
-          }
-
-          message.region = reader.int32() as any;
-          continue;
-        case 22:
-          if (tag !== 176) {
-            break;
-          }
-
-          message.profile = reader.int32() as any;
-          continue;
-        case 23:
-          if (tag !== 184) {
-            break;
-          }
-
-          message.sleeping = reader.bool();
-          continue;
-        case 24:
-          if (tag !== 192) {
-            break;
-          }
-
-          message.status = reader.int32() as any;
-          continue;
-        case 25:
-          if (tag !== 200) {
-            break;
-          }
-
-          message.desiredReplicas = longToNumber(reader.int64() as Long);
-          continue;
-        case 26:
-          if (tag !== 208) {
-            break;
-          }
-
-          message.targetReplicas = longToNumber(reader.int64() as Long);
-          continue;
-        case 27:
-          if (tag !== 216) {
-            break;
-          }
-
-          message.availableReplicas = longToNumber(reader.int64() as Long);
-          continue;
-        case 28:
-          if (tag !== 224) {
-            break;
-          }
-
-          message.readyReplicas = longToNumber(reader.int64() as Long);
-          continue;
-        case 29:
-          if (tag !== 234) {
-            break;
-          }
-
-          message.lastActiveAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): WorkerSetData {
-    return {
-      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
-      id: isSet(object.id) ? globalThis.String(object.id) : "",
-      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
-      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
-      projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
-      region: isSet(object.region) ? projectRegionFromJSON(object.region) : 0,
-      profile: isSet(object.profile) ? workerProfileFromJSON(object.profile) : 0,
-      sleeping: isSet(object.sleeping) ? globalThis.Boolean(object.sleeping) : false,
-      status: isSet(object.status) ? workerSetStatusFromJSON(object.status) : 0,
-      desiredReplicas: isSet(object.desiredReplicas) ? globalThis.Number(object.desiredReplicas) : 0,
-      targetReplicas: isSet(object.targetReplicas) ? globalThis.Number(object.targetReplicas) : 0,
-      availableReplicas: isSet(object.availableReplicas) ? globalThis.Number(object.availableReplicas) : 0,
-      readyReplicas: isSet(object.readyReplicas) ? globalThis.Number(object.readyReplicas) : 0,
-      lastActiveAt: isSet(object.lastActiveAt) ? fromJsonTimestamp(object.lastActiveAt) : undefined,
-    };
-  },
-
-  toJSON(message: WorkerSetData): unknown {
-    const obj: any = {};
-    if (message.metatype !== 0) {
-      obj.metatype = benchTypeToJSON(message.metatype);
-    }
-    if (message.id !== "") {
-      obj.id = message.id;
-    }
-    if (message.createdAt !== undefined) {
-      obj.createdAt = message.createdAt.toISOString();
-    }
-    if (message.updatedAt !== undefined) {
-      obj.updatedAt = message.updatedAt.toISOString();
-    }
-    if (message.projectId !== "") {
-      obj.projectId = message.projectId;
-    }
-    if (message.region !== 0) {
-      obj.region = projectRegionToJSON(message.region);
-    }
-    if (message.profile !== 0) {
-      obj.profile = workerProfileToJSON(message.profile);
-    }
-    if (message.sleeping === true) {
-      obj.sleeping = message.sleeping;
-    }
-    if (message.status !== 0) {
-      obj.status = workerSetStatusToJSON(message.status);
-    }
-    if (message.desiredReplicas !== 0) {
-      obj.desiredReplicas = Math.round(message.desiredReplicas);
-    }
-    if (message.targetReplicas !== 0) {
-      obj.targetReplicas = Math.round(message.targetReplicas);
-    }
-    if (message.availableReplicas !== 0) {
-      obj.availableReplicas = Math.round(message.availableReplicas);
-    }
-    if (message.readyReplicas !== 0) {
-      obj.readyReplicas = Math.round(message.readyReplicas);
-    }
-    if (message.lastActiveAt !== undefined) {
-      obj.lastActiveAt = message.lastActiveAt.toISOString();
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<WorkerSetData>, I>>(base?: I): WorkerSetData {
-    return WorkerSetData.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<WorkerSetData>, I>>(object: I): WorkerSetData {
-    const message = createBaseWorkerSetData();
-    message.metatype = object.metatype ?? 0;
-    message.id = object.id ?? "";
-    message.createdAt = object.createdAt ?? undefined;
-    message.updatedAt = object.updatedAt ?? undefined;
-    message.projectId = object.projectId ?? "";
-    message.region = object.region ?? 0;
-    message.profile = object.profile ?? 0;
-    message.sleeping = object.sleeping ?? false;
-    message.status = object.status ?? 0;
-    message.desiredReplicas = object.desiredReplicas ?? 0;
-    message.targetReplicas = object.targetReplicas ?? 0;
-    message.availableReplicas = object.availableReplicas ?? 0;
-    message.readyReplicas = object.readyReplicas ?? 0;
-    message.lastActiveAt = object.lastActiveAt ?? undefined;
     return message;
   },
 };
@@ -6889,7 +6627,7 @@ function createBaseRunData(): RunData {
     lastChangedAt: undefined,
     sessionId: "",
     rootId: "",
-    projectId: "",
+    benchId: "",
     workerNodeId: "",
     workerProcessId: "",
     statementCk: "",
@@ -6949,8 +6687,8 @@ export const RunData = {
     if (message.rootId !== "") {
       writer.uint32(170).string(message.rootId);
     }
-    if (message.projectId !== "") {
-      writer.uint32(178).string(message.projectId);
+    if (message.benchId !== "") {
+      writer.uint32(178).string(message.benchId);
     }
     if (message.workerNodeId !== "") {
       writer.uint32(186).string(message.workerNodeId);
@@ -7103,7 +6841,7 @@ export const RunData = {
             break;
           }
 
-          message.projectId = reader.string();
+          message.benchId = reader.string();
           continue;
         case 23:
           if (tag !== 186) {
@@ -7234,7 +6972,7 @@ export const RunData = {
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
       sessionId: isSet(object.sessionId) ? globalThis.String(object.sessionId) : "",
       rootId: isSet(object.rootId) ? globalThis.String(object.rootId) : "",
-      projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       workerNodeId: isSet(object.workerNodeId) ? globalThis.String(object.workerNodeId) : "",
       workerProcessId: isSet(object.workerProcessId) ? globalThis.String(object.workerProcessId) : "",
       statementCk: isSet(object.statementCk) ? globalThis.String(object.statementCk) : "",
@@ -7294,8 +7032,8 @@ export const RunData = {
     if (message.rootId !== "") {
       obj.rootId = message.rootId;
     }
-    if (message.projectId !== "") {
-      obj.projectId = message.projectId;
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
     }
     if (message.workerNodeId !== "") {
       obj.workerNodeId = message.workerNodeId;
@@ -7363,7 +7101,7 @@ export const RunData = {
     message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.sessionId = object.sessionId ?? "";
     message.rootId = object.rootId ?? "";
-    message.projectId = object.projectId ?? "";
+    message.benchId = object.benchId ?? "";
     message.workerNodeId = object.workerNodeId ?? "";
     message.workerProcessId = object.workerProcessId ?? "";
     message.statementCk = object.statementCk ?? "";
@@ -7650,7 +7388,7 @@ function createBaseSessionData(): SessionData {
     lastEditedAt: undefined,
     lastChangedAt: undefined,
     accessLevel: 0,
-    projectId: "",
+    benchId: "",
     workerNodeId: "",
     workerProcessId: "",
     triggerType: 0,
@@ -7700,8 +7438,8 @@ export const SessionData = {
     if (message.accessLevel !== 0) {
       writer.uint32(160).int64(message.accessLevel);
     }
-    if (message.projectId !== "") {
-      writer.uint32(170).string(message.projectId);
+    if (message.benchId !== "") {
+      writer.uint32(170).string(message.benchId);
     }
     if (message.workerNodeId !== "") {
       writer.uint32(178).string(message.workerNodeId);
@@ -7826,7 +7564,7 @@ export const SessionData = {
             break;
           }
 
-          message.projectId = reader.string();
+          message.benchId = reader.string();
           continue;
         case 22:
           if (tag !== 178) {
@@ -7907,7 +7645,7 @@ export const SessionData = {
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
       accessLevel: isSet(object.accessLevel) ? globalThis.Number(object.accessLevel) : 0,
-      projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       workerNodeId: isSet(object.workerNodeId) ? globalThis.String(object.workerNodeId) : "",
       workerProcessId: isSet(object.workerProcessId) ? globalThis.String(object.workerProcessId) : "",
       triggerType: isSet(object.triggerType) ? triggerTypeFromJSON(object.triggerType) : 0,
@@ -7957,8 +7695,8 @@ export const SessionData = {
     if (message.accessLevel !== 0) {
       obj.accessLevel = Math.round(message.accessLevel);
     }
-    if (message.projectId !== "") {
-      obj.projectId = message.projectId;
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
     }
     if (message.workerNodeId !== "") {
       obj.workerNodeId = message.workerNodeId;
@@ -8004,7 +7742,7 @@ export const SessionData = {
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.accessLevel = object.accessLevel ?? 0;
-    message.projectId = object.projectId ?? "";
+    message.benchId = object.benchId ?? "";
     message.workerNodeId = object.workerNodeId ?? "";
     message.workerProcessId = object.workerProcessId ?? "";
     message.triggerType = object.triggerType ?? 0;
@@ -9254,6 +8992,387 @@ export const ViewData = {
   },
 };
 
+function createBaseWorkerSetData(): WorkerSetData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    lastChangedAt: undefined,
+    benchId: "",
+    region: 0,
+    profile: 0,
+    sleeping: false,
+    status: 0,
+    desiredReplicas: 0,
+    targetReplicas: 0,
+    availableReplicas: 0,
+    readyReplicas: 0,
+    lastActiveAt: undefined,
+  };
+}
+
+export const WorkerSetData = {
+  encode(message: WorkerSetData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
+    }
+    if (message.lastChangedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
+    }
+    if (message.benchId !== "") {
+      writer.uint32(162).string(message.benchId);
+    }
+    if (message.region !== 0) {
+      writer.uint32(168).int32(message.region);
+    }
+    if (message.profile !== 0) {
+      writer.uint32(176).int32(message.profile);
+    }
+    if (message.sleeping === true) {
+      writer.uint32(184).bool(message.sleeping);
+    }
+    if (message.status !== 0) {
+      writer.uint32(192).int32(message.status);
+    }
+    if (message.desiredReplicas !== 0) {
+      writer.uint32(200).int64(message.desiredReplicas);
+    }
+    if (message.targetReplicas !== 0) {
+      writer.uint32(208).int64(message.targetReplicas);
+    }
+    if (message.availableReplicas !== 0) {
+      writer.uint32(216).int64(message.availableReplicas);
+    }
+    if (message.readyReplicas !== 0) {
+      writer.uint32(224).int64(message.readyReplicas);
+    }
+    if (message.lastActiveAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastActiveAt), writer.uint32(234).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): WorkerSetData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseWorkerSetData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 16:
+          if (tag !== 130) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.benchId = reader.string();
+          continue;
+        case 21:
+          if (tag !== 168) {
+            break;
+          }
+
+          message.region = reader.int32() as any;
+          continue;
+        case 22:
+          if (tag !== 176) {
+            break;
+          }
+
+          message.profile = reader.int32() as any;
+          continue;
+        case 23:
+          if (tag !== 184) {
+            break;
+          }
+
+          message.sleeping = reader.bool();
+          continue;
+        case 24:
+          if (tag !== 192) {
+            break;
+          }
+
+          message.status = reader.int32() as any;
+          continue;
+        case 25:
+          if (tag !== 200) {
+            break;
+          }
+
+          message.desiredReplicas = longToNumber(reader.int64() as Long);
+          continue;
+        case 26:
+          if (tag !== 208) {
+            break;
+          }
+
+          message.targetReplicas = longToNumber(reader.int64() as Long);
+          continue;
+        case 27:
+          if (tag !== 216) {
+            break;
+          }
+
+          message.availableReplicas = longToNumber(reader.int64() as Long);
+          continue;
+        case 28:
+          if (tag !== 224) {
+            break;
+          }
+
+          message.readyReplicas = longToNumber(reader.int64() as Long);
+          continue;
+        case 29:
+          if (tag !== 234) {
+            break;
+          }
+
+          message.lastActiveAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): WorkerSetData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
+      region: isSet(object.region) ? projectRegionFromJSON(object.region) : 0,
+      profile: isSet(object.profile) ? workerProfileFromJSON(object.profile) : 0,
+      sleeping: isSet(object.sleeping) ? globalThis.Boolean(object.sleeping) : false,
+      status: isSet(object.status) ? workerSetStatusFromJSON(object.status) : 0,
+      desiredReplicas: isSet(object.desiredReplicas) ? globalThis.Number(object.desiredReplicas) : 0,
+      targetReplicas: isSet(object.targetReplicas) ? globalThis.Number(object.targetReplicas) : 0,
+      availableReplicas: isSet(object.availableReplicas) ? globalThis.Number(object.availableReplicas) : 0,
+      readyReplicas: isSet(object.readyReplicas) ? globalThis.Number(object.readyReplicas) : 0,
+      lastActiveAt: isSet(object.lastActiveAt) ? fromJsonTimestamp(object.lastActiveAt) : undefined,
+    };
+  },
+
+  toJSON(message: WorkerSetData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.lastChangedAt !== undefined) {
+      obj.lastChangedAt = message.lastChangedAt.toISOString();
+    }
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
+    }
+    if (message.region !== 0) {
+      obj.region = projectRegionToJSON(message.region);
+    }
+    if (message.profile !== 0) {
+      obj.profile = workerProfileToJSON(message.profile);
+    }
+    if (message.sleeping === true) {
+      obj.sleeping = message.sleeping;
+    }
+    if (message.status !== 0) {
+      obj.status = workerSetStatusToJSON(message.status);
+    }
+    if (message.desiredReplicas !== 0) {
+      obj.desiredReplicas = Math.round(message.desiredReplicas);
+    }
+    if (message.targetReplicas !== 0) {
+      obj.targetReplicas = Math.round(message.targetReplicas);
+    }
+    if (message.availableReplicas !== 0) {
+      obj.availableReplicas = Math.round(message.availableReplicas);
+    }
+    if (message.readyReplicas !== 0) {
+      obj.readyReplicas = Math.round(message.readyReplicas);
+    }
+    if (message.lastActiveAt !== undefined) {
+      obj.lastActiveAt = message.lastActiveAt.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WorkerSetData>, I>>(base?: I): WorkerSetData {
+    return WorkerSetData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WorkerSetData>, I>>(object: I): WorkerSetData {
+    const message = createBaseWorkerSetData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.benchId = object.benchId ?? "";
+    message.region = object.region ?? 0;
+    message.profile = object.profile ?? 0;
+    message.sleeping = object.sleeping ?? false;
+    message.status = object.status ?? 0;
+    message.desiredReplicas = object.desiredReplicas ?? 0;
+    message.targetReplicas = object.targetReplicas ?? 0;
+    message.availableReplicas = object.availableReplicas ?? 0;
+    message.readyReplicas = object.readyReplicas ?? 0;
+    message.lastActiveAt = object.lastActiveAt ?? undefined;
+    return message;
+  },
+};
+
 function createBaseSomeNodeData(): SomeNodeData {
   return { node: undefined };
 }
@@ -9305,6 +9424,9 @@ export const SomeNodeData = {
         break;
       case "run":
         RunData.encode(message.node.run, writer.uint32(122).fork()).ldelim();
+        break;
+      case "workerSet":
+        WorkerSetData.encode(message.node.workerSet, writer.uint32(130).fork()).ldelim();
         break;
     }
     return writer;
@@ -9422,6 +9544,13 @@ export const SomeNodeData = {
 
           message.node = { $case: "run", run: RunData.decode(reader, reader.uint32()) };
           continue;
+        case 16:
+          if (tag !== 130) {
+            break;
+          }
+
+          message.node = { $case: "workerSet", workerSet: WorkerSetData.decode(reader, reader.uint32()) };
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9463,6 +9592,8 @@ export const SomeNodeData = {
         ? { $case: "session", session: SessionData.fromJSON(object.session) }
         : isSet(object.run)
         ? { $case: "run", run: RunData.fromJSON(object.run) }
+        : isSet(object.workerSet)
+        ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
         : undefined,
     };
   },
@@ -9513,6 +9644,9 @@ export const SomeNodeData = {
     }
     if (message.node?.$case === "run") {
       obj.run = RunData.toJSON(message.node.run);
+    }
+    if (message.node?.$case === "workerSet") {
+      obj.workerSet = WorkerSetData.toJSON(message.node.workerSet);
     }
     return obj;
   },
@@ -9574,6 +9708,9 @@ export const SomeNodeData = {
     if (object.node?.$case === "run" && object.node?.run !== undefined && object.node?.run !== null) {
       message.node = { $case: "run", run: RunData.fromPartial(object.node.run) };
     }
+    if (object.node?.$case === "workerSet" && object.node?.workerSet !== undefined && object.node?.workerSet !== null) {
+      message.node = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.node.workerSet) };
+    }
     return message;
   },
 };
@@ -9611,9 +9748,6 @@ export const SomeStructData = {
         break;
       case "dependency":
         DependencyData.encode(message.struct.dependency, writer.uint32(74).fork()).ldelim();
-        break;
-      case "workerSet":
-        WorkerSetData.encode(message.struct.workerSet, writer.uint32(82).fork()).ldelim();
         break;
     }
     return writer;
@@ -9692,13 +9826,6 @@ export const SomeStructData = {
 
           message.struct = { $case: "dependency", dependency: DependencyData.decode(reader, reader.uint32()) };
           continue;
-        case 10:
-          if (tag !== 82) {
-            break;
-          }
-
-          message.struct = { $case: "workerSet", workerSet: WorkerSetData.decode(reader, reader.uint32()) };
-          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9728,8 +9855,6 @@ export const SomeStructData = {
         ? { $case: "environment", environment: EnvironmentData.fromJSON(object.environment) }
         : isSet(object.dependency)
         ? { $case: "dependency", dependency: DependencyData.fromJSON(object.dependency) }
-        : isSet(object.workerSet)
-        ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
         : undefined,
     };
   },
@@ -9762,9 +9887,6 @@ export const SomeStructData = {
     }
     if (message.struct?.$case === "dependency") {
       obj.dependency = DependencyData.toJSON(message.struct.dependency);
-    }
-    if (message.struct?.$case === "workerSet") {
-      obj.workerSet = WorkerSetData.toJSON(message.struct.workerSet);
     }
     return obj;
   },
@@ -9845,13 +9967,6 @@ export const SomeStructData = {
       object.struct?.dependency !== null
     ) {
       message.struct = { $case: "dependency", dependency: DependencyData.fromPartial(object.struct.dependency) };
-    }
-    if (
-      object.struct?.$case === "workerSet" &&
-      object.struct?.workerSet !== undefined &&
-      object.struct?.workerSet !== null
-    ) {
-      message.struct = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.struct.workerSet) };
     }
     return message;
   },

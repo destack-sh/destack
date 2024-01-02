@@ -1,28 +1,21 @@
-import enum
-import inspect
 import json
-from dataclasses import dataclass, field, fields, is_dataclass
+from dataclasses import dataclass, field, is_dataclass
 from datetime import date, datetime, time
 from functools import partial
 from typing import (
     Any,
     Callable,
     Collection,
-    ForwardRef,
     Iterable,
     Mapping,
     NamedTuple,
     Optional,
     Union,
-    get_origin,
-    get_type_hints,
-    is_typeddict,
 )
 from uuid import UUID
 
 import pytz
 import structlog
-from more_itertools import first
 
 from bench.language.const import TypeFlag, TypeHint, TypeTag
 from bench.language.expression import TYPE_DISCRIMINATOR_KEY
@@ -32,9 +25,7 @@ from bench.language.field import (
     Field,
     HasFields,
     HasType,
-    Json,
     Key,
-    RichText,
     TypedDict,
     TypeError,
     Vector,
@@ -44,7 +35,6 @@ from bench.language.session import Session
 from bench.language.statement import Statement
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
 from bench.utils.func import strip_py_type, try_to_uuid
-from bench.utils.utils import IdentifierType, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
 
@@ -307,10 +297,6 @@ class TypeMapper:
         """Whether this mapper can represent the given Python instance type."""
         raise NotImplementedError(f"{self!r} does not support this for {py_type!r}")
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
-        """Converts a Python instance type into a Bench Type."""
-        raise NotImplementedError(f"{self!r} does not support this for {py_type!r}")
-
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         """
         Whether this mapper can represent the given Python instance value.
@@ -382,19 +368,6 @@ def get_type_mapper_by_type(type: HasType) -> TypeMapper:
     raise LookupError(f"no mapping found for {type}")
 
 
-def get_type_mapper_by_instance_type(py_type: type) -> tuple[TypeMapper, type, TypeFlag]:
-    """
-    Gets the most appropriate mapping for the given Python type.
-    (flat because we "ignore" list and optional types (inside the mapper)).
-    """
-    py_type, flags = _strip_py_type(py_type)
-    # get mapping
-    for mapping in type_mappers.values():
-        if mapping.is_instance_type(py_type):
-            return mapping, py_type, flags
-    raise LookupError(f"no mapping found for {py_type} ({flags}, type={type(py_type)})")
-
-
 def _strip_py_type(py_type: type) -> tuple[type, TypeFlag]:
     py_type, info = strip_py_type(py_type)
     flags = TypeFlag.ZERO
@@ -421,14 +394,6 @@ class StaticPyTypeMapper(TypeMapper):
         if hasattr(self.py_type, "__supertype__"):
             self.py_type_raw = self.py_type.__supertype__
         self._all_py_types = (self.py_type_raw,) + tuple(self.alt_py_types or [])
-
-    def is_instance_type(self, py_type: type) -> bool:
-        return py_type == self.py_type or (
-            self.alt_py_types is not None and py_type in self.alt_py_types
-        )
-
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
-        return Field(name=None, tag=self.tag, hint=self.hint)
 
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, self._all_py_types)
@@ -463,12 +428,6 @@ class StringTypeMapper(StaticPyTypeMapper):
 
 
 class RichTextMapper(TypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return py_type is RichText
-
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
-        return Field(name=None, tag=TypeTag.STRING, hint=TypeHint.RICH_TEXT)
-
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, (str, Text))
 
@@ -491,9 +450,6 @@ class RichTextMapper(TypeMapper):
 
 @dataclass
 class StringifyTypeMapping(StaticPyTypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return self.py_type == py_type
-
     def unpack_value(
         self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
     ) -> Any:
@@ -513,14 +469,6 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
         datetime: TypeHint.DATETIME,
         time: TypeHint.TIME,
     }
-
-    def is_instance_type(self, py_type: type) -> bool:
-        return inspect.isclass(py_type) and any(
-            issubclass(py_type, t) for t in self.HINT_BY_PY_TYPE
-        )
-
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
-        return Field(tag=TypeTag.STRING, hint=self.HINT_BY_PY_TYPE[py_type])
 
     def unpack_value(
         self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
@@ -544,22 +492,6 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
 
 @dataclass
 class EnumMapper(TypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return inspect.isclass(py_type) and issubclass(py_type, enum.StrEnum)
-
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> HasType:
-        from bench.language.statement import Statement
-
-        assert issubclass(py_type, enum.StrEnum)
-        if py_type in type_map:
-            return type_map[py_type]
-        type = Statement.choice(name=py_type.__name__)
-        type_map[py_type] = type
-        for py_member in py_type.__members__.values():
-            member = Field(name=py_member.name, key=py_member.name, tag=TypeTag.LITERAL)
-            type.fields.append(member)
-        return type
-
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         if isinstance(value, str):
             # allow string values for built-in enums
@@ -602,17 +534,8 @@ class VectorTypeMapper(StaticPyTypeMapper):
 
 @dataclass
 class NodeMapper(TypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return inspect.isclass(py_type) and issubclass(py_type, Node)
-
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, Node)
-
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
-        hint = {Statement: TypeHint.STATEMENT, Field: TypeHint.FIELD}.get(py_type)
-        if hint is None:
-            raise ValueError(f"cannot map {py_type}")
-        return Field(name=None, tag=TypeTag.NODE, hint=hint)
 
     def unpack_value(
         self, type: HasType, scope: ScopeNode, session: Optional[Session], value: Any
@@ -629,28 +552,6 @@ class NodeMapper(TypeMapper):
 
 @dataclass
 class StructMapper(TypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return is_dataclass(py_type) or is_typeddict(py_type)
-
-    def from_instance_type(self, py_type: type, type_map: dict[str, Any]) -> StatementOrField:
-        if py_type in type_map:
-            return type_map[py_type]
-        from bench.language.statement import Statement
-
-        type = Statement.class_(name=py_type.__name__)
-        type_map[py_type] = type
-        if is_dataclass(py_type):
-            for py_field in fields(py_type):
-                field_ = field_from_instance_type(py_field.type, py_field.name, type_map)
-                type.fields.append(field_)
-        elif is_typeddict(py_type):
-            for py_field_name, py_field in get_type_hints(py_type).items():
-                field_ = field_from_instance_type(py_field, py_field_name, type_map)
-                type.fields.append(field_)
-        else:
-            raise ValueError(f"unsupported struct type: {py_type}")
-        return type
-
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return isinstance(value, Mapping) or is_dataclass(value)
 
@@ -678,14 +579,8 @@ class StructMapper(TypeMapper):
 
 @dataclass
 class JsonMapper(TypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return py_type is Json or py_type is dict or get_origin(py_type) is dict
-
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return True  # not sure how to check this
-
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
-        return Field(name=None, tag=TypeTag.JSON)
 
     def render_python(self, type: HasType, value: Any) -> str:
         return json.dumps(value, indent=2)
@@ -693,96 +588,11 @@ class JsonMapper(TypeMapper):
 
 @dataclass
 class FunctionMapper(TypeMapper):
-    def is_instance_type(self, py_type: type) -> bool:
-        return inspect.isfunction(py_type)
-
     def is_instance_value(self, type: HasType, value: Any) -> bool:
         return value is None or isinstance(value, dict)
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> StatementOrField:
-        if py_type in type_map:
-            return type_map[py_type]
-        from bench.language.statement import Statement
-
-        type = Statement.class_(name=py_type.__name__)
-        type_map[py_type] = type
-        signature = inspect.signature(py_type)
-        for py_param in signature.parameters.values():
-            if py_param.name == "self" and (
-                py_param.annotation is py_param.empty
-                or py_param.annotation.__name__ is py_type.__name__
-            ):
-                continue
-            param = field_from_instance_type(py_param.annotation, py_param.name, type_map)
-            type.fields.append(param)
-
-        # output must be a struct, inline it with output flag
-        if signature.return_annotation is inspect.Signature.empty:
-            raise ValueError(f"missing return annotation for {py_type}")
-        output = type_from_instance_type(signature.return_annotation, None, type_map)
-        if output.tag != TypeTag.STRUCT:
-            raise ValueError(f"function output must be a struct: {py_type}")
-        for output_field in output.fields:
-            output_field = output_field._copy_self()
-            output_field.flags |= TypeFlag.IS_OUTPUT
-            output_field.order_key = None  # reset order
-            type.fields.append(output_field)
-
-        return type
-
 
 _TYPE_MAP: dict[Any, HasFields] = {}
-
-
-def type_from_instance_type(
-    py_type: type, name: Optional[str], type_map: dict[Any, StatementOrField] = None
-) -> StatementOrField:
-    """
-    Maps a python type to a Type (recursively).
-    Nested types are read/written in the given type_map.
-    Types are keyed by name since we have no way to associate keys over time.
-    """
-    type_map = type_map or _TYPE_MAP
-    map, stripped, flags = get_type_mapper_by_instance_type(py_type)
-    type = map.from_instance_type(stripped, type_map)
-    if name:
-        type.name = name
-    if flags:
-        type.flags |= flags
-    return type
-
-
-def field_from_instance_type(
-    py_type: type | str, name: str, type_map: dict[Any, StatementOrField]
-) -> Field:
-    name_nice = name.replace("_", " ")
-    if to_pyidentifier(name_nice, IdentifierType.FIELD) != name:
-        raise ValueError(f"inconsistent field name: {name} != {name_nice}")
-
-    stripped, flags = _strip_py_type(py_type)
-    if isinstance(stripped, str):
-        # lookup by name in type_map
-        type = first((t for k, t in type_map.items() if k.__name__ == stripped), None)
-        if type is None:
-            raise ValueError(f"unknown type name: {stripped}")
-    elif isinstance(stripped, ForwardRef):
-        # lookup by name in type_map
-        type = first(
-            (t for k, t in type_map.items() if k.__name__ == stripped.__forward_arg__), None
-        )
-        if type is None:
-            raise ValueError(f"unknown type name: {stripped}")
-    elif stripped in type_map:
-        type = type_map[stripped]
-    else:
-        type = type_from_instance_type(py_type, name, type_map)
-    # key is set to None so we error if they're not set later
-    if type.tag in (TypeTag.STRUCT, TypeTag.ENUM, TypeTag.TYPE_REFERENCE):
-        return Field(
-            name=name_nice, key=None, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags
-        )
-    else:
-        return Field(name=name_nice, key=None, tag=type.tag, hint=type.hint, flags=flags)
 
 
 def unpack_value_flat(

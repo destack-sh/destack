@@ -25,13 +25,14 @@ from bench.language import TypeTag
 from bench.language.const import (
     HOST_NODE_TYPES,
     INTERP_NODE_TYPES,
+    EditKind,
     NodeType,
     RunStatus,
     TriggerType,
 )
-from bench.language.module import NODE_CLASS_BY_NODE_TYPE, NodeTree, to_bench_metatype
-from bench.language.render import EditBundle, EditData, EditKind
+from bench.language.module import NODE_CLASS_BY_NODE_TYPE, EditBundle, NodeTree, to_bench_metatype
 from bench.proto import wire, wiring
+from bench.proto.wire import EditData
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import to_uuid
 from bench.utils.utils import flatten
@@ -168,7 +169,7 @@ def get_node_packer(node: NodeT) -> NodePacker:
 
 
 def pack_module_host(
-    module: models.ProjectVersion,
+    module: models.BenchVersion,
     filter: PackFilter = DEFAULT_PACK_FILTER,
     excluded: Collection[NodeType] = DEFAULT_EXCLUDED,
 ) -> wire.ModuleTreeData:
@@ -343,11 +344,11 @@ def unpack_nodes_tree(
 
 
 def unpack_nodes(
-    project_v: models.ProjectVersion, module: NodeTree, nodes: Collection[NodeDataT]
+    bench_v: models.BenchVersion, module: NodeTree, nodes: Collection[NodeDataT]
 ) -> list[NodeT]:
     """Unpack a list nodes (incl. their ancestors) without DB queries"""
     unpacked_nodes = []
-    ancestors_by_id: dict[UUID, ModelT] = {project_v.id: project_v}
+    ancestors_by_id: dict[UUID, ModelT] = {bench_v.id: bench_v}
     for node_data in nodes:
         # runs aren't technically detached but sessions (their parents) are
         metatype = to_bench_metatype(node_data.metatype)
@@ -381,17 +382,17 @@ def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
     return packer.unpack(data, parent)
 
 
-@node_packer(NodeType.MODULE, wire.ModuleData, models.ProjectVersion)
-class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
-    def walk(self, nodes: list[models.ProjectVersion], tree: PackContext) -> list[QuerySet[Model]]:
-        return [models.File._base_manager.filter(project_version__in=nodes)]
+@node_packer(NodeType.MODULE, wire.ModuleData, models.BenchVersion)
+class ModulePacker(NodePacker[wire.ModuleData, models.BenchVersion]):
+    def walk(self, nodes: list[models.BenchVersion], tree: PackContext) -> list[QuerySet[Model]]:
+        return [models.File._base_manager.filter(bench_version__in=nodes)]
 
-    def pack(self, module: models.ProjectVersion) -> wire.ModuleData:
+    def pack(self, module: models.BenchVersion) -> wire.ModuleData:
         return wire.ModuleData(
             metatype=wire.BenchType.MODULE,
             id=str(module.id),
             ck=str(module.bench_id),
-            name=module.project.path,
+            name=module.bench.path,
             committed=module.committed,
             parent_id=None,
             created_at=module.created_at,
@@ -416,9 +417,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
             metatype=wire.BenchType.FILE,
             id=str(file.id),
             ck=str(file.ck),
-            parent_id=str(file.project_version_id)
-            if file.parent_id is not None
-            else file.parent_id,
+            parent_id=str(file.bench_version_id) if file.parent_id is not None else file.parent_id,
             name=file.name,
             revision=file.revision,
             created_at=file.created_at,
@@ -428,16 +427,14 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
             last_changed_at=file.last_changed_at,
         )
 
-    def unpack(
-        self, data: wire.FileData, parent: models.File | models.ProjectVersion
-    ) -> models.File:
-        project_version_id = (
-            parent.id if isinstance(parent, models.ProjectVersion) else parent.project_version_id
+    def unpack(self, data: wire.FileData, parent: models.File | models.BenchVersion) -> models.File:
+        bench_version_id = (
+            parent.id if isinstance(parent, models.BenchVersion) else parent.bench_version_id
         )
         return models.File(
             id=data.id,
             ck=data.ck,
-            project_version_id=project_version_id,
+            bench_version_id=bench_version_id,
             parent_file_id=parent.id if isinstance(parent, models.File) else None,
             name=data.name,
             revision=data.revision,
@@ -485,7 +482,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
         return models.Statement(
             id=data.id,
             ck=data.ck,
-            project_version_id=parent.project_version_id,
+            bench_version_id=parent.bench_version_id,
             parent_statement_id=parent.id if isinstance(parent, models.Statement) else None,
             file_id=parent.id if isinstance(parent, models.File) else parent.file_id,
             revision=data.revision,
@@ -629,25 +626,25 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
             ck=str(issue.ck),
             parent_id=str(issue.parent_statement_id)
             or issue.parent_file_id
-            or issue.project_version_id,
+            or issue.bench_version_id,
             kind=wire.IssueKind[issue.kind],
             type=wire.IssueType[issue.type],
             message=issue.message,
         )
 
     def unpack(
-        self, data: wire.IssueData, parent: models.Statement | models.File | models.ProjectVersion
+        self, data: wire.IssueData, parent: models.Statement | models.File | models.BenchVersion
     ) -> models.Issue:
         if isinstance(parent, models.Statement):
-            project_version_id = parent.project_version_id
+            bench_version_id = parent.bench_version_id
             parent_statement_id = parent.id
             parent_file_id = None
         elif isinstance(parent, models.File):
-            project_version_id = parent.project_version_id
+            bench_version_id = parent.bench_version_id
             parent_statement_id = None
             parent_file_id = parent.id
-        elif isinstance(parent, models.ProjectVersion):
-            project_version_id = parent.id
+        elif isinstance(parent, models.BenchVersion):
+            bench_version_id = parent.id
             parent_statement_id = None
             parent_file_id = None
         else:
@@ -655,7 +652,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
         return models.Issue(
             id=data.id,
             ck=data.ck,
-            project_version_id=project_version_id,
+            bench_version_id=bench_version_id,
             parent_file_id=parent_file_id,
             parent_statement_id=parent_statement_id,
             kind=data.kind.name,
@@ -682,7 +679,7 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
         return models.ResolvedField(
             id=data.id,
             ck=data.ck,
-            project_version_id=parent.project_version_id,
+            bench_version_id=parent.bench_version_id,
             statement_id=parent.id,
             order_key=data.order_key,
             field_ck=data.field_ck,
@@ -828,7 +825,7 @@ class SessionPacker(NodePacker[wire.SessionData, models.Session]):
             last_changed_at=data.last_changed_at,
             last_edited_at=data.last_edited_at,
             revision=data.revision,
-            project_id=data.project_id,
+            bench_id=data.bench_id,
             opened_at=data.opened_at,
             closed_at=data.closed_at,
             trigger_id=data.trigger_id,
@@ -857,7 +854,7 @@ class SessionPacker(NodePacker[wire.SessionData, models.Session]):
             revision=data.revision,
             opened_at=data.opened_at,
             closed_at=data.closed_at,
-            project_id=data.project_id,
+            bench_id=data.bench_id,
             trigger_type=data.trigger_type,
             trigger_access_token_id=access_token_id,
             trigger_user_id=user_id,
@@ -872,7 +869,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
             metatype=wire.BenchType.RUN,
             id=str(model.id),
             ck=str(model.ck),
-            project_id=str(model.project_id) if model.project_id else None,
+            bench_id=str(model.bench_id) if model.bench_id else None,
             worker_node_id=model.worker_node_id,
             worker_process_id=model.worker_process_id,
             session_id=str(model.session_id) if model.session_id else None,
@@ -913,7 +910,7 @@ class RunPacker(NodePacker[wire.RunData, models.Run]):
         return models.Run(
             id=data.id,
             ck=data.ck,
-            project_id=data.project_id,
+            bench_id=data.bench_id,
             parent_run_id=data.parent_id if data.root_id else None,  # hack hack
             worker_node_id=data.worker_node_id,
             worker_process_id=data.worker_process_id,
@@ -949,7 +946,7 @@ class WorkerSetPacker(StructPacker[wire.WorkerSetData, models.WorkerSet]):
         return wire.WorkerSetData(
             metatype=wire.BenchType.WORKER_SET,
             id=str(model.id),
-            project_id=str(model.project_id),
+            bench_id=str(model.bench_id),
             region=wire.ProjectRegion[model.region.upper()],
             profile=wire.WorkerProfile[model.profile.upper()],
             sleeping=model.sleeping,
@@ -966,7 +963,7 @@ class WorkerSetPacker(StructPacker[wire.WorkerSetData, models.WorkerSet]):
     def unpack(self, data: wire.WorkerSetData) -> models.WorkerSet:
         return models.WorkerSet(
             id=data.id,
-            project_id=data.project_id,
+            bench_id=data.bench_id,
             region=data.region.name,
             profile=data.profile.name,
             sleeping=data.sleeping,
@@ -982,17 +979,17 @@ class WorkerSetPacker(StructPacker[wire.WorkerSetData, models.WorkerSet]):
 
 
 REMAP_PROPERTIES: dict[tuple[NodeType, str], list[str]] = {
-    (NodeType.FILE, "parent_id"): ["parent_file_id", "project_version_id"],
-    (NodeType.STATEMENT, "parent_id"): ["parent_statement_id", "file_id", "project_version_id"],
-    (NodeType.FIELD, "parent_id"): ["statement_id", "project_version_id"],
-    (NodeType.TRIGGER, "parent_id"): ["statement_id", "project_version_id"],
-    (NodeType.TAGGING, "parent_id"): ["statement_id", "project_version_id"],
+    (NodeType.FILE, "parent_id"): ["parent_file_id", "bench_version_id"],
+    (NodeType.STATEMENT, "parent_id"): ["parent_statement_id", "file_id", "bench_version_id"],
+    (NodeType.FIELD, "parent_id"): ["statement_id", "bench_version_id"],
+    (NodeType.TRIGGER, "parent_id"): ["statement_id", "bench_version_id"],
+    (NodeType.TAGGING, "parent_id"): ["statement_id", "bench_version_id"],
 }
 
 
 @transaction.atomic
 def write_host_db_edits(
-    project_v: models.ProjectVersion,
+    bench_v: models.BenchVersion,
     source: NodeTree,
     edits: list[EditData],
     *,
@@ -1029,11 +1026,11 @@ def write_host_db_edits(
                 else:
                     model_cls._base_manager.filter(parent_file_id__in=file_ids).delete()
             else:
-                model_cls._base_manager.filter(project_version_id=project_v.id).delete()
+                model_cls._base_manager.filter(bench_version_id=bench_v.id).delete()
 
         elif edit_kind == EditKind.CREATE:
             # create nodes
-            nodes = unpack_nodes(project_v, source, [e.node for e in edit_batch])
+            nodes = unpack_nodes(bench_v, source, [e.node for e in edit_batch])
             model_cls = MODEL_CLASS_BY_NODE_TYPE[node_type]
             model_cls.objects.bulk_create(nodes)
             # reload nodes (e.g., for revisions)
@@ -1050,7 +1047,7 @@ def write_host_db_edits(
             EditKind.RESTORE,
         ):
             # update nodes in place
-            nodes = unpack_nodes(project_v, source, [e.node for e in edit_batch])
+            nodes = unpack_nodes(bench_v, source, [e.node for e in edit_batch])
             model_cls = MODEL_CLASS_BY_NODE_TYPE[node_type]
             if edit_kind == EditKind.SOFT_DELETE:
                 for node in nodes:

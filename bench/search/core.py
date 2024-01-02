@@ -443,7 +443,7 @@ class IndexType(enum.StrEnum):
     """The index type within Bench."""
 
     GLOBAL = "global"
-    LOCAL = "project"
+    LOCAL = "bench"
 
 
 class DocumentType(enum.StrEnum):

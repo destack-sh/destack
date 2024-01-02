@@ -46,6 +46,7 @@ class BenchType(betterproto.Enum):
     SECRET = 41
     SESSION = 60
     RUN = 61
+    WORKER_SET = 64
     ACCESS_CONTROL = 200
     ACCESS_CONTROL_RULE = 201
     EXPRESSION = 210
@@ -55,7 +56,6 @@ class BenchType(betterproto.Enum):
     INFERENCE = 223
     ENVIRONMENT = 230
     DEPENDENCY = 231
-    WORKER_SET = 399
 
 
 class BlobStatus(betterproto.Enum):
@@ -198,6 +198,7 @@ class NodeType(betterproto.Enum):
     SECRET = 41
     SESSION = 60
     RUN = 61
+    WORKER_SET = 64
 
 
 class ProjectRegion(betterproto.Enum):
@@ -305,7 +306,6 @@ class StructType(betterproto.Enum):
     INFERENCE = 223
     ENVIRONMENT = 230
     DEPENDENCY = 231
-    WORKER_SET = 399
 
 
 class TextHeadingLevel(betterproto.Enum):
@@ -500,7 +500,7 @@ class InferenceData(betterproto.Message):
 class LogEntryData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    project_id: str = betterproto.string_field(20)
+    bench_id: str = betterproto.string_field(20)
     module_ck: str = betterproto.string_field(21)
     created_at: datetime = betterproto.message_field(22)
     stream: str = betterproto.string_field(23)
@@ -531,24 +531,6 @@ class RunErrorData(betterproto.Message):
     message: str = betterproto.string_field(22)
     statement_ck: str = betterproto.string_field(23)
     traceback: List["RunCodeFrameData"] = betterproto.message_field(24)
-
-
-@dataclass(eq=False, repr=False)
-class WorkerSetData(betterproto.Message):
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    created_at: datetime = betterproto.message_field(10)
-    updated_at: datetime = betterproto.message_field(11)
-    project_id: str = betterproto.string_field(20)
-    region: "ProjectRegion" = betterproto.enum_field(21)
-    profile: "WorkerProfile" = betterproto.enum_field(22)
-    sleeping: bool = betterproto.bool_field(23)
-    status: "WorkerSetStatus" = betterproto.enum_field(24)
-    desired_replicas: int = betterproto.int64_field(25)
-    target_replicas: int = betterproto.int64_field(26)
-    available_replicas: int = betterproto.int64_field(27)
-    ready_replicas: int = betterproto.int64_field(28)
-    last_active_at: datetime = betterproto.message_field(29)
 
 
 @dataclass(eq=False, repr=False)
@@ -739,7 +721,7 @@ class RunData(betterproto.Message):
     last_changed_at: datetime = betterproto.message_field(17)
     session_id: str = betterproto.string_field(20)
     root_id: str = betterproto.string_field(21)
-    project_id: str = betterproto.string_field(22)
+    bench_id: str = betterproto.string_field(22)
     worker_node_id: str = betterproto.string_field(23)
     worker_process_id: str = betterproto.string_field(24)
     statement_ck: str = betterproto.string_field(25)
@@ -788,7 +770,7 @@ class SessionData(betterproto.Message):
     last_edited_at: datetime = betterproto.message_field(16)
     last_changed_at: datetime = betterproto.message_field(17)
     access_level: int = betterproto.int64_field(20)
-    project_id: str = betterproto.string_field(21)
+    bench_id: str = betterproto.string_field(21)
     worker_node_id: str = betterproto.string_field(22)
     worker_process_id: str = betterproto.string_field(23)
     trigger_type: "TriggerType" = betterproto.enum_field(24)
@@ -882,6 +864,31 @@ class ViewData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class WorkerSetData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(16)
+    last_changed_at: datetime = betterproto.message_field(17)
+    bench_id: str = betterproto.string_field(20)
+    region: "ProjectRegion" = betterproto.enum_field(21)
+    profile: "WorkerProfile" = betterproto.enum_field(22)
+    sleeping: bool = betterproto.bool_field(23)
+    status: "WorkerSetStatus" = betterproto.enum_field(24)
+    desired_replicas: int = betterproto.int64_field(25)
+    target_replicas: int = betterproto.int64_field(26)
+    available_replicas: int = betterproto.int64_field(27)
+    ready_replicas: int = betterproto.int64_field(28)
+    last_active_at: datetime = betterproto.message_field(29)
+
+
+@dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
     bench: "BenchData" = betterproto.message_field(1, group="node")
     module: "ModuleData" = betterproto.message_field(2, group="node")
@@ -898,6 +905,7 @@ class SomeNodeData(betterproto.Message):
     secret: "SecretData" = betterproto.message_field(13, group="node")
     session: "SessionData" = betterproto.message_field(14, group="node")
     run: "RunData" = betterproto.message_field(15, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(16, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -911,7 +919,6 @@ class SomeStructData(betterproto.Message):
     inference: "InferenceData" = betterproto.message_field(7, group="struct")
     environment: "EnvironmentData" = betterproto.message_field(8, group="struct")
     dependency: "DependencyData" = betterproto.message_field(9, group="struct")
-    worker_set: "WorkerSetData" = betterproto.message_field(10, group="struct")
 
 
 @dataclass(eq=False, repr=False)

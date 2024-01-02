@@ -4,22 +4,18 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from bench import models
-from bench.models import Project
-from bench.sql.engine import (
-    create_local_pg_database,
-    delete_local_pg_database,
-    update_pg_schema,
-)
+from bench.models import Bench
+from bench.sql.engine import create_local_pg_database, delete_local_pg_database, update_pg_schema
 
 logger = structlog.get_logger(__name__)
 
 
-async def update_pg_schema_from_db(project_v: models.ProjectVersion) -> None:
+async def update_pg_schema_from_db(bench_v: models.BenchVersion) -> None:
     from bench.runtime.utils import interp_module
 
-    logger.info("pg.update_mappings", project_version=repr(project_v))
-    module, project = await interp_module(project_v.id)
-    await update_pg_schema(project.pg_name, module)
+    logger.info("pg.update_mappings", bench_version=repr(bench_v))
+    module, bench = await interp_module(bench_v.id)
+    await update_pg_schema(bench.pg_name, module)
 
 
 class Command(BaseCommand):
@@ -30,38 +26,38 @@ class Command(BaseCommand):
         # optional arguments
         parser.add_argument("slug", type=str, nargs="?")
 
-    def get_project(self, slug: str) -> Project:
-        owner, project_name = slug.split("/")
-        project = Project.objects.get_by_slug(owner, project_name)
+    def get_bench(self, slug: str) -> Bench:
+        owner, bench_name = slug.split("/")
+        bench = Bench.objects.get_by_slug(owner, bench_name)
         for attr in ("user", "organization", "head", "pg_username", "pg_password"):
-            getattr(project, attr)
-        return project
+            getattr(bench, attr)
+        return bench
 
     @transaction.atomic
     def handle(self, action: str, slug: str | None, *args, **options):
         if slug == "all":
-            projects = (
-                models.Project.objects.select_related("user", "organization", "head")
+            benches = (
+                models.Bench.objects.select_related("user", "organization", "head")
                 .defer(None)
                 .all()
             )
         elif slug:
-            projects = [self.get_project(slug)]
+            benches = [self.get_bench(slug)]
         else:
-            projects = []
+            benches = []
         if action == "bootstrap":
             pass
         elif action == "create":
-            for project in projects:
-                async_to_sync(create_local_pg_database)(project, upsert=True)
+            for bench in benches:
+                async_to_sync(create_local_pg_database)(bench, upsert=True)
         elif action == "schema":
-            for project in projects:
-                project_v = project.head
-                project_v.project = project  # 'preloaded' project
-                project_v.project.owner  # noqa why do we need to load this again?
-                async_to_sync(update_pg_schema_from_db)(project_v)
+            for bench in benches:
+                bench_v = bench.head
+                bench_v.bench = bench  # 'preloaded' bench
+                bench_v.bench.owner  # noqa why do we need to load this again?
+                async_to_sync(update_pg_schema_from_db)(bench_v)
         elif action == "delete":
-            for project in projects:
-                async_to_sync(delete_local_pg_database)(project)
+            for bench in benches:
+                async_to_sync(delete_local_pg_database)(bench)
         else:
             raise ValueError("Unknown action")

@@ -19,7 +19,7 @@ from bench.api.utils import get_user_from_info, safe_mutation
 from bench.models import OrganizationRole
 
 if TYPE_CHECKING:
-    from bench.api.project import Project
+    from bench.api.bench import Bench
     from bench.api.token import AccessToken
     from bench.api.user import User
 
@@ -46,8 +46,8 @@ class Organization(Owner, relay.Node):
     invites: strawberry_django.relay.ListConnectionWithTotalCount[
         "OrganizationInvite"
     ] = strawberry_django.connection(extensions=[HasOrganizationRole(target=CheckTarget.ROOT)])
-    projects: strawberry_django.relay.ListConnectionWithTotalCount[
-        Annotated["Project", lazy(".project")]
+    benches: strawberry_django.relay.ListConnectionWithTotalCount[
+        Annotated["Bench", lazy(".bench")]
     ] = strawberry_django.connection(extensions=[HasOrganizationRole(target=CheckTarget.ROOT)])
     access_tokens: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["AccessToken", lazy(".token")]

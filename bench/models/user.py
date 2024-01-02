@@ -17,7 +17,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL
 
 if TYPE_CHECKING:
-    from bench.models import Project, ProjectMembership, ProjectVersion
+    from bench.models import Bench, BenchMembership, BenchVersion
 
 logger = structlog.get_logger(__name__)
 
@@ -36,11 +36,11 @@ class UserManager(BaseUserManager["User"]):
         )
 
         # recover invites that were sent to this email address
+        from bench.models.bench import BenchInvite
         from bench.models.organization import OrganizationInvite
-        from bench.models.project import ProjectInvite
 
         OrganizationInvite.objects.filter(email=email).update(user=user)
-        ProjectInvite.objects.filter(email=email).update(user=user)
+        BenchInvite.objects.filter(email=email).update(user=user)
 
         if not DEBUG and not LOCAL:
             user._create_in_loops()
@@ -77,11 +77,11 @@ class User(AbstractUser, UUIDModel):
         max_length=MAX_DESCRIPTION_LENGTH, blank=True, null=True
     )
 
-    projects: models.QuerySet["Project"]  # noqa via Project.user
-    project_invites: models.QuerySet["ProjectInvite"]  # noqa via ProjectInvite.user
-    project_memberships: models.QuerySet["ProjectMembership"]  # noqa via ProjectMembership.user
+    benches: models.QuerySet["Bench"]  # noqa via Project.user
+    bench_invites: models.QuerySet["BenchInvite"]  # noqa via BenchInvite.user
+    bench_memberships: models.QuerySet["BenchMembership"]  # noqa via BenchMembership.user
     organizations: models.QuerySet["Organization"]  # noqa via Organization.members
-    organization_invites: models.QuerySet["ProjectInvite"]  # noqa via OrganizationInvite.user
+    organization_invites: models.QuerySet["BenchInvite"]  # noqa via OrganizationInvite.user
     organization_memberships: models.QuerySet[
         "OrganizationMembership"
     ]  # noqa via OrganizationMembership.user
@@ -178,8 +178,8 @@ class ClientManager(models.Manager):
         self,
         organization: Optional["Organization"] = None,
         user: Optional["User"] = None,
-        project: Optional["Project"] = None,
-        project_version: Optional["ProjectVersion"] = None,
+        bench: Optional["Bench"] = None,
+        bench_version: Optional["BenchVersion"] = None,
     ) -> models.QuerySet["Client"]:
         active_cutoff = utcnow_with_tz() - timedelta(seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS)
         qs = self.filter(
@@ -190,10 +190,10 @@ class ClientManager(models.Manager):
             qs = qs.filter(user__memberships__organization=organization)
         if user is not None:
             qs = qs.filter(user=user)
-        if project is not None:
-            qs = qs.filter(project=project)
-        if project_version is not None:
-            qs = qs.filter(project_version=project_version)
+        if bench is not None:
+            qs = qs.filter(bench=bench)
+        if bench_version is not None:
+            qs = qs.filter(bench_version=bench_version)
         return qs
 
 
@@ -209,9 +209,9 @@ class Client(UUIDModel):
     device_name = models.CharField(max_length=256, null=True, blank=True)
     browser_name = models.CharField(max_length=256, null=True, blank=True)
     # current location in the app
-    project = models.ForeignKey("Project", on_delete=models.SET_NULL, null=True, blank=True)
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
+    bench = models.ForeignKey("Bench", on_delete=models.SET_NULL, null=True, blank=True)
+    bench_version = models.ForeignKey(
+        "BenchVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
     file_id = models.UUIDField(null=True, blank=True)
     statement_id = models.UUIDField(null=True, blank=True)

@@ -45,14 +45,14 @@ logger = structlog.get_logger(__name__)
 
 @dataclass
 class ModuleInfo:
-    project_id: UUID
+    bench_id: UUID
     os_name: str
     pg_name: str
 
 
 class WorkerNode(Monitored):
     """
-    A user worker to run user code, generally one worker process per project (Bench).
+    A user worker to run user code, generally one worker process per bench (Bench).
     For local development a node can host multiple Benches.
     TODO @Architecture: merge WorkerNode/WorkerHost, processes should be 1:1 with ModuleWorkerProcess
      (see :BE-213)
@@ -62,12 +62,12 @@ class WorkerNode(Monitored):
         self,
         worker_node_id: str,
         worker_set_id: UUID | None,
-        project_id: UUID | None,
+        bench_id: UUID | None,
         module_id: UUID | None,
     ):
         self.worker_set_id = worker_set_id
         self.worker_node_id = worker_node_id
-        self.project_id = project_id
+        self.bench_id = bench_id
         self.module_id = module_id
         self.workers: dict[UUID, WorkerProcess] = {}
         self.subs = []
@@ -80,11 +80,11 @@ class WorkerNode(Monitored):
         self.log = logger.bind(
             worker_node=self.worker_node_id,
             worker_set=self.worker_set_id,
-            project_id=self.project_id,
+            bench_id=self.bench_id,
         )
 
     def __str__(self):
-        return f"{self.project_id} {self.worker_set_id} {self.worker_node_id}"
+        return f"{self.bench_id} {self.worker_set_id} {self.worker_node_id}"
 
     def __repr__(self):
         return f"<WorkerNode {self}>"
@@ -100,7 +100,7 @@ class WorkerNode(Monitored):
     async def run(self):
         self.log.info("start")
 
-        # get default modules info (we need their project_id/os_name/pg_name/...)
+        # get default modules info (we need their bench_id/os_name/pg_name/...)
         # (maybe cache it or get it more efficiently? maybe compare versions?)
         for module_name, module in DEFAULT_MODULES.items():
             module_ref = ModuleReference(name=module_name, version="x", id=None)
@@ -113,15 +113,15 @@ class WorkerNode(Monitored):
             self._cached_module_source[module_ref] = module_loaded, info
             module = await sync_to_async(Module.make)(
                 source=module_loaded.nodes,
-                project_id=info.project_id,
+                bench_id=info.bench_id,
                 os_name=info.os_name,
                 pg_name=info.pg_name,
             )
             self._cached_modules[module_ref] = module
 
-        # topics for .project.module or just .project
-        m_routing = f"{self.project_id}.*" if self.project_id else ">"
-        p_routing = f"{self.project_id}" if self.project_id else "*"
+        # topics for .bench.module or just .bench
+        m_routing = f"{self.bench_id}.*" if self.bench_id else ">"
+        p_routing = f"{self.bench_id}" if self.bench_id else "*"
         self.subs = [
             await subscribe(f"{NMessageType.MODULE_CHANGED}.{m_routing}", cb=self.module_changed),
             await handle_reply(f"{NMessageType.START_RUN}.{m_routing}", self.start_run),
@@ -217,7 +217,7 @@ class WorkerNode(Monitored):
             run_data = RunData(
                 id=run_id,
                 ck=run_id,
-                project_id=str(worker.project_id),
+                bench_id=str(worker.bench_id),
                 worker_node_id=self.worker_node_id,
                 worker_process_id=None,
                 statement_ck=statement.ck if statement else None,
@@ -324,10 +324,10 @@ class WorkerNode(Monitored):
             retry_delay=10,
         )
         if module_rep.p.module.module.committed:
-            self._cached_module_source[ref] = module_rep.p.module, module_rep.p.project_id
+            self._cached_module_source[ref] = module_rep.p.module, module_rep.p.bench_id
         log.debug("module.fetch", cached=False)
         return module_rep.p.module, ModuleInfo(
-            project_id=module_rep.p.project_id,
+            bench_id=module_rep.p.bench_id,
             os_name=module_rep.p.os_name,
             pg_name=module_rep.p.pg_name,
         )
@@ -391,7 +391,7 @@ class WorkerProcess(RuntimeHost):
     def __init__(self, module_id: UUID, node: "WorkerNode", process_id: Optional[str]):
         self.node = node
         self.module_id = module_id
-        self.project_id: Optional[UUID] = None  # set in init (requires runtime fetch)
+        self.bench_id: Optional[UUID] = None  # set in init (requires runtime fetch)
         self.ready = asyncio.Event()
 
         self.module: Module | None = None
@@ -426,11 +426,11 @@ class WorkerProcess(RuntimeHost):
     async def start(self):
         # get & interp module
         source, info = await self.node.read_module(self.module_id)
-        self.project_id = info.project_id
+        self.bench_id = info.bench_id
         try:
             self.module = await sync_to_async(Module.make)(
                 source=source.nodes,
-                project_id=info.project_id,
+                bench_id=info.bench_id,
                 os_name=info.os_name,
                 pg_name=info.pg_name,
             )
@@ -449,7 +449,7 @@ class WorkerProcess(RuntimeHost):
             rep: NMessage[RepPullWorkerRunsPayload] = await request(
                 NMessageType.PULL_WORKER_RUNS,
                 ReqPullWorkerRunsPayload(
-                    project_id=self.node.project_id,
+                    bench_id=self.node.bench_id,
                     module_id=self.module_id,
                     worker_set_id=self.node.worker_set_id,
                     worker_node_id=self.node.worker_node_id,
@@ -628,7 +628,7 @@ class WorkerProcess(RuntimeHost):
                 id=job.session_id,
                 ck=job.session_id,
                 module=self.module,
-                project_id=self.project_id,
+                bench_id=self.bench_id,
                 access_level=job.run_data.access_level or SessionAccessLevel.Read,
                 worker_node_id=self.node.worker_node_id,
                 worker_process_id=None,
@@ -735,20 +735,20 @@ class WorkerProcess(RuntimeHost):
                 del self._pending_created_runs[run.id]
         await publish(
             NMessageType.SESSION_CHANGED,
-            SessionChangedPayload(project_id=self.project_id, module_id=self.module_id, runs=runs),
+            SessionChangedPayload(bench_id=self.bench_id, module_id=self.module_id, runs=runs),
         )
 
     async def notify_logs_changed(self, logs: list[wire.LogEntryData]) -> None:
         await publish(
             NMessageType.LOGS_CHANGED,
-            LogsChangedPayload(project_id=self.project_id, module_id=self.module_id, logs=logs),
+            LogsChangedPayload(bench_id=self.bench_id, module_id=self.module_id, logs=logs),
         )
 
     async def notify_databases_changed(self, databases: Collection["HasDatabase"]) -> None:
         edits = [
             EditData(
                 type=EditType.BUMP_STATEMENT,
-                project_version_id=self.module.id,
+                bench_version_id=self.module.id,
                 file_id=database.file.id,
                 statement_id=database.id,
                 revision=database.revision,
@@ -760,7 +760,7 @@ class WorkerProcess(RuntimeHost):
         await publish(
             NMessageType.MODULE_CHANGED,
             ModuleChangedPayload(
-                project_id=self.project_id,
+                bench_id=self.bench_id,
                 module_id=self.module_id,
                 edits=edits,
                 origins=[self.node.client],
@@ -816,7 +816,7 @@ class WorkerProcess(RuntimeHost):
 
     async def run_proxy_statement(self, statement: Statement, inputs: dict) -> dict:
         req = ReqRunStatementPayload(
-            project_id=statement.session.module.bench_id,
+            bench_id=statement.session.module.bench_id,
             module_name=statement.session.module.path,
             statement=statement.path,
             inputs=inputs,
@@ -834,7 +834,7 @@ class WorkerProcess(RuntimeHost):
 
     async def run_proxy_inference(self, statement: Statement, inputs: dict, timeout: float) -> dict:
         req = ReqRunInferencePayload(
-            project_id=statement.module.bench_id,
+            bench_id=statement.module.bench_id,
             model_path=statement.path,
             inputs=inputs,
             timeout=timeout,

@@ -15,8 +15,8 @@ from bench.api.utils import safe_mutation
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
+    from bench.api.bench import BenchInvite
     from bench.api.organization import OrganizationInvite
-    from bench.api.project import ProjectInvite
     from bench.api.user import User
 
 logger = structlog.get_logger(__name__)
@@ -66,7 +66,7 @@ class Notification(relay.Node):
     archived_at: auto
 
     organization_invite: Annotated["OrganizationInvite", lazy(".organization")]
-    project_invite: Annotated["ProjectInvite", lazy(".project")]
+    bench_invite: Annotated["BenchInvite", lazy(".bench")]
 
 
 @strawberry.input

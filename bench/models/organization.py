@@ -23,7 +23,7 @@ class OrganizationManager(models.Manager["Organization"]):
 
 class Organization(UUIDModel):
     """
-    An organization is a group of users and projects.
+    An organization is a group of users and benches.
     """
 
     name = models.CharField(max_length=256)
@@ -39,7 +39,7 @@ class Organization(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    projects: models.QuerySet["Project"]  # noqa via Project.user
+    benches: models.QuerySet["Bench"]  # noqa via Project.user
     members = models.ManyToManyField(
         "User", through="OrganizationMembership", related_name="organizations"
     )

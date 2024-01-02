@@ -8,9 +8,9 @@ from bench.models.utils import UUIDModel, get_choices
 
 
 class WorkerSet(UUIDModel):
-    """A desired-state set of homogenous workers for a project. Maps to/from k8 deployments."""
+    """A desired-state set of homogenous workers for a bench. Maps to/from k8 deployments."""
 
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="worker_sets")
+    bench = models.ForeignKey("Bench", on_delete=models.CASCADE, related_name="worker_sets")
     region = models.CharField(max_length=32, choices=get_choices(ProjectRegion))
     profile = models.CharField(max_length=32, choices=get_choices(WorkerProfile))
     sleeping = models.BooleanField(default=False)
@@ -28,7 +28,7 @@ class WorkerSet(UUIDModel):
 
     def __str__(self):
         desired_status = "sleeping" if self.sleeping else "active"
-        return f"{self.project} ({self.region}, {self.profile}, {desired_status}->{self.status}, x{self.desired_replicas}->{self.target_replicas}->{self.available_replicas})"
+        return f"{self.bench} ({self.region}, {self.profile}, {desired_status}->{self.status}, x{self.desired_replicas}->{self.target_replicas}->{self.available_replicas})"
 
     def __repr__(self):
         return f"<WorkerSet {self}>"

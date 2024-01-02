@@ -1,10 +1,10 @@
 """
-ASGI config for bench project.
+ASGI config for bench bench.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
 For more information on this file, see
-https://docs.djangoproject.com/en/4.1/howto/deployment/asgi/
+https://docs.djangobench.com/en/4.1/howto/deployment/asgi/
 and
 https://channels.readthedocs.io/en/latest/deploying.html
 """

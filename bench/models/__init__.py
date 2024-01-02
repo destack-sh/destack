@@ -1,19 +1,19 @@
 from django.db.models import Q
 
+from .bench import (
+    Bench,
+    BenchInvite,
+    BenchMembership,
+    BenchVersion,
+    BenchVisibility,
+    File,
+    ModuleAccessLevel,
+)
 from .blob import Blob, BlobStatus
 from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
 from .organization import Organization, OrganizationInvite, OrganizationMembership, OrganizationRole
 from .owner import OwnerSlug
-from .project import (
-    File,
-    ModuleAccessLevel,
-    Project,
-    ProjectInvite,
-    ProjectMembership,
-    ProjectVersion,
-    ProjectVisibility,
-)
 from .secret import Secret
 from .session import Run, Session
 from .statement import Field, Statement, Tagging, Trigger, TriggerType
@@ -44,12 +44,12 @@ __all__ = [
     "OrganizationMembership",
     "OrganizationRole",
     "OwnerSlug",
-    "Project",
+    "Bench",
     "ModuleAccessLevel",
-    "ProjectInvite",
-    "ProjectMembership",
-    "ProjectVersion",
-    "ProjectVisibility",
+    "BenchInvite",
+    "BenchMembership",
+    "BenchVersion",
+    "BenchVisibility",
     "Q",
     "Blob",
     "BlobStatus",

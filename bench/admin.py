@@ -1,8 +1,8 @@
 from django.contrib import admin
 
-from bench.models import Organization, Project, ProjectVersion, User
+from bench.models import Bench, BenchVersion, Organization, User
 
 admin.site.register(Organization)
 admin.site.register(User)
-admin.site.register(Project)
-admin.site.register(ProjectVersion)
+admin.site.register(Bench)
+admin.site.register(BenchVersion)

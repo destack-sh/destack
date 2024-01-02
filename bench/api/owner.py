@@ -11,7 +11,7 @@ from bench import models
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.api.project import Project
+    from bench.api.bench import Bench
     from bench.api.token import AccessToken
 
 
@@ -34,8 +34,8 @@ class Owner:
     name: str
     created_at: datetime
     updated_at: datetime
-    projects: strawberry_django.relay.ListConnectionWithTotalCount[
-        Annotated["Project", lazy(".project")]
+    benches: strawberry_django.relay.ListConnectionWithTotalCount[
+        Annotated["Bench", lazy(".bench")]
     ]
     access_tokens: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["AccessToken", lazy(".token")]
