@@ -33,7 +33,6 @@ from bench.language.expression import (
     S,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
-from bench.language.render import EditData, EditKind, EditType
 from bench.proto import wire
 from bench.search import core as os
 from bench.search import mirror

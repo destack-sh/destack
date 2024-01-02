@@ -145,8 +145,7 @@ class BenchVersion(HasCrud, ModuleNode, relay.Node):
     description: auto
     parents: list["BenchVersion"]
     children: list["BenchVersion"]
-    committed: auto
-    committed_at: auto
+    is_snapshot: bool
 
 
 @strawberry.input

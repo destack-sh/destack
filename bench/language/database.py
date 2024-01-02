@@ -52,7 +52,7 @@ LOCAL_RECORD_CACHE_LIMIT = 2048
 RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 
-@node(NodeType.RECORD, passthrough=(("value", _Passthrough.Full),))
+@node(NodeType.RECORD, passthrough=(("value", _Passthrough.Full),), local=True)
 class Record(HasValue, Node):
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
     value: typing.Any | None = struct_property(
@@ -475,7 +475,7 @@ class RecordQuery:
             table=self._database._table,
             where=compile_pg_conditional(self._database, self._combined_filter),
             static_value=value,
-            returning=[self._database._table.columns_by_name["id"]],
+            returning=[self._database._table._columns_by_name["id"]],
         )
         updated_records_ids = {r["id"] for r in updated_rows}
         session._tracer._records_changed(self._database, updated_records_ids)  # mark for OS sync
@@ -500,7 +500,7 @@ class RecordQuery:
             cur=await self._database._get_pg_cursor(),
             table=self._database._table,
             where=compile_pg_conditional(self._database, where),
-            returning=[self._database._table.columns_by_name["id"]],
+            returning=[self._database._table._columns_by_name["id"]],
         )
         deleted_records_ids = {r["id"] for r in deleted_rows}
         session._tracer._records_changed(self._database, deleted_records_ids)  # mark for OS sync
@@ -690,12 +690,12 @@ class HasDatabase(Node):
         self._table = None
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:
-        from bench.sql.engine import map_to_pg_table
+        from bench.sql.engine import map_database_to_pg_table
 
         if self.ephemeral:
             self._table = EPHEMERAL_RECORD_TABLE
         else:
-            self._table = map_to_pg_table(self)
+            self._table = map_database_to_pg_table(self)
 
     async def _get_pg_cursor(self) -> psycopg.AsyncCursor:
         return await self.session.pg_cursor_to(module=self.module)

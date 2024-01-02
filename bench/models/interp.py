@@ -24,6 +24,9 @@ class ResolvedField(UUIDModel, Node):
     def parent_id(self) -> Optional[uuid.UUID]:
         return self.statement_id
 
+    class Meta:
+        managed = False
+
 
 class IssueKind(models.TextChoices):
     Error = "Error"
@@ -63,3 +66,6 @@ class Issue(UUIDModel, Node):
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
         return self.parent_statement_id or self.parent_file_id
+
+    class Meta:
+        managed = False

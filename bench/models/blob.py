@@ -10,6 +10,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from bench.language.blob import BLOB_HASH_LENGTH
+from bench.language.const import BlobStatus
 from bench.models.utils import CrudNode
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 
@@ -26,10 +27,6 @@ logger = structlog.get_logger(__name__)
 
 
 # :BlobType
-class BlobStatus(models.TextChoices):
-    PREPARED = "prepared"
-    UPLOADING = "uploading"
-    AVAILABLE = "available"
 
 
 class Blob(CrudNode):
@@ -45,8 +42,6 @@ class Blob(CrudNode):
     name = models.CharField(max_length=255, null=True, blank=True)
     status = models.CharField(
         max_length=32,
-        choices=BlobStatus.choices,
-        default=BlobStatus.PREPARED,
     )
 
     _presigned_post: Optional[str] = None  # set manually
@@ -129,10 +124,7 @@ class Blob(CrudNode):
         return response
 
     class Meta:
-        constraints = [
-            # deduplicate objects per bench/sha512
-            models.UniqueConstraint(fields=["bench", "sha512"], name="bench_remoteobject_sha512_ak")
-        ]
+        managed = False
 
 
 @cache

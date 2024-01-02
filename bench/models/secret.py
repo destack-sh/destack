@@ -27,3 +27,6 @@ class Secret(CrudNode):
 
     def __repr__(self):
         return f"<Secret {self}>"
+
+    class Meta:
+        managed = False

@@ -23,7 +23,7 @@ from bench.language.expression import (
     FieldReference,
     QueryEngineIncapableError,
 )
-from bench.language.module import UNSET, get_node_id
+from bench.language.module import UNSET, get_node_id, Node
 from bench.proto import wire
 from bench.proto.wire import EditData
 from bench.sql.client import GLOBAL_RO_PASSWORD, GLOBAL_RO_USERNAME, async_pg_cursor
@@ -41,7 +41,6 @@ from bench.sql.core import (
     SqlPrimitive,
     Table,
     TableConstruct,
-    get_record_table_name,
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL
@@ -50,6 +49,56 @@ if typing.TYPE_CHECKING:
     from bench.proto.wiring import AnyNodeData
 
 logger = structlog.get_logger(__name__)
+
+
+def get_record_table_name(statement_ck: UUID) -> str:
+    """First 16 hex digits without dashes."""
+    return f"record_{str(statement_ck).replace('-', '')}"
+
+
+def get_bench_table_name(node_type: NodeType) -> str:
+    return f"bench_{node_type.name.lower().replace('_', '')}"
+
+
+def map_bench_node_to_pg_table(node: type[Node]) -> Table:
+    columns: list[Column] = []
+    properties = list(node.__properties__.values())
+    properties.sort(key=lambda p: p.id or -1)
+    for prop in properties:
+        if prop.parent_node_types:
+            # add one parent_<node_type>_id FK column per parent node type
+            for parent_node_type in prop.parent_node_types:
+                column = Column(
+                    source=prop.id,
+                    name=f"parent_{parent_node_type.name.lower()}_id",
+                    type=ColumnType.UUID,
+                    is_array=False,
+                    is_nullable=True,
+                )
+                columns.append(column)
+        elif prop.is_stored and prop.name != "parent_id":  # regular column
+            column = Column(
+                source=prop.id,
+                name=prop.name,
+                type=prop.store_as,
+                is_array=prop.is_array,
+                # nocheckin: generated Column.is_nullable is wrong (too often true)
+                is_nullable=not prop.is_required or prop.default is None,
+                is_encrypted=prop.is_encrypted,
+            )
+            columns.append(column)
+    # nocheckin: add constraints (foreign key, checks, uniqueness, one parent set)
+    table = Table(
+        source=node.metatype.id,
+        name=get_bench_table_name(node.metatype),
+        columns=tuple(columns),
+    )
+    return table
+
+
+TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
+    # read previously generated tables in bench.py
+}
 
 COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
     TypeStorageFormat.STRING: ColumnType.STRING,
@@ -88,7 +137,7 @@ def get_field_column_name(field: lang.Field) -> str:
     return get_value_column_name(field._typed_key, bool(field.flags & TypeFlag.IS_ARRAY))
 
 
-def map_to_pg_column(field: lang.Field) -> Column:
+def map_field_to_pg_column(field: lang.Field) -> Column:
     """Gets a column from a field. Later, there may be more than one column per field (?)."""
     column_type = COLUMN_TYPE_BY_STORAGE_FORMAT[field._storage_format]
     is_array = (
@@ -103,9 +152,9 @@ def map_to_pg_column(field: lang.Field) -> Column:
     )
 
 
-def map_to_pg_table(statement: lang.Statement) -> Table:
+def map_database_to_pg_table(statement: lang.Statement) -> Table:
     """Gets the full table with all specific fields of a database and general record stuff."""
-    columns = [map_to_pg_column(f) for f in statement.resolved_fields]
+    columns = [map_field_to_pg_column(f) for f in statement.resolved_fields]
     indexes = []
     constraints = []
 
@@ -604,7 +653,7 @@ async def pg_update_list(
         ),
     )
     statement = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
-        table=table_name, pk=sql.Identifier(table.primary_key.name), values=values_sql
+        table=table_name, pk=sql.Identifier(table._primary_key.name), values=values_sql
     )
     if returning:
         statement += sql.SQL(" RETURNING {}").format(
@@ -617,7 +666,7 @@ async def pg_update_list(
         rows=len(dynamic_values),
     )
     dynamic_values = [
-        (*(value.get(c.name) for c in dynamic_columns), value.get(table.primary_key.name))
+        (*(value.get(c.name) for c in dynamic_columns), value.get(table._primary_key.name))
         for value in dynamic_values
     ]
     await _do_execute_many(cur, table, statement, dynamic_values, returning=bool(returning))
@@ -942,7 +991,7 @@ async def write_local_edits_to_pg(
                 cur=cur,
                 table=table,
                 static_values=fixed_values,
-                dynamic_columns=[table.columns_by_name[k] for k in properties],
+                dynamic_columns=[table._columns_by_name[k] for k in properties],
                 dynamic_values=row_values,
                 returning=table.columns if return_nodes else None,
             )

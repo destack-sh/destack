@@ -63,6 +63,7 @@ class Field(CrudNode):
     objects = FieldManager()
 
     class Meta:
+        managed = False
         ordering = ["order_key"]
         default_manager_name = "objects"
         indexes = [models.Index(fields=["statement"])]
@@ -110,6 +111,7 @@ class Trigger(CrudNode):
         return self.statement
 
     class Meta:
+        managed = False
         # interval must be >60 if set
         constraints = [
             models.CheckConstraint(
@@ -142,6 +144,9 @@ class Tagging(CrudNode):
     @property
     def parent(self):
         return self.statement
+
+    class Meta:
+        managed = False
 
 
 class StatementManager(models.Manager["Statement"]):
@@ -205,6 +210,7 @@ class Statement(CrudNode):
     objects: StatementManager = StatementManager()
 
     class Meta:
+        managed = False
         ordering = ["order_key"]
         default_manager_name = "objects"
         constraints = [

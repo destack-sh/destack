@@ -8,6 +8,7 @@ from bench.language.builtin import symbolx_lib
 from bench.language.const import INTERP_NODE_TYPES, ModuleReference
 from bench.models import Bench, BenchVersion, packer
 from bench.proto import wire, wiring
+from bench.utils.func import to_uuid
 
 _cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, models.Bench]] = {}
 
@@ -39,7 +40,9 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
 
 async def interp_module(ref: ModuleReference | UUID) -> tuple[Module, models.Bench]:
     module, bench = await read_module(ref)
-    module = wiring.unpack_node_inline(module.nodes, parent=None, exclude=INTERP_NODE_TYPES)
+    module = wiring.unpack_node_inline(
+        module.nodes, my_root=to_uuid(module.module.ck), parent=None, exclude=INTERP_NODE_TYPES
+    )
     for dependency in libs.DEFAULT_MODULES.values():
         module.add_dependency(dependency)
     module.add_builtin(symbolx_lib.files.get("builtins"))

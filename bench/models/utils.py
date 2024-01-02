@@ -35,6 +35,7 @@ class Revisioned(models.Model):
         abstract = True
 
 
+# nocheckin: remove models.Node/CrudModel/CrudNode
 class Node(models.Model):
     """A node in the module tree. See language/core."""
 
