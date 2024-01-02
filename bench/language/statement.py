@@ -150,6 +150,7 @@ _s(
     IdentT.VARIABLE,
     passthrough=(("fields", _Passthrough.Full),),
 )
+_s(StatementType.SCREEN, (HasText,), IdentT.VARIABLE)
 assert len(_STATEMENT_DESCRIPTORS) == len(StatementType), "missing statement descriptors"
 del _s
 

@@ -60,8 +60,8 @@ from bench.language.module import (
     struct_runtime,
 )
 from bench.language.run import Run, RunError
-from bench.language.statement import Statement
 from bench.language.value import HasValue
+from bench.proto.wire import EditData, LogEntryData, RunData
 from bench.search.client import get_os_errors, os_client
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import ColumnType
@@ -70,9 +70,8 @@ from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Blob, HasDatabase, HasFields, Secret, Trigger
+    from bench.language import Blob, HasDatabase, HasFields, Secret, Statement, Trigger
     from bench.language.cache import Cache
-    from bench.proto.wire import EditData, LogEntryData, RunData
 
 logger = structlog.get_logger(__name__)
 
@@ -111,10 +110,12 @@ class RuntimeHost(abc.ABC):
     async def reveal_secret(self, secret: "Secret") -> Any:
         raise NotImplementedError
 
-    async def run_proxy_statement(self, statement: Statement, inputs: dict) -> dict:
+    async def run_proxy_statement(self, statement: "Statement", inputs: dict) -> dict:
         raise NotImplementedError
 
-    async def run_proxy_inference(self, statement: Statement, inputs: dict, timeout: float) -> dict:
+    async def run_proxy_inference(
+        self, statement: "Statement", inputs: dict, timeout: float
+    ) -> dict:
         raise NotImplementedError
 
 
@@ -176,7 +177,13 @@ class Environment(Struct):
     language: str = struct_internal(20)
     version: str = struct_internal(21)
     platform: str = struct_internal(22)
-    packages: dict[str, str] = struct_internal(23, store_as=ColumnType.JSON)
+    dependencies: list["Dependency"] = struct_internal(23, struct_t=StructType.DEPENDENCY)
+
+
+@struct(StructType.DEPENDENCY)
+class Dependency(Struct):
+    name: str = struct_internal(20)
+    version: str = struct_internal(21)
 
 
 @node(NodeType.SESSION, detached=True)
@@ -497,7 +504,7 @@ class SessionTracer:
         self.session = session
         self.runs = {}
         self._stacktrace: list[Run] = []
-        self._stacktrace_ancestors_cks: dict[UUID, Statement] = {}  # protect running statements
+        self._stacktrace_ancestors_cks: dict[UUID, "Statement"] = {}  # protect running statements
         self._tracing_lock = threading.Lock()
         self._created_nodes_ck: set[UUID] = set()
         self._updated_nodes_event_by_ck: dict[UUID, int] = {}
@@ -857,7 +864,7 @@ class SessionTracer:
 
     def _create_run(
         self,
-        statement: Optional[Statement] = None,
+        statement: Optional["Statement"] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
@@ -1147,7 +1154,7 @@ def _set_active_run(run: Run):
 
 def _pack_and_truncate_value(
     value: Any,
-    type: Statement,
+    type: "Statement",
     ignore_array: bool = False,
     ignore_outer: bool = False,
     none_if_invalid: bool = False,

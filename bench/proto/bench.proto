@@ -14,35 +14,33 @@ enum AggregationOp {
   AGGREGATION_OP_HISTOGRAM = 7;
 }
 
-enum EditKind {
-  EDIT_KIND_UNSPECIFIED = 0;
-  EDIT_KIND_CREATE = 1;
-  EDIT_KIND_UPDATE = 2;
-  EDIT_KIND_DELETE = 3;
-}
-
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
-  BENCH_TYPE_MODULE = 1;
-  BENCH_TYPE_FILE = 2;
-  BENCH_TYPE_STATEMENT = 3;
-  BENCH_TYPE_TRIGGER = 4;
-  BENCH_TYPE_TAGGING = 5;
-  BENCH_TYPE_FIELD = 6;
-  BENCH_TYPE_RECORD = 7;
-  BENCH_TYPE_VIEW = 8;
-  BENCH_TYPE_ISSUE = 9;
-  BENCH_TYPE_RESOLVED_FIELD = 10;
-  BENCH_TYPE_BLOB = 11;
-  BENCH_TYPE_SECRET = 12;
-  BENCH_TYPE_SESSION = 13;
-  BENCH_TYPE_RUN = 14;
-  BENCH_TYPE_EXPRESSION = 101;
-  BENCH_TYPE_RUN_CODE_FRAME = 102;
-  BENCH_TYPE_RUN_ERROR = 103;
-  BENCH_TYPE_LOG_ENTRY = 104;
-  BENCH_TYPE_WORKER_SET = 105;
-  BENCH_TYPE_ENVIRONMENT = 106;
+  BENCH_TYPE_BENCH = 1;
+  BENCH_TYPE_MODULE = 2;
+  BENCH_TYPE_FILE = 3;
+  BENCH_TYPE_STATEMENT = 4;
+  BENCH_TYPE_TRIGGER = 5;
+  BENCH_TYPE_TAGGING = 6;
+  BENCH_TYPE_FIELD = 7;
+  BENCH_TYPE_RECORD = 8;
+  BENCH_TYPE_VIEW = 9;
+  BENCH_TYPE_ISSUE = 20;
+  BENCH_TYPE_RESOLVED_FIELD = 21;
+  BENCH_TYPE_BLOB = 40;
+  BENCH_TYPE_SECRET = 41;
+  BENCH_TYPE_SESSION = 60;
+  BENCH_TYPE_RUN = 61;
+  BENCH_TYPE_ACCESS_CONTROL = 200;
+  BENCH_TYPE_ACCESS_CONTROL_RULE = 201;
+  BENCH_TYPE_EXPRESSION = 210;
+  BENCH_TYPE_LOG_ENTRY = 220;
+  BENCH_TYPE_RUN_CODE_FRAME = 221;
+  BENCH_TYPE_RUN_ERROR = 222;
+  BENCH_TYPE_INFERENCE = 223;
+  BENCH_TYPE_ENVIRONMENT = 230;
+  BENCH_TYPE_DEPENDENCY = 231;
+  BENCH_TYPE_WORKER_SET = 399;
 }
 
 enum BlobStatus {
@@ -74,6 +72,18 @@ enum ConditionalOp {
   CONDITIONAL_OP_EXISTS = 18;
   CONDITIONAL_OP_NOT_EXISTS = 19;
   CONDITIONAL_OP_NEAR = 20;
+}
+
+enum EditKind {
+  EDIT_KIND_UNSPECIFIED = 0;
+  EDIT_KIND_CREATE = 1;
+  EDIT_KIND_UPDATE = 2;
+  EDIT_KIND_MOVE = 3;
+  EDIT_KIND_SOFT_DELETE = 4;
+  EDIT_KIND_RESTORE = 5;
+  EDIT_KIND_BUMP = 6;
+  EDIT_KIND_DELETE = 7;
+  EDIT_KIND_TRUNCATE = 8;
 }
 
 enum ExpressionKind {
@@ -159,20 +169,21 @@ enum NodeTrackingLevel {
 
 enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
-  NODE_TYPE_MODULE = 1;
-  NODE_TYPE_FILE = 2;
-  NODE_TYPE_STATEMENT = 3;
-  NODE_TYPE_TRIGGER = 4;
-  NODE_TYPE_TAGGING = 5;
-  NODE_TYPE_FIELD = 6;
-  NODE_TYPE_RECORD = 7;
-  NODE_TYPE_VIEW = 8;
-  NODE_TYPE_ISSUE = 9;
-  NODE_TYPE_RESOLVED_FIELD = 10;
-  NODE_TYPE_BLOB = 11;
-  NODE_TYPE_SECRET = 12;
-  NODE_TYPE_SESSION = 13;
-  NODE_TYPE_RUN = 14;
+  NODE_TYPE_BENCH = 1;
+  NODE_TYPE_MODULE = 2;
+  NODE_TYPE_FILE = 3;
+  NODE_TYPE_STATEMENT = 4;
+  NODE_TYPE_TRIGGER = 5;
+  NODE_TYPE_TAGGING = 6;
+  NODE_TYPE_FIELD = 7;
+  NODE_TYPE_RECORD = 8;
+  NODE_TYPE_VIEW = 9;
+  NODE_TYPE_ISSUE = 20;
+  NODE_TYPE_RESOLVED_FIELD = 21;
+  NODE_TYPE_BLOB = 40;
+  NODE_TYPE_SECRET = 41;
+  NODE_TYPE_SESSION = 60;
+  NODE_TYPE_RUN = 61;
 }
 
 enum ProjectRegion {
@@ -267,17 +278,21 @@ enum StatementType {
   STATEMENT_TYPE_VARIABLE = 10;
   STATEMENT_TYPE_DATABASE = 11;
   STATEMENT_TYPE_VIEW = 12;
-  STATEMENT_TYPE_GROUP = 13;
+  STATEMENT_TYPE_SCREEN = 13;
 }
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_EXPRESSION = 101;
-  STRUCT_TYPE_RUN_CODE_FRAME = 102;
-  STRUCT_TYPE_RUN_ERROR = 103;
-  STRUCT_TYPE_LOG_ENTRY = 104;
-  STRUCT_TYPE_WORKER_SET = 105;
-  STRUCT_TYPE_ENVIRONMENT = 106;
+  STRUCT_TYPE_ACCESS_CONTROL = 200;
+  STRUCT_TYPE_ACCESS_CONTROL_RULE = 201;
+  STRUCT_TYPE_EXPRESSION = 210;
+  STRUCT_TYPE_LOG_ENTRY = 220;
+  STRUCT_TYPE_RUN_CODE_FRAME = 221;
+  STRUCT_TYPE_RUN_ERROR = 222;
+  STRUCT_TYPE_INFERENCE = 223;
+  STRUCT_TYPE_ENVIRONMENT = 230;
+  STRUCT_TYPE_DEPENDENCY = 231;
+  STRUCT_TYPE_WORKER_SET = 399;
 }
 
 enum TextHeadingLevel {
@@ -336,16 +351,17 @@ enum TypeHint {
   TYPE_HINT_CHECKBOX = 20;
   TYPE_HINT_THUMBS = 21;
   TYPE_HINT_EMBEDDING = 22;
-  TYPE_HINT_IMAGE = 23;
-  TYPE_HINT_VIDEO = 24;
-  TYPE_HINT_AUDIO = 25;
-  TYPE_HINT_FILE = 26;
-  TYPE_HINT_STATEMENT = 27;
-  TYPE_HINT_RECORD = 28;
-  TYPE_HINT_FIELD = 29;
-  TYPE_HINT_RUN = 30;
-  TYPE_HINT_SECRET = 31;
-  TYPE_HINT_BLOB = 32;
+  TYPE_HINT_BENCH = 30;
+  TYPE_HINT_FILE = 32;
+  TYPE_HINT_STATEMENT = 33;
+  TYPE_HINT_RECORD = 34;
+  TYPE_HINT_FIELD = 35;
+  TYPE_HINT_SECRET = 36;
+  TYPE_HINT_BLOB = 37;
+  TYPE_HINT_RUN = 38;
+  TYPE_HINT_IMAGE = 50;
+  TYPE_HINT_VIDEO = 51;
+  TYPE_HINT_AUDIO = 52;
 }
 
 enum TypeStorageFormat {
@@ -368,15 +384,13 @@ enum TypeTag {
   TYPE_TAG_NUMBER = 2;
   TYPE_TAG_BOOLEAN = 3;
   TYPE_TAG_VECTOR = 4;
-  TYPE_TAG_BLOB = 5;
-  TYPE_TAG_STRUCT = 6;
   TYPE_TAG_JSON = 7;
+  TYPE_TAG_LITERAL = 10;
+  TYPE_TAG_NODE = 11;
+  TYPE_TAG_STRUCT = 6;
   TYPE_TAG_FUNCTION = 8;
   TYPE_TAG_ENUM = 9;
-  TYPE_TAG_LITERAL = 10;
-  TYPE_TAG_TYPE_REFERENCE = 11;
-  TYPE_TAG_NODE = 12;
-  TYPE_TAG_ANY = 13;
+  TYPE_TAG_TYPE_REFERENCE = 13;
 }
 
 enum WorkerProfile {
@@ -400,12 +414,26 @@ enum WorkerSetStatus {
   WORKER_SET_STATUS_UNKNOWN = 7;
 }
 
+message AccessControlData {
+  BenchType metatype = 1;
+}
+
+message AccessControlRuleData {
+  BenchType metatype = 1;
+}
+
+message DependencyData {
+  BenchType metatype = 1;
+  string name = 20;
+  string version = 21;
+}
+
 message EnvironmentData {
   BenchType metatype = 1;
   string language = 20;
   string version = 21;
   string platform = 22;
-  google.protobuf.Struct packages = 23;
+  repeated DependencyData dependencies = 23;
 }
 
 message ExpressionData {
@@ -416,6 +444,15 @@ message ExpressionData {
   repeated ExpressionData clauses = 24;
   google.protobuf.Struct value = 25;
   string mode = 26;
+}
+
+message InferenceData {
+  BenchType metatype = 1;
+  google.protobuf.Timestamp generated_at = 20;
+  string generated_in = 21;
+  float duration = 22;
+  google.protobuf.Struct inputs = 23;
+  google.protobuf.Struct outputs = 24;
 }
 
 message LogEntryData {
@@ -469,17 +506,37 @@ message WorkerSetData {
   google.protobuf.Timestamp last_active_at = 29;
 }
 
+message BenchData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
+  string name = 20;
+  string slug = 21;
+  string description = 22;
+  string os_name = 23;
+  string pg_name = 24;
+}
+
 message BlobData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   string sha512 = 20;
   int64 content_length = 21;
   string content_type = 22;
@@ -492,12 +549,13 @@ message FieldData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   string name = 21;
   string order_key = 22;
   string text = 23;
@@ -514,12 +572,13 @@ message FileData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   string name = 20;
 }
 
@@ -528,12 +587,13 @@ message IssueData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   IssueType type = 20;
   IssueKind kind = 21;
   string message = 22;
@@ -547,17 +607,14 @@ message ModuleData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
-  string name = 20;
-  bool committed = 21;
-  string project_id = 22;
-  string os_name = 23;
-  string pg_name = 24;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
+  bool is_main = 21;
 }
 
 message BaseNodeData {
@@ -565,12 +622,13 @@ message BaseNodeData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
 }
 
 message RecordData {
@@ -578,12 +636,13 @@ message RecordData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   google.protobuf.Struct value = 20;
 }
 
@@ -592,12 +651,13 @@ message ResolvedFieldData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   string field_ck = 20;
   string name = 21;
   string order_key = 22;
@@ -615,12 +675,13 @@ message RunData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   string session_id = 20;
   string root_id = 21;
   string project_id = 22;
@@ -646,13 +707,15 @@ message SecretData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   string sha512 = 20;
+  google.protobuf.Struct value = 21;
 }
 
 message SessionData {
@@ -660,12 +723,13 @@ message SessionData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   int64 access_level = 20;
   string project_id = 21;
   string worker_node_id = 22;
@@ -683,12 +747,13 @@ message StatementData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   StatementType type = 20;
   string name = 22;
   string order_key = 23;
@@ -699,7 +764,6 @@ message StatementData {
   string code = 28;
   google.protobuf.Struct value = 29;
   bool versioned = 30;
-  string external_name = 31;
 }
 
 message TaggingData {
@@ -707,12 +771,13 @@ message TaggingData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   string key = 20;
   google.protobuf.Struct value = 21;
   string reference_ck = 22;
@@ -723,12 +788,13 @@ message TriggerData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   TriggerType type = 20;
   bool active = 21;
   string schedule_type = 22;
@@ -742,12 +808,13 @@ message ViewData {
   string id = 2;
   string ck = 3;
   string parent_id = 4;
-  google.protobuf.Timestamp created_at = 10;
-  google.protobuf.Timestamp updated_at = 11;
-  google.protobuf.Timestamp deleted_at = 12;
-  google.protobuf.Timestamp last_edited_at = 13;
-  google.protobuf.Timestamp last_changed_at = 14;
-  int64 revision = 15;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
   string name = 20;
   ExpressionData query = 22;
   repeated ExpressionData sort = 23;
@@ -755,31 +822,36 @@ message ViewData {
 
 message SomeNodeData {
   oneof node {
-    ModuleData module = 1;
-    FileData file = 2;
-    StatementData statement = 3;
-    TriggerData trigger = 4;
-    TaggingData tagging = 5;
-    FieldData field = 6;
-    RecordData record = 7;
-    ViewData view = 8;
-    IssueData issue = 9;
-    ResolvedFieldData resolved_field = 10;
-    BlobData blob = 11;
-    SecretData secret = 12;
-    SessionData session = 13;
-    RunData run = 14;
+    BenchData bench = 1;
+    ModuleData module = 2;
+    FileData file = 3;
+    StatementData statement = 4;
+    TriggerData trigger = 5;
+    TaggingData tagging = 6;
+    FieldData field = 7;
+    RecordData record = 8;
+    ViewData view = 9;
+    IssueData issue = 10;
+    ResolvedFieldData resolved_field = 11;
+    BlobData blob = 12;
+    SecretData secret = 13;
+    SessionData session = 14;
+    RunData run = 15;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    ExpressionData expression = 1;
-    RunCodeFrameData run_code_frame = 2;
-    RunErrorData run_error = 3;
+    AccessControlData access_control = 1;
+    AccessControlRuleData access_control_rule = 2;
+    ExpressionData expression = 3;
     LogEntryData log_entry = 4;
-    WorkerSetData worker_set = 5;
-    EnvironmentData environment = 6;
+    RunCodeFrameData run_code_frame = 5;
+    RunErrorData run_error = 6;
+    InferenceData inference = 7;
+    EnvironmentData environment = 8;
+    DependencyData dependency = 9;
+    WorkerSetData worker_set = 10;
   };
 }
 

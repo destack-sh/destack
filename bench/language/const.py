@@ -29,7 +29,7 @@ class NodeType(ProtoStrEnum):
     FIELD = "FIELD", 7
     RECORD = "RECORD", 8
     VIEW = "VIEW", 9
-    TILE = "TILE", 10
+    # TILE = "TILE", 10
     # interp
     ISSUE = "ISSUE", 20
     RESOLVED_FIELD = "RESOLVED_FIELD", 21
@@ -44,9 +44,9 @@ class NodeType(ProtoStrEnum):
     # INTERRUPT = "INTERRUPT", 71
     # EDIT = "EDIT", 72
     # user
-    USER = "USER", 80
-    ORGANIZATION = "ORGANIZATION", 81
-
+    # USER = "USER", 80
+    # ORGANIZATION = "ORGANIZATION", 81
+    # MEMBERSHIP = "MEMBERSHIP", 82
     # NOTIFICATION = "NOTIFICATION", 83
     # COMMENT = "COMMENT", 90
 
@@ -67,9 +67,9 @@ class StructType(ProtoStrEnum):
     LOG_ENTRY = "LOG_ENTRY", 220
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
     RUN_ERROR = "RUN_ERROR", 222
+    INFERENCE = "INFERENCE", 223
     ENVIRONMENT = "ENVIRONMENT", 230
     DEPENDENCY = "DEPENDENCY", 231
-    EDIT = "EDIT", 398  # for now, should be a node later
     WORKER_SET = "WORKER_SET", 399  # for now, should be a node later
 
     @property

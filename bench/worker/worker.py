@@ -19,16 +19,13 @@ from bench.language.const import (
     RunStatus,
     SessionAccessLevel,
 )
-from bench.language.libs import DEFAULT_DEPENDENCIES, DEFAULT_MODULES
 from bench.language.model import ModelError
 from bench.language.module import _NodeChange
 from bench.language.packer import map_value, unkey_value, unpack_value_flat
-from bench.language.render import EditData, EditType
 from bench.language.run import RunErrorKind
 from bench.language.session import RuntimeHost, Session
 from bench.proto import wire, wiring
-from bench.proto.messaging import nc_init
-from bench.proto.wire import RunData
+from bench.proto.wire import ClientOrigin, EditData, RunData
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import wrap_task
@@ -36,7 +33,7 @@ from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, required_field, sentry_capture
 from bench.utils.uuidt import UUIDT
-from bench.worker.environment import _collect_environment
+from bench.worker.environment import collect_environment
 
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 3000, type_cast=int)
 WORKER_ACTIVE_TIMEOUT = timedelta(seconds=30)
@@ -101,7 +98,6 @@ class WorkerNode(Monitored):
         return ClientOrigin(type="user-worker", id=self.worker_node_id, nonce=None)
 
     async def run(self):
-        await nc_init.wait()
         self.log.info("start")
 
         # get default modules info (we need their project_id/os_name/pg_name/...)
@@ -305,7 +301,7 @@ class WorkerNode(Monitored):
             await msg.reply(RepKillRunPayload(success=success))
 
     async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
-        await msg.reply(RepGetEnvironmentPayload(environment=_collect_environment()))
+        await msg.reply(RepGetEnvironmentPayload(environment=collect_environment()))
 
     async def ping(self, msg: NMessage[ReqPingWorkerSetPayload]):
         await msg.reply(RepPingWorkerSetPayload(success=self.healthy))

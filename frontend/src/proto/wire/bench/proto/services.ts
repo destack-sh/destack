@@ -9,10 +9,12 @@ import { Struct } from "../../google/protobuf/struct";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import {
   BlobData,
+  EditKind,
+  editKindFromJSON,
+  editKindToJSON,
   EnvironmentData,
   ExpressionData,
   LogEntryData,
-  ModuleTreeData,
   NodeType,
   nodeTypeFromJSON,
   nodeTypeToJSON,
@@ -107,10 +109,28 @@ export function serviceTypeToJSON(object: ServiceType): string {
   }
 }
 
+/**
+ * Edit describes an edit to a node in a Bench.
+ * (Manually defined here since Node properties inside structs aren't supported.)
+ */
+export interface EditData {
+  kind: EditKind;
+  moduleId: string;
+  node: SomeNodeData | undefined;
+  target: NodeType;
+  revision: number;
+  properties: string[];
+}
+
 export interface ClientOrigin {
   clientType: ClientType;
   clientId: string;
   nonce: string;
+}
+
+export interface NodePointer {
+  nodeType: NodeType;
+  node?: { $case: "nodeCk"; nodeCk: string } | { $case: "nodeId"; nodeId: string } | undefined;
 }
 
 export interface DidCreateProjectRequest {
@@ -154,14 +174,16 @@ export interface GetBenchChangesRequest {
   afterChangeMarker: number;
 }
 
+/** nocheckin */
 export interface GetBenchChangesResponse {}
 
 export interface GetModuleEditsRequest {
   afterEditMarker: number;
 }
 
-/** repeated EditData edits = 1; */
-export interface GetModuleEditsResponse {}
+export interface GetModuleEditsResponse {
+  edits: EditData[];
+}
 
 export interface GetLogsRequest {}
 
@@ -169,10 +191,13 @@ export interface GetLogsResponse {
   logs: LogEntryData[];
 }
 
-export interface ReadModuleRequest {}
+export interface ReadNodesRequest {
+  roots: NodePointer[];
+  includeDeferredProperties: boolean;
+}
 
-export interface ReadModuleResponse {
-  module: ModuleTreeData | undefined;
+export interface ReadNodesResponse {
+  nodes: SomeNodeData[];
 }
 
 export interface SearchNodesRequest {
@@ -190,8 +215,9 @@ export interface SearchNodesResponse {
   startCursor: string;
 }
 
-/** repeated EditData edits = 1; */
-export interface CommitEditsRequest {}
+export interface CommitEditsRequest {
+  edits: EditData[];
+}
 
 export interface CommitEditsResponse {
   changedNodes: SomeNodeData[];
@@ -290,68 +316,68 @@ export interface StartRunRequest {
 }
 
 export interface StartRunResponse {
-  errorType: StartRunResponse_StartRunErrorType;
+  errorType: StartRunResponse_ErrorType;
   runId: string;
   run: RunData | undefined;
   logs: LogEntryData[];
 }
 
-export enum StartRunResponse_StartRunErrorType {
-  UNSPECIFIED = 0,
-  UNAVAILABLE = 1,
-  INVALID = 2,
-  INTERNAL = 3,
-  TIMEOUT = 4,
-  RUNTIME = 5,
-  DUPLICATE = 6,
+export enum StartRunResponse_ErrorType {
+  START_RUN_UNSPECIFIED = 0,
+  START_RUN_UNAVAILABLE = 1,
+  START_RUN_INVALID = 2,
+  START_RUN_INTERNAL = 3,
+  START_RUN_TIMEOUT = 4,
+  START_RUN_RUNTIME = 5,
+  START_RUN_DUPLICATE = 6,
 }
 
-export function startRunResponse_StartRunErrorTypeFromJSON(object: any): StartRunResponse_StartRunErrorType {
+export function startRunResponse_ErrorTypeFromJSON(object: any): StartRunResponse_ErrorType {
   switch (object) {
     case 0:
     case "START_RUN_ERROR_TYPE_UNSPECIFIED":
-      return StartRunResponse_StartRunErrorType.UNSPECIFIED;
+      return StartRunResponse_ErrorType.START_RUN_UNSPECIFIED;
     case 1:
     case "START_RUN_ERROR_TYPE_UNAVAILABLE":
-      return StartRunResponse_StartRunErrorType.UNAVAILABLE;
+      return StartRunResponse_ErrorType.START_RUN_UNAVAILABLE;
     case 2:
     case "START_RUN_ERROR_TYPE_INVALID":
-      return StartRunResponse_StartRunErrorType.INVALID;
+      return StartRunResponse_ErrorType.START_RUN_INVALID;
     case 3:
     case "START_RUN_ERROR_TYPE_INTERNAL":
-      return StartRunResponse_StartRunErrorType.INTERNAL;
+      return StartRunResponse_ErrorType.START_RUN_INTERNAL;
     case 4:
     case "START_RUN_ERROR_TYPE_TIMEOUT":
-      return StartRunResponse_StartRunErrorType.TIMEOUT;
+      return StartRunResponse_ErrorType.START_RUN_TIMEOUT;
     case 5:
     case "START_RUN_ERROR_TYPE_RUNTIME":
-      return StartRunResponse_StartRunErrorType.RUNTIME;
+      return StartRunResponse_ErrorType.START_RUN_RUNTIME;
     case 6:
     case "START_RUN_ERROR_TYPE_DUPLICATE":
-      return StartRunResponse_StartRunErrorType.DUPLICATE;
+      return StartRunResponse_ErrorType.START_RUN_DUPLICATE;
     default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum StartRunResponse_StartRunErrorType");
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum StartRunResponse_ErrorType");
   }
 }
 
-export function startRunResponse_StartRunErrorTypeToJSON(object: StartRunResponse_StartRunErrorType): string {
+export function startRunResponse_ErrorTypeToJSON(object: StartRunResponse_ErrorType): string {
   switch (object) {
-    case StartRunResponse_StartRunErrorType.UNSPECIFIED:
+    case StartRunResponse_ErrorType.START_RUN_UNSPECIFIED:
       return "START_RUN_ERROR_TYPE_UNSPECIFIED";
-    case StartRunResponse_StartRunErrorType.UNAVAILABLE:
+    case StartRunResponse_ErrorType.START_RUN_UNAVAILABLE:
       return "START_RUN_ERROR_TYPE_UNAVAILABLE";
-    case StartRunResponse_StartRunErrorType.INVALID:
+    case StartRunResponse_ErrorType.START_RUN_INVALID:
       return "START_RUN_ERROR_TYPE_INVALID";
-    case StartRunResponse_StartRunErrorType.INTERNAL:
+    case StartRunResponse_ErrorType.START_RUN_INTERNAL:
       return "START_RUN_ERROR_TYPE_INTERNAL";
-    case StartRunResponse_StartRunErrorType.TIMEOUT:
+    case StartRunResponse_ErrorType.START_RUN_TIMEOUT:
       return "START_RUN_ERROR_TYPE_TIMEOUT";
-    case StartRunResponse_StartRunErrorType.RUNTIME:
+    case StartRunResponse_ErrorType.START_RUN_RUNTIME:
       return "START_RUN_ERROR_TYPE_RUNTIME";
-    case StartRunResponse_StartRunErrorType.DUPLICATE:
+    case StartRunResponse_ErrorType.START_RUN_DUPLICATE:
       return "START_RUN_ERROR_TYPE_DUPLICATE";
     default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum StartRunResponse_StartRunErrorType");
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum StartRunResponse_ErrorType");
   }
 }
 
@@ -362,6 +388,143 @@ export interface KillRunRequest {
 export interface KillRunResponse {
   success: boolean;
 }
+
+function createBaseEditData(): EditData {
+  return { kind: 0, moduleId: "", node: undefined, target: 0, revision: 0, properties: [] };
+}
+
+export const EditData = {
+  encode(message: EditData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.kind !== 0) {
+      writer.uint32(8).int32(message.kind);
+    }
+    if (message.moduleId !== "") {
+      writer.uint32(18).string(message.moduleId);
+    }
+    if (message.node !== undefined) {
+      SomeNodeData.encode(message.node, writer.uint32(26).fork()).ldelim();
+    }
+    if (message.target !== 0) {
+      writer.uint32(32).int32(message.target);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(40).int64(message.revision);
+    }
+    for (const v of message.properties) {
+      writer.uint32(50).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): EditData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseEditData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.kind = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.moduleId = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.node = SomeNodeData.decode(reader, reader.uint32());
+          continue;
+        case 4:
+          if (tag !== 32) {
+            break;
+          }
+
+          message.target = reader.int32() as any;
+          continue;
+        case 5:
+          if (tag !== 40) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.properties.push(reader.string());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): EditData {
+    return {
+      kind: isSet(object.kind) ? editKindFromJSON(object.kind) : 0,
+      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
+      node: isSet(object.node) ? SomeNodeData.fromJSON(object.node) : undefined,
+      target: isSet(object.target) ? nodeTypeFromJSON(object.target) : 0,
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      properties: globalThis.Array.isArray(object?.properties)
+        ? object.properties.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: EditData): unknown {
+    const obj: any = {};
+    if (message.kind !== 0) {
+      obj.kind = editKindToJSON(message.kind);
+    }
+    if (message.moduleId !== "") {
+      obj.moduleId = message.moduleId;
+    }
+    if (message.node !== undefined) {
+      obj.node = SomeNodeData.toJSON(message.node);
+    }
+    if (message.target !== 0) {
+      obj.target = nodeTypeToJSON(message.target);
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.properties?.length) {
+      obj.properties = message.properties;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<EditData>, I>>(base?: I): EditData {
+    return EditData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<EditData>, I>>(object: I): EditData {
+    const message = createBaseEditData();
+    message.kind = object.kind ?? 0;
+    message.moduleId = object.moduleId ?? "";
+    message.node =
+      object.node !== undefined && object.node !== null ? SomeNodeData.fromPartial(object.node) : undefined;
+    message.target = object.target ?? 0;
+    message.revision = object.revision ?? 0;
+    message.properties = object.properties?.map((e) => e) || [];
+    return message;
+  },
+};
 
 function createBaseClientOrigin(): ClientOrigin {
   return { clientType: 0, clientId: "", nonce: "" };
@@ -448,6 +611,104 @@ export const ClientOrigin = {
     message.clientType = object.clientType ?? 0;
     message.clientId = object.clientId ?? "";
     message.nonce = object.nonce ?? "";
+    return message;
+  },
+};
+
+function createBaseNodePointer(): NodePointer {
+  return { nodeType: 0, node: undefined };
+}
+
+export const NodePointer = {
+  encode(message: NodePointer, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.nodeType !== 0) {
+      writer.uint32(8).int32(message.nodeType);
+    }
+    switch (message.node?.$case) {
+      case "nodeCk":
+        writer.uint32(18).string(message.node.nodeCk);
+        break;
+      case "nodeId":
+        writer.uint32(26).string(message.node.nodeId);
+        break;
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): NodePointer {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseNodePointer();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.nodeType = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.node = { $case: "nodeCk", nodeCk: reader.string() };
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.node = { $case: "nodeId", nodeId: reader.string() };
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): NodePointer {
+    return {
+      nodeType: isSet(object.nodeType) ? nodeTypeFromJSON(object.nodeType) : 0,
+      node: isSet(object.nodeCk)
+        ? { $case: "nodeCk", nodeCk: globalThis.String(object.nodeCk) }
+        : isSet(object.nodeId)
+        ? { $case: "nodeId", nodeId: globalThis.String(object.nodeId) }
+        : undefined,
+    };
+  },
+
+  toJSON(message: NodePointer): unknown {
+    const obj: any = {};
+    if (message.nodeType !== 0) {
+      obj.nodeType = nodeTypeToJSON(message.nodeType);
+    }
+    if (message.node?.$case === "nodeCk") {
+      obj.nodeCk = message.node.nodeCk;
+    }
+    if (message.node?.$case === "nodeId") {
+      obj.nodeId = message.node.nodeId;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<NodePointer>, I>>(base?: I): NodePointer {
+    return NodePointer.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<NodePointer>, I>>(object: I): NodePointer {
+    const message = createBaseNodePointer();
+    message.nodeType = object.nodeType ?? 0;
+    if (object.node?.$case === "nodeCk" && object.node?.nodeCk !== undefined && object.node?.nodeCk !== null) {
+      message.node = { $case: "nodeCk", nodeCk: object.node.nodeCk };
+    }
+    if (object.node?.$case === "nodeId" && object.node?.nodeId !== undefined && object.node?.nodeId !== null) {
+      message.node = { $case: "nodeId", nodeId: object.node.nodeId };
+    }
     return message;
   },
 };
@@ -1166,11 +1427,14 @@ export const GetModuleEditsRequest = {
 };
 
 function createBaseGetModuleEditsResponse(): GetModuleEditsResponse {
-  return {};
+  return { edits: [] };
 }
 
 export const GetModuleEditsResponse = {
-  encode(_: GetModuleEditsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+  encode(message: GetModuleEditsResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.edits) {
+      EditData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
     return writer;
   },
 
@@ -1181,6 +1445,13 @@ export const GetModuleEditsResponse = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.edits.push(EditData.decode(reader, reader.uint32()));
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1190,20 +1461,24 @@ export const GetModuleEditsResponse = {
     return message;
   },
 
-  fromJSON(_: any): GetModuleEditsResponse {
-    return {};
+  fromJSON(object: any): GetModuleEditsResponse {
+    return { edits: globalThis.Array.isArray(object?.edits) ? object.edits.map((e: any) => EditData.fromJSON(e)) : [] };
   },
 
-  toJSON(_: GetModuleEditsResponse): unknown {
+  toJSON(message: GetModuleEditsResponse): unknown {
     const obj: any = {};
+    if (message.edits?.length) {
+      obj.edits = message.edits.map((e) => EditData.toJSON(e));
+    }
     return obj;
   },
 
   create<I extends Exact<DeepPartial<GetModuleEditsResponse>, I>>(base?: I): GetModuleEditsResponse {
     return GetModuleEditsResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<GetModuleEditsResponse>, I>>(_: I): GetModuleEditsResponse {
+  fromPartial<I extends Exact<DeepPartial<GetModuleEditsResponse>, I>>(object: I): GetModuleEditsResponse {
     const message = createBaseGetModuleEditsResponse();
+    message.edits = object.edits?.map((e) => EditData.fromPartial(e)) || [];
     return message;
   },
 };
@@ -1310,65 +1585,25 @@ export const GetLogsResponse = {
   },
 };
 
-function createBaseReadModuleRequest(): ReadModuleRequest {
-  return {};
+function createBaseReadNodesRequest(): ReadNodesRequest {
+  return { roots: [], includeDeferredProperties: false };
 }
 
-export const ReadModuleRequest = {
-  encode(_: ReadModuleRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): ReadModuleRequest {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseReadModuleRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
+export const ReadNodesRequest = {
+  encode(message: ReadNodesRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.roots) {
+      NodePointer.encode(v!, writer.uint32(10).fork()).ldelim();
     }
-    return message;
-  },
-
-  fromJSON(_: any): ReadModuleRequest {
-    return {};
-  },
-
-  toJSON(_: ReadModuleRequest): unknown {
-    const obj: any = {};
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<ReadModuleRequest>, I>>(base?: I): ReadModuleRequest {
-    return ReadModuleRequest.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<ReadModuleRequest>, I>>(_: I): ReadModuleRequest {
-    const message = createBaseReadModuleRequest();
-    return message;
-  },
-};
-
-function createBaseReadModuleResponse(): ReadModuleResponse {
-  return { module: undefined };
-}
-
-export const ReadModuleResponse = {
-  encode(message: ReadModuleResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.module !== undefined) {
-      ModuleTreeData.encode(message.module, writer.uint32(10).fork()).ldelim();
+    if (message.includeDeferredProperties === true) {
+      writer.uint32(16).bool(message.includeDeferredProperties);
     }
     return writer;
   },
 
-  decode(input: _m0.Reader | Uint8Array, length?: number): ReadModuleResponse {
+  decode(input: _m0.Reader | Uint8Array, length?: number): ReadNodesRequest {
     const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
     let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseReadModuleResponse();
+    const message = createBaseReadNodesRequest();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -1377,7 +1612,14 @@ export const ReadModuleResponse = {
             break;
           }
 
-          message.module = ModuleTreeData.decode(reader, reader.uint32());
+          message.roots.push(NodePointer.decode(reader, reader.uint32()));
+          continue;
+        case 2:
+          if (tag !== 16) {
+            break;
+          }
+
+          message.includeDeferredProperties = reader.bool();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -1388,25 +1630,92 @@ export const ReadModuleResponse = {
     return message;
   },
 
-  fromJSON(object: any): ReadModuleResponse {
-    return { module: isSet(object.module) ? ModuleTreeData.fromJSON(object.module) : undefined };
+  fromJSON(object: any): ReadNodesRequest {
+    return {
+      roots: globalThis.Array.isArray(object?.roots) ? object.roots.map((e: any) => NodePointer.fromJSON(e)) : [],
+      includeDeferredProperties: isSet(object.includeDeferredProperties)
+        ? globalThis.Boolean(object.includeDeferredProperties)
+        : false,
+    };
   },
 
-  toJSON(message: ReadModuleResponse): unknown {
+  toJSON(message: ReadNodesRequest): unknown {
     const obj: any = {};
-    if (message.module !== undefined) {
-      obj.module = ModuleTreeData.toJSON(message.module);
+    if (message.roots?.length) {
+      obj.roots = message.roots.map((e) => NodePointer.toJSON(e));
+    }
+    if (message.includeDeferredProperties === true) {
+      obj.includeDeferredProperties = message.includeDeferredProperties;
     }
     return obj;
   },
 
-  create<I extends Exact<DeepPartial<ReadModuleResponse>, I>>(base?: I): ReadModuleResponse {
-    return ReadModuleResponse.fromPartial(base ?? ({} as any));
+  create<I extends Exact<DeepPartial<ReadNodesRequest>, I>>(base?: I): ReadNodesRequest {
+    return ReadNodesRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<ReadModuleResponse>, I>>(object: I): ReadModuleResponse {
-    const message = createBaseReadModuleResponse();
-    message.module =
-      object.module !== undefined && object.module !== null ? ModuleTreeData.fromPartial(object.module) : undefined;
+  fromPartial<I extends Exact<DeepPartial<ReadNodesRequest>, I>>(object: I): ReadNodesRequest {
+    const message = createBaseReadNodesRequest();
+    message.roots = object.roots?.map((e) => NodePointer.fromPartial(e)) || [];
+    message.includeDeferredProperties = object.includeDeferredProperties ?? false;
+    return message;
+  },
+};
+
+function createBaseReadNodesResponse(): ReadNodesResponse {
+  return { nodes: [] };
+}
+
+export const ReadNodesResponse = {
+  encode(message: ReadNodesResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.nodes) {
+      SomeNodeData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): ReadNodesResponse {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseReadNodesResponse();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.nodes.push(SomeNodeData.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ReadNodesResponse {
+    return {
+      nodes: globalThis.Array.isArray(object?.nodes) ? object.nodes.map((e: any) => SomeNodeData.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: ReadNodesResponse): unknown {
+    const obj: any = {};
+    if (message.nodes?.length) {
+      obj.nodes = message.nodes.map((e) => SomeNodeData.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ReadNodesResponse>, I>>(base?: I): ReadNodesResponse {
+    return ReadNodesResponse.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ReadNodesResponse>, I>>(object: I): ReadNodesResponse {
+    const message = createBaseReadNodesResponse();
+    message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
     return message;
   },
 };
@@ -1636,11 +1945,14 @@ export const SearchNodesResponse = {
 };
 
 function createBaseCommitEditsRequest(): CommitEditsRequest {
-  return {};
+  return { edits: [] };
 }
 
 export const CommitEditsRequest = {
-  encode(_: CommitEditsRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+  encode(message: CommitEditsRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.edits) {
+      EditData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
     return writer;
   },
 
@@ -1651,6 +1963,13 @@ export const CommitEditsRequest = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.edits.push(EditData.decode(reader, reader.uint32()));
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1660,20 +1979,24 @@ export const CommitEditsRequest = {
     return message;
   },
 
-  fromJSON(_: any): CommitEditsRequest {
-    return {};
+  fromJSON(object: any): CommitEditsRequest {
+    return { edits: globalThis.Array.isArray(object?.edits) ? object.edits.map((e: any) => EditData.fromJSON(e)) : [] };
   },
 
-  toJSON(_: CommitEditsRequest): unknown {
+  toJSON(message: CommitEditsRequest): unknown {
     const obj: any = {};
+    if (message.edits?.length) {
+      obj.edits = message.edits.map((e) => EditData.toJSON(e));
+    }
     return obj;
   },
 
   create<I extends Exact<DeepPartial<CommitEditsRequest>, I>>(base?: I): CommitEditsRequest {
     return CommitEditsRequest.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<CommitEditsRequest>, I>>(_: I): CommitEditsRequest {
+  fromPartial<I extends Exact<DeepPartial<CommitEditsRequest>, I>>(object: I): CommitEditsRequest {
     const message = createBaseCommitEditsRequest();
+    message.edits = object.edits?.map((e) => EditData.fromPartial(e)) || [];
     return message;
   },
 };
@@ -3198,7 +3521,7 @@ export const StartRunResponse = {
 
   fromJSON(object: any): StartRunResponse {
     return {
-      errorType: isSet(object.errorType) ? startRunResponse_StartRunErrorTypeFromJSON(object.errorType) : 0,
+      errorType: isSet(object.errorType) ? startRunResponse_ErrorTypeFromJSON(object.errorType) : 0,
       runId: isSet(object.runId) ? globalThis.String(object.runId) : "",
       run: isSet(object.run) ? RunData.fromJSON(object.run) : undefined,
       logs: globalThis.Array.isArray(object?.logs) ? object.logs.map((e: any) => LogEntryData.fromJSON(e)) : [],
@@ -3208,7 +3531,7 @@ export const StartRunResponse = {
   toJSON(message: StartRunResponse): unknown {
     const obj: any = {};
     if (message.errorType !== 0) {
-      obj.errorType = startRunResponse_StartRunErrorTypeToJSON(message.errorType);
+      obj.errorType = startRunResponse_ErrorTypeToJSON(message.errorType);
     }
     if (message.runId !== "") {
       obj.runId = message.runId;
@@ -3599,7 +3922,7 @@ export interface RuntimeHost {
     metadata?: grpc.Metadata
   ): Observable<GetModuleEditsResponse>;
   /** Reads the entire module tree. */
-  ReadModule(request: DeepPartial<ReadModuleRequest>, metadata?: grpc.Metadata): Promise<ReadModuleResponse>;
+  ReadNodes(request: DeepPartial<ReadNodesRequest>, metadata?: grpc.Metadata): Promise<ReadNodesResponse>;
   /** Searches out-of-line nodes in the module. */
   SearchNodes(request: DeepPartial<SearchNodesRequest>, metadata?: grpc.Metadata): Promise<SearchNodesResponse>;
   /** Commits a set of edits to the module. */
@@ -3630,7 +3953,7 @@ export interface RuntimeHost {
   ): Promise<RunProxyStatementResponse>;
   /**
    * Pulls the runs a worker should run immediately after starting (scheduled).
-   *  (Maybe merge this into ReadModule with a query later? search_records too? Not sure.)
+   *  (Maybe merge this into ReadNodes with a query later? search_records too? Not sure.)
    */
   PullWorkerRuns(
     request: DeepPartial<PullWorkerRunsRequest>,
@@ -3647,7 +3970,7 @@ export class RuntimeHostClientImpl implements RuntimeHost {
     this.rpc = rpc;
     this.GetBenchChanges = this.GetBenchChanges.bind(this);
     this.GetModuleEdits = this.GetModuleEdits.bind(this);
-    this.ReadModule = this.ReadModule.bind(this);
+    this.ReadNodes = this.ReadNodes.bind(this);
     this.SearchNodes = this.SearchNodes.bind(this);
     this.CommitEdits = this.CommitEdits.bind(this);
     this.UploadBlob = this.UploadBlob.bind(this);
@@ -3677,8 +4000,8 @@ export class RuntimeHostClientImpl implements RuntimeHost {
     return this.rpc.invoke(RuntimeHostGetModuleEditsDesc, GetModuleEditsRequest.fromPartial(request), metadata);
   }
 
-  ReadModule(request: DeepPartial<ReadModuleRequest>, metadata?: grpc.Metadata): Promise<ReadModuleResponse> {
-    return this.rpc.unary(RuntimeHostReadModuleDesc, ReadModuleRequest.fromPartial(request), metadata);
+  ReadNodes(request: DeepPartial<ReadNodesRequest>, metadata?: grpc.Metadata): Promise<ReadNodesResponse> {
+    return this.rpc.unary(RuntimeHostReadNodesDesc, ReadNodesRequest.fromPartial(request), metadata);
   }
 
   SearchNodes(request: DeepPartial<SearchNodesRequest>, metadata?: grpc.Metadata): Promise<SearchNodesResponse> {
@@ -3791,19 +4114,19 @@ export const RuntimeHostGetModuleEditsDesc: UnaryMethodDefinitionish = {
   } as any,
 };
 
-export const RuntimeHostReadModuleDesc: UnaryMethodDefinitionish = {
-  methodName: "ReadModule",
+export const RuntimeHostReadNodesDesc: UnaryMethodDefinitionish = {
+  methodName: "ReadNodes",
   service: RuntimeHostDesc,
   requestStream: false,
   responseStream: false,
   requestType: {
     serializeBinary() {
-      return ReadModuleRequest.encode(this).finish();
+      return ReadNodesRequest.encode(this).finish();
     },
   } as any,
   responseType: {
     deserializeBinary(data: Uint8Array) {
-      const value = ReadModuleResponse.decode(data);
+      const value = ReadNodesResponse.decode(data);
       return {
         ...value,
         toObject() {

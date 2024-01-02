@@ -38,7 +38,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.language import Session, Statement
+    from bench.language import Session, Statement, symbolx_lib
 
 
 @node_component
@@ -190,8 +190,6 @@ class Run(ScopeNode, HasValue):
 
     @property
     def _type_of_value(self):
-        from bench.language.libs import symbolx_lib
-
         return symbolx_lib.resolve(".reflect.RunMetadata")
 
     @property
@@ -230,29 +228,6 @@ class RunCodeFrame(Struct):
     name: str = struct_internal(22)
     locals: Optional[dict[str, Any]] = struct_internal(23, default=None, store_as=ColumnType.JSON)
     line: str = struct_internal(24)
-
-    @staticmethod
-    def from_dict(data: dict[str, Any]) -> "RunCodeFrame":
-        return RunCodeFrame(
-            filename=data["filename"],
-            lineno=data["lineno"],
-            name=data["name"],
-            locals=data["locals"],
-            line=data["line"],
-        )
-
-    @staticmethod
-    def from_stack(stack: traceback.StackSummary) -> list["RunCodeFrame"]:
-        return [
-            RunCodeFrame(
-                filename=frame.filename,
-                lineno=frame.lineno,
-                name=frame.name,
-                locals=frame.locals,
-                line=frame.line,
-            )
-            for frame in stack
-        ]
 
     @staticmethod
     def clean(

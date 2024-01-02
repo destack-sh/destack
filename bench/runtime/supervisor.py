@@ -9,7 +9,6 @@ from django.db.models import Q
 
 from bench import models
 from bench.language.const import ACTIVE_RUN_STATUSES, PENDING_RUN_STATUSES, WorkerSetStatus
-from bench.language.libs import DEFAULT_MODULES
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.runtime import k8
@@ -84,12 +83,12 @@ class RuntimeSupervisor(Monitored):
             ):
                 self._worker_healthy_waiters[ws.project_id].set()
 
-    def is_healthy(self, project_id: UUID) -> bool:
+    def is_worker_set_healthy(self, project_id: UUID) -> bool:
         """Return whether the worker set is healthy."""
         worker_set = self._worker_sets_by_project_id.get(project_id)
         return worker_set and worker_set.status == WorkerSetStatus.HEALTHY
 
-    def get(self, project_id: UUID) -> Optional[models.WorkerSet]:
+    def get_worker_set(self, project_id: UUID) -> Optional[models.WorkerSet]:
         """Return the worker set if it exists."""
         return self._worker_sets_by_project_id.get(project_id)
 

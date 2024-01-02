@@ -90,7 +90,9 @@ BetterprotoStruct.to_dict = PatchedStruct.to_dict
 
 # :ProtoSchema
 PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
-    _type: getattr(wire, _type.camel_name + "Data") for _type in BenchType
+    _type: getattr(wire, _type.camel_name + "Data")
+    for _type in BenchType
+    if hasattr(wire, _type.camel_name + "Data")  # may just be creating it
 }
 
 

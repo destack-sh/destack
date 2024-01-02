@@ -1,28 +1,37 @@
 import asyncio
 import enum
-import functools
 import os
-import typing
-from dataclasses import dataclass
 from datetime import datetime
 from logging import Logger
-from typing import Any
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-import msgpack
+import aiohttp
+import deepgram
+import numpy as np
+import openai
 import structlog
 
 from bench.language.cache import Cache
+from bench.language.const import StructType
 from bench.language.field import Field, HasFields, TypedDict, TypeTag
-from bench.language.module import Node, ScopeNode, node_component, struct_runtime
+from bench.language.module import (
+    Node,
+    ScopeNode,
+    Struct,
+    node_component,
+    struct,
+    struct_internal,
+    struct_runtime,
+)
+from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
-from bench.utils.utils import get_from_env
+from bench.utils.utils import get_from_env, omit_empty
 
-if typing.TYPE_CHECKING:
-    from bench.language import Statement
+if TYPE_CHECKING:
     from bench.language.issue import IssueHandler
-    from bench.language.task import TaskCompiler
+    from bench.language.statement import Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -41,18 +50,14 @@ class ModelErrorType(enum.StrEnum):
 @node_component
 class HasModel(HasFields, Node):
     _remote: bool = struct_runtime(default=False)
-    _endpoint_impl: typing.Optional[typing.Callable] = struct_runtime(default=None)
-    _compiler_impl: typing.Optional[typing.Callable] = struct_runtime(default=None)
-    _api_key: typing.Optional[str] = struct_runtime(default=None)
+    _api_key: Optional[str] = struct_runtime(default=None)
     _has_vector_io: bool = struct_runtime(default=None)
 
     # we only cache models without vector inputs/outputs
 
-    def _clear_inner(self, scope: typing.Optional[ScopeNode] = None) -> None:
+    def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
         self._api_key = None
         self._remote = True
-        self._endpoint_impl = None
-        self._compiler_impl = None
         self._has_vector_io = False
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
@@ -192,41 +197,6 @@ class HasModel(HasFields, Node):
         log.debug("inference.exit", ret=describe_type(output), duration=duration)
         return output
 
-    @property
-    def _endpoint_resolved(self):
-        if self._endpoint_impl is None:
-            from bench.language import libs
-
-            # get actual model implementation from libs  :LibImplementation
-            # (this is a stop gap until we fully support model statements, then it's just like Code)
-            actual_model_impl = libs.lookup_model_impl(self.path)
-            if actual_model_impl is None:
-                raise ValueError(f"cannot find {self} in libs")
-            self._endpoint_impl = functools.partial(actual_model_impl, self=self)
-        return self._endpoint_impl
-
-    async def _endpoint(self, **kwargs) -> Any:
-        raise NotImplementedError  # fake stub for :LibImplementation of model
-
-    @property
-    def _compiler_resolved(self):
-        if self._compiler_impl is None:
-            from bench.language import libs
-
-            # get actual model implementation from libs  :LibCompiler (see above)
-            actual_model_compiler = libs.lookup_model_compiler(self.path)
-            if actual_model_compiler is None:
-                raise ValueError(f"cannot find {self} in libs")
-            self._compiler_impl = actual_model_compiler
-        return self._compiler_impl
-
-    def _compiler(self) -> "TaskCompiler":
-        raise NotImplementedError  # stub for :LibCompiler of model compiler
-
-    @property
-    def compiler(self) -> "TaskCompiler":
-        return self._compiler_resolved(self)
-
 
 # avoid circular import
 from .run import RunError, RunErrorKind  # noqa: E402
@@ -250,33 +220,133 @@ class ModelError(RunError):
         self.path = path
 
 
-@dataclass(slots=True)
-class Inference:
+@struct(StructType.INFERENCE)
+class Inference(Struct):
     """A model inference - inputs/outputs are raw."""
 
-    generated_at: datetime
-    generated_in: UUID
-    duration: float
-    inputs: Any
-    outputs: Any
+    generated_at: datetime = struct_internal(20)
+    generated_in: UUID = struct_internal(21)
+    duration: float = struct_internal(22)
+    inputs: Any = struct_internal(23, store_as=ColumnType.JSON)
+    outputs: Any = struct_internal(24, store_as=ColumnType.JSON)
 
-    def to_json_bytes(self) -> bytes:
-        inference_json = {
-            "generated_at": self.generated_at.isoformat(),
-            "generated_in": str(self.generated_in),  # UUID is not JSON serializable
-            "duration": self.duration,
-            "inputs": self.inputs,
-            "output": self.outputs,
-        }
-        return msgpack.packb(inference_json, use_bin_type=True)
 
-    @classmethod
-    def from_json_bytes(cls, json_str: str):
-        data = msgpack.unpackb(json_str, raw=False)
-        return cls(
-            generated_at=datetime.fromisoformat(data["generated_at"]),
-            generated_in=UUID(data["generated_in"]),
-            duration=data["duration"],
-            inputs=data["inputs"],
-            outputs=data["output"],
+class OpenAIChatCompletionModel(HasModel):
+    async def _endpoint(
+        self,
+        messages: list[dict],
+        settings: dict,
+    ) -> dict:
+        try:
+            response = await openai.ChatCompletion.acreate(
+                model=self.external_name,
+                messages=[omit_empty(m) for m in messages],
+                **omit_empty(settings),
+                api_key=self._api_key,
+            )
+        except Exception as e:
+            raise _map_openai_error(self, e) from e
+        message = response["choices"][0]["message"]
+        if "function_call" in message:
+            function_call = dict(
+                name=message["function_call"]["name"],
+                arguments=message["function_call"]["arguments"],
+            )
+        else:
+            function_call = None
+        return dict(
+            message=dict(
+                role=message["role"],
+                content=message["content"],
+                name=message.get("name"),
+                function_call=function_call,
+            ),
+            usage=dict(
+                prompt_tokens=response["usage"]["prompt_tokens"],
+                completion_tokens=response["usage"].get("completion_tokens"),
+                total_tokens=response["usage"]["total_tokens"],
+            ),
         )
+
+    def _compiler(self) -> "TaskCompiler":
+        # TODO @Task: select text/chat compiler more intelligently
+        return OpenAITextCompiler()
+
+
+def _map_openai_error(model: "Statement", e: Exception) -> ModelError:
+    if isinstance(e, openai.InvalidRequestError):
+        return ModelError(ModelErrorType.InvalidRequest, model, str(e))
+    return ModelError(ModelErrorType.Unavailable, model, str(e))
+
+
+def tokens(self) -> int:
+    """Estimated token usage (very rough)."""
+    messages_str = "\n".join([f"{m.role}: {m.content}" for m in self.messages])
+    return int(len(messages_str) * 0.3)
+
+
+class DeepgramAudioTranscriptionModel(HasModel):
+    async def _endpoint(self, url: str, language: Optional[str] = None) -> dict:
+        dg_client = deepgram.Deepgram(self._api_key)
+        options = {"model": "nova-2", "smart_format": True, "diarize": True}
+        if language:
+            options["language"] = language
+        response = await dg_client.transcription.prerecorded({"url": url}, options)
+
+        # transcript = newline separated utterances
+        # timestamps as [<HH:mm:ss>]
+        # speaker prefix as [Speaker:<speaker_id>]
+        utterances = []
+        alternatives = response["results"]["channels"][0]["alternatives"]
+        for paragraph in alternatives[0]["paragraphs"]["paragraphs"]:
+            start_time = paragraph["start"]
+            hours = int(start_time) // 3600
+            minutes = int(start_time) // 60 % 60
+            seconds = int(start_time) % 60
+            start_time = f"{hours:02}:{minutes:02}:{seconds:02}"
+            paragraph_text = " ".join(s["text"] for s in paragraph["sentences"])
+            utterances.append(f"[{start_time}][Speaker:{paragraph['speaker']}] {paragraph_text}")
+
+        transcript = "\n".join(utterances)
+        return dict(text=transcript)
+
+
+class HuggingfaceEmbeddingModel(HasModel):
+    # TODO @Performance: move embedding/HF model into our own cluster
+    async def _endpoint(self, text: Union[str, list[str]]) -> dict:
+        # check and package text
+        is_batched = isinstance(text, list)
+        if not is_batched:
+            text = [text]
+        for i, t in enumerate(text):
+            if not t:
+                raise TaskError(TaskErrorType.InvalidFormat, self, f"empty text at {i}")
+
+        # get embeddings
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://a1cuxmqvoagqss78.eu-west-1.aws.endpoints.huggingface.cloud",
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={"inputs": text},
+            ) as response:
+                rep = await response.json()
+        if isinstance(rep, dict) and "error" in rep:
+            if "gateway" in rep["error"].lower():
+                error = TaskErrorType.TemporarilyUnavailable
+            else:
+                error = TaskErrorType.Unknown
+            raise TaskError(error, self, rep["error"])
+        elif not isinstance(rep, list):
+            raise TaskError(TaskErrorType.Incapable, self, f"invalid response: {rep}")
+
+        # quantize embeddings to [-128, 127] bytearray
+        vector = np.array(rep, dtype=np.float32)
+        vector = (vector * 128).clip(-128, 127).astype(np.int8)
+        vector = [v.tolist() for v in vector]
+        if not is_batched:
+            vector = vector[0]
+
+        return dict(vector=vector)

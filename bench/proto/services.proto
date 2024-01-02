@@ -288,12 +288,12 @@ message StartRunRequest {
   SessionAccessLevel access_level = 16;
 }
 message StartRunResponse {
-  StartRunErrorType error_type = 1;
+  ErrorType error_type = 1;
   string run_id = 2;
   RunData run = 3;
   repeated LogEntryData logs = 4;
 
-  enum StartRunErrorType {
+  enum ErrorType {
     START_RUN_ERROR_TYPE_UNSPECIFIED = 0;
     START_RUN_ERROR_TYPE_UNAVAILABLE = 1;
     START_RUN_ERROR_TYPE_INVALID = 2;

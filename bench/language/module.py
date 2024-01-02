@@ -1648,7 +1648,7 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
             self.add(node)
 
     def update(self, node: "NT"):
-        """Updates the node in this tree (must exist)"""
+        """Updates the node in this tree (must exist) nocheckin: handle move (and other?) updates"""
         raise NotImplementedError
 
     def set(self, nodes: Collection[NT]):
@@ -1696,8 +1696,6 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
 
     def apply_edit(self, edit: EditData):
         """Applies a list of edits to the tree"""
-        from bench.language.render import EditKind
-
         if edit.kind in (EditKind.CREATE, EditKind.RESTORE):
             self.add(edit.node)
         elif edit.kind in (EditKind.UPDATE, EditKind.MOVE):  # move not yet supported
@@ -2966,8 +2964,10 @@ class Bench(ScopeNode):
 
     parent: None = node_parent(4)
     name: str = struct_internal(20)
-    os_name: Optional[str] = struct_internal(21, default=None)
-    pg_name: Optional[str] = struct_internal(22, default=None)
+    slug: str = struct_internal(21)
+    description: str = struct_internal(22, default=None)
+    os_name: Optional[str] = struct_internal(23, default=None)
+    pg_name: Optional[str] = struct_internal(24, default=None)
 
     # versions: NodeList["Module"] = node_children(NodeType.MODULE, NRel.Remote)
 
@@ -3467,7 +3467,7 @@ _FINAL_BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
 FINAL_BENCH_TYPES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
 
 
-def complete_setup():
+def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
     global FINAL_BENCH_TYPES
     from bench.language import const
@@ -3500,7 +3500,7 @@ def complete_setup():
             # check deferred/encrypted properties
             if prop.is_deferred and not prop.is_stored:
                 raise ValueError(f"{prop!r} cannot be deferred and not stored on {cls!r}")
-            if not is_node and prop.is_deferred or prop.is_encrypted:
+            if not is_node and (prop.is_deferred or prop.is_encrypted):
                 raise ValueError(f"{prop!r} cannot be deferred or encrypted on {cls!r}")
 
             # check py_type matches struct type as defined

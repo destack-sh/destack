@@ -1,12 +1,11 @@
 import platform
 import sys
 
-from bench.proto.wire import EnvironmentData
-from bench.proto.wiring import pack_jsonable
+from bench.proto.wire import DependencyData, EnvironmentData
 
 
-def _collect_environment() -> EnvironmentData:
-    packages: dict[str, str] = {}
+def collect_environment() -> EnvironmentData:
+    dependencies: list[DependencyData] = []
 
     # load packages from requirements-worker.txt
     with open("requirements-worker.txt") as f:
@@ -15,7 +14,8 @@ def _collect_environment() -> EnvironmentData:
             if line.startswith("#") or not line:
                 continue
             name, version = line.split("==")
-            packages[name] = version
+            dependency = DependencyData(name=name, version=version)
+            dependencies.append(dependency)
 
     osinfo = platform.uname()
     version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
@@ -23,5 +23,9 @@ def _collect_environment() -> EnvironmentData:
         language="python",
         version=version,
         platform=f"{osinfo.system} {osinfo.release}".split("-")[0],
-        packages=pack_jsonable(packages),
+        packages=dependency,
     )
+
+
+def install_environment(environment: EnvironmentData) -> None:
+    raise NotImplementedError
