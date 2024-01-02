@@ -73,26 +73,31 @@ export function aggregationOpToJSON(object: AggregationOp): string {
 
 export enum BenchType {
   UNSPECIFIED = 0,
-  MODULE = 1,
-  FILE = 2,
-  STATEMENT = 3,
-  TRIGGER = 4,
-  TAGGING = 5,
-  FIELD = 6,
-  RECORD = 7,
-  VIEW = 8,
-  ISSUE = 9,
-  RESOLVED_FIELD = 10,
-  BLOB = 11,
-  SECRET = 12,
-  SESSION = 13,
-  RUN = 14,
-  EXPRESSION = 101,
-  RUN_CODE_FRAME = 102,
-  RUN_ERROR = 103,
-  LOG_ENTRY = 104,
-  WORKER_SET = 105,
-  ENVIRONMENT = 106,
+  BENCH = 1,
+  MODULE = 2,
+  FILE = 3,
+  STATEMENT = 4,
+  TRIGGER = 5,
+  TAGGING = 6,
+  FIELD = 7,
+  RECORD = 8,
+  VIEW = 9,
+  ISSUE = 20,
+  RESOLVED_FIELD = 21,
+  BLOB = 40,
+  SECRET = 41,
+  SESSION = 60,
+  RUN = 61,
+  ACCESS_CONTROL = 200,
+  ACCESS_CONTROL_RULE = 201,
+  EXPRESSION = 210,
+  LOG_ENTRY = 220,
+  RUN_CODE_FRAME = 221,
+  RUN_ERROR = 222,
+  INFERENCE = 223,
+  ENVIRONMENT = 230,
+  DEPENDENCY = 231,
+  WORKER_SET = 399,
 }
 
 export function benchTypeFromJSON(object: any): BenchType {
@@ -101,65 +106,80 @@ export function benchTypeFromJSON(object: any): BenchType {
     case "BENCH_TYPE_UNSPECIFIED":
       return BenchType.UNSPECIFIED;
     case 1:
+    case "BENCH_TYPE_BENCH":
+      return BenchType.BENCH;
+    case 2:
     case "BENCH_TYPE_MODULE":
       return BenchType.MODULE;
-    case 2:
+    case 3:
     case "BENCH_TYPE_FILE":
       return BenchType.FILE;
-    case 3:
+    case 4:
     case "BENCH_TYPE_STATEMENT":
       return BenchType.STATEMENT;
-    case 4:
+    case 5:
     case "BENCH_TYPE_TRIGGER":
       return BenchType.TRIGGER;
-    case 5:
+    case 6:
     case "BENCH_TYPE_TAGGING":
       return BenchType.TAGGING;
-    case 6:
+    case 7:
     case "BENCH_TYPE_FIELD":
       return BenchType.FIELD;
-    case 7:
+    case 8:
     case "BENCH_TYPE_RECORD":
       return BenchType.RECORD;
-    case 8:
+    case 9:
     case "BENCH_TYPE_VIEW":
       return BenchType.VIEW;
-    case 9:
+    case 20:
     case "BENCH_TYPE_ISSUE":
       return BenchType.ISSUE;
-    case 10:
+    case 21:
     case "BENCH_TYPE_RESOLVED_FIELD":
       return BenchType.RESOLVED_FIELD;
-    case 11:
+    case 40:
     case "BENCH_TYPE_BLOB":
       return BenchType.BLOB;
-    case 12:
+    case 41:
     case "BENCH_TYPE_SECRET":
       return BenchType.SECRET;
-    case 13:
+    case 60:
     case "BENCH_TYPE_SESSION":
       return BenchType.SESSION;
-    case 14:
+    case 61:
     case "BENCH_TYPE_RUN":
       return BenchType.RUN;
-    case 101:
+    case 200:
+    case "BENCH_TYPE_ACCESS_CONTROL":
+      return BenchType.ACCESS_CONTROL;
+    case 201:
+    case "BENCH_TYPE_ACCESS_CONTROL_RULE":
+      return BenchType.ACCESS_CONTROL_RULE;
+    case 210:
     case "BENCH_TYPE_EXPRESSION":
       return BenchType.EXPRESSION;
-    case 102:
-    case "BENCH_TYPE_RUN_CODE_FRAME":
-      return BenchType.RUN_CODE_FRAME;
-    case 103:
-    case "BENCH_TYPE_RUN_ERROR":
-      return BenchType.RUN_ERROR;
-    case 104:
+    case 220:
     case "BENCH_TYPE_LOG_ENTRY":
       return BenchType.LOG_ENTRY;
-    case 105:
-    case "BENCH_TYPE_WORKER_SET":
-      return BenchType.WORKER_SET;
-    case 106:
+    case 221:
+    case "BENCH_TYPE_RUN_CODE_FRAME":
+      return BenchType.RUN_CODE_FRAME;
+    case 222:
+    case "BENCH_TYPE_RUN_ERROR":
+      return BenchType.RUN_ERROR;
+    case 223:
+    case "BENCH_TYPE_INFERENCE":
+      return BenchType.INFERENCE;
+    case 230:
     case "BENCH_TYPE_ENVIRONMENT":
       return BenchType.ENVIRONMENT;
+    case 231:
+    case "BENCH_TYPE_DEPENDENCY":
+      return BenchType.DEPENDENCY;
+    case 399:
+    case "BENCH_TYPE_WORKER_SET":
+      return BenchType.WORKER_SET;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum BenchType");
   }
@@ -169,6 +189,8 @@ export function benchTypeToJSON(object: BenchType): string {
   switch (object) {
     case BenchType.UNSPECIFIED:
       return "BENCH_TYPE_UNSPECIFIED";
+    case BenchType.BENCH:
+      return "BENCH_TYPE_BENCH";
     case BenchType.MODULE:
       return "BENCH_TYPE_MODULE";
     case BenchType.FILE:
@@ -197,18 +219,26 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_SESSION";
     case BenchType.RUN:
       return "BENCH_TYPE_RUN";
+    case BenchType.ACCESS_CONTROL:
+      return "BENCH_TYPE_ACCESS_CONTROL";
+    case BenchType.ACCESS_CONTROL_RULE:
+      return "BENCH_TYPE_ACCESS_CONTROL_RULE";
     case BenchType.EXPRESSION:
       return "BENCH_TYPE_EXPRESSION";
+    case BenchType.LOG_ENTRY:
+      return "BENCH_TYPE_LOG_ENTRY";
     case BenchType.RUN_CODE_FRAME:
       return "BENCH_TYPE_RUN_CODE_FRAME";
     case BenchType.RUN_ERROR:
       return "BENCH_TYPE_RUN_ERROR";
-    case BenchType.LOG_ENTRY:
-      return "BENCH_TYPE_LOG_ENTRY";
-    case BenchType.WORKER_SET:
-      return "BENCH_TYPE_WORKER_SET";
+    case BenchType.INFERENCE:
+      return "BENCH_TYPE_INFERENCE";
     case BenchType.ENVIRONMENT:
       return "BENCH_TYPE_ENVIRONMENT";
+    case BenchType.DEPENDENCY:
+      return "BENCH_TYPE_DEPENDENCY";
+    case BenchType.WORKER_SET:
+      return "BENCH_TYPE_WORKER_SET";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum BenchType");
   }
@@ -395,6 +425,77 @@ export function conditionalOpToJSON(object: ConditionalOp): string {
       return "CONDITIONAL_OP_NEAR";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum ConditionalOp");
+  }
+}
+
+export enum EditKind {
+  UNSPECIFIED = 0,
+  CREATE = 1,
+  UPDATE = 2,
+  MOVE = 3,
+  SOFT_DELETE = 4,
+  RESTORE = 5,
+  BUMP = 6,
+  DELETE = 7,
+  TRUNCATE = 8,
+}
+
+export function editKindFromJSON(object: any): EditKind {
+  switch (object) {
+    case 0:
+    case "EDIT_KIND_UNSPECIFIED":
+      return EditKind.UNSPECIFIED;
+    case 1:
+    case "EDIT_KIND_CREATE":
+      return EditKind.CREATE;
+    case 2:
+    case "EDIT_KIND_UPDATE":
+      return EditKind.UPDATE;
+    case 3:
+    case "EDIT_KIND_MOVE":
+      return EditKind.MOVE;
+    case 4:
+    case "EDIT_KIND_SOFT_DELETE":
+      return EditKind.SOFT_DELETE;
+    case 5:
+    case "EDIT_KIND_RESTORE":
+      return EditKind.RESTORE;
+    case 6:
+    case "EDIT_KIND_BUMP":
+      return EditKind.BUMP;
+    case 7:
+    case "EDIT_KIND_DELETE":
+      return EditKind.DELETE;
+    case 8:
+    case "EDIT_KIND_TRUNCATE":
+      return EditKind.TRUNCATE;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum EditKind");
+  }
+}
+
+export function editKindToJSON(object: EditKind): string {
+  switch (object) {
+    case EditKind.UNSPECIFIED:
+      return "EDIT_KIND_UNSPECIFIED";
+    case EditKind.CREATE:
+      return "EDIT_KIND_CREATE";
+    case EditKind.UPDATE:
+      return "EDIT_KIND_UPDATE";
+    case EditKind.MOVE:
+      return "EDIT_KIND_MOVE";
+    case EditKind.SOFT_DELETE:
+      return "EDIT_KIND_SOFT_DELETE";
+    case EditKind.RESTORE:
+      return "EDIT_KIND_RESTORE";
+    case EditKind.BUMP:
+      return "EDIT_KIND_BUMP";
+    case EditKind.DELETE:
+      return "EDIT_KIND_DELETE";
+    case EditKind.TRUNCATE:
+      return "EDIT_KIND_TRUNCATE";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum EditKind");
   }
 }
 
@@ -874,20 +975,21 @@ export function nodeTrackingLevelToJSON(object: NodeTrackingLevel): string {
 
 export enum NodeType {
   UNSPECIFIED = 0,
-  MODULE = 1,
-  FILE = 2,
-  STATEMENT = 3,
-  TRIGGER = 4,
-  TAGGING = 5,
-  FIELD = 6,
-  RECORD = 7,
-  VIEW = 8,
-  ISSUE = 9,
-  RESOLVED_FIELD = 10,
-  BLOB = 11,
-  SECRET = 12,
-  SESSION = 13,
-  RUN = 14,
+  BENCH = 1,
+  MODULE = 2,
+  FILE = 3,
+  STATEMENT = 4,
+  TRIGGER = 5,
+  TAGGING = 6,
+  FIELD = 7,
+  RECORD = 8,
+  VIEW = 9,
+  ISSUE = 20,
+  RESOLVED_FIELD = 21,
+  BLOB = 40,
+  SECRET = 41,
+  SESSION = 60,
+  RUN = 61,
 }
 
 export function nodeTypeFromJSON(object: any): NodeType {
@@ -896,45 +998,48 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case "NODE_TYPE_UNSPECIFIED":
       return NodeType.UNSPECIFIED;
     case 1:
+    case "NODE_TYPE_BENCH":
+      return NodeType.BENCH;
+    case 2:
     case "NODE_TYPE_MODULE":
       return NodeType.MODULE;
-    case 2:
+    case 3:
     case "NODE_TYPE_FILE":
       return NodeType.FILE;
-    case 3:
+    case 4:
     case "NODE_TYPE_STATEMENT":
       return NodeType.STATEMENT;
-    case 4:
+    case 5:
     case "NODE_TYPE_TRIGGER":
       return NodeType.TRIGGER;
-    case 5:
+    case 6:
     case "NODE_TYPE_TAGGING":
       return NodeType.TAGGING;
-    case 6:
+    case 7:
     case "NODE_TYPE_FIELD":
       return NodeType.FIELD;
-    case 7:
+    case 8:
     case "NODE_TYPE_RECORD":
       return NodeType.RECORD;
-    case 8:
+    case 9:
     case "NODE_TYPE_VIEW":
       return NodeType.VIEW;
-    case 9:
+    case 20:
     case "NODE_TYPE_ISSUE":
       return NodeType.ISSUE;
-    case 10:
+    case 21:
     case "NODE_TYPE_RESOLVED_FIELD":
       return NodeType.RESOLVED_FIELD;
-    case 11:
+    case 40:
     case "NODE_TYPE_BLOB":
       return NodeType.BLOB;
-    case 12:
+    case 41:
     case "NODE_TYPE_SECRET":
       return NodeType.SECRET;
-    case 13:
+    case 60:
     case "NODE_TYPE_SESSION":
       return NodeType.SESSION;
-    case 14:
+    case 61:
     case "NODE_TYPE_RUN":
       return NodeType.RUN;
     default:
@@ -946,6 +1051,8 @@ export function nodeTypeToJSON(object: NodeType): string {
   switch (object) {
     case NodeType.UNSPECIFIED:
       return "NODE_TYPE_UNSPECIFIED";
+    case NodeType.BENCH:
+      return "NODE_TYPE_BENCH";
     case NodeType.MODULE:
       return "NODE_TYPE_MODULE";
     case NodeType.FILE:
@@ -1445,7 +1552,7 @@ export enum StatementType {
   VARIABLE = 10,
   DATABASE = 11,
   VIEW = 12,
-  GROUP = 13,
+  SCREEN = 13,
 }
 
 export function statementTypeFromJSON(object: any): StatementType {
@@ -1490,8 +1597,8 @@ export function statementTypeFromJSON(object: any): StatementType {
     case "STATEMENT_TYPE_VIEW":
       return StatementType.VIEW;
     case 13:
-    case "STATEMENT_TYPE_GROUP":
-      return StatementType.GROUP;
+    case "STATEMENT_TYPE_SCREEN":
+      return StatementType.SCREEN;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum StatementType");
   }
@@ -1525,8 +1632,8 @@ export function statementTypeToJSON(object: StatementType): string {
       return "STATEMENT_TYPE_DATABASE";
     case StatementType.VIEW:
       return "STATEMENT_TYPE_VIEW";
-    case StatementType.GROUP:
-      return "STATEMENT_TYPE_GROUP";
+    case StatementType.SCREEN:
+      return "STATEMENT_TYPE_SCREEN";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum StatementType");
   }
@@ -1534,12 +1641,16 @@ export function statementTypeToJSON(object: StatementType): string {
 
 export enum StructType {
   UNSPECIFIED = 0,
-  EXPRESSION = 101,
-  RUN_CODE_FRAME = 102,
-  RUN_ERROR = 103,
-  LOG_ENTRY = 104,
-  WORKER_SET = 105,
-  ENVIRONMENT = 106,
+  ACCESS_CONTROL = 200,
+  ACCESS_CONTROL_RULE = 201,
+  EXPRESSION = 210,
+  LOG_ENTRY = 220,
+  RUN_CODE_FRAME = 221,
+  RUN_ERROR = 222,
+  INFERENCE = 223,
+  ENVIRONMENT = 230,
+  DEPENDENCY = 231,
+  WORKER_SET = 399,
 }
 
 export function structTypeFromJSON(object: any): StructType {
@@ -1547,24 +1658,36 @@ export function structTypeFromJSON(object: any): StructType {
     case 0:
     case "STRUCT_TYPE_UNSPECIFIED":
       return StructType.UNSPECIFIED;
-    case 101:
+    case 200:
+    case "STRUCT_TYPE_ACCESS_CONTROL":
+      return StructType.ACCESS_CONTROL;
+    case 201:
+    case "STRUCT_TYPE_ACCESS_CONTROL_RULE":
+      return StructType.ACCESS_CONTROL_RULE;
+    case 210:
     case "STRUCT_TYPE_EXPRESSION":
       return StructType.EXPRESSION;
-    case 102:
-    case "STRUCT_TYPE_RUN_CODE_FRAME":
-      return StructType.RUN_CODE_FRAME;
-    case 103:
-    case "STRUCT_TYPE_RUN_ERROR":
-      return StructType.RUN_ERROR;
-    case 104:
+    case 220:
     case "STRUCT_TYPE_LOG_ENTRY":
       return StructType.LOG_ENTRY;
-    case 105:
-    case "STRUCT_TYPE_WORKER_SET":
-      return StructType.WORKER_SET;
-    case 106:
+    case 221:
+    case "STRUCT_TYPE_RUN_CODE_FRAME":
+      return StructType.RUN_CODE_FRAME;
+    case 222:
+    case "STRUCT_TYPE_RUN_ERROR":
+      return StructType.RUN_ERROR;
+    case 223:
+    case "STRUCT_TYPE_INFERENCE":
+      return StructType.INFERENCE;
+    case 230:
     case "STRUCT_TYPE_ENVIRONMENT":
       return StructType.ENVIRONMENT;
+    case 231:
+    case "STRUCT_TYPE_DEPENDENCY":
+      return StructType.DEPENDENCY;
+    case 399:
+    case "STRUCT_TYPE_WORKER_SET":
+      return StructType.WORKER_SET;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum StructType");
   }
@@ -1574,18 +1697,26 @@ export function structTypeToJSON(object: StructType): string {
   switch (object) {
     case StructType.UNSPECIFIED:
       return "STRUCT_TYPE_UNSPECIFIED";
+    case StructType.ACCESS_CONTROL:
+      return "STRUCT_TYPE_ACCESS_CONTROL";
+    case StructType.ACCESS_CONTROL_RULE:
+      return "STRUCT_TYPE_ACCESS_CONTROL_RULE";
     case StructType.EXPRESSION:
       return "STRUCT_TYPE_EXPRESSION";
+    case StructType.LOG_ENTRY:
+      return "STRUCT_TYPE_LOG_ENTRY";
     case StructType.RUN_CODE_FRAME:
       return "STRUCT_TYPE_RUN_CODE_FRAME";
     case StructType.RUN_ERROR:
       return "STRUCT_TYPE_RUN_ERROR";
-    case StructType.LOG_ENTRY:
-      return "STRUCT_TYPE_LOG_ENTRY";
-    case StructType.WORKER_SET:
-      return "STRUCT_TYPE_WORKER_SET";
+    case StructType.INFERENCE:
+      return "STRUCT_TYPE_INFERENCE";
     case StructType.ENVIRONMENT:
       return "STRUCT_TYPE_ENVIRONMENT";
+    case StructType.DEPENDENCY:
+      return "STRUCT_TYPE_DEPENDENCY";
+    case StructType.WORKER_SET:
+      return "STRUCT_TYPE_WORKER_SET";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum StructType");
   }
@@ -1804,16 +1935,17 @@ export enum TypeHint {
   CHECKBOX = 20,
   THUMBS = 21,
   EMBEDDING = 22,
-  IMAGE = 23,
-  VIDEO = 24,
-  AUDIO = 25,
-  FILE = 26,
-  STATEMENT = 27,
-  RECORD = 28,
-  FIELD = 29,
-  RUN = 30,
-  SECRET = 31,
-  BLOB = 32,
+  BENCH = 30,
+  FILE = 32,
+  STATEMENT = 33,
+  RECORD = 34,
+  FIELD = 35,
+  SECRET = 36,
+  BLOB = 37,
+  RUN = 38,
+  IMAGE = 50,
+  VIDEO = 51,
+  AUDIO = 52,
 }
 
 export function typeHintFromJSON(object: any): TypeHint {
@@ -1887,36 +2019,39 @@ export function typeHintFromJSON(object: any): TypeHint {
     case 22:
     case "TYPE_HINT_EMBEDDING":
       return TypeHint.EMBEDDING;
-    case 23:
-    case "TYPE_HINT_IMAGE":
-      return TypeHint.IMAGE;
-    case 24:
-    case "TYPE_HINT_VIDEO":
-      return TypeHint.VIDEO;
-    case 25:
-    case "TYPE_HINT_AUDIO":
-      return TypeHint.AUDIO;
-    case 26:
+    case 30:
+    case "TYPE_HINT_BENCH":
+      return TypeHint.BENCH;
+    case 32:
     case "TYPE_HINT_FILE":
       return TypeHint.FILE;
-    case 27:
+    case 33:
     case "TYPE_HINT_STATEMENT":
       return TypeHint.STATEMENT;
-    case 28:
+    case 34:
     case "TYPE_HINT_RECORD":
       return TypeHint.RECORD;
-    case 29:
+    case 35:
     case "TYPE_HINT_FIELD":
       return TypeHint.FIELD;
-    case 30:
-    case "TYPE_HINT_RUN":
-      return TypeHint.RUN;
-    case 31:
+    case 36:
     case "TYPE_HINT_SECRET":
       return TypeHint.SECRET;
-    case 32:
+    case 37:
     case "TYPE_HINT_BLOB":
       return TypeHint.BLOB;
+    case 38:
+    case "TYPE_HINT_RUN":
+      return TypeHint.RUN;
+    case 50:
+    case "TYPE_HINT_IMAGE":
+      return TypeHint.IMAGE;
+    case 51:
+    case "TYPE_HINT_VIDEO":
+      return TypeHint.VIDEO;
+    case 52:
+    case "TYPE_HINT_AUDIO":
+      return TypeHint.AUDIO;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum TypeHint");
   }
@@ -1970,12 +2105,8 @@ export function typeHintToJSON(object: TypeHint): string {
       return "TYPE_HINT_THUMBS";
     case TypeHint.EMBEDDING:
       return "TYPE_HINT_EMBEDDING";
-    case TypeHint.IMAGE:
-      return "TYPE_HINT_IMAGE";
-    case TypeHint.VIDEO:
-      return "TYPE_HINT_VIDEO";
-    case TypeHint.AUDIO:
-      return "TYPE_HINT_AUDIO";
+    case TypeHint.BENCH:
+      return "TYPE_HINT_BENCH";
     case TypeHint.FILE:
       return "TYPE_HINT_FILE";
     case TypeHint.STATEMENT:
@@ -1984,12 +2115,18 @@ export function typeHintToJSON(object: TypeHint): string {
       return "TYPE_HINT_RECORD";
     case TypeHint.FIELD:
       return "TYPE_HINT_FIELD";
-    case TypeHint.RUN:
-      return "TYPE_HINT_RUN";
     case TypeHint.SECRET:
       return "TYPE_HINT_SECRET";
     case TypeHint.BLOB:
       return "TYPE_HINT_BLOB";
+    case TypeHint.RUN:
+      return "TYPE_HINT_RUN";
+    case TypeHint.IMAGE:
+      return "TYPE_HINT_IMAGE";
+    case TypeHint.VIDEO:
+      return "TYPE_HINT_VIDEO";
+    case TypeHint.AUDIO:
+      return "TYPE_HINT_AUDIO";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum TypeHint");
   }
@@ -2084,15 +2221,13 @@ export enum TypeTag {
   NUMBER = 2,
   BOOLEAN = 3,
   VECTOR = 4,
-  BLOB = 5,
-  STRUCT = 6,
   JSON = 7,
+  LITERAL = 10,
+  NODE = 11,
+  STRUCT = 6,
   FUNCTION = 8,
   ENUM = 9,
-  LITERAL = 10,
-  TYPE_REFERENCE = 11,
-  NODE = 12,
-  ANY = 13,
+  TYPE_REFERENCE = 13,
 }
 
 export function typeTagFromJSON(object: any): TypeTag {
@@ -2112,33 +2247,27 @@ export function typeTagFromJSON(object: any): TypeTag {
     case 4:
     case "TYPE_TAG_VECTOR":
       return TypeTag.VECTOR;
-    case 5:
-    case "TYPE_TAG_BLOB":
-      return TypeTag.BLOB;
-    case 6:
-    case "TYPE_TAG_STRUCT":
-      return TypeTag.STRUCT;
     case 7:
     case "TYPE_TAG_JSON":
       return TypeTag.JSON;
+    case 10:
+    case "TYPE_TAG_LITERAL":
+      return TypeTag.LITERAL;
+    case 11:
+    case "TYPE_TAG_NODE":
+      return TypeTag.NODE;
+    case 6:
+    case "TYPE_TAG_STRUCT":
+      return TypeTag.STRUCT;
     case 8:
     case "TYPE_TAG_FUNCTION":
       return TypeTag.FUNCTION;
     case 9:
     case "TYPE_TAG_ENUM":
       return TypeTag.ENUM;
-    case 10:
-    case "TYPE_TAG_LITERAL":
-      return TypeTag.LITERAL;
-    case 11:
+    case 13:
     case "TYPE_TAG_TYPE_REFERENCE":
       return TypeTag.TYPE_REFERENCE;
-    case 12:
-    case "TYPE_TAG_NODE":
-      return TypeTag.NODE;
-    case 13:
-    case "TYPE_TAG_ANY":
-      return TypeTag.ANY;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum TypeTag");
   }
@@ -2156,24 +2285,20 @@ export function typeTagToJSON(object: TypeTag): string {
       return "TYPE_TAG_BOOLEAN";
     case TypeTag.VECTOR:
       return "TYPE_TAG_VECTOR";
-    case TypeTag.BLOB:
-      return "TYPE_TAG_BLOB";
-    case TypeTag.STRUCT:
-      return "TYPE_TAG_STRUCT";
     case TypeTag.JSON:
       return "TYPE_TAG_JSON";
+    case TypeTag.LITERAL:
+      return "TYPE_TAG_LITERAL";
+    case TypeTag.NODE:
+      return "TYPE_TAG_NODE";
+    case TypeTag.STRUCT:
+      return "TYPE_TAG_STRUCT";
     case TypeTag.FUNCTION:
       return "TYPE_TAG_FUNCTION";
     case TypeTag.ENUM:
       return "TYPE_TAG_ENUM";
-    case TypeTag.LITERAL:
-      return "TYPE_TAG_LITERAL";
     case TypeTag.TYPE_REFERENCE:
       return "TYPE_TAG_TYPE_REFERENCE";
-    case TypeTag.NODE:
-      return "TYPE_TAG_NODE";
-    case TypeTag.ANY:
-      return "TYPE_TAG_ANY";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum TypeTag");
   }
@@ -2303,12 +2428,26 @@ export function workerSetStatusToJSON(object: WorkerSetStatus): string {
   }
 }
 
+export interface AccessControlData {
+  metatype: BenchType;
+}
+
+export interface AccessControlRuleData {
+  metatype: BenchType;
+}
+
+export interface DependencyData {
+  metatype: BenchType;
+  name: string;
+  version: string;
+}
+
 export interface EnvironmentData {
   metatype: BenchType;
   language: string;
   version: string;
   platform: string;
-  packages: { [key: string]: any } | undefined;
+  dependencies: DependencyData[];
 }
 
 export interface ExpressionData {
@@ -2319,6 +2458,15 @@ export interface ExpressionData {
   clauses: ExpressionData[];
   value: { [key: string]: any } | undefined;
   mode: string;
+}
+
+export interface InferenceData {
+  metatype: BenchType;
+  generatedAt: Date | undefined;
+  generatedIn: string;
+  duration: number;
+  inputs: { [key: string]: any } | undefined;
+  outputs: { [key: string]: any } | undefined;
 }
 
 export interface LogEntryData {
@@ -2372,17 +2520,37 @@ export interface WorkerSetData {
   lastActiveAt: Date | undefined;
 }
 
+export interface BenchData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  lastChangedAt: Date | undefined;
+  name: string;
+  slug: string;
+  description: string;
+  osName: string;
+  pgName: string;
+}
+
 export interface BlobData {
   metatype: BenchType;
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   sha512: string;
   contentLength: number;
   contentType: string;
@@ -2395,12 +2563,13 @@ export interface FieldData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   name: string;
   orderKey: string;
   text: string;
@@ -2417,12 +2586,13 @@ export interface FileData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   name: string;
 }
 
@@ -2431,12 +2601,13 @@ export interface IssueData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   type: IssueType;
   kind: IssueKind;
   message: string;
@@ -2450,17 +2621,14 @@ export interface ModuleData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
-  name: string;
-  committed: boolean;
-  projectId: string;
-  osName: string;
-  pgName: string;
+  isMain: boolean;
 }
 
 export interface BaseNodeData {
@@ -2468,12 +2636,13 @@ export interface BaseNodeData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
 }
 
 export interface RecordData {
@@ -2481,12 +2650,13 @@ export interface RecordData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   value: { [key: string]: any } | undefined;
 }
 
@@ -2495,12 +2665,13 @@ export interface ResolvedFieldData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   fieldCk: string;
   name: string;
   orderKey: string;
@@ -2518,12 +2689,13 @@ export interface RunData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   sessionId: string;
   rootId: string;
   projectId: string;
@@ -2549,13 +2721,15 @@ export interface SecretData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   sha512: string;
+  value: { [key: string]: any } | undefined;
 }
 
 export interface SessionData {
@@ -2563,12 +2737,13 @@ export interface SessionData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   accessLevel: number;
   projectId: string;
   workerNodeId: string;
@@ -2586,12 +2761,13 @@ export interface StatementData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   type: StatementType;
   name: string;
   orderKey: string;
@@ -2602,7 +2778,6 @@ export interface StatementData {
   code: string;
   value: { [key: string]: any } | undefined;
   versioned: boolean;
-  externalName: string;
 }
 
 export interface TaggingData {
@@ -2610,12 +2785,13 @@ export interface TaggingData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   key: string;
   value: { [key: string]: any } | undefined;
   referenceCk: string;
@@ -2626,12 +2802,13 @@ export interface TriggerData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   type: TriggerType;
   active: boolean;
   scheduleType: string;
@@ -2645,12 +2822,13 @@ export interface ViewData {
   id: string;
   ck: string;
   parentId: string;
+  revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  revision: number;
   name: string;
   query: ExpressionData | undefined;
   sort: ExpressionData[];
@@ -2658,6 +2836,7 @@ export interface ViewData {
 
 export interface SomeNodeData {
   node?:
+    | { $case: "bench"; bench: BenchData }
     | { $case: "module"; module: ModuleData }
     | { $case: "file"; file: FileData }
     | { $case: "statement"; statement: StatementData }
@@ -2677,12 +2856,16 @@ export interface SomeNodeData {
 
 export interface SomeStructData {
   struct?:
+    | { $case: "accessControl"; accessControl: AccessControlData }
+    | { $case: "accessControlRule"; accessControlRule: AccessControlRuleData }
     | { $case: "expression"; expression: ExpressionData }
+    | { $case: "logEntry"; logEntry: LogEntryData }
     | { $case: "runCodeFrame"; runCodeFrame: RunCodeFrameData }
     | { $case: "runError"; runError: RunErrorData }
-    | { $case: "logEntry"; logEntry: LogEntryData }
-    | { $case: "workerSet"; workerSet: WorkerSetData }
+    | { $case: "inference"; inference: InferenceData }
     | { $case: "environment"; environment: EnvironmentData }
+    | { $case: "dependency"; dependency: DependencyData }
+    | { $case: "workerSet"; workerSet: WorkerSetData }
     | undefined;
 }
 
@@ -2691,8 +2874,211 @@ export interface ModuleTreeData {
   nodes: SomeNodeData[];
 }
 
+function createBaseAccessControlData(): AccessControlData {
+  return { metatype: 0 };
+}
+
+export const AccessControlData = {
+  encode(message: AccessControlData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): AccessControlData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAccessControlData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): AccessControlData {
+    return { metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0 };
+  },
+
+  toJSON(message: AccessControlData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AccessControlData>, I>>(base?: I): AccessControlData {
+    return AccessControlData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AccessControlData>, I>>(object: I): AccessControlData {
+    const message = createBaseAccessControlData();
+    message.metatype = object.metatype ?? 0;
+    return message;
+  },
+};
+
+function createBaseAccessControlRuleData(): AccessControlRuleData {
+  return { metatype: 0 };
+}
+
+export const AccessControlRuleData = {
+  encode(message: AccessControlRuleData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): AccessControlRuleData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseAccessControlRuleData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): AccessControlRuleData {
+    return { metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0 };
+  },
+
+  toJSON(message: AccessControlRuleData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<AccessControlRuleData>, I>>(base?: I): AccessControlRuleData {
+    return AccessControlRuleData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<AccessControlRuleData>, I>>(object: I): AccessControlRuleData {
+    const message = createBaseAccessControlRuleData();
+    message.metatype = object.metatype ?? 0;
+    return message;
+  },
+};
+
+function createBaseDependencyData(): DependencyData {
+  return { metatype: 0, name: "", version: "" };
+}
+
+export const DependencyData = {
+  encode(message: DependencyData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.name !== "") {
+      writer.uint32(162).string(message.name);
+    }
+    if (message.version !== "") {
+      writer.uint32(170).string(message.version);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): DependencyData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDependencyData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        case 21:
+          if (tag !== 170) {
+            break;
+          }
+
+          message.version = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DependencyData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      version: isSet(object.version) ? globalThis.String(object.version) : "",
+    };
+  },
+
+  toJSON(message: DependencyData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.version !== "") {
+      obj.version = message.version;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DependencyData>, I>>(base?: I): DependencyData {
+    return DependencyData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DependencyData>, I>>(object: I): DependencyData {
+    const message = createBaseDependencyData();
+    message.metatype = object.metatype ?? 0;
+    message.name = object.name ?? "";
+    message.version = object.version ?? "";
+    return message;
+  },
+};
+
 function createBaseEnvironmentData(): EnvironmentData {
-  return { metatype: 0, language: "", version: "", platform: "", packages: undefined };
+  return { metatype: 0, language: "", version: "", platform: "", dependencies: [] };
 }
 
 export const EnvironmentData = {
@@ -2709,8 +3095,8 @@ export const EnvironmentData = {
     if (message.platform !== "") {
       writer.uint32(178).string(message.platform);
     }
-    if (message.packages !== undefined) {
-      Struct.encode(Struct.wrap(message.packages), writer.uint32(186).fork()).ldelim();
+    for (const v of message.dependencies) {
+      DependencyData.encode(v!, writer.uint32(186).fork()).ldelim();
     }
     return writer;
   },
@@ -2755,7 +3141,7 @@ export const EnvironmentData = {
             break;
           }
 
-          message.packages = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          message.dependencies.push(DependencyData.decode(reader, reader.uint32()));
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -2772,7 +3158,9 @@ export const EnvironmentData = {
       language: isSet(object.language) ? globalThis.String(object.language) : "",
       version: isSet(object.version) ? globalThis.String(object.version) : "",
       platform: isSet(object.platform) ? globalThis.String(object.platform) : "",
-      packages: isObject(object.packages) ? object.packages : undefined,
+      dependencies: globalThis.Array.isArray(object?.dependencies)
+        ? object.dependencies.map((e: any) => DependencyData.fromJSON(e))
+        : [],
     };
   },
 
@@ -2790,8 +3178,8 @@ export const EnvironmentData = {
     if (message.platform !== "") {
       obj.platform = message.platform;
     }
-    if (message.packages !== undefined) {
-      obj.packages = message.packages;
+    if (message.dependencies?.length) {
+      obj.dependencies = message.dependencies.map((e) => DependencyData.toJSON(e));
     }
     return obj;
   },
@@ -2805,7 +3193,7 @@ export const EnvironmentData = {
     message.language = object.language ?? "";
     message.version = object.version ?? "";
     message.platform = object.platform ?? "";
-    message.packages = object.packages ?? undefined;
+    message.dependencies = object.dependencies?.map((e) => DependencyData.fromPartial(e)) || [];
     return message;
   },
 };
@@ -2957,6 +3345,140 @@ export const ExpressionData = {
     message.clauses = object.clauses?.map((e) => ExpressionData.fromPartial(e)) || [];
     message.value = object.value ?? undefined;
     message.mode = object.mode ?? "";
+    return message;
+  },
+};
+
+function createBaseInferenceData(): InferenceData {
+  return { metatype: 0, generatedAt: undefined, generatedIn: "", duration: 0, inputs: undefined, outputs: undefined };
+}
+
+export const InferenceData = {
+  encode(message: InferenceData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.generatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.generatedAt), writer.uint32(162).fork()).ldelim();
+    }
+    if (message.generatedIn !== "") {
+      writer.uint32(170).string(message.generatedIn);
+    }
+    if (message.duration !== 0) {
+      writer.uint32(181).float(message.duration);
+    }
+    if (message.inputs !== undefined) {
+      Struct.encode(Struct.wrap(message.inputs), writer.uint32(186).fork()).ldelim();
+    }
+    if (message.outputs !== undefined) {
+      Struct.encode(Struct.wrap(message.outputs), writer.uint32(194).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): InferenceData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseInferenceData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.generatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 21:
+          if (tag !== 170) {
+            break;
+          }
+
+          message.generatedIn = reader.string();
+          continue;
+        case 22:
+          if (tag !== 181) {
+            break;
+          }
+
+          message.duration = reader.float();
+          continue;
+        case 23:
+          if (tag !== 186) {
+            break;
+          }
+
+          message.inputs = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          continue;
+        case 24:
+          if (tag !== 194) {
+            break;
+          }
+
+          message.outputs = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): InferenceData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      generatedAt: isSet(object.generatedAt) ? fromJsonTimestamp(object.generatedAt) : undefined,
+      generatedIn: isSet(object.generatedIn) ? globalThis.String(object.generatedIn) : "",
+      duration: isSet(object.duration) ? globalThis.Number(object.duration) : 0,
+      inputs: isObject(object.inputs) ? object.inputs : undefined,
+      outputs: isObject(object.outputs) ? object.outputs : undefined,
+    };
+  },
+
+  toJSON(message: InferenceData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.generatedAt !== undefined) {
+      obj.generatedAt = message.generatedAt.toISOString();
+    }
+    if (message.generatedIn !== "") {
+      obj.generatedIn = message.generatedIn;
+    }
+    if (message.duration !== 0) {
+      obj.duration = message.duration;
+    }
+    if (message.inputs !== undefined) {
+      obj.inputs = message.inputs;
+    }
+    if (message.outputs !== undefined) {
+      obj.outputs = message.outputs;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<InferenceData>, I>>(base?: I): InferenceData {
+    return InferenceData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<InferenceData>, I>>(object: I): InferenceData {
+    const message = createBaseInferenceData();
+    message.metatype = object.metatype ?? 0;
+    message.generatedAt = object.generatedAt ?? undefined;
+    message.generatedIn = object.generatedIn ?? "";
+    message.duration = object.duration ?? 0;
+    message.inputs = object.inputs ?? undefined;
+    message.outputs = object.outputs ?? undefined;
     return message;
   },
 };
@@ -3753,18 +4275,320 @@ export const WorkerSetData = {
   },
 };
 
+function createBaseBenchData(): BenchData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    lastChangedAt: undefined,
+    name: "",
+    slug: "",
+    description: "",
+    osName: "",
+    pgName: "",
+  };
+}
+
+export const BenchData = {
+  encode(message: BenchData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
+    }
+    if (message.lastChangedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
+    }
+    if (message.name !== "") {
+      writer.uint32(162).string(message.name);
+    }
+    if (message.slug !== "") {
+      writer.uint32(170).string(message.slug);
+    }
+    if (message.description !== "") {
+      writer.uint32(178).string(message.description);
+    }
+    if (message.osName !== "") {
+      writer.uint32(186).string(message.osName);
+    }
+    if (message.pgName !== "") {
+      writer.uint32(194).string(message.pgName);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): BenchData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBenchData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 16:
+          if (tag !== 130) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        case 21:
+          if (tag !== 170) {
+            break;
+          }
+
+          message.slug = reader.string();
+          continue;
+        case 22:
+          if (tag !== 178) {
+            break;
+          }
+
+          message.description = reader.string();
+          continue;
+        case 23:
+          if (tag !== 186) {
+            break;
+          }
+
+          message.osName = reader.string();
+          continue;
+        case 24:
+          if (tag !== 194) {
+            break;
+          }
+
+          message.pgName = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BenchData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      slug: isSet(object.slug) ? globalThis.String(object.slug) : "",
+      description: isSet(object.description) ? globalThis.String(object.description) : "",
+      osName: isSet(object.osName) ? globalThis.String(object.osName) : "",
+      pgName: isSet(object.pgName) ? globalThis.String(object.pgName) : "",
+    };
+  },
+
+  toJSON(message: BenchData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.lastChangedAt !== undefined) {
+      obj.lastChangedAt = message.lastChangedAt.toISOString();
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.slug !== "") {
+      obj.slug = message.slug;
+    }
+    if (message.description !== "") {
+      obj.description = message.description;
+    }
+    if (message.osName !== "") {
+      obj.osName = message.osName;
+    }
+    if (message.pgName !== "") {
+      obj.pgName = message.pgName;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BenchData>, I>>(base?: I): BenchData {
+    return BenchData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BenchData>, I>>(object: I): BenchData {
+    const message = createBaseBenchData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.name = object.name ?? "";
+    message.slug = object.slug ?? "";
+    message.description = object.description ?? "";
+    message.osName = object.osName ?? "";
+    message.pgName = object.pgName ?? "";
+    return message;
+  },
+};
+
 function createBaseBlobData(): BlobData {
   return {
     metatype: 0,
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     sha512: "",
     contentLength: 0,
     contentType: "",
@@ -3787,23 +4611,26 @@ export const BlobData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.sha512 !== "") {
       writer.uint32(162).string(message.sha512);
@@ -3859,46 +4686,53 @@ export const BlobData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 162) {
@@ -3950,12 +4784,13 @@ export const BlobData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       sha512: isSet(object.sha512) ? globalThis.String(object.sha512) : "",
       contentLength: isSet(object.contentLength) ? globalThis.Number(object.contentLength) : 0,
       contentType: isSet(object.contentType) ? globalThis.String(object.contentType) : "",
@@ -3978,6 +4813,9 @@ export const BlobData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -3987,14 +4825,14 @@ export const BlobData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.sha512 !== "") {
       obj.sha512 = message.sha512;
@@ -4023,12 +4861,13 @@ export const BlobData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.sha512 = object.sha512 ?? "";
     message.contentLength = object.contentLength ?? 0;
     message.contentType = object.contentType ?? "";
@@ -4044,12 +4883,13 @@ function createBaseFieldData(): FieldData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     name: "",
     orderKey: "",
     text: "",
@@ -4076,23 +4916,26 @@ export const FieldData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.name !== "") {
       writer.uint32(170).string(message.name);
@@ -4160,46 +5003,53 @@ export const FieldData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 21:
           if (tag !== 170) {
@@ -4279,12 +5129,13 @@ export const FieldData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       orderKey: isSet(object.orderKey) ? globalThis.String(object.orderKey) : "",
       text: isSet(object.text) ? globalThis.String(object.text) : "",
@@ -4311,6 +5162,9 @@ export const FieldData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -4320,14 +5174,14 @@ export const FieldData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.name !== "") {
       obj.name = message.name;
@@ -4368,12 +5222,13 @@ export const FieldData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
     message.text = object.text ?? "";
@@ -4393,12 +5248,13 @@ function createBaseFileData(): FileData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     name: "",
   };
 }
@@ -4417,23 +5273,26 @@ export const FileData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.name !== "") {
       writer.uint32(162).string(message.name);
@@ -4477,46 +5336,53 @@ export const FileData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 162) {
@@ -4540,12 +5406,13 @@ export const FileData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
     };
   },
@@ -4564,6 +5431,9 @@ export const FileData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -4573,14 +5443,14 @@ export const FileData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.name !== "") {
       obj.name = message.name;
@@ -4597,12 +5467,13 @@ export const FileData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.name = object.name ?? "";
     return message;
   },
@@ -4614,12 +5485,13 @@ function createBaseIssueData(): IssueData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     type: 0,
     kind: 0,
     message: "",
@@ -4643,23 +5515,26 @@ export const IssueData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.type !== 0) {
       writer.uint32(160).int32(message.type);
@@ -4718,46 +5593,53 @@ export const IssueData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 160) {
@@ -4816,12 +5698,13 @@ export const IssueData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       type: isSet(object.type) ? issueTypeFromJSON(object.type) : 0,
       kind: isSet(object.kind) ? issueKindFromJSON(object.kind) : 0,
       message: isSet(object.message) ? globalThis.String(object.message) : "",
@@ -4847,6 +5730,9 @@ export const IssueData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -4856,14 +5742,14 @@ export const IssueData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.type !== 0) {
       obj.type = issueTypeToJSON(message.type);
@@ -4895,12 +5781,13 @@ export const IssueData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.type = object.type ?? 0;
     message.kind = object.kind ?? 0;
     message.message = object.message ?? "";
@@ -4917,17 +5804,14 @@ function createBaseModuleData(): ModuleData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
-    name: "",
-    committed: false,
-    projectId: "",
-    osName: "",
-    pgName: "",
+    isMain: false,
   };
 }
 
@@ -4945,38 +5829,29 @@ export const ModuleData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
-    }
-    if (message.name !== "") {
-      writer.uint32(162).string(message.name);
-    }
-    if (message.committed === true) {
-      writer.uint32(168).bool(message.committed);
-    }
-    if (message.projectId !== "") {
-      writer.uint32(178).string(message.projectId);
-    }
-    if (message.osName !== "") {
-      writer.uint32(186).string(message.osName);
-    }
-    if (message.pgName !== "") {
-      writer.uint32(194).string(message.pgName);
+    if (message.isMain === true) {
+      writer.uint32(168).bool(message.isMain);
     }
     return writer;
   },
@@ -5017,81 +5892,60 @@ export const ModuleData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 16:
+          if (tag !== 130) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
           message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
-        case 15:
-          if (tag !== 120) {
-            break;
-          }
-
-          message.revision = longToNumber(reader.int64() as Long);
-          continue;
-        case 20:
-          if (tag !== 162) {
-            break;
-          }
-
-          message.name = reader.string();
           continue;
         case 21:
           if (tag !== 168) {
             break;
           }
 
-          message.committed = reader.bool();
-          continue;
-        case 22:
-          if (tag !== 178) {
-            break;
-          }
-
-          message.projectId = reader.string();
-          continue;
-        case 23:
-          if (tag !== 186) {
-            break;
-          }
-
-          message.osName = reader.string();
-          continue;
-        case 24:
-          if (tag !== 194) {
-            break;
-          }
-
-          message.pgName = reader.string();
+          message.isMain = reader.bool();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -5108,17 +5962,14 @@ export const ModuleData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
-      name: isSet(object.name) ? globalThis.String(object.name) : "",
-      committed: isSet(object.committed) ? globalThis.Boolean(object.committed) : false,
-      projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
-      osName: isSet(object.osName) ? globalThis.String(object.osName) : "",
-      pgName: isSet(object.pgName) ? globalThis.String(object.pgName) : "",
+      isMain: isSet(object.isMain) ? globalThis.Boolean(object.isMain) : false,
     };
   },
 
@@ -5136,6 +5987,9 @@ export const ModuleData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -5145,29 +5999,17 @@ export const ModuleData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
     }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
-    }
-    if (message.name !== "") {
-      obj.name = message.name;
-    }
-    if (message.committed === true) {
-      obj.committed = message.committed;
-    }
-    if (message.projectId !== "") {
-      obj.projectId = message.projectId;
-    }
-    if (message.osName !== "") {
-      obj.osName = message.osName;
-    }
-    if (message.pgName !== "") {
-      obj.pgName = message.pgName;
+    if (message.isMain === true) {
+      obj.isMain = message.isMain;
     }
     return obj;
   },
@@ -5181,17 +6023,14 @@ export const ModuleData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
-    message.name = object.name ?? "";
-    message.committed = object.committed ?? false;
-    message.projectId = object.projectId ?? "";
-    message.osName = object.osName ?? "";
-    message.pgName = object.pgName ?? "";
+    message.isMain = object.isMain ?? false;
     return message;
   },
 };
@@ -5202,12 +6041,13 @@ function createBaseBaseNodeData(): BaseNodeData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
   };
 }
 
@@ -5225,23 +6065,26 @@ export const BaseNodeData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     return writer;
   },
@@ -5282,46 +6125,53 @@ export const BaseNodeData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -5338,12 +6188,13 @@ export const BaseNodeData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
     };
   },
 
@@ -5361,6 +6212,9 @@ export const BaseNodeData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -5370,14 +6224,14 @@ export const BaseNodeData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     return obj;
   },
@@ -5391,12 +6245,13 @@ export const BaseNodeData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     return message;
   },
 };
@@ -5407,12 +6262,13 @@ function createBaseRecordData(): RecordData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     value: undefined,
   };
 }
@@ -5431,23 +6287,26 @@ export const RecordData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.value !== undefined) {
       Struct.encode(Struct.wrap(message.value), writer.uint32(162).fork()).ldelim();
@@ -5491,46 +6350,53 @@ export const RecordData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 162) {
@@ -5554,12 +6420,13 @@ export const RecordData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       value: isObject(object.value) ? object.value : undefined,
     };
   },
@@ -5578,6 +6445,9 @@ export const RecordData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -5587,14 +6457,14 @@ export const RecordData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.value !== undefined) {
       obj.value = message.value;
@@ -5611,12 +6481,13 @@ export const RecordData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.value = object.value ?? undefined;
     return message;
   },
@@ -5628,12 +6499,13 @@ function createBaseResolvedFieldData(): ResolvedFieldData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     fieldCk: "",
     name: "",
     orderKey: "",
@@ -5661,23 +6533,26 @@ export const ResolvedFieldData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.fieldCk !== "") {
       writer.uint32(162).string(message.fieldCk);
@@ -5748,46 +6623,53 @@ export const ResolvedFieldData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 162) {
@@ -5874,12 +6756,13 @@ export const ResolvedFieldData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       fieldCk: isSet(object.fieldCk) ? globalThis.String(object.fieldCk) : "",
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       orderKey: isSet(object.orderKey) ? globalThis.String(object.orderKey) : "",
@@ -5907,6 +6790,9 @@ export const ResolvedFieldData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -5916,14 +6802,14 @@ export const ResolvedFieldData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.fieldCk !== "") {
       obj.fieldCk = message.fieldCk;
@@ -5967,12 +6853,13 @@ export const ResolvedFieldData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.fieldCk = object.fieldCk ?? "";
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
@@ -5993,12 +6880,13 @@ function createBaseRunData(): RunData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     sessionId: "",
     rootId: "",
     projectId: "",
@@ -6034,23 +6922,26 @@ export const RunData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.sessionId !== "") {
       writer.uint32(162).string(message.sessionId);
@@ -6145,46 +7036,53 @@ export const RunData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 162) {
@@ -6327,12 +7225,13 @@ export const RunData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       sessionId: isSet(object.sessionId) ? globalThis.String(object.sessionId) : "",
       rootId: isSet(object.rootId) ? globalThis.String(object.rootId) : "",
       projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
@@ -6368,6 +7267,9 @@ export const RunData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -6377,14 +7279,14 @@ export const RunData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.sessionId !== "") {
       obj.sessionId = message.sessionId;
@@ -6452,12 +7354,13 @@ export const RunData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.sessionId = object.sessionId ?? "";
     message.rootId = object.rootId ?? "";
     message.projectId = object.projectId ?? "";
@@ -6486,13 +7389,15 @@ function createBaseSecretData(): SecretData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     sha512: "",
+    value: undefined,
   };
 }
 
@@ -6510,26 +7415,32 @@ export const SecretData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.sha512 !== "") {
       writer.uint32(162).string(message.sha512);
+    }
+    if (message.value !== undefined) {
+      Struct.encode(Struct.wrap(message.value), writer.uint32(170).fork()).ldelim();
     }
     return writer;
   },
@@ -6570,46 +7481,53 @@ export const SecretData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 162) {
@@ -6617,6 +7535,13 @@ export const SecretData = {
           }
 
           message.sha512 = reader.string();
+          continue;
+        case 21:
+          if (tag !== 170) {
+            break;
+          }
+
+          message.value = Struct.unwrap(Struct.decode(reader, reader.uint32()));
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -6633,13 +7558,15 @@ export const SecretData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       sha512: isSet(object.sha512) ? globalThis.String(object.sha512) : "",
+      value: isObject(object.value) ? object.value : undefined,
     };
   },
 
@@ -6657,6 +7584,9 @@ export const SecretData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -6666,17 +7596,20 @@ export const SecretData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
     }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
-    }
     if (message.sha512 !== "") {
       obj.sha512 = message.sha512;
+    }
+    if (message.value !== undefined) {
+      obj.value = message.value;
     }
     return obj;
   },
@@ -6690,13 +7623,15 @@ export const SecretData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.sha512 = object.sha512 ?? "";
+    message.value = object.value ?? undefined;
     return message;
   },
 };
@@ -6707,12 +7642,13 @@ function createBaseSessionData(): SessionData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     accessLevel: 0,
     projectId: "",
     workerNodeId: "",
@@ -6740,23 +7676,26 @@ export const SessionData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.accessLevel !== 0) {
       writer.uint32(160).int64(message.accessLevel);
@@ -6827,46 +7766,53 @@ export const SessionData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 160) {
@@ -6953,12 +7899,13 @@ export const SessionData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       accessLevel: isSet(object.accessLevel) ? globalThis.Number(object.accessLevel) : 0,
       projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "",
       workerNodeId: isSet(object.workerNodeId) ? globalThis.String(object.workerNodeId) : "",
@@ -6986,6 +7933,9 @@ export const SessionData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -6995,14 +7945,14 @@ export const SessionData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.accessLevel !== 0) {
       obj.accessLevel = Math.round(message.accessLevel);
@@ -7046,12 +7996,13 @@ export const SessionData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.accessLevel = object.accessLevel ?? 0;
     message.projectId = object.projectId ?? "";
     message.workerNodeId = object.workerNodeId ?? "";
@@ -7072,12 +8023,13 @@ function createBaseStatementData(): StatementData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     type: 0,
     name: "",
     orderKey: "",
@@ -7088,7 +8040,6 @@ function createBaseStatementData(): StatementData {
     code: "",
     value: undefined,
     versioned: false,
-    externalName: "",
   };
 }
 
@@ -7106,23 +8057,26 @@ export const StatementData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.type !== 0) {
       writer.uint32(160).int32(message.type);
@@ -7153,9 +8107,6 @@ export const StatementData = {
     }
     if (message.versioned === true) {
       writer.uint32(240).bool(message.versioned);
-    }
-    if (message.externalName !== "") {
-      writer.uint32(250).string(message.externalName);
     }
     return writer;
   },
@@ -7196,46 +8147,53 @@ export const StatementData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 160) {
@@ -7307,13 +8265,6 @@ export const StatementData = {
 
           message.versioned = reader.bool();
           continue;
-        case 31:
-          if (tag !== 250) {
-            break;
-          }
-
-          message.externalName = reader.string();
-          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -7329,12 +8280,13 @@ export const StatementData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       type: isSet(object.type) ? statementTypeFromJSON(object.type) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       orderKey: isSet(object.orderKey) ? globalThis.String(object.orderKey) : "",
@@ -7345,7 +8297,6 @@ export const StatementData = {
       code: isSet(object.code) ? globalThis.String(object.code) : "",
       value: isObject(object.value) ? object.value : undefined,
       versioned: isSet(object.versioned) ? globalThis.Boolean(object.versioned) : false,
-      externalName: isSet(object.externalName) ? globalThis.String(object.externalName) : "",
     };
   },
 
@@ -7363,6 +8314,9 @@ export const StatementData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -7372,14 +8326,14 @@ export const StatementData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.type !== 0) {
       obj.type = statementTypeToJSON(message.type);
@@ -7411,9 +8365,6 @@ export const StatementData = {
     if (message.versioned === true) {
       obj.versioned = message.versioned;
     }
-    if (message.externalName !== "") {
-      obj.externalName = message.externalName;
-    }
     return obj;
   },
 
@@ -7426,12 +8377,13 @@ export const StatementData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.type = object.type ?? 0;
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
@@ -7442,7 +8394,6 @@ export const StatementData = {
     message.code = object.code ?? "";
     message.value = object.value ?? undefined;
     message.versioned = object.versioned ?? false;
-    message.externalName = object.externalName ?? "";
     return message;
   },
 };
@@ -7453,12 +8404,13 @@ function createBaseTaggingData(): TaggingData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     key: "",
     value: undefined,
     referenceCk: "",
@@ -7479,23 +8431,26 @@ export const TaggingData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.key !== "") {
       writer.uint32(162).string(message.key);
@@ -7545,46 +8500,53 @@ export const TaggingData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 162) {
@@ -7622,12 +8584,13 @@ export const TaggingData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       key: isSet(object.key) ? globalThis.String(object.key) : "",
       value: isObject(object.value) ? object.value : undefined,
       referenceCk: isSet(object.referenceCk) ? globalThis.String(object.referenceCk) : "",
@@ -7648,6 +8611,9 @@ export const TaggingData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -7657,14 +8623,14 @@ export const TaggingData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.key !== "") {
       obj.key = message.key;
@@ -7687,12 +8653,13 @@ export const TaggingData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.key = object.key ?? "";
     message.value = object.value ?? undefined;
     message.referenceCk = object.referenceCk ?? "";
@@ -7706,12 +8673,13 @@ function createBaseTriggerData(): TriggerData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     type: 0,
     active: false,
     scheduleType: "",
@@ -7735,23 +8703,26 @@ export const TriggerData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.type !== 0) {
       writer.uint32(160).int32(message.type);
@@ -7810,46 +8781,53 @@ export const TriggerData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 160) {
@@ -7908,12 +8886,13 @@ export const TriggerData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       type: isSet(object.type) ? triggerTypeFromJSON(object.type) : 0,
       active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
       scheduleType: isSet(object.scheduleType) ? globalThis.String(object.scheduleType) : "",
@@ -7937,6 +8916,9 @@ export const TriggerData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -7946,14 +8928,14 @@ export const TriggerData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.type !== 0) {
       obj.type = triggerTypeToJSON(message.type);
@@ -7985,12 +8967,13 @@ export const TriggerData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.type = object.type ?? 0;
     message.active = object.active ?? false;
     message.scheduleType = object.scheduleType ?? "";
@@ -8007,12 +8990,13 @@ function createBaseViewData(): ViewData {
     id: "",
     ck: "",
     parentId: "",
+    revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    revision: 0,
     name: "",
     query: undefined,
     sort: [],
@@ -8033,23 +9017,26 @@ export const ViewData = {
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
     }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
     if (message.createdAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(82).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
     }
     if (message.updatedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(90).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
     }
     if (message.deletedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(98).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(106).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(114).fork()).ldelim();
-    }
-    if (message.revision !== 0) {
-      writer.uint32(120).int64(message.revision);
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
     }
     if (message.name !== "") {
       writer.uint32(162).string(message.name);
@@ -8099,46 +9086,53 @@ export const ViewData = {
           message.parentId = reader.string();
           continue;
         case 10:
-          if (tag !== 82) {
+          if (tag !== 80) {
             break;
           }
 
-          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.revision = longToNumber(reader.int64() as Long);
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 15:
-          if (tag !== 120) {
+        case 16:
+          if (tag !== 130) {
             break;
           }
 
-          message.revision = longToNumber(reader.int64() as Long);
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 20:
           if (tag !== 162) {
@@ -8176,12 +9170,13 @@ export const ViewData = {
       id: isSet(object.id) ? globalThis.String(object.id) : "",
       ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       query: isSet(object.query) ? ExpressionData.fromJSON(object.query) : undefined,
       sort: globalThis.Array.isArray(object?.sort) ? object.sort.map((e: any) => ExpressionData.fromJSON(e)) : [],
@@ -8202,6 +9197,9 @@ export const ViewData = {
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
     }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
     }
@@ -8211,14 +9209,14 @@ export const ViewData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
-    if (message.revision !== 0) {
-      obj.revision = Math.round(message.revision);
     }
     if (message.name !== "") {
       obj.name = message.name;
@@ -8241,16 +9239,16 @@ export const ViewData = {
     message.id = object.id ?? "";
     message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.revision = object.revision ?? 0;
     message.name = object.name ?? "";
-    message.query = (object.query !== undefined && object.query !== null)
-      ? ExpressionData.fromPartial(object.query)
-      : undefined;
+    message.query =
+      object.query !== undefined && object.query !== null ? ExpressionData.fromPartial(object.query) : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     return message;
   },
@@ -8263,47 +9261,50 @@ function createBaseSomeNodeData(): SomeNodeData {
 export const SomeNodeData = {
   encode(message: SomeNodeData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     switch (message.node?.$case) {
+      case "bench":
+        BenchData.encode(message.node.bench, writer.uint32(10).fork()).ldelim();
+        break;
       case "module":
-        ModuleData.encode(message.node.module, writer.uint32(10).fork()).ldelim();
+        ModuleData.encode(message.node.module, writer.uint32(18).fork()).ldelim();
         break;
       case "file":
-        FileData.encode(message.node.file, writer.uint32(18).fork()).ldelim();
+        FileData.encode(message.node.file, writer.uint32(26).fork()).ldelim();
         break;
       case "statement":
-        StatementData.encode(message.node.statement, writer.uint32(26).fork()).ldelim();
+        StatementData.encode(message.node.statement, writer.uint32(34).fork()).ldelim();
         break;
       case "trigger":
-        TriggerData.encode(message.node.trigger, writer.uint32(34).fork()).ldelim();
+        TriggerData.encode(message.node.trigger, writer.uint32(42).fork()).ldelim();
         break;
       case "tagging":
-        TaggingData.encode(message.node.tagging, writer.uint32(42).fork()).ldelim();
+        TaggingData.encode(message.node.tagging, writer.uint32(50).fork()).ldelim();
         break;
       case "field":
-        FieldData.encode(message.node.field, writer.uint32(50).fork()).ldelim();
+        FieldData.encode(message.node.field, writer.uint32(58).fork()).ldelim();
         break;
       case "record":
-        RecordData.encode(message.node.record, writer.uint32(58).fork()).ldelim();
+        RecordData.encode(message.node.record, writer.uint32(66).fork()).ldelim();
         break;
       case "view":
-        ViewData.encode(message.node.view, writer.uint32(66).fork()).ldelim();
+        ViewData.encode(message.node.view, writer.uint32(74).fork()).ldelim();
         break;
       case "issue":
-        IssueData.encode(message.node.issue, writer.uint32(74).fork()).ldelim();
+        IssueData.encode(message.node.issue, writer.uint32(82).fork()).ldelim();
         break;
       case "resolvedField":
-        ResolvedFieldData.encode(message.node.resolvedField, writer.uint32(82).fork()).ldelim();
+        ResolvedFieldData.encode(message.node.resolvedField, writer.uint32(90).fork()).ldelim();
         break;
       case "blob":
-        BlobData.encode(message.node.blob, writer.uint32(90).fork()).ldelim();
+        BlobData.encode(message.node.blob, writer.uint32(98).fork()).ldelim();
         break;
       case "secret":
-        SecretData.encode(message.node.secret, writer.uint32(98).fork()).ldelim();
+        SecretData.encode(message.node.secret, writer.uint32(106).fork()).ldelim();
         break;
       case "session":
-        SessionData.encode(message.node.session, writer.uint32(106).fork()).ldelim();
+        SessionData.encode(message.node.session, writer.uint32(114).fork()).ldelim();
         break;
       case "run":
-        RunData.encode(message.node.run, writer.uint32(114).fork()).ldelim();
+        RunData.encode(message.node.run, writer.uint32(122).fork()).ldelim();
         break;
     }
     return writer;
@@ -8321,94 +9322,101 @@ export const SomeNodeData = {
             break;
           }
 
-          message.node = { $case: "module", module: ModuleData.decode(reader, reader.uint32()) };
+          message.node = { $case: "bench", bench: BenchData.decode(reader, reader.uint32()) };
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.node = { $case: "file", file: FileData.decode(reader, reader.uint32()) };
+          message.node = { $case: "module", module: ModuleData.decode(reader, reader.uint32()) };
           continue;
         case 3:
           if (tag !== 26) {
             break;
           }
 
-          message.node = { $case: "statement", statement: StatementData.decode(reader, reader.uint32()) };
+          message.node = { $case: "file", file: FileData.decode(reader, reader.uint32()) };
           continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
-          message.node = { $case: "trigger", trigger: TriggerData.decode(reader, reader.uint32()) };
+          message.node = { $case: "statement", statement: StatementData.decode(reader, reader.uint32()) };
           continue;
         case 5:
           if (tag !== 42) {
             break;
           }
 
-          message.node = { $case: "tagging", tagging: TaggingData.decode(reader, reader.uint32()) };
+          message.node = { $case: "trigger", trigger: TriggerData.decode(reader, reader.uint32()) };
           continue;
         case 6:
           if (tag !== 50) {
             break;
           }
 
-          message.node = { $case: "field", field: FieldData.decode(reader, reader.uint32()) };
+          message.node = { $case: "tagging", tagging: TaggingData.decode(reader, reader.uint32()) };
           continue;
         case 7:
           if (tag !== 58) {
             break;
           }
 
-          message.node = { $case: "record", record: RecordData.decode(reader, reader.uint32()) };
+          message.node = { $case: "field", field: FieldData.decode(reader, reader.uint32()) };
           continue;
         case 8:
           if (tag !== 66) {
             break;
           }
 
-          message.node = { $case: "view", view: ViewData.decode(reader, reader.uint32()) };
+          message.node = { $case: "record", record: RecordData.decode(reader, reader.uint32()) };
           continue;
         case 9:
           if (tag !== 74) {
             break;
           }
 
-          message.node = { $case: "issue", issue: IssueData.decode(reader, reader.uint32()) };
+          message.node = { $case: "view", view: ViewData.decode(reader, reader.uint32()) };
           continue;
         case 10:
           if (tag !== 82) {
             break;
           }
 
-          message.node = { $case: "resolvedField", resolvedField: ResolvedFieldData.decode(reader, reader.uint32()) };
+          message.node = { $case: "issue", issue: IssueData.decode(reader, reader.uint32()) };
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.node = { $case: "blob", blob: BlobData.decode(reader, reader.uint32()) };
+          message.node = { $case: "resolvedField", resolvedField: ResolvedFieldData.decode(reader, reader.uint32()) };
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.node = { $case: "secret", secret: SecretData.decode(reader, reader.uint32()) };
+          message.node = { $case: "blob", blob: BlobData.decode(reader, reader.uint32()) };
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.node = { $case: "session", session: SessionData.decode(reader, reader.uint32()) };
+          message.node = { $case: "secret", secret: SecretData.decode(reader, reader.uint32()) };
           continue;
         case 14:
           if (tag !== 114) {
+            break;
+          }
+
+          message.node = { $case: "session", session: SessionData.decode(reader, reader.uint32()) };
+          continue;
+        case 15:
+          if (tag !== 122) {
             break;
           }
 
@@ -8425,7 +9433,9 @@ export const SomeNodeData = {
 
   fromJSON(object: any): SomeNodeData {
     return {
-      node: isSet(object.module)
+      node: isSet(object.bench)
+        ? { $case: "bench", bench: BenchData.fromJSON(object.bench) }
+        : isSet(object.module)
         ? { $case: "module", module: ModuleData.fromJSON(object.module) }
         : isSet(object.file)
         ? { $case: "file", file: FileData.fromJSON(object.file) }
@@ -8459,6 +9469,9 @@ export const SomeNodeData = {
 
   toJSON(message: SomeNodeData): unknown {
     const obj: any = {};
+    if (message.node?.$case === "bench") {
+      obj.bench = BenchData.toJSON(message.node.bench);
+    }
     if (message.node?.$case === "module") {
       obj.module = ModuleData.toJSON(message.node.module);
     }
@@ -8509,6 +9522,9 @@ export const SomeNodeData = {
   },
   fromPartial<I extends Exact<DeepPartial<SomeNodeData>, I>>(object: I): SomeNodeData {
     const message = createBaseSomeNodeData();
+    if (object.node?.$case === "bench" && object.node?.bench !== undefined && object.node?.bench !== null) {
+      message.node = { $case: "bench", bench: BenchData.fromPartial(object.node.bench) };
+    }
     if (object.node?.$case === "module" && object.node?.module !== undefined && object.node?.module !== null) {
       message.node = { $case: "module", module: ModuleData.fromPartial(object.node.module) };
     }
@@ -8569,23 +9585,35 @@ function createBaseSomeStructData(): SomeStructData {
 export const SomeStructData = {
   encode(message: SomeStructData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     switch (message.struct?.$case) {
+      case "accessControl":
+        AccessControlData.encode(message.struct.accessControl, writer.uint32(10).fork()).ldelim();
+        break;
+      case "accessControlRule":
+        AccessControlRuleData.encode(message.struct.accessControlRule, writer.uint32(18).fork()).ldelim();
+        break;
       case "expression":
-        ExpressionData.encode(message.struct.expression, writer.uint32(10).fork()).ldelim();
-        break;
-      case "runCodeFrame":
-        RunCodeFrameData.encode(message.struct.runCodeFrame, writer.uint32(18).fork()).ldelim();
-        break;
-      case "runError":
-        RunErrorData.encode(message.struct.runError, writer.uint32(26).fork()).ldelim();
+        ExpressionData.encode(message.struct.expression, writer.uint32(26).fork()).ldelim();
         break;
       case "logEntry":
         LogEntryData.encode(message.struct.logEntry, writer.uint32(34).fork()).ldelim();
         break;
-      case "workerSet":
-        WorkerSetData.encode(message.struct.workerSet, writer.uint32(42).fork()).ldelim();
+      case "runCodeFrame":
+        RunCodeFrameData.encode(message.struct.runCodeFrame, writer.uint32(42).fork()).ldelim();
+        break;
+      case "runError":
+        RunErrorData.encode(message.struct.runError, writer.uint32(50).fork()).ldelim();
+        break;
+      case "inference":
+        InferenceData.encode(message.struct.inference, writer.uint32(58).fork()).ldelim();
         break;
       case "environment":
-        EnvironmentData.encode(message.struct.environment, writer.uint32(50).fork()).ldelim();
+        EnvironmentData.encode(message.struct.environment, writer.uint32(66).fork()).ldelim();
+        break;
+      case "dependency":
+        DependencyData.encode(message.struct.dependency, writer.uint32(74).fork()).ldelim();
+        break;
+      case "workerSet":
+        WorkerSetData.encode(message.struct.workerSet, writer.uint32(82).fork()).ldelim();
         break;
     }
     return writer;
@@ -8603,21 +9631,24 @@ export const SomeStructData = {
             break;
           }
 
-          message.struct = { $case: "expression", expression: ExpressionData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "accessControl", accessControl: AccessControlData.decode(reader, reader.uint32()) };
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.struct = { $case: "runCodeFrame", runCodeFrame: RunCodeFrameData.decode(reader, reader.uint32()) };
+          message.struct = {
+            $case: "accessControlRule",
+            accessControlRule: AccessControlRuleData.decode(reader, reader.uint32()),
+          };
           continue;
         case 3:
           if (tag !== 26) {
             break;
           }
 
-          message.struct = { $case: "runError", runError: RunErrorData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "expression", expression: ExpressionData.decode(reader, reader.uint32()) };
           continue;
         case 4:
           if (tag !== 34) {
@@ -8631,14 +9662,42 @@ export const SomeStructData = {
             break;
           }
 
-          message.struct = { $case: "workerSet", workerSet: WorkerSetData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "runCodeFrame", runCodeFrame: RunCodeFrameData.decode(reader, reader.uint32()) };
           continue;
         case 6:
           if (tag !== 50) {
             break;
           }
 
+          message.struct = { $case: "runError", runError: RunErrorData.decode(reader, reader.uint32()) };
+          continue;
+        case 7:
+          if (tag !== 58) {
+            break;
+          }
+
+          message.struct = { $case: "inference", inference: InferenceData.decode(reader, reader.uint32()) };
+          continue;
+        case 8:
+          if (tag !== 66) {
+            break;
+          }
+
           message.struct = { $case: "environment", environment: EnvironmentData.decode(reader, reader.uint32()) };
+          continue;
+        case 9:
+          if (tag !== 74) {
+            break;
+          }
+
+          message.struct = { $case: "dependency", dependency: DependencyData.decode(reader, reader.uint32()) };
+          continue;
+        case 10:
+          if (tag !== 82) {
+            break;
+          }
+
+          message.struct = { $case: "workerSet", workerSet: WorkerSetData.decode(reader, reader.uint32()) };
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -8651,26 +9710,43 @@ export const SomeStructData = {
 
   fromJSON(object: any): SomeStructData {
     return {
-      struct: isSet(object.expression)
+      struct: isSet(object.accessControl)
+        ? { $case: "accessControl", accessControl: AccessControlData.fromJSON(object.accessControl) }
+        : isSet(object.accessControlRule)
+        ? { $case: "accessControlRule", accessControlRule: AccessControlRuleData.fromJSON(object.accessControlRule) }
+        : isSet(object.expression)
         ? { $case: "expression", expression: ExpressionData.fromJSON(object.expression) }
+        : isSet(object.logEntry)
+        ? { $case: "logEntry", logEntry: LogEntryData.fromJSON(object.logEntry) }
         : isSet(object.runCodeFrame)
         ? { $case: "runCodeFrame", runCodeFrame: RunCodeFrameData.fromJSON(object.runCodeFrame) }
         : isSet(object.runError)
         ? { $case: "runError", runError: RunErrorData.fromJSON(object.runError) }
-        : isSet(object.logEntry)
-        ? { $case: "logEntry", logEntry: LogEntryData.fromJSON(object.logEntry) }
-        : isSet(object.workerSet)
-        ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
+        : isSet(object.inference)
+        ? { $case: "inference", inference: InferenceData.fromJSON(object.inference) }
         : isSet(object.environment)
         ? { $case: "environment", environment: EnvironmentData.fromJSON(object.environment) }
+        : isSet(object.dependency)
+        ? { $case: "dependency", dependency: DependencyData.fromJSON(object.dependency) }
+        : isSet(object.workerSet)
+        ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
         : undefined,
     };
   },
 
   toJSON(message: SomeStructData): unknown {
     const obj: any = {};
+    if (message.struct?.$case === "accessControl") {
+      obj.accessControl = AccessControlData.toJSON(message.struct.accessControl);
+    }
+    if (message.struct?.$case === "accessControlRule") {
+      obj.accessControlRule = AccessControlRuleData.toJSON(message.struct.accessControlRule);
+    }
     if (message.struct?.$case === "expression") {
       obj.expression = ExpressionData.toJSON(message.struct.expression);
+    }
+    if (message.struct?.$case === "logEntry") {
+      obj.logEntry = LogEntryData.toJSON(message.struct.logEntry);
     }
     if (message.struct?.$case === "runCodeFrame") {
       obj.runCodeFrame = RunCodeFrameData.toJSON(message.struct.runCodeFrame);
@@ -8678,14 +9754,17 @@ export const SomeStructData = {
     if (message.struct?.$case === "runError") {
       obj.runError = RunErrorData.toJSON(message.struct.runError);
     }
-    if (message.struct?.$case === "logEntry") {
-      obj.logEntry = LogEntryData.toJSON(message.struct.logEntry);
-    }
-    if (message.struct?.$case === "workerSet") {
-      obj.workerSet = WorkerSetData.toJSON(message.struct.workerSet);
+    if (message.struct?.$case === "inference") {
+      obj.inference = InferenceData.toJSON(message.struct.inference);
     }
     if (message.struct?.$case === "environment") {
       obj.environment = EnvironmentData.toJSON(message.struct.environment);
+    }
+    if (message.struct?.$case === "dependency") {
+      obj.dependency = DependencyData.toJSON(message.struct.dependency);
+    }
+    if (message.struct?.$case === "workerSet") {
+      obj.workerSet = WorkerSetData.toJSON(message.struct.workerSet);
     }
     return obj;
   },
@@ -8696,11 +9775,38 @@ export const SomeStructData = {
   fromPartial<I extends Exact<DeepPartial<SomeStructData>, I>>(object: I): SomeStructData {
     const message = createBaseSomeStructData();
     if (
+      object.struct?.$case === "accessControl" &&
+      object.struct?.accessControl !== undefined &&
+      object.struct?.accessControl !== null
+    ) {
+      message.struct = {
+        $case: "accessControl",
+        accessControl: AccessControlData.fromPartial(object.struct.accessControl),
+      };
+    }
+    if (
+      object.struct?.$case === "accessControlRule" &&
+      object.struct?.accessControlRule !== undefined &&
+      object.struct?.accessControlRule !== null
+    ) {
+      message.struct = {
+        $case: "accessControlRule",
+        accessControlRule: AccessControlRuleData.fromPartial(object.struct.accessControlRule),
+      };
+    }
+    if (
       object.struct?.$case === "expression" &&
       object.struct?.expression !== undefined &&
       object.struct?.expression !== null
     ) {
       message.struct = { $case: "expression", expression: ExpressionData.fromPartial(object.struct.expression) };
+    }
+    if (
+      object.struct?.$case === "logEntry" &&
+      object.struct?.logEntry !== undefined &&
+      object.struct?.logEntry !== null
+    ) {
+      message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
     }
     if (
       object.struct?.$case === "runCodeFrame" &&
@@ -8713,21 +9819,18 @@ export const SomeStructData = {
       };
     }
     if (
-      object.struct?.$case === "runError" && object.struct?.runError !== undefined && object.struct?.runError !== null
+      object.struct?.$case === "runError" &&
+      object.struct?.runError !== undefined &&
+      object.struct?.runError !== null
     ) {
       message.struct = { $case: "runError", runError: RunErrorData.fromPartial(object.struct.runError) };
     }
     if (
-      object.struct?.$case === "logEntry" && object.struct?.logEntry !== undefined && object.struct?.logEntry !== null
+      object.struct?.$case === "inference" &&
+      object.struct?.inference !== undefined &&
+      object.struct?.inference !== null
     ) {
-      message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
-    }
-    if (
-      object.struct?.$case === "workerSet" &&
-      object.struct?.workerSet !== undefined &&
-      object.struct?.workerSet !== null
-    ) {
-      message.struct = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.struct.workerSet) };
+      message.struct = { $case: "inference", inference: InferenceData.fromPartial(object.struct.inference) };
     }
     if (
       object.struct?.$case === "environment" &&
@@ -8735,6 +9838,20 @@ export const SomeStructData = {
       object.struct?.environment !== null
     ) {
       message.struct = { $case: "environment", environment: EnvironmentData.fromPartial(object.struct.environment) };
+    }
+    if (
+      object.struct?.$case === "dependency" &&
+      object.struct?.dependency !== undefined &&
+      object.struct?.dependency !== null
+    ) {
+      message.struct = { $case: "dependency", dependency: DependencyData.fromPartial(object.struct.dependency) };
+    }
+    if (
+      object.struct?.$case === "workerSet" &&
+      object.struct?.workerSet !== undefined &&
+      object.struct?.workerSet !== null
+    ) {
+      message.struct = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.struct.workerSet) };
     }
     return message;
   },
@@ -8808,9 +9925,8 @@ export const ModuleTreeData = {
   },
   fromPartial<I extends Exact<DeepPartial<ModuleTreeData>, I>>(object: I): ModuleTreeData {
     const message = createBaseModuleTreeData();
-    message.module = (object.module !== undefined && object.module !== null)
-      ? ModuleData.fromPartial(object.module)
-      : undefined;
+    message.module =
+      object.module !== undefined && object.module !== null ? ModuleData.fromPartial(object.module) : undefined;
     message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
     return message;
   },
@@ -8818,15 +9934,21 @@ export const ModuleTreeData = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+  ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U>
+  ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string }
+  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {}
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

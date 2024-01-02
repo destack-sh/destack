@@ -1,20 +1,20 @@
-import typing
-from typing import Optional
+from typing import Any, Optional
 
 from bench.language import Node
 from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import NodeType
 from bench.language.module import node, struct_internal, struct_property
-
-SecretValueT = typing.TypeVar("SecretValueT")
+from bench.sql.core import ColumnType
 
 
 @node(NodeType.SECRET, detached=True)
-class Secret(Node, typing.Generic[SecretValueT]):
+class Secret(Node):
     """A shared secret with a deferred value (loaded on demand)t."""
 
     sha512: str = struct_property(20)
-    value: Optional[SecretValueT] = struct_internal(21, default=None, defer=True, encrypt=True)
+    value: Optional[Any] = struct_internal(
+        21, default=None, defer=True, encrypt=True, store_as=ColumnType.JSON
+    )
 
     def __str__(self):
         return f"{self.id} ({self.sha512[:8]})"
@@ -23,7 +23,7 @@ class Secret(Node, typing.Generic[SecretValueT]):
         return f"<Secret {self}>"
 
     @_auto_async_to_sync
-    async def reveal(self) -> SecretValueT:
+    async def reveal(self) -> Any:
         if self.value is not None:
             return self.value
         self.value = await self.session._runtime.reveal_secret(self)

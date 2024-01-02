@@ -1,5 +1,4 @@
 import asyncio
-import json
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -9,7 +8,6 @@ from uuid import UUID, uuid4
 import aiohttp
 import structlog
 from asgiref.sync import sync_to_async
-from django.core.exceptions import ValidationError
 from django.db import transaction
 from more_itertools import first
 
@@ -20,6 +18,7 @@ from bench.language.cache import Cache
 from bench.language.const import (
     INTERP_NODE_TYPES,
     ConditionalOp,
+    EditKind,
     ModuleReference,
     NodeType,
     RunStatus,
@@ -29,17 +28,16 @@ from bench.language.const import (
 )
 from bench.language.database import RecordQuery
 from bench.language.expression import SCORE_KEY, C, ExpressionOps, S
-from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
-from bench.language.module import NodeTree, on_issue_raise, walk_bfs
+from bench.language.module import NodeTree, NodeTreeEditor, on_issue_raise, walk_bfs
 from bench.language.packer import pack_value, unpack_value
-from bench.language.render import EditData, EditKind, NodeTreeEditor
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.models import ProjectVersion, packer
 from bench.models.packer import get_default_pack_filters, write_host_db_edits
 from bench.models.user import loops_request
 from bench.proto import wire, wiring
+from bench.proto.wire import ClientOrigin, EditData
 from bench.proto.wiring import AnyNodeData
 from bench.runtime.utils import read_module
 from bench.search.engine import update_os_schema, write_edits_to_os, write_records_to_os
@@ -630,29 +628,6 @@ class RuntimeHost:
         logger.debug("blob.write.rep", msg=msg, post_urls=[url is not None for url in post_urls])
         await msg.reply(RepUploadBlobPayload(blobs=msg.p.blobs, post_urls=post_urls))
 
-    async def mark_uploaded_blob(self, msg: NMessage[ReqMarkUploadedBlobPayload]) -> None:
-        logger.debug("blob.mark_uploaded", msg=msg)
-        try:
-            for obj_data in msg.p.blobs:
-                blob: models.Blob = await models.Blob.objects.aget(id=obj_data.id)
-                blob.mark_available_if_exists_in_s3()
-                await blob.asave()
-            success = True
-        except ValidationError:
-            logger.error("blob.mark_uploaded.failed", msg=msg, exc_info=True)
-            success = False
-        await msg.reply(RepMarkUploadedBlobPayload(success=success))
-
-    async def reveal_secret(self, msg: NMessage[ReqRevealSecretPayload]) -> None:
-        logger.debug("secret.read", msg=msg)
-        # TODO @Security!!: check if msg origin has read access to secret
-        secrets = []
-        async for secret in models.Secret.objects.filter(id__in=(s.id for s in msg.p.secrets)):
-            secret_data = packer.pack_node_flat(secret)
-            secret_data.value = json.loads(secret_data.value)  # :SecretJson
-            secrets.append(secret_data)
-        await msg.reply(RepRevealSecretPayload(secrets=secrets))
-
     async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
         module_name, localized_path = parse_absolute_node_reference(msg.p.model_path)
         log = logger.bind(model=msg.p.model_path, msg=msg)
@@ -902,14 +877,14 @@ class RuntimeHost:
 
             if runs_to_start:
                 # start worker set if not already started
-                if not self.workers.is_healthy(self.project_id):
+                if not self.supervisor.is_worker_set_healthy(self.project_id):
                     # not sure what to do after timeout here... retry? panic?
-                    await self.workers.wake_until_healthy(self.project_id, timeout=300)
+                    await self.supervisor.wake_until_healthy(self.project_id, timeout=300)
                 logger.debug(
                     "time_triggers.fire",
                     runs_to_start=runs_to_start,
                     fired_triggers=[self.active_triggers[id].trigger for id in triggers_to_fire],
-                    worker_set=self.workers.get(self.project_id),
+                    worker_set=self.supervisor.get_worker_set(self.project_id),
                 )
 
             # send out run requests (could do this in parallel but doesn't matter for now)

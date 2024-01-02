@@ -487,8 +487,6 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
 
     @property
     def _type_of_value(self) -> "HasFields":
-        from bench.language.libs import symbolx_lib
-
         return symbolx_lib.resolve(".reflect.FieldMetadata")
 
     def _init_inner(self):
