@@ -57,6 +57,7 @@ class Construct:
 
     if TYPE_CHECKING:
         name: str  # defined in subclasses as either property or field
+        source: int | str | None  # 'source' of this construct (if mapped)
 
     def sql(self) -> str:
         raise NotImplementedError
@@ -127,13 +128,14 @@ SqlPrimitive = Union[SqlPrimitiveSingle, list[SqlPrimitiveSingle], dict[str, Sql
 @dataclass
 class Column(TableConstruct):
     """
-    A high-level SQL column definition.
+    A SQL column definition.
     """
 
     kind: ClassVar[ConstructKind] = ConstructKind.COLUMN
 
     name: str
     type: ColumnType
+    source: str | int | None = None
     is_array: bool = False
     is_primary_key: bool = False
     is_unique: bool = False
@@ -190,7 +192,7 @@ class Column(TableConstruct):
 
 class ConstraintType(enum.StrEnum):
     """
-    A high-level SQL constraint type (we don't need real foreign keys).
+    A SQL constraint type (we don't need real foreign keys).
     """
 
     PRIMARY_KEY = "PRIMARY KEY"
@@ -201,13 +203,14 @@ class ConstraintType(enum.StrEnum):
 @dataclass
 class Constraint(TableConstruct):
     """
-    A high-level SQL constraint.
+    A SQL constraint.
     """
 
     kind: ClassVar[ConstructKind] = ConstructKind.CONSTRAINT
 
     inner_name: str
     type: ConstraintType
+    source: str | int | None = None
     columns: list[str] | None = None
     condition: str | None = None
     _table: Union["Table", None] = None
@@ -240,7 +243,7 @@ class Constraint(TableConstruct):
 
 class IndexType(enum.StrEnum):
     """
-    A high-level SQL index type.
+    A SQL index type.
     """
 
     BTREE = "BTREE"
@@ -252,7 +255,7 @@ class IndexType(enum.StrEnum):
 @dataclass
 class Index(TableConstruct):
     """
-    A high-level SQL index.
+    A SQL index.
     """
 
     kind: ClassVar[ConstructKind] = ConstructKind.INDEX
@@ -260,6 +263,7 @@ class Index(TableConstruct):
     inner_name: str
     type: IndexType
     columns: list[str]
+    source: str | int | None = None
     expression: str | None = None
     condition: str | None = None
     _table: Union["Table", None] = None
@@ -302,13 +306,14 @@ class Index(TableConstruct):
 @dataclass
 class Table(Construct):
     """
-    A high-level SQL table.
+    A SQL table.
     """
 
     kind: ClassVar[ConstructKind] = ConstructKind.TABLE
 
     name: str
     columns: tuple[Column, ...]
+    source: str | int | None = None
     columns_by_name: dict[str, Column] = field(init=False)
     primary_key: Column | None = field(init=False)
     constraints: tuple[Constraint, ...] = ()
@@ -356,20 +361,21 @@ class Table(Construct):
         return True
 
 
-# template for actual record tables
+# 'abstract' template for actual record tables (not a real table)
 BASE_RECORD_TABLE = Table(
     "record_base",
     columns=(
-        Column("id", ColumnType.UUID, is_primary_key=True),
-        Column("ck", ColumnType.UUID),
-        Column("created_at", ColumnType.DATETIME, default="now()"),
-        Column("updated_at", ColumnType.DATETIME, default="now()"),
-        Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
+        # ids should match with Node/RecordData property ids for clarity
+        Column("id", ColumnType.UUID, is_primary_key=True, source=2),
+        Column("ck", ColumnType.UUID, source=3),
+        Column("revision", ColumnType.BIGINT, default="0", source=10),
+        Column("created_at", ColumnType.DATETIME, default="now()", source=11),
+        Column("updated_at", ColumnType.DATETIME, default="now()", source=12),
+        Column("deleted_at", ColumnType.DATETIME, is_nullable=True, source=13),
         Column("created_by_id", ColumnType.UUID, is_nullable=True),
-        Column("last_edited_at", ColumnType.DATETIME, default="now()"),
+        Column("last_edited_at", ColumnType.DATETIME, default="now()", source=16),
         Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
-        Column("revision", ColumnType.BIGINT, default="0"),
-        Column("statement_key", ColumnType.STRING, length=16),
+        Column("statement_key", ColumnType.STRING, length=16, source=20),
     ),
     constraints=(
         # ck + statement_key must be unique
@@ -387,9 +393,9 @@ EPHEMERAL_RECORD_TABLE = Table(
     "record_ephemeral",
     columns=(
         *(c.clone() for c in BASE_RECORD_TABLE.columns),
-        Column("statement_ck", ColumnType.UUID),
-        Column("statement_id", ColumnType.UUID),
-        Column("value", ColumnType.JSON, is_nullable=True),
+        Column("statement_ck", ColumnType.UUID, source=21),
+        Column("statement_id", ColumnType.UUID, source=22),
+        Column("value", ColumnType.JSON, is_nullable=True, source=23),
     ),
     constraints=(*(c.clone() for c in BASE_RECORD_TABLE.constraints),),
     indexes=(*(i.clone() for i in BASE_RECORD_TABLE.indexes),),
@@ -405,21 +411,22 @@ def get_record_table_name(statement_ck: UUID) -> str:
 MIGRATION_TABLE = Table(
     "_migration",
     columns=(
-        Column("id", ColumnType.INT, is_primary_key=True),
-        Column("applied_at", ColumnType.DATETIME),
-        Column("runtime_version", ColumnType.STRING),
-        Column("module_version", ColumnType.STRING),
-        Column("hash", ColumnType.BIGINT),
+        Column("id", ColumnType.INT, is_primary_key=True, source=2),
+        Column("hash", ColumnType.BIGINT, source=20),
+        Column("applied_at", ColumnType.DATETIME, source=21),
+        Column("runtime_version", ColumnType.STRING, source=22),
+        Column("module_version", ColumnType.STRING, source=23),
     ),
 )
 CONSTRUCT_TABLE = Table(
     "_construct",
     columns=(
-        Column("id", ColumnType.UUID, is_primary_key=True),
-        Column("kind", ColumnType.STRING),
-        Column("table_name", ColumnType.STRING, is_nullable=True),
-        Column("name", ColumnType.STRING),
-        Column("hash", ColumnType.BIGINT),
+        Column("id", ColumnType.UUID, is_primary_key=True, source=2),
+        Column("hash", ColumnType.BIGINT, source=20),
+        Column("kind", ColumnType.STRING, source=21),
+        Column("table_name", ColumnType.STRING, is_nullable=True, source=22),
+        Column("name", ColumnType.STRING, source=23),
+        Column("source", ColumnType.STRING, is_nullable=True, source=24),
     ),
 )
 

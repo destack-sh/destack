@@ -18,7 +18,7 @@ from .secret import Secret
 from .session import Run, Session
 from .statement import Field, Statement, Tagging, Trigger, TriggerType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
-from .user import Client, ClientType, User, UserStatus
+from .user import User, UserStatus
 from .utils import CrudModel, CrudNode, DetachedNode, Node
 from .worker import WorkerSet
 
@@ -26,8 +26,6 @@ __all__ = [
     "AccessToken",
     "AccessTokenScope",
     "AccessTokenStatus",
-    "Client",
-    "ClientType",
     "CrudModel",
     "CrudNode",
     "DetachedNode",

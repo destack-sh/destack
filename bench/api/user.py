@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING, Annotated, Optional
-from uuid import UUID
 
 import strawberry
 import strawberry_django
@@ -20,7 +19,7 @@ from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.utils import get_user_from_info, safe_mutation
 
 if TYPE_CHECKING:
-    from bench.api.bench import Bench, BenchVersion
+    from bench.api.bench import Bench
     from bench.api.organization import Organization, OrganizationMembership
     from bench.api.token import AccessToken
 
@@ -88,28 +87,6 @@ class User(Owner, relay.Node):
     @strawberry_django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:
         return self.owner_slug_id
-
-
-ClientType = strawberry.enum(models.ClientType)
-
-
-@strawberry_django.type(models.Client)
-class Client(relay.Node):
-    created_at: auto
-    updated_at: auto
-    last_seen_at: auto
-    closed_at: auto
-    type: ClientType
-    device_name: auto
-    browser_name: auto
-    user: Annotated["User", lazy(".user")]
-    bench: Optional[Annotated["Bench", lazy(".bench")]]
-    bench_version: Optional[Annotated["BenchVersion", lazy(".bench")]]
-    file_id: Optional[UUID]
-    statement_id: Optional[UUID]
-    path: auto
-    active: bool
-    present: bool
 
 
 @strawberry.input

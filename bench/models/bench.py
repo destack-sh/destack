@@ -141,7 +141,6 @@ class Bench(UUIDModel, CrudModel):
     visibility = models.CharField(
         max_length=32, choices=BenchVisibility.choices, default=BenchVisibility.PRIVATE
     )
-    base_level = models.IntegerField(default=ModuleAccessLevel.Read)
     sharing_enabled = models.BooleanField(default=True)
     sharing_token = models.UUIDField(default=uuid4)
     sharing_level = models.IntegerField(default=ModuleAccessLevel.Read)

@@ -89,6 +89,8 @@ export enum BenchType {
   SESSION = 60,
   RUN = 61,
   WORKER_SET = 64,
+  USER = 80,
+  CLIENT = 84,
   ACCESS_CONTROL = 200,
   ACCESS_CONTROL_RULE = 201,
   EXPRESSION = 210,
@@ -153,6 +155,12 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 64:
     case "BENCH_TYPE_WORKER_SET":
       return BenchType.WORKER_SET;
+    case 80:
+    case "BENCH_TYPE_USER":
+      return BenchType.USER;
+    case 84:
+    case "BENCH_TYPE_CLIENT":
+      return BenchType.CLIENT;
     case 200:
     case "BENCH_TYPE_ACCESS_CONTROL":
       return BenchType.ACCESS_CONTROL;
@@ -221,6 +229,10 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_RUN";
     case BenchType.WORKER_SET:
       return "BENCH_TYPE_WORKER_SET";
+    case BenchType.USER:
+      return "BENCH_TYPE_USER";
+    case BenchType.CLIENT:
+      return "BENCH_TYPE_CLIENT";
     case BenchType.ACCESS_CONTROL:
       return "BENCH_TYPE_ACCESS_CONTROL";
     case BenchType.ACCESS_CONTROL_RULE:
@@ -282,6 +294,41 @@ export function blobStatusToJSON(object: BlobStatus): string {
       return "BLOB_STATUS_AVAILABLE";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum BlobStatus");
+  }
+}
+
+export enum ClientType {
+  UNSPECIFIED = 0,
+  WEB = 1,
+  WORKER = 2,
+}
+
+export function clientTypeFromJSON(object: any): ClientType {
+  switch (object) {
+    case 0:
+    case "CLIENT_TYPE_UNSPECIFIED":
+      return ClientType.UNSPECIFIED;
+    case 1:
+    case "CLIENT_TYPE_WEB":
+      return ClientType.WEB;
+    case 2:
+    case "CLIENT_TYPE_WORKER":
+      return ClientType.WORKER;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ClientType");
+  }
+}
+
+export function clientTypeToJSON(object: ClientType): string {
+  switch (object) {
+    case ClientType.UNSPECIFIED:
+      return "CLIENT_TYPE_UNSPECIFIED";
+    case ClientType.WEB:
+      return "CLIENT_TYPE_WEB";
+    case ClientType.WORKER:
+      return "CLIENT_TYPE_WORKER";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ClientType");
   }
 }
 
@@ -991,6 +1038,8 @@ export enum NodeType {
   SESSION = 60,
   RUN = 61,
   WORKER_SET = 64,
+  USER = 80,
+  CLIENT = 84,
 }
 
 export function nodeTypeFromJSON(object: any): NodeType {
@@ -1046,6 +1095,12 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case 64:
     case "NODE_TYPE_WORKER_SET":
       return NodeType.WORKER_SET;
+    case 80:
+    case "NODE_TYPE_USER":
+      return NodeType.USER;
+    case 84:
+    case "NODE_TYPE_CLIENT":
+      return NodeType.CLIENT;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum NodeType");
   }
@@ -1087,6 +1142,10 @@ export function nodeTypeToJSON(object: NodeType): string {
       return "NODE_TYPE_RUN";
     case NodeType.WORKER_SET:
       return "NODE_TYPE_WORKER_SET";
+    case NodeType.USER:
+      return "NODE_TYPE_USER";
+    case NodeType.CLIENT:
+      return "NODE_TYPE_CLIENT";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum NodeType");
   }
@@ -2541,6 +2600,25 @@ export interface BlobData {
   status: BlobStatus;
 }
 
+export interface ClientData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  lastChangedAt: Date | undefined;
+  type: ClientType;
+  deviceName: string;
+  browserName: string;
+  lastSeenAt: number;
+  closedAt: number;
+}
+
 export interface FieldData {
   metatype: BenchType;
   id: string;
@@ -2800,6 +2878,22 @@ export interface TriggerData {
   cron: string;
 }
 
+export interface UserData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  lastChangedAt: Date | undefined;
+  username: string;
+  email: string;
+}
+
 export interface ViewData {
   metatype: BenchType;
   id: string;
@@ -2859,6 +2953,8 @@ export interface SomeNodeData {
     | { $case: "session"; session: SessionData }
     | { $case: "run"; run: RunData }
     | { $case: "workerSet"; workerSet: WorkerSetData }
+    | { $case: "user"; user: UserData }
+    | { $case: "client"; client: ClientData }
     | undefined;
 }
 
@@ -4611,6 +4707,307 @@ export const BlobData = {
     message.contentType = object.contentType ?? "";
     message.name = object.name ?? "";
     message.status = object.status ?? 0;
+    return message;
+  },
+};
+
+function createBaseClientData(): ClientData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    lastChangedAt: undefined,
+    type: 0,
+    deviceName: "",
+    browserName: "",
+    lastSeenAt: 0,
+    closedAt: 0,
+  };
+}
+
+export const ClientData = {
+  encode(message: ClientData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
+    }
+    if (message.lastChangedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
+    }
+    if (message.type !== 0) {
+      writer.uint32(160).int32(message.type);
+    }
+    if (message.deviceName !== "") {
+      writer.uint32(170).string(message.deviceName);
+    }
+    if (message.browserName !== "") {
+      writer.uint32(178).string(message.browserName);
+    }
+    if (message.lastSeenAt !== 0) {
+      writer.uint32(184).int64(message.lastSeenAt);
+    }
+    if (message.closedAt !== 0) {
+      writer.uint32(192).int64(message.closedAt);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): ClientData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseClientData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 16:
+          if (tag !== 130) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 20:
+          if (tag !== 160) {
+            break;
+          }
+
+          message.type = reader.int32() as any;
+          continue;
+        case 21:
+          if (tag !== 170) {
+            break;
+          }
+
+          message.deviceName = reader.string();
+          continue;
+        case 22:
+          if (tag !== 178) {
+            break;
+          }
+
+          message.browserName = reader.string();
+          continue;
+        case 23:
+          if (tag !== 184) {
+            break;
+          }
+
+          message.lastSeenAt = longToNumber(reader.int64() as Long);
+          continue;
+        case 24:
+          if (tag !== 192) {
+            break;
+          }
+
+          message.closedAt = longToNumber(reader.int64() as Long);
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ClientData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      type: isSet(object.type) ? clientTypeFromJSON(object.type) : 0,
+      deviceName: isSet(object.deviceName) ? globalThis.String(object.deviceName) : "",
+      browserName: isSet(object.browserName) ? globalThis.String(object.browserName) : "",
+      lastSeenAt: isSet(object.lastSeenAt) ? globalThis.Number(object.lastSeenAt) : 0,
+      closedAt: isSet(object.closedAt) ? globalThis.Number(object.closedAt) : 0,
+    };
+  },
+
+  toJSON(message: ClientData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.lastChangedAt !== undefined) {
+      obj.lastChangedAt = message.lastChangedAt.toISOString();
+    }
+    if (message.type !== 0) {
+      obj.type = clientTypeToJSON(message.type);
+    }
+    if (message.deviceName !== "") {
+      obj.deviceName = message.deviceName;
+    }
+    if (message.browserName !== "") {
+      obj.browserName = message.browserName;
+    }
+    if (message.lastSeenAt !== 0) {
+      obj.lastSeenAt = Math.round(message.lastSeenAt);
+    }
+    if (message.closedAt !== 0) {
+      obj.closedAt = Math.round(message.closedAt);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ClientData>, I>>(base?: I): ClientData {
+    return ClientData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ClientData>, I>>(object: I): ClientData {
+    const message = createBaseClientData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.type = object.type ?? 0;
+    message.deviceName = object.deviceName ?? "";
+    message.browserName = object.browserName ?? "";
+    message.lastSeenAt = object.lastSeenAt ?? 0;
+    message.closedAt = object.closedAt ?? 0;
     return message;
   },
 };
@@ -8722,6 +9119,259 @@ export const TriggerData = {
   },
 };
 
+function createBaseUserData(): UserData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    lastChangedAt: undefined,
+    username: "",
+    email: "",
+  };
+}
+
+export const UserData = {
+  encode(message: UserData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(130).fork()).ldelim();
+    }
+    if (message.lastChangedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(138).fork()).ldelim();
+    }
+    if (message.username !== "") {
+      writer.uint32(162).string(message.username);
+    }
+    if (message.email !== "") {
+      writer.uint32(170).string(message.email);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): UserData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseUserData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 16:
+          if (tag !== 130) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.username = reader.string();
+          continue;
+        case 21:
+          if (tag !== 170) {
+            break;
+          }
+
+          message.email = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): UserData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      username: isSet(object.username) ? globalThis.String(object.username) : "",
+      email: isSet(object.email) ? globalThis.String(object.email) : "",
+    };
+  },
+
+  toJSON(message: UserData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.lastChangedAt !== undefined) {
+      obj.lastChangedAt = message.lastChangedAt.toISOString();
+    }
+    if (message.username !== "") {
+      obj.username = message.username;
+    }
+    if (message.email !== "") {
+      obj.email = message.email;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<UserData>, I>>(base?: I): UserData {
+    return UserData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<UserData>, I>>(object: I): UserData {
+    const message = createBaseUserData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.username = object.username ?? "";
+    message.email = object.email ?? "";
+    return message;
+  },
+};
+
 function createBaseViewData(): ViewData {
   return {
     metatype: 0,
@@ -9428,6 +10078,12 @@ export const SomeNodeData = {
       case "workerSet":
         WorkerSetData.encode(message.node.workerSet, writer.uint32(130).fork()).ldelim();
         break;
+      case "user":
+        UserData.encode(message.node.user, writer.uint32(138).fork()).ldelim();
+        break;
+      case "client":
+        ClientData.encode(message.node.client, writer.uint32(146).fork()).ldelim();
+        break;
     }
     return writer;
   },
@@ -9551,6 +10207,20 @@ export const SomeNodeData = {
 
           message.node = { $case: "workerSet", workerSet: WorkerSetData.decode(reader, reader.uint32()) };
           continue;
+        case 17:
+          if (tag !== 138) {
+            break;
+          }
+
+          message.node = { $case: "user", user: UserData.decode(reader, reader.uint32()) };
+          continue;
+        case 18:
+          if (tag !== 146) {
+            break;
+          }
+
+          message.node = { $case: "client", client: ClientData.decode(reader, reader.uint32()) };
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -9594,6 +10264,10 @@ export const SomeNodeData = {
         ? { $case: "run", run: RunData.fromJSON(object.run) }
         : isSet(object.workerSet)
         ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
+        : isSet(object.user)
+        ? { $case: "user", user: UserData.fromJSON(object.user) }
+        : isSet(object.client)
+        ? { $case: "client", client: ClientData.fromJSON(object.client) }
         : undefined,
     };
   },
@@ -9647,6 +10321,12 @@ export const SomeNodeData = {
     }
     if (message.node?.$case === "workerSet") {
       obj.workerSet = WorkerSetData.toJSON(message.node.workerSet);
+    }
+    if (message.node?.$case === "user") {
+      obj.user = UserData.toJSON(message.node.user);
+    }
+    if (message.node?.$case === "client") {
+      obj.client = ClientData.toJSON(message.node.client);
     }
     return obj;
   },
@@ -9710,6 +10390,12 @@ export const SomeNodeData = {
     }
     if (object.node?.$case === "workerSet" && object.node?.workerSet !== undefined && object.node?.workerSet !== null) {
       message.node = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.node.workerSet) };
+    }
+    if (object.node?.$case === "user" && object.node?.user !== undefined && object.node?.user !== null) {
+      message.node = { $case: "user", user: UserData.fromPartial(object.node.user) };
+    }
+    if (object.node?.$case === "client" && object.node?.client !== undefined && object.node?.client !== null) {
+      message.node = { $case: "client", client: ClientData.fromPartial(object.node.client) };
     }
     return message;
   },

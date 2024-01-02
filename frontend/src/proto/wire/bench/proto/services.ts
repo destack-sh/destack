@@ -9,6 +9,9 @@ import { Struct } from "../../google/protobuf/struct";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import {
   BlobData,
+  ClientType,
+  clientTypeFromJSON,
+  clientTypeToJSON,
   EditKind,
   editKindFromJSON,
   editKindToJSON,
@@ -38,35 +41,6 @@ import {
 import Long = require("long");
 
 export const protobufPackage = "";
-
-export enum ClientType {
-  WEB = 0,
-  WORKER = 1,
-}
-
-export function clientTypeFromJSON(object: any): ClientType {
-  switch (object) {
-    case 0:
-    case "WEB":
-      return ClientType.WEB;
-    case 1:
-    case "WORKER":
-      return ClientType.WORKER;
-    default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ClientType");
-  }
-}
-
-export function clientTypeToJSON(object: ClientType): string {
-  switch (object) {
-    case ClientType.WEB:
-      return "WEB";
-    case ClientType.WORKER:
-      return "WORKER";
-    default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ClientType");
-  }
-}
 
 export enum ServiceType {
   UNSPECIFIED = 0,

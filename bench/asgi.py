@@ -1,5 +1,5 @@
 """
-ASGI config for bench bench.
+ASGI config for Bench.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
@@ -19,7 +19,6 @@ from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
-from bench.proto.messaging import drain_nats, init_nats
 from bench.settings import (
     BROTLI_COMPRESSION_ENABLED,
     CORS_ALLOWED_ORIGINS,
@@ -69,11 +68,6 @@ application = ProtocolTypeRouter(
     }
 )
 
-# start NATS
-task = reactor._asyncioEventloop.create_task(wrap_task(init_nats()))
-reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
-
-# start 'soon' publish queue
 reactor._asyncioEventloop.create_task(test_redis_connection())
 
 # run servers alongside API server (for development)
