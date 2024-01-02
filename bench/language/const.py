@@ -19,17 +19,21 @@ BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
 
 
 class NodeType(ProtoStrEnum):
+    # root
     BENCH = "BENCH", 1
+    # ENVIRONMENT = "ENVIRONMENT", 2
+    # CONTEXT = "CONTEXT", 3
+    # BRANCH = "BRANCH", 4
     # source
-    MODULE = "MODULE", 2
-    FILE = "FILE", 3
-    STATEMENT = "STATEMENT", 4
-    TRIGGER = "TRIGGER", 5
-    TAGGING = "TAGGING", 6
-    FIELD = "FIELD", 7
-    RECORD = "RECORD", 8
-    VIEW = "VIEW", 9
-    # TILE = "TILE", 10
+    MODULE = "MODULE", 5
+    FILE = "FILE", 6
+    STATEMENT = "STATEMENT", 7
+    TRIGGER = "TRIGGER", 8
+    TAGGING = "TAGGING", 9
+    FIELD = "FIELD", 10
+    RECORD = "RECORD", 11
+    VIEW = "VIEW", 12
+    # TILE = "TILE", 13
     # interp
     ISSUE = "ISSUE", 20
     RESOLVED_FIELD = "RESOLVED_FIELD", 21
@@ -40,7 +44,6 @@ class NodeType(ProtoStrEnum):
     SESSION = "SESSION", 60
     RUN = "RUN", 61
     WORKER_SET = "WORKER_SET", 64
-
     # EVENT = "EVENT", 70
     # INTERRUPT = "INTERRUPT", 71
     # EDIT = "EDIT", 72

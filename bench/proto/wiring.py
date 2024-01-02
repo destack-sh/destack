@@ -2,8 +2,7 @@ import enum
 from collections import OrderedDict
 from copy import copy
 from dataclasses import dataclass
-from itertools import chain
-from typing import Any, Collection, Mapping, Self, Union
+from typing import Any, Mapping, Self, Union
 from uuid import UUID
 
 import betterproto
@@ -25,19 +24,9 @@ from bench.language.module import (
 )
 from bench.language.session import Session
 from bench.proto import wire
-from bench.proto.core import (
-    Enum,
-    EnumValue,
-    Field,
-    FieldType,
-    Message,
-    Proto,
-    ProtoStrEnum,
-    ProtoThing,
-)
 from bench.sql.core import ColumnType
 from bench.utils.func import to_uuid
-from bench.utils.utils import hybridmethod, to_all_caps, to_snake_case
+from bench.utils.utils import hybridmethod, to_snake_case
 
 logger = structlog.get_logger(__name__)
 # nocheckin: auto-gen AnyNodeData/AnyStructData?
@@ -88,7 +77,6 @@ PatchedStruct()
 BetterprotoStruct.from_dict = PatchedStruct.from_dict
 BetterprotoStruct.to_dict = PatchedStruct.to_dict
 
-# :ProtoSchema
 PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
     _type: getattr(wire, _type.camel_name + "Data")
     for _type in BenchType
@@ -251,6 +239,7 @@ def unpack_node_inline(
     parent: Node | None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
+    my_root: UUID | None = None,
 ) -> Node:
     """Unpack a node and all its inline descendants"""
     exclude = exclude or tuple()
@@ -286,22 +275,23 @@ def unpack_node_inline(
         unpacked_tree.add(node)
 
     # index & recover node lists
-    root = unpacked_tree.root
-    if isinstance(root, ScopeNode):
-        root._local_root_tree.set(unpacked_tree.nodes_by_ck.values())
+    real_root = unpacked_tree.root
+    if isinstance(real_root, ScopeNode):
+        real_root._local_root_tree.set(unpacked_tree.nodes_by_ck.values())
     for node in unpacked_tree.nodes_by_id.values():
         node._status = NodeStatus.SOURCE  # status is auto-set to interpreted if a session is active
         if isinstance(node, ScopeNode):
             node._update_lists(node)
-
-    if isinstance(root, ScopeNode):
-        root._index_rec()
-    elif isinstance(root, Node):
-        root._index_self()
+    if isinstance(real_root, ScopeNode):
+        real_root._index_rec()
+    elif isinstance(real_root, Node):
+        real_root._index_self()
     else:
-        raise ValueError(f"unexpected root {root} ({type(root)})")
+        raise ValueError(f"unexpected root {real_root} ({type(real_root)})")
 
-    return root
+    if my_root:
+        return real_root.lookup(my_root)
+    return real_root
 
 
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
@@ -317,158 +307,3 @@ def unwrap_some_node(node: wire.SomeNodeData) -> AnyNodeData:
     _, wrapped_node = betterproto.which_one_of(node, "node")
     assert wrapped_node is not None, f"node not set in {node!r}"
     return wrapped_node
-
-
-#
-# Map Bench types to Proto types
-# We map and walk at the same type for simplicity (using the cache)
-#
-
-PROTO_FIELD_TYPE_BY_COLUMN_TYPE: dict[ColumnType, FieldType] = {
-    ColumnType.BOOLEAN: FieldType.BOOL,
-    ColumnType.INT: FieldType.INT32,
-    ColumnType.BIGINT: FieldType.INT64,
-    ColumnType.FLOAT: FieldType.FLOAT,
-    ColumnType.STRING: FieldType.STRING,
-    ColumnType.BYTES: FieldType.BYTES,
-    ColumnType.DATETIME: FieldType.TIMESTAMP,
-    ColumnType.UUID: FieldType.STRING,  # see https://stackoverflow.com/q/36344826/3375858
-    ColumnType.JSON: FieldType.STRUCT,
-}
-
-_BenchType = type[Union["Node", "Struct", "Property", enum.StrEnum, enum.IntFlag]]
-
-
-def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThing]) -> Field:
-    assert not prop.is_runtime, f"shouldn't map runtime property: {prop!r}"
-    assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
-    # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
-    if prop.is_struct or prop.is_enum and prop.store_as == ColumnType.STRING:
-        struct_type = bench_to_proto(prop.py_type_stripped, cache)
-        return Field(id=prop.id, name=prop.name, type=struct_type, repeated=prop.is_array)
-    elif prop.store_as in PROTO_FIELD_TYPE_BY_COLUMN_TYPE:
-        field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.store_as]
-        return Field(id=prop.id, name=prop.name, type=field_type, repeated=prop.is_array)
-    else:
-        raise TypeError(f"cannot map to proto type: {prop!r}")
-
-
-def _bench_struct_to_proto(
-    node: type["Struct"], cache: dict[_BenchType, ProtoThing], alias: str = None
-) -> Message:
-    struct = Message(name=alias or node.__name__, reserved_names=[], reserved_ids=[], fields=[])
-    cache[node] = struct  # to solve recursive references
-    for prop in node.__properties__.values():
-        if not prop.is_stored:
-            continue
-        field = _bench_property_to_proto(prop, cache)
-        struct.fields.append(field)
-    for reserved in node.__reserved_properties__:
-        if isinstance(reserved, str):
-            struct.reserved_names.append(reserved)
-        elif isinstance(reserved, int):
-            struct.reserved_ids.append(reserved)
-        else:
-            raise TypeError(f"invalid reserved property: {reserved!r}")
-    struct.fields.sort(key=lambda f: f.id)
-    return struct
-
-
-def _bench_enum_to_proto(
-    bench_t: type[ProtoStrEnum] | type[enum.IntEnum] | type[enum.IntFlag],
-    cache: dict[_BenchType, ProtoThing],
-    alias: str = None,
-) -> Enum:
-    assert issubclass(
-        bench_t, (ProtoStrEnum, enum.IntEnum, enum.IntFlag)
-    ), f"invalid enum: {bench_t!r}"
-    # TODO @Broken: assign static ids to enum values (or use int enums) for proto serialization
-    enum_prefix = to_all_caps(alias or bench_t.__name__) + "_"
-    if issubclass(bench_t, ProtoStrEnum):
-        enum_values = [
-            EnumValue(id=member.id, name=enum_prefix + member.name) for member in bench_t
-        ]
-    elif issubclass(bench_t, (enum.IntFlag, enum.IntEnum)):
-        # use int values as ids
-        enum_values = [
-            EnumValue(id=name, name=enum_prefix + id_) for id_, name in bench_t.__members__.items()
-        ]
-    else:
-        raise TypeError(f"invalid type: {bench_t!r}")
-    # add unset if not already present
-    if not any(v.id == 0 for v in enum_values):
-        enum_values = [EnumValue(id=0, name=enum_prefix + "UNSPECIFIED"), *enum_values]
-    has_duplicates = len(enum_values) != len(set(v.id for v in enum_values))
-    return Enum(name=alias or bench_t.__name__, values=enum_values, allow_alias=has_duplicates)
-
-
-def bench_to_proto(
-    bench_t: _BenchType, cache: dict[_BenchType, ProtoThing], alias: str = None
-) -> ProtoThing:
-    """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
-    from bench.language import Node, Struct
-
-    assert isinstance(bench_t, type), f"invalid type: {bench_t!r}"
-    if bench_t in cache:
-        return cache[bench_t]
-    if issubclass(bench_t, (Node, Struct)):
-        ret = _bench_struct_to_proto(bench_t, cache, alias=alias)
-    elif issubclass(bench_t, enum.Enum):
-        ret = _bench_enum_to_proto(bench_t, cache, alias=alias)
-    else:
-        raise TypeError(f"invalid type: {bench_t!r}")
-    cache[bench_t] = ret
-    return ret
-
-
-def generate_proto_schema(
-    bench_types: Collection[type[Union["Node", "Struct", enum.Enum]]],
-    aliases: dict[type[Union["Node", "Struct", enum.Enum]], str],
-    unions: dict[str, tuple[str, list[type[Union["Node", "Struct", enum.Enum]]]]],
-    extras: list[Enum | Message],
-    message_postfix: str = "",
-) -> Proto:
-    """Maps a collection of Bench types to a Proto schema :ProtoSchema."""
-    from bench.language import Node, Struct
-
-    proto_types_cache: dict[type[_BenchType], ProtoThing] = {}
-    for thing in bench_types:
-        _ = bench_to_proto(thing, proto_types_cache, alias=aliases.get(thing))
-
-    # collect proto types
-    collected_enums: list[type[enum.Enum]] = [t for t in bench_types if issubclass(t, enum.Enum)]
-    collected_structs: list[type["Struct"]] = [
-        t for t in bench_types if issubclass(t, Struct) and not issubclass(t, Node)
-    ]
-    collected_nodes: list[type["Node"]] = [t for t in bench_types if issubclass(t, Node)]
-    collected_enums.sort(key=lambda t: t.__name__)
-    collected_structs.sort(key=lambda t: t.__name__)
-    collected_nodes.sort(key=lambda t: t.__name__)
-    proto_types: list[Enum | Message] = [
-        proto_types_cache[t] for t in chain(collected_enums, collected_structs, collected_nodes)
-    ]
-
-    # add custom union types
-    for union_name, (wrapper_field_name, unioned_types) in unions.items():
-        sub_fields = [
-            Field(
-                id=i + 1, name=to_snake_case(t.__name__), type=bench_to_proto(t, proto_types_cache)
-            )
-            for i, t in enumerate(unioned_types)
-        ]
-        wrapper_field = Field(
-            id=None, name=wrapper_field_name, type=FieldType.ONE_OF, sub_fields=sub_fields
-        )
-        wrapper_message = Message(
-            name=union_name, reserved_names=[], reserved_ids=[], fields=[wrapper_field]
-        )
-        proto_types.append(wrapper_message)
-    # and other extra types
-    proto_types.extend(extras)
-
-    if message_postfix:  # apply postfix to messages
-        for proto_type in proto_types:
-            if isinstance(proto_type, Message):
-                proto_type.name += message_postfix
-
-    return Proto.from_types("bench", proto_types)

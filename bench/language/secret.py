@@ -12,9 +12,7 @@ class Secret(Node):
     """A shared secret with a deferred value (loaded on demand)t."""
 
     sha512: str = struct_property(20)
-    value: Optional[Any] = struct_internal(
-        21, default=None, defer=True, encrypt=True, store_as=ColumnType.JSON
-    )
+    value: Optional[str] = struct_internal(21, default=None, defer=True, encrypt=True)
 
     def __str__(self):
         return f"{self.id} ({self.sha512[:8]})"

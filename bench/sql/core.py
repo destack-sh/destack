@@ -1,9 +1,10 @@
+import dataclasses
 import enum
 import hashlib
 from dataclasses import dataclass, field, is_dataclass, replace
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, ClassVar, Union
+from typing import TYPE_CHECKING, ClassVar, Union, Any
 from uuid import UUID, uuid5
 
 import psycopg
@@ -60,7 +61,47 @@ class Construct:
         source: int | str | None  # 'source' of this construct (if mapped)
 
     def sql(self) -> str:
+        """Turns this construct into a SQL statement."""
         raise NotImplementedError
+
+    def source_repr(self) -> str:
+        """Turns this construct into Python code for reconstructing it."""
+
+        def _source_repr(value: Any) -> str | None:
+            if hasattr(value, "source_repr"):
+                return value.source_repr()
+            elif isinstance(value, tuple):
+                if not value:
+                    return None
+                return f"({', '.join(_source_repr(v) for v in value)})"
+            elif isinstance(value, list):
+                if not value:
+                    return None
+                return f"[{', '.join(_source_repr(v) for v in value)}]"
+            elif isinstance(value, enum.Enum):
+                return f"{value.__class__.__name__}.{value.name}"
+            else:
+                return repr(value)
+
+        fields = dataclasses.fields(self)
+        args = []
+        arg_idx = 0
+        for field_idx, field in enumerate(fields):
+            if field.name.startswith("_"):
+                continue
+            value = getattr(self, field.name)
+            if value == field.default:
+                continue
+            value = _source_repr(value)
+            if value is None:
+                continue
+            if arg_idx == field_idx and field.default:
+                args.append(value)
+            else:
+                args.append(f"{field.name}={value}")
+            arg_idx += 1
+        args_str = ", ".join(args)
+        return f"{self.__class__.__name__}({args_str})"
 
     def walk(self) -> tuple["Construct", ...]:
         return (self,)
@@ -140,6 +181,7 @@ class Column(TableConstruct):
     is_primary_key: bool = False
     is_unique: bool = False
     is_nullable: bool = False
+    is_encrypted: bool = False  # nocheckin: handle Column.is_encrypted
     length: int | None = None
     default: str | None = None
     _table: Union["Table", None] = None
@@ -314,22 +356,22 @@ class Table(Construct):
     name: str
     columns: tuple[Column, ...]
     source: str | int | None = None
-    columns_by_name: dict[str, Column] = field(init=False)
-    primary_key: Column | None = field(init=False)
     constraints: tuple[Constraint, ...] = ()
     indexes: tuple[Index, ...] = ()
+    _columns_by_name: dict[str, Column] = field(init=False)
+    _primary_key: Column | None = field(init=False)
 
     def __post_init__(self):
         for construct in chain(self.columns, self.constraints, self.indexes):
             if construct._table is not None:
                 raise ValueError(f"{construct} is already attached to {construct._table}")
             construct._table = self
-        self.columns_by_name = {}
+        self._columns_by_name = {}
         for column in self.columns:
-            if column.name in self.columns_by_name:
+            if column.name in self._columns_by_name:
                 raise ValueError(f"column {column.name} is already defined in {self}")
-            self.columns_by_name[column.name] = column
-        self.primary_key = first((c for c in self.columns if c.is_primary_key), None)
+            self._columns_by_name[column.name] = column
+        self._primary_key = first((c for c in self.columns if c.is_primary_key), None)
 
     def __str__(self):
         columns_str = ", ".join(f"{c.name} {c.type}" for c in self.columns)
@@ -353,10 +395,10 @@ class Table(Construct):
 
     def columns_include(self, other: "Table") -> bool:
         """Returns True if the columns are equal, ignoring order."""
-        for column in self.columns_by_name:
-            if column not in other.columns_by_name:
+        for column in self._columns_by_name:
+            if column not in other._columns_by_name:
                 return False
-            if self.columns_by_name[column].type != other.columns_by_name[column].type:
+            if self._columns_by_name[column].type != other._columns_by_name[column].type:
                 return False
         return True
 
@@ -401,12 +443,6 @@ EPHEMERAL_RECORD_TABLE = Table(
     indexes=(*(i.clone() for i in BASE_RECORD_TABLE.indexes),),
 )
 
-
-def get_record_table_name(statement_ck: UUID) -> str:
-    """First 16 hex digits without dashes."""
-    return f"record_{str(statement_ck).replace('-', '')}"
-
-
 # for internal use only
 MIGRATION_TABLE = Table(
     "_migration",
@@ -447,8 +483,7 @@ class MigrationInfo:
 class Migration:
     """
     A stored SQL migration for internal mappings.
-    This does NOT concern Bench field changes, which nave no 'migration' concept
-      (for now, and if they did it would be separate from this).
+    This does NOT concern in-Bench field changes, which are a layer above.
     """
 
     id: int

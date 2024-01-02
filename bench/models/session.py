@@ -46,6 +46,9 @@ class Session(CrudNode, HasTriggeredBy):
     def parent(self):
         return None
 
+    class Meta:
+        managed = False
+
 
 class RunManager(models.Manager):
     def get_descendants(self, run_ids: list[UUID]):
@@ -129,6 +132,7 @@ class Run(CrudNode, HasTriggeredBy):
     objects = RunManager()
 
     class Meta:
+        managed = False
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["started_at"], name="run_started_at_idx"),

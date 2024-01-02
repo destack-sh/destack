@@ -1,3 +1,4 @@
+from datetime import datetime
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
@@ -181,6 +182,7 @@ class Statement(ScopeNode, HasTags):
         NodeType.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
+    archived_at: datetime = struct_internal(14, default=None, is_cru=True, reflect=True)
     type: StatementType = struct_internal(20, default=StatementType.BLANK)
     file: Optional["File"] = node_ancestor(21, NodeType.FILE)
     name: str | None = struct_property(22, default=None, validate=validate_name)

@@ -828,7 +828,7 @@ TYPE_DISCRIMINATOR_PROPERTY = Property(
     is_internal=True,
     is_required=True,
     is_computed=True,  # set statically in runtime
-    is_stored=True,
+    is_stored=True,  # nocheckin: differentiate is_wired & is_stored
     store_as=ColumnType.STRING,
 )
 
@@ -1085,6 +1085,7 @@ def node(
     detached: bool = False,
     managed: bool = True,
     stored: bool = True,
+    local: bool = False,
     reserved: set[str | int] = None,
 ):
     def decorate(cls):
@@ -1098,6 +1099,7 @@ def node(
         )
         cls.__is_managed__ = managed
         cls.__is_stored__ = stored
+        cls.__is_local__ = local
         return cls
 
     return decorate
@@ -2417,6 +2419,7 @@ class Node(Struct):
     __is_detached__: ClassVar[bool] = False  # not part of inline module tree
     __is_managed__: ClassVar[bool] = False  # storage fully controlled by Bench runtime
     __is_stored__: ClassVar[bool] = False  # stored on disk (runtime or local)
+    __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
 
     # 1-9: reserved for node identity
     id: UUID = struct_internal(2, default=None, reflect=True)
@@ -2430,7 +2433,8 @@ class Node(Struct):
     created_at: datetime = struct_internal(11, default=None, is_cru=True, reflect=True)
     updated_at: datetime = struct_internal(12, default=None, is_cru=True, reflect=True)
     deleted_at: datetime = struct_internal(13, default=None, is_cru=True, reflect=True)
-    archived_at: datetime = struct_internal(14, default=None, is_cru=True, reflect=True)
+    # only some nodes can be archived (File/Statement)
+    # archived_at: datetime = struct_internal(14, default=None, is_cru=True, reflect=True)
     last_edited_at: datetime = struct_internal(16, default=None, is_cru=True, reflect=True)
     last_changed_at: datetime = struct_internal(17, default=None, is_cru=True, reflect=True)
 
@@ -2985,7 +2989,7 @@ class ScopeNode(Node):
         return [i for i in self.errors or [] if i.parent == self]
 
 
-@node(NodeType.BENCH)
+@node(NodeType.BENCH, managed=False)
 class Bench(ScopeNode):
     """
     A Bench is the root of all modules and everything in a Bench.
@@ -3037,8 +3041,10 @@ class ModuleChange:
 @node(NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
     parent: Bench = node_parent(4, NodeType.BENCH)  # nocheckin: always set Module.parent Bench
-    is_main: bool = struct_internal(21, default=False)
+    is_main: bool = struct_internal(21, default=False, store=False)  # main environment?
+    is_snapshot: bool = struct_internal(22, default=False)  # snapshot or head?
 
+    # branch: Branch | None = struct_internal(23, default=None, references=NodeType.BRANCH)
     files: NodeList["File"] = node_children(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
     dependencies: dict[str, Union["Module", ModuleReference]] = struct_runtime(default_factory=dict)
     builtins: list["File"] = struct_runtime(default_factory=list)

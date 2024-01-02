@@ -22,7 +22,6 @@ from bench.models.statement import Statement
 from bench.models.utils import CrudModel, CrudNode, Node, UUIDModel, create_models_bfs
 from bench.proto import wire
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
-from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import (
     generate_random_lowercase_name,
     generate_random_name,
@@ -365,63 +364,6 @@ class BenchVersionManager(models.Manager["BenchVersion"]):
     def get_by_tag(self, bench_id: UUID, tag: str):
         return self.filter(bench_id=bench_id, tag=tag).get()
 
-    def get_between(self, source_version_id: UUID, target_version_id: UUID) -> list[BenchVersion]:
-        """
-        Get every version between the source and target version (including both)
-        Follow BenchVersion.parents (not timestamps).
-        TODO @Performance: implement get_between as recursive CTE query
-        """
-        source_version = self.only("id", "bench_id").get(id=source_version_id)
-        target_version = self.only("id", "bench_id").get(id=target_version_id)
-        if source_version.bench_id != target_version.bench_id:
-            raise ValueError(
-                f"source and target version must be from the same bench: {source_version} </> {target_version}"
-            )
-
-        # try both directions
-        versions = self.get_between_unidirectional(source_version, target_version)
-        if versions is not None:
-            return versions
-        versions = self.get_between_unidirectional(target_version, source_version)
-        if versions is not None:
-            return versions
-        raise ValueError(
-            f"source and target version are not connected: {source_version} </> {target_version}"
-        )
-
-    def get_between_unidirectional(
-        self, source_version: BenchVersion, target_version: BenchVersion
-    ) -> list[BenchVersion] | None:
-        # start at target version and walk up to source version
-        versions = [target_version]
-        while versions[-1] != source_version:
-            # this only works if there is one parent (no branching) :ProjectBranching
-            first_parent = versions[-1].parents.only("id").first()
-            if first_parent is None:
-                return None
-            versions.append(first_parent)
-        versions.reverse()
-        return versions
-
-    def get_ancestors(self, version_id: UUID, depth: int = None) -> list[BenchVersion]:
-        """
-        Get every version that is an ancestor of the given version (including the version itself)
-        Follow BenchVersion.parents (not timestamps).
-        TODO @Performance: implement get_ancestors as recursive CTE query
-        """
-        version = self.only("id", "bench_id").get(id=version_id)
-        versions = [version]
-        while True:
-            # this only works if there is one parent (no branching) :ProjectBranching
-            first_parent = versions[-1].parents.only("id").first()
-            if first_parent is None:
-                break  # reached root
-            versions.append(first_parent)
-            if depth and len(versions) >= depth:
-                break
-        versions.reverse()
-        return versions
-
     def pack_copy(
         self,
         source: BenchVersion,
@@ -550,7 +492,7 @@ class BenchVersion(CrudNode):
     # single unique tag should be a BenchVersionTag list later :BenchVersionTags
     tag = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
-    committed_at = models.DateTimeField(null=True)
+    is_snapshot = models.BooleanField(default=False)
 
     parents = models.ManyToManyField("BenchVersion", related_name="children", symmetrical=False)
     files: models.QuerySet["File"]  # noqa via File
@@ -568,16 +510,6 @@ class BenchVersion(CrudNode):
     @property
     def parent(self) -> Optional["Node"]:
         return None
-
-    def commit(self):
-        if self.committed:
-            raise ValueError(f"already committed: {self}")
-        self.committed_at = utcnow_with_tz()
-        self.save()
-
-    @model_property(only=["committed_at"])
-    def committed(self) -> bool:
-        return self.committed_at is not None
 
     @property
     def organization(self):

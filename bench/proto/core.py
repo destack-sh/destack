@@ -34,7 +34,7 @@ class ProtoThing:
 
 
 @dataclass
-class Proto(ProtoThing):
+class ProtoSchema(ProtoThing):
     """Proto file."""
 
     name: str
@@ -52,14 +52,14 @@ class Proto(ProtoThing):
         return source
 
     @staticmethod
-    def from_types(name: str, types: list[Union["Enum", "Message"]]) -> "Proto":
+    def from_types(name: str, types: list[Union["Enum", "Message"]]) -> "ProtoSchema":
         """Create a proto file from types. Figures out imports."""
         # just add default imports for all the well-known types we use
         imports = [
             "google/protobuf/timestamp.proto",
             "google/protobuf/struct.proto",
         ]
-        return Proto(name=name, imports=imports, types=types)
+        return ProtoSchema(name=name, imports=imports, types=types)
 
 
 @dataclass
