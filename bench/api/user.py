@@ -20,8 +20,8 @@ from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.utils import get_user_from_info, safe_mutation
 
 if TYPE_CHECKING:
+    from bench.api.bench import Bench, BenchVersion
     from bench.api.organization import Organization, OrganizationMembership
-    from bench.api.project import Project, ProjectVersion
     from bench.api.token import AccessToken
 
 logger = structlog.get_logger(__name__)
@@ -59,8 +59,8 @@ class User(Owner, relay.Node):
     organization_memberships: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["OrganizationMembership", lazy(".organization")]
     ] = strawberry_django.connection()
-    projects: strawberry_django.relay.ListConnectionWithTotalCount[
-        Annotated["Project", lazy(".project")]
+    benches: strawberry_django.relay.ListConnectionWithTotalCount[
+        Annotated["Bench", lazy(".bench")]
     ] = strawberry_django.connection(extensions=[IsUser(target=CheckTarget.ROOT)])
     access_tokens: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["AccessToken", lazy(".token")]
@@ -103,8 +103,8 @@ class Client(relay.Node):
     device_name: auto
     browser_name: auto
     user: Annotated["User", lazy(".user")]
-    project: Optional[Annotated["Project", lazy(".project")]]
-    project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
+    bench: Optional[Annotated["Bench", lazy(".bench")]]
+    bench_version: Optional[Annotated["BenchVersion", lazy(".bench")]]
     file_id: Optional[UUID]
     statement_id: Optional[UUID]
     path: auto
@@ -162,8 +162,8 @@ class UserMutation:
         return invite.user
 
     @safe_mutation
-    def accept_project_invite(self, info, id: GlobalID) -> User | OperationInfo:
-        invite = models.ProjectInvite.objects.get(id=id.node_id)
+    def accept_bench_invite(self, info, id: GlobalID) -> User | OperationInfo:
+        invite = models.BenchInvite.objects.get(id=id.node_id)
         check_can_write_user(info, invite.user)
         invite.accept()
         return invite.user

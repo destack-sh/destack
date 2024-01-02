@@ -111,7 +111,7 @@ class RunResponseSerializer(DataclassSerializer):
 @async_csrf_exempt
 @async_check_is_main_thread
 @async_api_view(methods=["POST"])
-async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
+async def run(req: HttpRequest, owner: str, bench: str) -> HttpResponse:
     # validate access
     access_token = req.headers.get("Authorization")
     access_token = access_token.split(" ")[1] if access_token else None
@@ -120,8 +120,8 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
     access_token = await sync_to_async(models.AccessToken.objects.get_by_raw_token)(access_token)
     if not access_token:
         return HttpResponse(status=401)
-    project = await sync_to_async(models.Project.objects.get_by_slug)(owner, project)
-    if project.owner_id != access_token.owner_id:
+    bench = await sync_to_async(models.Bench.objects.get_by_slug)(owner, bench)
+    if bench.owner_id != access_token.owner_id:
         return HttpResponse(status=403)
 
     # parse request
@@ -135,8 +135,8 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
     if not statement.startswith("."):
         statement = f".{statement}"
     start_req = ReqStartRunPayload(
-        project_id=project.id,
-        module_id=project.head_id,
+        bench_id=bench.id,
+        module_id=bench.head_id,
         statement=statement,
         trigger_type=TriggerType.API,
         trigger_id=access_token.id,
@@ -181,7 +181,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
             if isinstance(e.__cause__, NoRespondersError):
                 _ = await request(
                     NMessageType.WAKE_WORKER_SET,
-                    ReqWakeWorkerSetPayload(project_id=project.id),
+                    ReqWakeWorkerSetPayload(bench_id=bench.id),
                     reply_t=RepWakeWorkerSetPayload,
                     retry=2,
                     retry_delay=10,

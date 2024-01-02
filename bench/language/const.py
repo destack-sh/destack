@@ -39,7 +39,7 @@ class NodeType(ProtoStrEnum):
     # session
     SESSION = "SESSION", 60
     RUN = "RUN", 61
-    # WORKER_SET = "WORKER_SET", 64
+    WORKER_SET = "WORKER_SET", 64
     # EVENT = "EVENT", 70
     # INTERRUPT = "INTERRUPT", 71
     # EDIT = "EDIT", 72
@@ -70,7 +70,6 @@ class StructType(ProtoStrEnum):
     INFERENCE = "INFERENCE", 223
     ENVIRONMENT = "ENVIRONMENT", 230
     DEPENDENCY = "DEPENDENCY", 231
-    WORKER_SET = "WORKER_SET", 399  # for now, should be a node later
 
     @property
     def caps_name(self):

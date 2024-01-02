@@ -13,9 +13,9 @@ from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
 from bench.api.auth import HasModuleAccess, IsOwner
+from bench.api.bench import Bench, BenchMutation, BenchVersion, BenchVisibility
 from bench.api.notification import NotificationMutation
 from bench.api.organization import Organization, OrganizationMutation
-from bench.api.project import Project, ProjectMutation, ProjectVersion, ProjectVisibility
 from bench.api.sentry import SentryPerformanceExtension
 from bench.api.token import AccessToken, AccessTokenMutation
 from bench.api.user import User, UserFilter, UserMutation
@@ -59,24 +59,24 @@ def get_user_or_organization_by_slug(
         return None
 
 
-def get_project_version_by_tag(project_id: GlobalID, tag: str):
+def get_bench_version_by_tag(bench_id: GlobalID, tag: str):
     try:
-        return models.ProjectVersion.objects.get_by_tag(project_id.node_id, tag)
-    except models.ProjectVersion.DoesNotExist:
+        return models.BenchVersion.objects.get_by_tag(bench_id.node_id, tag)
+    except models.BenchVersion.DoesNotExist:
         return None
 
 
-def get_project_version_by_slug(owner: str, project: str, tag: str):
+def get_bench_version_by_slug(owner: str, bench: str, tag: str):
     try:
-        return models.ProjectVersion.objects.get_by_slug(owner, project, tag)
-    except models.ProjectVersion.DoesNotExist:
+        return models.BenchVersion.objects.get_by_slug(owner, bench, tag)
+    except models.BenchVersion.DoesNotExist:
         return None
 
 
-def get_project_by_slug(owner: str, project: str):
+def get_bench_by_slug(owner: str, bench: str):
     try:
-        return models.Project.objects.get_by_slug(owner, project)
-    except models.Project.DoesNotExist:
+        return models.Bench.objects.get_by_slug(owner, bench)
+    except models.Bench.DoesNotExist:
         return None
 
 
@@ -94,10 +94,10 @@ def get_organization_by_slug(organization: str):
         return None
 
 
-def get_featured_projects(self) -> typing.Iterable[Project]:
-    # just return symbolx projects for now
-    return models.Project.objects.filter(
-        organization__owner_slug_id="symbolx", visibility=ProjectVisibility.PUBLIC
+def get_featured_benches(self) -> typing.Iterable[Bench]:
+    # just return symbolx benches for now
+    return models.Bench.objects.filter(
+        organization__owner_slug_id="symbolx", visibility=BenchVisibility.PUBLIC
     )
 
 
@@ -119,21 +119,21 @@ class Query:
         extensions=[IsOwner(map=lambda t: t.owner)]
     )
 
-    # project
-    project: Optional[Project] = strawberry_django.node(extensions=[HasModuleAccess()])
-    project_by_slug: Optional[Project] = strawberry_django.field(
-        resolver=get_project_by_slug, extensions=[HasModuleAccess()]
+    # bench
+    bench: Optional[Bench] = strawberry_django.node(extensions=[HasModuleAccess()])
+    bench_by_slug: Optional[Bench] = strawberry_django.field(
+        resolver=get_bench_by_slug, extensions=[HasModuleAccess()]
     )
-    project_version: Optional[ProjectVersion] = strawberry_django.node()
-    project_version_by_slug: Optional[ProjectVersion] = strawberry_django.field(
-        resolver=get_project_version_by_slug, extensions=[HasModuleAccess()]
+    bench_version: Optional[BenchVersion] = strawberry_django.node()
+    bench_version_by_slug: Optional[BenchVersion] = strawberry_django.field(
+        resolver=get_bench_version_by_slug, extensions=[HasModuleAccess()]
     )
-    project_version_by_tag: Optional[ProjectVersion] = strawberry_django.field(
-        resolver=get_project_version_by_tag, extensions=[HasModuleAccess()]
+    bench_version_by_tag: Optional[BenchVersion] = strawberry_django.field(
+        resolver=get_bench_version_by_tag, extensions=[HasModuleAccess()]
     )
-    featured_projects: strawberry_django.relay.ListConnectionWithTotalCount[
-        Project
-    ] = strawberry_django.connection(resolver=get_featured_projects)
+    featured_benches: strawberry_django.relay.ListConnectionWithTotalCount[
+        Bench
+    ] = strawberry_django.connection(resolver=get_featured_benches)
 
 
 @strawberry.type
@@ -142,7 +142,7 @@ class Mutation(
     OrganizationMutation,
     AccessTokenMutation,
     NotificationMutation,
-    ProjectMutation,
+    BenchMutation,
 ):
     pass
 

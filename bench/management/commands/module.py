@@ -92,39 +92,39 @@ class Command(BaseCommand):
     ):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        owner_slug, project_slug = module.split("/")
+        owner_slug, bench_slug = module.split("/")
         try:
-            project = models.Project.objects.get_by_slug(owner_slug, project_slug)
-        except models.Project.DoesNotExist:
+            bench = models.Bench.objects.get_by_slug(owner_slug, bench_slug)
+        except models.Bench.DoesNotExist:
             if create:
                 owner = models.OwnerSlug.objects.get(slug=owner_slug).owner
-                project = models.Project.objects.create_project(
+                bench = models.Bench.objects.create_bench(
                     owner=owner,
-                    name=project_slug,
-                    slug=project_slug,
-                    visibility=models.ProjectVisibility.PRIVATE,
+                    name=bench_slug,
+                    slug=bench_slug,
+                    visibility=models.BenchVisibility.PRIVATE,
                 )
             else:
                 raise
         if path is None:
-            path = "/tmp/bench/" + (alias or project.path)
+            path = "/tmp/bench/" + (alias or bench.path)
 
-        logger.info(action, project=project, path=path)
+        logger.info(action, bench=bench, path=path)
 
         if action in ("paste", "splice"):
-            project_v = project.head
+            bench_v = bench.head
             if path == "-":
-                files = list(project_v.files.all())
+                files = list(bench_v.files.all())
             else:
                 try:
-                    files = [project_v.files.get(name=path)]
+                    files = [bench_v.files.get(name=path)]
                 except models.File.DoesNotExist:
                     raise ValueError(
-                        f"file '{path}' not found in {project_v}, others: {list(project_v.files.all().values_list('name', flat=True))}"
+                        f"file '{path}' not found in {bench_v}, others: {list(bench_v.files.all().values_list('name', flat=True))}"
                     )
-            models.ProjectVersion.objects.copy(
-                source=project_v,
-                target=project_v,
+            models.BenchVersion.objects.copy(
+                source=bench_v,
+                target=bench_v,
                 files=files,
                 keep_cks=False,
                 include_interp=False,
@@ -142,18 +142,18 @@ class Command(BaseCommand):
             Path(path).mkdir(parents=True, exist_ok=True)
 
             # dump filtered versions
-            versions = project.versions.order_by("-tag").filter(tag__gte=after or "0")
-            for version in list(versions) + [project.head]:
+            versions = bench.versions.order_by("-tag").filter(tag__gte=after or "0")
+            for version in list(versions) + [bench.head]:
                 # host/inline data
                 module_data = packer.pack_module_host(version, excluded=[])
                 # add local records
                 module = lang.Module.make(
                     module_data.nodes,
-                    project_id=project.id,
-                    os_name=project.os_name,
-                    pg_name=project.pg_name,
+                    bench_id=bench.id,
+                    os_name=bench.os_name,
+                    pg_name=bench.pg_name,
                 )
-                if version.id == project.head_id:  # only the head version has all tables
+                if version.id == bench.head_id:  # only the head version has all tables
                     records_data = loop.run_until_complete(
                         self._collect_local_records(module, versioned_only=True)
                     )
@@ -187,73 +187,71 @@ class Command(BaseCommand):
                 )
                 return
 
-            existing_versions = project.versions.order_by("-tag").filter(tag__gte=after or "0")
-            existing_versions = list(existing_versions) + [project.head]
+            existing_versions = bench.versions.order_by("-tag").filter(tag__gte=after or "0")
+            existing_versions = list(existing_versions) + [bench.head]
 
             for module_path in paths:
                 tag = module_path.stem.replace("-", ".") if module_path.stem != "head" else None
                 module_bytes = Path(module_path).read_bytes()
                 module_data = wire.deserialize_module(module_bytes)
 
-                project_v = next((v for v in existing_versions if v.tag == tag), None)
-                if not force and project_v and project_v.tag is not None:
+                bench_v = next((v for v in existing_versions if v.tag == tag), None)
+                if not force and bench_v and bench_v.tag is not None:
                     # skip existing versions (but allow head)
-                    logger.info("load.skip", version=project_v, path=module_path)
+                    logger.info("load.skip", version=bench_v, path=module_path)
                     continue
-                if project_v:
-                    project_v.delete()
+                if bench_v:
+                    bench_v.delete()
 
-                project_v = models.ProjectVersion.objects.create(
-                    project=project,
-                    ck=project.id,
+                bench_v = models.BenchVersion.objects.create(
+                    bench=bench,
+                    ck=bench.id,
                     id=module_data.module.id,
                     tag=tag,
                     name=tag,
                     committed_at=module_data.module.updated_at if tag else None,
                 )
 
-                # wipe project version
+                # wipe bench version
                 host_nodes, record_nodes = partition(
                     lambda n: n.metatype == NodeType.RECORD, module_data.nodes
                 )
                 logger.info(
                     "load",
-                    version=project_v,
+                    version=bench_v,
                     path=module_path,
                     nodes=len(module_data.nodes),
                     records=len(record_nodes),
                     bytes=len(module_bytes),
                 )
-                unpacked = packer.unpack_nodes_tree(
-                    host_nodes, pre_unpacked={project_v.id: project_v}
-                )
-                create_models_bfs(unpacked.walk_bfs_batched(), exclude=[project_v.id])
+                unpacked = packer.unpack_nodes_tree(host_nodes, pre_unpacked={bench_v.id: bench_v})
+                create_models_bfs(unpacked.walk_bfs_batched(), exclude=[bench_v.id])
                 # write records to local
                 module = lang.Module.make(
                     module_data.nodes,
-                    project_id=project.id,
-                    os_name=project.os_name,
-                    pg_name=project.pg_name,
+                    bench_id=bench.id,
+                    os_name=bench.os_name,
+                    pg_name=bench.pg_name,
                 )
-                if project.head_id == project_v.id:
+                if bench.head_id == bench_v.id:
                     # write head to OS
                     loop.run_until_complete(update_os_schema(module))
                 if record_nodes:
                     loop.run_until_complete(self._write_local_records(module, record_nodes))
             # set parents to previous version
-            for version in project.versions.exclude(tag=None).order_by("-tag"):
+            for version in bench.versions.exclude(tag=None).order_by("-tag"):
                 if version.parents.exists():
                     break
-                previous = project.versions.filter(tag__lt=version.tag).order_by("-tag").first()
+                previous = bench.versions.filter(tag__lt=version.tag).order_by("-tag").first()
                 if previous:
                     version.parents.set([previous])
                     version.save()
 
             # reset head
-            last_non_head = project.versions.exclude(tag=None).order_by("-tag").first()
-            project.head = project.versions.filter(tag=None).get()
-            project.head.parents.set([last_non_head] if last_non_head else [])
-            project.save()
+            last_non_head = bench.versions.exclude(tag=None).order_by("-tag").first()
+            bench.head = bench.versions.filter(tag=None).get()
+            bench.head.parents.set([last_non_head] if last_non_head else [])
+            bench.save()
 
             if DEBUG or LOCAL:
                 # touch file to restart any running process

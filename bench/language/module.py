@@ -26,6 +26,7 @@ import structlog
 from cachetools import cached
 
 from bench.language.const import (
+    BENCH_UUID_NAMESPACE,
     INTERP_NODE_TYPES,
     OUT_OF_LINE_NODE_TYPES,
     BenchType,
@@ -41,6 +42,7 @@ from bench.language.const import (
     SortOp,
     StatementType,
     StructType,
+    TypeHint,
     TypeTag,
     parse_absolute_node_reference,
     parse_node_path,
@@ -305,7 +307,6 @@ PROPERTY_COLUMN_TYPE_BY_PY_TYPE: dict[type, ColumnType] = {
     int: ColumnType.BIGINT,
     float: ColumnType.FLOAT,
     str: ColumnType.STRING,
-    bytes: ColumnType.BYTES,
     datetime: ColumnType.DATETIME,
     UUID: ColumnType.UUID,
 }
@@ -352,10 +353,32 @@ class Property(_FieldExpressionBase):
     @functools.cached_property
     def _as_field(self) -> "Field":
         assert self.is_reflected, f"{self!r} is not reflected"
-        from bench.language.packer import type_from_instance_type
 
-        field = type_from_instance_type(self.py_type_raw, name=self.name)
-        field._reflected = True
+        from bench.language.field import Field
+
+        # derive constant ck for field using ids
+        metatype = getattr(self.component, "metatype", None)  # (Node/Struct don't have metatype)
+        metatype_id = metatype.id if metatype is not None else None
+        if self.store_as == ColumnType.BOOLEAN:
+            tag, hint = TypeTag.BOOLEAN, None
+        elif self.store_as == ColumnType.BIGINT:
+            tag, hint = TypeTag.NUMBER, TypeHint.INTEGER
+        elif self.store_as == ColumnType.FLOAT:
+            tag, hint = TypeTag.NUMBER, None
+        elif self.store_as == ColumnType.STRING:
+            tag, hint = TypeTag.STRING, None
+        elif self.store_as == ColumnType.DATETIME:
+            tag, hint = TypeTag.STRING, TypeHint.DATETIME
+        elif self.store_as == ColumnType.UUID:
+            tag, hint = TypeTag.STRING, TypeHint.UUID
+        else:
+            raise ValueError(f"unexpected column type in {self!r}: {self.store_as}")
+        field = Field(
+            name=self.name,
+            ck=uuid.uuid5(BENCH_UUID_NAMESPACE, f"{metatype_id}.{self.id}"),
+            tag=tag,
+            hint=hint,
+        )
         return field
 
     def __post_init__(self):
@@ -2958,7 +2981,7 @@ class ScopeNode(Node):
 @node(NodeType.BENCH)
 class Bench(ScopeNode):
     """
-    A Bench is the root of all modules and everything in a Bench project.
+    A Bench is the root of all modules and everything in a Bench bench.
     We don't use this on its own, only through Module.
     """
 
@@ -3215,7 +3238,7 @@ class Module(ScopeNode):
         removed = [n for n in old_source.nodes_by_ck.values() if n.ck not in new_nodes]
 
         # gather interp edits (delete from old, create in new)
-        old_editor = NodeTreeEditor(old_source, self._project_id, self.id)
+        old_editor = NodeTreeEditor(old_source, self._bench_id, self.id)
         for node in removed:
             # :InterpEditFilter
             if node.metatype in INTERP_NODE_TYPES:
@@ -3225,7 +3248,7 @@ class Module(ScopeNode):
                     continue
                 # recover parent info from old source
                 old_editor.delete(old_source.nodes_by_ck[node.ck])
-        new_editor = NodeTreeEditor(self._source, self._project_id, self.id)
+        new_editor = NodeTreeEditor(self._source, self._bench_id, self.id)
         for node in added:
             if node.metatype in INTERP_NODE_TYPES:
                 new_editor.create(node)
@@ -3239,11 +3262,8 @@ class Module(ScopeNode):
         )
 
     @staticmethod
-    def make(
-        source: list["SomeNodeData"], project_id: UUID, os_name: str, pg_name: str
-    ) -> "Module":
+    def make(source: list["SomeNodeData"]) -> "Module":
         """Create an interpreted Module from a source module node tree."""
-        from bench.language import libs
         from bench.proto import wiring
 
         source = [wiring.unwrap_some_node(s) for s in source]
@@ -3275,7 +3295,7 @@ class Module(ScopeNode):
 #
 #     kind: EditKind = struct_internal(20)
 #     module: "Module" = struct_internal(21, references=NodeType.MODULE)
-#     node: "Node" = ???
+#     node: "Node" = --> <???> <--
 #     scope: NodeType | None = struct_internal(23, default=None)  # select children for truncate
 #     revision: Optional[int] = struct_internal(23, default=None)
 #     properties: list[str] = struct_internal(24, default=None)
@@ -3290,14 +3310,14 @@ class NodeTreeEditor:
     def __init__(
         self,
         tree: "NodeTree",
-        project_id: UUID,
+        bench_id: UUID,
         module_id: UUID,
         # default file and statement id
         file_id: UUID = None,
         statement_id: UUID = None,
     ):
         self.tree = tree
-        self.project_id = project_id
+        self.bench_id = bench_id
         self.module_id = module_id
         self.file_id = file_id
         self.statement_id = statement_id
@@ -3430,14 +3450,14 @@ class EditBundle:
 
 
 def diff_modules(
-    old_module: ModuleTreeData, new_module: ModuleTreeData, project_id: UUID
+    old_module: ModuleTreeData, new_module: ModuleTreeData, bench_id: UUID
 ) -> list[EditData]:
     """
     Get the edits needed to transform old_module into new_module.
     Find nodes by their id (not ck).
     """
     old_tree = NodeTree(old_module.nodes)
-    editor = NodeTreeEditor(old_tree, old_module.id, project_id)
+    editor = NodeTreeEditor(old_tree, old_module.id, bench_id)
     new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():

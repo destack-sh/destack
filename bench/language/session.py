@@ -126,7 +126,7 @@ class LogEntry(Struct):
     """
 
     id: UUID = struct_internal(2, default_factory=uuid4)
-    project_id: UUID = struct_internal(20)
+    bench_id: UUID = struct_internal(20)
     module: Module = struct_internal(21, references=NodeType.MODULE)
     created_at: datetime = struct_internal(22, default_factory=utcnow_with_tz)
     stream: str = struct_internal(23)
@@ -151,16 +151,13 @@ class LogEntry(Struct):
         return f"<LogEntry {self}>"
 
 
-@struct(StructType.WORKER_SET)
-class WorkerSet(Struct):
+@node(NodeType.WORKER_SET)
+class WorkerSet(Node):
     """
     Set of workers to run a Bench's modules.
     """
 
-    id: UUID = struct_internal(2, default_factory=uuid4)
-    created_at: datetime = struct_internal(10, default_factory=utcnow_with_tz)
-    updated_at: datetime = struct_internal(11, default_factory=utcnow_with_tz)
-    project_id: UUID = struct_internal(20)
+    bench_id: UUID = struct_internal(20)
     region: ProjectRegion = struct_internal(21)
     profile: WorkerProfile = struct_internal(22)
     sleeping: bool = struct_internal(23)
@@ -194,7 +191,7 @@ class Session(ScopeNode):
 
     parent: None = node_parent(4)
     access_level: SessionAccessLevel = struct_internal(20)
-    project_id: str = struct_internal(21, reflect=True)
+    bench_id: str = struct_internal(21, reflect=True)
     worker_node_id: str = struct_internal(22, reflect=True)
     worker_process_id: Optional[str] = struct_internal(23, reflect=True)
     trigger_type: TriggerType = struct_internal(24, reflect=True)
@@ -579,7 +576,7 @@ class SessionTracer:
                 node = cast(Record, event.node)
                 edit = EditData(
                     type=event.type,
-                    project_version_id=module.id,
+                    bench_version_id=module.id,
                     properties=event.properties,
                 )
                 edit.node = pack_node(node)
@@ -889,7 +886,7 @@ class SessionTracer:
         run = Run(
             id=run_id,
             ck=run_id,  # "detached"
-            project_id=self.session.module.bench_id,
+            bench_id=self.session.module.bench_id,
             worker_node_id=self.session.worker_node_id,
             worker_process_id=self.session.worker_process_id,
             statement=statement,
@@ -1082,7 +1079,7 @@ class LogCollector:
         module = self.session.module
         log_entry = LogEntry(
             id=UUIDT(),
-            project_id=module.bench_id,
+            bench_id=module.bench_id,
             module=module,
             created_at=utcnow_with_tz(),
             stream=self.stream,

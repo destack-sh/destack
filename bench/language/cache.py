@@ -20,26 +20,26 @@ def get_value_size(value: Value) -> int:
         raise ValueError(f"unexpected value type {type(value)}")
 
 
-def _get_scope_key(project_id: UUID) -> str:
-    return f"bench.{project_id}"
+def _get_scope_key(bench_id: UUID) -> str:
+    return f"bench.{bench_id}"
 
 
-def _get_usage_key(project_id: UUID) -> str:
-    return f"{_get_scope_key(project_id)}.{CACHE_USAGE_KEY}"
+def _get_usage_key(bench_id: UUID) -> str:
+    return f"{_get_scope_key(bench_id)}.{CACHE_USAGE_KEY}"
 
 
 class Cache:
     """Cache for a Bench (async)."""
 
-    def __init__(self, module: Optional[Module], subkey: str = None, project_id: UUID = None):
+    def __init__(self, module: Optional[Module], subkey: str = None, bench_id: UUID = None):
         self.module = module
-        if module is None and project_id is None:
-            raise ValueError("project_id must be provided if module is None")
-        self.project_id = project_id or module.bench_id
-        self.scope_key = _get_scope_key(self.project_id)
+        if module is None and bench_id is None:
+            raise ValueError("bench_id must be provided if module is None")
+        self.bench_id = bench_id or module.bench_id
+        self.scope_key = _get_scope_key(self.bench_id)
         if subkey is not None:
             self.scope_key = f"{self.scope_key}.{subkey}"
-        self.usage_key = _get_usage_key(self.project_id)
+        self.usage_key = _get_usage_key(self.bench_id)
 
     def __str__(self):
         return f"{self.module} cache"

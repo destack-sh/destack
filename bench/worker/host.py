@@ -24,18 +24,18 @@ class WorkerHost:
         self,
         worker_set_id: UUID | None,
         worker_node_id: str,
-        project_id: UUID | None,
+        bench_id: UUID | None,
         module_id: UUID | None,
     ):
         self.worker_set_id = worker_set_id
         self.worker_node_id = worker_node_id
-        self.project_id = project_id
+        self.bench_id = bench_id
         self.module_id = module_id
         self.worker_process: Popen | None = None
         self._stopped = False
 
     def __str__(self):
-        return f"{self.project_id} {self.worker_set_id} {self.worker_node_id}"
+        return f"{self.bench_id} {self.worker_set_id} {self.worker_node_id}"
 
     def __repr__(self):
         return f"<WorkerHost {self}>"
@@ -43,10 +43,10 @@ class WorkerHost:
     async def run_forever(self):
         await nc_init.wait()
         logger.info("host.start", worker_process=self.worker_process, host=self)
-        if self.project_id:
+        if self.bench_id:
             routing_ids = {
-                f"{self.project_id}.{self.worker_set_id or 'all'}",
-                f"{self.project_id}.all",
+                f"{self.bench_id}.{self.worker_set_id or 'all'}",
+                f"{self.bench_id}.all",
             }
         else:
             routing_ids = (">",)

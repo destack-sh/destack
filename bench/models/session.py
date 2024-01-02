@@ -32,9 +32,7 @@ class HasTriggeredBy(Model):
 
 
 class Session(CrudNode, HasTriggeredBy):
-    project = models.ForeignKey(
-        "Project", on_delete=models.CASCADE, related_name="sessions", null=True
-    )
+    bench = models.ForeignKey("Bench", on_delete=models.CASCADE, related_name="sessions", null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     opened_at = models.DateTimeField(null=True, blank=True)
@@ -69,7 +67,7 @@ class RunManager(models.Manager):
 
 
 class Run(CrudNode, HasTriggeredBy):
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="runs")
+    bench = models.ForeignKey("Bench", on_delete=models.CASCADE, related_name="runs")
     worker_node_id = models.CharField(max_length=64, null=True, blank=True)
     worker_process_id = models.CharField(max_length=64, null=True, blank=True)
     session = models.ForeignKey(

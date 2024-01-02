@@ -7,8 +7,6 @@ from uuid import UUID
 import dotenv
 import structlog
 
-from bench.proto.messaging import init_nats
-
 # must come first
 os.environ["VERSION"] = Path("version").read_text().strip()
 dotenv.load_dotenv(verbose=True)
@@ -33,7 +31,7 @@ if os.environ.get("DEBUG") == "1" and "WORKER_SET_ID" not in os.environ:
     # auto reload on file change if in dev mode
     worker_set_id = None
     worker_node_id = "local"
-    project_id = None
+    bench_id = None
     module_id = None
     nats_name = "worker-local"
     logger.info("worker.dev_mode")
@@ -41,24 +39,23 @@ else:
     # production mode, one worker per process
     worker_set_id = UUID(os.environ["WORKER_SET_ID"])
     worker_node_id = os.environ["WORKER_NODE_ID"].replace(".", "-")
-    project_id = UUID(os.environ["WORKER_PROJECT_ID"])
+    bench_id = UUID(os.environ["WORKER_BENCH_ID"])
     module_id = UUID(os.environ["WORKER_MODULE_ID"])
     nats_name = f"worker-{worker_set_id}-{worker_node_id}"
     logger.info(
         "worker.prod_mode",
         worker_set_id=worker_set_id,
         worker_node_id=worker_node_id,
-        project_id=project_id,
+        bench_id=bench_id,
     )
 
 
 async def _run_node():
-    await init_nats(nats_name)
     await test_redis_connection()
     worker = WorkerNode(
         worker_set_id=worker_set_id,
         worker_node_id=worker_node_id,
-        project_id=project_id,
+        bench_id=bench_id,
         module_id=module_id,
     )
     logger.info("start_process_worker", worker=worker)
@@ -67,12 +64,11 @@ async def _run_node():
 
 
 async def _run_host():
-    await init_nats(nats_name)
     await test_redis_connection()
     host = WorkerHost(
         worker_set_id=worker_set_id,
         worker_node_id=worker_node_id,
-        project_id=project_id,
+        bench_id=bench_id,
         module_id=module_id,
     )
     logger.info("start_process_host", host=host)

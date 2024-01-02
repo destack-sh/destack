@@ -33,7 +33,7 @@ from bench.language.module import NodeTree, NodeTreeEditor, on_issue_raise, walk
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
-from bench.models import ProjectVersion, packer
+from bench.models import BenchVersion, packer
 from bench.models.packer import get_default_pack_filters, write_host_db_edits
 from bench.models.user import loops_request
 from bench.proto import wire, wiring
@@ -82,20 +82,20 @@ class RuntimeHost:
         host_id: UUID,
         tasks: TaskManager,
         supervisor: "RuntimeSupervisor",
-        project: models.Project,
-        project_version: models.ProjectVersion,
+        bench: models.Bench,
+        bench_version: models.BenchVersion,
     ):
         self.server_id = host_id
         self.tasks = tasks
         self.supervisor = supervisor
-        self.project = project
-        self.project_version = project_version
+        self.bench = bench
+        self.bench_version = bench_version
         self.ready = asyncio.Event()
         self.log = logger.bind(
             module_id=str(self.module_id),
-            project_id=str(self.project_id),
+            bench_id=str(self.bench_id),
             worker_id=str(self.server_id),
-            module=self.project_version,
+            module=self.bench_version,
         )
         self.module: Optional[Module] = None
         # time triggers
@@ -103,14 +103,14 @@ class RuntimeHost:
         self.active_trigger_process_wait: asyncio.Event = asyncio.Event()
 
     def __str__(self):
-        return f"{self.project_version.project.path} {self.project_version.id}"
+        return f"{self.bench_version.bench.path} {self.bench_version.id}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}"
 
     @property
     def committed(self):
-        return self.project_version.committed
+        return self.bench_version.committed
 
     @property
     def client(self) -> ClientOrigin:
@@ -118,22 +118,20 @@ class RuntimeHost:
 
     @property
     def module_id(self) -> UUID:
-        return self.project_version.id
+        return self.bench_version.id
 
     @property
     def module_ref(self) -> ModuleReference:
-        return ModuleReference(
-            name=self.project_version.project.path, version="x", id=self.module_id
-        )
+        return ModuleReference(name=self.bench_version.bench.path, version="x", id=self.module_id)
 
     @property
-    def project_id(self) -> UUID:
-        return self.project.id
+    def bench_id(self) -> UUID:
+        return self.bench.id
 
     def _edit(self, source: NodeTree | None = None) -> NodeTreeEditor:
         return NodeTreeEditor(
             source or self.module._source.deepcopy(),
-            project_id=self.project_id,
+            bench_id=self.bench_id,
             module_id=self.module_id,
         )
 
@@ -142,16 +140,16 @@ class RuntimeHost:
         assert not self.ready.is_set(), "runtime already started"
 
         try:
-            source, project = await read_module(self.module_ref)
+            source, bench = await read_module(self.module_ref)
             self.module = await sync_to_async(Module.make)(
                 source=source.nodes,
-                project_id=project.id,
-                os_name=project.os_name,
-                pg_name=project.pg_name,
+                bench_id=bench.id,
+                os_name=bench.os_name,
+                pg_name=bench.pg_name,
             )
             await self._reset_interp_state()
             await update_os_schema(self.module)
-            await update_pg_schema(self.project.pg_name, self.module)
+            await update_pg_schema(self.bench.pg_name, self.module)
             if not self.committed:  # module is only active at head...?
                 await self._update_local_triggers()
                 self.tasks.start(self.process_time_triggers_forever())
@@ -168,7 +166,7 @@ class RuntimeHost:
         await publish(
             NMessageType.MODULE_CHANGED,
             ModuleChangedPayload(
-                project_id=self.project_id,
+                bench_id=self.bench_id,
                 module_id=self.module_id,
                 origins=origins,
                 edits=edits,
@@ -182,7 +180,7 @@ class RuntimeHost:
         runs = [e.node for e in edits if e.node.metatype == NodeType.RUN]
         await publish(
             NMessageType.SESSION_CHANGED,
-            SessionChangedPayload(project_id=self.project_id, module_id=self.module_id, runs=runs),
+            SessionChangedPayload(bench_id=self.bench_id, module_id=self.module_id, runs=runs),
         )
 
     async def _reset_interp_state(self):
@@ -198,7 +196,7 @@ class RuntimeHost:
                 editor.create(node)
         # write
         await sync_to_async(write_host_db_edits)(
-            self.project_version,
+            self.bench_version,
             source=self.module._source,
             edits=editor.edits,
             raise_on_apply_error=False,
@@ -269,7 +267,7 @@ class RuntimeHost:
             # cascade restore from DB (use uniform deleted_at to select nodes)
             restored_roots = tuple(e.node for e in host_module_edits if e.kind == EditKind.RESTORE)
             restored_roots = packer.unpack_nodes(
-                self.project_version, self.module._source, restored_roots
+                self.bench_version, self.module._source, restored_roots
             )
             deleted_at = tuple(None, *(r.deleted_at for r in restored_roots))
             assert not all(
@@ -305,12 +303,12 @@ class RuntimeHost:
             log.debug("runtime.write_edits.apply", db_edits=db_edits)
             if db_edits:
                 edited_host_nodes = await sync_to_async(write_host_db_edits)(
-                    self.project_version, old_source, db_edits, raise_on_apply_error=False
+                    self.bench_version, old_source, db_edits, raise_on_apply_error=False
                 )
                 edited_nodes.extend(edited_host_nodes)
             # apply local edits
             if schema_changed:
-                await update_pg_schema(self.project.pg_name, self.module)
+                await update_pg_schema(self.bench.pg_name, self.module)
             if local_edits:
                 async with async_pg_cursor(self.module.pg_name) as pg_cur:
                     edited_local_nodes = await write_local_edits_to_pg(
@@ -321,7 +319,7 @@ class RuntimeHost:
             # reset source & module from db on failure
             log.error("runtime.write_edits.failed", exc_info=True)
             old_source = await sync_to_async(packer.pack_module_host)(
-                self.project_version, excluded=INTERP_NODE_TYPES
+                self.bench_version, excluded=INTERP_NODE_TYPES
             )
             old_source = NodeTree([wiring.unwrap_some_node(n) for n in old_source.nodes])
             self.module._reset_from_source(old_source)
@@ -365,9 +363,9 @@ class RuntimeHost:
         # get copy
         same_module = source_module_id == self.module_id
         if same_module:
-            source_project_v = self.project_version
+            source_bench_v = self.bench_version
         else:
-            source_project_v = await ProjectVersion.objects.select_related("project").aget(
+            source_bench_v = await BenchVersion.objects.select_related("bench").aget(
                 id=source_module_id
             )
         # extend default filter to exclude template tags
@@ -375,9 +373,9 @@ class RuntimeHost:
         filter = packer.DEFAULT_PACK_FILTER.extend(
             (models.Tagging, lambda qs: qs.exclude(key=template_key))
         )
-        copy = await sync_to_async(models.ProjectVersion.objects.pack_copy)(
-            source=source_project_v,
-            target=self.project_version,
+        copy = await sync_to_async(models.BenchVersion.objects.pack_copy)(
+            source=source_bench_v,
+            target=self.bench_version,
             nodes=models.Statement.objects.filter(id__in=source_ids),
             keep_cks=False,
             excluded=packer.INTERP_MODEL_TYPES,
@@ -421,13 +419,13 @@ class RuntimeHost:
             source_module, _ = await read_module(source_module_id)
             source_module = await sync_to_async(Module.make)(
                 source=source_module.nodes,
-                project_id=source_project_v.project_id,
-                os_name=source_project_v.project.os_name,
-                pg_name=source_project_v.project.pg_name,
+                bench_id=source_bench_v.bench_id,
+                os_name=source_bench_v.bench.os_name,
+                pg_name=source_bench_v.bench.pg_name,
             )
         all_pasted_records: list[wire.RecordData] = []
-        async with async_pg_cursor(source_project_v.project.pg_name) as source_cur, async_pg_cursor(
-            self.project.pg_name
+        async with async_pg_cursor(source_bench_v.bench.pg_name) as source_cur, async_pg_cursor(
+            self.bench.pg_name
         ) as target_cur:
             for target_database in target_databases:
                 source_database_ck = copy.target_cks_reversed[target_database.ck]
@@ -448,12 +446,12 @@ class RuntimeHost:
 
     def _do_snapshot_host(
         self, name: str | None, tag: str | None, description: str | None
-    ) -> models.ProjectVersion:
+    ) -> models.BenchVersion:
         """Snapshots all host Bench nodes (excluding local records)."""
-        snapshot = models.ProjectVersion.objects.create(
+        snapshot = models.BenchVersion.objects.create(
             id=uuid4(),
-            ck=self.project.id,
-            project=self.project,
+            ck=self.bench.id,
+            bench=self.bench,
             name=name,
             tag=tag,
             description=description,
@@ -461,8 +459,8 @@ class RuntimeHost:
         )
 
         # actually copy into new version
-        models.ProjectVersion.objects.copy(
-            source=self.project_version,
+        models.BenchVersion.objects.copy(
+            source=self.bench_version,
             target=snapshot,
             keep_cks=True,
             copy_revisions=True,
@@ -470,14 +468,14 @@ class RuntimeHost:
         )
         return snapshot
 
-    def _do_insert_snapshot(self, snapshot: models.ProjectVersion):
+    def _do_insert_snapshot(self, snapshot: models.BenchVersion):
         # insert new head between parents and head
-        snapshot.parents.set(self.project_version.parents.all())
-        self.project_version.parents.set([snapshot])
+        snapshot.parents.set(self.bench_version.parents.all())
+        self.bench_version.parents.set([snapshot])
 
     async def snapshot(self, name: str | None, tag: str | None, description: str | None) -> None:
         """
-        Snapshot the module and publish a corresponding project change.
+        Snapshot the module and publish a corresponding bench change.
         Records from versioned local databases are also copied into the snapshot.
         TODO @UX: warn if large databases are snapshotted implicitly ('versioned')
         """
@@ -493,9 +491,9 @@ class RuntimeHost:
             target_module, _ = await read_module(snapshot.id)
             target_module = await sync_to_async(Module.make)(
                 source=target_module.nodes,
-                project_id=self.project.id,
-                os_name=self.project.os_name,
-                pg_name=self.project.pg_name,
+                bench_id=self.bench.id,
+                os_name=self.bench.os_name,
+                pg_name=self.bench.pg_name,
             )
             logger.debug("runtime.snapshot.clone", snapshot=snapshot, target_module=target_module)
 
@@ -520,18 +518,18 @@ class RuntimeHost:
                     )
                 await pg_cursor.connection.commit()
 
-            # insert snapshot into project
+            # insert snapshot into bench
             await sync_to_async(self._do_insert_snapshot)(snapshot)
         except Exception:
             # rollback
             logger.error("runtime.snapshot.failed", snapshot=snapshot, exc_info=True)
-            await models.ProjectVersion.objects.filter(id=snapshot.id).adelete()
+            await models.BenchVersion.objects.filter(id=snapshot.id).adelete()
             raise
         finally:
             # always notify (we did create a snapshot, so it's possible someone read it)
             await publish(
                 NMessageType.PROJECT_CHANGED,
-                ProjectChangedPayload(project_id=self.project.id, origins=[self.client]),
+                ProjectChangedPayload(bench_id=self.bench.id, origins=[self.client]),
             )
 
     async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
@@ -607,12 +605,12 @@ class RuntimeHost:
     async def write_blob(self, msg: NMessage[ReqUploadBlobPayload]) -> None:
         logger.debug("blob.write", msg=msg)
         # TODO @Security!: check if msg origin has write access to object
-        project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
+        bench_v = await BenchVersion.objects.select_related("bench").aget(id=msg.p.module_id)
         post_urls: list[str | None] = []
         for obj_data in msg.p.blobs:
             model_blob: models.Blob = packer.unpack_node_flat(obj_data, None)
-            model_blob.project_id = project_v.project_id
-            existing_blob = await project_v.project.blobs.filter(sha512=model_blob.sha512).afirst()
+            model_blob.bench_id = bench_v.bench_id
+            existing_blob = await bench_v.bench.blobs.filter(sha512=model_blob.sha512).afirst()
             if existing_blob is not None:
                 obj_data.id = existing_blob.id
                 if existing_blob.status == models.BlobStatus.AVAILABLE:
@@ -640,7 +638,7 @@ class RuntimeHost:
             model = module.resolve(localized_path)
             cache_subkey = get_run_cache_subkey(inputs_raw=msg.p.inputs)
             log = log.bind(cache_subkey=cache_subkey)
-            cache = Cache(module=None, subkey=model.ck.hex, project_id=msg.p.project_id)
+            cache = Cache(module=None, subkey=model.ck.hex, bench_id=msg.p.bench_id)
             inputs = unpack_value(msg.p.inputs, model, is_output=False)
             inference = model._inference(
                 inputs=inputs,
@@ -731,7 +729,7 @@ class RuntimeHost:
         prescheduled_runs = [
             r
             async for r in models.Run.objects.filter(
-                status=RunStatus.SCHEDULED, project_id=self.project_id
+                status=RunStatus.SCHEDULED, bench_id=self.bench_id
             ).order_by("scheduled_at")
         ]
         prescheduled_runs = [packer.pack_node_flat(r) for r in prescheduled_runs]
@@ -808,7 +806,7 @@ class RuntimeHost:
         prescheduled_runs = [
             r
             async for r in models.Run.objects.filter(
-                status=RunStatus.SCHEDULED, project_id=self.project_id
+                status=RunStatus.SCHEDULED, bench_id=self.bench_id
             ).order_by("scheduled_at")
         ]
         latest_prescheduled_run_by_trigger: dict[UUID, UUID] = {
@@ -869,7 +867,7 @@ class RuntimeHost:
             for run in next_runs_to_start:
                 runs_to_start[run.id] = run
 
-            # publish scheduled runs (should be project scoped later, but we don't have a session)
+            # publish scheduled runs (should be bench scoped later, but we don't have a session)
             await publish(
                 NMessageType.RUNS_CHANGED_GLOBAL,
                 RunsChangedGlobalPayload(runs=list(runs_to_start.values())),
@@ -877,20 +875,20 @@ class RuntimeHost:
 
             if runs_to_start:
                 # start worker set if not already started
-                if not self.supervisor.is_worker_set_healthy(self.project_id):
+                if not self.supervisor.is_worker_set_healthy(self.bench_id):
                     # not sure what to do after timeout here... retry? panic?
-                    await self.supervisor.wake_until_healthy(self.project_id, timeout=300)
+                    await self.supervisor.wake_until_healthy(self.bench_id, timeout=300)
                 logger.debug(
                     "time_triggers.fire",
                     runs_to_start=runs_to_start,
                     fired_triggers=[self.active_triggers[id].trigger for id in triggers_to_fire],
-                    worker_set=self.supervisor.get_worker_set(self.project_id),
+                    worker_set=self.supervisor.get_worker_set(self.bench_id),
                 )
 
             # send out run requests (could do this in parallel but doesn't matter for now)
             for run in runs_to_start.values():
                 req = ReqStartRunPayload(
-                    project_id=to_uuid(run.project_id),
+                    bench_id=to_uuid(run.bench_id),
                     module_id=self.module_id,
                     session_id=to_uuid(run.session_id),
                     run_id=to_uuid(run.id),
@@ -982,8 +980,8 @@ class RuntimeHost:
             run = models.Run(
                 id=id,
                 ck=id,
-                project_id=self.project_id,
-                project_version_id=self.module.id,
+                bench_id=self.bench_id,
+                bench_version_id=self.module.id,
                 statement_ck=statement.ck,
                 trigger_type=fired_trigger.trigger.type,
                 trigger_id=fired_trigger.trigger.id,

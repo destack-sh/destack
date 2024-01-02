@@ -2,7 +2,7 @@ import structlog
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from bench.models.project import create_global_user_bucket
+from bench.models.bench import create_global_user_bucket
 
 logger = structlog.get_logger(__name__)
 

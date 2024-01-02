@@ -141,7 +141,7 @@ def _get_deployment_status(deployment: client.V1Deployment) -> WorkerSetStatus:
 class Pod:
     name: str
     deployment_name: str
-    project_id: UUID
+    bench_id: UUID
     worker_set_id: UUID
     region: ProjectRegion
     profile: WorkerProfile
@@ -158,7 +158,7 @@ class Pod:
         return cls(
             name=pod.metadata.name,
             deployment_name=labels["deployment"],
-            project_id=UUID(labels["project_id"]),
+            bench_id=UUID(labels["bench_id"]),
             worker_set_id=UUID(labels["worker_set_id"]),
             region=ProjectRegion(labels["region"].upper()),
             profile=WorkerProfile(labels["profile"].upper()),
@@ -167,7 +167,7 @@ class Pod:
 
 @dataclass
 class Deployment:
-    project_id: UUID
+    bench_id: UUID
     worker_set_id: UUID
     region: ProjectRegion
     profile: WorkerProfile
@@ -186,26 +186,26 @@ class Deployment:
 
     @property
     def name(self):
-        return f"{WORKER_APP_LABEL}-{self.project_id}-{self.worker_set_id.hex[:6]}"
+        return f"{WORKER_APP_LABEL}-{self.bench_id}-{self.worker_set_id.hex[:6]}"
 
-    def to_k8(self: "Deployment", project: "models.Project") -> client.V1Deployment:
+    def to_k8(self: "Deployment", bench: "models.Bench") -> client.V1Deployment:
         namespace = settings.KUBERNETES_WORKER_NAMESPACE
         env_vars: dict[str, str] = {
-            "WORKER_PROJECT_ID": str(self.project_id),
-            "WORKER_MODULE_ID": str(project.head_id),
+            "WORKER_BENCH_ID": str(self.bench_id),
+            "WORKER_MODULE_ID": str(bench.head_id),
             "WORKER_SET_ID": str(self.worker_set_id),
             # local opensearch auth
             "LOCAL_OS_HOST": get_from_env("GLOBAL_OS_HOST"),
-            "LOCAL_OS_NAME": project.os_name,
+            "LOCAL_OS_NAME": bench.os_name,
             "LOCAL_OS_PORT": get_from_env("GLOBAL_OS_PORT"),
-            "LOCAL_OS_USERNAME": project.os_username,
-            "LOCAL_OS_PASSWORD": project.os_password,
+            "LOCAL_OS_USERNAME": bench.os_username,
+            "LOCAL_OS_PASSWORD": bench.os_password,
             # global postgres auth
             "LOCAL_PG_HOST": get_from_env("USER_PG_HOST"),
-            "LOCAL_PG_NAME": project.pg_name,
+            "LOCAL_PG_NAME": bench.pg_name,
             "LOCAL_PG_PORT": get_from_env("USER_PG_PORT"),
-            "LOCAL_PG_USERNAME": project.pg_username,
-            "LOCAL_PG_PASSWORD": project.pg_password,
+            "LOCAL_PG_USERNAME": bench.pg_username,
+            "LOCAL_PG_PASSWORD": bench.pg_password,
         }
         extended_env_vars = [
             *(client.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
@@ -244,7 +244,7 @@ class Deployment:
         labels = {
             "app": WORKER_APP_LABEL,
             "deployment": self.name,
-            "project_id": str(self.project_id),
+            "bench_id": str(self.bench_id),
             "worker_set_id": str(self.worker_set_id),
             "region": self.region.lower(),
             "profile": self.profile.lower(),
@@ -277,7 +277,7 @@ class Deployment:
         # check conditions (and reasons) for status (updating, healthy, unhealthy)
         labels = deployment.metadata.labels
         return cls(
-            project_id=UUID(labels["project_id"]),
+            bench_id=UUID(labels["bench_id"]),
             worker_set_id=UUID(labels["worker_set_id"]),
             region=ProjectRegion(labels["region"].upper()),
             profile=WorkerProfile(labels["profile"].upper()),
@@ -291,7 +291,7 @@ class Deployment:
     @classmethod
     def from_model(cls, model: models.WorkerSet) -> "Deployment":
         return cls(
-            project_id=model.project_id,
+            bench_id=model.bench_id,
             worker_set_id=model.id,
             region=model.region,
             profile=model.profile,
@@ -301,7 +301,7 @@ class Deployment:
     def to_model(self) -> models.WorkerSet:
         return models.WorkerSet(
             id=self.worker_set_id,
-            project_id=self.project_id,
+            bench_id=self.bench_id,
             region=self.region,
             profile=self.profile,
             target_replicas=self.target_replicas,
@@ -317,12 +317,12 @@ def _check_k8_available():
         raise RuntimeError("Kubernetes API is not available")
 
 
-async def update_deployments(projects: list[models.Project], deployments: list[Deployment]) -> None:
+async def update_deployments(benches: list[models.Bench], deployments: list[Deployment]) -> None:
     """Upserts deployments in k8."""
     _check_k8_available()
     async with client.ApiClient() as api:
-        for project, deployment in zip(projects, deployments):
-            k8_deployment = deployment.to_k8(project)
+        for bench, deployment in zip(benches, deployments):
+            k8_deployment = deployment.to_k8(bench)
             try:
                 logger.info("k8.deployment.update", deployment=deployment)
                 await client.AppsV1Api(api).replace_namespaced_deployment(

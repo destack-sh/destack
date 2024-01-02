@@ -37,7 +37,7 @@ class Blob(CrudNode):
     A pointer to a remotely stored object.
     """
 
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="blobs")
+    bench = models.ForeignKey("Bench", on_delete=models.CASCADE, related_name="blobs")
     prepared_at = models.DateTimeField(null=True, blank=True)
     sha512 = models.CharField(max_length=BLOB_HASH_LENGTH)
     content_length = models.IntegerField()
@@ -130,10 +130,8 @@ class Blob(CrudNode):
 
     class Meta:
         constraints = [
-            # deduplicate objects per project/sha512
-            models.UniqueConstraint(
-                fields=["project", "sha512"], name="bench_remoteobject_sha512_ak"
-            )
+            # deduplicate objects per bench/sha512
+            models.UniqueConstraint(fields=["bench", "sha512"], name="bench_remoteobject_sha512_ak")
         ]
 
 

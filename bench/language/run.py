@@ -153,7 +153,7 @@ class Run(ScopeNode, HasValue):
         21, NodeType.RUN, nearest=False, include_self=False, store=True
     )
     runs: list["Run"] = node_children(NodeType.RUN)
-    project_id: str = struct_internal(22, reflect=True)
+    bench_id: str = struct_internal(22, reflect=True)
     worker_node_id: str = struct_internal(23, reflect=True)
     worker_process_id: Optional[str] = struct_internal(24, reflect=True)
     statement: Optional["Statement"] = struct_internal(25, references=NodeType.STATEMENT)

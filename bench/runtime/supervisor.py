@@ -29,20 +29,20 @@ WORKER_SET_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
 WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
-def _get_projects_to_manage() -> list[models.Project]:
-    projects = list(models.Project.objects.all())  # obviously will shard this later
+def _get_benches_to_manage() -> list[models.Bench]:
+    benches = list(models.Bench.objects.all())  # obviously will shard this later
 
     # sanity check if default libs in code match those in DB
     for lib in DEFAULT_MODULES.values():
-        project = first((p for p in projects if p.id == lib.ck), None)
-        if project is None:
+        bench = first((p for p in benches if p.id == lib.ck), None)
+        if bench is None:
             raise RuntimeError(f"default lib {lib} not found in DB")
-        if project.head_id != lib.id:
-            raise RuntimeError(f"default lib {lib} head mismatch with {project}: {project.head}")
-    # and then exclude default projects since there's nothing to manage
-    projects = [p for p in projects if p.path not in DEFAULT_MODULES]
+        if bench.head_id != lib.id:
+            raise RuntimeError(f"default lib {lib} head mismatch with {bench}: {bench.head}")
+    # and then exclude default benches since there's nothing to manage
+    benches = [p for p in benches if p.path not in DEFAULT_MODULES]
 
-    return projects
+    return benches
 
 
 class RuntimeSupervisor(Monitored):
@@ -51,25 +51,25 @@ class RuntimeSupervisor(Monitored):
         self.runtimes: dict[UUID, RuntimeHost] = {}
         self.tasks = TaskManager()
         self._ready = False
-        self._worker_sets_by_project_id: dict[UUID, models.WorkerSet] = {}
+        self._worker_sets_by_bench_id: dict[UUID, models.WorkerSet] = {}
         self._worker_healthy_waiters: dict[UUID, asyncio.Event] = {}
         self._worker_sets_by_id: dict[UUID, models.WorkerSet] = {}
 
     @property
     def worker_sets(self) -> Collection[models.WorkerSet]:
-        return self._worker_sets_by_project_id.values()
+        return self._worker_sets_by_bench_id.values()
 
     async def _on_workers_changed(self, msg: NMessage[WorkersChangedPayload]):
         logger.debug("worker_observer.change", msg=msg)
         for updated_ws in msg.p.worker_sets:
             # upsert properties in local worker set
             updated_ws: models.WorkerSet = packer.unpack_struct(updated_ws)
-            if updated_ws.project_id not in self._worker_sets_by_project_id:
+            if updated_ws.bench_id not in self._worker_sets_by_bench_id:
                 ws = await models.WorkerSet.objects.select_related(
-                    "project", "project__organization", "project__user"
-                ).aget(project_id=updated_ws.project_id)
+                    "bench", "bench__organization", "bench__user"
+                ).aget(bench_id=updated_ws.bench_id)
             else:
-                ws = self._worker_sets_by_project_id[updated_ws.project_id]
+                ws = self._worker_sets_by_bench_id[updated_ws.bench_id]
             for field in models.WorkerSet._meta.fields:
                 # skip relational fields
                 if field.is_relation:
@@ -77,39 +77,36 @@ class RuntimeSupervisor(Monitored):
                 setattr(ws, field.name, getattr(updated_ws, field.name))
 
             # fire 'until healthy' wait events
-            if (
-                ws.status == WorkerSetStatus.HEALTHY
-                and ws.project_id in self._worker_healthy_waiters
-            ):
-                self._worker_healthy_waiters[ws.project_id].set()
+            if ws.status == WorkerSetStatus.HEALTHY and ws.bench_id in self._worker_healthy_waiters:
+                self._worker_healthy_waiters[ws.bench_id].set()
 
-    def is_worker_set_healthy(self, project_id: UUID) -> bool:
+    def is_worker_set_healthy(self, bench_id: UUID) -> bool:
         """Return whether the worker set is healthy."""
-        worker_set = self._worker_sets_by_project_id.get(project_id)
+        worker_set = self._worker_sets_by_bench_id.get(bench_id)
         return worker_set and worker_set.status == WorkerSetStatus.HEALTHY
 
-    def get_worker_set(self, project_id: UUID) -> Optional[models.WorkerSet]:
+    def get_worker_set(self, bench_id: UUID) -> Optional[models.WorkerSet]:
         """Return the worker set if it exists."""
-        return self._worker_sets_by_project_id.get(project_id)
+        return self._worker_sets_by_bench_id.get(bench_id)
 
-    async def wake_until_healthy(self, project_id: UUID, timeout: Optional[int] = None):
+    async def wake_until_healthy(self, bench_id: UUID, timeout: Optional[int] = None):
         """If not already healthy, wake the worker set and wait until it is healthy."""
-        worker_set = self._worker_sets_by_project_id.get(project_id)
-        log = logger.bind(project_id=project_id, worker_set=worker_set)
+        worker_set = self._worker_sets_by_bench_id.get(bench_id)
+        log = logger.bind(bench_id=bench_id, worker_set=worker_set)
         log.info("worker_observer.wait_until_healthy")
         if worker_set and worker_set.status == WorkerSetStatus.HEALTHY:
             return  # already good
 
         # create waiter
-        if project_id not in self._worker_healthy_waiters:
-            self._worker_healthy_waiters[project_id] = asyncio.Event()
+        if bench_id not in self._worker_healthy_waiters:
+            self._worker_healthy_waiters[bench_id] = asyncio.Event()
 
         # wake if needed
         if not worker_set or worker_set.sleeping:
             log.info("worker_observer.wait_until_healthy.wake")
             rep: NMessage[RepWakeWorkerSetPayload] = await request(
                 NMessageType.WAKE_WORKER_SET,
-                ReqWakeWorkerSetPayload(project_id=project_id),
+                ReqWakeWorkerSetPayload(bench_id=bench_id),
                 reply_t=RepWakeWorkerSetPayload,
                 retry=3,
             )
@@ -118,11 +115,11 @@ class RuntimeSupervisor(Monitored):
 
         # and wait
         if timeout:
-            await asyncio.wait_for(self._worker_healthy_waiters[project_id].wait(), timeout)
+            await asyncio.wait_for(self._worker_healthy_waiters[bench_id].wait(), timeout)
         else:
-            await self._worker_healthy_waiters[project_id].wait()
-        if project_id in self._worker_healthy_waiters:
-            del self._worker_healthy_waiters[project_id]
+            await self._worker_healthy_waiters[bench_id].wait()
+        if bench_id in self._worker_healthy_waiters:
+            del self._worker_healthy_waiters[bench_id]
         log.info("worker_observer.wait_until_healthy.done")
 
     async def run(self):
@@ -130,14 +127,14 @@ class RuntimeSupervisor(Monitored):
         logger.info("start")
 
         logger.info("load_modules")
-        projects = await sync_to_async(_get_projects_to_manage)()
-        self._worker_sets_by_project_id = {
-            ws.project_id: ws
+        benches = await sync_to_async(_get_benches_to_manage)()
+        self._worker_sets_by_bench_id = {
+            ws.bench_id: ws
             async for ws in models.WorkerSet.objects.select_related(
-                "project", "project__organization", "project__user"
+                "bench", "bench__organization", "bench__user"
             ).all()
         }
-        await asyncio.gather(*[self._prepare_runtime_host(project.head_id) for project in projects])
+        await asyncio.gather(*[self._prepare_runtime_host(bench.head_id) for bench in benches])
 
         logger.info("ready")
         self._ready = True
@@ -155,11 +152,11 @@ class RuntimeSupervisor(Monitored):
         if runtime is None:
             logger.info("runtime.prepare", module_id=module_id)
             # start language worker if not already started
-            project_version = await models.ProjectVersion.objects.select_related(
-                "project", "project__user", "project__organization"
+            bench_version = await models.BenchVersion.objects.select_related(
+                "bench", "bench__user", "bench__organization"
             ).aget(id=module_id)
-            project = project_version.project
-            runtime = RuntimeHost(self.id, self.tasks, self, project, project_version)
+            bench = bench_version.bench
+            runtime = RuntimeHost(self.id, self.tasks, self, bench, bench_version)
             self.runtimes[module_id] = runtime
             self.tasks.start(runtime.run(), f"worker-{module_id}")
         if not runtime.ready.is_set():
@@ -178,11 +175,11 @@ class RuntimeSupervisor(Monitored):
         worker_sets = [
             ws
             async for ws in models.WorkerSet.objects.select_related(
-                "project", "project__organization", "project__user"
+                "bench", "bench__organization", "bench__user"
             ).all()
         ]
         for worker_set in worker_sets:
-            self.worker_sets_by_project_id[worker_set.project_id] = worker_set
+            self.worker_sets_by_bench_id[worker_set.bench_id] = worker_set
             self.worker_sets_by_id[worker_set.id] = worker_set
             # scale active worker sets target to desired
             if not worker_set.sleeping:
@@ -197,7 +194,7 @@ class RuntimeSupervisor(Monitored):
             active_worker_node_ids: list[str] = []
             dead_worker_node_ids: set[str] = set()
             for k8_deployment in k8_deployments:
-                worker_set = self.worker_sets_by_project_id.get(k8_deployment.project_id)
+                worker_set = self.worker_sets_by_bench_id.get(k8_deployment.bench_id)
                 if not worker_set:  # shouldn't exist anymore
                     k8_deployments_to_kill.append(k8_deployment)
                     continue
@@ -233,7 +230,7 @@ class RuntimeSupervisor(Monitored):
         }
         dead_worker_node_ids = set(dead_worker_node_ids) | presumed_dead_worker_node_ids
         if dead_worker_node_ids:
-            await self._mark_runs_dead(project_id=None, worker_node_ids=dead_worker_node_ids)
+            await self._mark_runs_dead(bench_id=None, worker_node_ids=dead_worker_node_ids)
 
         # start for real
         self.tasks.start(self._manage_worker_lifecycle_forever())
@@ -254,8 +251,8 @@ class RuntimeSupervisor(Monitored):
             return
         if KUBERNETES_ENABLED:  # update k8 deployments
             deployments = [k8.Deployment.from_model(worker_set) for worker_set in worker_sets]
-            projects = [worker_set.project for worker_set in worker_sets]
-            await k8.update_deployments(projects, deployments)
+            benches = [worker_set.bench for worker_set in worker_sets]
+            await k8.update_deployments(benches, deployments)
         else:  # pretend they're all as needed
             for worker_set in worker_sets:
                 worker_set.available_replicas = worker_set.target_replicas
@@ -271,24 +268,24 @@ class RuntimeSupervisor(Monitored):
         await models.WorkerSet.objects.abulk_update(worker_sets, WORKER_SET_FIELDS_NO_ID)
         # notify
         worker_sets_data = [packer.pack_struct(worker_set) for worker_set in worker_sets]
-        project_id = worker_sets_data[0].project_id if len(worker_sets) == 1 else None
+        bench_id = worker_sets_data[0].bench_id if len(worker_sets) == 1 else None
         await publish(
             NMessageType.WORKERS_CHANGED,
-            WorkersChangedPayload(project_id=project_id, worker_sets=worker_sets_data),
+            WorkersChangedPayload(bench_id=bench_id, worker_sets=worker_sets_data),
         )
 
     async def _mark_runs_dead(
         self,
-        project_id: Optional[UUID],
+        bench_id: Optional[UUID],
         worker_node_ids: Collection[str],
         run_ids: Optional[Collection[UUID]] = None,
     ):
         """Marks runs on worker nodes as aborted (node may be lost or just restarting)."""
         logger.debug("mark_runs_dead", worker_node_ids=worker_node_ids, run_ids=run_ids)
 
-        if project_id is not None:
+        if bench_id is not None:
             # extend worker_node_ids by any worker nodes that have an active run but aren't in k8
-            worker_set = self.worker_sets_by_project_id.get(project_id)
+            worker_set = self.worker_sets_by_bench_id.get(bench_id)
             active_runs = models.Run.objects.filter(
                 worker_node_id__isnull=False, status__in=ACTIVE_RUN_STATUSES
             ).values_list("worker_node_id", flat=True)
@@ -305,16 +302,16 @@ class RuntimeSupervisor(Monitored):
             )
             | Q(id__in=run_ids or [])
         )
-        if project_id:
-            dead_runs_qs = dead_runs_qs.filter(project_id=project_id)
+        if bench_id:
+            dead_runs_qs = dead_runs_qs.filter(bench_id=bench_id)
         dead_runs: list[models.Run] = [r async for r in dead_runs_qs]
 
-        # get project search index names
-        project_v_ids = set(r.project_version_id for r in dead_runs)
-        project_v_by_id: dict[UUID, models.ProjectVersion] = {
-            p.id: p async for p in models.ProjectVersion.objects.filter(id__in=project_v_ids)
+        # get bench search index names
+        bench_v_ids = set(r.bench_version_id for r in dead_runs)
+        bench_v_by_id: dict[UUID, models.BenchVersion] = {
+            p.id: p async for p in models.BenchVersion.objects.filter(id__in=bench_v_ids)
         }
-        project_vs = [project_v_by_id[pv_id] for pv_id in project_v_ids]
+        bench_vs = [bench_v_by_id[pv_id] for pv_id in bench_v_ids]
 
         # mark dead and send out updates
         if not dead_runs:
@@ -323,9 +320,9 @@ class RuntimeSupervisor(Monitored):
             run.mark_dead()
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
         dead_runs_data = [packer.pack_node_flat(r) for r in dead_runs]
-        await sync_to_async(write_runs_to_os)(project_vs, dead_runs_data)
-        dead_runs_data_by_project_id = group_by(dead_runs_data, lambda r: r.project_id)
-        for project_id, dead_runs_data in dead_runs_data_by_project_id.items():
+        await sync_to_async(write_runs_to_os)(bench_vs, dead_runs_data)
+        dead_runs_data_by_bench_id = group_by(dead_runs_data, lambda r: r.bench_id)
+        for bench_id, dead_runs_data in dead_runs_data_by_bench_id.items():
             await publish(
                 NMessageType.RUNS_CHANGED_GLOBAL, RunsChangedGlobalPayload(runs=dead_runs_data)
             )
@@ -334,7 +331,7 @@ class RuntimeSupervisor(Monitored):
         """Watch k8 deployments and update worker sets accordingly."""
         async for event_type, object in k8.watch_our_deployments(k8_marker):
             logger.debug("k8.event", event_type=event_type, object=object)
-            worker_set = self.worker_sets_by_project_id.get(object.project_id)
+            worker_set = self.worker_sets_by_bench_id.get(object.bench_id)
             if worker_set is None:
                 logger.warning("workers.unknown", object=object)
                 continue  # delete maybe?
@@ -354,7 +351,7 @@ class RuntimeSupervisor(Monitored):
                         logger.warning("workers.unknown_pod", object=object)
                         continue
                     worker_set.active_replicas_ids.remove(object.name)
-                    await self._mark_runs_dead(worker_set.project_id, [object.name])
+                    await self._mark_runs_dead(worker_set.bench_id, [object.name])
                 else:
                     continue
             else:
@@ -417,27 +414,27 @@ class RuntimeSupervisor(Monitored):
         logger.debug("workers.mark_tired", worker_sets=tired_worker_sets)
         return tired_worker_sets
 
-    async def _get_project_worker_set(self, project_id: UUID):
-        """Get worker set for a project (load if not already loaded, may have just been created)."""
-        worker_set = self._worker_sets_by_project_id.get(project_id)
+    async def _get_bench_worker_set(self, bench_id: UUID):
+        """Get worker set for a bench (load if not already loaded, may have just been created)."""
+        worker_set = self._worker_sets_by_bench_id.get(bench_id)
         if worker_set is None:
-            # newly created project, get from DB
-            project = await models.Project.objects.select_related(
+            # newly created bench, get from DB
+            bench = await models.Bench.objects.select_related(
                 "worker_set",
-                "worker_set__project",
-                "worker_set__project__user",
-                "worker_set__project__organization",
-            ).aget(id=project_id)
-            self._worker_sets_by_project_id[project_id] = project.worker_set
-            self._worker_sets_by_id[project.worker_set.id] = project.worker_set
-            return project.worker_set
+                "worker_set__bench",
+                "worker_set__bench__user",
+                "worker_set__bench__organization",
+            ).aget(id=bench_id)
+            self._worker_sets_by_bench_id[bench_id] = bench.worker_set
+            self._worker_sets_by_id[bench.worker_set.id] = bench.worker_set
+            return bench.worker_set
         else:
             return worker_set
 
     async def configure_worker_set(self, msg: NMessage[ReqConfigureWorkerSetPayload]) -> None:
         try:
             logger.info("workers.configure", msg=msg)
-            worker_set = await self._get_project_worker_set(msg.p.project_id)
+            worker_set = await self._get_bench_worker_set(msg.p.bench_id)
             worker_set.desired_replicas = msg.p.desired_replicas
             worker_set.profile = msg.p.profile
             worker_set.region = msg.p.region
@@ -455,7 +452,7 @@ class RuntimeSupervisor(Monitored):
     async def wake_worker_set(self, msg: NMessage[ReqWakeWorkerSetPayload]) -> None:
         try:
             logger.info("workers.wake", msg=msg)
-            worker_set = await self._get_project_worker_set(msg.p.project_id)
+            worker_set = await self._get_bench_worker_set(msg.p.bench_id)
             was_sleeping = worker_set.sleeping
             if was_sleeping:
                 worker_set.sleeping = False
@@ -479,7 +476,7 @@ class RuntimeSupervisor(Monitored):
         )
 
     async def restart_worker_set(self, msg: NMessage[ReqRestartWorkerSetPayload]) -> None:
-        worker_set = await self._get_project_worker_set(msg.p.project_id)
+        worker_set = await self._get_bench_worker_set(msg.p.bench_id)
         logger.info("workers.restart", worker_set=worker_set)
         success = False
 
@@ -491,7 +488,7 @@ class RuntimeSupervisor(Monitored):
                 rep: NMessage[RepDoRestartWorkerNodePayload] = await request(
                     NMessageType.DO_RESTART_WORKER_NODE,
                     ReqDoRestartWorkerNodePayload(
-                        project_id=msg.p.project_id,
+                        bench_id=msg.p.bench_id,
                         worker_set_id=worker_set.id,
                         worker_node_id=None,
                         worker_process_id=None,
@@ -510,9 +507,9 @@ class RuntimeSupervisor(Monitored):
 
         # mark all worker set nodes as deadish
         if KUBERNETES_ENABLED:
-            await self._mark_runs_dead(msg.p.project_id, dead_replicas_ids)
+            await self._mark_runs_dead(msg.p.bench_id, dead_replicas_ids)
         else:
-            await self._mark_runs_dead(msg.p.project_id, ["local"])
+            await self._mark_runs_dead(msg.p.bench_id, ["local"])
 
         await msg.reply(
             RepRestartWorkerSetPayload(

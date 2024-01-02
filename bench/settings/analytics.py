@@ -10,7 +10,7 @@ if not (TEST or DEBUG or SOME_TYPE_CHECKING):
     init_sentry(django=True)
 
 # Posthog
-posthog.project_api_key = "phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma"
+posthog.bench_api_key = "phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma"
 posthog.host = "https://eu.posthog.com"
 
 if TEST or DEBUG:

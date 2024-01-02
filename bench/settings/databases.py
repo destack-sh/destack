@@ -11,7 +11,7 @@ from bench.utils.utils import SOME_TYPE_CHECKING
 logger = structlog.stdlib.get_logger(__name__)
 
 # Django Database settings
-# https://docs.djangoproject.com/en/4.0/ref/settings/#databases
+# https://docs.djangobench.com/en/4.0/ref/settings/#databases
 
 if TEST or DEBUG:
     HOST = os.getenv("GLOBAL_PG_HOST", "localhost")

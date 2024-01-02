@@ -4,7 +4,7 @@ import structlog
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from bench.models import Project
+from bench.models import Bench
 
 logger = structlog.get_logger(__name__)
 
@@ -17,39 +17,39 @@ class Command(BaseCommand):
         # optional slug
         parser.add_argument("slug", nargs="?")
 
-    def get_project(self, slug: str) -> Project:
-        owner, project_name = slug.split("/")
-        project = Project.objects.get_by_slug(owner, project_name)
-        return project
+    def get_bench(self, slug: str) -> Bench:
+        owner, bench_name = slug.split("/")
+        bench = Bench.objects.get_by_slug(owner, bench_name)
+        return bench
 
     @transaction.atomic
     def handle(self, action: str, slug: str | None, *args, **options):
         if slug == "all":
-            projects = Project.objects.all()
+            benches = Bench.objects.all()
         elif slug:
-            projects = [self.get_project(slug)]
+            benches = [self.get_bench(slug)]
         else:
-            projects = []
+            benches = []
 
         if action == "worker-imitate":
             # write worker env vars to .env.worker
-            if projects:
-                assert len(projects) == 1, "only one project supported"
-                project = projects[0]
+            if benches:
+                assert len(benches) == 1, "only one bench supported"
+                bench = benches[0]
                 env_vars = {
-                    "WORKER_SET_ID": str(project.worker_set.id),
+                    "WORKER_SET_ID": str(bench.worker_set.id),
                     "WORKER_NODE_ID": "local",
-                    "WORKER_PROJECT_ID": str(project.id),
-                    "WORKER_MODULE_ID": str(project.head_id),
-                    "LOCAL_PG_NAME": project.pg_name,
-                    "LOCAL_PG_USERNAME": project.pg_username,
-                    "LOCAL_PG_PASSWORD": project.pg_password,
-                    "LOCAL_OS_NAME": project.os_name,
-                    "LOCAL_OS_USERNAME": project.os_username,
-                    "LOCAL_OS_PASSWORD": project.os_password,
+                    "WORKER_BENCH_ID": str(bench.id),
+                    "WORKER_MODULE_ID": str(bench.head_id),
+                    "LOCAL_PG_NAME": bench.pg_name,
+                    "LOCAL_PG_USERNAME": bench.pg_username,
+                    "LOCAL_PG_PASSWORD": bench.pg_password,
+                    "LOCAL_OS_NAME": bench.os_name,
+                    "LOCAL_OS_USERNAME": bench.os_username,
+                    "LOCAL_OS_PASSWORD": bench.os_password,
                 }
                 Path(".env.worker").write_text("\n".join(f"{k}={v}" for k, v in env_vars.items()))
-                self.stdout.write(self.style.SUCCESS(f"patched .env.worker for {project}"))
+                self.stdout.write(self.style.SUCCESS(f"patched .env.worker for {bench}"))
             else:
                 # truncate .env.worker
                 Path(".env.worker").write_text("")

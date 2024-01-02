@@ -1,7 +1,7 @@
 """
 Settings for bench backend.
 Settings for functional or logical submodules are distributed across individual files.
-See https://docs.djangoproject.com/en/4,0/ref/settings/
+See https://docs.djangobench.com/en/4,0/ref/settings/
 """
 # isort: skip_file
 

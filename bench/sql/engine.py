@@ -1067,7 +1067,7 @@ async def create_local_pg_database(
     *, pg_name: str, pg_username: str, pg_password: str, is_public: bool, upsert: bool
 ) -> None:
     """
-    Creates the local Postgres database and corresponding roles/user for a project.
+    Creates the local Postgres database and corresponding roles/user for a bench.
     """
     log = logger.bind(pg_name=pg_name, upsert=upsert)
     log.info("pg.create_db")
@@ -1145,7 +1145,7 @@ async def create_local_pg_database(
 
 async def delete_local_pg_database(pg_name: str, pg_username: str) -> None:
     """
-    Deletes the local Postgres database and corresponding roles/user for a project.
+    Deletes the local Postgres database and corresponding roles/user for a bench.
     """
     log = logger.bind(pg_name=pg_name)
     log.info("pg.delete_db")

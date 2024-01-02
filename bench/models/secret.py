@@ -9,7 +9,7 @@ class Secret(CrudNode):
     An encrypted secret.
     """
 
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="secrets")
+    bench = models.ForeignKey("Bench", on_delete=models.CASCADE, related_name="secrets")
     sha512 = models.CharField(max_length=128)
     name = models.CharField(max_length=255, null=True, blank=True)
     value = fields.TextPGPSymmetricKeyField()

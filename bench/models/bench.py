@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class ProjectVisibility(models.TextChoices):
+class BenchVisibility(models.TextChoices):
     PUBLIC = "public", "Public"
     SOURCE_PRIVATE = "source_private", "Source Private"
     PRIVATE = "private", "Private"
@@ -56,18 +56,18 @@ class ModuleAccessLevel(models.IntegerChoices):  # :ModuleAccessLevel
 _PROJECT_AUTH_COLUMNS = ("pg_username", "pg_password", "os_username", "os_password")
 
 
-class ProjectManager(models.Manager["Project"]):
+class BenchManager(models.Manager["Bench"]):
     def get_queryset(self):
         return super().get_queryset().defer(*_PROJECT_AUTH_COLUMNS)
 
     @transaction.atomic
-    def create_project(
+    def create_bench(
         self,
         owner: User | Organization,
         name: str,
         slug: str,
         id: UUID = None,
-        visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
+        visibility: BenchVisibility = BenchVisibility.PRIVATE,
         create_onboarding_files: bool = False,
         create_infra: bool = True,
         head_version_id: Optional[UUID] = None,
@@ -79,14 +79,14 @@ class ProjectManager(models.Manager["Project"]):
             user = owner
             organization = None
         id = id or uuid4()
-        project = super().create(
+        bench = super().create(
             id=id, organization=organization, user=user, name=name, slug=slug, visibility=visibility
         )
         # initial version head
-        project.head = ProjectVersion.objects.create(
-            id=head_version_id or uuid4(), ck=project.id, project=project
+        bench.head = BenchVersion.objects.create(
+            id=head_version_id or uuid4(), ck=bench.id, bench=bench
         )
-        project.save()
+        bench.save()
 
         # onboarding
         if create_onboarding_files:
@@ -98,45 +98,40 @@ class ProjectManager(models.Manager["Project"]):
             from bench.search.engine import create_local_os_index
             from bench.sql.engine import create_local_pg_database
 
-            logger.info("project.create_infra", project=project)
+            logger.info("bench.create_infra", bench=bench)
             start_time = datetime.now()
-            create_local_worker_set(project)
+            create_local_worker_set(bench)
             create_local_os_index(
-                os_name=project.os_name,
-                os_username=project.os_username,
-                os_password=project.os_password,
-                is_public=project.visibility == ProjectVisibility.PUBLIC,
+                os_name=bench.os_name,
+                os_username=bench.os_username,
+                os_password=bench.os_password,
+                is_public=bench.visibility == BenchVisibility.PUBLIC,
                 upsert=False,
             )
             async_to_sync(create_local_pg_database)(
-                pg_name=project.pg_name,
-                pg_username=project.pg_username,
-                pg_password=project.pg_password,
-                is_public=project.visibility == ProjectVisibility.PUBLIC,
+                pg_name=bench.pg_name,
+                pg_username=bench.pg_username,
+                pg_password=bench.pg_password,
+                is_public=bench.visibility == BenchVisibility.PUBLIC,
                 upsert=False,
             )
 
             duration = datetime.now() - start_time
-            logger.info(
-                "project.create_infra.done", project=project, duration=duration.total_seconds()
-            )
+            logger.info("bench.create_infra.done", bench=bench, duration=duration.total_seconds())
 
-        return project
+        return bench
 
-    def get_by_slug(self, owner: str, project: str):
+    def get_by_slug(self, owner: str, bench: str):
         return (
-            self.filter(slug=project)
+            self.filter(slug=bench)
             .filter(Q(organization__owner_slug_id=owner) | Q(user__owner_slug_id=owner))
             .get()
         )
 
 
-class Project(UUIDModel, CrudModel):
+class Bench(UUIDModel, CrudModel):
     """
-    A project == a Bench.
-
-    Projects are the root of versioning, similar to repositories in Git.
-    All versions are available in 'versions' and may not be linear (also like in Git).
+    A Bench contains all of its versions, similar to repositories in Git.
     """
 
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
@@ -144,28 +139,28 @@ class Project(UUIDModel, CrudModel):
     slug: models.SlugField = models.SlugField(max_length=128, validators=[validate_slug])
 
     visibility = models.CharField(
-        max_length=32, choices=ProjectVisibility.choices, default=ProjectVisibility.PRIVATE
+        max_length=32, choices=BenchVisibility.choices, default=BenchVisibility.PRIVATE
     )
     base_level = models.IntegerField(default=ModuleAccessLevel.Read)
     sharing_enabled = models.BooleanField(default=True)
     sharing_token = models.UUIDField(default=uuid4)
     sharing_level = models.IntegerField(default=ModuleAccessLevel.Read)
     organization: models.ForeignKey = models.ForeignKey(
-        "Organization", on_delete=models.CASCADE, related_name="projects", null=True
+        "Organization", on_delete=models.CASCADE, related_name="benches", null=True
     )
     user: models.ForeignKey = models.ForeignKey(
-        "User", on_delete=models.CASCADE, related_name="projects", null=True
+        "User", on_delete=models.CASCADE, related_name="benches", null=True
     )
-    members = models.ManyToManyField("User", through="ProjectMembership", related_name="projects+")
-    memberships: models.QuerySet["ProjectMembership"]  # noqa via ProjectMembership.project
+    members = models.ManyToManyField("User", through="BenchMembership", related_name="benches+")
+    memberships: models.QuerySet["BenchMembership"]  # noqa via BenchMembership.bench
 
     head = models.ForeignKey(
-        "ProjectVersion", on_delete=models.SET_NULL, null=True, related_name="project+"
+        "BenchVersion", on_delete=models.SET_NULL, null=True, related_name="bench+"
     )
     blobs: models.QuerySet["Blob"]  # noqa via Blob
 
     worker_set = models.OneToOneField(  # only one worker set for now
-        "WorkerSet", on_delete=models.SET_NULL, related_name="project+", null=True
+        "WorkerSet", on_delete=models.SET_NULL, related_name="bench+", null=True
     )
     worker_sets: models.QuerySet["WorkerSet"]  # noqa via WorkerSet
     pg_name = models.CharField(max_length=64, default=generate_random_lowercase_name)
@@ -191,9 +186,9 @@ class Project(UUIDModel, CrudModel):
         return f"{self.owner.slug}.{self.slug}"
 
     @property
-    def head_(self) -> ProjectVersion:
+    def head_(self) -> BenchVersion:
         if self.head is None:
-            raise ValueError(f"project {self} has no head")
+            raise ValueError(f"bench {self} has no head")
         return self.head
 
     @transaction.atomic(savepoint=False)
@@ -208,11 +203,11 @@ class Project(UUIDModel, CrudModel):
         name: Optional[str] = None,
         tag: Optional[str] = None,
         description: Optional[str] = None,
-        parent: Optional[ProjectVersion] = None,
-    ) -> "ProjectVersion":
+        parent: Optional[BenchVersion] = None,
+    ) -> "BenchVersion":
         if parent is None:
             if self.head is None:
-                raise ValueError(f"project does not have a head: {self}")
+                raise ValueError(f"bench does not have a head: {self}")
             assigned_parent = self.head
         else:
             assigned_parent = parent
@@ -220,8 +215,8 @@ class Project(UUIDModel, CrudModel):
         if not assigned_parent.committed:
             raise ValueError(f"parent must be committed: {assigned_parent}")
 
-        new_version = ProjectVersion.objects.create(
-            project=self, name=name, tag=tag, description=description
+        new_version = BenchVersion.objects.create(
+            bench=self, name=name, tag=tag, description=description
         )
         new_version.parents.add(assigned_parent)
         self.head = new_version
@@ -232,7 +227,7 @@ class Project(UUIDModel, CrudModel):
     @transaction.atomic(savepoint=False)
     def create_invite(
         self, email: str, level: "ModuleAccessLevel", message: str = None, created_by: User = None
-    ) -> "ProjectInvite":
+    ) -> "BenchInvite":
         from bench.models.notification import Notification, NotificationType
         from bench.models.user import User
 
@@ -240,8 +235,8 @@ class Project(UUIDModel, CrudModel):
         if user is not None and self.members.filter(id=user.id).exists():
             raise ValueError("user already a member of organization")
 
-        invite = ProjectInvite.objects.create(
-            project=self,
+        invite = BenchInvite.objects.create(
+            bench=self,
             email=email,
             level=level,
             message=message,
@@ -260,52 +255,50 @@ class Project(UUIDModel, CrudModel):
         return invite
 
     @transaction.atomic(savepoint=False)
-    def accept_invite(self, invite: "ProjectInvite") -> None:
+    def accept_invite(self, invite: "BenchInvite") -> None:
         if invite.user is None:
             raise ValueError("cannot accept invite without registered user")
-        invite.project.add_member(invite.user, invite.level)
+        invite.bench.add_member(invite.user, invite.level)
         invite.delete()
 
     def add_member(self, user: User, level: "ModuleAccessLevel") -> None:
         if self.members.filter(id=user.id).exists():
-            raise ValueError("user already a member of project")
-        ProjectMembership.objects.create(project=self, user=user, level=level)
+            raise ValueError("user already a member of bench")
+        BenchMembership.objects.create(bench=self, user=user, level=level)
 
-    objects: ProjectManager = ProjectManager()
+    objects: BenchManager = BenchManager()
 
     class Meta:
         base_manager_name = "objects"
-        default_related_name = "projects"
+        default_related_name = "benches"
         constraints = [
             # unique slug per owner
             models.UniqueConstraint(
-                name="bench_project_organization_slug_ak",
+                name="bench_bench_organization_slug_ak",
                 fields=["organization", "slug"],
                 condition=models.Q(organization__isnull=False),
             ),
             models.UniqueConstraint(
-                name="bench_project_user_slug_ak",
+                name="bench_bench_user_slug_ak",
                 fields=["user", "slug"],
                 condition=models.Q(user__isnull=False),
             ),
             # unique sharing token
-            models.UniqueConstraint(
-                name="bench_project_sharing_token_ak", fields=["sharing_token"]
-            ),
+            models.UniqueConstraint(name="bench_bench_sharing_token_ak", fields=["sharing_token"]),
             # must have at least one owner (organization or user)
             models.CheckConstraint(
-                name="bench_project_owner_ck",
+                name="bench_bench_owner_ck",
                 check=models.Q(organization__isnull=False) | models.Q(user__isnull=False),
             ),
         ]
 
 
-class ProjectMembership(UUIDModel):
-    project: models.ForeignKey = models.ForeignKey(
-        Project, on_delete=models.CASCADE, related_name="memberships"
+class BenchMembership(UUIDModel):
+    bench: models.ForeignKey = models.ForeignKey(
+        Bench, on_delete=models.CASCADE, related_name="memberships"
     )
     user: models.ForeignKey = models.ForeignKey(
-        "User", on_delete=models.CASCADE, related_name="project_memberships"
+        "User", on_delete=models.CASCADE, related_name="bench_memberships"
     )
     level = models.IntegerField(choices=ModuleAccessLevel.choices)
 
@@ -313,27 +306,27 @@ class ProjectMembership(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.project} -> {self.user} ({self.level})"
+        return f"{self.bench} -> {self.user} ({self.level})"
 
     def __repr__(self):
-        return f"<ProjectMembership {self}>"
+        return f"<BenchMembership {self}>"
 
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            models.UniqueConstraint(name="bench_project_membership_ak", fields=["project", "user"])
+            models.UniqueConstraint(name="bench_bench_membership_ak", fields=["bench", "user"])
         ]
 
 
-class ProjectInvite(UUIDModel):
+class BenchInvite(UUIDModel):
     """
-    An invitation to join a project (for existing or not yet existing users).
+    An invitation to join a bench (for existing or not yet existing users).
     """
 
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="invites")
+    bench = models.ForeignKey("Bench", on_delete=models.CASCADE, related_name="invites")
     email = models.EmailField()
     user = models.ForeignKey(
-        "User", on_delete=models.CASCADE, related_name="project_invites", null=True
+        "User", on_delete=models.CASCADE, related_name="bench_invites", null=True
     )
     level = models.IntegerField(choices=ModuleAccessLevel.choices)
     message = models.TextField(blank=True, null=True)
@@ -344,47 +337,46 @@ class ProjectInvite(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.project} -> {self.email} ({self.level})"
+        return f"{self.bench} -> {self.email} ({self.level})"
 
     def __repr__(self):
-        return f"<ProjectInvite {self}>"
+        return f"<BenchInvite {self}>"
 
     def accept(self):
-        self.project.accept_invite(self)
+        self.bench.accept_invite(self)
 
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            models.UniqueConstraint(name="bench_project_invite_ak", fields=["project", "email"])
+            models.UniqueConstraint(name="bench_bench_invite_ak", fields=["bench", "email"])
         ]
 
 
-class ProjectVersionManager(models.Manager["ProjectVersion"]):
-    def get_by_slug(self, owner: str, project: str, tag: str):
+class BenchVersionManager(models.Manager["BenchVersion"]):
+    def get_by_slug(self, owner: str, bench: str, tag: str):
         return (
             self.filter(tag=tag)
-            .filter(project__slug=project)
+            .filter(bench__slug=bench)
             .filter(
-                Q(project__organization__owner_slug_id=owner)
-                | Q(project__user__owner_slug_id=owner)
+                Q(bench__organization__owner_slug_id=owner) | Q(bench__user__owner_slug_id=owner)
             )
             .get()
         )
 
-    def get_by_tag(self, project_id: UUID, tag: str):
-        return self.filter(project_id=project_id, tag=tag).get()
+    def get_by_tag(self, bench_id: UUID, tag: str):
+        return self.filter(bench_id=bench_id, tag=tag).get()
 
-    def get_between(self, source_version_id: UUID, target_version_id: UUID) -> list[ProjectVersion]:
+    def get_between(self, source_version_id: UUID, target_version_id: UUID) -> list[BenchVersion]:
         """
         Get every version between the source and target version (including both)
-        Follow ProjectVersion.parents (not timestamps).
+        Follow BenchVersion.parents (not timestamps).
         TODO @Performance: implement get_between as recursive CTE query
         """
-        source_version = self.only("id", "project_id").get(id=source_version_id)
-        target_version = self.only("id", "project_id").get(id=target_version_id)
-        if source_version.project_id != target_version.project_id:
+        source_version = self.only("id", "bench_id").get(id=source_version_id)
+        target_version = self.only("id", "bench_id").get(id=target_version_id)
+        if source_version.bench_id != target_version.bench_id:
             raise ValueError(
-                f"source and target version must be from the same project: {source_version} </> {target_version}"
+                f"source and target version must be from the same bench: {source_version} </> {target_version}"
             )
 
         # try both directions
@@ -399,8 +391,8 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         )
 
     def get_between_unidirectional(
-        self, source_version: ProjectVersion, target_version: ProjectVersion
-    ) -> list[ProjectVersion] | None:
+        self, source_version: BenchVersion, target_version: BenchVersion
+    ) -> list[BenchVersion] | None:
         # start at target version and walk up to source version
         versions = [target_version]
         while versions[-1] != source_version:
@@ -412,13 +404,13 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         versions.reverse()
         return versions
 
-    def get_ancestors(self, version_id: UUID, depth: int = None) -> list[ProjectVersion]:
+    def get_ancestors(self, version_id: UUID, depth: int = None) -> list[BenchVersion]:
         """
         Get every version that is an ancestor of the given version (including the version itself)
-        Follow ProjectVersion.parents (not timestamps).
+        Follow BenchVersion.parents (not timestamps).
         TODO @Performance: implement get_ancestors as recursive CTE query
         """
-        version = self.only("id", "project_id").get(id=version_id)
+        version = self.only("id", "bench_id").get(id=version_id)
         versions = [version]
         while True:
             # this only works if there is one parent (no branching) :ProjectBranching
@@ -433,8 +425,8 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
     def pack_copy(
         self,
-        source: ProjectVersion,
-        target: ProjectVersion,
+        source: BenchVersion,
+        target: BenchVersion,
         nodes: list[models.Model],
         keep_cks: bool,
         excluded: set[type[Node]],
@@ -514,8 +506,8 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
     def copy(
         self,
-        source: ProjectVersion,
-        target: ProjectVersion,
+        source: BenchVersion,
+        target: BenchVersion,
         files: Optional[models.QuerySet[File] | list[File]] = None,
         target_ids: dict[UUID, UUID] = None,
         keep_cks: bool = True,
@@ -549,26 +541,26 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         create_models_bfs(unpacked.walk_bfs_batched(), exclude={target.id})
 
 
-class ProjectVersion(CrudNode):
+class BenchVersion(CrudNode):
     """
-    A project version records the state of a project at a specific point in time.
+    A bench version records the state of a bench at a specific point in time.
     """
 
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="versions")
+    bench = models.ForeignKey(Bench, on_delete=models.CASCADE, related_name="versions")
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
-    # single unique tag should be a ProjectVersionTag list later :ProjectVersionTags
+    # single unique tag should be a BenchVersionTag list later :BenchVersionTags
     tag = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     committed_at = models.DateTimeField(null=True)
 
-    parents = models.ManyToManyField("ProjectVersion", related_name="children", symmetrical=False)
+    parents = models.ManyToManyField("BenchVersion", related_name="children", symmetrical=False)
     files: models.QuerySet["File"]  # noqa via File
     statements: models.QuerySet["Statement"]  # noqa via Statement
     sessions: models.QuerySet["Session"]  # noqa via Session
     runs: models.QuerySet["Run"]  # noqa via Run
 
     def __str__(self) -> str:
-        return f"{self.project.path}@{self.tag or self.id.hex}"
+        return f"{self.bench.path}@{self.tag or self.id.hex}"
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
@@ -590,11 +582,11 @@ class ProjectVersion(CrudNode):
 
     @property
     def organization(self):
-        return self.project.organization
+        return self.bench.organization
 
     @transaction.atomic
     def create_file(self, name: str, parent: Optional[File] = None) -> "File":
-        file = File.objects.create(project_version=self, parent=parent, name=name)
+        file = File.objects.create(bench_version=self, parent=parent, name=name)
         return file
 
     @transaction.atomic
@@ -607,11 +599,11 @@ class ProjectVersion(CrudNode):
         parent = None
         for directory in file_parts[:-1]:
             parent, _ = File.objects.get_or_create(
-                project_version=self, parent=parent, name=directory, directory=True
+                bench_version=self, parent=parent, name=directory, directory=True
             )
         # create file
         file, created = File.objects.get_or_create(
-            project_version=self,
+            bench_version=self,
             parent=parent,
             name=file_parts[-1],
             defaults={"id": id} if id is not None else {},
@@ -630,20 +622,20 @@ class ProjectVersion(CrudNode):
             file_parts = path.split("/")
             parent = None
             for directory in file_parts[:-1]:
-                parent = File.objects.get(project_version=self, parent=parent, name=directory)
-            return File.objects.get(project_version=self, parent=parent, name=file_parts[-1])
+                parent = File.objects.get(bench_version=self, parent=parent, name=directory)
+            return File.objects.get(bench_version=self, parent=parent, name=file_parts[-1])
         except File.DoesNotExist:
-            raise ValueError(f"project {self} does not contain {path}.{type}")
+            raise ValueError(f"bench {self} does not contain {path}.{type}")
 
-    objects = ProjectVersionManager()
+    objects = BenchVersionManager()
 
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            # tag is unique per project
+            # tag is unique per bench
             models.UniqueConstraint(
-                fields=["project", "tag"],
-                name="bench_project_version_tag_ak",
+                fields=["bench", "tag"],
+                name="bench_bench_version_tag_ak",
             ),
         ]
 
@@ -656,8 +648,8 @@ class FileManager(models.Manager):
     def copy(
         self,
         file: "File",
-        source: ProjectVersion,
-        target: ProjectVersion,
+        source: BenchVersion,
+        target: BenchVersion,
         target_id: UUID,
         target_ck: UUID,
         keep_cks: bool,
@@ -670,7 +662,7 @@ class FileManager(models.Manager):
 
         target_id = target_id or uuid.uuid4()
         # pack relevant nodes
-        copy = ProjectVersion.objects.pack_copy(
+        copy = BenchVersion.objects.pack_copy(
             source=source,
             target=target,
             nodes=[file],
@@ -698,8 +690,8 @@ class File(CrudNode):
     Nothing is actually deleted, but soft deleted objects are not visible and not copied across versions.
     """
 
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="files"
+    bench_version = models.ForeignKey(
+        "BenchVersion", on_delete=models.CASCADE, related_name="files"
     )
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
     parent_file = models.ForeignKey(
@@ -714,7 +706,7 @@ class File(CrudNode):
         if self.parent_file:
             return f"{self.parent_file}/{self.name}"
         else:
-            return f"{self.project_version}/{self.name}"
+            return f"{self.bench_version}/{self.name}"
 
     @model_property(only=["name", "parent"], select_related=["parent"])
     def path(self) -> str:
@@ -722,14 +714,14 @@ class File(CrudNode):
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
-        return self.parent_file_id or self.project_version_id
+        return self.parent_file_id or self.bench_version_id
 
     @property
-    def parent(self) -> Union["File", "ProjectVersion"]:
+    def parent(self) -> Union["File", "BenchVersion"]:
         if self.parent_file_id:
             return self.parent_file
         else:
-            return self.project_version
+            return self.bench_version
 
     def is_root(self) -> bool:
         return self.parent_file is None
@@ -743,10 +735,10 @@ class File(CrudNode):
     class Meta:
         ordering = ["name"]
         constraints = [
-            # ck is unique per project version
+            # ck is unique per bench version
             models.UniqueConstraint(
-                fields=["project_version", "ck"],
-                name="bench_file_project_version_ck",
+                fields=["bench_version", "ck"],
+                name="bench_file_bench_version_ck",
                 condition=models.Q(deleted_at__isnull=True),
             ),
         ]
@@ -754,7 +746,7 @@ class File(CrudNode):
 
 def create_global_user_bucket(ignore_exists: bool):
     """
-    Creates a public S3 bucket for all projects.
+    Creates a public S3 bucket for all benches.
     """
     s3_client = get_s3_client()
     try:
@@ -804,18 +796,18 @@ def create_global_user_bucket(ignore_exists: bool):
             raise RuntimeError(f"failed to set encryption on s3 bucket: {response}")
 
 
-def create_local_worker_set(project: Project, *, upsert: bool):
+def create_local_worker_set(bench: Bench, *, upsert: bool):
     from bench.language.const import ProjectRegion, WorkerProfile, WorkerSetStatus
     from bench.models import WorkerSet
 
     # check if worker set already exists
-    if WorkerSet.objects.filter(project_id=project.id).exists():
+    if WorkerSet.objects.filter(bench_id=bench.id).exists():
         if not upsert:
-            raise ValueError(f"worker set already exists for project: {project}")
+            raise ValueError(f"worker set already exists for bench: {bench}")
         return
 
     worker_set = WorkerSet.objects.create(
-        project_id=project.id,
+        bench_id=bench.id,
         region=ProjectRegion.EU_CENTRAL,
         profile=WorkerProfile.TINY,
         sleeping=True,
@@ -823,5 +815,5 @@ def create_local_worker_set(project: Project, *, upsert: bool):
         target_replicas=1,
         status=WorkerSetStatus.SLEEPING,
     )
-    project.worker_set = worker_set
-    project.save()
+    bench.worker_set = worker_set
+    bench.save()

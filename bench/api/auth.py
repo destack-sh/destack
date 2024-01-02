@@ -21,10 +21,10 @@ from strawberry_django.fields.types import OperationInfo, OperationMessage
 from bench import models
 from bench.api.utils import get_param_from_info, get_user_from_info
 from bench.models import (
+    BenchMembership,
     ModuleAccessLevel,
     Organization,
     OrganizationRole,
-    ProjectMembership,
     User,
     UserStatus,
 )
@@ -34,7 +34,7 @@ from bench.proto import wire
 
 logger = structlog.get_logger(__name__)
 
-# default access level for new projects
+# default access level for new benches
 DEFAULT_PROJECT_ACCESS_LEVEL_BY_ORGANIZATION_ROLE: dict[OrganizationRole, ModuleAccessLevel] = {
     OrganizationRole.Owner: ModuleAccessLevel.Admin,
     OrganizationRole.Manager: ModuleAccessLevel.Manage,
@@ -46,24 +46,24 @@ DEFAULT_PROJECT_ACCESS_LEVEL_BY_ORGANIZATION_ROLE: dict[OrganizationRole, Module
 @dataclass
 class ModuleAccessInfo:
     user: Optional[models.User]
-    project: models.Project
-    project_version: Optional[models.ProjectVersion]
+    bench: models.Bench
+    bench_version: Optional[models.BenchVersion]
     level: models.ModuleAccessLevel
 
     @staticmethod
-    def zero(project: models.Project) -> "ModuleAccessInfo":
+    def zero(bench: models.Bench) -> "ModuleAccessInfo":
         return ModuleAccessInfo(
-            user=None, project=project, project_version=None, level=models.ModuleAccessLevel.Zero
+            user=None, bench=bench, bench_version=None, level=models.ModuleAccessLevel.Zero
         )
 
 
 def check_module_access(
     info: Info,
-    project: UUID | models.Project | models.ProjectVersion,
+    bench: UUID | models.Bench | models.BenchVersion,
     level: models.ModuleAccessLevel,
 ) -> ModuleAccessInfo:
     """Raises a PermissionDenied error if the user cannot view the given object."""
-    access = has_module_access(info, project, level)
+    access = has_module_access(info, bench, level)
     if not access:
         raise PermissionDenied("User cannot do this.")
     return access
@@ -81,65 +81,65 @@ def check_module_node_access(
 
 def has_module_access(
     info: Info,
-    project: UUID | models.Project | models.ProjectVersion,
+    bench: UUID | models.Bench | models.BenchVersion,
     level: models.ModuleAccessLevel,
 ) -> Optional[ModuleAccessInfo]:
-    """Get project-level access info for the given user."""
-    project_version = None
-    if isinstance(project, UUID):
-        project = models.Project.objects.get(id=project)
-    elif isinstance(project, models.ProjectVersion):
-        project_version = project
-        project = project.project
+    """Get bench-level access info for the given user."""
+    bench_version = None
+    if isinstance(bench, UUID):
+        bench = models.Bench.objects.get(id=bench)
+    elif isinstance(bench, models.BenchVersion):
+        bench_version = bench
+        bench = bench.bench
     else:
-        project = project
-    if not isinstance(project, models.Project):
-        raise ValueError(f"{type(project).__name__} {project} is not a Project")
+        bench = bench
+    if not isinstance(bench, models.Bench):
+        raise ValueError(f"{type(bench).__name__} {bench} is not a Project")
 
     granted_accesses = (
-        get_user_access(info, project),
-        get_sharing_token_access(info, project),
-        get_default_project_access(project),
-        ModuleAccessInfo.zero(project),
+        get_user_access(info, bench),
+        get_sharing_token_access(info, bench),
+        get_default_bench_access(bench),
+        ModuleAccessInfo.zero(bench),
     )
     # return the more permissive access level >= level if any
     access = max((a for a in granted_accesses if a is not None), key=lambda a: a.level)
     if access.level < level:
         return None
-    access.project_version = project_version
+    access.bench_version = bench_version
     return access
 
 
-def get_user_access(info: Info, project: models.Project) -> Optional[ModuleAccessInfo]:
+def get_user_access(info: Info, bench: models.Bench) -> Optional[ModuleAccessInfo]:
     user = get_user_from_info(info)
     if not user.is_authenticated:
         return None
     if user.is_staff:
-        return ModuleAccessInfo(user, project, None, models.ModuleAccessLevel.Admin)
+        return ModuleAccessInfo(user, bench, None, models.ModuleAccessLevel.Admin)
 
     # check if user is owner
-    if project.user_id == user.id:
-        return ModuleAccessInfo(user, project, None, models.ModuleAccessLevel.Admin)
+    if bench.user_id == user.id:
+        return ModuleAccessInfo(user, bench, None, models.ModuleAccessLevel.Admin)
 
-    # check if user is a member of the project
-    project_membership: ProjectMembership = project.memberships.filter(user_id=user.id).first()
-    if project_membership:
-        return ModuleAccessInfo(user, project, None, project_membership.level)
+    # check if user is a member of the bench
+    bench_membership: BenchMembership = bench.memberships.filter(user_id=user.id).first()
+    if bench_membership:
+        return ModuleAccessInfo(user, bench, None, bench_membership.level)
 
-    # if project belongs to an organization, check if user is a member of the organization
-    if project.organization_id:
+    # if bench belongs to an organization, check if user is a member of the organization
+    if bench.organization_id:
         org_membership = models.OrganizationMembership.objects.filter(
-            organization_id=project.organization_id, user_id=user.id
+            organization_id=bench.organization_id, user_id=user.id
         ).first()
         if org_membership:
             level = DEFAULT_PROJECT_ACCESS_LEVEL_BY_ORGANIZATION_ROLE[org_membership.level]
-            return ModuleAccessInfo(user, project, None, level)
+            return ModuleAccessInfo(user, bench, None, level)
 
     return None
 
 
-def get_sharing_token_access(info: Info, project: models.Project) -> Optional[ModuleAccessInfo]:
-    if not project.sharing_enabled:
+def get_sharing_token_access(info: Info, bench: models.Bench) -> Optional[ModuleAccessInfo]:
+    if not bench.sharing_enabled:
         return None
     sharing_token = get_param_from_info(info, "x-sharing-token")
     if sharing_token is None:
@@ -148,14 +148,14 @@ def get_sharing_token_access(info: Info, project: models.Project) -> Optional[Mo
         sharing_token = UUID(sharing_token)
     except ValueError:
         return None
-    if project.sharing_token != sharing_token:
+    if bench.sharing_token != sharing_token:
         return None
-    return ModuleAccessInfo(None, project, None, project.sharing_level)
+    return ModuleAccessInfo(None, bench, None, bench.sharing_level)
 
 
-def get_default_project_access(project: models.Project) -> Optional[ModuleAccessInfo]:
-    if project.visibility == models.ProjectVisibility.PUBLIC:
-        return ModuleAccessInfo(None, project, None, project.base_level)
+def get_default_bench_access(bench: models.Bench) -> Optional[ModuleAccessInfo]:
+    if bench.visibility == models.BenchVisibility.PUBLIC:
+        return ModuleAccessInfo(None, bench, None, bench.base_level)
     return None
 
 
@@ -164,15 +164,15 @@ def has_module_node_access(
 ) -> Optional[ModuleAccessInfo]:
     """
     Get node-level access info for the given user.
-    Right now this is the same as project-level access.
+    Right now this is the same as bench-level access.
     """
     if isinstance(node, wire.RecordData):
         node = models.Statement._base_manager.get(id=node.parent_id)
     root = node
     while root.parent:
         root = root.parent
-    if not isinstance(root, models.ProjectVersion):
-        raise ValueError(f"expected project root for {node}, got {root}")
+    if not isinstance(root, models.BenchVersion):
+        raise ValueError(f"expected bench root for {node}, got {root}")
     return has_module_access(info, root, level)
 
 
@@ -387,11 +387,11 @@ _OtherT = TypeVar("_OtherT", bound=django.db.models.Model)
 def HasModuleAccess(
     level: ModuleAccessLevel = ModuleAccessLevel.Read,
     target: CheckTarget = CheckTarget.RETVAL,
-    map: Optional[Callable[[_OtherT], models.Project]] = None,
+    map: Optional[Callable[[_OtherT], models.Bench]] = None,
 ):
     if map is None:
         return SimplePermissionExtension(
-            check=lambda info, project: check_module_access(info, project, level) is not None,
+            check=lambda info, bench: check_module_access(info, bench, level) is not None,
             target=target,
         )
     else:
