@@ -16,7 +16,7 @@ from psycopg.types.json import Jsonb
 
 import bench.language as lang
 from bench.language import ConditionalOp, Field, HasDatabase, Module, QueryEngine
-from bench.language.const import NodeType, TypeFlag, TypeStorageFormat
+from bench.language.const import EditKind, NodeType, TypeFlag, TypeStorageFormat
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     ExpressionOps,
@@ -24,8 +24,8 @@ from bench.language.expression import (
     QueryEngineIncapableError,
 )
 from bench.language.module import UNSET, get_node_id
-from bench.language.render import EditData, EditKind
 from bench.proto import wire
+from bench.proto.wire import EditData
 from bench.sql.client import GLOBAL_RO_PASSWORD, GLOBAL_RO_USERNAME, async_pg_cursor
 from bench.sql.core import (
     BASE_RECORD_TABLE,
@@ -95,6 +95,7 @@ def map_to_pg_column(field: lang.Field) -> Column:
         field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
     ) and column_type != ColumnType.JSON
     return Column(
+        source=str(field.ck),
         name=get_field_column_name(field),
         type=column_type,
         is_array=is_array,
@@ -109,6 +110,7 @@ def map_to_pg_table(statement: lang.Statement) -> Table:
     constraints = []
 
     return Table(
+        source=str(statement.ck),
         name=get_record_table_name(statement.ck),
         columns=(*(c.clone() for c in BASE_RECORD_TABLE.columns), *columns),
         indexes=(*(i.clone() for i in BASE_RECORD_TABLE.indexes), *indexes),
@@ -683,6 +685,7 @@ async def pg_replace_stored_constructs(cur: psycopg.AsyncCursor, constructs: dic
             "table_name": construct.table.name if isinstance(construct, TableConstruct) else None,
             "name": construct.name,
             "hash": construct.hash,
+            "source": str(construct.source) if construct.source is not None else None,
         }
         for construct in constructs.values()
     ]
@@ -1156,3 +1159,13 @@ async def delete_local_pg_database(pg_name: str, pg_username: str) -> None:
         await cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(pg_name)))
 
     log.info("pg.delete_db.done")
+
+
+async def write_host_edits_to_pg(
+    cur: psycopg.AsyncCursor,
+    module: Module,
+    edits: list[EditData],
+    *,
+    return_nodes: bool = False,
+) -> list["AnyNodeData"] | None:
+    raise NotImplementedError("nocheckin: write_host_edits_to_pg")

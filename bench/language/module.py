@@ -1083,10 +1083,12 @@ def node(
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
     detached: bool = False,
+    managed: bool = True,
+    stored: bool = True,
     reserved: set[str | int] = None,
 ):
     def decorate(cls):
-        return node_component(
+        cls = node_component(
             cls,
             node_type=node_type,
             passthrough=passthrough,
@@ -1094,6 +1096,9 @@ def node(
             detached=detached,
             reserved=reserved,
         )
+        cls.__is_managed__ = managed
+        cls.__is_stored__ = stored
+        return cls
 
     return decorate
 
@@ -2408,8 +2413,10 @@ class Node(Struct):
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
-    __has_scope__: ClassVar[bool] = False
-    __is_detached__: ClassVar[bool] = False
+    __has_scope__: ClassVar[bool] = False  # can have node children
+    __is_detached__: ClassVar[bool] = False  # not part of inline module tree
+    __is_managed__: ClassVar[bool] = False  # storage fully controlled by Bench runtime
+    __is_stored__: ClassVar[bool] = False  # stored on disk (runtime or local)
 
     # 1-9: reserved for node identity
     id: UUID = struct_internal(2, default=None, reflect=True)
@@ -2981,7 +2988,7 @@ class ScopeNode(Node):
 @node(NodeType.BENCH)
 class Bench(ScopeNode):
     """
-    A Bench is the root of all modules and everything in a Bench bench.
+    A Bench is the root of all modules and everything in a Bench.
     We don't use this on its own, only through Module.
     """
 

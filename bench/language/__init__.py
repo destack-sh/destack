@@ -30,6 +30,7 @@ from .statement import Statement
 from .tagging import HasTags, Tagging
 from .text import HasText
 from .trigger import HasTriggers, Trigger
+from .user import Client, User
 from .value import HasValue
 from .view import View
 
@@ -41,6 +42,7 @@ __all__ = [
     "BenchError",
     "Blob",
     "C",
+    "Client",
     "ConditionalOp",
     "E",
     "Expression",
@@ -90,6 +92,7 @@ __all__ = [
     "TypeHint",
     "TypeStorageFormat",
     "TypeTag",
+    "User",
     "View",
 ]
 

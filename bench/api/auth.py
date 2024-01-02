@@ -155,7 +155,7 @@ def get_sharing_token_access(info: Info, bench: models.Bench) -> Optional[Module
 
 def get_default_bench_access(bench: models.Bench) -> Optional[ModuleAccessInfo]:
     if bench.visibility == models.BenchVisibility.PUBLIC:
-        return ModuleAccessInfo(None, bench, None, bench.base_level)
+        return ModuleAccessInfo(None, bench, None, ModuleAccessLevel.Read)
     return None
 
 

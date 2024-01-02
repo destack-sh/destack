@@ -40,14 +40,16 @@ class NodeType(ProtoStrEnum):
     SESSION = "SESSION", 60
     RUN = "RUN", 61
     WORKER_SET = "WORKER_SET", 64
+
     # EVENT = "EVENT", 70
     # INTERRUPT = "INTERRUPT", 71
     # EDIT = "EDIT", 72
     # user
-    # USER = "USER", 80
+    USER = "USER", 80
     # ORGANIZATION = "ORGANIZATION", 81
     # MEMBERSHIP = "MEMBERSHIP", 82
     # NOTIFICATION = "NOTIFICATION", 83
+    CLIENT = "CLIENT", 84
     # COMMENT = "COMMENT", 90
 
     @property
@@ -101,6 +103,13 @@ OUT_OF_LINE_NODE_TYPES = (
 )
 INLINE_NODE_TYPES = (nt for nt in NodeType if nt not in OUT_OF_LINE_NODE_TYPES)
 HOST_NODE_TYPES = (nt for nt in NodeType if nt not in LOCAL_NODE_TYPES)
+BENCH_TYPE_CAPS_CASE: dict[NodeType | StructType, str] = {
+    _type: to_all_caps(_type) for _type in chain(NodeType, StructType)
+}
+BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
+    _type: to_pyidentifier(_type, IdentifierType.TYPE) for _type in chain(NodeType, StructType)
+}
+INTERP_NODE_TYPES = {NodeType.ISSUE, NodeType.RESOLVED_FIELD}
 
 
 class EditKind(ProtoStrEnum):
@@ -112,6 +121,11 @@ class EditKind(ProtoStrEnum):
     BUMP = "BUMP", 6
     DELETE = "DELETE", 7
     TRUNCATE = "TRUNCATE", 8
+
+
+class ClientType(ProtoStrEnum):
+    WEB = "WEB", 1
+    WORKER = "WORKER", 2
 
 
 class StatementType(ProtoStrEnum):
@@ -178,15 +192,6 @@ class SessionAccessLevel(enum.IntEnum):  # SessionAccessLevel
     Delete = 4
     Full = Delete
 
-
-NodeType = NodeType
-BENCH_TYPE_CAPS_CASE: dict[NodeType | StructType, str] = {
-    _type: to_all_caps(_type) for _type in chain(NodeType, StructType)
-}
-BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
-    _type: to_pyidentifier(_type, IdentifierType.TYPE) for _type in chain(NodeType, StructType)
-}
-INTERP_NODE_TYPES = {NodeType.ISSUE, NodeType.RESOLVED_FIELD}
 
 ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]

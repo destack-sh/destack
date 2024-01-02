@@ -164,7 +164,6 @@ class BenchUpdateVisibilityInput(strawberry_django.NodeInput):
 
 @strawberry.input
 class BenchUpdateSharingInput(strawberry_django.NodeInput):
-    base_level: int
     sharing_enabled: bool
     sharing_token: UUID
     sharing_level: int
@@ -228,7 +227,6 @@ class BenchMutation:
     ) -> Bench | OperationInfo:
         bench = models.Bench.objects.get(id=input.id.node_id)
         check_module_access(info, bench, ModuleAccessLevel.Manage)
-        bench.base_level = input.base_level
         bench.sharing_enabled = input.sharing_enabled
         bench.sharing_token = input.sharing_token
         bench.sharing_level = input.sharing_level

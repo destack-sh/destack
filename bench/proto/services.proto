@@ -20,11 +20,6 @@ message EditData {
   repeated string properties = 6;
 }
 
-enum ClientType {
-  WEB = 0;
-  WORKER = 1;
-}
-
 message ClientOrigin {
   ClientType client_type = 1;
   string client_id = 2;

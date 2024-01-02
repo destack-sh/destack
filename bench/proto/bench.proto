@@ -32,6 +32,8 @@ enum BenchType {
   BENCH_TYPE_SESSION = 60;
   BENCH_TYPE_RUN = 61;
   BENCH_TYPE_WORKER_SET = 64;
+  BENCH_TYPE_USER = 80;
+  BENCH_TYPE_CLIENT = 84;
   BENCH_TYPE_ACCESS_CONTROL = 200;
   BENCH_TYPE_ACCESS_CONTROL_RULE = 201;
   BENCH_TYPE_EXPRESSION = 210;
@@ -48,6 +50,12 @@ enum BlobStatus {
   BLOB_STATUS_PREPARED = 1;
   BLOB_STATUS_UPLOADING = 2;
   BLOB_STATUS_AVAILABLE = 3;
+}
+
+enum ClientType {
+  CLIENT_TYPE_UNSPECIFIED = 0;
+  CLIENT_TYPE_WEB = 1;
+  CLIENT_TYPE_WORKER = 2;
 }
 
 enum ConditionalOp {
@@ -185,6 +193,8 @@ enum NodeType {
   NODE_TYPE_SESSION = 60;
   NODE_TYPE_RUN = 61;
   NODE_TYPE_WORKER_SET = 64;
+  NODE_TYPE_USER = 80;
+  NODE_TYPE_CLIENT = 84;
 }
 
 enum ProjectRegion {
@@ -527,6 +537,25 @@ message BlobData {
   BlobStatus status = 24;
 }
 
+message ClientData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
+  ClientType type = 20;
+  string device_name = 21;
+  string browser_name = 22;
+  int64 last_seen_at = 23;
+  int64 closed_at = 24;
+}
+
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
@@ -786,6 +815,22 @@ message TriggerData {
   string cron = 25;
 }
 
+message UserData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 16;
+  google.protobuf.Timestamp last_changed_at = 17;
+  string username = 20;
+  string email = 21;
+}
+
 message ViewData {
   BenchType metatype = 1;
   string id = 2;
@@ -845,6 +890,8 @@ message SomeNodeData {
     SessionData session = 14;
     RunData run = 15;
     WorkerSetData worker_set = 16;
+    UserData user = 17;
+    ClientData client = 18;
   };
 }
 

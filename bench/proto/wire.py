@@ -47,6 +47,8 @@ class BenchType(betterproto.Enum):
     SESSION = 60
     RUN = 61
     WORKER_SET = 64
+    USER = 80
+    CLIENT = 84
     ACCESS_CONTROL = 200
     ACCESS_CONTROL_RULE = 201
     EXPRESSION = 210
@@ -63,6 +65,12 @@ class BlobStatus(betterproto.Enum):
     PREPARED = 1
     UPLOADING = 2
     AVAILABLE = 3
+
+
+class ClientType(betterproto.Enum):
+    UNSPECIFIED = 0
+    WEB = 1
+    WORKER = 2
 
 
 class ConditionalOp(betterproto.Enum):
@@ -199,6 +207,8 @@ class NodeType(betterproto.Enum):
     SESSION = 60
     RUN = 61
     WORKER_SET = 64
+    USER = 80
+    CLIENT = 84
 
 
 class ProjectRegion(betterproto.Enum):
@@ -427,11 +437,6 @@ class WorkerSetStatus(betterproto.Enum):
     UNKNOWN = 7
 
 
-class ClientType(betterproto.Enum):
-    WEB = 0
-    WORKER = 1
-
-
 class ServiceType(betterproto.Enum):
     UNSPECIFIED = 0
     RUNTIME_SUPERVISOR = 1
@@ -571,6 +576,26 @@ class BlobData(betterproto.Message):
     content_type: str = betterproto.string_field(22)
     name: str = betterproto.string_field(23)
     status: "BlobStatus" = betterproto.enum_field(24)
+
+
+@dataclass(eq=False, repr=False)
+class ClientData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(16)
+    last_changed_at: datetime = betterproto.message_field(17)
+    type: "ClientType" = betterproto.enum_field(20)
+    device_name: str = betterproto.string_field(21)
+    browser_name: str = betterproto.string_field(22)
+    last_seen_at: int = betterproto.int64_field(23)
+    closed_at: int = betterproto.int64_field(24)
 
 
 @dataclass(eq=False, repr=False)
@@ -846,6 +871,23 @@ class TriggerData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class UserData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(16)
+    last_changed_at: datetime = betterproto.message_field(17)
+    username: str = betterproto.string_field(20)
+    email: str = betterproto.string_field(21)
+
+
+@dataclass(eq=False, repr=False)
 class ViewData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -906,6 +948,8 @@ class SomeNodeData(betterproto.Message):
     session: "SessionData" = betterproto.message_field(14, group="node")
     run: "RunData" = betterproto.message_field(15, group="node")
     worker_set: "WorkerSetData" = betterproto.message_field(16, group="node")
+    user: "UserData" = betterproto.message_field(17, group="node")
+    client: "ClientData" = betterproto.message_field(18, group="node")
 
 
 @dataclass(eq=False, repr=False)

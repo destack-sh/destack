@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
 import requests
@@ -6,18 +5,16 @@ import structlog
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models, transaction
-from django.db.models import F, Q
 from django.utils.translation import gettext_lazy as _
 
 from bench.language.validation import MAX_DESCRIPTION_LENGTH
 from bench.models.organization import Organization, OrganizationMembership
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
-from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL
 
 if TYPE_CHECKING:
-    from bench.models import Bench, BenchMembership, BenchVersion
+    from bench.models import Bench, BenchMembership
 
 logger = structlog.get_logger(__name__)
 
@@ -159,85 +156,3 @@ def loops_request(
     if rep.status_code != 200:
         raise RuntimeError(f"failed to {method} {url}: {rep.text}")
     return rep
-
-
-# :ClientTimeouts
-CLIENT_ACTIVE_TIMEOUT_SECONDS = 60 * 1  # 1 minute
-CLIENT_PRESENT_TIMEOUT_SECONDS = 60 * 60  # 1 hour
-
-
-class ClientType(models.TextChoices):
-    """The type of device/client."""
-
-    DesktopBrowser = "desktop_browser"
-    MobileBrowser = "mobile_browser"
-
-
-class ClientManager(models.Manager):
-    def active(
-        self,
-        organization: Optional["Organization"] = None,
-        user: Optional["User"] = None,
-        bench: Optional["Bench"] = None,
-        bench_version: Optional["BenchVersion"] = None,
-    ) -> models.QuerySet["Client"]:
-        active_cutoff = utcnow_with_tz() - timedelta(seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS)
-        qs = self.filter(
-            Q(last_seen_at__gte=active_cutoff)
-            & (Q(closed_at__isnull=True) | Q(closed_at__lt=F("last_seen_at")))
-        )
-        if organization is not None:
-            qs = qs.filter(user__memberships__organization=organization)
-        if user is not None:
-            qs = qs.filter(user=user)
-        if bench is not None:
-            qs = qs.filter(bench=bench)
-        if bench_version is not None:
-            qs = qs.filter(bench_version=bench_version)
-        return qs
-
-
-class Client(UUIDModel):
-    """A user's client (e.g. web browser window) connected to the server."""
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    last_seen_at = models.DateTimeField(null=True)
-    closed_at = models.DateTimeField(null=True)
-    user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="clients")
-    type = models.CharField(max_length=32, choices=ClientType.choices)
-    device_name = models.CharField(max_length=256, null=True, blank=True)
-    browser_name = models.CharField(max_length=256, null=True, blank=True)
-    # current location in the app
-    bench = models.ForeignKey("Bench", on_delete=models.SET_NULL, null=True, blank=True)
-    bench_version = models.ForeignKey(
-        "BenchVersion", on_delete=models.SET_NULL, null=True, blank=True
-    )
-    file_id = models.UUIDField(null=True, blank=True)
-    statement_id = models.UUIDField(null=True, blank=True)
-    field_id = models.UUIDField(null=True, blank=True)
-    record_id = models.UUIDField(null=True, blank=True)
-    path = models.CharField(max_length=256, null=True, blank=True)
-
-    @property
-    def active(self) -> bool:
-        if self.closed_at is not None and self.closed_at >= self.last_seen_at:
-            return False
-        active_cutoff = utcnow_with_tz() - timedelta(seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS)
-        return self.last_seen_at is not None and self.last_seen_at >= active_cutoff
-
-    @property
-    def present(self) -> bool:
-        if self.closed_at is not None and self.closed_at >= self.last_seen_at:
-            return False
-        present_cutoff = utcnow_with_tz() - timedelta(seconds=CLIENT_PRESENT_TIMEOUT_SECONDS)
-        return self.last_seen_at is not None and self.last_seen_at >= present_cutoff
-
-    def __str__(self):
-        active_str = "active" if self.active else "inactive"
-        return f"{self.user} {self.id} {active_str} ({self.type}, {self.device_name}, {self.browser_name})"
-
-    def __repr__(self):
-        return f"<Client {self}>"
-
-    objects = ClientManager()
