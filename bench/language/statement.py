@@ -6,7 +6,14 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from bench.language.code_ import HasCode
-from bench.language.const import NodeType, StatementType, TextHeadingLevel, TypeFlag, TypeTag
+from bench.language.const import (
+    NodeType,
+    StatementType,
+    StructType,
+    TextHeadingLevel,
+    TypeFlag,
+    TypeTag,
+)
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
 from bench.language.model import HasModel
@@ -36,7 +43,7 @@ from bench.utils.func import dict_minus
 from bench.utils.utils import IdentifierType, IdentT, identity, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import File
+    from bench.language import File, Policy
 
 
 @node_component
@@ -183,6 +190,9 @@ class Statement(ScopeNode, HasTags):
     )
 
     archived_at: datetime = struct_internal(14, default=None, reflect=True)
+    policies: Optional[list["Policy"]] = struct_internal(
+        20, default=None, struct_t=StructType.POLICY
+    )
     type: StatementType = struct_internal(30, default=StatementType.BLANK)
     file: Optional["File"] = node_ancestor(31, NodeType.FILE)
     name: str | None = struct_property(32, default=None, validate=validate_name)

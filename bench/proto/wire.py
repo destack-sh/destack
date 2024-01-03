@@ -18,6 +18,22 @@ if TYPE_CHECKING:
     from grpclib.metadata import Deadline
 
 
+class ActionKind(betterproto.Enum):
+    UNSPECIFIED = 0
+    CREATE = 1
+    UPDATE = 2
+    MOVE = 3
+    SOFT_DELETE = 4
+    RESTORE = 5
+    BUMP = 6
+    DELETE = 7
+    TRUNCATE = 8
+    START = 20
+    PAUSE = 21
+    RESUME = 22
+    KILL = 23
+
+
 class AggregationOp(betterproto.Enum):
     UNSPECIFIED = 0
     COUNT = 1
@@ -49,9 +65,10 @@ class BenchType(betterproto.Enum):
     WORKER_SET = 64
     USER = 80
     CLIENT = 84
-    NOTIFICATION = 89
-    ACCESS_CONTROL = 200
-    ACCESS_CONTROL_RULE = 201
+    BADGE = 85
+    NOTIFICATION = 99
+    POLICY = 200
+    POLICY_RULE = 201
     EXPRESSION = 210
     LOG_ENTRY = 220
     RUN_CODE_FRAME = 221
@@ -210,7 +227,8 @@ class NodeType(betterproto.Enum):
     WORKER_SET = 64
     USER = 80
     CLIENT = 84
-    NOTIFICATION = 89
+    BADGE = 85
+    NOTIFICATION = 99
 
 
 class NotificationStatus(betterproto.Enum):
@@ -224,6 +242,12 @@ class NotificationStatus(betterproto.Enum):
 class NotificationType(betterproto.Enum):
     UNSPECIFIED = 0
     EDIT = 1
+
+
+class PolicyEffect(betterproto.Enum):
+    UNSPECIFIED = 0
+    ALLOW = 1
+    DENY = 2
 
 
 class ProjectRegion(betterproto.Enum):
@@ -322,8 +346,8 @@ class StatementType(betterproto.Enum):
 
 class StructType(betterproto.Enum):
     UNSPECIFIED = 0
-    ACCESS_CONTROL = 200
-    ACCESS_CONTROL_RULE = 201
+    POLICY = 200
+    POLICY_RULE = 201
     EXPRESSION = 210
     LOG_ENTRY = 220
     RUN_CODE_FRAME = 221
@@ -470,16 +494,6 @@ class StartRunResponseErrorType(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
-class AccessControlData(betterproto.Message):
-    metatype: "BenchType" = betterproto.enum_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class AccessControlRuleData(betterproto.Message):
-    metatype: "BenchType" = betterproto.enum_field(1)
-
-
-@dataclass(eq=False, repr=False)
 class DependencyData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     name: str = betterproto.string_field(30)
@@ -525,6 +539,26 @@ class LogEntryData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class PolicyData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    name: str = betterproto.string_field(30)
+    rules: List["PolicyRuleData"] = betterproto.message_field(31)
+
+
+@dataclass(eq=False, repr=False)
+class PolicyRuleData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    subject_authenticated: bool = betterproto.bool_field(30)
+    subject_users_ck: str = betterproto.string_field(31)
+    effect: "PolicyEffect" = betterproto.enum_field(40)
+    verb: List[str] = betterproto.string_field(41)
+    object_type: str = betterproto.string_field(50)
+    object_nodes_ck: str = betterproto.string_field(51)
+    object_fields_ck: str = betterproto.string_field(52)
+    condition: "ExpressionData" = betterproto.message_field(60)
+
+
+@dataclass(eq=False, repr=False)
 class RunCodeFrameData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     filename: str = betterproto.string_field(30)
@@ -551,6 +585,30 @@ class WorkerImageData(betterproto.Message):
     version: str = betterproto.string_field(31)
     platform: str = betterproto.string_field(32)
     dependencies: List["DependencyData"] = betterproto.message_field(33)
+
+
+@dataclass(eq=False, repr=False)
+class BadgeData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    module_id: str = betterproto.string_field(5)
+    bench_id: str = betterproto.string_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(15)
+    name: str = betterproto.string_field(30)
+    policy: "PolicyData" = betterproto.message_field(31)
+    link_enabled: bool = betterproto.bool_field(40)
+    link_token: str = betterproto.string_field(41)
+    link_password_digest: str = betterproto.string_field(42)
+    secret_enabled: bool = betterproto.bool_field(50)
+    secret_value_digest: str = betterproto.string_field(51)
+    secret_value: str = betterproto.string_field(52)
 
 
 @dataclass(eq=False, repr=False)
@@ -653,7 +711,9 @@ class FileData(betterproto.Message):
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
+    policies: List["PolicyData"] = betterproto.message_field(20)
     name: str = betterproto.string_field(30)
+    order_key: str = betterproto.string_field(31)
 
 
 @dataclass(eq=False, repr=False)
@@ -860,6 +920,7 @@ class StatementData(betterproto.Message):
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
+    policies: List["PolicyData"] = betterproto.message_field(20)
     type: "StatementType" = betterproto.enum_field(30)
     name: str = betterproto.string_field(32)
     order_key: str = betterproto.string_field(33)
@@ -942,6 +1003,7 @@ class ViewData(betterproto.Message):
     deleted_at: datetime = betterproto.message_field(13)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
+    policies: List["PolicyData"] = betterproto.message_field(20)
     name: str = betterproto.string_field(30)
     order_key: str = betterproto.string_field(31)
     node_type: "NodeType" = betterproto.enum_field(32)
@@ -994,13 +1056,14 @@ class SomeNodeData(betterproto.Message):
     worker_set: "WorkerSetData" = betterproto.message_field(16, group="node")
     user: "UserData" = betterproto.message_field(17, group="node")
     client: "ClientData" = betterproto.message_field(18, group="node")
-    notification: "NotificationData" = betterproto.message_field(19, group="node")
+    badge: "BadgeData" = betterproto.message_field(19, group="node")
+    notification: "NotificationData" = betterproto.message_field(20, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
-    access_control: "AccessControlData" = betterproto.message_field(1, group="struct")
-    access_control_rule: "AccessControlRuleData" = betterproto.message_field(2, group="struct")
+    policy: "PolicyData" = betterproto.message_field(1, group="struct")
+    policy_rule: "PolicyRuleData" = betterproto.message_field(2, group="struct")
     expression: "ExpressionData" = betterproto.message_field(3, group="struct")
     log_entry: "LogEntryData" = betterproto.message_field(4, group="struct")
     run_code_frame: "RunCodeFrameData" = betterproto.message_field(5, group="struct")

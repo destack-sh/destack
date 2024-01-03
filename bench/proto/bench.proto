@@ -3,6 +3,22 @@ syntax = "proto3";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
+enum ActionKind {
+  ACTION_KIND_UNSPECIFIED = 0;
+  ACTION_KIND_CREATE = 1;
+  ACTION_KIND_UPDATE = 2;
+  ACTION_KIND_MOVE = 3;
+  ACTION_KIND_SOFT_DELETE = 4;
+  ACTION_KIND_RESTORE = 5;
+  ACTION_KIND_BUMP = 6;
+  ACTION_KIND_DELETE = 7;
+  ACTION_KIND_TRUNCATE = 8;
+  ACTION_KIND_START = 20;
+  ACTION_KIND_PAUSE = 21;
+  ACTION_KIND_RESUME = 22;
+  ACTION_KIND_KILL = 23;
+}
+
 enum AggregationOp {
   AGGREGATION_OP_UNSPECIFIED = 0;
   AGGREGATION_OP_COUNT = 1;
@@ -34,9 +50,10 @@ enum BenchType {
   BENCH_TYPE_WORKER_SET = 64;
   BENCH_TYPE_USER = 80;
   BENCH_TYPE_CLIENT = 84;
-  BENCH_TYPE_NOTIFICATION = 89;
-  BENCH_TYPE_ACCESS_CONTROL = 200;
-  BENCH_TYPE_ACCESS_CONTROL_RULE = 201;
+  BENCH_TYPE_BADGE = 85;
+  BENCH_TYPE_NOTIFICATION = 99;
+  BENCH_TYPE_POLICY = 200;
+  BENCH_TYPE_POLICY_RULE = 201;
   BENCH_TYPE_EXPRESSION = 210;
   BENCH_TYPE_LOG_ENTRY = 220;
   BENCH_TYPE_RUN_CODE_FRAME = 221;
@@ -196,7 +213,8 @@ enum NodeType {
   NODE_TYPE_WORKER_SET = 64;
   NODE_TYPE_USER = 80;
   NODE_TYPE_CLIENT = 84;
-  NODE_TYPE_NOTIFICATION = 89;
+  NODE_TYPE_BADGE = 85;
+  NODE_TYPE_NOTIFICATION = 99;
 }
 
 enum NotificationStatus {
@@ -210,6 +228,12 @@ enum NotificationStatus {
 enum NotificationType {
   NOTIFICATION_TYPE_UNSPECIFIED = 0;
   NOTIFICATION_TYPE_EDIT = 1;
+}
+
+enum PolicyEffect {
+  POLICY_EFFECT_UNSPECIFIED = 0;
+  POLICY_EFFECT_ALLOW = 1;
+  POLICY_EFFECT_DENY = 2;
 }
 
 enum ProjectRegion {
@@ -309,8 +333,8 @@ enum StatementType {
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_ACCESS_CONTROL = 200;
-  STRUCT_TYPE_ACCESS_CONTROL_RULE = 201;
+  STRUCT_TYPE_POLICY = 200;
+  STRUCT_TYPE_POLICY_RULE = 201;
   STRUCT_TYPE_EXPRESSION = 210;
   STRUCT_TYPE_LOG_ENTRY = 220;
   STRUCT_TYPE_RUN_CODE_FRAME = 221;
@@ -439,14 +463,6 @@ enum WorkerSetStatus {
   WORKER_SET_STATUS_UNKNOWN = 7;
 }
 
-message AccessControlData {
-  BenchType metatype = 1;
-}
-
-message AccessControlRuleData {
-  BenchType metatype = 1;
-}
-
 message DependencyData {
   BenchType metatype = 1;
   string name = 30;
@@ -488,6 +504,24 @@ message LogEntryData {
   google.protobuf.Struct value = 40;
 }
 
+message PolicyData {
+  BenchType metatype = 1;
+  string name = 30;
+  repeated PolicyRuleData rules = 31;
+}
+
+message PolicyRuleData {
+  BenchType metatype = 1;
+  bool subject_authenticated = 30;
+  string subject_users_ck = 31;
+  PolicyEffect effect = 40;
+  repeated string verb = 41;
+  string object_type = 50;
+  string object_nodes_ck = 51;
+  string object_fields_ck = 52;
+  ExpressionData condition = 60;
+}
+
 message RunCodeFrameData {
   BenchType metatype = 1;
   string filename = 30;
@@ -512,6 +546,29 @@ message WorkerImageData {
   string version = 31;
   string platform = 32;
   repeated DependencyData dependencies = 33;
+}
+
+message BadgeData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  string module_id = 5;
+  string bench_id = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  string name = 30;
+  PolicyData policy = 31;
+  bool link_enabled = 40;
+  string link_token = 41;
+  string link_password_digest = 42;
+  bool secret_enabled = 50;
+  string secret_value_digest = 51;
+  string secret_value = 52;
 }
 
 message BenchData {
@@ -609,7 +666,9 @@ message FileData {
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
+  repeated PolicyData policies = 20;
   string name = 30;
+  string order_key = 31;
 }
 
 message IssueData {
@@ -806,6 +865,7 @@ message StatementData {
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
+  repeated PolicyData policies = 20;
   StatementType type = 30;
   string name = 32;
   string order_key = 33;
@@ -884,6 +944,7 @@ message ViewData {
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
+  repeated PolicyData policies = 20;
   string name = 30;
   string order_key = 31;
   NodeType node_type = 32;
@@ -935,14 +996,15 @@ message SomeNodeData {
     WorkerSetData worker_set = 16;
     UserData user = 17;
     ClientData client = 18;
-    NotificationData notification = 19;
+    BadgeData badge = 19;
+    NotificationData notification = 20;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    AccessControlData access_control = 1;
-    AccessControlRuleData access_control_rule = 2;
+    PolicyData policy = 1;
+    PolicyRuleData policy_rule = 2;
     ExpressionData expression = 3;
     LogEntryData log_entry = 4;
     RunCodeFrameData run_code_frame = 5;

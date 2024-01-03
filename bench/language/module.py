@@ -340,6 +340,7 @@ class Property(_FieldExpressionBase):
     is_wired: bool = UNSET  # serialized onto wire?
     is_stored: bool = UNSET  # stored in DB?
     is_indexed_in_pg: bool = False  # indexed in DB?
+    is_unique: bool = False  # unique index in DB?
     is_deferred: bool = False  # not loaded immediately (only for stored node properties)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
     column_type: ColumnType | None = UNSET  # auto-detect
@@ -661,6 +662,7 @@ def struct_property(
     validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
     require: bool = False,
     reflect: bool = False,
+    unique: bool = False,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
     struct_t: StructType = None,
@@ -679,6 +681,7 @@ def struct_property(
         references=try_tuple(references),
         struct_type=struct_t,
         column_type=column_type,
+        is_unique=unique,
     )
 
 
@@ -698,6 +701,7 @@ def struct_internal(
     index_in_pg: bool = False,
     defer: bool = False,
     encrypt: bool = False,
+    unique: bool = False,
 ):
     """Internal only struct/node property."""
     return Property(
@@ -716,6 +720,7 @@ def struct_internal(
         is_deferred=defer,
         is_encrypted=encrypt,
         is_indexed_in_pg=index_in_pg,
+        is_unique=unique,
     )
 
 
@@ -2495,7 +2500,7 @@ class Node(Struct):
     bench: Optional["Bench"] = node_ancestor(6, NodeType.BENCH, store=False, wire=True)
     # prototype/template: Optional["Node"] = node_template(7)
 
-    # 10-29: reserved for node status/tracking
+    # 10-29: reserved for node tracking
     revision: int = struct_internal(10, default=0, require=True, reflect=True)
     created_at: datetime = struct_internal(11, default=None, require=True, reflect=True)
     updated_at: datetime = struct_internal(12, default=None, require=True, reflect=True)
@@ -2508,6 +2513,7 @@ class Node(Struct):
     # created_by: Optional["User"] = struct_internal(17, default=None, reflect=True)
     # last_edited_by: Optional["User"] = struct_internal(18, default=None, reflect=True)
     # last_changed_by: Optional["User"] = struct_internal(19, default=None, reflect=True)
+    # policies: Optional[list["Policy"]] = struct_internal(20, default=None, struct_t=StructType.POLICY)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>

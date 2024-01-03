@@ -32,7 +32,6 @@ logger = structlog.get_logger(__name__)
 
 class BenchVisibility(models.TextChoices):
     PUBLIC = "public", "Public"
-    SOURCE_PRIVATE = "source_private", "Source Private"
     PRIVATE = "private", "Private"
 
 

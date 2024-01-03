@@ -32,18 +32,19 @@ from bench.sql.core import (
     BASE_RECORD_TABLE,
     CONSTRUCT_TABLE,
     INTERNAL_TABLES,
+    CascadeAction,
     Column,
     ColumnType,
     Constraint,
+    ConstraintType,
     Construct,
     ConstructInfo,
     ConstructKind,
     Index,
+    IndexType,
     SqlPrimitive,
     Table,
     TableConstruct,
-    CascadeAction,
-    IndexType,
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL, to_all_caps
@@ -96,6 +97,14 @@ def map_bench_node_to_pg_table(node: type[Node]) -> Table:
                 columns=[column.name],
             )
             indexes.append(index)
+        if prop.is_unique:
+            constraint = Constraint(
+                f"bench_unique_{prop.name}",
+                type=ConstraintType.UNIQUE,
+                source=prop.id,
+                columns=[column.name],
+            )
+            constraints.append(constraint)
 
     # index module + deleted_at and module + archived_at if applicable
     for prop_name in ("deleted_at", "archived_at"):
@@ -1244,3 +1253,6 @@ async def write_host_edits_to_pg(
     return_nodes: bool = False,
 ) -> list["AnyNodeData"] | None:
     raise NotImplementedError("nocheckin: write_host_edits_to_pg")
+
+
+# nocheckin: read_nodes_from_pg

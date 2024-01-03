@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 
-from bench.language.const import NodeType
+from bench.language.const import NodeType, StructType
 from bench.language.module import (
     Module,
     NodeList,
@@ -19,14 +19,18 @@ from bench.language.validation import validate_name
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language.statement import Statement
+    from bench.language import Policy, Statement
 
 
 @node(NodeType.FILE, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
     parent: Union["File", Module] = node_parent(4, NodeType.FILE, NodeType.MODULE)
     archived_at: datetime = struct_internal(14, default=None, reflect=True)
+    policies: Optional[list["Policy"]] = struct_internal(
+        20, default=None, struct_t=StructType.POLICY
+    )
     name: Optional[str] = struct_property(30, validate=validate_name)
+    order_key: Optional[str] = struct_internal(31, default=None, unique=True)
 
     children: NodeList[Union["File", "Statement"]] = node_children(
         NodeType.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
