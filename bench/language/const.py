@@ -51,10 +51,11 @@ class NodeType(ProtoStrEnum):
     USER = "USER", 80
     # ORGANIZATION = "ORGANIZATION", 81
     # MEMBERSHIP = "MEMBERSHIP", 82
+    # INVITE = "INVITE", 83
     CLIENT = "CLIENT", 84
-    NOTIFICATION = "NOTIFICATION", 89
-
+    BADGE = "BADGE", 85
     # COMMENT = "COMMENT", 90
+    NOTIFICATION = "NOTIFICATION", 99
 
     @property
     def caps_name(self):
@@ -67,8 +68,8 @@ class NodeType(ProtoStrEnum):
 
 class StructType(ProtoStrEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
-    ACCESS_CONTROL = "ACCESS_CONTROL", 200
-    ACCESS_CONTROL_RULE = "ACCESS_CONTROL_RULE", 201
+    POLICY = "POLICY", 200
+    POLICY_RULE = "POLICY_RULE", 201
     EXPRESSION = "EXPRESSION", 210
     LOG_ENTRY = "LOG_ENTRY", 220
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
@@ -125,6 +126,28 @@ class EditKind(ProtoStrEnum):
     BUMP = "BUMP", 6
     DELETE = "DELETE", 7
     TRUNCATE = "TRUNCATE", 8
+
+
+class PolicyEffect(ProtoStrEnum):
+    ALLOW = "ALLOW", 1
+    DENY = "DENY", 2
+
+
+class ActionKind(ProtoStrEnum):
+    # edit kinds
+    CREATE = "CREATE", 1
+    UPDATE = "UPDATE", 2
+    MOVE = "MOVE", 3
+    SOFT_DELETE = "SOFT_DELETE", 4
+    RESTORE = "RESTORE", 5
+    BUMP = "BUMP", 6
+    DELETE = "DELETE", 7
+    TRUNCATE = "TRUNCATE", 8
+    # run kinds
+    START = "START_RUN", 20
+    PAUSE = "PAUSE_RUN", 21
+    RESUME = "RESUME_RUN", 22
+    KILL = "KILL_RUN", 23
 
 
 class ClientType(ProtoStrEnum):

@@ -1,9 +1,11 @@
-from .access import AccessControl, AccessControlRule
+from .access import Policy, PolicyRule
 from .blob import Blob
 from .builtin import symbolx_bench, symbolx_lib
 from .const import (
+    ActionKind,
     ConditionalOp,
     IssueType,
+    PolicyEffect,
     QueryEngine,
     ScheduleType,
     SessionAccessLevel,
@@ -37,8 +39,7 @@ from .view import View
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
     "A",
-    "AccessControl",
-    "AccessControlRule",
+    "ActionKind",
     "BenchError",
     "Blob",
     "C",
@@ -63,6 +64,9 @@ __all__ = [
     "Node",
     "NodeVisitor",
     "PermissionError",
+    "Policy",
+    "PolicyEffect",
+    "PolicyRule",
     "Property",
     "QueryEngine",
     "Record",

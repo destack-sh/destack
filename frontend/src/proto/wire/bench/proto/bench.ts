@@ -6,6 +6,101 @@ import Long = require("long");
 
 export const protobufPackage = "";
 
+export enum ActionKind {
+  UNSPECIFIED = 0,
+  CREATE = 1,
+  UPDATE = 2,
+  MOVE = 3,
+  SOFT_DELETE = 4,
+  RESTORE = 5,
+  BUMP = 6,
+  DELETE = 7,
+  TRUNCATE = 8,
+  START = 20,
+  PAUSE = 21,
+  RESUME = 22,
+  KILL = 23,
+}
+
+export function actionKindFromJSON(object: any): ActionKind {
+  switch (object) {
+    case 0:
+    case "ACTION_KIND_UNSPECIFIED":
+      return ActionKind.UNSPECIFIED;
+    case 1:
+    case "ACTION_KIND_CREATE":
+      return ActionKind.CREATE;
+    case 2:
+    case "ACTION_KIND_UPDATE":
+      return ActionKind.UPDATE;
+    case 3:
+    case "ACTION_KIND_MOVE":
+      return ActionKind.MOVE;
+    case 4:
+    case "ACTION_KIND_SOFT_DELETE":
+      return ActionKind.SOFT_DELETE;
+    case 5:
+    case "ACTION_KIND_RESTORE":
+      return ActionKind.RESTORE;
+    case 6:
+    case "ACTION_KIND_BUMP":
+      return ActionKind.BUMP;
+    case 7:
+    case "ACTION_KIND_DELETE":
+      return ActionKind.DELETE;
+    case 8:
+    case "ACTION_KIND_TRUNCATE":
+      return ActionKind.TRUNCATE;
+    case 20:
+    case "ACTION_KIND_START":
+      return ActionKind.START;
+    case 21:
+    case "ACTION_KIND_PAUSE":
+      return ActionKind.PAUSE;
+    case 22:
+    case "ACTION_KIND_RESUME":
+      return ActionKind.RESUME;
+    case 23:
+    case "ACTION_KIND_KILL":
+      return ActionKind.KILL;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ActionKind");
+  }
+}
+
+export function actionKindToJSON(object: ActionKind): string {
+  switch (object) {
+    case ActionKind.UNSPECIFIED:
+      return "ACTION_KIND_UNSPECIFIED";
+    case ActionKind.CREATE:
+      return "ACTION_KIND_CREATE";
+    case ActionKind.UPDATE:
+      return "ACTION_KIND_UPDATE";
+    case ActionKind.MOVE:
+      return "ACTION_KIND_MOVE";
+    case ActionKind.SOFT_DELETE:
+      return "ACTION_KIND_SOFT_DELETE";
+    case ActionKind.RESTORE:
+      return "ACTION_KIND_RESTORE";
+    case ActionKind.BUMP:
+      return "ACTION_KIND_BUMP";
+    case ActionKind.DELETE:
+      return "ACTION_KIND_DELETE";
+    case ActionKind.TRUNCATE:
+      return "ACTION_KIND_TRUNCATE";
+    case ActionKind.START:
+      return "ACTION_KIND_START";
+    case ActionKind.PAUSE:
+      return "ACTION_KIND_PAUSE";
+    case ActionKind.RESUME:
+      return "ACTION_KIND_RESUME";
+    case ActionKind.KILL:
+      return "ACTION_KIND_KILL";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ActionKind");
+  }
+}
+
 export enum AggregationOp {
   UNSPECIFIED = 0,
   COUNT = 1,
@@ -91,9 +186,10 @@ export enum BenchType {
   WORKER_SET = 64,
   USER = 80,
   CLIENT = 84,
-  NOTIFICATION = 89,
-  ACCESS_CONTROL = 200,
-  ACCESS_CONTROL_RULE = 201,
+  BADGE = 85,
+  NOTIFICATION = 99,
+  POLICY = 200,
+  POLICY_RULE = 201,
   EXPRESSION = 210,
   LOG_ENTRY = 220,
   RUN_CODE_FRAME = 221,
@@ -162,15 +258,18 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 84:
     case "BENCH_TYPE_CLIENT":
       return BenchType.CLIENT;
-    case 89:
+    case 85:
+    case "BENCH_TYPE_BADGE":
+      return BenchType.BADGE;
+    case 99:
     case "BENCH_TYPE_NOTIFICATION":
       return BenchType.NOTIFICATION;
     case 200:
-    case "BENCH_TYPE_ACCESS_CONTROL":
-      return BenchType.ACCESS_CONTROL;
+    case "BENCH_TYPE_POLICY":
+      return BenchType.POLICY;
     case 201:
-    case "BENCH_TYPE_ACCESS_CONTROL_RULE":
-      return BenchType.ACCESS_CONTROL_RULE;
+    case "BENCH_TYPE_POLICY_RULE":
+      return BenchType.POLICY_RULE;
     case 210:
     case "BENCH_TYPE_EXPRESSION":
       return BenchType.EXPRESSION;
@@ -237,12 +336,14 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_USER";
     case BenchType.CLIENT:
       return "BENCH_TYPE_CLIENT";
+    case BenchType.BADGE:
+      return "BENCH_TYPE_BADGE";
     case BenchType.NOTIFICATION:
       return "BENCH_TYPE_NOTIFICATION";
-    case BenchType.ACCESS_CONTROL:
-      return "BENCH_TYPE_ACCESS_CONTROL";
-    case BenchType.ACCESS_CONTROL_RULE:
-      return "BENCH_TYPE_ACCESS_CONTROL_RULE";
+    case BenchType.POLICY:
+      return "BENCH_TYPE_POLICY";
+    case BenchType.POLICY_RULE:
+      return "BENCH_TYPE_POLICY_RULE";
     case BenchType.EXPRESSION:
       return "BENCH_TYPE_EXPRESSION";
     case BenchType.LOG_ENTRY:
@@ -1046,7 +1147,8 @@ export enum NodeType {
   WORKER_SET = 64,
   USER = 80,
   CLIENT = 84,
-  NOTIFICATION = 89,
+  BADGE = 85,
+  NOTIFICATION = 99,
 }
 
 export function nodeTypeFromJSON(object: any): NodeType {
@@ -1108,7 +1210,10 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case 84:
     case "NODE_TYPE_CLIENT":
       return NodeType.CLIENT;
-    case 89:
+    case 85:
+    case "NODE_TYPE_BADGE":
+      return NodeType.BADGE;
+    case 99:
     case "NODE_TYPE_NOTIFICATION":
       return NodeType.NOTIFICATION;
     default:
@@ -1156,6 +1261,8 @@ export function nodeTypeToJSON(object: NodeType): string {
       return "NODE_TYPE_USER";
     case NodeType.CLIENT:
       return "NODE_TYPE_CLIENT";
+    case NodeType.BADGE:
+      return "NODE_TYPE_BADGE";
     case NodeType.NOTIFICATION:
       return "NODE_TYPE_NOTIFICATION";
     default:
@@ -1236,6 +1343,41 @@ export function notificationTypeToJSON(object: NotificationType): string {
       return "NOTIFICATION_TYPE_EDIT";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum NotificationType");
+  }
+}
+
+export enum PolicyEffect {
+  UNSPECIFIED = 0,
+  ALLOW = 1,
+  DENY = 2,
+}
+
+export function policyEffectFromJSON(object: any): PolicyEffect {
+  switch (object) {
+    case 0:
+    case "POLICY_EFFECT_UNSPECIFIED":
+      return PolicyEffect.UNSPECIFIED;
+    case 1:
+    case "POLICY_EFFECT_ALLOW":
+      return PolicyEffect.ALLOW;
+    case 2:
+    case "POLICY_EFFECT_DENY":
+      return PolicyEffect.DENY;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum PolicyEffect");
+  }
+}
+
+export function policyEffectToJSON(object: PolicyEffect): string {
+  switch (object) {
+    case PolicyEffect.UNSPECIFIED:
+      return "POLICY_EFFECT_UNSPECIFIED";
+    case PolicyEffect.ALLOW:
+      return "POLICY_EFFECT_ALLOW";
+    case PolicyEffect.DENY:
+      return "POLICY_EFFECT_DENY";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum PolicyEffect");
   }
 }
 
@@ -1794,8 +1936,8 @@ export function statementTypeToJSON(object: StatementType): string {
 
 export enum StructType {
   UNSPECIFIED = 0,
-  ACCESS_CONTROL = 200,
-  ACCESS_CONTROL_RULE = 201,
+  POLICY = 200,
+  POLICY_RULE = 201,
   EXPRESSION = 210,
   LOG_ENTRY = 220,
   RUN_CODE_FRAME = 221,
@@ -1811,11 +1953,11 @@ export function structTypeFromJSON(object: any): StructType {
     case "STRUCT_TYPE_UNSPECIFIED":
       return StructType.UNSPECIFIED;
     case 200:
-    case "STRUCT_TYPE_ACCESS_CONTROL":
-      return StructType.ACCESS_CONTROL;
+    case "STRUCT_TYPE_POLICY":
+      return StructType.POLICY;
     case 201:
-    case "STRUCT_TYPE_ACCESS_CONTROL_RULE":
-      return StructType.ACCESS_CONTROL_RULE;
+    case "STRUCT_TYPE_POLICY_RULE":
+      return StructType.POLICY_RULE;
     case 210:
     case "STRUCT_TYPE_EXPRESSION":
       return StructType.EXPRESSION;
@@ -1846,10 +1988,10 @@ export function structTypeToJSON(object: StructType): string {
   switch (object) {
     case StructType.UNSPECIFIED:
       return "STRUCT_TYPE_UNSPECIFIED";
-    case StructType.ACCESS_CONTROL:
-      return "STRUCT_TYPE_ACCESS_CONTROL";
-    case StructType.ACCESS_CONTROL_RULE:
-      return "STRUCT_TYPE_ACCESS_CONTROL_RULE";
+    case StructType.POLICY:
+      return "STRUCT_TYPE_POLICY";
+    case StructType.POLICY_RULE:
+      return "STRUCT_TYPE_POLICY_RULE";
     case StructType.EXPRESSION:
       return "STRUCT_TYPE_EXPRESSION";
     case StructType.LOG_ENTRY:
@@ -2575,14 +2717,6 @@ export function workerSetStatusToJSON(object: WorkerSetStatus): string {
   }
 }
 
-export interface AccessControlData {
-  metatype: BenchType;
-}
-
-export interface AccessControlRuleData {
-  metatype: BenchType;
-}
-
 export interface DependencyData {
   metatype: BenchType;
   name: string;
@@ -2624,6 +2758,24 @@ export interface LogEntryData {
   value: { [key: string]: any } | undefined;
 }
 
+export interface PolicyData {
+  metatype: BenchType;
+  name: string;
+  rules: PolicyRuleData[];
+}
+
+export interface PolicyRuleData {
+  metatype: BenchType;
+  subjectAuthenticated: boolean;
+  subjectUsersCk: string;
+  effect: PolicyEffect;
+  verb: string[];
+  objectType: string;
+  objectNodesCk: string;
+  objectFieldsCk: string;
+  condition: ExpressionData | undefined;
+}
+
 export interface RunCodeFrameData {
   metatype: BenchType;
   filename: string;
@@ -2648,6 +2800,29 @@ export interface WorkerImageData {
   version: string;
   platform: string;
   dependencies: DependencyData[];
+}
+
+export interface BadgeData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  moduleId: string;
+  benchId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  name: string;
+  policy: PolicyData | undefined;
+  linkEnabled: boolean;
+  linkToken: string;
+  linkPasswordDigest: string;
+  secretEnabled: boolean;
+  secretValueDigest: string;
+  secretValue: string;
 }
 
 export interface BenchData {
@@ -2745,7 +2920,9 @@ export interface FileData {
   archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
+  policies: PolicyData[];
   name: string;
+  orderKey: string;
 }
 
 export interface IssueData {
@@ -2942,6 +3119,7 @@ export interface StatementData {
   archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
+  policies: PolicyData[];
   type: StatementType;
   name: string;
   orderKey: string;
@@ -3020,6 +3198,7 @@ export interface ViewData {
   deletedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
+  policies: PolicyData[];
   name: string;
   orderKey: string;
   nodeType: NodeType;
@@ -3071,14 +3250,15 @@ export interface SomeNodeData {
     | { $case: "workerSet"; workerSet: WorkerSetData }
     | { $case: "user"; user: UserData }
     | { $case: "client"; client: ClientData }
+    | { $case: "badge"; badge: BadgeData }
     | { $case: "notification"; notification: NotificationData }
     | undefined;
 }
 
 export interface SomeStructData {
   struct?:
-    | { $case: "accessControl"; accessControl: AccessControlData }
-    | { $case: "accessControlRule"; accessControlRule: AccessControlRuleData }
+    | { $case: "policy"; policy: PolicyData }
+    | { $case: "policyRule"; policyRule: PolicyRuleData }
     | { $case: "expression"; expression: ExpressionData }
     | { $case: "logEntry"; logEntry: LogEntryData }
     | { $case: "runCodeFrame"; runCodeFrame: RunCodeFrameData }
@@ -3093,120 +3273,6 @@ export interface ModuleTreeData {
   module: ModuleData | undefined;
   nodes: SomeNodeData[];
 }
-
-function createBaseAccessControlData(): AccessControlData {
-  return { metatype: 0 };
-}
-
-export const AccessControlData = {
-  encode(message: AccessControlData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.metatype !== 0) {
-      writer.uint32(8).int32(message.metatype);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): AccessControlData {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseAccessControlData();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 8) {
-            break;
-          }
-
-          message.metatype = reader.int32() as any;
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): AccessControlData {
-    return { metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0 };
-  },
-
-  toJSON(message: AccessControlData): unknown {
-    const obj: any = {};
-    if (message.metatype !== 0) {
-      obj.metatype = benchTypeToJSON(message.metatype);
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<AccessControlData>, I>>(base?: I): AccessControlData {
-    return AccessControlData.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<AccessControlData>, I>>(object: I): AccessControlData {
-    const message = createBaseAccessControlData();
-    message.metatype = object.metatype ?? 0;
-    return message;
-  },
-};
-
-function createBaseAccessControlRuleData(): AccessControlRuleData {
-  return { metatype: 0 };
-}
-
-export const AccessControlRuleData = {
-  encode(message: AccessControlRuleData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.metatype !== 0) {
-      writer.uint32(8).int32(message.metatype);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): AccessControlRuleData {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseAccessControlRuleData();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 8) {
-            break;
-          }
-
-          message.metatype = reader.int32() as any;
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): AccessControlRuleData {
-    return { metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0 };
-  },
-
-  toJSON(message: AccessControlRuleData): unknown {
-    const obj: any = {};
-    if (message.metatype !== 0) {
-      obj.metatype = benchTypeToJSON(message.metatype);
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<AccessControlRuleData>, I>>(base?: I): AccessControlRuleData {
-    return AccessControlRuleData.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<AccessControlRuleData>, I>>(object: I): AccessControlRuleData {
-    const message = createBaseAccessControlRuleData();
-    message.metatype = object.metatype ?? 0;
-    return message;
-  },
-};
 
 function createBaseDependencyData(): DependencyData {
   return { metatype: 0, name: "", version: "" };
@@ -3835,6 +3901,289 @@ export const LogEntryData = {
   },
 };
 
+function createBasePolicyData(): PolicyData {
+  return { metatype: 0, name: "", rules: [] };
+}
+
+export const PolicyData = {
+  encode(message: PolicyData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.name !== "") {
+      writer.uint32(242).string(message.name);
+    }
+    for (const v of message.rules) {
+      PolicyRuleData.encode(v!, writer.uint32(250).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PolicyData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePolicyData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 30:
+          if (tag !== 242) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        case 31:
+          if (tag !== 250) {
+            break;
+          }
+
+          message.rules.push(PolicyRuleData.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PolicyData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      rules: globalThis.Array.isArray(object?.rules) ? object.rules.map((e: any) => PolicyRuleData.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: PolicyData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.rules?.length) {
+      obj.rules = message.rules.map((e) => PolicyRuleData.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PolicyData>, I>>(base?: I): PolicyData {
+    return PolicyData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PolicyData>, I>>(object: I): PolicyData {
+    const message = createBasePolicyData();
+    message.metatype = object.metatype ?? 0;
+    message.name = object.name ?? "";
+    message.rules = object.rules?.map((e) => PolicyRuleData.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePolicyRuleData(): PolicyRuleData {
+  return {
+    metatype: 0,
+    subjectAuthenticated: false,
+    subjectUsersCk: "",
+    effect: 0,
+    verb: [],
+    objectType: "",
+    objectNodesCk: "",
+    objectFieldsCk: "",
+    condition: undefined,
+  };
+}
+
+export const PolicyRuleData = {
+  encode(message: PolicyRuleData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.subjectAuthenticated === true) {
+      writer.uint32(240).bool(message.subjectAuthenticated);
+    }
+    if (message.subjectUsersCk !== "") {
+      writer.uint32(250).string(message.subjectUsersCk);
+    }
+    if (message.effect !== 0) {
+      writer.uint32(320).int32(message.effect);
+    }
+    for (const v of message.verb) {
+      writer.uint32(330).string(v!);
+    }
+    if (message.objectType !== "") {
+      writer.uint32(402).string(message.objectType);
+    }
+    if (message.objectNodesCk !== "") {
+      writer.uint32(410).string(message.objectNodesCk);
+    }
+    if (message.objectFieldsCk !== "") {
+      writer.uint32(418).string(message.objectFieldsCk);
+    }
+    if (message.condition !== undefined) {
+      ExpressionData.encode(message.condition, writer.uint32(482).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PolicyRuleData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePolicyRuleData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 30:
+          if (tag !== 240) {
+            break;
+          }
+
+          message.subjectAuthenticated = reader.bool();
+          continue;
+        case 31:
+          if (tag !== 250) {
+            break;
+          }
+
+          message.subjectUsersCk = reader.string();
+          continue;
+        case 40:
+          if (tag !== 320) {
+            break;
+          }
+
+          message.effect = reader.int32() as any;
+          continue;
+        case 41:
+          if (tag !== 330) {
+            break;
+          }
+
+          message.verb.push(reader.string());
+          continue;
+        case 50:
+          if (tag !== 402) {
+            break;
+          }
+
+          message.objectType = reader.string();
+          continue;
+        case 51:
+          if (tag !== 410) {
+            break;
+          }
+
+          message.objectNodesCk = reader.string();
+          continue;
+        case 52:
+          if (tag !== 418) {
+            break;
+          }
+
+          message.objectFieldsCk = reader.string();
+          continue;
+        case 60:
+          if (tag !== 482) {
+            break;
+          }
+
+          message.condition = ExpressionData.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PolicyRuleData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      subjectAuthenticated: isSet(object.subjectAuthenticated)
+        ? globalThis.Boolean(object.subjectAuthenticated)
+        : false,
+      subjectUsersCk: isSet(object.subjectUsersCk) ? globalThis.String(object.subjectUsersCk) : "",
+      effect: isSet(object.effect) ? policyEffectFromJSON(object.effect) : 0,
+      verb: globalThis.Array.isArray(object?.verb) ? object.verb.map((e: any) => globalThis.String(e)) : [],
+      objectType: isSet(object.objectType) ? globalThis.String(object.objectType) : "",
+      objectNodesCk: isSet(object.objectNodesCk) ? globalThis.String(object.objectNodesCk) : "",
+      objectFieldsCk: isSet(object.objectFieldsCk) ? globalThis.String(object.objectFieldsCk) : "",
+      condition: isSet(object.condition) ? ExpressionData.fromJSON(object.condition) : undefined,
+    };
+  },
+
+  toJSON(message: PolicyRuleData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.subjectAuthenticated === true) {
+      obj.subjectAuthenticated = message.subjectAuthenticated;
+    }
+    if (message.subjectUsersCk !== "") {
+      obj.subjectUsersCk = message.subjectUsersCk;
+    }
+    if (message.effect !== 0) {
+      obj.effect = policyEffectToJSON(message.effect);
+    }
+    if (message.verb?.length) {
+      obj.verb = message.verb;
+    }
+    if (message.objectType !== "") {
+      obj.objectType = message.objectType;
+    }
+    if (message.objectNodesCk !== "") {
+      obj.objectNodesCk = message.objectNodesCk;
+    }
+    if (message.objectFieldsCk !== "") {
+      obj.objectFieldsCk = message.objectFieldsCk;
+    }
+    if (message.condition !== undefined) {
+      obj.condition = ExpressionData.toJSON(message.condition);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PolicyRuleData>, I>>(base?: I): PolicyRuleData {
+    return PolicyRuleData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PolicyRuleData>, I>>(object: I): PolicyRuleData {
+    const message = createBasePolicyRuleData();
+    message.metatype = object.metatype ?? 0;
+    message.subjectAuthenticated = object.subjectAuthenticated ?? false;
+    message.subjectUsersCk = object.subjectUsersCk ?? "";
+    message.effect = object.effect ?? 0;
+    message.verb = object.verb?.map((e) => e) || [];
+    message.objectType = object.objectType ?? "";
+    message.objectNodesCk = object.objectNodesCk ?? "";
+    message.objectFieldsCk = object.objectFieldsCk ?? "";
+    message.condition =
+      object.condition !== undefined && object.condition !== null
+        ? ExpressionData.fromPartial(object.condition)
+        : undefined;
+    return message;
+  },
+};
+
 function createBaseRunCodeFrameData(): RunCodeFrameData {
   return { metatype: 0, filename: "", lineno: 0, name: "", locals: undefined, line: "" };
 }
@@ -4222,6 +4571,372 @@ export const WorkerImageData = {
     message.version = object.version ?? "";
     message.platform = object.platform ?? "";
     message.dependencies = object.dependencies?.map((e) => DependencyData.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseBadgeData(): BadgeData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    moduleId: "",
+    benchId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    name: "",
+    policy: undefined,
+    linkEnabled: false,
+    linkToken: "",
+    linkPasswordDigest: "",
+    secretEnabled: false,
+    secretValueDigest: "",
+    secretValue: "",
+  };
+}
+
+export const BadgeData = {
+  encode(message: BadgeData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.moduleId !== "") {
+      writer.uint32(42).string(message.moduleId);
+    }
+    if (message.benchId !== "") {
+      writer.uint32(50).string(message.benchId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
+    }
+    if (message.name !== "") {
+      writer.uint32(242).string(message.name);
+    }
+    if (message.policy !== undefined) {
+      PolicyData.encode(message.policy, writer.uint32(250).fork()).ldelim();
+    }
+    if (message.linkEnabled === true) {
+      writer.uint32(320).bool(message.linkEnabled);
+    }
+    if (message.linkToken !== "") {
+      writer.uint32(330).string(message.linkToken);
+    }
+    if (message.linkPasswordDigest !== "") {
+      writer.uint32(338).string(message.linkPasswordDigest);
+    }
+    if (message.secretEnabled === true) {
+      writer.uint32(400).bool(message.secretEnabled);
+    }
+    if (message.secretValueDigest !== "") {
+      writer.uint32(410).string(message.secretValueDigest);
+    }
+    if (message.secretValue !== "") {
+      writer.uint32(418).string(message.secretValue);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): BadgeData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseBadgeData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.moduleId = reader.string();
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.benchId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 15:
+          if (tag !== 122) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 30:
+          if (tag !== 242) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        case 31:
+          if (tag !== 250) {
+            break;
+          }
+
+          message.policy = PolicyData.decode(reader, reader.uint32());
+          continue;
+        case 40:
+          if (tag !== 320) {
+            break;
+          }
+
+          message.linkEnabled = reader.bool();
+          continue;
+        case 41:
+          if (tag !== 330) {
+            break;
+          }
+
+          message.linkToken = reader.string();
+          continue;
+        case 42:
+          if (tag !== 338) {
+            break;
+          }
+
+          message.linkPasswordDigest = reader.string();
+          continue;
+        case 50:
+          if (tag !== 400) {
+            break;
+          }
+
+          message.secretEnabled = reader.bool();
+          continue;
+        case 51:
+          if (tag !== 410) {
+            break;
+          }
+
+          message.secretValueDigest = reader.string();
+          continue;
+        case 52:
+          if (tag !== 418) {
+            break;
+          }
+
+          message.secretValue = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): BadgeData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      policy: isSet(object.policy) ? PolicyData.fromJSON(object.policy) : undefined,
+      linkEnabled: isSet(object.linkEnabled) ? globalThis.Boolean(object.linkEnabled) : false,
+      linkToken: isSet(object.linkToken) ? globalThis.String(object.linkToken) : "",
+      linkPasswordDigest: isSet(object.linkPasswordDigest) ? globalThis.String(object.linkPasswordDigest) : "",
+      secretEnabled: isSet(object.secretEnabled) ? globalThis.Boolean(object.secretEnabled) : false,
+      secretValueDigest: isSet(object.secretValueDigest) ? globalThis.String(object.secretValueDigest) : "",
+      secretValue: isSet(object.secretValue) ? globalThis.String(object.secretValue) : "",
+    };
+  },
+
+  toJSON(message: BadgeData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.moduleId !== "") {
+      obj.moduleId = message.moduleId;
+    }
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.policy !== undefined) {
+      obj.policy = PolicyData.toJSON(message.policy);
+    }
+    if (message.linkEnabled === true) {
+      obj.linkEnabled = message.linkEnabled;
+    }
+    if (message.linkToken !== "") {
+      obj.linkToken = message.linkToken;
+    }
+    if (message.linkPasswordDigest !== "") {
+      obj.linkPasswordDigest = message.linkPasswordDigest;
+    }
+    if (message.secretEnabled === true) {
+      obj.secretEnabled = message.secretEnabled;
+    }
+    if (message.secretValueDigest !== "") {
+      obj.secretValueDigest = message.secretValueDigest;
+    }
+    if (message.secretValue !== "") {
+      obj.secretValue = message.secretValue;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<BadgeData>, I>>(base?: I): BadgeData {
+    return BadgeData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<BadgeData>, I>>(object: I): BadgeData {
+    const message = createBaseBadgeData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.moduleId = object.moduleId ?? "";
+    message.benchId = object.benchId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.name = object.name ?? "";
+    message.policy =
+      object.policy !== undefined && object.policy !== null ? PolicyData.fromPartial(object.policy) : undefined;
+    message.linkEnabled = object.linkEnabled ?? false;
+    message.linkToken = object.linkToken ?? "";
+    message.linkPasswordDigest = object.linkPasswordDigest ?? "";
+    message.secretEnabled = object.secretEnabled ?? false;
+    message.secretValueDigest = object.secretValueDigest ?? "";
+    message.secretValue = object.secretValue ?? "";
     return message;
   },
 };
@@ -5525,7 +6240,9 @@ function createBaseFileData(): FileData {
     archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
+    policies: [],
     name: "",
+    orderKey: "",
   };
 }
 
@@ -5570,8 +6287,14 @@ export const FileData = {
     if (message.lastChangedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
     }
+    for (const v of message.policies) {
+      PolicyData.encode(v!, writer.uint32(162).fork()).ldelim();
+    }
     if (message.name !== "") {
       writer.uint32(242).string(message.name);
+    }
+    if (message.orderKey !== "") {
+      writer.uint32(250).string(message.orderKey);
     }
     return writer;
   },
@@ -5674,12 +6397,26 @@ export const FileData = {
 
           message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.policies.push(PolicyData.decode(reader, reader.uint32()));
+          continue;
         case 30:
           if (tag !== 242) {
             break;
           }
 
           message.name = reader.string();
+          continue;
+        case 31:
+          if (tag !== 250) {
+            break;
+          }
+
+          message.orderKey = reader.string();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -5705,7 +6442,11 @@ export const FileData = {
       archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      policies: globalThis.Array.isArray(object?.policies)
+        ? object.policies.map((e: any) => PolicyData.fromJSON(e))
+        : [],
       name: isSet(object.name) ? globalThis.String(object.name) : "",
+      orderKey: isSet(object.orderKey) ? globalThis.String(object.orderKey) : "",
     };
   },
 
@@ -5750,8 +6491,14 @@ export const FileData = {
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
     }
+    if (message.policies?.length) {
+      obj.policies = message.policies.map((e) => PolicyData.toJSON(e));
+    }
     if (message.name !== "") {
       obj.name = message.name;
+    }
+    if (message.orderKey !== "") {
+      obj.orderKey = message.orderKey;
     }
     return obj;
   },
@@ -5774,7 +6521,9 @@ export const FileData = {
     message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.policies = object.policies?.map((e) => PolicyData.fromPartial(e)) || [];
     message.name = object.name ?? "";
+    message.orderKey = object.orderKey ?? "";
     return message;
   },
 };
@@ -8649,6 +9398,7 @@ function createBaseStatementData(): StatementData {
     archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
+    policies: [],
     type: 0,
     name: "",
     orderKey: "",
@@ -8702,6 +9452,9 @@ export const StatementData = {
     }
     if (message.lastChangedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
+    }
+    for (const v of message.policies) {
+      PolicyData.encode(v!, writer.uint32(162).fork()).ldelim();
     }
     if (message.type !== 0) {
       writer.uint32(240).int32(message.type);
@@ -8834,6 +9587,13 @@ export const StatementData = {
 
           message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.policies.push(PolicyData.decode(reader, reader.uint32()));
+          continue;
         case 30:
           if (tag !== 240) {
             break;
@@ -8928,6 +9688,9 @@ export const StatementData = {
       archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      policies: globalThis.Array.isArray(object?.policies)
+        ? object.policies.map((e: any) => PolicyData.fromJSON(e))
+        : [],
       type: isSet(object.type) ? statementTypeFromJSON(object.type) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       orderKey: isSet(object.orderKey) ? globalThis.String(object.orderKey) : "",
@@ -8982,6 +9745,9 @@ export const StatementData = {
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
     }
+    if (message.policies?.length) {
+      obj.policies = message.policies.map((e) => PolicyData.toJSON(e));
+    }
     if (message.type !== 0) {
       obj.type = statementTypeToJSON(message.type);
     }
@@ -9033,6 +9799,7 @@ export const StatementData = {
     message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.policies = object.policies?.map((e) => PolicyData.fromPartial(e)) || [];
     message.type = object.type ?? 0;
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
@@ -9900,6 +10667,7 @@ function createBaseViewData(): ViewData {
     deletedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
+    policies: [],
     name: "",
     orderKey: "",
     nodeType: 0,
@@ -9945,6 +10713,9 @@ export const ViewData = {
     }
     if (message.lastChangedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
+    }
+    for (const v of message.policies) {
+      PolicyData.encode(v!, writer.uint32(162).fork()).ldelim();
     }
     if (message.name !== "") {
       writer.uint32(242).string(message.name);
@@ -10055,6 +10826,13 @@ export const ViewData = {
 
           message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.policies.push(PolicyData.decode(reader, reader.uint32()));
+          continue;
         case 30:
           if (tag !== 242) {
             break;
@@ -10113,6 +10891,9 @@ export const ViewData = {
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      policies: globalThis.Array.isArray(object?.policies)
+        ? object.policies.map((e: any) => PolicyData.fromJSON(e))
+        : [],
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       orderKey: isSet(object.orderKey) ? globalThis.String(object.orderKey) : "",
       nodeType: isSet(object.nodeType) ? nodeTypeFromJSON(object.nodeType) : 0,
@@ -10159,6 +10940,9 @@ export const ViewData = {
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
     }
+    if (message.policies?.length) {
+      obj.policies = message.policies.map((e) => PolicyData.toJSON(e));
+    }
     if (message.name !== "") {
       obj.name = message.name;
     }
@@ -10194,6 +10978,7 @@ export const ViewData = {
     message.deletedAt = object.deletedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.policies = object.policies?.map((e) => PolicyData.fromPartial(e)) || [];
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
     message.nodeType = object.nodeType ?? 0;
@@ -10646,8 +11431,11 @@ export const SomeNodeData = {
       case "client":
         ClientData.encode(message.node.client, writer.uint32(146).fork()).ldelim();
         break;
+      case "badge":
+        BadgeData.encode(message.node.badge, writer.uint32(154).fork()).ldelim();
+        break;
       case "notification":
-        NotificationData.encode(message.node.notification, writer.uint32(154).fork()).ldelim();
+        NotificationData.encode(message.node.notification, writer.uint32(162).fork()).ldelim();
         break;
     }
     return writer;
@@ -10791,6 +11579,13 @@ export const SomeNodeData = {
             break;
           }
 
+          message.node = { $case: "badge", badge: BadgeData.decode(reader, reader.uint32()) };
+          continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
           message.node = { $case: "notification", notification: NotificationData.decode(reader, reader.uint32()) };
           continue;
       }
@@ -10840,6 +11635,8 @@ export const SomeNodeData = {
         ? { $case: "user", user: UserData.fromJSON(object.user) }
         : isSet(object.client)
         ? { $case: "client", client: ClientData.fromJSON(object.client) }
+        : isSet(object.badge)
+        ? { $case: "badge", badge: BadgeData.fromJSON(object.badge) }
         : isSet(object.notification)
         ? { $case: "notification", notification: NotificationData.fromJSON(object.notification) }
         : undefined,
@@ -10901,6 +11698,9 @@ export const SomeNodeData = {
     }
     if (message.node?.$case === "client") {
       obj.client = ClientData.toJSON(message.node.client);
+    }
+    if (message.node?.$case === "badge") {
+      obj.badge = BadgeData.toJSON(message.node.badge);
     }
     if (message.node?.$case === "notification") {
       obj.notification = NotificationData.toJSON(message.node.notification);
@@ -10974,6 +11774,9 @@ export const SomeNodeData = {
     if (object.node?.$case === "client" && object.node?.client !== undefined && object.node?.client !== null) {
       message.node = { $case: "client", client: ClientData.fromPartial(object.node.client) };
     }
+    if (object.node?.$case === "badge" && object.node?.badge !== undefined && object.node?.badge !== null) {
+      message.node = { $case: "badge", badge: BadgeData.fromPartial(object.node.badge) };
+    }
     if (
       object.node?.$case === "notification" &&
       object.node?.notification !== undefined &&
@@ -10992,11 +11795,11 @@ function createBaseSomeStructData(): SomeStructData {
 export const SomeStructData = {
   encode(message: SomeStructData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
     switch (message.struct?.$case) {
-      case "accessControl":
-        AccessControlData.encode(message.struct.accessControl, writer.uint32(10).fork()).ldelim();
+      case "policy":
+        PolicyData.encode(message.struct.policy, writer.uint32(10).fork()).ldelim();
         break;
-      case "accessControlRule":
-        AccessControlRuleData.encode(message.struct.accessControlRule, writer.uint32(18).fork()).ldelim();
+      case "policyRule":
+        PolicyRuleData.encode(message.struct.policyRule, writer.uint32(18).fork()).ldelim();
         break;
       case "expression":
         ExpressionData.encode(message.struct.expression, writer.uint32(26).fork()).ldelim();
@@ -11035,17 +11838,14 @@ export const SomeStructData = {
             break;
           }
 
-          message.struct = { $case: "accessControl", accessControl: AccessControlData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "policy", policy: PolicyData.decode(reader, reader.uint32()) };
           continue;
         case 2:
           if (tag !== 18) {
             break;
           }
 
-          message.struct = {
-            $case: "accessControlRule",
-            accessControlRule: AccessControlRuleData.decode(reader, reader.uint32()),
-          };
+          message.struct = { $case: "policyRule", policyRule: PolicyRuleData.decode(reader, reader.uint32()) };
           continue;
         case 3:
           if (tag !== 26) {
@@ -11107,10 +11907,10 @@ export const SomeStructData = {
 
   fromJSON(object: any): SomeStructData {
     return {
-      struct: isSet(object.accessControl)
-        ? { $case: "accessControl", accessControl: AccessControlData.fromJSON(object.accessControl) }
-        : isSet(object.accessControlRule)
-        ? { $case: "accessControlRule", accessControlRule: AccessControlRuleData.fromJSON(object.accessControlRule) }
+      struct: isSet(object.policy)
+        ? { $case: "policy", policy: PolicyData.fromJSON(object.policy) }
+        : isSet(object.policyRule)
+        ? { $case: "policyRule", policyRule: PolicyRuleData.fromJSON(object.policyRule) }
         : isSet(object.expression)
         ? { $case: "expression", expression: ExpressionData.fromJSON(object.expression) }
         : isSet(object.logEntry)
@@ -11131,11 +11931,11 @@ export const SomeStructData = {
 
   toJSON(message: SomeStructData): unknown {
     const obj: any = {};
-    if (message.struct?.$case === "accessControl") {
-      obj.accessControl = AccessControlData.toJSON(message.struct.accessControl);
+    if (message.struct?.$case === "policy") {
+      obj.policy = PolicyData.toJSON(message.struct.policy);
     }
-    if (message.struct?.$case === "accessControlRule") {
-      obj.accessControlRule = AccessControlRuleData.toJSON(message.struct.accessControlRule);
+    if (message.struct?.$case === "policyRule") {
+      obj.policyRule = PolicyRuleData.toJSON(message.struct.policyRule);
     }
     if (message.struct?.$case === "expression") {
       obj.expression = ExpressionData.toJSON(message.struct.expression);
@@ -11166,25 +11966,15 @@ export const SomeStructData = {
   },
   fromPartial<I extends Exact<DeepPartial<SomeStructData>, I>>(object: I): SomeStructData {
     const message = createBaseSomeStructData();
-    if (
-      object.struct?.$case === "accessControl" &&
-      object.struct?.accessControl !== undefined &&
-      object.struct?.accessControl !== null
-    ) {
-      message.struct = {
-        $case: "accessControl",
-        accessControl: AccessControlData.fromPartial(object.struct.accessControl),
-      };
+    if (object.struct?.$case === "policy" && object.struct?.policy !== undefined && object.struct?.policy !== null) {
+      message.struct = { $case: "policy", policy: PolicyData.fromPartial(object.struct.policy) };
     }
     if (
-      object.struct?.$case === "accessControlRule" &&
-      object.struct?.accessControlRule !== undefined &&
-      object.struct?.accessControlRule !== null
+      object.struct?.$case === "policyRule" &&
+      object.struct?.policyRule !== undefined &&
+      object.struct?.policyRule !== null
     ) {
-      message.struct = {
-        $case: "accessControlRule",
-        accessControlRule: AccessControlRuleData.fromPartial(object.struct.accessControlRule),
-      };
+      message.struct = { $case: "policyRule", policyRule: PolicyRuleData.fromPartial(object.struct.policyRule) };
     }
     if (
       object.struct?.$case === "expression" &&
