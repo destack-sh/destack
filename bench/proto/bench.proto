@@ -34,6 +34,7 @@ enum BenchType {
   BENCH_TYPE_WORKER_SET = 64;
   BENCH_TYPE_USER = 80;
   BENCH_TYPE_CLIENT = 84;
+  BENCH_TYPE_NOTIFICATION = 89;
   BENCH_TYPE_ACCESS_CONTROL = 200;
   BENCH_TYPE_ACCESS_CONTROL_RULE = 201;
   BENCH_TYPE_EXPRESSION = 210;
@@ -41,7 +42,7 @@ enum BenchType {
   BENCH_TYPE_RUN_CODE_FRAME = 221;
   BENCH_TYPE_RUN_ERROR = 222;
   BENCH_TYPE_INFERENCE = 223;
-  BENCH_TYPE_ENVIRONMENT = 230;
+  BENCH_TYPE_WORKER_IMAGE = 230;
   BENCH_TYPE_DEPENDENCY = 231;
 }
 
@@ -195,6 +196,20 @@ enum NodeType {
   NODE_TYPE_WORKER_SET = 64;
   NODE_TYPE_USER = 80;
   NODE_TYPE_CLIENT = 84;
+  NODE_TYPE_NOTIFICATION = 89;
+}
+
+enum NotificationStatus {
+  NOTIFICATION_STATUS_UNSPECIFIED = 0;
+  NOTIFICATION_STATUS_ACTIVE = 1;
+  NOTIFICATION_STATUS_READ = 2;
+  NOTIFICATION_STATUS_EXPIRED = 3;
+  NOTIFICATION_STATUS_ARCHIVED = 4;
+}
+
+enum NotificationType {
+  NOTIFICATION_TYPE_UNSPECIFIED = 0;
+  NOTIFICATION_TYPE_EDIT = 1;
 }
 
 enum ProjectRegion {
@@ -301,7 +316,7 @@ enum StructType {
   STRUCT_TYPE_RUN_CODE_FRAME = 221;
   STRUCT_TYPE_RUN_ERROR = 222;
   STRUCT_TYPE_INFERENCE = 223;
-  STRUCT_TYPE_ENVIRONMENT = 230;
+  STRUCT_TYPE_WORKER_IMAGE = 230;
   STRUCT_TYPE_DEPENDENCY = 231;
 }
 
@@ -438,14 +453,6 @@ message DependencyData {
   string version = 31;
 }
 
-message EnvironmentData {
-  BenchType metatype = 1;
-  string language = 30;
-  string version = 31;
-  string platform = 32;
-  repeated DependencyData dependencies = 33;
-}
-
 message ExpressionData {
   BenchType metatype = 1;
   ExpressionOp op = 30;
@@ -497,6 +504,14 @@ message RunErrorData {
   string message = 32;
   string statement_ck = 33;
   repeated RunCodeFrameData traceback = 34;
+}
+
+message WorkerImageData {
+  BenchType metatype = 1;
+  string language = 30;
+  string version = 31;
+  string platform = 32;
+  repeated DependencyData dependencies = 33;
 }
 
 message BenchData {
@@ -645,6 +660,25 @@ message BaseNodeData {
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp last_edited_at = 15;
+}
+
+message NotificationData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  string module_id = 5;
+  string bench_id = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  NotificationType type = 30;
+  NotificationStatus status = 31;
+  google.protobuf.Timestamp expires_at = 32;
+  google.protobuf.Timestamp read_at = 33;
 }
 
 message RecordData {
@@ -878,6 +912,7 @@ message WorkerSetData {
   int64 available_replicas = 37;
   int64 ready_replicas = 38;
   google.protobuf.Timestamp last_active_at = 39;
+  google.protobuf.Timestamp last_bumped_at = 40;
 }
 
 message SomeNodeData {
@@ -900,6 +935,7 @@ message SomeNodeData {
     WorkerSetData worker_set = 16;
     UserData user = 17;
     ClientData client = 18;
+    NotificationData notification = 19;
   };
 }
 
@@ -912,7 +948,7 @@ message SomeStructData {
     RunCodeFrameData run_code_frame = 5;
     RunErrorData run_error = 6;
     InferenceData inference = 7;
-    EnvironmentData environment = 8;
+    WorkerImageData worker_image = 8;
     DependencyData dependency = 9;
   };
 }

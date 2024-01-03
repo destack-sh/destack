@@ -5,19 +5,12 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -56,6 +49,7 @@ class BenchType(betterproto.Enum):
     WORKER_SET = 64
     USER = 80
     CLIENT = 84
+    NOTIFICATION = 89
     ACCESS_CONTROL = 200
     ACCESS_CONTROL_RULE = 201
     EXPRESSION = 210
@@ -63,7 +57,7 @@ class BenchType(betterproto.Enum):
     RUN_CODE_FRAME = 221
     RUN_ERROR = 222
     INFERENCE = 223
-    ENVIRONMENT = 230
+    WORKER_IMAGE = 230
     DEPENDENCY = 231
 
 
@@ -216,6 +210,20 @@ class NodeType(betterproto.Enum):
     WORKER_SET = 64
     USER = 80
     CLIENT = 84
+    NOTIFICATION = 89
+
+
+class NotificationStatus(betterproto.Enum):
+    UNSPECIFIED = 0
+    ACTIVE = 1
+    READ = 2
+    EXPIRED = 3
+    ARCHIVED = 4
+
+
+class NotificationType(betterproto.Enum):
+    UNSPECIFIED = 0
+    EDIT = 1
 
 
 class ProjectRegion(betterproto.Enum):
@@ -321,7 +329,7 @@ class StructType(betterproto.Enum):
     RUN_CODE_FRAME = 221
     RUN_ERROR = 222
     INFERENCE = 223
-    ENVIRONMENT = 230
+    WORKER_IMAGE = 230
     DEPENDENCY = 231
 
 
@@ -479,15 +487,6 @@ class DependencyData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class EnvironmentData(betterproto.Message):
-    metatype: "BenchType" = betterproto.enum_field(1)
-    language: str = betterproto.string_field(30)
-    version: str = betterproto.string_field(31)
-    platform: str = betterproto.string_field(32)
-    dependencies: List["DependencyData"] = betterproto.message_field(33)
-
-
-@dataclass(eq=False, repr=False)
 class ExpressionData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     op: "ExpressionOp" = betterproto.enum_field(30)
@@ -543,6 +542,15 @@ class RunErrorData(betterproto.Message):
     message: str = betterproto.string_field(32)
     statement_ck: str = betterproto.string_field(33)
     traceback: List["RunCodeFrameData"] = betterproto.message_field(34)
+
+
+@dataclass(eq=False, repr=False)
+class WorkerImageData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    language: str = betterproto.string_field(30)
+    version: str = betterproto.string_field(31)
+    platform: str = betterproto.string_field(32)
+    dependencies: List["DependencyData"] = betterproto.message_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -699,6 +707,26 @@ class BaseNodeData(betterproto.Message):
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
     last_edited_at: datetime = betterproto.message_field(15)
+
+
+@dataclass(eq=False, repr=False)
+class NotificationData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    module_id: str = betterproto.string_field(5)
+    bench_id: str = betterproto.string_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(15)
+    type: "NotificationType" = betterproto.enum_field(30)
+    status: "NotificationStatus" = betterproto.enum_field(31)
+    expires_at: datetime = betterproto.message_field(32)
+    read_at: datetime = betterproto.message_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -943,6 +971,7 @@ class WorkerSetData(betterproto.Message):
     available_replicas: int = betterproto.int64_field(37)
     ready_replicas: int = betterproto.int64_field(38)
     last_active_at: datetime = betterproto.message_field(39)
+    last_bumped_at: datetime = betterproto.message_field(40)
 
 
 @dataclass(eq=False, repr=False)
@@ -965,20 +994,19 @@ class SomeNodeData(betterproto.Message):
     worker_set: "WorkerSetData" = betterproto.message_field(16, group="node")
     user: "UserData" = betterproto.message_field(17, group="node")
     client: "ClientData" = betterproto.message_field(18, group="node")
+    notification: "NotificationData" = betterproto.message_field(19, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
     access_control: "AccessControlData" = betterproto.message_field(1, group="struct")
-    access_control_rule: "AccessControlRuleData" = betterproto.message_field(
-        2, group="struct"
-    )
+    access_control_rule: "AccessControlRuleData" = betterproto.message_field(2, group="struct")
     expression: "ExpressionData" = betterproto.message_field(3, group="struct")
     log_entry: "LogEntryData" = betterproto.message_field(4, group="struct")
     run_code_frame: "RunCodeFrameData" = betterproto.message_field(5, group="struct")
     run_error: "RunErrorData" = betterproto.message_field(6, group="struct")
     inference: "InferenceData" = betterproto.message_field(7, group="struct")
-    environment: "EnvironmentData" = betterproto.message_field(8, group="struct")
+    worker_image: "WorkerImageData" = betterproto.message_field(8, group="struct")
     dependency: "DependencyData" = betterproto.message_field(9, group="struct")
 
 
@@ -1023,6 +1051,16 @@ class DidCreateProjectRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class GetNotificationsRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class GetNotificationsResponse(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
 class GetWorkerChangesRequest(betterproto.Message):
     pass
 
@@ -1051,13 +1089,13 @@ class RestartWorkerSetRequest(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class GetEnvironmentRequest(betterproto.Message):
+class GetWorkerImageRequest(betterproto.Message):
     project_id: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class GetEnvironmentResponse(betterproto.Message):
-    environment: "EnvironmentData" = betterproto.message_field(1)
+class GetWorkerImageResponse(betterproto.Message):
+    image: "WorkerImageData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1253,9 +1291,7 @@ class StartRunRequest(betterproto.Message):
     keyed_return: bool = betterproto.bool_field(12)
     tags: List[str] = betterproto.string_field(13)
     root_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(14)
-    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(
-        15
-    )
+    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(15)
     access_level: "SessionAccessLevel" = betterproto.enum_field(16)
 
 
@@ -1294,6 +1330,24 @@ class RuntimeSupervisorStub(betterproto.ServiceStub):
             deadline=deadline,
             metadata=metadata,
         )
+
+    async def get_notifications(
+        self,
+        get_notifications_request: "GetNotificationsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> AsyncIterator["GetNotificationsResponse"]:
+        async for response in self._unary_stream(
+            "/RuntimeSupervisor/GetNotifications",
+            get_notifications_request,
+            GetNotificationsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
 
     async def get_worker_changes(
         self,
@@ -1347,18 +1401,18 @@ class RuntimeSupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def get_environment(
+    async def get_worker_image(
         self,
-        get_environment_request: "GetEnvironmentRequest",
+        get_worker_image_request: "GetWorkerImageRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "GetEnvironmentResponse":
+    ) -> "GetWorkerImageResponse":
         return await self._unary_unary(
-            "/RuntimeSupervisor/GetEnvironment",
-            get_environment_request,
-            GetEnvironmentResponse,
+            "/RuntimeSupervisor/GetWorkerImage",
+            get_worker_image_request,
+            GetWorkerImageResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -1718,6 +1772,12 @@ class RuntimeSupervisorBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def get_notifications(
+        self, get_notifications_request: "GetNotificationsRequest"
+    ) -> AsyncIterator["GetNotificationsResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield GetNotificationsResponse()
+
     async def get_worker_changes(
         self, get_worker_changes_request: "GetWorkerChangesRequest"
     ) -> AsyncIterator["GetWorkerChangesResponse"]:
@@ -1734,9 +1794,9 @@ class RuntimeSupervisorBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def get_environment(
-        self, get_environment_request: "GetEnvironmentRequest"
-    ) -> "GetEnvironmentResponse":
+    async def get_worker_image(
+        self, get_worker_image_request: "GetWorkerImageRequest"
+    ) -> "GetWorkerImageResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def ping_worker_set(
@@ -1751,6 +1811,17 @@ class RuntimeSupervisorBase(ServiceBase):
         request = await stream.recv_message()
         response = await self.did_create_project(request)
         await stream.send_message(response)
+
+    async def __rpc_get_notifications(
+        self,
+        stream: "grpclib.server.Stream[GetNotificationsRequest, GetNotificationsResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.get_notifications,
+            stream,
+            request,
+        )
 
     async def __rpc_get_worker_changes(
         self,
@@ -1779,12 +1850,12 @@ class RuntimeSupervisorBase(ServiceBase):
         response = await self.restart_worker_set(request)
         await stream.send_message(response)
 
-    async def __rpc_get_environment(
+    async def __rpc_get_worker_image(
         self,
-        stream: "grpclib.server.Stream[GetEnvironmentRequest, GetEnvironmentResponse]",
+        stream: "grpclib.server.Stream[GetWorkerImageRequest, GetWorkerImageResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.get_environment(request)
+        response = await self.get_worker_image(request)
         await stream.send_message(response)
 
     async def __rpc_ping_worker_set(
@@ -1802,6 +1873,12 @@ class RuntimeSupervisorBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 DidCreateProjectRequest,
                 betterproto_lib_google_protobuf.Empty,
+            ),
+            "/RuntimeSupervisor/GetNotifications": grpclib.const.Handler(
+                self.__rpc_get_notifications,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                GetNotificationsRequest,
+                GetNotificationsResponse,
             ),
             "/RuntimeSupervisor/GetWorkerChanges": grpclib.const.Handler(
                 self.__rpc_get_worker_changes,
@@ -1821,11 +1898,11 @@ class RuntimeSupervisorBase(ServiceBase):
                 RestartWorkerSetRequest,
                 betterproto_lib_google_protobuf.Empty,
             ),
-            "/RuntimeSupervisor/GetEnvironment": grpclib.const.Handler(
-                self.__rpc_get_environment,
+            "/RuntimeSupervisor/GetWorkerImage": grpclib.const.Handler(
+                self.__rpc_get_worker_image,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                GetEnvironmentRequest,
-                GetEnvironmentResponse,
+                GetWorkerImageRequest,
+                GetWorkerImageResponse,
             ),
             "/RuntimeSupervisor/PingWorkerSet": grpclib.const.Handler(
                 self.__rpc_ping_worker_set,
@@ -1849,9 +1926,7 @@ class RuntimeHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield GetModuleEditsResponse()
 
-    async def read_nodes(
-        self, read_nodes_request: "ReadNodesRequest"
-    ) -> "ReadNodesResponse":
+    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -1864,9 +1939,7 @@ class RuntimeHostBase(ServiceBase):
     ) -> "CommitEditsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def upload_blob(
-        self, upload_blob_request: "UploadBlobRequest"
-    ) -> "UploadBlobResponse":
+    async def upload_blob(self, upload_blob_request: "UploadBlobRequest") -> "UploadBlobResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def download_blob(
@@ -1879,9 +1952,7 @@ class RuntimeHostBase(ServiceBase):
     ) -> "RevealSecretResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def paste_nodes(
-        self, paste_nodes_request: "PasteNodesRequest"
-    ) -> "PasteNodesResponse":
+    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def snapshot_module(
@@ -1895,9 +1966,7 @@ class RuntimeHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield GetLogsResponse()
 
-    async def start_run(
-        self, start_run_request: "StartRunRequest"
-    ) -> "StartRunResponse":
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
@@ -2152,9 +2221,7 @@ class WorkerNodeBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def start_run(
-        self, start_run_request: "StartRunRequest"
-    ) -> "StartRunResponse":
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":

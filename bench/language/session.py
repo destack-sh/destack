@@ -166,10 +166,11 @@ class WorkerSet(Node):
     available_replicas: int = struct_internal(37)
     ready_replicas: int = struct_internal(38)
     last_active_at: datetime = struct_internal(39, default_factory=utcnow_with_tz)
+    last_bumped_at: datetime = struct_internal(40, default_factory=utcnow_with_tz)
 
 
-@struct(StructType.ENVIRONMENT)
-class Environment(Struct):
+@struct(StructType.WORKER_IMAGE)
+class WorkerImage(Struct):
     language: str = struct_internal(30)
     version: str = struct_internal(31)
     platform: str = struct_internal(32)

@@ -3,16 +3,15 @@ from uuid import UUID
 
 import strawberry
 import strawberry_django
-from django.core.exceptions import ValidationError
 from django.db.models import Sum
-from strawberry import UNSET, auto, lazy, relay
+from strawberry import auto, lazy, relay
 from strawberry.relay import GlobalID
 from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_module_access, has_module_access, is_owner_or_member
-from bench.api.utils import HasCrud, ModuleNode, get_user_from_info, safe_mutation
+from bench.api.utils import get_user_from_info, safe_mutation
 from bench.language import const
 from bench.language.cache import _get_usage_key
 from bench.models import ModuleAccessLevel
@@ -23,39 +22,6 @@ if TYPE_CHECKING:
     from bench.api.user import User
 
 StatementType = strawberry.enum(const.StatementType)
-
-
-@strawberry_django.filter(models.Module)
-class ModuleFilter:
-    from_id: GlobalID = UNSET
-    to_id: GlobalID = UNSET
-
-    def filter(self, queryset):
-        if self.from_id is not None and self.to_id is not None:
-            from_v = models.Module.objects.get(id=self.from_id.node_id)
-            to_v = models.Module.objects.get(id=self.to_id.node_id)
-            # we can go both directions
-            if from_v.created_at < to_v.created_at:  # migrate forwards
-                queryset = queryset.filter(
-                    created_at__gte=from_v.created_at, created_at__lte=to_v.created_at
-                )
-            else:  # migrate backwards (reversing source/target in the client)
-                queryset = queryset.filter(
-                    created_at__lte=from_v.created_at, created_at__gte=to_v.created_at
-                )
-        elif self.from_id is not None or self.to_id is not None:
-            raise ValidationError("from_id and to_id must be set together")
-        return queryset.order_by("created_at")
-
-
-@strawberry_django.filter(models.File)
-class FileFilter:
-    is_visible: Optional[bool] = True
-
-    def filter(self, queryset):
-        if self.is_visible is not None:
-            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
-        return queryset
 
 
 BenchVisibility = strawberry.enum(models.BenchVisibility)
@@ -103,11 +69,6 @@ class Bench(relay.Node):
     sharing_token: Optional[UUID]
     sharing_level: int
 
-    head: "Module"
-    versions: strawberry_django.relay.ListConnectionWithTotalCount[
-        "Module"
-    ] = strawberry_django.connection(filters=ModuleFilter)
-
     usage: BenchUsage = strawberry_django.field(resolver=get_bench_usage)
 
     @strawberry_django.field
@@ -134,16 +95,6 @@ class BenchInvite(relay.Node):
     created_at: auto
     updated_at: auto
     email_sent_at: auto
-
-
-@strawberry_django.type(models.Module)
-class Module(HasCrud, ModuleNode, relay.Node):
-    bench: Bench
-    parent: Optional[ModuleNode]
-    name: auto
-    tag: auto  # :BenchVersionTags
-    description: auto
-    is_snapshot: bool
 
 
 @strawberry.input

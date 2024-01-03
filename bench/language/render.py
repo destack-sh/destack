@@ -51,7 +51,8 @@ def render(
         raise ValueError(f"cannot render to {target}")
 
 
-DEFAULT_VALUE_FILTER = lambda f: True
+def DEFAULT_VALUE_FILTER(f):
+    return True
 
 
 def _render_prop(node: Node, name: str, value: Any) -> str:

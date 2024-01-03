@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
 import structlog
@@ -15,9 +15,7 @@ from pgcrypto.fields import TextPGPSymmetricKeyField
 from strawberry_django.descriptors import model_property
 
 from bench.language.validation import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
-from bench.models.blob import get_s3_client
-from bench.models.statement import Statement
-from bench.models.utils import CrudModel, CrudNode, Node, UUIDModel, create_models_bfs
+from bench.models.utils import UUIDModel
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.func import (
     generate_random_lowercase_name,
@@ -121,11 +119,21 @@ class BenchManager(models.Manager["Bench"]):
         )
 
 
-class Bench(UUIDModel, CrudModel):
+class Bench(UUIDModel):
     """
     A Bench contains all of its versions, similar to repositories in Git.
     """
 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        "User", on_delete=models.SET_NULL, related_name="+", null=True, blank=True
+    )
+    last_edited_at = models.DateTimeField(auto_now=True)
+    last_edited_by = models.ForeignKey(
+        "User", on_delete=models.SET_NULL, related_name="+", null=True, blank=True
+    )
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     slug: models.SlugField = models.SlugField(max_length=128, validators=[validate_slug])
@@ -145,8 +153,8 @@ class Bench(UUIDModel, CrudModel):
     members = models.ManyToManyField("User", through="BenchMembership", related_name="benches+")
     memberships: models.QuerySet["BenchMembership"]  # noqa via BenchMembership.bench
 
+    # *per* environment stuff (will be moved into Environment later, only have 'prod' now)
     head = models.ForeignKey("Module", on_delete=models.SET_NULL, null=True, related_name="bench+")
-    blobs: models.QuerySet["Blob"]  # noqa via Blob
     worker_set = models.OneToOneField(  # only one worker set for now
         "WorkerSet", on_delete=models.SET_NULL, related_name="bench+", null=True
     )
@@ -214,7 +222,6 @@ class Bench(UUIDModel, CrudModel):
     def create_invite(
         self, email: str, level: "ModuleAccessLevel", message: str = None, created_by: User = None
     ) -> "BenchInvite":
-        from bench.models.notification import Notification, NotificationType
         from bench.models.user import User
 
         user = User.objects.filter(email=email).first()
@@ -229,14 +236,6 @@ class Bench(UUIDModel, CrudModel):
             created_by=created_by,
             user=user,
         )
-
-        # create notification if the user is signed up
-        if user is not None:
-            Notification.objects.create(
-                type=NotificationType.ORGANIZATION_INVITE,
-                user=user,
-                invite=invite,
-            )
 
         return invite
 
@@ -338,38 +337,20 @@ class BenchInvite(UUIDModel):
         ]
 
 
-class ModuleManager(models.Manager["BenchVersion"]):
-    def get_by_slug(self, owner: str, bench: str, tag: str):
-        return (
-            self.filter(tag=tag)
-            .filter(bench__slug=bench)
-            .filter(
-                Q(bench__organization__owner_slug_id=owner) | Q(bench__user__owner_slug_id=owner)
-            )
-            .get()
-        )
-
-    def get_by_tag(self, bench_id: UUID, tag: str):
-        return self.filter(bench_id=bench_id, tag=tag).get()
-
-
-class Module(CrudNode):
+class Module(models.Model):
     """
     A bench version records the state of a bench at a specific point in time.
     """
 
+    id: models.UUIDField = models.UUIDField(primary_key=True)
+    ck: models.UUIDField = models.UUIDField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     parent_bench = models.ForeignKey(Bench, on_delete=models.CASCADE, related_name="versions")
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
-    # single unique tag should be a BenchVersionTag list later :BenchVersionTags
-    tag = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     is_snapshot = models.BooleanField(default=False)
-
-    parents = models.ManyToManyField("Module", related_name="children", symmetrical=False)
-    files: models.QuerySet["File"]  # noqa via File
-    statements: models.QuerySet["Statement"]  # noqa via Statement
-    sessions: models.QuerySet["Session"]  # noqa via Session
-    runs: models.QuerySet["Run"]  # noqa via Run
 
     def __str__(self) -> str:
         return f"{self.parent_bench.path}@{self.tag or self.id.hex}"
@@ -382,109 +363,8 @@ class Module(CrudNode):
     def parent(self) -> Optional["Node"]:
         return None
 
-    @property
-    def organization(self):
-        return self.parent_bench.organization
-
-    @transaction.atomic
-    def create_file(self, name: str, parent: Optional[File] = None) -> "File":
-        file = File.objects.create(module=self, parent=parent, name=name)
-        return file
-
-    objects = ModuleManager()
-
     class Meta:
-        managed = True
-
-
-class FileManager(models.Manager):
-    def get_queryset(self) -> models.QuerySet[Statement]:
-        # soft-deleted statements are not returned by default
-        return super().get_queryset().filter(deleted_at__isnull=True)
-
-    def copy(
-        self,
-        file: "File",
-        source: Module,
-        target: Module,
-        target_id: UUID,
-        target_ck: UUID,
-        keep_cks: bool,
-        include_interp: bool = True,
-        target_parent: Optional["File"] = None,
-        copy_revisions: bool = False,
-    ) -> "File":
-        """Copies a file from one module to another (may be the same)."""
-        from bench.models import packer
-
-        target_id = target_id or uuid.uuid4()
-        # pack relevant nodes
-        copy = Module.objects.pack_copy(
-            source=source,
-            target=target,
-            nodes=[file],
-            keep_cks=keep_cks,
-            excluded=packer.INTERP_MODEL_TYPES if not include_interp else set(),
-            copy_revisions=copy_revisions,
-            target_ids={file.id: target_id},
-            target_cks={file.ck: target_ck},
-        )
-        assert len(copy.roots) == 1, "expected exactly one root in packed nodes"
-        copy.roots[0].parent_id = target_parent.id if target_parent else target.id
-
-        # unpack and save
-        unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
-        create_models_bfs(unpacked.walk_bfs_batched())
-
-        target_file = unpacked.nodes_by_id[target_id]
-        return target_file
-
-
-class File(CrudNode):
-    """
-    A file containing statements, potentially containing other files if it's a directory.
-    A file - and the statements it contains - may be soft-deleted.
-    Nothing is actually deleted, but soft deleted objects are not visible and not copied across versions.
-    """
-
-    module = models.ForeignKey("Module", on_delete=models.CASCADE, related_name="files")
-    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
-    parent_file = models.ForeignKey(
-        "File", on_delete=models.CASCADE, null=True, blank=True, related_name="files"
-    )
-
-    files: models.QuerySet["File"]  # noqa via File.parent (if it's a directory)
-    statements: models.QuerySet["Statement"]  # noqa via Statement.file
-    symbols: models.QuerySet["Symbol"]  # noqa via Symbol.file
-
-    def __str__(self):
-        if self.parent_file:
-            return f"{self.parent_file}/{self.name}"
-        else:
-            return f"{self.module}/{self.name}"
-
-    @model_property(only=["name", "parent"], select_related=["parent"])
-    def path(self) -> str:
-        return f"{self.parent_file.path}/{self.name}" if self.parent_file else f"{self.name}"
-
-    @property
-    def parent_id(self) -> Optional[uuid.UUID]:
-        return self.parent_file_id or self.module_id
-
-    @property
-    def parent(self) -> Union["File", "Module"]:
-        if self.parent_file_id:
-            return self.parent_file
-        else:
-            return self.module
-
-    def is_root(self) -> bool:
-        return self.parent_file is None
-
-    objects = FileManager()
-
-    class Meta:
-        managed = True
+        managed = False
 
 
 def create_global_user_bucket(ignore_exists: bool):

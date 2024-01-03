@@ -44,12 +44,9 @@ class WorkerHost:
         await nc_init.wait()
         logger.info("host.start", worker_process=self.worker_process, host=self)
         if self.bench_id:
-            routing_ids = {
-                f"{self.bench_id}.{self.worker_set_id or 'all'}",
-                f"{self.bench_id}.all",
-            }
+            pass
         else:
-            routing_ids = (">",)
+            pass
         # launch worker process
         suspiciously_rapid_restarts = 0
         while not self._stopped:

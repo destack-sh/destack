@@ -4,7 +4,6 @@ from bench.language import Node
 from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import NodeType
 from bench.language.module import node, struct_internal, struct_property
-from bench.sql.core import ColumnType
 
 
 @node(NodeType.SECRET, detached=True)

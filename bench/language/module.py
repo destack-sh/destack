@@ -78,7 +78,7 @@ from bench.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Field, File, Issue, NodeVisitor, Session
+    from bench.language import Expression, Field, File, Issue, NodeVisitor, Session, symbolx_lib
     from bench.language.issue import IssueHandler
     from bench.proto.wiring import AnyNodeData
 
@@ -3354,12 +3354,12 @@ class Module(ScopeNode):
         source = [wiring.unwrap_some_node(s) for s in source]
         source = NodeTree(source)
         module = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
+        assert isinstance(module, Module), f"unexpected module: {module!r}"
         module._source = source
         old_source = module._source.copy()
 
-        for dependency in libs.DEFAULT_MODULES.values():
-            module.add_dependency(dependency)
-        module.add_builtin(libs.symbolx_lib.files.get("builtins"))
+        module.add_dependency(symbolx_lib)
+        module.add_builtin(symbolx_lib.files.get("builtins"))
         module._interp_rec()
 
         # update source with interp edits (doesn't have them)

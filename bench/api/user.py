@@ -14,7 +14,6 @@ from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import CheckTarget, IsUser, can_write_user, check_can_write_user
-from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.utils import get_user_from_info, safe_mutation
 
@@ -65,11 +64,6 @@ class User(Owner, relay.Node):
         Annotated["AccessToken", lazy(".token")]
     ] = strawberry_django.connection(
         filters=AccessTokenFilter, extensions=[IsUser(target=CheckTarget.ROOT)]
-    )
-    notifications: strawberry_django.relay.ListConnectionWithTotalCount[
-        "Notification"
-    ] = strawberry_django.connection(
-        filters=NotificationFilter, extensions=[IsUser(target=CheckTarget.ROOT)]
     )
 
     @strawberry_django.field

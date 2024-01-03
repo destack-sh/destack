@@ -51,8 +51,9 @@ class NodeType(ProtoStrEnum):
     USER = "USER", 80
     # ORGANIZATION = "ORGANIZATION", 81
     # MEMBERSHIP = "MEMBERSHIP", 82
-    # NOTIFICATION = "NOTIFICATION", 83
     CLIENT = "CLIENT", 84
+    NOTIFICATION = "NOTIFICATION", 89
+
     # COMMENT = "COMMENT", 90
 
     @property
@@ -73,7 +74,7 @@ class StructType(ProtoStrEnum):
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
     RUN_ERROR = "RUN_ERROR", 222
     INFERENCE = "INFERENCE", 223
-    ENVIRONMENT = "ENVIRONMENT", 230
+    WORKER_IMAGE = "WORKER_IMAGE", 230
     DEPENDENCY = "DEPENDENCY", 231
 
     @property
@@ -129,6 +130,17 @@ class EditKind(ProtoStrEnum):
 class ClientType(ProtoStrEnum):
     WEB = "WEB", 1
     WORKER = "WORKER", 2
+
+
+class NotificationType(ProtoStrEnum):
+    EDIT = "EDIT", 1
+
+
+class NotificationStatus(ProtoStrEnum):
+    ACTIVE = "ACTIVE", 1
+    READ = "READ", 2
+    EXPIRED = "EXPIRED", 3
+    ARCHIVED = "ARCHIVED", 4
 
 
 class StatementType(ProtoStrEnum):
