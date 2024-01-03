@@ -148,33 +148,36 @@ class Run(ScopeNode, HasValue):
     """
 
     parent: Union["Session", "Run"] = node_parent(4, NodeType.SESSION, NodeType.RUN)
-    session: "Session" = node_ancestor(30, NodeType.SESSION, store=True)
+    session: "Session" = node_ancestor(30, NodeType.SESSION, store=True, wire=True)
     root: Optional["Run"] = node_ancestor(
-        31, NodeType.RUN, nearest=False, include_self=False, store=True
+        31, NodeType.RUN, nearest=False, include_self=False, store=True, wire=True
     )
-    runs: list["Run"] = node_children(NodeType.RUN)
-    bench_id: str = struct_internal(32, reflect=True)
-    worker_node_id: str = struct_internal(33, reflect=True)
-    worker_process_id: Optional[str] = struct_internal(34, reflect=True)
-    statement: Optional["Statement"] = struct_internal(35, references=NodeType.STATEMENT)
-    statement_path: Optional[str] = struct_internal(36, default=None)
-    scheduled_at: Optional[datetime] = struct_internal(37, default=None)
-    started_at: Optional[datetime] = struct_internal(38, default=None)
-    terminated_at: Optional[datetime] = struct_internal(39, default=None)
-    trigger_type: Optional[TriggerType] = struct_internal(40, default=None)
-    trigger_id: Optional[UUID] = struct_internal(41, default=None, reflect=True)
-    access_level: Optional["SessionAccessLevel"] = struct_internal(42, default=None)
-    status: RunStatus = struct_internal(43)
-    inputs: Optional[dict[str, Any]] = struct_internal(44, default=None, store_as=ColumnType.JSON)
-    outputs: Optional[dict[str, Any]] = struct_internal(45, default=None, store_as=ColumnType.JSON)
-    error: Optional["RunError"] = struct_internal(46, default=None, store_as=ColumnType.JSON)
+    worker_node_id: str = struct_internal(32, reflect=True)
+    worker_process_id: Optional[str] = struct_internal(33, reflect=True)
+    statement: Optional["Statement"] = struct_internal(34, references=NodeType.STATEMENT)
+    statement_path: Optional[str] = struct_internal(35, default=None)
+    scheduled_at: Optional[datetime] = struct_internal(36, default=None)
+    started_at: Optional[datetime] = struct_internal(37, default=None)
+    terminated_at: Optional[datetime] = struct_internal(38, default=None)
+    trigger_type: Optional[TriggerType] = struct_internal(39, default=None)
+    trigger_id: Optional[UUID] = struct_internal(40, default=None, reflect=True)
+    access_level: Optional["SessionAccessLevel"] = struct_internal(41, default=None)
+    status: RunStatus = struct_internal(42)
+    inputs: Optional[dict[str, Any]] = struct_internal(
+        43, default=None, column_type=ColumnType.JSON
+    )
+    outputs: Optional[dict[str, Any]] = struct_internal(
+        44, default=None, column_type=ColumnType.JSON
+    )
+    error: Optional["RunError"] = struct_internal(45, default=None, column_type=ColumnType.JSON)
     value: Any | None = struct_internal(
-        47,
+        46,
         default_factory=dict,
         copy=deepcopy,
-        store_as=ColumnType.JSON,
+        column_type=ColumnType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
+    runs: list["Run"] = node_children(NodeType.RUN)
 
     def __str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
@@ -226,7 +229,9 @@ class RunCodeFrame(Struct):
     filename: str = struct_internal(30)
     lineno: int = struct_internal(31)
     name: str = struct_internal(32)
-    locals: Optional[dict[str, Any]] = struct_internal(33, default=None, store_as=ColumnType.JSON)
+    locals: Optional[dict[str, Any]] = struct_internal(
+        33, default=None, column_type=ColumnType.JSON
+    )
     line: str = struct_internal(34)
 
     @staticmethod

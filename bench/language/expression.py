@@ -52,7 +52,7 @@ class Expression(Struct):
     clauses: list["Expression"] | None = struct_property(
         33, default=None, struct_t=StructType.EXPRESSION
     )
-    value: Any = struct_property(34, default=None, store_as=ColumnType.JSON)
+    value: Any = struct_property(34, default=None, column_type=ColumnType.JSON)
     mode: Optional[SortMode] = struct_property(35, default=None)
 
     @property

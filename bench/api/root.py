@@ -13,7 +13,7 @@ from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
 from bench.api.auth import HasModuleAccess, IsOwner
-from bench.api.bench import Bench, BenchMutation, BenchVersion, BenchVisibility
+from bench.api.bench import Bench, BenchMutation, BenchVisibility, Module
 from bench.api.notification import NotificationMutation
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.sentry import SentryPerformanceExtension
@@ -59,17 +59,17 @@ def get_user_or_organization_by_slug(
         return None
 
 
-def get_bench_version_by_tag(bench_id: GlobalID, tag: str):
+def get_module_by_tag(bench_id: GlobalID, tag: str):
     try:
-        return models.BenchVersion.objects.get_by_tag(bench_id.node_id, tag)
-    except models.BenchVersion.DoesNotExist:
+        return models.Module.objects.get_by_tag(bench_id.node_id, tag)
+    except models.Module.DoesNotExist:
         return None
 
 
-def get_bench_version_by_slug(owner: str, bench: str, tag: str):
+def get_module_by_slug(owner: str, bench: str, tag: str):
     try:
-        return models.BenchVersion.objects.get_by_slug(owner, bench, tag)
-    except models.BenchVersion.DoesNotExist:
+        return models.Module.objects.get_by_slug(owner, bench, tag)
+    except models.Module.DoesNotExist:
         return None
 
 
@@ -124,12 +124,12 @@ class Query:
     bench_by_slug: Optional[Bench] = strawberry_django.field(
         resolver=get_bench_by_slug, extensions=[HasModuleAccess()]
     )
-    bench_version: Optional[BenchVersion] = strawberry_django.node()
-    bench_version_by_slug: Optional[BenchVersion] = strawberry_django.field(
-        resolver=get_bench_version_by_slug, extensions=[HasModuleAccess()]
+    module: Optional[Module] = strawberry_django.node()
+    module_by_slug: Optional[Module] = strawberry_django.field(
+        resolver=get_module_by_slug, extensions=[HasModuleAccess()]
     )
-    bench_version_by_tag: Optional[BenchVersion] = strawberry_django.field(
-        resolver=get_bench_version_by_tag, extensions=[HasModuleAccess()]
+    module_by_tag: Optional[Module] = strawberry_django.field(
+        resolver=get_module_by_tag, extensions=[HasModuleAccess()]
     )
     featured_benches: strawberry_django.relay.ListConnectionWithTotalCount[
         Bench

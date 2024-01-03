@@ -748,7 +748,7 @@ class WorkerProcess(RuntimeHost):
         edits = [
             EditData(
                 type=EditType.BUMP_STATEMENT,
-                bench_version_id=self.module.id,
+                module_id=self.module.id,
                 file_id=database.file.id,
                 statement_id=database.id,
                 revision=database.revision,

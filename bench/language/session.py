@@ -126,8 +126,8 @@ class LogEntry(Struct):
     """
 
     id: UUID = struct_internal(2, default_factory=uuid4)
-    bench_id: UUID = struct_internal(30)
-    module: Module = struct_internal(31, references=NodeType.MODULE)
+    module: Module = struct_internal(5, references=NodeType.MODULE)
+    bench: Module = struct_internal(6, references=NodeType.BENCH)
     created_at: datetime = struct_internal(32, default_factory=utcnow_with_tz)
     stream: str = struct_internal(33)
     session: "Session" = struct_internal(34, references=NodeType.SESSION)
@@ -140,7 +140,7 @@ class LogEntry(Struct):
         40,
         require=False,
         default=None,
-        store_as=ColumnType.JSON,
+        column_type=ColumnType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
 
@@ -157,7 +157,6 @@ class WorkerSet(Node):
     Set of workers to run a Bench's modules.
     """
 
-    bench_id: UUID = struct_internal(30)
     region: ProjectRegion = struct_internal(31)
     profile: WorkerProfile = struct_internal(32)
     sleeping: bool = struct_internal(33)
@@ -191,15 +190,14 @@ class Session(ScopeNode):
 
     parent: None = node_parent(4)
     access_level: SessionAccessLevel = struct_internal(30)
-    bench_id: str = struct_internal(31, reflect=True)
-    worker_node_id: str = struct_internal(32, reflect=True)
-    worker_process_id: Optional[str] = struct_internal(33, reflect=True)
-    trigger_type: TriggerType = struct_internal(34, reflect=True)
-    trigger_id: Optional[UUID] = struct_internal(35, default=None, reflect=True)
-    opened_at: Optional[datetime] = struct_internal(36, default=None, reflect=True)
-    closed_at: Optional[datetime] = struct_internal(37, default=None, reflect=True)
-    inference_timeout: int = struct_internal(38, default=300)
-    inference_retries: int = struct_internal(39, default=5)
+    worker_node_id: str = struct_internal(31, reflect=True)
+    worker_process_id: Optional[str] = struct_internal(32, reflect=True)
+    trigger_type: TriggerType = struct_internal(33, reflect=True)
+    trigger_id: Optional[UUID] = struct_internal(34, default=None, reflect=True)
+    opened_at: Optional[datetime] = struct_internal(35, default=None, reflect=True)
+    closed_at: Optional[datetime] = struct_internal(36, default=None, reflect=True)
+    inference_timeout: int = struct_internal(37, default=300)
+    inference_retries: int = struct_internal(38, default=5)
     runs: NodeList[Run] = node_children(NodeType.RUN, flags=NRel.Flat)
     _runtime: RuntimeHost | None = struct_runtime(default=None)
     _root_run_id: UUID | None = struct_runtime(default=None)
@@ -576,7 +574,7 @@ class SessionTracer:
                 node = cast(Record, event.node)
                 edit = EditData(
                     type=event.type,
-                    bench_version_id=module.id,
+                    module_id=module.id,
                     properties=event.properties,
                 )
                 edit.node = pack_node(node)

@@ -33,7 +33,7 @@ from bench.language.module import NodeTree, NodeTreeEditor, on_issue_raise, walk
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
-from bench.models import BenchVersion, packer
+from bench.models import Module, packer
 from bench.models.packer import get_default_pack_filters, write_host_db_edits
 from bench.models.user import loops_request
 from bench.proto import wire, wiring
@@ -83,19 +83,19 @@ class RuntimeHost:
         tasks: TaskManager,
         supervisor: "RuntimeSupervisor",
         bench: models.Bench,
-        bench_version: models.BenchVersion,
+        module: models.Module,
     ):
         self.server_id = host_id
         self.tasks = tasks
         self.supervisor = supervisor
         self.bench = bench
-        self.bench_version = bench_version
+        self.module = module
         self.ready = asyncio.Event()
         self.log = logger.bind(
             module_id=str(self.module_id),
             bench_id=str(self.bench_id),
             worker_id=str(self.server_id),
-            module=self.bench_version,
+            module=self.module,
         )
         self.module: Optional[Module] = None
         # time triggers
@@ -103,14 +103,14 @@ class RuntimeHost:
         self.active_trigger_process_wait: asyncio.Event = asyncio.Event()
 
     def __str__(self):
-        return f"{self.bench_version.parent_bench.path} {self.bench_version.id}"
+        return f"{self.module.parent_bench.path} {self.module.id}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}"
 
     @property
     def committed(self):
-        return self.bench_version.committed
+        return self.module.committed
 
     @property
     def client(self) -> ClientOrigin:
@@ -118,13 +118,11 @@ class RuntimeHost:
 
     @property
     def module_id(self) -> UUID:
-        return self.bench_version.id
+        return self.module.id
 
     @property
     def module_ref(self) -> ModuleReference:
-        return ModuleReference(
-            name=self.bench_version.parent_bench.path, version="x", id=self.module_id
-        )
+        return ModuleReference(name=self.module.parent_bench.path, version="x", id=self.module_id)
 
     @property
     def bench_id(self) -> UUID:
@@ -198,7 +196,7 @@ class RuntimeHost:
                 editor.create(node)
         # write
         await sync_to_async(write_host_db_edits)(
-            self.bench_version,
+            self.module,
             source=self.module._source,
             edits=editor.edits,
             raise_on_apply_error=False,
@@ -268,9 +266,7 @@ class RuntimeHost:
         if any(e.kind == EditKind.RESTORE for e in host_module_edits):
             # cascade restore from DB (use uniform deleted_at to select nodes)
             restored_roots = tuple(e.node for e in host_module_edits if e.kind == EditKind.RESTORE)
-            restored_roots = packer.unpack_nodes(
-                self.bench_version, self.module._source, restored_roots
-            )
+            restored_roots = packer.unpack_nodes(self.module, self.module._source, restored_roots)
             deleted_at = tuple(None, *(r.deleted_at for r in restored_roots))
             assert not all(
                 d is None for d in deleted_at
@@ -305,7 +301,7 @@ class RuntimeHost:
             log.debug("runtime.write_edits.apply", db_edits=db_edits)
             if db_edits:
                 edited_host_nodes = await sync_to_async(write_host_db_edits)(
-                    self.bench_version, old_source, db_edits, raise_on_apply_error=False
+                    self.module, old_source, db_edits, raise_on_apply_error=False
                 )
                 edited_nodes.extend(edited_host_nodes)
             # apply local edits
@@ -321,7 +317,7 @@ class RuntimeHost:
             # reset source & module from db on failure
             log.error("runtime.write_edits.failed", exc_info=True)
             old_source = await sync_to_async(packer.pack_module_host)(
-                self.bench_version, excluded=INTERP_NODE_TYPES
+                self.module, excluded=INTERP_NODE_TYPES
             )
             old_source = NodeTree([wiring.unwrap_some_node(n) for n in old_source.nodes])
             self.module._reset_from_source(old_source)
@@ -365,9 +361,9 @@ class RuntimeHost:
         # get copy
         same_module = source_module_id == self.module_id
         if same_module:
-            source_bench_v = self.bench_version
+            source_module_pg = self.module
         else:
-            source_bench_v = await BenchVersion.objects.select_related("bench").aget(
+            source_module_pg = await Module.objects.select_related("bench").aget(
                 id=source_module_id
             )
         # extend default filter to exclude template tags
@@ -375,9 +371,9 @@ class RuntimeHost:
         filter = packer.DEFAULT_PACK_FILTER.extend(
             (models.Tagging, lambda qs: qs.exclude(key=template_key))
         )
-        copy = await sync_to_async(models.BenchVersion.objects.pack_copy)(
-            source=source_bench_v,
-            target=self.bench_version,
+        copy = await sync_to_async(models.Module.objects.pack_copy)(
+            source=source_module_pg,
+            target=self.module,
             nodes=models.Statement.objects.filter(id__in=source_ids),
             keep_cks=False,
             excluded=packer.INTERP_MODEL_TYPES,
@@ -421,13 +417,13 @@ class RuntimeHost:
             source_module, _ = await read_module(source_module_id)
             source_module = await sync_to_async(Module.make)(
                 source=source_module.nodes,
-                bench_id=source_bench_v.bench_id,
-                os_name=source_bench_v.parent_bench.os_name,
-                pg_name=source_bench_v.parent_bench.pg_name,
+                bench_id=source_module_pg.bench_id,
+                os_name=source_module_pg.parent_bench.os_name,
+                pg_name=source_module_pg.parent_bench.pg_name,
             )
         all_pasted_records: list[wire.RecordData] = []
         async with async_pg_cursor(
-            source_bench_v.parent_bench.pg_name
+            source_module_pg.parent_bench.pg_name
         ) as source_cur, async_pg_cursor(self.bench.pg_name) as target_cur:
             for target_database in target_databases:
                 source_database_ck = copy.target_cks_reversed[target_database.ck]
@@ -448,9 +444,9 @@ class RuntimeHost:
 
     def _do_snapshot_host(
         self, name: str | None, tag: str | None, description: str | None
-    ) -> models.BenchVersion:
+    ) -> models.Module:
         """Snapshots all host Bench nodes (excluding local records)."""
-        snapshot = models.BenchVersion.objects.create(
+        snapshot = models.Module.objects.create(
             id=uuid4(),
             ck=self.bench.id,
             bench=self.bench,
@@ -461,8 +457,8 @@ class RuntimeHost:
         )
 
         # actually copy into new version
-        models.BenchVersion.objects.copy(
-            source=self.bench_version,
+        models.Module.objects.copy(
+            source=self.module,
             target=snapshot,
             keep_cks=True,
             copy_revisions=True,
@@ -470,10 +466,10 @@ class RuntimeHost:
         )
         return snapshot
 
-    def _do_insert_snapshot(self, snapshot: models.BenchVersion):
+    def _do_insert_snapshot(self, snapshot: models.Module):
         # insert new head between parents and head
-        snapshot.parents.set(self.bench_version.parents.all())
-        self.bench_version.parents.set([snapshot])
+        snapshot.parents.set(self.module.parents.all())
+        self.module.parents.set([snapshot])
 
     async def snapshot(self, name: str | None, tag: str | None, description: str | None) -> None:
         """
@@ -525,7 +521,7 @@ class RuntimeHost:
         except Exception:
             # rollback
             logger.error("runtime.snapshot.failed", snapshot=snapshot, exc_info=True)
-            await models.BenchVersion.objects.filter(id=snapshot.id).adelete()
+            await models.Module.objects.filter(id=snapshot.id).adelete()
             raise
         finally:
             # always notify (we did create a snapshot, so it's possible someone read it)
@@ -607,12 +603,12 @@ class RuntimeHost:
     async def write_blob(self, msg: NMessage[ReqUploadBlobPayload]) -> None:
         logger.debug("blob.write", msg=msg)
         # TODO @Security!: check if msg origin has write access to object
-        bench_v = await BenchVersion.objects.select_related("bench").aget(id=msg.p.module_id)
+        module_pg = await Module.objects.select_related("bench").aget(id=msg.p.module_id)
         post_urls: list[str | None] = []
         for obj_data in msg.p.blobs:
             model_blob: models.Blob = packer.unpack_node_flat(obj_data, None)
-            model_blob.bench_id = bench_v.bench_id
-            existing_blob = await bench_v.parent_bench.blobs.filter(
+            model_blob.bench_id = module_pg.bench_id
+            existing_blob = await module_pg.parent_bench.blobs.filter(
                 sha512=model_blob.sha512
             ).afirst()
             if existing_blob is not None:
@@ -985,7 +981,7 @@ class RuntimeHost:
                 id=id,
                 ck=id,
                 bench_id=self.bench_id,
-                bench_version_id=self.module.id,
+                module_id=self.module.id,
                 statement_ck=statement.ck,
                 trigger_type=fired_trigger.trigger.type,
                 trigger_id=fired_trigger.trigger.id,

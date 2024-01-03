@@ -69,9 +69,8 @@ def map_bench_node_to_pg_table(node: type[Node]) -> Table:
             column = Column(
                 source=prop.id,
                 name=prop.name,
-                type=prop.store_as,
+                type=prop.column_type,
                 is_array=prop.is_array,
-                # nocheckin: generated Column.is_nullable is wrong (too often true)
                 is_nullable=not prop.is_required,
                 is_encrypted=prop.is_encrypted,
             )

@@ -339,9 +339,9 @@ class Property(_FieldExpressionBase):
     is_real: bool = UNSET  # exists on runtime instance?
     is_wired: bool = UNSET  # serialized onto wire?
     is_stored: bool = UNSET  # stored in DB?
-    store_as: ColumnType | None = UNSET  # auto-detect
     is_deferred: bool = False  # not loaded immediately (only for stored node properties)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
+    column_type: ColumnType | None = UNSET  # auto-detect
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
     list_type: type["NodeListBase"] | None = None
@@ -360,20 +360,20 @@ class Property(_FieldExpressionBase):
         # derive constant ck for field using ids
         metatype = getattr(self.component, "metatype", None)  # (Node/Struct don't have metatype)
         metatype_id = metatype.id if metatype is not None else None
-        if self.store_as == ColumnType.BOOLEAN:
+        if self.column_type == ColumnType.BOOLEAN:
             tag, hint = TypeTag.BOOLEAN, None
-        elif self.store_as == ColumnType.BIGINT:
+        elif self.column_type == ColumnType.BIGINT:
             tag, hint = TypeTag.NUMBER, TypeHint.INTEGER
-        elif self.store_as == ColumnType.FLOAT:
+        elif self.column_type == ColumnType.FLOAT:
             tag, hint = TypeTag.NUMBER, None
-        elif self.store_as == ColumnType.STRING:
+        elif self.column_type == ColumnType.STRING:
             tag, hint = TypeTag.STRING, None
-        elif self.store_as == ColumnType.DATETIME:
+        elif self.column_type == ColumnType.DATETIME:
             tag, hint = TypeTag.STRING, TypeHint.DATETIME
-        elif self.store_as == ColumnType.UUID:
+        elif self.column_type == ColumnType.UUID:
             tag, hint = TypeTag.STRING, TypeHint.UUID
         else:
-            raise ValueError(f"unexpected column type in {self!r}: {self.store_as}")
+            raise ValueError(f"unexpected column type in {self!r}: {self.column_type}")
         field = Field(
             name=self.name,
             ck=uuid.uuid5(BENCH_UUID_NAMESPACE, f"{metatype_id}.{self.id}"),
@@ -488,11 +488,12 @@ class Property(_FieldExpressionBase):
     def finalize_type(self) -> None:
         """Analyzes the final type and configures storage options. Must run after complete setup."""
         # store/wire property by default if not runtime (and not marked as _not_ store)
-        if self.store_as is UNSET and (
+        if self.column_type is UNSET and (
             self.is_tree_relation or self.is_runtime_only or self.references
         ):
-            self.is_stored = False
-            self.store_as = None
+            if self.is_stored is UNSET:
+                self.is_stored = False
+            self.column_type = None
         elif self.is_stored is UNSET:
             self.is_stored = True
         if self.is_wired is UNSET:
@@ -518,23 +519,23 @@ class Property(_FieldExpressionBase):
                 self.is_array = info.is_array
 
         # determine storage type
-        if self.store_as is UNSET and self.is_stored:
+        if self.column_type is UNSET and (self.is_stored or self.is_wired):
             # map to column type
             assert isinstance(py_type, type), f"invalid type {py_type!r} for {self!r}"
             if issubclass(py_type, enum.StrEnum):
-                self.store_as = ColumnType.STRING
+                self.column_type = ColumnType.STRING
             elif issubclass(py_type, (enum.IntFlag, enum.IntEnum)):
-                self.store_as = ColumnType.BIGINT
+                self.column_type = ColumnType.BIGINT
             elif issubclass(py_type, Struct):
                 assert self.struct_type is not None, f"missing struct type for {self!r}"
-                self.store_as = ColumnType.BYTES
+                self.column_type = ColumnType.BYTES
             elif issubclass(py_type, Node):
                 raise ValueError(f"cannot store node directly: {self!r}")
             else:
-                store_as = PROPERTY_COLUMN_TYPE_BY_PY_TYPE.get(py_type)
-                if store_as is None:
+                column_type = PROPERTY_COLUMN_TYPE_BY_PY_TYPE.get(py_type)
+                if column_type is None:
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
-                self.store_as = store_as
+                self.column_type = column_type
 
     def contribute_properties(self) -> tuple["Property"]:
         """Contribute any extra properties required by this property."""
@@ -554,7 +555,7 @@ class Property(_FieldExpressionBase):
                 is_wired=True,
                 is_stored=False,
                 is_array=False,
-                store_as=ColumnType.UUID,
+                column_type=ColumnType.UUID,
             )
             parent_id_props: list[Property] = []
             for parent_node_type in self.parents:
@@ -570,12 +571,14 @@ class Property(_FieldExpressionBase):
                     is_wired=False,
                     is_stored=True,
                     is_array=False,
-                    store_as=ColumnType.UUID,
+                    column_type=ColumnType.UUID,
                 )
                 parent_id_props.append(parent_id_prop)
             self.reference_key = wired_id_prop
             return (wired_id_prop, *parent_id_props)
-        elif self.ancestor and self.is_stored is True:
+        elif self.ancestor is not None:
+            assert self.is_stored is not UNSET, f"must set is_stored on {self!r}"
+            assert self.is_wired is not UNSET, f"must set is_wired on {self!r}"
             ancestor_id_prop = Property(
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_id",
@@ -585,13 +588,17 @@ class Property(_FieldExpressionBase):
                 is_required=self.is_required,
                 is_internal=True,
                 is_computed=True,
-                is_wired=True,
-                is_stored=False,
+                is_wired=self.is_wired,
+                is_stored=self.is_stored,
                 is_array=False,
-                store_as=ColumnType.UUID,
+                column_type=ColumnType.UUID,
             )
             self.reference_key = ancestor_id_prop
-            return (ancestor_id_prop,)
+            if self.is_stored or self.is_wired:
+                self.is_stored = False  # the id is stored instead
+                if self.is_wired is True:
+                    self.is_wired = False  # the id is wired instead
+                return (ancestor_id_prop,)
         elif self.references is not None:
             # regular reference to node (via ck, resolved during interp)
             reference_ck_prop = Property(
@@ -606,7 +613,7 @@ class Property(_FieldExpressionBase):
                 is_wired=True,
                 is_stored=True,
                 is_array=False,
-                store_as=ColumnType.UUID,
+                column_type=ColumnType.UUID,
             )
             self.reference_key = reference_ck_prop
             return (reference_ck_prop,)
@@ -653,7 +660,7 @@ def struct_property(
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
     struct_t: StructType = None,
-    store_as: ColumnType = UNSET,
+    column_type: ColumnType = UNSET,
 ):
     """Standard user facing struct/node property."""
     return Property(
@@ -667,7 +674,7 @@ def struct_property(
         ignore_conflicts_with=ignore_conflicts_with,
         references=try_tuple(references),
         struct_type=struct_t,
-        store_as=store_as,
+        column_type=column_type,
     )
 
 
@@ -683,7 +690,7 @@ def struct_internal(
     references: tuple[NodeType, ...] | NodeType = None,
     struct_t: StructType = None,
     store: bool = UNSET,
-    store_as: ColumnType = UNSET,
+    column_type: ColumnType = UNSET,
     defer: bool = False,
     encrypt: bool = False,
 ):
@@ -700,7 +707,7 @@ def struct_internal(
         ignore_conflicts_with=ignore_conflicts_with,
         is_stored=store,
         struct_type=struct_t,
-        store_as=store_as,
+        column_type=column_type,
         is_deferred=defer,
         is_encrypted=encrypt,
     )
@@ -736,7 +743,8 @@ def node_ancestor(
     node_type: NodeType,
     nearest: bool = True,
     include_self: bool = True,
-    store: bool = UNSET,
+    store: bool = False,
+    wire: bool = False,
 ):
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
@@ -748,6 +756,7 @@ def node_ancestor(
         is_ancestor_nearest=nearest,
         is_ancestor_self=include_self,
         is_stored=store,
+        is_wired=wire,
     )
 
 
@@ -871,7 +880,7 @@ METATYPE_PROPERTY = Property(
     is_real=False,
     is_wired=True,
     is_stored=False,
-    store_as=ColumnType.STRING,
+    column_type=ColumnType.STRING,
 )
 
 
@@ -2458,17 +2467,19 @@ class Node(Struct):
     __has_scope__: ClassVar[bool] = False  # can have node children
     __is_detached__: ClassVar[bool] = False  # not part of inline module tree
     __is_managed__: ClassVar[bool] = False  # storage fully controlled by Bench runtime
-    __is_stored__: ClassVar[bool] = False  # stored on disk (runtime or local)
+    __is_stored__: ClassVar[bool] = False  # stored in PG (runtime or local)
+    __is_indexed__: ClassVar[bool] = False  # stored in local OS
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
 
     # 1-9: reserved for node identity
     id: UUID = struct_internal(2, default=None, require=True, reflect=True)
     ck: UUID = struct_internal(3, default=None, require=True, reflect=True)
     parent: Optional["Node"] = node_parent(4)
-    module: Optional["Module"] = node_ancestor(5, NodeType.MODULE, store=True)
-    # prototype / template: Optional["Node"] = node_template(6)
+    module: Optional["Module"] = node_ancestor(5, NodeType.MODULE, store=True, wire=True)
+    bench: Optional["Bench"] = node_ancestor(6, NodeType.BENCH, store=False, wire=True)
+    # prototype/template: Optional["Node"] = node_template(7)
 
-    # 10-29: reserved for node tracking
+    # 10-29: reserved for node status/tracking
     revision: int = struct_internal(10, default=0, require=True, reflect=True)
     created_at: datetime = struct_internal(11, default=None, require=True, reflect=True)
     updated_at: datetime = struct_internal(12, default=None, require=True, reflect=True)
@@ -2483,7 +2494,7 @@ class Node(Struct):
     # last_changed_by: Optional["User"] = struct_internal(19, default=None, reflect=True)
 
     # 30+ for 'user' node/struct properties
-    # <... defined in concrete node type ...>
+    # <... defined in concrete type ...>
 
     _session: Optional["Session"] = struct_runtime(default=None)
     _status: NodeStatus = struct_runtime(default=None)
@@ -3343,7 +3354,7 @@ class Module(ScopeNode):
         return module
 
 
-# NOTE: we don't generate EditData yet because of missing nested node support
+# NOTE: we don't generate EditData yet because we don't have nodes as 'full' inline properties
 #  EditData is defined manually in our extra proto file.
 # @struct(StructType.EDIT)
 # class Edit:

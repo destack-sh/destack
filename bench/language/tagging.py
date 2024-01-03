@@ -32,7 +32,7 @@ class Tagging(HasValue, Node):
     )
     key: str = struct_internal(30)
     value: typing.Any | None = struct_property(
-        31, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+        31, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
     )
     reference: Optional["Statement"] = struct_internal(
         32, require=False, references=NodeType.STATEMENT

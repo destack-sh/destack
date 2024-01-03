@@ -197,7 +197,7 @@ class Statement(ScopeNode, HasTags):
     key: str | None = struct_internal(37, default=None)
     code: str | None = struct_property(38, default=None, validate=validate_is_str)
     value: Any | None = struct_property(
-        39, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+        39, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
     )
     versioned: bool = struct_internal(40, default=True)
 

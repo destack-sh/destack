@@ -1,8 +1,8 @@
 from django.contrib import admin
 
-from bench.models import Bench, BenchVersion, Organization, User
+from bench.models import Bench, Module, Organization, User
 
 admin.site.register(Organization)
 admin.site.register(User)
 admin.site.register(Bench)
-admin.site.register(BenchVersion)
+admin.site.register(Module)

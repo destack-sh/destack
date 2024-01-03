@@ -468,8 +468,8 @@ message InferenceData {
 message LogEntryData {
   BenchType metatype = 1;
   string id = 2;
-  string bench_id = 30;
-  string module_ck = 31;
+  string module_ck = 5;
+  string bench_ck = 6;
   google.protobuf.Timestamp created_at = 32;
   string stream = 33;
   string session_ck = 34;
@@ -505,6 +505,7 @@ message BenchData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -524,6 +525,7 @@ message BlobData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -542,6 +544,7 @@ message ClientData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -560,6 +563,7 @@ message FieldData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -582,6 +586,7 @@ message FileData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -598,6 +603,7 @@ message IssueData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -617,6 +623,7 @@ message ModuleData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -632,6 +639,7 @@ message BaseNodeData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -645,6 +653,7 @@ message RecordData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -659,6 +668,7 @@ message ResolvedFieldData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -682,6 +692,7 @@ message RunData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -690,22 +701,21 @@ message RunData {
   google.protobuf.Timestamp last_changed_at = 16;
   string session_id = 30;
   string root_id = 31;
-  string bench_id = 32;
-  string worker_node_id = 33;
-  string worker_process_id = 34;
-  string statement_ck = 35;
-  string statement_path = 36;
-  google.protobuf.Timestamp scheduled_at = 37;
-  google.protobuf.Timestamp started_at = 38;
-  google.protobuf.Timestamp terminated_at = 39;
-  string trigger_type = 40;
-  string trigger_id = 41;
-  int64 access_level = 42;
-  RunStatus status = 43;
-  google.protobuf.Struct inputs = 44;
-  google.protobuf.Struct outputs = 45;
-  google.protobuf.Struct error = 46;
-  google.protobuf.Struct value = 47;
+  string worker_node_id = 32;
+  string worker_process_id = 33;
+  string statement_ck = 34;
+  string statement_path = 35;
+  google.protobuf.Timestamp scheduled_at = 36;
+  google.protobuf.Timestamp started_at = 37;
+  google.protobuf.Timestamp terminated_at = 38;
+  string trigger_type = 39;
+  string trigger_id = 40;
+  int64 access_level = 41;
+  RunStatus status = 42;
+  google.protobuf.Struct inputs = 43;
+  google.protobuf.Struct outputs = 44;
+  google.protobuf.Struct error = 45;
+  google.protobuf.Struct value = 46;
 }
 
 message SecretData {
@@ -714,6 +724,7 @@ message SecretData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -729,6 +740,7 @@ message SessionData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -736,15 +748,14 @@ message SessionData {
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
   int64 access_level = 30;
-  string bench_id = 31;
-  string worker_node_id = 32;
-  string worker_process_id = 33;
-  TriggerType trigger_type = 34;
-  string trigger_id = 35;
-  google.protobuf.Timestamp opened_at = 36;
-  google.protobuf.Timestamp closed_at = 37;
-  int64 inference_timeout = 38;
-  int64 inference_retries = 39;
+  string worker_node_id = 31;
+  string worker_process_id = 32;
+  TriggerType trigger_type = 33;
+  string trigger_id = 34;
+  google.protobuf.Timestamp opened_at = 35;
+  google.protobuf.Timestamp closed_at = 36;
+  int64 inference_timeout = 37;
+  int64 inference_retries = 38;
 }
 
 message StatementData {
@@ -753,6 +764,7 @@ message StatementData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -778,6 +790,7 @@ message TaggingData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -794,6 +807,7 @@ message TriggerData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -813,6 +827,7 @@ message UserData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -828,6 +843,7 @@ message ViewData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -835,9 +851,10 @@ message ViewData {
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
   string name = 30;
-  NodeType node_type = 31;
-  ExpressionData query = 32;
-  repeated ExpressionData sort = 33;
+  string order_key = 31;
+  NodeType node_type = 32;
+  ExpressionData query = 33;
+  repeated ExpressionData sort = 34;
 }
 
 message WorkerSetData {
@@ -846,12 +863,12 @@ message WorkerSetData {
   string ck = 3;
   string parent_id = 4;
   string module_id = 5;
+  string bench_id = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp last_edited_at = 15;
-  string bench_id = 30;
   ProjectRegion region = 31;
   WorkerProfile profile = 32;
   bool sleeping = 33;

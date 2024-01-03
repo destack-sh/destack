@@ -18,11 +18,11 @@ from bench.utils.utils import format_python
 logger = structlog.get_logger(__name__)
 
 
-async def update_pg_schema_from_db(bench_v: models.BenchVersion) -> None:
+async def update_pg_schema_from_db(module: models.Module) -> None:
     from bench.runtime.utils import interp_module
 
-    logger.info("pg.update_mappings", bench_version=repr(bench_v))
-    module, bench = await interp_module(bench_v.id)
+    logger.info("pg.update_mappings", module=repr(module))
+    module, bench = await interp_module(module.id)
     await update_pg_schema(bench.pg_name, module)
 
 
@@ -76,10 +76,10 @@ class Command(BaseCommand):
                 async_to_sync(create_local_pg_database)(bench, upsert=True)
         elif action == "local_schema_apply":
             for bench in benches:
-                bench_v = bench.head
-                bench_v.parent_bench = bench  # 'preloaded' bench
-                bench_v.parent_bench.owner  # noqa why do we need to load this again?
-                async_to_sync(update_pg_schema_from_db)(bench_v)
+                module = bench.head
+                module.parent_bench = bench  # 'preloaded' bench
+                module.parent_bench.owner  # noqa why do we need to load this again?
+                async_to_sync(update_pg_schema_from_db)(module)
         elif action == "local_delete":
             for bench in benches:
                 async_to_sync(delete_local_pg_database)(bench)

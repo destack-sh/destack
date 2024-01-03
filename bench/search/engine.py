@@ -934,19 +934,19 @@ def enable_os_strict_mapping(index_name: str) -> None:
 
 
 def write_runs_to_os(
-    bench_vs: models.BenchVersion | list[models.BenchVersion], runs: list[wire.RunData]
+    modules: models.Module | list[models.Module], runs: list[wire.RunData]
 ) -> None:
     """Writes/mirrors runs (from different sessions/benches) to OpenSearch."""
 
     if not runs:
         return
-    if isinstance(bench_vs, list) and len(bench_vs) != len(runs):
-        raise ValueError(f"len(bench_vs) != len(runs): {len(bench_vs)} != {len(runs)}")
+    if isinstance(modules, list) and len(modules) != len(runs):
+        raise ValueError(f"len(modules) != len(runs): {len(modules)} != {len(runs)}")
     ops: list[dict] = []
     for i, run in enumerate(runs):
-        bench_v = bench_vs[i] if isinstance(bench_vs, list) else bench_vs
-        ops.append({"index": {"_index": bench_v.os_name, "_id": str(run.id)}})
-        ops.append(mirror.unpack_node_flat(bench_v, run, None).to_dict())
+        module_pg = modules[i] if isinstance(modules, list) else modules
+        ops.append({"index": {"_index": module_pg.os_name, "_id": str(run.id)}})
+        ops.append(mirror.unpack_node_flat(module_pg, run, None).to_dict())
     logger.debug("os.write_runs", operations=len(ops))
     ret = os_client_sync.bulk(ops)
     if ret.get("errors"):
