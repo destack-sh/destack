@@ -4,7 +4,7 @@ import hashlib
 from dataclasses import dataclass, field, is_dataclass, replace
 from datetime import datetime
 from itertools import chain
-from typing import TYPE_CHECKING, ClassVar, Union, Any
+from typing import TYPE_CHECKING, Any, ClassVar, Union
 from uuid import UUID, uuid5
 
 import psycopg
@@ -368,8 +368,9 @@ class Table(Construct):
             construct._table = self
         self._columns_by_name = {}
         for column in self.columns:
-            if column.name in self._columns_by_name:
-                raise ValueError(f"column {column.name} is already defined in {self}")
+            existing = self._columns_by_name.get(column.name)
+            if existing is not None:
+                raise ValueError(f"column {column!r} is already defined in {self!r}: {existing!r}")
             self._columns_by_name[column.name] = column
         self._primary_key = first((c for c in self.columns if c.is_primary_key), None)
 

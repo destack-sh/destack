@@ -3,20 +3,20 @@ from itertools import chain
 from typing import TYPE_CHECKING, Collection, Union
 
 from bench.proto.core import (
-    FieldType,
-    ProtoThing,
-    Field,
-    Message,
     Enum,
-    ProtoSchema,
     EnumValue,
+    Field,
+    FieldType,
+    Message,
+    ProtoSchema,
     ProtoStrEnum,
+    ProtoThing,
 )
 from bench.sql.core import ColumnType
 from bench.utils.utils import to_all_caps, to_snake_case
 
 if TYPE_CHECKING:
-    from bench.language import Node, Struct, Property
+    from bench.language import Node, Property, Struct
 
 #
 # Map Bench types to Proto types
@@ -39,7 +39,7 @@ _BenchType = type[Union["Node", "Struct", "Property", enum.StrEnum, enum.IntFlag
 
 
 def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThing]) -> Field:
-    assert not prop.is_runtime, f"shouldn't map runtime property: {prop!r}"
+    assert not prop.is_runtime_only, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
     if prop.is_struct or prop.is_enum and prop.store_as == ColumnType.STRING:
@@ -49,7 +49,7 @@ def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThin
         field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.store_as]
         return Field(id=prop.id, name=prop.name, type=field_type, repeated=prop.is_array)
     else:
-        raise TypeError(f"cannot map to proto type: {prop!r}")
+        raise TypeError(f"cannot map {prop.store_as} to proto type: {prop!r}")
 
 
 def _bench_struct_to_proto(
@@ -58,7 +58,7 @@ def _bench_struct_to_proto(
     struct = Message(name=alias or node.__name__, reserved_names=[], reserved_ids=[], fields=[])
     cache[node] = struct  # to solve recursive references
     for prop in node.__properties__.values():
-        if not prop.is_stored:
+        if not prop.is_wired:
             continue
         field = _bench_property_to_proto(prop, cache)
         struct.fields.append(field)

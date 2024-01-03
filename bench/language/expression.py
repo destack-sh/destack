@@ -46,14 +46,14 @@ FieldReference = UUID | str  # str as an alias for fields that we don't have ref
 
 @struct(StructType.EXPRESSION)
 class Expression(Struct):
-    op: ExpressionOp = struct_property(21, is_required=True)
-    field: Optional["Field"] = struct_property(22, references=NodeType.FIELD)
-    field_key: Optional[str] = struct_property(23, default=None)
+    op: ExpressionOp = struct_property(30, require=True)
+    field: Optional["Field"] = struct_property(31, references=NodeType.FIELD)
+    field_key: Optional[str] = struct_property(32, default=None)
     clauses: list["Expression"] | None = struct_property(
-        24, default=None, struct_t=StructType.EXPRESSION
+        33, default=None, struct_t=StructType.EXPRESSION
     )
-    value: Any = struct_property(25, default=None, store_as=ColumnType.JSON)
-    mode: Optional[SortMode] = struct_property(26, default=None)
+    value: Any = struct_property(34, default=None, store_as=ColumnType.JSON)
+    mode: Optional[SortMode] = struct_property(35, default=None)
 
     @property
     def kind(self) -> ExpressionKind:

@@ -11,8 +11,8 @@ from bench.sql.core import ColumnType
 class Secret(Node):
     """A shared secret with a deferred value (loaded on demand)t."""
 
-    sha512: str = struct_property(20)
-    value: Optional[str] = struct_internal(21, default=None, defer=True, encrypt=True)
+    sha512: str = struct_property(30)
+    value: Optional[str] = struct_internal(31, default=None, defer=True, encrypt=True)
 
     def __str__(self):
         return f"{self.id} ({self.sha512[:8]})"

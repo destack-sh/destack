@@ -126,19 +126,19 @@ class LogEntry(Struct):
     """
 
     id: UUID = struct_internal(2, default_factory=uuid4)
-    bench_id: UUID = struct_internal(20)
-    module: Module = struct_internal(21, references=NodeType.MODULE)
-    created_at: datetime = struct_internal(22, default_factory=utcnow_with_tz)
-    stream: str = struct_internal(23)
-    session: "Session" = struct_internal(24, references=NodeType.SESSION)
-    level: Optional[str] = struct_internal(25, default=None)
-    logger: Optional[str] = struct_internal(26, default=None)
-    statement: Optional["Statement"] = struct_internal(27, references=NodeType.STATEMENT)
-    run: Optional["Run"] = struct_internal(28, references=NodeType.RUN)
-    message: Optional[str] = struct_internal(29, default=None)
+    bench_id: UUID = struct_internal(30)
+    module: Module = struct_internal(31, references=NodeType.MODULE)
+    created_at: datetime = struct_internal(32, default_factory=utcnow_with_tz)
+    stream: str = struct_internal(33)
+    session: "Session" = struct_internal(34, references=NodeType.SESSION)
+    level: Optional[str] = struct_internal(35, default=None)
+    logger: Optional[str] = struct_internal(36, default=None)
+    statement: Optional["Statement"] = struct_internal(37, references=NodeType.STATEMENT)
+    run: Optional["Run"] = struct_internal(38, references=NodeType.RUN)
+    message: Optional[str] = struct_internal(39, default=None)
     value: dict[str, Any] | None = struct_internal(
-        30,
-        is_required=False,
+        40,
+        require=False,
         default=None,
         store_as=ColumnType.JSON,
         ignore_conflicts_with=(HasValue,),
@@ -157,30 +157,30 @@ class WorkerSet(Node):
     Set of workers to run a Bench's modules.
     """
 
-    bench_id: UUID = struct_internal(20)
-    region: ProjectRegion = struct_internal(21)
-    profile: WorkerProfile = struct_internal(22)
-    sleeping: bool = struct_internal(23)
-    status: WorkerSetStatus = struct_internal(24)
-    desired_replicas: int = struct_internal(25)
-    target_replicas: int = struct_internal(26)
-    available_replicas: int = struct_internal(27)
-    ready_replicas: int = struct_internal(28)
-    last_active_at: datetime = struct_internal(29, default_factory=utcnow_with_tz)
+    bench_id: UUID = struct_internal(30)
+    region: ProjectRegion = struct_internal(31)
+    profile: WorkerProfile = struct_internal(32)
+    sleeping: bool = struct_internal(33)
+    status: WorkerSetStatus = struct_internal(34)
+    desired_replicas: int = struct_internal(35)
+    target_replicas: int = struct_internal(36)
+    available_replicas: int = struct_internal(37)
+    ready_replicas: int = struct_internal(38)
+    last_active_at: datetime = struct_internal(39, default_factory=utcnow_with_tz)
 
 
 @struct(StructType.ENVIRONMENT)
 class Environment(Struct):
-    language: str = struct_internal(20)
-    version: str = struct_internal(21)
-    platform: str = struct_internal(22)
-    dependencies: list["Dependency"] = struct_internal(23, struct_t=StructType.DEPENDENCY)
+    language: str = struct_internal(30)
+    version: str = struct_internal(31)
+    platform: str = struct_internal(32)
+    dependencies: list["Dependency"] = struct_internal(33, struct_t=StructType.DEPENDENCY)
 
 
 @struct(StructType.DEPENDENCY)
 class Dependency(Struct):
-    name: str = struct_internal(20)
-    version: str = struct_internal(21)
+    name: str = struct_internal(30)
+    version: str = struct_internal(31)
 
 
 @node(NodeType.SESSION, detached=True)
@@ -190,16 +190,16 @@ class Session(ScopeNode):
     """
 
     parent: None = node_parent(4)
-    access_level: SessionAccessLevel = struct_internal(20)
-    bench_id: str = struct_internal(21, reflect=True)
-    worker_node_id: str = struct_internal(22, reflect=True)
-    worker_process_id: Optional[str] = struct_internal(23, reflect=True)
-    trigger_type: TriggerType = struct_internal(24, reflect=True)
-    trigger_id: Optional[UUID] = struct_internal(25, default=None, reflect=True)
-    opened_at: Optional[datetime] = struct_internal(26, default=None, reflect=True)
-    closed_at: Optional[datetime] = struct_internal(27, default=None, reflect=True)
-    inference_timeout: int = struct_internal(28, default=300)
-    inference_retries: int = struct_internal(29, default=5)
+    access_level: SessionAccessLevel = struct_internal(30)
+    bench_id: str = struct_internal(31, reflect=True)
+    worker_node_id: str = struct_internal(32, reflect=True)
+    worker_process_id: Optional[str] = struct_internal(33, reflect=True)
+    trigger_type: TriggerType = struct_internal(34, reflect=True)
+    trigger_id: Optional[UUID] = struct_internal(35, default=None, reflect=True)
+    opened_at: Optional[datetime] = struct_internal(36, default=None, reflect=True)
+    closed_at: Optional[datetime] = struct_internal(37, default=None, reflect=True)
+    inference_timeout: int = struct_internal(38, default=300)
+    inference_retries: int = struct_internal(39, default=5)
     runs: NodeList[Run] = node_children(NodeType.RUN, flags=NRel.Flat)
     _runtime: RuntimeHost | None = struct_runtime(default=None)
     _root_run_id: UUID | None = struct_runtime(default=None)

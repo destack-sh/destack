@@ -30,7 +30,9 @@ class Field(CrudNode):
     Do not write to this model directly as any change affects the opensearch indices.
     """
 
-    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="fields")
+    parent_statement = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="fields"
+    )
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
@@ -47,29 +49,29 @@ class Field(CrudNode):
         flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
         flags_str = f" ({flag_str})" if flag_str else ""
         name_str = f"{self.name} " if self.name else ""
-        return f"{self.statement} {name_str}{self.tag}{flags_str}"
+        return f"{self.parent_statement} {name_str}{self.tag}{flags_str}"
 
     def __repr__(self):
         return f"<Field {str(self)}>"
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
-        return self.statement_id
+        return self.parent_statement_id
 
     @property
     def parent(self) -> Statement:
-        return self.statement
+        return self.parent_statement
 
     objects = FieldManager()
 
     class Meta:
-        managed = False
+        managed = True
         ordering = ["order_key"]
         default_manager_name = "objects"
-        indexes = [models.Index(fields=["statement"])]
+        indexes = [models.Index(fields=["parent_statement"])]
         constraints = [
             models.UniqueConstraint(
-                fields=["statement", "order_key"],
+                fields=["parent_statement", "order_key"],
                 name="bench_statement_field_order_key_ak",
                 condition=Q(deleted_at__isnull=True),
             ),
@@ -87,7 +89,9 @@ class Trigger(CrudNode):
     A trigger to a statement.
     """
 
-    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="triggers")
+    parent_statement = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="triggers"
+    )
     type = models.CharField(max_length=32, choices=get_choices(TriggerType))
     active = models.BooleanField(default=True)
     mapping = models.JSONField(null=True, blank=True)
@@ -104,14 +108,14 @@ class Trigger(CrudNode):
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
-        return self.statement_id
+        return self.parent_statement_id
 
     @property
     def parent(self) -> Statement:
-        return self.statement
+        return self.parent_statement
 
     class Meta:
-        managed = False
+        managed = True
         # interval must be >60 if set
         constraints = [
             models.CheckConstraint(
@@ -132,21 +136,21 @@ class Tagging(CrudNode):
     An association between a tag and a statement.
     """
 
-    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="tags")
+    parent_statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="tags")
     key = models.CharField(max_length=48)
     reference_ck = models.UUIDField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
 
     @property
     def parent_id(self):
-        return self.statement_id
+        return self.parent_statement_id
 
     @property
     def parent(self):
-        return self.statement
+        return self.parent_statement
 
     class Meta:
-        managed = False
+        managed = True
 
 
 class StatementManager(models.Manager["Statement"]):
@@ -210,7 +214,7 @@ class Statement(CrudNode):
     objects: StatementManager = StatementManager()
 
     class Meta:
-        managed = False
+        managed = True
         ordering = ["order_key"]
         default_manager_name = "objects"
         constraints = [

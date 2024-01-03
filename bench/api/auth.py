@@ -90,7 +90,7 @@ def has_module_access(
         bench = models.Bench.objects.get(id=bench)
     elif isinstance(bench, models.BenchVersion):
         bench_version = bench
-        bench = bench.bench
+        bench = bench.parent_bench
     else:
         bench = bench
     if not isinstance(bench, models.Bench):

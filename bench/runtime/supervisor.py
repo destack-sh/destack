@@ -155,7 +155,7 @@ class RuntimeSupervisor(Monitored):
             bench_version = await models.BenchVersion.objects.select_related(
                 "bench", "bench__user", "bench__organization"
             ).aget(id=module_id)
-            bench = bench_version.bench
+            bench = bench_version.parent_bench
             runtime = RuntimeHost(self.id, self.tasks, self, bench, bench_version)
             self.runtimes[module_id] = runtime
             self.tasks.start(runtime.run(), f"worker-{module_id}")

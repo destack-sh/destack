@@ -47,7 +47,7 @@ class Session(CrudNode, HasTriggeredBy):
         return None
 
     class Meta:
-        managed = False
+        managed = True
 
 
 class RunManager(models.Manager):
@@ -73,7 +73,7 @@ class Run(CrudNode, HasTriggeredBy):
     bench = models.ForeignKey("Bench", on_delete=models.CASCADE, related_name="runs")
     worker_node_id = models.CharField(max_length=64, null=True, blank=True)
     worker_process_id = models.CharField(max_length=64, null=True, blank=True)
-    session = models.ForeignKey(
+    parent_session = models.ForeignKey(
         "Session", on_delete=models.CASCADE, null=True, blank=True, related_name="runs"
     )
     root = models.ForeignKey(
@@ -102,11 +102,11 @@ class Run(CrudNode, HasTriggeredBy):
 
     @property
     def parent_id(self):
-        return self.parent_run_id or self.session_id
+        return self.parent_run_id or self.parent_session_id
 
     @property
     def parent(self):
-        return self.parent_run or self.session
+        return self.parent_run or self.parent_session
 
     @model_property(only=["started_at", "terminated_at"])
     def duration(self) -> Optional[float]:
@@ -132,7 +132,7 @@ class Run(CrudNode, HasTriggeredBy):
     objects = RunManager()
 
     class Meta:
-        managed = False
+        managed = True
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["started_at"], name="run_started_at_idx"),

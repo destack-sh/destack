@@ -34,8 +34,8 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
         bench_version = bench_version.head
     module = await sync_to_async(packer.pack_module_host)(bench_version, excluded=INTERP_NODE_TYPES)
     if bench_version.committed:
-        _cached_modules[ref] = module, bench_version.bench
-    return module, bench_version.bench
+        _cached_modules[ref] = module, bench_version.parent_bench
+    return module, bench_version.parent_bench
 
 
 async def interp_module(ref: ModuleReference | UUID) -> tuple[Module, models.Bench]:

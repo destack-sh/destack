@@ -30,12 +30,12 @@ class Tagging(HasValue, Node):
     parent: Union["File", "Statement", "Field"] | None = node_parent(
         4, NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
     )
-    key: str = struct_internal(20)
+    key: str = struct_internal(30)
     value: typing.Any | None = struct_property(
-        21, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+        31, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
     )
     reference: Optional["Statement"] = struct_internal(
-        22, is_required=False, references=NodeType.STATEMENT
+        32, require=False, references=NodeType.STATEMENT
     )
 
     @staticmethod

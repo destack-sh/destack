@@ -392,7 +392,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.BenchVersion]):
             metatype=wire.BenchType.MODULE,
             id=str(module.id),
             ck=str(module.bench_id),
-            name=module.bench.path,
+            name=module.parent_bench.path,
             committed=module.committed,
             parent_id=None,
             created_at=module.created_at,

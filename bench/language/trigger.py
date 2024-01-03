@@ -34,14 +34,14 @@ class Trigger(Node):
     """A trigger for a statement to run."""
 
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
-    type: TriggerType = struct_property(20, is_required=True, validate=enum_validator(TriggerType))
-    active: bool = struct_property(21, default=True)
+    type: TriggerType = struct_property(30, require=True, validate=enum_validator(TriggerType))
+    active: bool = struct_property(31, default=True)
     schedule_type: Optional[ScheduleType] = struct_property(
-        22, default=None, validate=enum_validator(ScheduleType)
+        32, default=None, validate=enum_validator(ScheduleType)
     )
-    timezone: Optional[str] = struct_property(23, default=pytz.utc.zone)
-    interval: Optional[int] = struct_property(24, default=None)
-    cron: Optional[str] = struct_property(25, default=None)
+    timezone: Optional[str] = struct_property(33, default=pytz.utc.zone)
+    interval: Optional[int] = struct_property(34, default=None)
+    cron: Optional[str] = struct_property(35, default=None)
 
     @staticmethod
     def new(

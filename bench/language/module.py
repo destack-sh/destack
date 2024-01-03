@@ -323,23 +323,24 @@ class Property(_FieldExpressionBase):
     py_type_stripped: typing.Any = UNSET  # stripped type annotation
     # config
     alias: str | None = None  # for node list relations
-    is_array: bool = UNSET  # auto-detect from annotation
-    is_required: bool = False
+    is_array: bool = UNSET
+    is_required: bool = False  # must be non-null
     is_internal: bool = False
-    is_runtime: bool = False
-    is_cru: bool = False
+    is_runtime_only: bool = False
     is_computed: bool = False
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
+    struct_type: StructType | None = None  # for struct properties
+    references: tuple[NodeType, ...] | None = None  # for reference relations
+    reference_key: Optional["Property"] = None  # for reference relations
+    parents: tuple[NodeType, ...] | None = None
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
-    struct_type: StructType | None = None  # for struct properties
-    reference_types: tuple[NodeType, ...] | None = None  # for reference relations
-    reference_key: Optional["Property"] = None  # for reference relations
-    parent_node_types: tuple[NodeType, ...] | None = None
-    ancestor_node_type: NodeType | None = None
-    is_stored: bool = UNSET  # auto-detect (false for runtime properties)
-    store_as: ColumnType | None = UNSET  # auto-detect (yes for most non-runtime properties)
-    is_deferred: bool = False  # not loaded immediately (only for node properties)
+    ancestor: NodeType | None = None
+    is_real: bool = UNSET  # exists on runtime instance?
+    is_wired: bool = UNSET  # serialized onto wire?
+    is_stored: bool = UNSET  # stored in DB?
+    store_as: ColumnType | None = UNSET  # auto-detect
+    is_deferred: bool = False  # not loaded immediately (only for stored node properties)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
@@ -384,12 +385,12 @@ class Property(_FieldExpressionBase):
     def __post_init__(self):
         if (
             not self.is_tree_relation
-            and self.is_runtime
+            and self.is_runtime_only
             and self.default is UNSET
             and self.default_factory is None
         ):
             raise ValueError(f"missing default for {self!r}")
-        if self.reference_types:
+        if self.references:
             if self.default is not UNSET:
                 raise ValueError(f"cannot set default for reference property {self!r}")
             self.default = None
@@ -410,8 +411,7 @@ class Property(_FieldExpressionBase):
             "is_array",
             "is_required",
             "is_internal",
-            "is_runtime",
-            "is_cru",
+            "is_runtime_only",
             "is_computed",
             "is_reflected",
             "is_ancestor_nearest",
@@ -419,9 +419,9 @@ class Property(_FieldExpressionBase):
             "is_deferred",
             "is_encrypted",
             "struct_type",
-            "reference_types",
-            "parent_node_types",
-            "ancestor_node_type",
+            "references",
+            "parents",
+            "ancestor",
         ):
             v = getattr(self, k)
             if v is UNSET or not v:
@@ -451,15 +451,15 @@ class Property(_FieldExpressionBase):
     @property
     def is_tree_relation(self) -> bool:
         """Whether this is a node relation property (parent/child/ancestor)."""
-        return bool(self.parent_node_types) or self.child_node_type or self.ancestor_node_type
+        return bool(self.parents) or self.child_node_type or self.ancestor
 
     @property
     def is_node_reference(self):
-        return bool(self.reference_types)
+        return bool(self.references)
 
     @property
     def is_static(self):
-        return not self.is_runtime
+        return not self.is_runtime_only
 
     @property
     def is_struct(self) -> bool:
@@ -487,19 +487,21 @@ class Property(_FieldExpressionBase):
 
     def finalize_type(self) -> None:
         """Analyzes the final type and configures storage options. Must run after complete setup."""
-        # store property if not runtime (and not marked as _not_ store)
-        if self.is_tree_relation or self.is_runtime or self.reference_types:
+        # store/wire property by default if not runtime (and not marked as _not_ store)
+        if self.store_as is UNSET and (
+            self.is_tree_relation or self.is_runtime_only or self.references
+        ):
             self.is_stored = False
             self.store_as = None
         elif self.is_stored is UNSET:
             self.is_stored = True
+        if self.is_wired is UNSET:
+            self.is_wired = self.is_stored
+        if self.is_real is UNSET:
+            self.is_real = self.is_stored
 
         # resolve py type
-        if (
-            self.is_runtime
-            or self.parent_node_types is not None
-            or self.reference_types is not None
-        ):
+        if self.is_runtime_only or self.parents is not None or self.references is not None:
             # can't resolve these because they point to non-Bench types
             self.py_type_stripped = self.py_type_raw
         else:
@@ -537,9 +539,10 @@ class Property(_FieldExpressionBase):
     def contribute_properties(self) -> tuple["Property"]:
         """Contribute any extra properties required by this property."""
 
-        if self.parent_node_types is not None or self.ancestor_node_type and self.is_stored is True:
+        if self.parents is not None:
             # special reference to parent (via id, resolved before instantiating)
-            ancestor_id_prop = Property(
+            # in wire we unify into parent_id, for store split per parent_<type>_id for integrity
+            wired_id_prop = Property(
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_id",
                 component=self.component,
@@ -548,22 +551,61 @@ class Property(_FieldExpressionBase):
                 is_required=self.is_required,
                 is_internal=True,
                 is_computed=True,
-                is_stored=True,
+                is_wired=True,
+                is_stored=False,
+                is_array=False,
+                store_as=ColumnType.UUID,
+            )
+            parent_id_props: list[Property] = []
+            for parent_node_type in self.parents:
+                parent_id_prop = Property(
+                    id=self.id,  # re-use id, self is not stored
+                    name=self.name + f"_{parent_node_type.name.lower()}_id",
+                    component=self.component,
+                    py_type_raw=UUID,
+                    references=(parent_node_type,),
+                    is_required=self.is_required,
+                    is_internal=True,
+                    is_real=False,
+                    is_wired=False,
+                    is_stored=True,
+                    is_array=False,
+                    store_as=ColumnType.UUID,
+                )
+                parent_id_props.append(parent_id_prop)
+            self.reference_key = wired_id_prop
+            return (wired_id_prop, *parent_id_props)
+        elif self.ancestor and self.is_stored is True:
+            ancestor_id_prop = Property(
+                id=self.id,  # re-use id, self is not stored
+                name=self.name + "_id",
+                component=self.component,
+                py_type_raw=UUID,
+                references=(self.ancestor,),
+                is_required=self.is_required,
+                is_internal=True,
+                is_computed=True,
+                is_wired=True,
+                is_stored=False,
+                is_array=False,
                 store_as=ColumnType.UUID,
             )
             self.reference_key = ancestor_id_prop
             return (ancestor_id_prop,)
-        elif self.reference_types is not None:
+        elif self.references is not None:
             # regular reference to node (via ck, resolved during interp)
             reference_ck_prop = Property(
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_ck",
                 component=self.component,
                 py_type_raw=UUID,
-                default=None,
+                references=self.references,
                 is_required=self.is_required,
                 is_internal=True,
+                is_real=True,
+                is_wired=True,
                 is_stored=True,
+                is_array=False,
                 store_as=ColumnType.UUID,
             )
             self.reference_key = reference_ck_prop
@@ -582,7 +624,7 @@ class Property(_FieldExpressionBase):
     def copy(self, value: typing.Any) -> typing.Any:
         if self.is_tree_relation:
             raise ValueError(f"cannot copy relation {self!r}")
-        elif self.reference_types:
+        elif self.references:
             return value  # identity
         elif self.custom_copy is not None:
             return self.custom_copy(value)
@@ -606,7 +648,7 @@ def struct_property(
     default_factory: Callable[[], typing.Any] = None,
     copy: Callable[[typing.Any], typing.Any] = None,
     validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
-    is_required: bool = False,
+    require: bool = False,
     reflect: bool = False,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
@@ -620,10 +662,10 @@ def struct_property(
         default_factory=default_factory,
         custom_copy=copy,
         custom_validate=validate,
-        is_required=is_required,
+        is_required=require,
         is_reflected=reflect,
         ignore_conflicts_with=ignore_conflicts_with,
-        reference_types=try_tuple(references),
+        references=try_tuple(references),
         struct_type=struct_t,
         store_as=store_as,
     )
@@ -635,8 +677,7 @@ def struct_internal(
     default: typing.Any = UNSET,
     default_factory: Callable[[], typing.Any] = None,
     copy: Callable[[typing.Any], typing.Any] = None,
-    is_cru: bool = False,
-    is_required: bool = True,
+    require: bool = False,
     reflect: bool = False,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
@@ -650,13 +691,12 @@ def struct_internal(
     return Property(
         id=id,
         is_internal=True,
-        is_required=is_required,
+        is_required=require,
         default=default,
         default_factory=default_factory,
         custom_copy=copy,
-        is_cru=is_cru,
         is_reflected=reflect,
-        reference_types=try_tuple(references),
+        references=try_tuple(references),
         ignore_conflicts_with=ignore_conflicts_with,
         is_stored=store,
         struct_type=struct_t,
@@ -675,7 +715,7 @@ def struct_runtime(
     """Internal runtime-only struct/node property (not persisted)."""
     return Property(
         is_internal=True,
-        is_runtime=True,
+        is_runtime_only=True,
         is_required=False,
         is_stored=False,
         default=default,
@@ -687,7 +727,7 @@ def struct_runtime(
 def node_parent(id: int, *node_type: NodeType):
     """The parent of a node, must be of one of the given types."""
     return Property(
-        id=id, parent_node_types=tuple(node_type), default=None, is_internal=True, is_stored=False
+        id=id, parents=tuple(node_type), default=None, is_internal=True, is_stored=False
     )
 
 
@@ -701,7 +741,7 @@ def node_ancestor(
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
         id=id,
-        ancestor_node_type=node_type,
+        ancestor=node_type,
         default=None,
         is_internal=True,
         is_computed=True,
@@ -820,15 +860,17 @@ def _get_component_methods(
     return methods
 
 
-TYPE_DISCRIMINATOR_PROPERTY = Property(
+METATYPE_PROPERTY = Property(
     id=1,
     name="metatype",
     default=None,
     py_type_raw=BenchType,
     is_internal=True,
     is_required=True,
-    is_computed=True,  # set statically in runtime
-    is_stored=True,  # nocheckin: differentiate is_wired & is_stored
+    is_computed=True,  # is set statically in runtime
+    is_real=False,
+    is_wired=True,
+    is_stored=False,
     store_as=ColumnType.STRING,
 )
 
@@ -840,9 +882,7 @@ def _process_struct_base_cls(
     reserved: set[str | int] = None,
 ) -> tuple[type["Node"], dict[str, Property]]:
     """Process a struct base class and return the processed class and its properties."""
-    properties_by_name: dict[str, Property] = {
-        TYPE_DISCRIMINATOR_PROPERTY.name: TYPE_DISCRIMINATOR_PROPERTY
-    }
+    properties_by_name: dict[str, Property] = {METATYPE_PROPERTY.name: METATYPE_PROPERTY}
     static_components: list[type["Node"] | type["Struct"]] = [cls]
 
     # check that no forbidden methods are defined in non-base classes
@@ -937,14 +977,14 @@ def _process_struct_base_cls(
         if not hasattr(cls, name) and not prop.child_node_type:
             continue  # ignore inherited properties
         # map property to class attribute or dataclass field
-        if prop.ancestor_node_type and cls.__name__ not in ("ScopeNode", "Node"):
+        if prop.ancestor and cls.__name__ not in ("ScopeNode", "Node"):
             # (don't set computed ancestor property in base nodes, so we can override it with
             #  a non-computed/static property in detached subclass nodes)
             if detached:
                 attr = dataclasses.field(default=None)
             else:
                 attr = _node_ancestor_prop(prop)
-        elif prop.is_computed:
+        elif prop.is_computed or not prop.is_real:
             attr = None
         elif prop.default is not UNSET:
             attr = dataclasses.field(default=prop.default)
@@ -960,7 +1000,7 @@ def _process_struct_base_cls(
         elif name in cls.__annotations__:
             del cls.__annotations__[name]
         # also set extra computed parent/ancestor id property
-        if prop.name == "parent" or prop.ancestor_node_type:
+        if prop.name == "parent" or prop.ancestor:
             setattr(cls, prop.name + "_id", _node_ancestor_id_prop(prop))
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
 
@@ -970,7 +1010,7 @@ def _process_struct_base_cls(
     cls.__properties__ = frozendict(properties_by_name)
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
-        if prop.id is not None and prop.is_stored and not prop.reference_key:
+        if prop.id is not None and prop.is_wired and not prop.reference_key:
             existing = properties_by_id.get(prop.id, None)
             if existing is not None:
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
@@ -979,7 +1019,7 @@ def _process_struct_base_cls(
     cls.__properties_by_id__ = frozendict(properties_by_id)
     cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
     cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
-    cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
+    cls.__reference_properties__ = frozendict({p.name: p for p in props if p.references})
     cls.__struct_properties__ = frozendict({p.name: p for p in props if p.is_struct})
 
     return cls, properties_by_name
@@ -1057,7 +1097,7 @@ def node_component(
                 list_properties_by_child[prop.child_node_type].append(prop)
         cls.__list_properties__ = frozendict(list_properties)
         cls.__list_properties_by_child__ = frozendict(list_properties_by_child)
-        cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor_node_type})
+        cls.__ancestor_properties__ = frozendict({p.name: p for p in props if p.ancestor})
         cls.__is_detached__ = detached
 
         # register as concrete node class for node_type
@@ -1116,7 +1156,7 @@ def _node_ancestor_prop(prop: Property) -> property:
         def get_nearest(self: NodeT) -> Optional[NodeT]:
             parent = self if prop.is_ancestor_self else self.parent
             while parent is not None:
-                if parent.metatype == prop.ancestor_node_type:
+                if parent.metatype == prop.ancestor:
                     return parent
                 if parent.__is_detached__:
                     parent = parent.module
@@ -1131,7 +1171,7 @@ def _node_ancestor_prop(prop: Property) -> property:
             parent = self if prop.is_ancestor_self else self.parent
             farthest = None
             while parent is not None:
-                if parent.metatype == prop.ancestor_node_type:
+                if parent.metatype == prop.ancestor:
                     farthest = parent
                 if parent.__is_detached__:
                     parent = parent.module
@@ -2422,23 +2462,27 @@ class Node(Struct):
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
 
     # 1-9: reserved for node identity
-    id: UUID = struct_internal(2, default=None, reflect=True)
-    ck: UUID = struct_internal(3, default=None, reflect=True)
+    id: UUID = struct_internal(2, default=None, require=True, reflect=True)
+    ck: UUID = struct_internal(3, default=None, require=True, reflect=True)
     parent: Optional["Node"] = node_parent(4)
-    module: Optional["Module"] = node_ancestor(5, NodeType.MODULE)
-    # prototype / template: Optional["Node"]
+    module: Optional["Module"] = node_ancestor(5, NodeType.MODULE, store=True)
+    # prototype / template: Optional["Node"] = node_template(6)
 
-    # 10-19: reserved for node tracking
-    revision: int = struct_internal(10, default=0, is_cru=True, reflect=True)
-    created_at: datetime = struct_internal(11, default=None, is_cru=True, reflect=True)
-    updated_at: datetime = struct_internal(12, default=None, is_cru=True, reflect=True)
-    deleted_at: datetime = struct_internal(13, default=None, is_cru=True, reflect=True)
+    # 10-29: reserved for node tracking
+    revision: int = struct_internal(10, default=0, require=True, reflect=True)
+    created_at: datetime = struct_internal(11, default=None, require=True, reflect=True)
+    updated_at: datetime = struct_internal(12, default=None, require=True, reflect=True)
+    deleted_at: datetime = struct_internal(13, default=None, reflect=True)
     # only some nodes can be archived (File/Statement)
-    # archived_at: datetime = struct_internal(14, default=None, is_cru=True, reflect=True)
-    last_edited_at: datetime = struct_internal(16, default=None, is_cru=True, reflect=True)
-    last_changed_at: datetime = struct_internal(17, default=None, is_cru=True, reflect=True)
+    # archived_at: datetime = struct_internal(14, default=None, reflect=True)
+    last_edited_at: datetime = struct_internal(15, default=None, require=True, reflect=True)
+    # only scope nodes can have 'inner' changes
+    # last_changed_at: datetime = struct_internal(16, default=None, reflect=True)
+    # created_by: Optional["User"] = struct_internal(17, default=None, reflect=True)
+    # last_edited_by: Optional["User"] = struct_internal(18, default=None, reflect=True)
+    # last_changed_by: Optional["User"] = struct_internal(19, default=None, reflect=True)
 
-    # 20+ for 'user' node/struct properties
+    # 30+ for 'user' node/struct properties
     # <... defined in concrete node type ...>
 
     _session: Optional["Session"] = struct_runtime(default=None)
@@ -2802,6 +2846,7 @@ class ScopeNode(Node):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
     __has_scope__: ClassVar[bool] = True
+    last_changed_at: datetime = struct_internal(16, default=None, reflect=True)
     issues: NodeList["Issue"] = node_children(NodeType.ISSUE, NRel.Cumulative)
     _scopes_by_name: dict[str, "ScopeNode"] = struct_runtime(default_factory=dict)
     _names_by_ident: dict[str, str] = struct_runtime(default_factory=dict)
@@ -2997,11 +3042,11 @@ class Bench(ScopeNode):
     """
 
     parent: None = node_parent(4)
-    name: str = struct_internal(20)
-    slug: str = struct_internal(21)
-    description: str = struct_internal(22, default=None)
-    os_name: Optional[str] = struct_internal(23, default=None)
-    pg_name: Optional[str] = struct_internal(24, default=None)
+    name: str = struct_internal(30)
+    slug: str = struct_internal(31)
+    description: str = struct_internal(32, default=None)
+    os_name: Optional[str] = struct_internal(33, default=None)
+    pg_name: Optional[str] = struct_internal(34, default=None)
 
     # versions: NodeList["Module"] = node_children(NodeType.MODULE, NRel.Remote)
 
@@ -3040,9 +3085,9 @@ class ModuleChange:
 
 @node(NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
-    parent: Bench = node_parent(4, NodeType.BENCH)  # nocheckin: always set Module.parent Bench
-    is_main: bool = struct_internal(21, default=False, store=False)  # main environment?
-    is_snapshot: bool = struct_internal(22, default=False)  # snapshot or head?
+    parent: Bench = node_parent(4, NodeType.BENCH)
+    is_main: bool = struct_internal(31, default=False, store=False)  # main environment?
+    is_snapshot: bool = struct_internal(32, default=False)  # snapshot or head?
 
     # branch: Branch | None = struct_internal(23, default=None, references=NodeType.BRANCH)
     files: NodeList["File"] = node_children(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)

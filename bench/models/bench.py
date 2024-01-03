@@ -487,7 +487,7 @@ class BenchVersion(CrudNode):
     A bench version records the state of a bench at a specific point in time.
     """
 
-    bench = models.ForeignKey(Bench, on_delete=models.CASCADE, related_name="versions")
+    parent_bench = models.ForeignKey(Bench, on_delete=models.CASCADE, related_name="versions")
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
     # single unique tag should be a BenchVersionTag list later :BenchVersionTags
     tag = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
@@ -501,7 +501,7 @@ class BenchVersion(CrudNode):
     runs: models.QuerySet["Run"]  # noqa via Run
 
     def __str__(self) -> str:
-        return f"{self.bench.path}@{self.tag or self.id.hex}"
+        return f"{self.parent_bench.path}@{self.tag or self.id.hex}"
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
@@ -513,7 +513,7 @@ class BenchVersion(CrudNode):
 
     @property
     def organization(self):
-        return self.bench.organization
+        return self.parent_bench.organization
 
     @transaction.atomic
     def create_file(self, name: str, parent: Optional[File] = None) -> "File":
@@ -565,7 +565,7 @@ class BenchVersion(CrudNode):
         constraints = [
             # tag is unique per bench
             models.UniqueConstraint(
-                fields=["bench", "tag"],
+                fields=["parent_bench", "tag"],
                 name="bench_bench_version_tag_ak",
             ),
         ]

@@ -10,8 +10,8 @@ from bench.models import Bench
 from bench.sql.engine import (
     create_local_pg_database,
     delete_local_pg_database,
-    update_pg_schema,
     map_bench_node_to_pg_table,
+    update_pg_schema,
 )
 from bench.utils.utils import format_python
 
@@ -77,8 +77,8 @@ class Command(BaseCommand):
         elif action == "local_schema_apply":
             for bench in benches:
                 bench_v = bench.head
-                bench_v.bench = bench  # 'preloaded' bench
-                bench_v.bench.owner  # noqa why do we need to load this again?
+                bench_v.parent_bench = bench  # 'preloaded' bench
+                bench_v.parent_bench.owner  # noqa why do we need to load this again?
                 async_to_sync(update_pg_schema_from_db)(bench_v)
         elif action == "local_delete":
             for bench in benches:

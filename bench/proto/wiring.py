@@ -12,9 +12,9 @@ from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 from bench.language.const import BenchType, NodeType, StructType
 from bench.language.module import (
     BENCH_CLASS_BY_TYPE,
+    METATYPE_PROPERTY,
     NODE_CLASS_BY_NODE_TYPE,
     STRUCT_CLASS_BY_STRUCT_TYPE,
-    TYPE_DISCRIMINATOR_PROPERTY,
     Node,
     NodeStatus,
     NodeTree,
@@ -29,7 +29,7 @@ from bench.utils.func import to_uuid
 from bench.utils.utils import hybridmethod, to_snake_case
 
 logger = structlog.get_logger(__name__)
-# nocheckin: auto-gen AnyNodeData/AnyStructData?
+# could auto-gen the Any types?
 AnyNodeData = Union[wire.ModuleData, wire.FileData, wire.StatementData, wire.FieldData]
 AnyStructData = Union[wire.EnvironmentData, wire.ExpressionData]
 
@@ -91,11 +91,7 @@ def copy_struct_data(data: AnyStructData) -> AnyStructData:
     data_kwargs = {}
     try:
         for prop in bench_cls.__stored_properties__.values():
-            if (
-                prop.is_computed
-                and prop.id != TYPE_DISCRIMINATOR_PROPERTY.id
-                and prop.name != "parent_id"
-            ):
+            if prop.is_computed and prop.id != METATYPE_PROPERTY.id and prop.name != "parent_id":
                 continue
             value = getattr(data, prop.name)
             if value is None or value == "" and not prop.is_required:
@@ -268,7 +264,7 @@ def unpack_node_inline(
         # keep parent instance if it was passed (update in place)
         if parent is not None and node.id == parent.id:
             for prop in parent.__properties__.values():
-                if not prop.is_runtime and not prop.is_tree_relation:
+                if not prop.is_runtime_only and not prop.is_tree_relation:
                     setattr(parent, prop.name, getattr(node, prop.name))
             node = parent
 

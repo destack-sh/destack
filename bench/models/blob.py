@@ -124,7 +124,7 @@ class Blob(CrudNode):
         return response
 
     class Meta:
-        managed = False
+        managed = True
 
 
 @cache
