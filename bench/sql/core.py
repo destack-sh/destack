@@ -7,6 +7,9 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 from uuid import UUID, uuid5
 
+
+# TODO @Performance: check out asyncpg instead of psycopg (up to 5x faster)
+#  see https://github.com/MagicStack/asyncpg
 import psycopg
 from more_itertools import first
 
@@ -166,6 +169,18 @@ SqlPrimitiveSingle = Union[str, int, float, bool, datetime, UUID, bytes, type(No
 SqlPrimitive = Union[SqlPrimitiveSingle, list[SqlPrimitiveSingle], dict[str, SqlPrimitiveSingle]]
 
 
+class CascadeAction(enum.StrEnum):
+    """
+    A SQL cascade action.
+    """
+
+    RESTRICT = "RESTRICT"
+    CASCADE = "CASCADE"
+    SET_NULL = "SET NULL"
+    NO_ACTION = "NO ACTION"
+    SET_DEFAULT = "SET DEFAULT"
+
+
 @dataclass
 class Column(TableConstruct):
     """
@@ -179,6 +194,8 @@ class Column(TableConstruct):
     source: str | int | None = None
     is_array: bool = False
     is_primary_key: bool = False
+    is_foreign_key_to: str | None = None
+    on_delete: CascadeAction | None = None
     is_unique: bool = False
     is_nullable: bool = False
     is_encrypted: bool = False  # nocheckin: handle Column.is_encrypted
@@ -229,15 +246,20 @@ class Column(TableConstruct):
             parts.append("NOT NULL")
         if self.default is not None:
             parts.append(f"DEFAULT {self.default}")
+        if self.is_foreign_key_to is not None:
+            parts.append(f"REFERENCES {self.is_foreign_key_to}")
+            if self.on_delete is not None:
+                parts.append(f"ON DELETE {self.on_delete}")
         return " ".join(parts)
 
 
 class ConstraintType(enum.StrEnum):
     """
-    A SQL constraint type (we don't need real foreign keys).
+    A SQL constraint type.
     """
 
     PRIMARY_KEY = "PRIMARY KEY"
+    FOREIGN_KEY = "FOREIGN KEY"
     UNIQUE = "UNIQUE"
     CHECK = "CHECK"
 

@@ -199,7 +199,7 @@ class Statement(ScopeNode, HasTags):
     value: Any | None = struct_property(
         39, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
     )
-    versioned: bool = struct_internal(40, default=True)
+    shared: bool = struct_internal(40, default=True)
 
     @staticmethod
     def new(

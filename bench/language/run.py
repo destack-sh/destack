@@ -138,7 +138,7 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
         return f"run.{input_hash}"
 
 
-@node(NodeType.RUN)
+@node(NodeType.RUN, index_in_os=True)
 class Run(ScopeNode, HasValue):
     """
     A run of a statement (in a session).
@@ -148,13 +148,17 @@ class Run(ScopeNode, HasValue):
     """
 
     parent: Union["Session", "Run"] = node_parent(4, NodeType.SESSION, NodeType.RUN)
-    session: "Session" = node_ancestor(30, NodeType.SESSION, store=True, wire=True)
-    root: Optional["Run"] = node_ancestor(
-        31, NodeType.RUN, nearest=False, include_self=False, store=True, wire=True
+    session: "Session" = node_ancestor(
+        30, NodeType.SESSION, store=True, wire=True, index_in_pg=True
     )
-    worker_node_id: str = struct_internal(32, reflect=True)
+    root: Optional["Run"] = node_ancestor(
+        31, NodeType.RUN, nearest=False, include_self=False, store=True, wire=True, index_in_pg=True
+    )
+    worker_node_id: str = struct_internal(32, reflect=True, index_in_pg=True)
     worker_process_id: Optional[str] = struct_internal(33, reflect=True)
-    statement: Optional["Statement"] = struct_internal(34, references=NodeType.STATEMENT)
+    statement: Optional["Statement"] = struct_internal(
+        34, references=NodeType.STATEMENT, index_in_pg=True
+    )
     statement_path: Optional[str] = struct_internal(35, default=None)
     scheduled_at: Optional[datetime] = struct_internal(36, default=None)
     started_at: Optional[datetime] = struct_internal(37, default=None)
@@ -162,7 +166,7 @@ class Run(ScopeNode, HasValue):
     trigger_type: Optional[TriggerType] = struct_internal(39, default=None)
     trigger_id: Optional[UUID] = struct_internal(40, default=None, reflect=True)
     access_level: Optional["SessionAccessLevel"] = struct_internal(41, default=None)
-    status: RunStatus = struct_internal(42)
+    status: RunStatus = struct_internal(42, index_in_pg=True)
     inputs: Optional[dict[str, Any]] = struct_internal(
         43, default=None, column_type=ColumnType.JSON
     )

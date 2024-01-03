@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import structlog
 from django.db import models
-from django.db.models import Q
 
 from bench.language import StatementType, TypeHint, TypeTag
 from bench.language.const import ScheduleType, TriggerType, TypeFlag
@@ -66,16 +65,6 @@ class Field(CrudNode):
 
     class Meta:
         managed = True
-        ordering = ["order_key"]
-        default_manager_name = "objects"
-        indexes = [models.Index(fields=["parent_statement"])]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["parent_statement", "order_key"],
-                name="bench_statement_field_order_key_ak",
-                condition=Q(deleted_at__isnull=True),
-            ),
-        ]
 
 
 class TriggerManager(models.Manager["Trigger"]):
@@ -116,13 +105,6 @@ class Trigger(CrudNode):
 
     class Meta:
         managed = True
-        # interval must be >60 if set
-        constraints = [
-            models.CheckConstraint(
-                check=models.Q(interval__isnull=True) | models.Q(interval__gte=60),
-                name="bench_trigger_interval_gt_60_ck",
-            ),
-        ]
 
 
 class TaggingManager(models.Manager["Tagging"]):
@@ -183,7 +165,7 @@ class Statement(CrudNode):
     text = models.TextField(null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
-    versioned = models.BooleanField(default=True)  # nocheckin: negate & rename to ???
+    shared = models.BooleanField(default=False)
     fields: models.QuerySet[Field]  # noqa via Field.statement
     taggings: models.QuerySet[Tagging]  # noqa via Tagging.statement
     triggers: models.QuerySet[Trigger]  # noqa via Trigger.statement
@@ -213,24 +195,3 @@ class Statement(CrudNode):
 
     class Meta:
         managed = True
-        ordering = ["order_key"]
-        default_manager_name = "objects"
-        constraints = [
-            # ck is unique per bench version
-            models.UniqueConstraint(
-                fields=["module", "ck"],
-                name="bench_statement_module_ck_ak",
-                condition=models.Q(deleted_at__isnull=True),
-            ),
-            # check that order key is unique within parent/file (if not "deleted")
-            models.UniqueConstraint(
-                fields=["file", "order_key"],
-                name="bench_statement_file_order_key_ak",
-                condition=models.Q(parent_statement__isnull=True, deleted_at__isnull=True),
-            ),
-            models.UniqueConstraint(
-                fields=["parent_statement", "order_key"],
-                name="bench_statement_parent_order_key_ak",
-                condition=models.Q(parent_statement__isnull=False, deleted_at__isnull=True),
-            ),
-        ]

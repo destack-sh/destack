@@ -2844,7 +2844,7 @@ export interface StatementData {
   key: string;
   code: string;
   value: { [key: string]: any } | undefined;
-  versioned: boolean;
+  shared: boolean;
 }
 
 export interface TaggingData {
@@ -8248,7 +8248,7 @@ function createBaseStatementData(): StatementData {
     key: "",
     code: "",
     value: undefined,
-    versioned: false,
+    shared: false,
   };
 }
 
@@ -8320,8 +8320,8 @@ export const StatementData = {
     if (message.value !== undefined) {
       Struct.encode(Struct.wrap(message.value), writer.uint32(314).fork()).ldelim();
     }
-    if (message.versioned === true) {
-      writer.uint32(320).bool(message.versioned);
+    if (message.shared === true) {
+      writer.uint32(320).bool(message.shared);
     }
     return writer;
   },
@@ -8492,7 +8492,7 @@ export const StatementData = {
             break;
           }
 
-          message.versioned = reader.bool();
+          message.shared = reader.bool();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -8527,7 +8527,7 @@ export const StatementData = {
       key: isSet(object.key) ? globalThis.String(object.key) : "",
       code: isSet(object.code) ? globalThis.String(object.code) : "",
       value: isObject(object.value) ? object.value : undefined,
-      versioned: isSet(object.versioned) ? globalThis.Boolean(object.versioned) : false,
+      shared: isSet(object.shared) ? globalThis.Boolean(object.shared) : false,
     };
   },
 
@@ -8599,8 +8599,8 @@ export const StatementData = {
     if (message.value !== undefined) {
       obj.value = message.value;
     }
-    if (message.versioned === true) {
-      obj.versioned = message.versioned;
+    if (message.shared === true) {
+      obj.shared = message.shared;
     }
     return obj;
   },
@@ -8632,7 +8632,7 @@ export const StatementData = {
     message.key = object.key ?? "";
     message.code = object.code ?? "";
     message.value = object.value ?? undefined;
-    message.versioned = object.versioned ?? false;
+    message.shared = object.shared ?? false;
     return message;
   },
 };
@@ -9787,8 +9787,9 @@ export const ViewData = {
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
     message.nodeType = object.nodeType ?? 0;
-    message.query =
-      object.query !== undefined && object.query !== null ? ExpressionData.fromPartial(object.query) : undefined;
+    message.query = (object.query !== undefined && object.query !== null)
+      ? ExpressionData.fromPartial(object.query)
+      : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     return message;
   },
@@ -10746,9 +10747,7 @@ export const SomeStructData = {
       message.struct = { $case: "expression", expression: ExpressionData.fromPartial(object.struct.expression) };
     }
     if (
-      object.struct?.$case === "logEntry" &&
-      object.struct?.logEntry !== undefined &&
-      object.struct?.logEntry !== null
+      object.struct?.$case === "logEntry" && object.struct?.logEntry !== undefined && object.struct?.logEntry !== null
     ) {
       message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
     }
@@ -10763,9 +10762,7 @@ export const SomeStructData = {
       };
     }
     if (
-      object.struct?.$case === "runError" &&
-      object.struct?.runError !== undefined &&
-      object.struct?.runError !== null
+      object.struct?.$case === "runError" && object.struct?.runError !== undefined && object.struct?.runError !== null
     ) {
       message.struct = { $case: "runError", runError: RunErrorData.fromPartial(object.struct.runError) };
     }
@@ -10862,8 +10859,9 @@ export const ModuleTreeData = {
   },
   fromPartial<I extends Exact<DeepPartial<ModuleTreeData>, I>>(object: I): ModuleTreeData {
     const message = createBaseModuleTreeData();
-    message.module =
-      object.module !== undefined && object.module !== null ? ModuleData.fromPartial(object.module) : undefined;
+    message.module = (object.module !== undefined && object.module !== null)
+      ? ModuleData.fromPartial(object.module)
+      : undefined;
     message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
     return message;
   },
@@ -10871,21 +10869,15 @@ export const ModuleTreeData = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends globalThis.Array<infer U>
-  ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string }
-  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin
-  ? P
+export type Exact<P, I extends P> = P extends Builtin ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

@@ -26,6 +26,7 @@ from bench.language.expression import (
 from bench.language.module import UNSET, Node, get_node_id
 from bench.proto import wire
 from bench.proto.wire import EditData
+from bench.sql import schema
 from bench.sql.client import GLOBAL_RO_PASSWORD, GLOBAL_RO_USERNAME, async_pg_cursor
 from bench.sql.core import (
     BASE_RECORD_TABLE,
@@ -41,9 +42,11 @@ from bench.sql.core import (
     SqlPrimitive,
     Table,
     TableConstruct,
+    CascadeAction,
+    IndexType,
 )
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.utils import DEBUG, LOCAL
+from bench.utils.utils import DEBUG, LOCAL, to_all_caps
 
 if typing.TYPE_CHECKING:
     from bench.proto.wiring import AnyNodeData
@@ -61,31 +64,66 @@ def get_bench_table_name(node_type: NodeType) -> str:
 
 
 def map_bench_node_to_pg_table(node: type[Node]) -> Table:
+    # TODO @Robustness: add Bench check constraints in Postgres
     columns: list[Column] = []
+    constraints: list[Constraint] = []
+    indexes: list[Index] = []
     properties = list(node.__properties__.values())
     properties.sort(key=lambda p: p.id or -1)
+
+    # map properties to columns, add per-column indices
     for prop in properties:
-        if prop.is_stored:
-            column = Column(
+        if not prop.is_stored:
+            continue
+        column = Column(
+            source=prop.id,
+            name=prop.name,
+            type=prop.column_type,
+            is_array=prop.is_array,
+            is_nullable=not prop.is_required,
+            is_encrypted=prop.is_encrypted,
+        )
+        if prop.references and prop.name.endswith("_id"):
+            assert len(prop.references) == 1, f"prop {prop!r} has multiple references"
+            column.is_foreign_key_to = get_bench_table_name(prop.references[0])
+            column.on_delete = CascadeAction.CASCADE
+        columns.append(column)
+        if prop.is_indexed_in_pg:
+            index = Index(
+                f"bench_idx_{prop.name}",
+                type=IndexType.BTREE,
                 source=prop.id,
-                name=prop.name,
-                type=prop.column_type,
-                is_array=prop.is_array,
-                is_nullable=not prop.is_required,
-                is_encrypted=prop.is_encrypted,
+                columns=[column.name],
             )
-            columns.append(column)
-    # nocheckin: add constraints (foreign key, checks, uniqueness)
+            indexes.append(index)
+
+    # index module + deleted_at and module + archived_at if applicable
+    for prop_name in ("deleted_at", "archived_at"):
+        prop = node.__properties__.get(prop_name)
+        if prop is not None:
+            index = Index(
+                f"bench_idx_module_{prop_name}",
+                type=IndexType.BTREE,
+                source=prop.id,
+                columns=["bench_module_id", f"bench_{prop_name}"],
+            )
+            indexes.append(index)
+
     table = Table(
         source=node.metatype.id,
         name=get_bench_table_name(node.metatype),
         columns=tuple(columns),
+        constraints=tuple(constraints),
+        indexes=tuple(indexes),
     )
     return table
 
 
 TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
-    # read previously generated tables in bench.py
+    # read previously generated tables in schema.py
+    node_type: getattr(schema, f"{to_all_caps(node_type.name)}_TABLE")
+    for node_type in NodeType
+    if hasattr(schema, f"{to_all_caps(node_type.name)}_TABLE")
 }
 
 COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {

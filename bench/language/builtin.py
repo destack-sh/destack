@@ -91,5 +91,6 @@ def _make_builtin_bench(name: str) -> tuple[Bench, Module]:
 
 
 # real data will be patched in at first runtime start
+# nocheckin: patch in symbolx_bench at runtime
 symbolx_bench, symbolx_lib = _make_builtin_bench("symbolx.bench")
 DEFAULT_DEPENDENCIES = {symbolx_bench.slug: symbolx_lib.id}

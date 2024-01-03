@@ -244,7 +244,7 @@ service RuntimeHost {
   rpc RevealSecret(RevealSecretRequest) returns (RevealSecretResponse);
   // Paste specific inline nodes (and only those nodes) from this or another module.
   rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
-  // Create a full snapshot of this Bench module (copy to another new Bench module).
+  // Create a full snapshot of this Bench module (copy to a new Bench module as specified).
   rpc SnapshotModule(SnapshotModuleRequest) returns (SnapshotModuleResponse);
 
   // Forwards all matching logs received from the workers.

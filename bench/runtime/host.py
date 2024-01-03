@@ -405,7 +405,7 @@ class RuntimeHost:
             for s in self.module._nodes
             if isinstance(s, Statement)
             and s.type == StatementType.DATABASE
-            and s.versioned
+            and s.shared
             and s.id in copy.target_ids_reversed
         ]
         if not target_databases:
@@ -500,7 +500,7 @@ class RuntimeHost:
             target_databases: list["HasDatabase"] = [
                 s
                 for s in target_module._nodes
-                if isinstance(s, Statement) and s.type == StatementType.DATABASE and s.versioned
+                if isinstance(s, Statement) and s.type == StatementType.DATABASE and s.shared
             ]
             async with async_pg_cursor(self.module.pg_name, autocommit=False) as pg_cursor:
                 for target_database in target_databases:
@@ -844,8 +844,7 @@ class RuntimeHost:
                 process_up_to=process_up_to,
                 active_triggers=self.active_triggers.values(),
             )
-
-            # TODO @Robustness @UX: cancel pre-scheduled runs that no longer have an active trigger
+            # NOTE: should we cancel pre-scheduled runs that no longer have an active trigger?
 
             # collect triggers that are due to fire within the send window
             for trigger in self.active_triggers.values():
