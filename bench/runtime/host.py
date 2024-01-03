@@ -103,7 +103,7 @@ class RuntimeHost:
         self.active_trigger_process_wait: asyncio.Event = asyncio.Event()
 
     def __str__(self):
-        return f"{self.bench_version.bench.path} {self.bench_version.id}"
+        return f"{self.bench_version.parent_bench.path} {self.bench_version.id}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}"
@@ -122,7 +122,9 @@ class RuntimeHost:
 
     @property
     def module_ref(self) -> ModuleReference:
-        return ModuleReference(name=self.bench_version.bench.path, version="x", id=self.module_id)
+        return ModuleReference(
+            name=self.bench_version.parent_bench.path, version="x", id=self.module_id
+        )
 
     @property
     def bench_id(self) -> UUID:
@@ -420,13 +422,13 @@ class RuntimeHost:
             source_module = await sync_to_async(Module.make)(
                 source=source_module.nodes,
                 bench_id=source_bench_v.bench_id,
-                os_name=source_bench_v.bench.os_name,
-                pg_name=source_bench_v.bench.pg_name,
+                os_name=source_bench_v.parent_bench.os_name,
+                pg_name=source_bench_v.parent_bench.pg_name,
             )
         all_pasted_records: list[wire.RecordData] = []
-        async with async_pg_cursor(source_bench_v.bench.pg_name) as source_cur, async_pg_cursor(
-            self.bench.pg_name
-        ) as target_cur:
+        async with async_pg_cursor(
+            source_bench_v.parent_bench.pg_name
+        ) as source_cur, async_pg_cursor(self.bench.pg_name) as target_cur:
             for target_database in target_databases:
                 source_database_ck = copy.target_cks_reversed[target_database.ck]
                 source_database = source_module.resolve(source_database_ck)
@@ -610,7 +612,9 @@ class RuntimeHost:
         for obj_data in msg.p.blobs:
             model_blob: models.Blob = packer.unpack_node_flat(obj_data, None)
             model_blob.bench_id = bench_v.bench_id
-            existing_blob = await bench_v.bench.blobs.filter(sha512=model_blob.sha512).afirst()
+            existing_blob = await bench_v.parent_bench.blobs.filter(
+                sha512=model_blob.sha512
+            ).afirst()
             if existing_blob is not None:
                 obj_data.id = existing_blob.id
                 if existing_blob.status == models.BlobStatus.AVAILABLE:

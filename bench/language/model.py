@@ -224,11 +224,11 @@ class ModelError(RunError):
 class Inference(Struct):
     """A model inference - inputs/outputs are raw."""
 
-    generated_at: datetime = struct_internal(20)
-    generated_in: UUID = struct_internal(21)
-    duration: float = struct_internal(22)
-    inputs: Any = struct_internal(23, store_as=ColumnType.JSON)
-    outputs: Any = struct_internal(24, store_as=ColumnType.JSON)
+    generated_at: datetime = struct_internal(30)
+    generated_in: UUID = struct_internal(31)
+    duration: float = struct_internal(32)
+    inputs: Any = struct_internal(33, store_as=ColumnType.JSON)
+    outputs: Any = struct_internal(34, store_as=ColumnType.JSON)
 
 
 class OpenAIChatCompletionModel(HasModel):

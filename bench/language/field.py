@@ -349,18 +349,18 @@ class HasType(Node):
 @node(NodeType.FIELD)
 class Field(HasText, HasValue, HasType, _FieldExpressionBase):
     parent: Union["Statement", None] = node_parent(4, NodeType.STATEMENT)
-    name: str | None = struct_property(21, default=None, validate=validate_name)
-    order_key: str | None = struct_internal(22, default=None)
-    text: str | None = struct_property(23, default=None, validate=validate_is_str)
-    tag: TypeTag = struct_property(24, is_required=True, validate=enum_validator(TypeTag))
-    key: str | None = struct_internal(25, default=None)
+    name: str | None = struct_property(30, default=None, validate=validate_name)
+    order_key: str | None = struct_internal(31, default=None)
+    text: str | None = struct_property(32, default=None, validate=validate_is_str)
+    tag: TypeTag = struct_property(33, require=True, validate=enum_validator(TypeTag))
+    key: str | None = struct_internal(34, default=None)
     value: Any | None = struct_property(
-        26, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+        35, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
     )
-    hint: TypeHint | None = struct_property(27, default=None, validate=enum_validator(TypeHint))
-    flags: TypeFlag = struct_property(28, default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
+    hint: TypeHint | None = struct_property(36, default=None, validate=enum_validator(TypeHint))
+    flags: TypeFlag = struct_property(37, default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
     reference: Optional["Statement"] = struct_internal(
-        29, is_required=False, references=NodeType.STATEMENT
+        38, require=False, references=NodeType.STATEMENT
     )
     _reflected: bool = struct_runtime(default=False)
 
@@ -550,7 +550,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
 @node(NodeType.RESOLVED_FIELD)
 class ResolvedField(Field):
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
-    field: Field = struct_internal(20, references=NodeType.FIELD)
+    field: Field = struct_internal(50, references=NodeType.FIELD)
 
     @property
     def resolved_fields(self):

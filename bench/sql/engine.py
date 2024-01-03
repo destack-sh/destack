@@ -23,7 +23,7 @@ from bench.language.expression import (
     FieldReference,
     QueryEngineIncapableError,
 )
-from bench.language.module import UNSET, get_node_id, Node
+from bench.language.module import UNSET, Node, get_node_id
 from bench.proto import wire
 from bench.proto.wire import EditData
 from bench.sql.client import GLOBAL_RO_PASSWORD, GLOBAL_RO_USERNAME, async_pg_cursor
@@ -65,29 +65,18 @@ def map_bench_node_to_pg_table(node: type[Node]) -> Table:
     properties = list(node.__properties__.values())
     properties.sort(key=lambda p: p.id or -1)
     for prop in properties:
-        if prop.parent_node_types:
-            # add one parent_<node_type>_id FK column per parent node type
-            for parent_node_type in prop.parent_node_types:
-                column = Column(
-                    source=prop.id,
-                    name=f"parent_{parent_node_type.name.lower()}_id",
-                    type=ColumnType.UUID,
-                    is_array=False,
-                    is_nullable=True,
-                )
-                columns.append(column)
-        elif prop.is_stored and prop.name != "parent_id":  # regular column
+        if prop.is_stored:
             column = Column(
                 source=prop.id,
                 name=prop.name,
                 type=prop.store_as,
                 is_array=prop.is_array,
                 # nocheckin: generated Column.is_nullable is wrong (too often true)
-                is_nullable=not prop.is_required or prop.default is None,
+                is_nullable=not prop.is_required,
                 is_encrypted=prop.is_encrypted,
             )
             columns.append(column)
-    # nocheckin: add constraints (foreign key, checks, uniqueness, one parent set)
+    # nocheckin: add constraints (foreign key, checks, uniqueness)
     table = Table(
         source=node.metatype.id,
         name=get_bench_table_name(node.metatype),

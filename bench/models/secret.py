@@ -29,4 +29,4 @@ class Secret(CrudNode):
         return f"<Secret {self}>"
 
     class Meta:
-        managed = False
+        managed = True

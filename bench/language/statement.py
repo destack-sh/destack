@@ -1,7 +1,7 @@
-from datetime import datetime
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
@@ -182,24 +182,24 @@ class Statement(ScopeNode, HasTags):
         NodeType.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
-    archived_at: datetime = struct_internal(14, default=None, is_cru=True, reflect=True)
-    type: StatementType = struct_internal(20, default=StatementType.BLANK)
-    file: Optional["File"] = node_ancestor(21, NodeType.FILE)
-    name: str | None = struct_property(22, default=None, validate=validate_name)
-    order_key: str | None = struct_internal(23, default=None)
+    archived_at: datetime = struct_internal(14, default=None, reflect=True)
+    type: StatementType = struct_internal(30, default=StatementType.BLANK)
+    file: Optional["File"] = node_ancestor(31, NodeType.FILE)
+    name: str | None = struct_property(32, default=None, validate=validate_name)
+    order_key: str | None = struct_internal(33, default=None)
     reference: Optional["Statement"] = struct_property(
-        24, copy=identity, references=NodeType.STATEMENT
+        34, copy=identity, references=NodeType.STATEMENT
     )
     heading_level: Optional["TextHeadingLevel"] = struct_property(
-        25, default=None, validate=enum_validator(TextHeadingLevel)
+        35, default=None, validate=enum_validator(TextHeadingLevel)
     )
-    text: str | None = struct_property(26, default=None, validate=validate_is_str)
-    key: str | None = struct_internal(27, default=None)
-    code: str | None = struct_property(28, default=None, validate=validate_is_str)
+    text: str | None = struct_property(36, default=None, validate=validate_is_str)
+    key: str | None = struct_internal(37, default=None)
+    code: str | None = struct_property(38, default=None, validate=validate_is_str)
     value: Any | None = struct_property(
-        29, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+        39, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
     )
-    versioned: bool = struct_internal(30, default=True)
+    versioned: bool = struct_internal(40, default=True)
 
     @staticmethod
     def new(
@@ -265,7 +265,7 @@ class Statement(ScopeNode, HasTags):
         # add runtime properties from dynamic components
         for component in self._dynamic_components:
             for prop in component.__properties__.values():
-                if prop.is_runtime and prop.name not in self.__dict__:
+                if prop.is_runtime_only and prop.name not in self.__dict__:
                     setattr(self, prop.name, prop.new())
 
         # IsTyped

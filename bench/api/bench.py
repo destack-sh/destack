@@ -296,7 +296,7 @@ class BenchVersionMutation:
         self, info, input: "UpdateBenchVersion"
     ) -> BenchVersion | OperationInfo:
         bench_v = models.BenchVersion.objects.select_related("bench").get(id=input.id.node_id)
-        check_module_access(info, bench_v.bench, ModuleAccessLevel.Edit)
+        check_module_access(info, bench_v.parent_bench, ModuleAccessLevel.Edit)
         bench_v.name = input.name
         bench_v.description = input.description
         bench_v.tag = input.tag

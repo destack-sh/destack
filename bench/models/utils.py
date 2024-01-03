@@ -41,6 +41,7 @@ class Node(models.Model):
 
     id = models.UUIDField(primary_key=True, editable=False)  # must be set manually
     ck = models.UUIDField(default=uuid.uuid4, editable=False)
+    # nocheckin: add bench (module) reference for every node
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:

@@ -148,28 +148,28 @@ class Run(ScopeNode, HasValue):
     """
 
     parent: Union["Session", "Run"] = node_parent(4, NodeType.SESSION, NodeType.RUN)
-    session: "Session" = node_ancestor(20, NodeType.SESSION, store=True)
+    session: "Session" = node_ancestor(30, NodeType.SESSION, store=True)
     root: Optional["Run"] = node_ancestor(
-        21, NodeType.RUN, nearest=False, include_self=False, store=True
+        31, NodeType.RUN, nearest=False, include_self=False, store=True
     )
     runs: list["Run"] = node_children(NodeType.RUN)
-    bench_id: str = struct_internal(22, reflect=True)
-    worker_node_id: str = struct_internal(23, reflect=True)
-    worker_process_id: Optional[str] = struct_internal(24, reflect=True)
-    statement: Optional["Statement"] = struct_internal(25, references=NodeType.STATEMENT)
-    statement_path: Optional[str] = struct_internal(26, default=None)
-    scheduled_at: Optional[datetime] = struct_internal(27, default=None)
-    started_at: Optional[datetime] = struct_internal(28, default=None)
-    terminated_at: Optional[datetime] = struct_internal(29, default=None)
-    trigger_type: Optional[TriggerType] = struct_internal(30, default=None)
-    trigger_id: Optional[UUID] = struct_internal(31, default=None, reflect=True)
-    access_level: Optional["SessionAccessLevel"] = struct_internal(32, default=None)
-    status: RunStatus = struct_internal(33)
-    inputs: Optional[dict[str, Any]] = struct_internal(34, default=None, store_as=ColumnType.JSON)
-    outputs: Optional[dict[str, Any]] = struct_internal(35, default=None, store_as=ColumnType.JSON)
-    error: Optional["RunError"] = struct_internal(36, default=None, store_as=ColumnType.JSON)
+    bench_id: str = struct_internal(32, reflect=True)
+    worker_node_id: str = struct_internal(33, reflect=True)
+    worker_process_id: Optional[str] = struct_internal(34, reflect=True)
+    statement: Optional["Statement"] = struct_internal(35, references=NodeType.STATEMENT)
+    statement_path: Optional[str] = struct_internal(36, default=None)
+    scheduled_at: Optional[datetime] = struct_internal(37, default=None)
+    started_at: Optional[datetime] = struct_internal(38, default=None)
+    terminated_at: Optional[datetime] = struct_internal(39, default=None)
+    trigger_type: Optional[TriggerType] = struct_internal(40, default=None)
+    trigger_id: Optional[UUID] = struct_internal(41, default=None, reflect=True)
+    access_level: Optional["SessionAccessLevel"] = struct_internal(42, default=None)
+    status: RunStatus = struct_internal(43)
+    inputs: Optional[dict[str, Any]] = struct_internal(44, default=None, store_as=ColumnType.JSON)
+    outputs: Optional[dict[str, Any]] = struct_internal(45, default=None, store_as=ColumnType.JSON)
+    error: Optional["RunError"] = struct_internal(46, default=None, store_as=ColumnType.JSON)
     value: Any | None = struct_internal(
-        37,
+        47,
         default_factory=dict,
         copy=deepcopy,
         store_as=ColumnType.JSON,
@@ -223,11 +223,11 @@ _IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in _IGNORED_PACK
 
 @struct(StructType.RUN_CODE_FRAME)
 class RunCodeFrame(Struct):
-    filename: str = struct_internal(20)
-    lineno: int = struct_internal(21)
-    name: str = struct_internal(22)
-    locals: Optional[dict[str, Any]] = struct_internal(23, default=None, store_as=ColumnType.JSON)
-    line: str = struct_internal(24)
+    filename: str = struct_internal(30)
+    lineno: int = struct_internal(31)
+    name: str = struct_internal(32)
+    locals: Optional[dict[str, Any]] = struct_internal(33, default=None, store_as=ColumnType.JSON)
+    line: str = struct_internal(34)
 
     @staticmethod
     def clean(
@@ -285,12 +285,12 @@ class RunCodeFrame(Struct):
 class RunError(Struct, Exception):  # can this really be a subclass of Exception?
     """Wire-able representation of an exception."""
 
-    kind: RunErrorKind = struct_internal(20)
-    type: str = struct_internal(21)
-    message: Optional[str] = struct_internal(22, default=None)
-    statement: Optional["Statement"] = struct_internal(23, references=NodeType.STATEMENT)
+    kind: RunErrorKind = struct_internal(30)
+    type: str = struct_internal(31)
+    message: Optional[str] = struct_internal(32, default=None)
+    statement: Optional["Statement"] = struct_internal(33, references=NodeType.STATEMENT)
     traceback: list[RunCodeFrame] = struct_internal(
-        24, default_factory=list, struct_t=StructType.RUN_CODE_FRAME
+        34, default_factory=list, struct_t=StructType.RUN_CODE_FRAME
     )
 
     @staticmethod

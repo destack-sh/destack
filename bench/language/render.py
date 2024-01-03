@@ -155,9 +155,9 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
         init_props = {
             prop.name: getattr(node, prop.name)
             for prop in node.__properties__.values()
-            if not prop.is_runtime
+            if not prop.is_runtime_only
             and not prop.is_tree_relation
-            and not prop.is_cru
+            and prop.id >= 30
             and prop.name not in ("id", "ck", "parent", "order_key", "key")
             and getattr(node, prop.name, UNSET) is not prop.default
         }

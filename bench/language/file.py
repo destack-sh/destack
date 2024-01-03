@@ -11,8 +11,8 @@ from bench.language.module import (
     node,
     node_children,
     node_parent,
-    struct_property,
     struct_internal,
+    struct_property,
 )
 from bench.language.tagging import HasTags
 from bench.language.validation import validate_name
@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 @node(NodeType.FILE, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
     parent: Union["File", Module] = node_parent(4, NodeType.FILE, NodeType.MODULE)
-    archived_at: datetime = struct_internal(14, default=None, is_cru=True, reflect=True)
-    name: Optional[str] = struct_property(20, validate=validate_name)
+    archived_at: datetime = struct_internal(14, default=None, reflect=True)
+    name: Optional[str] = struct_property(30, validate=validate_name)
 
     children: NodeList[Union["File", "Statement"]] = node_children(
         NodeType.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped

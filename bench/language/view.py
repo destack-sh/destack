@@ -12,10 +12,11 @@ if typing.TYPE_CHECKING:
 @node(NodeType.VIEW)
 class View(ScopeNode):
     parent: typing.Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
-    name: str | None = struct_property(20, default=None)
-    query: Optional[Expression] = struct_property(22, default=None, struct_t=StructType.EXPRESSION)
+    name: str | None = struct_property(30, default=None)
+    node_type: NodeType = struct_property(31)
+    query: Optional[Expression] = struct_property(32, default=None, struct_t=StructType.EXPRESSION)
     sort: Optional[list[Expression]] = struct_property(
-        23, default=None, struct_t=StructType.EXPRESSION
+        33, default=None, struct_t=StructType.EXPRESSION
     )
 
     def __str__(self):

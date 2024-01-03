@@ -14,7 +14,7 @@ class ResolvedField(UUIDModel, Node):
     """A field that has been resolved to a statement."""
 
     bench_version = models.ForeignKey("BenchVersion", on_delete=models.CASCADE, related_name="+")
-    statement = models.ForeignKey(
+    parent_statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="resolved_fields"
     )
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
@@ -25,7 +25,7 @@ class ResolvedField(UUIDModel, Node):
         return self.statement_id
 
     class Meta:
-        managed = False
+        managed = True
 
 
 class IssueKind(models.TextChoices):
@@ -68,4 +68,4 @@ class Issue(UUIDModel, Node):
         return self.parent_statement_id or self.parent_file_id
 
     class Meta:
-        managed = False
+        managed = True
