@@ -42,14 +42,14 @@ def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThin
     assert not prop.is_runtime_only, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
-    if prop.is_struct or prop.is_enum and prop.store_as == ColumnType.STRING:
+    if prop.is_struct or prop.is_enum and prop.column_type == ColumnType.STRING:
         struct_type = bench_t_to_proto_t(prop.py_type_stripped, cache)
         return Field(id=prop.id, name=prop.name, type=struct_type, repeated=prop.is_array)
-    elif prop.store_as in PROTO_FIELD_TYPE_BY_COLUMN_TYPE:
-        field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.store_as]
+    elif prop.column_type in PROTO_FIELD_TYPE_BY_COLUMN_TYPE:
+        field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.column_type]
         return Field(id=prop.id, name=prop.name, type=field_type, repeated=prop.is_array)
     else:
-        raise TypeError(f"cannot map {prop.store_as} to proto type: {prop!r}")
+        raise TypeError(f"cannot map {prop.column_type} to proto type: {prop!r}")
 
 
 def _bench_struct_to_proto(

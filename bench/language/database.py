@@ -56,7 +56,7 @@ RECORD_UNSPECIFIED_BATCH_SIZE = 500
 class Record(HasValue, Node):
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
     value: typing.Any | None = struct_property(
-        30, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+        30, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
     )
 
     @staticmethod

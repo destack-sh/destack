@@ -9,18 +9,10 @@ from django.core.validators import RegexValidator
 from django.db import models
 
 from bench.language.validation import NAME_REGEX
-from bench.utils.uuidt import UUIDT
 
 
 class UUIDModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-
-    class Meta:
-        abstract = True
-
-
-class UUIDTModel(UUIDModel):
-    id = models.UUIDField(primary_key=True, default=UUIDT, editable=False)
 
     class Meta:
         abstract = True
@@ -41,7 +33,7 @@ class Node(models.Model):
 
     id = models.UUIDField(primary_key=True, editable=False)  # must be set manually
     ck = models.UUIDField(default=uuid.uuid4, editable=False)
-    # nocheckin: add bench (module) reference for every node
+    module = models.ForeignKey("Module", on_delete=models.CASCADE, null=True, related_name="+")
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
@@ -50,17 +42,6 @@ class Node(models.Model):
     @property
     def parent(self) -> Optional["Node"]:
         raise NotImplementedError(f"{self} does not implement parent")
-
-    class Meta:
-        abstract = True
-
-
-class DetachedNode(Node):
-    """A cross-Bench node that doesn't belong to a single module (version)."""
-
-    initial_bench_version = models.ForeignKey(
-        "BenchVersion", null=True, blank=True, on_delete=models.CASCADE
-    )
 
     class Meta:
         abstract = True

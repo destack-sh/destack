@@ -4,9 +4,9 @@ from .bench import (
     Bench,
     BenchInvite,
     BenchMembership,
-    BenchVersion,
     BenchVisibility,
     File,
+    Module,
     ModuleAccessLevel,
 )
 from .blob import Blob, BlobStatus
@@ -19,7 +19,7 @@ from .session import Run, Session
 from .statement import Field, Statement, Tagging, Trigger, TriggerType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import User, UserStatus
-from .utils import CrudModel, CrudNode, DetachedNode, Node
+from .utils import CrudModel, CrudNode, Node
 from .worker import WorkerSet
 
 __all__ = [
@@ -28,7 +28,6 @@ __all__ = [
     "AccessTokenStatus",
     "CrudModel",
     "CrudNode",
-    "DetachedNode",
     "Field",
     "File",
     "Issue",
@@ -46,7 +45,7 @@ __all__ = [
     "ModuleAccessLevel",
     "BenchInvite",
     "BenchMembership",
-    "BenchVersion",
+    "Module",
     "BenchVisibility",
     "Q",
     "Blob",

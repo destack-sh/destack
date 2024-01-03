@@ -47,19 +47,19 @@ DEFAULT_PROJECT_ACCESS_LEVEL_BY_ORGANIZATION_ROLE: dict[OrganizationRole, Module
 class ModuleAccessInfo:
     user: Optional[models.User]
     bench: models.Bench
-    bench_version: Optional[models.BenchVersion]
+    module: Optional[models.Module]
     level: models.ModuleAccessLevel
 
     @staticmethod
     def zero(bench: models.Bench) -> "ModuleAccessInfo":
         return ModuleAccessInfo(
-            user=None, bench=bench, bench_version=None, level=models.ModuleAccessLevel.Zero
+            user=None, bench=bench, module=None, level=models.ModuleAccessLevel.Zero
         )
 
 
 def check_module_access(
     info: Info,
-    bench: UUID | models.Bench | models.BenchVersion,
+    bench: UUID | models.Bench | models.Module,
     level: models.ModuleAccessLevel,
 ) -> ModuleAccessInfo:
     """Raises a PermissionDenied error if the user cannot view the given object."""
@@ -81,15 +81,15 @@ def check_module_node_access(
 
 def has_module_access(
     info: Info,
-    bench: UUID | models.Bench | models.BenchVersion,
+    bench: UUID | models.Bench | models.Module,
     level: models.ModuleAccessLevel,
 ) -> Optional[ModuleAccessInfo]:
     """Get bench-level access info for the given user."""
-    bench_version = None
+    module = None
     if isinstance(bench, UUID):
         bench = models.Bench.objects.get(id=bench)
-    elif isinstance(bench, models.BenchVersion):
-        bench_version = bench
+    elif isinstance(bench, models.Module):
+        module = bench
         bench = bench.parent_bench
     else:
         bench = bench
@@ -106,7 +106,7 @@ def has_module_access(
     access = max((a for a in granted_accesses if a is not None), key=lambda a: a.level)
     if access.level < level:
         return None
-    access.bench_version = bench_version
+    access.module = module
     return access
 
 
@@ -171,7 +171,7 @@ def has_module_node_access(
     root = node
     while root.parent:
         root = root.parent
-    if not isinstance(root, models.BenchVersion):
+    if not isinstance(root, models.Module):
         raise ValueError(f"expected bench root for {node}, got {root}")
     return has_module_access(info, root, level)
 

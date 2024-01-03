@@ -355,7 +355,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
     tag: TypeTag = struct_property(33, require=True, validate=enum_validator(TypeTag))
     key: str | None = struct_internal(34, default=None)
     value: Any | None = struct_property(
-        35, default_factory=dict, copy=deepcopy, store_as=ColumnType.JSON
+        35, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
     )
     hint: TypeHint | None = struct_property(36, default=None, validate=enum_validator(TypeHint))
     flags: TypeFlag = struct_property(37, default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))

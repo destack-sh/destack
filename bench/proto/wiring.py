@@ -103,7 +103,7 @@ def copy_struct_data(data: AnyStructData) -> AnyStructData:
                     data_kwargs[prop.name] = list(value)
             elif prop.is_struct:
                 data_kwargs[prop.name] = copy_struct_data(value)
-            elif prop.store_as == ColumnType.JSON:
+            elif prop.column_type == ColumnType.JSON:
                 data_kwargs[prop.name] = copy(value)
             else:
                 data_kwargs[prop.name] = value
@@ -133,9 +133,9 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         else:
             proto_enum_cls = getattr(wire, prop.py_type_raw.__name__)
             return proto_enum_cls[value.name]
-    elif prop.store_as == ColumnType.UUID:
+    elif prop.column_type == ColumnType.UUID:
         return str(value)  # uuids are wired as strings
-    elif prop.store_as == ColumnType.JSON:
+    elif prop.column_type == ColumnType.JSON:
         return BetterprotoStruct.from_dict(value)
     else:
         return value
@@ -158,9 +158,9 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
                 return None  # revert to default
             else:
                 return prop.py_type_raw[value.name]
-        elif prop.store_as == ColumnType.UUID:
+        elif prop.column_type == ColumnType.UUID:
             return to_uuid(value)  # uuids are wired as strings
-        elif prop.store_as == ColumnType.JSON:
+        elif prop.column_type == ColumnType.JSON:
             return value.to_dict()
         else:
             return value

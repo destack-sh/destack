@@ -152,11 +152,11 @@ class RuntimeSupervisor(Monitored):
         if runtime is None:
             logger.info("runtime.prepare", module_id=module_id)
             # start language worker if not already started
-            bench_version = await models.BenchVersion.objects.select_related(
+            module = await models.Module.objects.select_related(
                 "bench", "bench__user", "bench__organization"
             ).aget(id=module_id)
-            bench = bench_version.parent_bench
-            runtime = RuntimeHost(self.id, self.tasks, self, bench, bench_version)
+            bench = module.parent_bench
+            runtime = RuntimeHost(self.id, self.tasks, self, bench, module)
             self.runtimes[module_id] = runtime
             self.tasks.start(runtime.run(), f"worker-{module_id}")
         if not runtime.ready.is_set():
@@ -307,11 +307,11 @@ class RuntimeSupervisor(Monitored):
         dead_runs: list[models.Run] = [r async for r in dead_runs_qs]
 
         # get bench search index names
-        bench_v_ids = set(r.bench_version_id for r in dead_runs)
-        bench_v_by_id: dict[UUID, models.BenchVersion] = {
-            p.id: p async for p in models.BenchVersion.objects.filter(id__in=bench_v_ids)
+        module_ids = set(r.module_id for r in dead_runs)
+        module_pg_by_id: dict[UUID, models.Module] = {
+            p.id: p async for p in models.Module.objects.filter(id__in=module_ids)
         }
-        bench_vs = [bench_v_by_id[pv_id] for pv_id in bench_v_ids]
+        model_pgs = [module_pg_by_id[pv_id] for pv_id in module_ids]
 
         # mark dead and send out updates
         if not dead_runs:
@@ -320,7 +320,7 @@ class RuntimeSupervisor(Monitored):
             run.mark_dead()
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
         dead_runs_data = [packer.pack_node_flat(r) for r in dead_runs]
-        await sync_to_async(write_runs_to_os)(bench_vs, dead_runs_data)
+        await sync_to_async(write_runs_to_os)(model_pgs, dead_runs_data)
         dead_runs_data_by_bench_id = group_by(dead_runs_data, lambda r: r.bench_id)
         for bench_id, dead_runs_data in dead_runs_data_by_bench_id.items():
             await publish(

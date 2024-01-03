@@ -164,9 +164,7 @@ class Statement(CrudNode):
     A nested statement in a file for working with Bench symbols and other stuff.
     """
 
-    bench_version = models.ForeignKey(
-        "BenchVersion", on_delete=models.CASCADE, related_name="statements"
-    )
+    module = models.ForeignKey("Module", on_delete=models.CASCADE, related_name="statements")
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="statements")
     type = models.CharField(max_length=32, choices=get_choices(StatementType))
     name = models.CharField(
@@ -220,8 +218,8 @@ class Statement(CrudNode):
         constraints = [
             # ck is unique per bench version
             models.UniqueConstraint(
-                fields=["bench_version", "ck"],
-                name="bench_statement_bench_version_ck_ak",
+                fields=["module", "ck"],
+                name="bench_statement_module_ck_ak",
                 condition=models.Q(deleted_at__isnull=True),
             ),
             # check that order key is unique within parent/file (if not "deleted")

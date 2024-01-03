@@ -227,8 +227,8 @@ class Inference(Struct):
     generated_at: datetime = struct_internal(30)
     generated_in: UUID = struct_internal(31)
     duration: float = struct_internal(32)
-    inputs: Any = struct_internal(33, store_as=ColumnType.JSON)
-    outputs: Any = struct_internal(34, store_as=ColumnType.JSON)
+    inputs: Any = struct_internal(33, column_type=ColumnType.JSON)
+    outputs: Any = struct_internal(34, column_type=ColumnType.JSON)
 
 
 class OpenAIChatCompletionModel(HasModel):

@@ -18,6 +18,7 @@ import {
   EnvironmentData,
   ExpressionData,
   LogEntryData,
+  ModuleData,
   NodeType,
   nodeTypeFromJSON,
   nodeTypeToJSON,
@@ -111,8 +112,7 @@ export interface DidCreateProjectRequest {
   projectId: string;
 }
 
-export interface GetWorkerChangesRequest {
-}
+export interface GetWorkerChangesRequest {}
 
 export interface GetWorkerChangesResponse {
   workerSets: WorkerSetData[];
@@ -149,8 +149,9 @@ export interface GetBenchChangesRequest {
   afterChangeMarker: number;
 }
 
-/** nocheckin */
 export interface GetBenchChangesResponse {
+  edits: EditData[];
+  snapshot: ModuleData | undefined;
 }
 
 export interface GetModuleEditsRequest {
@@ -161,8 +162,7 @@ export interface GetModuleEditsResponse {
   edits: EditData[];
 }
 
-export interface GetLogsRequest {
-}
+export interface GetLogsRequest {}
 
 export interface GetLogsResponse {
   logs: LogEntryData[];
@@ -228,7 +228,31 @@ export interface RevealSecretResponse {
 
 export interface PasteNodesRequest {
   sourceModuleId: string;
-  sourceIds: string[];
+  sourceNodes: NodePointer[];
+  targetIds: { [key: string]: string };
+  targetCks: { [key: string]: string };
+  targetParentIds: { [key: string]: string };
+  targetOrderKeys: { [key: string]: string };
+}
+
+export interface PasteNodesRequest_TargetIdsEntry {
+  key: string;
+  value: string;
+}
+
+export interface PasteNodesRequest_TargetCksEntry {
+  key: string;
+  value: string;
+}
+
+export interface PasteNodesRequest_TargetParentIdsEntry {
+  key: string;
+  value: string;
+}
+
+export interface PasteNodesRequest_TargetOrderKeysEntry {
+  key: string;
+  value: string;
 }
 
 export interface PasteNodesResponse {
@@ -271,8 +295,7 @@ export interface PullWorkerRunsResponse {
   runs: RunData[];
 }
 
-export interface RestartWorkerRequest {
-}
+export interface RestartWorkerRequest {}
 
 export interface StartRunRequest {
   triggerType: TriggerType;
@@ -495,9 +518,8 @@ export const EditData = {
     const message = createBaseEditData();
     message.kind = object.kind ?? 0;
     message.moduleId = object.moduleId ?? "";
-    message.node = (object.node !== undefined && object.node !== null)
-      ? SomeNodeData.fromPartial(object.node)
-      : undefined;
+    message.node =
+      object.node !== undefined && object.node !== null ? SomeNodeData.fromPartial(object.node) : undefined;
     message.target = object.target ?? 0;
     message.revision = object.revision ?? 0;
     message.properties = object.properties?.map((e) => e) || [];
@@ -1009,9 +1031,10 @@ export const ConfigureWorkerSetResponse = {
   },
   fromPartial<I extends Exact<DeepPartial<ConfigureWorkerSetResponse>, I>>(object: I): ConfigureWorkerSetResponse {
     const message = createBaseConfigureWorkerSetResponse();
-    message.workerSet = (object.workerSet !== undefined && object.workerSet !== null)
-      ? WorkerSetData.fromPartial(object.workerSet)
-      : undefined;
+    message.workerSet =
+      object.workerSet !== undefined && object.workerSet !== null
+        ? WorkerSetData.fromPartial(object.workerSet)
+        : undefined;
     return message;
   },
 };
@@ -1182,9 +1205,10 @@ export const GetEnvironmentResponse = {
   },
   fromPartial<I extends Exact<DeepPartial<GetEnvironmentResponse>, I>>(object: I): GetEnvironmentResponse {
     const message = createBaseGetEnvironmentResponse();
-    message.environment = (object.environment !== undefined && object.environment !== null)
-      ? EnvironmentData.fromPartial(object.environment)
-      : undefined;
+    message.environment =
+      object.environment !== undefined && object.environment !== null
+        ? EnvironmentData.fromPartial(object.environment)
+        : undefined;
     return message;
   },
 };
@@ -1304,11 +1328,17 @@ export const GetBenchChangesRequest = {
 };
 
 function createBaseGetBenchChangesResponse(): GetBenchChangesResponse {
-  return {};
+  return { edits: [], snapshot: undefined };
 }
 
 export const GetBenchChangesResponse = {
-  encode(_: GetBenchChangesResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+  encode(message: GetBenchChangesResponse, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    for (const v of message.edits) {
+      EditData.encode(v!, writer.uint32(10).fork()).ldelim();
+    }
+    if (message.snapshot !== undefined) {
+      ModuleData.encode(message.snapshot, writer.uint32(18).fork()).ldelim();
+    }
     return writer;
   },
 
@@ -1319,6 +1349,20 @@ export const GetBenchChangesResponse = {
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.edits.push(EditData.decode(reader, reader.uint32()));
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.snapshot = ModuleData.decode(reader, reader.uint32());
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -1328,20 +1372,32 @@ export const GetBenchChangesResponse = {
     return message;
   },
 
-  fromJSON(_: any): GetBenchChangesResponse {
-    return {};
+  fromJSON(object: any): GetBenchChangesResponse {
+    return {
+      edits: globalThis.Array.isArray(object?.edits) ? object.edits.map((e: any) => EditData.fromJSON(e)) : [],
+      snapshot: isSet(object.snapshot) ? ModuleData.fromJSON(object.snapshot) : undefined,
+    };
   },
 
-  toJSON(_: GetBenchChangesResponse): unknown {
+  toJSON(message: GetBenchChangesResponse): unknown {
     const obj: any = {};
+    if (message.edits?.length) {
+      obj.edits = message.edits.map((e) => EditData.toJSON(e));
+    }
+    if (message.snapshot !== undefined) {
+      obj.snapshot = ModuleData.toJSON(message.snapshot);
+    }
     return obj;
   },
 
   create<I extends Exact<DeepPartial<GetBenchChangesResponse>, I>>(base?: I): GetBenchChangesResponse {
     return GetBenchChangesResponse.fromPartial(base ?? ({} as any));
   },
-  fromPartial<I extends Exact<DeepPartial<GetBenchChangesResponse>, I>>(_: I): GetBenchChangesResponse {
+  fromPartial<I extends Exact<DeepPartial<GetBenchChangesResponse>, I>>(object: I): GetBenchChangesResponse {
     const message = createBaseGetBenchChangesResponse();
+    message.edits = object.edits?.map((e) => EditData.fromPartial(e)) || [];
+    message.snapshot =
+      object.snapshot !== undefined && object.snapshot !== null ? ModuleData.fromPartial(object.snapshot) : undefined;
     return message;
   },
 };
@@ -1823,9 +1879,8 @@ export const SearchNodesRequest = {
     const message = createBaseSearchNodesRequest();
     message.nodeType = object.nodeType ?? 0;
     message.nodeCk = object.nodeCk ?? "";
-    message.filter = (object.filter !== undefined && object.filter !== null)
-      ? ExpressionData.fromPartial(object.filter)
-      : undefined;
+    message.filter =
+      object.filter !== undefined && object.filter !== null ? ExpressionData.fromPartial(object.filter) : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     message.limit = object.limit ?? 0;
     message.after = object.after ?? "";
@@ -2092,7 +2147,7 @@ export const UploadBlobRequest = {
   },
   fromPartial<I extends Exact<DeepPartial<UploadBlobRequest>, I>>(object: I): UploadBlobRequest {
     const message = createBaseUploadBlobRequest();
-    message.blob = (object.blob !== undefined && object.blob !== null) ? BlobData.fromPartial(object.blob) : undefined;
+    message.blob = object.blob !== undefined && object.blob !== null ? BlobData.fromPartial(object.blob) : undefined;
     return message;
   },
 };
@@ -2223,7 +2278,7 @@ export const DownloadBlobRequest = {
   },
   fromPartial<I extends Exact<DeepPartial<DownloadBlobRequest>, I>>(object: I): DownloadBlobRequest {
     const message = createBaseDownloadBlobRequest();
-    message.blob = (object.blob !== undefined && object.blob !== null) ? BlobData.fromPartial(object.blob) : undefined;
+    message.blob = object.blob !== undefined && object.blob !== null ? BlobData.fromPartial(object.blob) : undefined;
     return message;
   },
 };
@@ -2354,9 +2409,8 @@ export const RevealSecretRequest = {
   },
   fromPartial<I extends Exact<DeepPartial<RevealSecretRequest>, I>>(object: I): RevealSecretRequest {
     const message = createBaseRevealSecretRequest();
-    message.secret = (object.secret !== undefined && object.secret !== null)
-      ? SecretData.fromPartial(object.secret)
-      : undefined;
+    message.secret =
+      object.secret !== undefined && object.secret !== null ? SecretData.fromPartial(object.secret) : undefined;
     return message;
   },
 };
@@ -2413,15 +2467,21 @@ export const RevealSecretResponse = {
   },
   fromPartial<I extends Exact<DeepPartial<RevealSecretResponse>, I>>(object: I): RevealSecretResponse {
     const message = createBaseRevealSecretResponse();
-    message.secret = (object.secret !== undefined && object.secret !== null)
-      ? SecretData.fromPartial(object.secret)
-      : undefined;
+    message.secret =
+      object.secret !== undefined && object.secret !== null ? SecretData.fromPartial(object.secret) : undefined;
     return message;
   },
 };
 
 function createBasePasteNodesRequest(): PasteNodesRequest {
-  return { sourceModuleId: "", sourceIds: [] };
+  return {
+    sourceModuleId: "",
+    sourceNodes: [],
+    targetIds: {},
+    targetCks: {},
+    targetParentIds: {},
+    targetOrderKeys: {},
+  };
 }
 
 export const PasteNodesRequest = {
@@ -2429,9 +2489,21 @@ export const PasteNodesRequest = {
     if (message.sourceModuleId !== "") {
       writer.uint32(10).string(message.sourceModuleId);
     }
-    for (const v of message.sourceIds) {
-      writer.uint32(18).string(v!);
+    for (const v of message.sourceNodes) {
+      NodePointer.encode(v!, writer.uint32(18).fork()).ldelim();
     }
+    Object.entries(message.targetIds).forEach(([key, value]) => {
+      PasteNodesRequest_TargetIdsEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).ldelim();
+    });
+    Object.entries(message.targetCks).forEach(([key, value]) => {
+      PasteNodesRequest_TargetCksEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).ldelim();
+    });
+    Object.entries(message.targetParentIds).forEach(([key, value]) => {
+      PasteNodesRequest_TargetParentIdsEntry.encode({ key: key as any, value }, writer.uint32(42).fork()).ldelim();
+    });
+    Object.entries(message.targetOrderKeys).forEach(([key, value]) => {
+      PasteNodesRequest_TargetOrderKeysEntry.encode({ key: key as any, value }, writer.uint32(50).fork()).ldelim();
+    });
     return writer;
   },
 
@@ -2454,7 +2526,47 @@ export const PasteNodesRequest = {
             break;
           }
 
-          message.sourceIds.push(reader.string());
+          message.sourceNodes.push(NodePointer.decode(reader, reader.uint32()));
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          const entry3 = PasteNodesRequest_TargetIdsEntry.decode(reader, reader.uint32());
+          if (entry3.value !== undefined) {
+            message.targetIds[entry3.key] = entry3.value;
+          }
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          const entry4 = PasteNodesRequest_TargetCksEntry.decode(reader, reader.uint32());
+          if (entry4.value !== undefined) {
+            message.targetCks[entry4.key] = entry4.value;
+          }
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          const entry5 = PasteNodesRequest_TargetParentIdsEntry.decode(reader, reader.uint32());
+          if (entry5.value !== undefined) {
+            message.targetParentIds[entry5.key] = entry5.value;
+          }
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          const entry6 = PasteNodesRequest_TargetOrderKeysEntry.decode(reader, reader.uint32());
+          if (entry6.value !== undefined) {
+            message.targetOrderKeys[entry6.key] = entry6.value;
+          }
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -2468,9 +2580,33 @@ export const PasteNodesRequest = {
   fromJSON(object: any): PasteNodesRequest {
     return {
       sourceModuleId: isSet(object.sourceModuleId) ? globalThis.String(object.sourceModuleId) : "",
-      sourceIds: globalThis.Array.isArray(object?.sourceIds)
-        ? object.sourceIds.map((e: any) => globalThis.String(e))
+      sourceNodes: globalThis.Array.isArray(object?.sourceNodes)
+        ? object.sourceNodes.map((e: any) => NodePointer.fromJSON(e))
         : [],
+      targetIds: isObject(object.targetIds)
+        ? Object.entries(object.targetIds).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+            acc[key] = String(value);
+            return acc;
+          }, {})
+        : {},
+      targetCks: isObject(object.targetCks)
+        ? Object.entries(object.targetCks).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+            acc[key] = String(value);
+            return acc;
+          }, {})
+        : {},
+      targetParentIds: isObject(object.targetParentIds)
+        ? Object.entries(object.targetParentIds).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+            acc[key] = String(value);
+            return acc;
+          }, {})
+        : {},
+      targetOrderKeys: isObject(object.targetOrderKeys)
+        ? Object.entries(object.targetOrderKeys).reduce<{ [key: string]: string }>((acc, [key, value]) => {
+            acc[key] = String(value);
+            return acc;
+          }, {})
+        : {},
     };
   },
 
@@ -2479,8 +2615,44 @@ export const PasteNodesRequest = {
     if (message.sourceModuleId !== "") {
       obj.sourceModuleId = message.sourceModuleId;
     }
-    if (message.sourceIds?.length) {
-      obj.sourceIds = message.sourceIds;
+    if (message.sourceNodes?.length) {
+      obj.sourceNodes = message.sourceNodes.map((e) => NodePointer.toJSON(e));
+    }
+    if (message.targetIds) {
+      const entries = Object.entries(message.targetIds);
+      if (entries.length > 0) {
+        obj.targetIds = {};
+        entries.forEach(([k, v]) => {
+          obj.targetIds[k] = v;
+        });
+      }
+    }
+    if (message.targetCks) {
+      const entries = Object.entries(message.targetCks);
+      if (entries.length > 0) {
+        obj.targetCks = {};
+        entries.forEach(([k, v]) => {
+          obj.targetCks[k] = v;
+        });
+      }
+    }
+    if (message.targetParentIds) {
+      const entries = Object.entries(message.targetParentIds);
+      if (entries.length > 0) {
+        obj.targetParentIds = {};
+        entries.forEach(([k, v]) => {
+          obj.targetParentIds[k] = v;
+        });
+      }
+    }
+    if (message.targetOrderKeys) {
+      const entries = Object.entries(message.targetOrderKeys);
+      if (entries.length > 0) {
+        obj.targetOrderKeys = {};
+        entries.forEach(([k, v]) => {
+          obj.targetOrderKeys[k] = v;
+        });
+      }
     }
     return obj;
   },
@@ -2491,7 +2663,355 @@ export const PasteNodesRequest = {
   fromPartial<I extends Exact<DeepPartial<PasteNodesRequest>, I>>(object: I): PasteNodesRequest {
     const message = createBasePasteNodesRequest();
     message.sourceModuleId = object.sourceModuleId ?? "";
-    message.sourceIds = object.sourceIds?.map((e) => e) || [];
+    message.sourceNodes = object.sourceNodes?.map((e) => NodePointer.fromPartial(e)) || [];
+    message.targetIds = Object.entries(object.targetIds ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {}
+    );
+    message.targetCks = Object.entries(object.targetCks ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {}
+    );
+    message.targetParentIds = Object.entries(object.targetParentIds ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {}
+    );
+    message.targetOrderKeys = Object.entries(object.targetOrderKeys ?? {}).reduce<{ [key: string]: string }>(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = globalThis.String(value);
+        }
+        return acc;
+      },
+      {}
+    );
+    return message;
+  },
+};
+
+function createBasePasteNodesRequest_TargetIdsEntry(): PasteNodesRequest_TargetIdsEntry {
+  return { key: "", value: "" };
+}
+
+export const PasteNodesRequest_TargetIdsEntry = {
+  encode(message: PasteNodesRequest_TargetIdsEntry, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PasteNodesRequest_TargetIdsEntry {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePasteNodesRequest_TargetIdsEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PasteNodesRequest_TargetIdsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: PasteNodesRequest_TargetIdsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PasteNodesRequest_TargetIdsEntry>, I>>(
+    base?: I
+  ): PasteNodesRequest_TargetIdsEntry {
+    return PasteNodesRequest_TargetIdsEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PasteNodesRequest_TargetIdsEntry>, I>>(
+    object: I
+  ): PasteNodesRequest_TargetIdsEntry {
+    const message = createBasePasteNodesRequest_TargetIdsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBasePasteNodesRequest_TargetCksEntry(): PasteNodesRequest_TargetCksEntry {
+  return { key: "", value: "" };
+}
+
+export const PasteNodesRequest_TargetCksEntry = {
+  encode(message: PasteNodesRequest_TargetCksEntry, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PasteNodesRequest_TargetCksEntry {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePasteNodesRequest_TargetCksEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PasteNodesRequest_TargetCksEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: PasteNodesRequest_TargetCksEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PasteNodesRequest_TargetCksEntry>, I>>(
+    base?: I
+  ): PasteNodesRequest_TargetCksEntry {
+    return PasteNodesRequest_TargetCksEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PasteNodesRequest_TargetCksEntry>, I>>(
+    object: I
+  ): PasteNodesRequest_TargetCksEntry {
+    const message = createBasePasteNodesRequest_TargetCksEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBasePasteNodesRequest_TargetParentIdsEntry(): PasteNodesRequest_TargetParentIdsEntry {
+  return { key: "", value: "" };
+}
+
+export const PasteNodesRequest_TargetParentIdsEntry = {
+  encode(message: PasteNodesRequest_TargetParentIdsEntry, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PasteNodesRequest_TargetParentIdsEntry {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePasteNodesRequest_TargetParentIdsEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PasteNodesRequest_TargetParentIdsEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: PasteNodesRequest_TargetParentIdsEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PasteNodesRequest_TargetParentIdsEntry>, I>>(
+    base?: I
+  ): PasteNodesRequest_TargetParentIdsEntry {
+    return PasteNodesRequest_TargetParentIdsEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PasteNodesRequest_TargetParentIdsEntry>, I>>(
+    object: I
+  ): PasteNodesRequest_TargetParentIdsEntry {
+    const message = createBasePasteNodesRequest_TargetParentIdsEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
+    return message;
+  },
+};
+
+function createBasePasteNodesRequest_TargetOrderKeysEntry(): PasteNodesRequest_TargetOrderKeysEntry {
+  return { key: "", value: "" };
+}
+
+export const PasteNodesRequest_TargetOrderKeysEntry = {
+  encode(message: PasteNodesRequest_TargetOrderKeysEntry, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== "") {
+      writer.uint32(18).string(message.value);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): PasteNodesRequest_TargetOrderKeysEntry {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBasePasteNodesRequest_TargetOrderKeysEntry();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 10) {
+            break;
+          }
+
+          message.key = reader.string();
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.value = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): PasteNodesRequest_TargetOrderKeysEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? globalThis.String(object.value) : "",
+    };
+  },
+
+  toJSON(message: PasteNodesRequest_TargetOrderKeysEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== "") {
+      obj.value = message.value;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<PasteNodesRequest_TargetOrderKeysEntry>, I>>(
+    base?: I
+  ): PasteNodesRequest_TargetOrderKeysEntry {
+    return PasteNodesRequest_TargetOrderKeysEntry.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<PasteNodesRequest_TargetOrderKeysEntry>, I>>(
+    object: I
+  ): PasteNodesRequest_TargetOrderKeysEntry {
+    const message = createBasePasteNodesRequest_TargetOrderKeysEntry();
+    message.key = object.key ?? "";
+    message.value = object.value ?? "";
     return message;
   },
 };
@@ -3532,7 +4052,7 @@ export const StartRunResponse = {
     const message = createBaseStartRunResponse();
     message.errorType = object.errorType ?? 0;
     message.runId = object.runId ?? "";
-    message.run = (object.run !== undefined && object.run !== null) ? RunData.fromPartial(object.run) : undefined;
+    message.run = object.run !== undefined && object.run !== null ? RunData.fromPartial(object.run) : undefined;
     message.logs = object.logs?.map((e) => LogEntryData.fromPartial(e)) || [];
     return message;
   },
@@ -3663,19 +4183,19 @@ export interface RuntimeSupervisor {
   /** Get all changes to the worker sets for a Bench. */
   GetWorkerChanges(
     request: DeepPartial<GetWorkerChangesRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetWorkerChangesResponse>;
   /** Configure the worker set for a Bench. */
   ConfigureWorkerSet(
     request: DeepPartial<ConfigureWorkerSetRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<ConfigureWorkerSetResponse>;
   /** Force restart the worker set for a Bench. */
   RestartWorkerSet(request: DeepPartial<RestartWorkerSetRequest>, metadata?: grpc.Metadata): Promise<Empty>;
   /** Gets the installed environment info from a worker set running a Bench. */
   GetEnvironment(
     request: DeepPartial<GetEnvironmentRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<GetEnvironmentResponse>;
   /** Ensure the worker set for a Bench is running. */
   PingWorkerSet(request: DeepPartial<PingWorkerSetRequest>, metadata?: grpc.Metadata): Promise<Empty>;
@@ -3698,29 +4218,29 @@ export class RuntimeSupervisorClientImpl implements RuntimeSupervisor {
     return this.rpc.unary(
       RuntimeSupervisorDidCreateProjectDesc,
       DidCreateProjectRequest.fromPartial(request),
-      metadata,
+      metadata
     );
   }
 
   GetWorkerChanges(
     request: DeepPartial<GetWorkerChangesRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetWorkerChangesResponse> {
     return this.rpc.invoke(
       RuntimeSupervisorGetWorkerChangesDesc,
       GetWorkerChangesRequest.fromPartial(request),
-      metadata,
+      metadata
     );
   }
 
   ConfigureWorkerSet(
     request: DeepPartial<ConfigureWorkerSetRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<ConfigureWorkerSetResponse> {
     return this.rpc.unary(
       RuntimeSupervisorConfigureWorkerSetDesc,
       ConfigureWorkerSetRequest.fromPartial(request),
-      metadata,
+      metadata
     );
   }
 
@@ -3728,13 +4248,13 @@ export class RuntimeSupervisorClientImpl implements RuntimeSupervisor {
     return this.rpc.unary(
       RuntimeSupervisorRestartWorkerSetDesc,
       RestartWorkerSetRequest.fromPartial(request),
-      metadata,
+      metadata
     );
   }
 
   GetEnvironment(
     request: DeepPartial<GetEnvironmentRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<GetEnvironmentResponse> {
     return this.rpc.unary(RuntimeSupervisorGetEnvironmentDesc, GetEnvironmentRequest.fromPartial(request), metadata);
   }
@@ -3894,12 +4414,12 @@ export interface RuntimeHost {
   /** Receive relevant outside-of-module changes to a Bench. */
   GetBenchChanges(
     request: DeepPartial<GetBenchChangesRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetBenchChangesResponse>;
   /** Receive any future edits to this module. */
   GetModuleEdits(
     request: DeepPartial<GetModuleEditsRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetModuleEditsResponse>;
   /** Reads the entire module tree. */
   ReadNodes(request: DeepPartial<ReadNodesRequest>, metadata?: grpc.Metadata): Promise<ReadNodesResponse>;
@@ -3918,7 +4438,7 @@ export interface RuntimeHost {
   /** Create a full snapshot of this Bench module (copy to another new Bench module). */
   SnapshotModule(
     request: DeepPartial<SnapshotModuleRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<SnapshotModuleResponse>;
   /** Forwards all matching logs received from the workers. */
   GetLogs(request: DeepPartial<GetLogsRequest>, metadata?: grpc.Metadata): Observable<GetLogsResponse>;
@@ -3929,7 +4449,7 @@ export interface RuntimeHost {
   /** Runs a well-known internal statement in the host with our credentials. */
   RunProxyStatement(
     request: DeepPartial<RunProxyStatementRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<RunProxyStatementResponse>;
   /**
    * Pulls the runs a worker should run immediately after starting (scheduled).
@@ -3937,7 +4457,7 @@ export interface RuntimeHost {
    */
   PullWorkerRuns(
     request: DeepPartial<PullWorkerRunsRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<PullWorkerRunsResponse>;
   /** Pushes logs from a worker *that are already stored* to notify frontend users connected to this host. */
   PushWorkerLogs(request: DeepPartial<PushWorkerLogsRequest>, metadata?: grpc.Metadata): Promise<Empty>;
@@ -3968,14 +4488,14 @@ export class RuntimeHostClientImpl implements RuntimeHost {
 
   GetBenchChanges(
     request: DeepPartial<GetBenchChangesRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetBenchChangesResponse> {
     return this.rpc.invoke(RuntimeHostGetBenchChangesDesc, GetBenchChangesRequest.fromPartial(request), metadata);
   }
 
   GetModuleEdits(
     request: DeepPartial<GetModuleEditsRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Observable<GetModuleEditsResponse> {
     return this.rpc.invoke(RuntimeHostGetModuleEditsDesc, GetModuleEditsRequest.fromPartial(request), metadata);
   }
@@ -4010,7 +4530,7 @@ export class RuntimeHostClientImpl implements RuntimeHost {
 
   SnapshotModule(
     request: DeepPartial<SnapshotModuleRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<SnapshotModuleResponse> {
     return this.rpc.unary(RuntimeHostSnapshotModuleDesc, SnapshotModuleRequest.fromPartial(request), metadata);
   }
@@ -4029,14 +4549,14 @@ export class RuntimeHostClientImpl implements RuntimeHost {
 
   RunProxyStatement(
     request: DeepPartial<RunProxyStatementRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<RunProxyStatementResponse> {
     return this.rpc.unary(RuntimeHostRunProxyStatementDesc, RunProxyStatementRequest.fromPartial(request), metadata);
   }
 
   PullWorkerRuns(
     request: DeepPartial<PullWorkerRunsRequest>,
-    metadata?: grpc.Metadata,
+    metadata?: grpc.Metadata
   ): Promise<PullWorkerRunsResponse> {
     return this.rpc.unary(RuntimeHostPullWorkerRunsDesc, PullWorkerRunsRequest.fromPartial(request), metadata);
   }
@@ -4535,12 +5055,12 @@ interface Rpc {
   unary<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     request: any,
-    metadata: grpc.Metadata | undefined,
+    metadata: grpc.Metadata | undefined
   ): Promise<any>;
   invoke<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     request: any,
-    metadata: grpc.Metadata | undefined,
+    metadata: grpc.Metadata | undefined
   ): Observable<any>;
 }
 
@@ -4562,7 +5082,7 @@ export class GrpcWebImpl {
       debug?: boolean;
       metadata?: grpc.Metadata;
       upStreamRetryCodes?: number[];
-    },
+    }
   ) {
     this.host = host;
     this.options = options;
@@ -4571,12 +5091,13 @@ export class GrpcWebImpl {
   unary<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     _request: any,
-    metadata: grpc.Metadata | undefined,
+    metadata: grpc.Metadata | undefined
   ): Promise<any> {
     const request = { ..._request, ...methodDesc.requestType };
-    const maybeCombinedMetadata = metadata && this.options.metadata
-      ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
-      : metadata ?? this.options.metadata;
+    const maybeCombinedMetadata =
+      metadata && this.options.metadata
+        ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
+        : metadata ?? this.options.metadata;
     return new Promise((resolve, reject) => {
       grpc.unary(methodDesc, {
         request,
@@ -4599,15 +5120,16 @@ export class GrpcWebImpl {
   invoke<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     _request: any,
-    metadata: grpc.Metadata | undefined,
+    metadata: grpc.Metadata | undefined
   ): Observable<any> {
     const upStreamCodes = this.options.upStreamRetryCodes ?? [];
     const DEFAULT_TIMEOUT_TIME: number = 3_000;
     const request = { ..._request, ...methodDesc.requestType };
     const transport = this.options.streamingTransport ?? this.options.transport;
-    const maybeCombinedMetadata = metadata && this.options.metadata
-      ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
-      : metadata ?? this.options.metadata;
+    const maybeCombinedMetadata =
+      metadata && this.options.metadata
+        ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
+        : metadata ?? this.options.metadata;
     return new Observable((observer) => {
       const upStream = () => {
         const client = grpc.invoke(methodDesc, {
@@ -4639,15 +5161,21 @@ export class GrpcWebImpl {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+  ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U>
+  ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string }
+  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {}
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

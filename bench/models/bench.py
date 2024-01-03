@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import collections
 import os
 import uuid
 from datetime import datetime
@@ -15,23 +14,19 @@ from django.db.models import Q
 from pgcrypto.fields import TextPGPSymmetricKeyField
 from strawberry_django.descriptors import model_property
 
-from bench.language.const import StatementType, new_dynamic_node_key
 from bench.language.validation import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 from bench.models.blob import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, CrudNode, Node, UUIDModel, create_models_bfs
-from bench.proto import wire
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.func import (
     generate_random_lowercase_name,
     generate_random_name,
     generate_secret_password,
 )
-from bench.utils.utils import DEBUG
 
 if TYPE_CHECKING:
     from bench.models.organization import Organization
-    from bench.models.packer import PackFilter, _PackedCopy
     from bench.models.user import User
 
 logger = structlog.get_logger(__name__)
@@ -82,9 +77,7 @@ class BenchManager(models.Manager["Bench"]):
             id=id, organization=organization, user=user, name=name, slug=slug, visibility=visibility
         )
         # initial version head
-        bench.head = BenchVersion.objects.create(
-            id=head_version_id or uuid4(), ck=bench.id, bench=bench
-        )
+        bench.head = Module.objects.create(id=head_version_id or uuid4(), ck=bench.id, bench=bench)
         bench.save()
 
         # onboarding
@@ -152,11 +145,8 @@ class Bench(UUIDModel, CrudModel):
     members = models.ManyToManyField("User", through="BenchMembership", related_name="benches+")
     memberships: models.QuerySet["BenchMembership"]  # noqa via BenchMembership.bench
 
-    head = models.ForeignKey(
-        "BenchVersion", on_delete=models.SET_NULL, null=True, related_name="bench+"
-    )
+    head = models.ForeignKey("Module", on_delete=models.SET_NULL, null=True, related_name="bench+")
     blobs: models.QuerySet["Blob"]  # noqa via Blob
-
     worker_set = models.OneToOneField(  # only one worker set for now
         "WorkerSet", on_delete=models.SET_NULL, related_name="bench+", null=True
     )
@@ -184,7 +174,7 @@ class Bench(UUIDModel, CrudModel):
         return f"{self.owner.slug}.{self.slug}"
 
     @property
-    def head_(self) -> BenchVersion:
+    def head_(self) -> Module:
         if self.head is None:
             raise ValueError(f"bench {self} has no head")
         return self.head
@@ -201,8 +191,8 @@ class Bench(UUIDModel, CrudModel):
         name: Optional[str] = None,
         tag: Optional[str] = None,
         description: Optional[str] = None,
-        parent: Optional[BenchVersion] = None,
-    ) -> "BenchVersion":
+        parent: Optional[Module] = None,
+    ) -> "Module":
         if parent is None:
             if self.head is None:
                 raise ValueError(f"bench does not have a head: {self}")
@@ -213,9 +203,7 @@ class Bench(UUIDModel, CrudModel):
         if not assigned_parent.committed:
             raise ValueError(f"parent must be committed: {assigned_parent}")
 
-        new_version = BenchVersion.objects.create(
-            bench=self, name=name, tag=tag, description=description
-        )
+        new_version = Module.objects.create(bench=self, name=name, tag=tag, description=description)
         new_version.parents.add(assigned_parent)
         self.head = new_version
         self.save()
@@ -350,7 +338,7 @@ class BenchInvite(UUIDModel):
         ]
 
 
-class BenchVersionManager(models.Manager["BenchVersion"]):
+class ModuleManager(models.Manager["BenchVersion"]):
     def get_by_slug(self, owner: str, bench: str, tag: str):
         return (
             self.filter(tag=tag)
@@ -364,125 +352,8 @@ class BenchVersionManager(models.Manager["BenchVersion"]):
     def get_by_tag(self, bench_id: UUID, tag: str):
         return self.filter(bench_id=bench_id, tag=tag).get()
 
-    def pack_copy(
-        self,
-        source: BenchVersion,
-        target: BenchVersion,
-        nodes: list[models.Model],
-        keep_cks: bool,
-        excluded: set[type[Node]],
-        target_ids: dict[UUID, UUID] = None,
-        target_cks: dict[UUID, UUID] = None,
-        copy_revisions: bool = True,
-        filter: PackFilter = None,
-    ) -> _PackedCopy:
-        """Packs a copy of the module tree starting at the given nodes."""
-        from bench.models import packer
 
-        if target_ids and len(set(target_ids.values())) != len(target_ids):
-            raise ValueError(f"target ids must be unique: {target_ids}")
-        if target_cks and len(set(target_cks.values())) != len(target_cks):
-            raise ValueError(f"target cks must be unique: {target_cks}")
-
-        target_ids = {**(target_ids or {}), source.id: target.id}
-        target_ids_reversed = {target.id: source.id}
-        target_cks = {**(target_cks or {}), source.ck: target.ck}
-        target_cks_reversed = {target.ck: source.ck}
-        target_keys = {}
-        packed = packer.pack_node_host(
-            *nodes, filter=filter or packer.DEFAULT_PACK_FILTER, excluded=excluded
-        )
-
-        # map all identities to new identities (id, ck, key)
-        for node in packed.nodes_by_id.values():
-            if (node.id in target_ids) != (node.ck in target_cks):
-                raise ValueError(
-                    f"node id and ck must be set together: {repr(node)}"
-                    f" (id:{node.id}:{node.id in target_ids}, ck:{node.ck}:{node.ck in target_cks})"
-                )
-            if node.id not in target_ids:
-                target_cks[node.ck] = uuid4() if not keep_cks else node.ck
-                target_ids[node.id] = uuid.uuid5(target.id, str(target_cks[node.ck]))
-            target_ids_reversed[target_ids[node.id]] = node.id
-            target_cks_reversed[target_cks[node.ck]] = node.ck
-            node.id = target_ids[node.id]
-            node.ck = target_cks[node.ck]
-            if isinstance(node, wire.HasCrud) and not copy_revisions:
-                node.revision = 0
-            # statement.key is the link between database and records
-            # so if the database is versioned, or we're not keeping identities, reset it
-            if (
-                isinstance(node, wire.StatementData)
-                and node.type == StatementType.DATABASE
-                and (not keep_cks or node.versioned)
-            ):
-                source_key = node.key
-                node.key = new_dynamic_node_key(node.id)
-                target_keys[source_key] = node.key
-
-        # patch parents & references
-        for node in packed.nodes_by_id.values():
-            node.parent_id = target_ids.get(node.parent_id, node.parent_id)
-            wire.patch_node_flat(node, target_cks, target_keys)
-
-        # sanity check target cks
-        if DEBUG or LOCAL:
-            nodes_by_ck = collections.defaultdict(list)
-            for node in packed.nodes_by_id.values():
-                nodes_by_ck[node.ck].append(node)
-            if len(nodes_by_ck) != len(packed.nodes_by_id):
-                duplicates = {ck: nodes for ck, nodes in nodes_by_ck.items() if len(nodes) > 1}
-                raise ValueError(
-                    f"target cks are not unique: {len(packed.nodes_by_id)} != {len(nodes_by_ck)}:\n{duplicates}"
-                )
-
-        return packer._PackedCopy(
-            roots=packed.roots,
-            nodes_by_id=packed.nodes_by_id,
-            target_ids=target_ids,
-            target_ids_reversed=target_ids_reversed,
-            target_cks=target_cks,
-            target_cks_reversed=target_cks_reversed,
-        )
-
-    def copy(
-        self,
-        source: BenchVersion,
-        target: BenchVersion,
-        files: Optional[models.QuerySet[File] | list[File]] = None,
-        target_ids: dict[UUID, UUID] = None,
-        keep_cks: bool = True,
-        include_interp: bool = True,
-        copy_revisions: bool = True,
-    ) -> None:
-        """Copies the given files from a source version to a target version (by default everything)"""
-
-        from bench.models import packer
-
-        # pack relevant nodes
-        filter = packer.DEFAULT_PACK_FILTER.extend()
-        if files is not None:
-            if isinstance(files, list):
-                filter.filter(File, lambda qs: qs.filter(id__in=[f.id for f in files]))
-            else:
-                filter.filter(File, lambda qs: qs.filter(id__in=files.values_list("id", flat=True)))
-        copy = self.pack_copy(
-            source=source,
-            target=target,
-            nodes=[source],
-            target_ids=target_ids,
-            keep_cks=keep_cks,
-            excluded=packer.INTERP_MODEL_TYPES if not include_interp else set(),
-            copy_revisions=copy_revisions,
-            filter=filter,
-        )
-
-        # unpack and save
-        unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
-        create_models_bfs(unpacked.walk_bfs_batched(), exclude={target.id})
-
-
-class BenchVersion(CrudNode):
+class Module(CrudNode):
     """
     A bench version records the state of a bench at a specific point in time.
     """
@@ -494,7 +365,7 @@ class BenchVersion(CrudNode):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     is_snapshot = models.BooleanField(default=False)
 
-    parents = models.ManyToManyField("BenchVersion", related_name="children", symmetrical=False)
+    parents = models.ManyToManyField("Module", related_name="children", symmetrical=False)
     files: models.QuerySet["File"]  # noqa via File
     statements: models.QuerySet["Statement"]  # noqa via Statement
     sessions: models.QuerySet["Session"]  # noqa via Session
@@ -517,48 +388,10 @@ class BenchVersion(CrudNode):
 
     @transaction.atomic
     def create_file(self, name: str, parent: Optional[File] = None) -> "File":
-        file = File.objects.create(bench_version=self, parent=parent, name=name)
+        file = File.objects.create(module=self, parent=parent, name=name)
         return file
 
-    @transaction.atomic
-    def create_path(self, path: str, exists_ok: bool = False, id: Optional[UUID] = None) -> "File":
-        """
-        Create a file or directory at the given path, automatically creating parent directories.
-        """
-        file_parts = path.split("/")
-        # create parent directories
-        parent = None
-        for directory in file_parts[:-1]:
-            parent, _ = File.objects.get_or_create(
-                bench_version=self, parent=parent, name=directory, directory=True
-            )
-        # create file
-        file, created = File.objects.get_or_create(
-            bench_version=self,
-            parent=parent,
-            name=file_parts[-1],
-            defaults={"id": id} if id is not None else {},
-        )
-        if not created and not exists_ok:
-            raise ValueError(f"file already exists: {file}")
-        return file
-
-    def create_file_from_path(
-        self, path: str, exists_ok: bool = False, id: Optional[UUID] = None
-    ) -> "File":
-        return self.create_path(path, exists_ok=exists_ok, id=id)
-
-    def get_file(self, path: str) -> "File":
-        try:
-            file_parts = path.split("/")
-            parent = None
-            for directory in file_parts[:-1]:
-                parent = File.objects.get(bench_version=self, parent=parent, name=directory)
-            return File.objects.get(bench_version=self, parent=parent, name=file_parts[-1])
-        except File.DoesNotExist:
-            raise ValueError(f"bench {self} does not contain {path}.{type}")
-
-    objects = BenchVersionManager()
+    objects = ModuleManager()
 
     class Meta:
         ordering = ["-created_at"]
@@ -566,7 +399,7 @@ class BenchVersion(CrudNode):
             # tag is unique per bench
             models.UniqueConstraint(
                 fields=["parent_bench", "tag"],
-                name="bench_bench_version_tag_ak",
+                name="bench_module_tag_ak",
             ),
         ]
 
@@ -579,8 +412,8 @@ class FileManager(models.Manager):
     def copy(
         self,
         file: "File",
-        source: BenchVersion,
-        target: BenchVersion,
+        source: Module,
+        target: Module,
         target_id: UUID,
         target_ck: UUID,
         keep_cks: bool,
@@ -593,7 +426,7 @@ class FileManager(models.Manager):
 
         target_id = target_id or uuid.uuid4()
         # pack relevant nodes
-        copy = BenchVersion.objects.pack_copy(
+        copy = Module.objects.pack_copy(
             source=source,
             target=target,
             nodes=[file],
@@ -621,9 +454,7 @@ class File(CrudNode):
     Nothing is actually deleted, but soft deleted objects are not visible and not copied across versions.
     """
 
-    bench_version = models.ForeignKey(
-        "BenchVersion", on_delete=models.CASCADE, related_name="files"
-    )
+    module = models.ForeignKey("Module", on_delete=models.CASCADE, related_name="files")
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
     parent_file = models.ForeignKey(
         "File", on_delete=models.CASCADE, null=True, blank=True, related_name="files"
@@ -637,7 +468,7 @@ class File(CrudNode):
         if self.parent_file:
             return f"{self.parent_file}/{self.name}"
         else:
-            return f"{self.bench_version}/{self.name}"
+            return f"{self.module}/{self.name}"
 
     @model_property(only=["name", "parent"], select_related=["parent"])
     def path(self) -> str:
@@ -645,14 +476,14 @@ class File(CrudNode):
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
-        return self.parent_file_id or self.bench_version_id
+        return self.parent_file_id or self.module_id
 
     @property
-    def parent(self) -> Union["File", "BenchVersion"]:
+    def parent(self) -> Union["File", "Module"]:
         if self.parent_file_id:
             return self.parent_file
         else:
-            return self.bench_version
+            return self.module
 
     def is_root(self) -> bool:
         return self.parent_file is None
@@ -668,8 +499,8 @@ class File(CrudNode):
         constraints = [
             # ck is unique per bench version
             models.UniqueConstraint(
-                fields=["bench_version", "ck"],
-                name="bench_file_bench_version_ck",
+                fields=["module", "ck"],
+                name="bench_file_module_ck",
                 condition=models.Q(deleted_at__isnull=True),
             ),
         ]

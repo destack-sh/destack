@@ -6,7 +6,7 @@ from bench import models
 from bench.language import Module, libs
 from bench.language.builtin import symbolx_lib
 from bench.language.const import INTERP_NODE_TYPES, ModuleReference
-from bench.models import Bench, BenchVersion, packer
+from bench.models import Bench, Module, packer
 from bench.proto import wire, wiring
 from bench.utils.func import to_uuid
 
@@ -18,12 +18,12 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
         return _cached_modules[ref]
     id = ref if isinstance(ref, UUID) else ref.id
     if id:
-        bench_version = await BenchVersion.objects.aget(id=id)
+        module = await Module.objects.aget(id=id)
     else:
         owner, bench = ref.name.split(".")
         if ref.version != "x":
             raise RuntimeError("versioned module fetch not supported (must be head)")
-        bench_version = (
+        module = (
             await Bench.objects.filter(slug=bench)
             .filter(
                 models.Q(organization__owner_slug_id=owner) | models.Q(user__owner_slug_id=owner)
@@ -31,11 +31,11 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
             .select_related("head", "user", "organization")
             .aget()
         )
-        bench_version = bench_version.head
-    module = await sync_to_async(packer.pack_module_host)(bench_version, excluded=INTERP_NODE_TYPES)
-    if bench_version.committed:
-        _cached_modules[ref] = module, bench_version.parent_bench
-    return module, bench_version.parent_bench
+        module = module.head
+    module = await sync_to_async(packer.pack_module_host)(module, excluded=INTERP_NODE_TYPES)
+    if module.committed:
+        _cached_modules[ref] = module, module.parent_bench
+    return module, module.parent_bench
 
 
 async def interp_module(ref: ModuleReference | UUID) -> tuple[Module, models.Bench]:

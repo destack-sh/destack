@@ -25,15 +25,15 @@ if TYPE_CHECKING:
 StatementType = strawberry.enum(const.StatementType)
 
 
-@strawberry_django.filter(models.BenchVersion)
-class BenchVersionFilter:
+@strawberry_django.filter(models.Module)
+class ModuleFilter:
     from_id: GlobalID = UNSET
     to_id: GlobalID = UNSET
 
     def filter(self, queryset):
         if self.from_id is not None and self.to_id is not None:
-            from_v = models.BenchVersion.objects.get(id=self.from_id.node_id)
-            to_v = models.BenchVersion.objects.get(id=self.to_id.node_id)
+            from_v = models.Module.objects.get(id=self.from_id.node_id)
+            to_v = models.Module.objects.get(id=self.to_id.node_id)
             # we can go both directions
             if from_v.created_at < to_v.created_at:  # migrate forwards
                 queryset = queryset.filter(
@@ -103,10 +103,10 @@ class Bench(relay.Node):
     sharing_token: Optional[UUID]
     sharing_level: int
 
-    head: "BenchVersion"
+    head: "Module"
     versions: strawberry_django.relay.ListConnectionWithTotalCount[
-        "BenchVersion"
-    ] = strawberry_django.connection(filters=BenchVersionFilter)
+        "Module"
+    ] = strawberry_django.connection(filters=ModuleFilter)
 
     usage: BenchUsage = strawberry_django.field(resolver=get_bench_usage)
 
@@ -136,15 +136,13 @@ class BenchInvite(relay.Node):
     email_sent_at: auto
 
 
-@strawberry_django.type(models.BenchVersion)
-class BenchVersion(HasCrud, ModuleNode, relay.Node):
+@strawberry_django.type(models.Module)
+class Module(HasCrud, ModuleNode, relay.Node):
     bench: Bench
     parent: Optional[ModuleNode]
     name: auto
     tag: auto  # :BenchVersionTags
     description: auto
-    parents: list["BenchVersion"]
-    children: list["BenchVersion"]
     is_snapshot: bool
 
 
@@ -154,23 +152,6 @@ class BenchCreateInput:
     name: str
     slug: str
     visibility: BenchVisibility
-
-
-@strawberry.input
-class BenchUpdateVisibilityInput(strawberry_django.NodeInput):
-    visibility: BenchVisibility
-
-
-@strawberry.input
-class BenchUpdateSharingInput(strawberry_django.NodeInput):
-    sharing_enabled: bool
-    sharing_token: UUID
-    sharing_level: int
-
-
-@strawberry.input
-class BenchUpdateNameInput(strawberry_django.NodeInput):
-    name: str
 
 
 @strawberry.input
@@ -209,37 +190,6 @@ class BenchMutation:
         )
         return bench
 
-    @safe_mutation
-    def update_bench_visibility(
-        self, info: Info, input: "BenchUpdateVisibilityInput"
-    ) -> Bench | OperationInfo:
-        bench = models.Bench.objects.get(id=input.id.node_id)
-        check_module_access(info, bench, ModuleAccessLevel.Manage)
-        bench.visibility = input.visibility
-        # TODO @Broken: update bench infra permissions on visibility change
-        bench.save()
-        return bench
-
-    @safe_mutation
-    def update_bench_sharing(
-        self, info: Info, input: "BenchUpdateSharingInput"
-    ) -> Bench | OperationInfo:
-        bench = models.Bench.objects.get(id=input.id.node_id)
-        check_module_access(info, bench, ModuleAccessLevel.Manage)
-        bench.sharing_enabled = input.sharing_enabled
-        bench.sharing_token = input.sharing_token
-        bench.sharing_level = input.sharing_level
-        bench.save()
-        return bench
-
-    @safe_mutation
-    def update_bench_name(self, info: Info, input: "BenchUpdateNameInput") -> Bench | OperationInfo:
-        bench = models.Bench.objects.get(id=input.id.node_id)
-        check_module_access(info, bench, ModuleAccessLevel.Manage)
-        bench.name = input.name
-        bench.save()
-        return bench
-
     @safe_mutation(atomic=True)
     def create_bench_invites(self, info, input: BenchInviteInput) -> Bench | OperationInfo:
         bench = models.Bench.objects.get(id=input.id.node_id)
@@ -267,38 +217,3 @@ class BenchMutation:
         check_module_access(info, bench, ModuleAccessLevel.Manage)
         bench.memberships.filter(user_id=input.user_id.node_id).delete()
         return bench
-
-
-@strawberry.input
-class UpdateBenchVersion(strawberry_django.NodeInput):
-    name: str
-    tag: Optional[str] = None  # :BenchVersionTags
-    description: Optional[str] = None
-
-
-@strawberry.input
-class SnapshotInput:
-    bench_version_id: GlobalID
-    name: Optional[str] = None
-    tag: Optional[str] = None  # :BenchVersionTags
-    description: Optional[str] = None
-
-
-@strawberry.type
-class SnapshotPayload:
-    bench: Bench
-
-
-@strawberry.type
-class BenchVersionMutation:
-    @safe_mutation
-    def update_bench_version(
-        self, info, input: "UpdateBenchVersion"
-    ) -> BenchVersion | OperationInfo:
-        bench_v = models.BenchVersion.objects.select_related("bench").get(id=input.id.node_id)
-        check_module_access(info, bench_v.parent_bench, ModuleAccessLevel.Edit)
-        bench_v.name = input.name
-        bench_v.description = input.description
-        bench_v.tag = input.tag
-        bench_v.save()
-        return bench_v

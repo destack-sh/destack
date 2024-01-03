@@ -106,7 +106,8 @@ message GetBenchChangesRequest {
   int64 after_change_marker = 1;
 }
 message GetBenchChangesResponse {
-  // nocheckin
+  repeated EditData edits = 1;
+  ModuleData snapshot = 2;
 }
 
 
@@ -114,7 +115,7 @@ message GetModuleEditsRequest {
   int64 after_edit_marker = 1;
 }
 message GetModuleEditsResponse {
-    repeated EditData edits = 1;
+  repeated EditData edits = 1;
 }
 
 message GetLogsRequest {}
@@ -145,7 +146,7 @@ message SearchNodesResponse {
 }
 
 message CommitEditsRequest {
-    repeated EditData edits = 1;
+  repeated EditData edits = 1;
 }
 message CommitEditsResponse {
   repeated SomeNodeData changed_nodes = 1;
@@ -176,7 +177,11 @@ message RevealSecretResponse {
 
 message PasteNodesRequest {
   string source_module_id = 1;
-  repeated string source_ids = 2;
+  repeated NodePointer source_nodes = 2;
+  map<string, string> target_ids = 3;
+  map<string, string> target_cks = 4;
+  map<string, string> target_parent_ids = 5;
+  map<string, string> target_order_keys = 6;
 }
 message PasteNodesResponse {
   repeated SomeNodeData pasted_nodes = 1;
