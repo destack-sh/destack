@@ -52,7 +52,7 @@ LOCAL_RECORD_CACHE_LIMIT = 2048
 RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 
-@node(NodeType.RECORD, passthrough=(("value", _Passthrough.Full),), local=True)
+@node(NodeType.RECORD, passthrough=(("value", _Passthrough.Full),), local=True, index_in_os=True)
 class Record(HasValue, Node):
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
     value: typing.Any | None = struct_property(
@@ -288,7 +288,7 @@ class RecordQuery:
 
     async def _fetch(self, *, _no_flush: bool = False) -> list[Record]:
         """Fetches the result set for this query."""
-        from bench.language import wiring
+        from bench.proto import wiring
 
         session = self._database.session
         if not _no_flush and session._tracer._local_edits:
@@ -707,7 +707,7 @@ class HasDatabase(Node):
 
     @staticmethod
     def _derive_key(instance: "HasDatabase") -> str | None:
-        if instance.versioned:
+        if not instance.shared:
             if instance.id is not None:
                 return new_dynamic_node_key(instance.id)
             else:

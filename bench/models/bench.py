@@ -394,14 +394,7 @@ class Module(CrudNode):
     objects = ModuleManager()
 
     class Meta:
-        ordering = ["-created_at"]
-        constraints = [
-            # tag is unique per bench
-            models.UniqueConstraint(
-                fields=["parent_bench", "tag"],
-                name="bench_module_tag_ak",
-            ),
-        ]
+        managed = True
 
 
 class FileManager(models.Manager):
@@ -488,22 +481,10 @@ class File(CrudNode):
     def is_root(self) -> bool:
         return self.parent_file is None
 
-    @property
-    def root_statements(self) -> models.QuerySet["Statement"]:
-        return self.statements.filter(parent=None)
-
     objects = FileManager()
 
     class Meta:
-        ordering = ["name"]
-        constraints = [
-            # ck is unique per bench version
-            models.UniqueConstraint(
-                fields=["module", "ck"],
-                name="bench_file_module_ck",
-                condition=models.Q(deleted_at__isnull=True),
-            ),
-        ]
+        managed = True
 
 
 def create_global_user_bucket(ignore_exists: bool):

@@ -112,7 +112,8 @@ export interface DidCreateProjectRequest {
   projectId: string;
 }
 
-export interface GetWorkerChangesRequest {}
+export interface GetWorkerChangesRequest {
+}
 
 export interface GetWorkerChangesResponse {
   workerSets: WorkerSetData[];
@@ -162,7 +163,8 @@ export interface GetModuleEditsResponse {
   edits: EditData[];
 }
 
-export interface GetLogsRequest {}
+export interface GetLogsRequest {
+}
 
 export interface GetLogsResponse {
   logs: LogEntryData[];
@@ -295,7 +297,8 @@ export interface PullWorkerRunsResponse {
   runs: RunData[];
 }
 
-export interface RestartWorkerRequest {}
+export interface RestartWorkerRequest {
+}
 
 export interface StartRunRequest {
   triggerType: TriggerType;
@@ -518,8 +521,9 @@ export const EditData = {
     const message = createBaseEditData();
     message.kind = object.kind ?? 0;
     message.moduleId = object.moduleId ?? "";
-    message.node =
-      object.node !== undefined && object.node !== null ? SomeNodeData.fromPartial(object.node) : undefined;
+    message.node = (object.node !== undefined && object.node !== null)
+      ? SomeNodeData.fromPartial(object.node)
+      : undefined;
     message.target = object.target ?? 0;
     message.revision = object.revision ?? 0;
     message.properties = object.properties?.map((e) => e) || [];
@@ -1031,10 +1035,9 @@ export const ConfigureWorkerSetResponse = {
   },
   fromPartial<I extends Exact<DeepPartial<ConfigureWorkerSetResponse>, I>>(object: I): ConfigureWorkerSetResponse {
     const message = createBaseConfigureWorkerSetResponse();
-    message.workerSet =
-      object.workerSet !== undefined && object.workerSet !== null
-        ? WorkerSetData.fromPartial(object.workerSet)
-        : undefined;
+    message.workerSet = (object.workerSet !== undefined && object.workerSet !== null)
+      ? WorkerSetData.fromPartial(object.workerSet)
+      : undefined;
     return message;
   },
 };
@@ -1205,10 +1208,9 @@ export const GetEnvironmentResponse = {
   },
   fromPartial<I extends Exact<DeepPartial<GetEnvironmentResponse>, I>>(object: I): GetEnvironmentResponse {
     const message = createBaseGetEnvironmentResponse();
-    message.environment =
-      object.environment !== undefined && object.environment !== null
-        ? EnvironmentData.fromPartial(object.environment)
-        : undefined;
+    message.environment = (object.environment !== undefined && object.environment !== null)
+      ? EnvironmentData.fromPartial(object.environment)
+      : undefined;
     return message;
   },
 };
@@ -1396,8 +1398,9 @@ export const GetBenchChangesResponse = {
   fromPartial<I extends Exact<DeepPartial<GetBenchChangesResponse>, I>>(object: I): GetBenchChangesResponse {
     const message = createBaseGetBenchChangesResponse();
     message.edits = object.edits?.map((e) => EditData.fromPartial(e)) || [];
-    message.snapshot =
-      object.snapshot !== undefined && object.snapshot !== null ? ModuleData.fromPartial(object.snapshot) : undefined;
+    message.snapshot = (object.snapshot !== undefined && object.snapshot !== null)
+      ? ModuleData.fromPartial(object.snapshot)
+      : undefined;
     return message;
   },
 };
@@ -1879,8 +1882,9 @@ export const SearchNodesRequest = {
     const message = createBaseSearchNodesRequest();
     message.nodeType = object.nodeType ?? 0;
     message.nodeCk = object.nodeCk ?? "";
-    message.filter =
-      object.filter !== undefined && object.filter !== null ? ExpressionData.fromPartial(object.filter) : undefined;
+    message.filter = (object.filter !== undefined && object.filter !== null)
+      ? ExpressionData.fromPartial(object.filter)
+      : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     message.limit = object.limit ?? 0;
     message.after = object.after ?? "";
@@ -2147,7 +2151,7 @@ export const UploadBlobRequest = {
   },
   fromPartial<I extends Exact<DeepPartial<UploadBlobRequest>, I>>(object: I): UploadBlobRequest {
     const message = createBaseUploadBlobRequest();
-    message.blob = object.blob !== undefined && object.blob !== null ? BlobData.fromPartial(object.blob) : undefined;
+    message.blob = (object.blob !== undefined && object.blob !== null) ? BlobData.fromPartial(object.blob) : undefined;
     return message;
   },
 };
@@ -2278,7 +2282,7 @@ export const DownloadBlobRequest = {
   },
   fromPartial<I extends Exact<DeepPartial<DownloadBlobRequest>, I>>(object: I): DownloadBlobRequest {
     const message = createBaseDownloadBlobRequest();
-    message.blob = object.blob !== undefined && object.blob !== null ? BlobData.fromPartial(object.blob) : undefined;
+    message.blob = (object.blob !== undefined && object.blob !== null) ? BlobData.fromPartial(object.blob) : undefined;
     return message;
   },
 };
@@ -2409,8 +2413,9 @@ export const RevealSecretRequest = {
   },
   fromPartial<I extends Exact<DeepPartial<RevealSecretRequest>, I>>(object: I): RevealSecretRequest {
     const message = createBaseRevealSecretRequest();
-    message.secret =
-      object.secret !== undefined && object.secret !== null ? SecretData.fromPartial(object.secret) : undefined;
+    message.secret = (object.secret !== undefined && object.secret !== null)
+      ? SecretData.fromPartial(object.secret)
+      : undefined;
     return message;
   },
 };
@@ -2467,8 +2472,9 @@ export const RevealSecretResponse = {
   },
   fromPartial<I extends Exact<DeepPartial<RevealSecretResponse>, I>>(object: I): RevealSecretResponse {
     const message = createBaseRevealSecretResponse();
-    message.secret =
-      object.secret !== undefined && object.secret !== null ? SecretData.fromPartial(object.secret) : undefined;
+    message.secret = (object.secret !== undefined && object.secret !== null)
+      ? SecretData.fromPartial(object.secret)
+      : undefined;
     return message;
   },
 };
@@ -2585,27 +2591,27 @@ export const PasteNodesRequest = {
         : [],
       targetIds: isObject(object.targetIds)
         ? Object.entries(object.targetIds).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-            acc[key] = String(value);
-            return acc;
-          }, {})
+          acc[key] = String(value);
+          return acc;
+        }, {})
         : {},
       targetCks: isObject(object.targetCks)
         ? Object.entries(object.targetCks).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-            acc[key] = String(value);
-            return acc;
-          }, {})
+          acc[key] = String(value);
+          return acc;
+        }, {})
         : {},
       targetParentIds: isObject(object.targetParentIds)
         ? Object.entries(object.targetParentIds).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-            acc[key] = String(value);
-            return acc;
-          }, {})
+          acc[key] = String(value);
+          return acc;
+        }, {})
         : {},
       targetOrderKeys: isObject(object.targetOrderKeys)
         ? Object.entries(object.targetOrderKeys).reduce<{ [key: string]: string }>((acc, [key, value]) => {
-            acc[key] = String(value);
-            return acc;
-          }, {})
+          acc[key] = String(value);
+          return acc;
+        }, {})
         : {},
     };
   },
@@ -2671,7 +2677,7 @@ export const PasteNodesRequest = {
         }
         return acc;
       },
-      {}
+      {},
     );
     message.targetCks = Object.entries(object.targetCks ?? {}).reduce<{ [key: string]: string }>(
       (acc, [key, value]) => {
@@ -2680,7 +2686,7 @@ export const PasteNodesRequest = {
         }
         return acc;
       },
-      {}
+      {},
     );
     message.targetParentIds = Object.entries(object.targetParentIds ?? {}).reduce<{ [key: string]: string }>(
       (acc, [key, value]) => {
@@ -2689,7 +2695,7 @@ export const PasteNodesRequest = {
         }
         return acc;
       },
-      {}
+      {},
     );
     message.targetOrderKeys = Object.entries(object.targetOrderKeys ?? {}).reduce<{ [key: string]: string }>(
       (acc, [key, value]) => {
@@ -2698,7 +2704,7 @@ export const PasteNodesRequest = {
         }
         return acc;
       },
-      {}
+      {},
     );
     return message;
   },
@@ -2768,12 +2774,12 @@ export const PasteNodesRequest_TargetIdsEntry = {
   },
 
   create<I extends Exact<DeepPartial<PasteNodesRequest_TargetIdsEntry>, I>>(
-    base?: I
+    base?: I,
   ): PasteNodesRequest_TargetIdsEntry {
     return PasteNodesRequest_TargetIdsEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<PasteNodesRequest_TargetIdsEntry>, I>>(
-    object: I
+    object: I,
   ): PasteNodesRequest_TargetIdsEntry {
     const message = createBasePasteNodesRequest_TargetIdsEntry();
     message.key = object.key ?? "";
@@ -2846,12 +2852,12 @@ export const PasteNodesRequest_TargetCksEntry = {
   },
 
   create<I extends Exact<DeepPartial<PasteNodesRequest_TargetCksEntry>, I>>(
-    base?: I
+    base?: I,
   ): PasteNodesRequest_TargetCksEntry {
     return PasteNodesRequest_TargetCksEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<PasteNodesRequest_TargetCksEntry>, I>>(
-    object: I
+    object: I,
   ): PasteNodesRequest_TargetCksEntry {
     const message = createBasePasteNodesRequest_TargetCksEntry();
     message.key = object.key ?? "";
@@ -2924,12 +2930,12 @@ export const PasteNodesRequest_TargetParentIdsEntry = {
   },
 
   create<I extends Exact<DeepPartial<PasteNodesRequest_TargetParentIdsEntry>, I>>(
-    base?: I
+    base?: I,
   ): PasteNodesRequest_TargetParentIdsEntry {
     return PasteNodesRequest_TargetParentIdsEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<PasteNodesRequest_TargetParentIdsEntry>, I>>(
-    object: I
+    object: I,
   ): PasteNodesRequest_TargetParentIdsEntry {
     const message = createBasePasteNodesRequest_TargetParentIdsEntry();
     message.key = object.key ?? "";
@@ -3002,12 +3008,12 @@ export const PasteNodesRequest_TargetOrderKeysEntry = {
   },
 
   create<I extends Exact<DeepPartial<PasteNodesRequest_TargetOrderKeysEntry>, I>>(
-    base?: I
+    base?: I,
   ): PasteNodesRequest_TargetOrderKeysEntry {
     return PasteNodesRequest_TargetOrderKeysEntry.fromPartial(base ?? ({} as any));
   },
   fromPartial<I extends Exact<DeepPartial<PasteNodesRequest_TargetOrderKeysEntry>, I>>(
-    object: I
+    object: I,
   ): PasteNodesRequest_TargetOrderKeysEntry {
     const message = createBasePasteNodesRequest_TargetOrderKeysEntry();
     message.key = object.key ?? "";
@@ -4052,7 +4058,7 @@ export const StartRunResponse = {
     const message = createBaseStartRunResponse();
     message.errorType = object.errorType ?? 0;
     message.runId = object.runId ?? "";
-    message.run = object.run !== undefined && object.run !== null ? RunData.fromPartial(object.run) : undefined;
+    message.run = (object.run !== undefined && object.run !== null) ? RunData.fromPartial(object.run) : undefined;
     message.logs = object.logs?.map((e) => LogEntryData.fromPartial(e)) || [];
     return message;
   },
@@ -4183,19 +4189,19 @@ export interface RuntimeSupervisor {
   /** Get all changes to the worker sets for a Bench. */
   GetWorkerChanges(
     request: DeepPartial<GetWorkerChangesRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Observable<GetWorkerChangesResponse>;
   /** Configure the worker set for a Bench. */
   ConfigureWorkerSet(
     request: DeepPartial<ConfigureWorkerSetRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<ConfigureWorkerSetResponse>;
   /** Force restart the worker set for a Bench. */
   RestartWorkerSet(request: DeepPartial<RestartWorkerSetRequest>, metadata?: grpc.Metadata): Promise<Empty>;
   /** Gets the installed environment info from a worker set running a Bench. */
   GetEnvironment(
     request: DeepPartial<GetEnvironmentRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<GetEnvironmentResponse>;
   /** Ensure the worker set for a Bench is running. */
   PingWorkerSet(request: DeepPartial<PingWorkerSetRequest>, metadata?: grpc.Metadata): Promise<Empty>;
@@ -4218,29 +4224,29 @@ export class RuntimeSupervisorClientImpl implements RuntimeSupervisor {
     return this.rpc.unary(
       RuntimeSupervisorDidCreateProjectDesc,
       DidCreateProjectRequest.fromPartial(request),
-      metadata
+      metadata,
     );
   }
 
   GetWorkerChanges(
     request: DeepPartial<GetWorkerChangesRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Observable<GetWorkerChangesResponse> {
     return this.rpc.invoke(
       RuntimeSupervisorGetWorkerChangesDesc,
       GetWorkerChangesRequest.fromPartial(request),
-      metadata
+      metadata,
     );
   }
 
   ConfigureWorkerSet(
     request: DeepPartial<ConfigureWorkerSetRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<ConfigureWorkerSetResponse> {
     return this.rpc.unary(
       RuntimeSupervisorConfigureWorkerSetDesc,
       ConfigureWorkerSetRequest.fromPartial(request),
-      metadata
+      metadata,
     );
   }
 
@@ -4248,13 +4254,13 @@ export class RuntimeSupervisorClientImpl implements RuntimeSupervisor {
     return this.rpc.unary(
       RuntimeSupervisorRestartWorkerSetDesc,
       RestartWorkerSetRequest.fromPartial(request),
-      metadata
+      metadata,
     );
   }
 
   GetEnvironment(
     request: DeepPartial<GetEnvironmentRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<GetEnvironmentResponse> {
     return this.rpc.unary(RuntimeSupervisorGetEnvironmentDesc, GetEnvironmentRequest.fromPartial(request), metadata);
   }
@@ -4414,12 +4420,12 @@ export interface RuntimeHost {
   /** Receive relevant outside-of-module changes to a Bench. */
   GetBenchChanges(
     request: DeepPartial<GetBenchChangesRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Observable<GetBenchChangesResponse>;
   /** Receive any future edits to this module. */
   GetModuleEdits(
     request: DeepPartial<GetModuleEditsRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Observable<GetModuleEditsResponse>;
   /** Reads the entire module tree. */
   ReadNodes(request: DeepPartial<ReadNodesRequest>, metadata?: grpc.Metadata): Promise<ReadNodesResponse>;
@@ -4438,7 +4444,7 @@ export interface RuntimeHost {
   /** Create a full snapshot of this Bench module (copy to another new Bench module). */
   SnapshotModule(
     request: DeepPartial<SnapshotModuleRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<SnapshotModuleResponse>;
   /** Forwards all matching logs received from the workers. */
   GetLogs(request: DeepPartial<GetLogsRequest>, metadata?: grpc.Metadata): Observable<GetLogsResponse>;
@@ -4449,7 +4455,7 @@ export interface RuntimeHost {
   /** Runs a well-known internal statement in the host with our credentials. */
   RunProxyStatement(
     request: DeepPartial<RunProxyStatementRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<RunProxyStatementResponse>;
   /**
    * Pulls the runs a worker should run immediately after starting (scheduled).
@@ -4457,7 +4463,7 @@ export interface RuntimeHost {
    */
   PullWorkerRuns(
     request: DeepPartial<PullWorkerRunsRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<PullWorkerRunsResponse>;
   /** Pushes logs from a worker *that are already stored* to notify frontend users connected to this host. */
   PushWorkerLogs(request: DeepPartial<PushWorkerLogsRequest>, metadata?: grpc.Metadata): Promise<Empty>;
@@ -4488,14 +4494,14 @@ export class RuntimeHostClientImpl implements RuntimeHost {
 
   GetBenchChanges(
     request: DeepPartial<GetBenchChangesRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Observable<GetBenchChangesResponse> {
     return this.rpc.invoke(RuntimeHostGetBenchChangesDesc, GetBenchChangesRequest.fromPartial(request), metadata);
   }
 
   GetModuleEdits(
     request: DeepPartial<GetModuleEditsRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Observable<GetModuleEditsResponse> {
     return this.rpc.invoke(RuntimeHostGetModuleEditsDesc, GetModuleEditsRequest.fromPartial(request), metadata);
   }
@@ -4530,7 +4536,7 @@ export class RuntimeHostClientImpl implements RuntimeHost {
 
   SnapshotModule(
     request: DeepPartial<SnapshotModuleRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<SnapshotModuleResponse> {
     return this.rpc.unary(RuntimeHostSnapshotModuleDesc, SnapshotModuleRequest.fromPartial(request), metadata);
   }
@@ -4549,14 +4555,14 @@ export class RuntimeHostClientImpl implements RuntimeHost {
 
   RunProxyStatement(
     request: DeepPartial<RunProxyStatementRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<RunProxyStatementResponse> {
     return this.rpc.unary(RuntimeHostRunProxyStatementDesc, RunProxyStatementRequest.fromPartial(request), metadata);
   }
 
   PullWorkerRuns(
     request: DeepPartial<PullWorkerRunsRequest>,
-    metadata?: grpc.Metadata
+    metadata?: grpc.Metadata,
   ): Promise<PullWorkerRunsResponse> {
     return this.rpc.unary(RuntimeHostPullWorkerRunsDesc, PullWorkerRunsRequest.fromPartial(request), metadata);
   }
@@ -5055,12 +5061,12 @@ interface Rpc {
   unary<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     request: any,
-    metadata: grpc.Metadata | undefined
+    metadata: grpc.Metadata | undefined,
   ): Promise<any>;
   invoke<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     request: any,
-    metadata: grpc.Metadata | undefined
+    metadata: grpc.Metadata | undefined,
   ): Observable<any>;
 }
 
@@ -5082,7 +5088,7 @@ export class GrpcWebImpl {
       debug?: boolean;
       metadata?: grpc.Metadata;
       upStreamRetryCodes?: number[];
-    }
+    },
   ) {
     this.host = host;
     this.options = options;
@@ -5091,13 +5097,12 @@ export class GrpcWebImpl {
   unary<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     _request: any,
-    metadata: grpc.Metadata | undefined
+    metadata: grpc.Metadata | undefined,
   ): Promise<any> {
     const request = { ..._request, ...methodDesc.requestType };
-    const maybeCombinedMetadata =
-      metadata && this.options.metadata
-        ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
-        : metadata ?? this.options.metadata;
+    const maybeCombinedMetadata = metadata && this.options.metadata
+      ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
+      : metadata ?? this.options.metadata;
     return new Promise((resolve, reject) => {
       grpc.unary(methodDesc, {
         request,
@@ -5120,16 +5125,15 @@ export class GrpcWebImpl {
   invoke<T extends UnaryMethodDefinitionish>(
     methodDesc: T,
     _request: any,
-    metadata: grpc.Metadata | undefined
+    metadata: grpc.Metadata | undefined,
   ): Observable<any> {
     const upStreamCodes = this.options.upStreamRetryCodes ?? [];
     const DEFAULT_TIMEOUT_TIME: number = 3_000;
     const request = { ..._request, ...methodDesc.requestType };
     const transport = this.options.streamingTransport ?? this.options.transport;
-    const maybeCombinedMetadata =
-      metadata && this.options.metadata
-        ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
-        : metadata ?? this.options.metadata;
+    const maybeCombinedMetadata = metadata && this.options.metadata
+      ? new BrowserHeaders({ ...this.options?.metadata.headersMap, ...metadata?.headersMap })
+      : metadata ?? this.options.metadata;
     return new Observable((observer) => {
       const upStream = () => {
         const client = grpc.invoke(methodDesc, {
@@ -5161,21 +5165,15 @@ export class GrpcWebImpl {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends globalThis.Array<infer U>
-  ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string }
-  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin
-  ? P
+export type Exact<P, I extends P> = P extends Builtin ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

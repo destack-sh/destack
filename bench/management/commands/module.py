@@ -46,16 +46,12 @@ class Command(BaseCommand):
         parser.add_argument("--create", action="store_true", help="Create")
 
     async def _collect_local_records(
-        self, module: lang.Module, *, versioned_only: bool
+        self, module: lang.Module, *, inline_only: bool
     ) -> list[wire.RecordData]:
         all_records: list[wire.RecordData] = []
         async with async_pg_cursor(module.pg_name) as cur:
             for database in module._nodes:
-                if (
-                    lang.HasDatabase not in database._components
-                    or versioned_only
-                    and not database.versioned
-                ):
+                if lang.HasDatabase not in database._components or inline_only and database.shared:
                     continue
                 fetched = await database.records.first(2048)._do_fetch(cur)
                 all_records.extend(fetched.records)

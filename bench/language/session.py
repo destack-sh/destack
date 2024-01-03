@@ -119,7 +119,7 @@ class RuntimeHost(abc.ABC):
         raise NotImplementedError
 
 
-@struct(StructType.LOG_ENTRY)
+@struct(StructType.LOG_ENTRY, index_in_os=True)
 class LogEntry(Struct):
     """
     An entry. In a log.

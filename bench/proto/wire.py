@@ -5,12 +5,19 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -834,7 +841,7 @@ class StatementData(betterproto.Message):
     key: str = betterproto.string_field(37)
     code: str = betterproto.string_field(38)
     value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(39)
-    versioned: bool = betterproto.bool_field(40)
+    shared: bool = betterproto.bool_field(40)
 
 
 @dataclass(eq=False, repr=False)
@@ -963,7 +970,9 @@ class SomeNodeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
     access_control: "AccessControlData" = betterproto.message_field(1, group="struct")
-    access_control_rule: "AccessControlRuleData" = betterproto.message_field(2, group="struct")
+    access_control_rule: "AccessControlRuleData" = betterproto.message_field(
+        2, group="struct"
+    )
     expression: "ExpressionData" = betterproto.message_field(3, group="struct")
     log_entry: "LogEntryData" = betterproto.message_field(4, group="struct")
     run_code_frame: "RunCodeFrameData" = betterproto.message_field(5, group="struct")
@@ -1244,7 +1253,9 @@ class StartRunRequest(betterproto.Message):
     keyed_return: bool = betterproto.bool_field(12)
     tags: List[str] = betterproto.string_field(13)
     root_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(14)
-    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(15)
+    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(
+        15
+    )
     access_level: "SessionAccessLevel" = betterproto.enum_field(16)
 
 
@@ -1838,7 +1849,9 @@ class RuntimeHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield GetModuleEditsResponse()
 
-    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
+    async def read_nodes(
+        self, read_nodes_request: "ReadNodesRequest"
+    ) -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -1851,7 +1864,9 @@ class RuntimeHostBase(ServiceBase):
     ) -> "CommitEditsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def upload_blob(self, upload_blob_request: "UploadBlobRequest") -> "UploadBlobResponse":
+    async def upload_blob(
+        self, upload_blob_request: "UploadBlobRequest"
+    ) -> "UploadBlobResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def download_blob(
@@ -1864,7 +1879,9 @@ class RuntimeHostBase(ServiceBase):
     ) -> "RevealSecretResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
+    async def paste_nodes(
+        self, paste_nodes_request: "PasteNodesRequest"
+    ) -> "PasteNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def snapshot_module(
@@ -1878,7 +1895,9 @@ class RuntimeHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield GetLogsResponse()
 
-    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
+    async def start_run(
+        self, start_run_request: "StartRunRequest"
+    ) -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
@@ -2133,7 +2152,9 @@ class WorkerNodeBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
+    async def start_run(
+        self, start_run_request: "StartRunRequest"
+    ) -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":

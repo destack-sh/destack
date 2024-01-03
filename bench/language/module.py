@@ -339,6 +339,7 @@ class Property(_FieldExpressionBase):
     is_real: bool = UNSET  # exists on runtime instance?
     is_wired: bool = UNSET  # serialized onto wire?
     is_stored: bool = UNSET  # stored in DB?
+    is_indexed_in_pg: bool = False  # indexed in DB?
     is_deferred: bool = False  # not loaded immediately (only for stored node properties)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
     column_type: ColumnType | None = UNSET  # auto-detect
@@ -571,6 +572,7 @@ class Property(_FieldExpressionBase):
                     is_wired=False,
                     is_stored=True,
                     is_array=False,
+                    is_indexed_in_pg=self.is_indexed_in_pg,
                     column_type=ColumnType.UUID,
                 )
                 parent_id_props.append(parent_id_prop)
@@ -591,6 +593,7 @@ class Property(_FieldExpressionBase):
                 is_wired=self.is_wired,
                 is_stored=self.is_stored,
                 is_array=False,
+                is_indexed_in_pg=self.is_indexed_in_pg,
                 column_type=ColumnType.UUID,
             )
             self.reference_key = ancestor_id_prop
@@ -613,6 +616,7 @@ class Property(_FieldExpressionBase):
                 is_wired=True,
                 is_stored=True,
                 is_array=False,
+                is_indexed_in_pg=self.is_indexed_in_pg,
                 column_type=ColumnType.UUID,
             )
             self.reference_key = reference_ck_prop
@@ -691,6 +695,7 @@ def struct_internal(
     struct_t: StructType = None,
     store: bool = UNSET,
     column_type: ColumnType = UNSET,
+    index_in_pg: bool = False,
     defer: bool = False,
     encrypt: bool = False,
 ):
@@ -710,6 +715,7 @@ def struct_internal(
         column_type=column_type,
         is_deferred=defer,
         is_encrypted=encrypt,
+        is_indexed_in_pg=index_in_pg,
     )
 
 
@@ -745,6 +751,7 @@ def node_ancestor(
     include_self: bool = True,
     store: bool = False,
     wire: bool = False,
+    index_in_pg: bool = False,
 ):
     """Computed nearest or farthest ancestor of the given type."""
     return Property(
@@ -757,6 +764,7 @@ def node_ancestor(
         is_ancestor_self=include_self,
         is_stored=store,
         is_wired=wire,
+        is_indexed_in_pg=index_in_pg,
     )
 
 
@@ -1065,9 +1073,12 @@ def struct_component(
 def struct(
     struct_type: StructType,
     reserved: set[str | int] = None,
+    index_in_os: bool = False,
 ):
     def decorate(cls):
-        return struct_component(cls, struct_type=struct_type, reserved=reserved)
+        cls = struct_component(cls, struct_type=struct_type, reserved=reserved)
+        cls.__is_indexed_in_os__ = index_in_os
+        return cls
 
     return decorate
 
@@ -1134,6 +1145,7 @@ def node(
     detached: bool = False,
     managed: bool = True,
     stored: bool = True,
+    index_in_os: bool = False,
     local: bool = False,
     reserved: set[str | int] = None,
 ):
@@ -1148,6 +1160,7 @@ def node(
         )
         cls.__is_managed__ = managed
         cls.__is_stored__ = stored
+        cls.__is_indexed_in_os__ = index_in_os
         cls.__is_local__ = local
         return cls
 
@@ -2320,6 +2333,7 @@ class Struct(abc.ABC):
     __struct_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
+    __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS (only for logs really)
 
     _status: NodeStatus = struct_runtime(default=None)
 
@@ -2468,14 +2482,16 @@ class Node(Struct):
     __is_detached__: ClassVar[bool] = False  # not part of inline module tree
     __is_managed__: ClassVar[bool] = False  # storage fully controlled by Bench runtime
     __is_stored__: ClassVar[bool] = False  # stored in PG (runtime or local)
-    __is_indexed__: ClassVar[bool] = False  # stored in local OS
+    __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
 
     # 1-9: reserved for node identity
     id: UUID = struct_internal(2, default=None, require=True, reflect=True)
     ck: UUID = struct_internal(3, default=None, require=True, reflect=True)
     parent: Optional["Node"] = node_parent(4)
-    module: Optional["Module"] = node_ancestor(5, NodeType.MODULE, store=True, wire=True)
+    module: Optional["Module"] = node_ancestor(
+        5, NodeType.MODULE, store=True, wire=True, index_in_pg=True
+    )
     bench: Optional["Bench"] = node_ancestor(6, NodeType.BENCH, store=False, wire=True)
     # prototype/template: Optional["Node"] = node_template(7)
 
