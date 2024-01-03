@@ -28,9 +28,7 @@ from bench.models import (
     User,
     UserStatus,
 )
-from bench.models.notification import create_notifications_on_signup
 from bench.models.owner import OwnerSlug, slugify
-from bench.proto import wire
 
 logger = structlog.get_logger(__name__)
 
@@ -69,8 +67,9 @@ def check_module_access(
     return access
 
 
+# nocheckin: update/remove permission checking?
 def check_module_node_access(
-    info: Info, module_node: models.Node, level: models.ModuleAccessLevel
+    info: Info, module_node: models.Bench, level: models.ModuleAccessLevel
 ) -> ModuleAccessInfo:
     """Raises a PermissionDenied error if the user cannot view the given object."""
     access = has_module_node_access(info, module_node, level)
@@ -160,17 +159,13 @@ def get_default_bench_access(bench: models.Bench) -> Optional[ModuleAccessInfo]:
 
 
 def has_module_node_access(
-    info: Info, node: models.Node | wire.RecordData, level: models.ModuleAccessLevel
+    info: Info, node: models.Bench, level: models.ModuleAccessLevel
 ) -> Optional[ModuleAccessInfo]:
     """
     Get node-level access info for the given user.
     Right now this is the same as bench-level access.
     """
-    if isinstance(node, wire.RecordData):
-        node = models.Statement._base_manager.get(id=node.parent_id)
     root = node
-    while root.parent:
-        root = root.parent
     if not isinstance(root, models.Module):
         raise ValueError(f"expected bench root for {node}, got {root}")
     return has_module_access(info, root, level)
@@ -249,8 +244,6 @@ def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *a
     user = User.objects.create_user(username, email, full_name, status=UserStatus.WAITLISTED)
     logger.info("social_create_user", user=user)
     strategy.session_set("backend", backend.name)
-
-    create_notifications_on_signup(user)
 
     return {"is_new": True, "user": user}
 

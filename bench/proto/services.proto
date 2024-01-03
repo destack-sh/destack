@@ -49,6 +49,12 @@ message DidCreateProjectRequest {
   string project_id = 1;
 }
 
+message GetNotificationsRequest {
+}
+message GetNotificationsResponse {
+//  repeated NotificationData notifications = 1;
+}
+
 message GetWorkerChangesRequest {
 }
 message GetWorkerChangesResponse {
@@ -69,11 +75,11 @@ message RestartWorkerSetRequest {
   string project_id = 1;
 }
 
-message GetEnvironmentRequest {
+message GetWorkerImageRequest {
   string project_id = 1;
 }
-message GetEnvironmentResponse {
-  EnvironmentData environment = 1;
+message GetWorkerImageResponse {
+  WorkerImageData image = 1;
 }
 
 message PingWorkerSetRequest {
@@ -86,6 +92,8 @@ message PingWorkerSetRequest {
 service RuntimeSupervisor {
   // Notify supervisor of a new Bench.
   rpc DidCreateProject(DidCreateProjectRequest) returns (google.protobuf.Empty);
+  // Get notifications for a client. (Not sure yet where this belongs.)
+  rpc GetNotifications(GetNotificationsRequest) returns (stream GetNotificationsResponse);
   // Get all changes to the worker sets for a Bench.
   rpc GetWorkerChanges(GetWorkerChangesRequest) returns (stream GetWorkerChangesResponse);
   // Configure the worker set for a Bench.
@@ -93,7 +101,7 @@ service RuntimeSupervisor {
   // Force restart the worker set for a Bench.
   rpc RestartWorkerSet(RestartWorkerSetRequest) returns (google.protobuf.Empty);
   // Gets the installed environment info from a worker set running a Bench.
-  rpc GetEnvironment(GetEnvironmentRequest) returns (GetEnvironmentResponse);
+  rpc GetWorkerImage(GetWorkerImageRequest) returns (GetWorkerImageResponse);
   // Ensure the worker set for a Bench is running.
   rpc PingWorkerSet(PingWorkerSetRequest) returns (google.protobuf.Empty);
 }

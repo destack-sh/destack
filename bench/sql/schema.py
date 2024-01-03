@@ -5,8 +5,6 @@ from bench.sql.core import (
     CascadeAction,
     Column,
     ColumnType,
-    Constraint,
-    ConstraintType,
     Index,
     IndexType,
 )

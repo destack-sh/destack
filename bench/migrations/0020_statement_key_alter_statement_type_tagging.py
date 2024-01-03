@@ -6,7 +6,6 @@ from django.conf import settings
 from django.db import migrations, models
 import django.db.models.deletion
 
-import bench.models.utils
 
 
 class Migration(migrations.Migration):
@@ -97,6 +96,6 @@ class Migration(migrations.Migration):
             options={
                 "abstract": False,
             },
-            bases=(bench.models.utils.Node, models.Model),
+            bases=(models.Model,),
         ),
     ]

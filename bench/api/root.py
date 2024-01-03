@@ -13,8 +13,7 @@ from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
 from bench.api.auth import HasModuleAccess, IsOwner
-from bench.api.bench import Bench, BenchMutation, BenchVisibility, Module
-from bench.api.notification import NotificationMutation
+from bench.api.bench import Bench, BenchMutation, BenchVisibility
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.sentry import SentryPerformanceExtension
 from bench.api.token import AccessToken, AccessTokenMutation
@@ -124,13 +123,6 @@ class Query:
     bench_by_slug: Optional[Bench] = strawberry_django.field(
         resolver=get_bench_by_slug, extensions=[HasModuleAccess()]
     )
-    module: Optional[Module] = strawberry_django.node()
-    module_by_slug: Optional[Module] = strawberry_django.field(
-        resolver=get_module_by_slug, extensions=[HasModuleAccess()]
-    )
-    module_by_tag: Optional[Module] = strawberry_django.field(
-        resolver=get_module_by_tag, extensions=[HasModuleAccess()]
-    )
     featured_benches: strawberry_django.relay.ListConnectionWithTotalCount[
         Bench
     ] = strawberry_django.connection(resolver=get_featured_benches)
@@ -141,7 +133,6 @@ class Mutation(
     UserMutation,
     OrganizationMutation,
     AccessTokenMutation,
-    NotificationMutation,
     BenchMutation,
 ):
     pass

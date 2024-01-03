@@ -91,6 +91,7 @@ export enum BenchType {
   WORKER_SET = 64,
   USER = 80,
   CLIENT = 84,
+  NOTIFICATION = 89,
   ACCESS_CONTROL = 200,
   ACCESS_CONTROL_RULE = 201,
   EXPRESSION = 210,
@@ -98,7 +99,7 @@ export enum BenchType {
   RUN_CODE_FRAME = 221,
   RUN_ERROR = 222,
   INFERENCE = 223,
-  ENVIRONMENT = 230,
+  WORKER_IMAGE = 230,
   DEPENDENCY = 231,
 }
 
@@ -161,6 +162,9 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 84:
     case "BENCH_TYPE_CLIENT":
       return BenchType.CLIENT;
+    case 89:
+    case "BENCH_TYPE_NOTIFICATION":
+      return BenchType.NOTIFICATION;
     case 200:
     case "BENCH_TYPE_ACCESS_CONTROL":
       return BenchType.ACCESS_CONTROL;
@@ -183,8 +187,8 @@ export function benchTypeFromJSON(object: any): BenchType {
     case "BENCH_TYPE_INFERENCE":
       return BenchType.INFERENCE;
     case 230:
-    case "BENCH_TYPE_ENVIRONMENT":
-      return BenchType.ENVIRONMENT;
+    case "BENCH_TYPE_WORKER_IMAGE":
+      return BenchType.WORKER_IMAGE;
     case 231:
     case "BENCH_TYPE_DEPENDENCY":
       return BenchType.DEPENDENCY;
@@ -233,6 +237,8 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_USER";
     case BenchType.CLIENT:
       return "BENCH_TYPE_CLIENT";
+    case BenchType.NOTIFICATION:
+      return "BENCH_TYPE_NOTIFICATION";
     case BenchType.ACCESS_CONTROL:
       return "BENCH_TYPE_ACCESS_CONTROL";
     case BenchType.ACCESS_CONTROL_RULE:
@@ -247,8 +253,8 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_RUN_ERROR";
     case BenchType.INFERENCE:
       return "BENCH_TYPE_INFERENCE";
-    case BenchType.ENVIRONMENT:
-      return "BENCH_TYPE_ENVIRONMENT";
+    case BenchType.WORKER_IMAGE:
+      return "BENCH_TYPE_WORKER_IMAGE";
     case BenchType.DEPENDENCY:
       return "BENCH_TYPE_DEPENDENCY";
     default:
@@ -1040,6 +1046,7 @@ export enum NodeType {
   WORKER_SET = 64,
   USER = 80,
   CLIENT = 84,
+  NOTIFICATION = 89,
 }
 
 export function nodeTypeFromJSON(object: any): NodeType {
@@ -1101,6 +1108,9 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case 84:
     case "NODE_TYPE_CLIENT":
       return NodeType.CLIENT;
+    case 89:
+    case "NODE_TYPE_NOTIFICATION":
+      return NodeType.NOTIFICATION;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum NodeType");
   }
@@ -1146,8 +1156,86 @@ export function nodeTypeToJSON(object: NodeType): string {
       return "NODE_TYPE_USER";
     case NodeType.CLIENT:
       return "NODE_TYPE_CLIENT";
+    case NodeType.NOTIFICATION:
+      return "NODE_TYPE_NOTIFICATION";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum NodeType");
+  }
+}
+
+export enum NotificationStatus {
+  UNSPECIFIED = 0,
+  ACTIVE = 1,
+  READ = 2,
+  EXPIRED = 3,
+  ARCHIVED = 4,
+}
+
+export function notificationStatusFromJSON(object: any): NotificationStatus {
+  switch (object) {
+    case 0:
+    case "NOTIFICATION_STATUS_UNSPECIFIED":
+      return NotificationStatus.UNSPECIFIED;
+    case 1:
+    case "NOTIFICATION_STATUS_ACTIVE":
+      return NotificationStatus.ACTIVE;
+    case 2:
+    case "NOTIFICATION_STATUS_READ":
+      return NotificationStatus.READ;
+    case 3:
+    case "NOTIFICATION_STATUS_EXPIRED":
+      return NotificationStatus.EXPIRED;
+    case 4:
+    case "NOTIFICATION_STATUS_ARCHIVED":
+      return NotificationStatus.ARCHIVED;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum NotificationStatus");
+  }
+}
+
+export function notificationStatusToJSON(object: NotificationStatus): string {
+  switch (object) {
+    case NotificationStatus.UNSPECIFIED:
+      return "NOTIFICATION_STATUS_UNSPECIFIED";
+    case NotificationStatus.ACTIVE:
+      return "NOTIFICATION_STATUS_ACTIVE";
+    case NotificationStatus.READ:
+      return "NOTIFICATION_STATUS_READ";
+    case NotificationStatus.EXPIRED:
+      return "NOTIFICATION_STATUS_EXPIRED";
+    case NotificationStatus.ARCHIVED:
+      return "NOTIFICATION_STATUS_ARCHIVED";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum NotificationStatus");
+  }
+}
+
+export enum NotificationType {
+  UNSPECIFIED = 0,
+  EDIT = 1,
+}
+
+export function notificationTypeFromJSON(object: any): NotificationType {
+  switch (object) {
+    case 0:
+    case "NOTIFICATION_TYPE_UNSPECIFIED":
+      return NotificationType.UNSPECIFIED;
+    case 1:
+    case "NOTIFICATION_TYPE_EDIT":
+      return NotificationType.EDIT;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum NotificationType");
+  }
+}
+
+export function notificationTypeToJSON(object: NotificationType): string {
+  switch (object) {
+    case NotificationType.UNSPECIFIED:
+      return "NOTIFICATION_TYPE_UNSPECIFIED";
+    case NotificationType.EDIT:
+      return "NOTIFICATION_TYPE_EDIT";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum NotificationType");
   }
 }
 
@@ -1713,7 +1801,7 @@ export enum StructType {
   RUN_CODE_FRAME = 221,
   RUN_ERROR = 222,
   INFERENCE = 223,
-  ENVIRONMENT = 230,
+  WORKER_IMAGE = 230,
   DEPENDENCY = 231,
 }
 
@@ -1744,8 +1832,8 @@ export function structTypeFromJSON(object: any): StructType {
     case "STRUCT_TYPE_INFERENCE":
       return StructType.INFERENCE;
     case 230:
-    case "STRUCT_TYPE_ENVIRONMENT":
-      return StructType.ENVIRONMENT;
+    case "STRUCT_TYPE_WORKER_IMAGE":
+      return StructType.WORKER_IMAGE;
     case 231:
     case "STRUCT_TYPE_DEPENDENCY":
       return StructType.DEPENDENCY;
@@ -1772,8 +1860,8 @@ export function structTypeToJSON(object: StructType): string {
       return "STRUCT_TYPE_RUN_ERROR";
     case StructType.INFERENCE:
       return "STRUCT_TYPE_INFERENCE";
-    case StructType.ENVIRONMENT:
-      return "STRUCT_TYPE_ENVIRONMENT";
+    case StructType.WORKER_IMAGE:
+      return "STRUCT_TYPE_WORKER_IMAGE";
     case StructType.DEPENDENCY:
       return "STRUCT_TYPE_DEPENDENCY";
     default:
@@ -2501,14 +2589,6 @@ export interface DependencyData {
   version: string;
 }
 
-export interface EnvironmentData {
-  metatype: BenchType;
-  language: string;
-  version: string;
-  platform: string;
-  dependencies: DependencyData[];
-}
-
 export interface ExpressionData {
   metatype: BenchType;
   op: ExpressionOp;
@@ -2560,6 +2640,14 @@ export interface RunErrorData {
   message: string;
   statementCk: string;
   traceback: RunCodeFrameData[];
+}
+
+export interface WorkerImageData {
+  metatype: BenchType;
+  language: string;
+  version: string;
+  platform: string;
+  dependencies: DependencyData[];
 }
 
 export interface BenchData {
@@ -2708,6 +2796,25 @@ export interface BaseNodeData {
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
   lastEditedAt: Date | undefined;
+}
+
+export interface NotificationData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  moduleId: string;
+  benchId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  type: NotificationType;
+  status: NotificationStatus;
+  expiresAt: Date | undefined;
+  readAt: Date | undefined;
 }
 
 export interface RecordData {
@@ -2941,6 +3048,7 @@ export interface WorkerSetData {
   availableReplicas: number;
   readyReplicas: number;
   lastActiveAt: Date | undefined;
+  lastBumpedAt: Date | undefined;
 }
 
 export interface SomeNodeData {
@@ -2963,6 +3071,7 @@ export interface SomeNodeData {
     | { $case: "workerSet"; workerSet: WorkerSetData }
     | { $case: "user"; user: UserData }
     | { $case: "client"; client: ClientData }
+    | { $case: "notification"; notification: NotificationData }
     | undefined;
 }
 
@@ -2975,7 +3084,7 @@ export interface SomeStructData {
     | { $case: "runCodeFrame"; runCodeFrame: RunCodeFrameData }
     | { $case: "runError"; runError: RunErrorData }
     | { $case: "inference"; inference: InferenceData }
-    | { $case: "environment"; environment: EnvironmentData }
+    | { $case: "workerImage"; workerImage: WorkerImageData }
     | { $case: "dependency"; dependency: DependencyData }
     | undefined;
 }
@@ -3184,127 +3293,6 @@ export const DependencyData = {
     message.metatype = object.metatype ?? 0;
     message.name = object.name ?? "";
     message.version = object.version ?? "";
-    return message;
-  },
-};
-
-function createBaseEnvironmentData(): EnvironmentData {
-  return { metatype: 0, language: "", version: "", platform: "", dependencies: [] };
-}
-
-export const EnvironmentData = {
-  encode(message: EnvironmentData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.metatype !== 0) {
-      writer.uint32(8).int32(message.metatype);
-    }
-    if (message.language !== "") {
-      writer.uint32(242).string(message.language);
-    }
-    if (message.version !== "") {
-      writer.uint32(250).string(message.version);
-    }
-    if (message.platform !== "") {
-      writer.uint32(258).string(message.platform);
-    }
-    for (const v of message.dependencies) {
-      DependencyData.encode(v!, writer.uint32(266).fork()).ldelim();
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): EnvironmentData {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseEnvironmentData();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 8) {
-            break;
-          }
-
-          message.metatype = reader.int32() as any;
-          continue;
-        case 30:
-          if (tag !== 242) {
-            break;
-          }
-
-          message.language = reader.string();
-          continue;
-        case 31:
-          if (tag !== 250) {
-            break;
-          }
-
-          message.version = reader.string();
-          continue;
-        case 32:
-          if (tag !== 258) {
-            break;
-          }
-
-          message.platform = reader.string();
-          continue;
-        case 33:
-          if (tag !== 266) {
-            break;
-          }
-
-          message.dependencies.push(DependencyData.decode(reader, reader.uint32()));
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): EnvironmentData {
-    return {
-      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
-      language: isSet(object.language) ? globalThis.String(object.language) : "",
-      version: isSet(object.version) ? globalThis.String(object.version) : "",
-      platform: isSet(object.platform) ? globalThis.String(object.platform) : "",
-      dependencies: globalThis.Array.isArray(object?.dependencies)
-        ? object.dependencies.map((e: any) => DependencyData.fromJSON(e))
-        : [],
-    };
-  },
-
-  toJSON(message: EnvironmentData): unknown {
-    const obj: any = {};
-    if (message.metatype !== 0) {
-      obj.metatype = benchTypeToJSON(message.metatype);
-    }
-    if (message.language !== "") {
-      obj.language = message.language;
-    }
-    if (message.version !== "") {
-      obj.version = message.version;
-    }
-    if (message.platform !== "") {
-      obj.platform = message.platform;
-    }
-    if (message.dependencies?.length) {
-      obj.dependencies = message.dependencies.map((e) => DependencyData.toJSON(e));
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<EnvironmentData>, I>>(base?: I): EnvironmentData {
-    return EnvironmentData.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<EnvironmentData>, I>>(object: I): EnvironmentData {
-    const message = createBaseEnvironmentData();
-    message.metatype = object.metatype ?? 0;
-    message.language = object.language ?? "";
-    message.version = object.version ?? "";
-    message.platform = object.platform ?? "";
-    message.dependencies = object.dependencies?.map((e) => DependencyData.fromPartial(e)) || [];
     return message;
   },
 };
@@ -4113,6 +4101,127 @@ export const RunErrorData = {
     message.message = object.message ?? "";
     message.statementCk = object.statementCk ?? "";
     message.traceback = object.traceback?.map((e) => RunCodeFrameData.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseWorkerImageData(): WorkerImageData {
+  return { metatype: 0, language: "", version: "", platform: "", dependencies: [] };
+}
+
+export const WorkerImageData = {
+  encode(message: WorkerImageData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.language !== "") {
+      writer.uint32(242).string(message.language);
+    }
+    if (message.version !== "") {
+      writer.uint32(250).string(message.version);
+    }
+    if (message.platform !== "") {
+      writer.uint32(258).string(message.platform);
+    }
+    for (const v of message.dependencies) {
+      DependencyData.encode(v!, writer.uint32(266).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): WorkerImageData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseWorkerImageData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 30:
+          if (tag !== 242) {
+            break;
+          }
+
+          message.language = reader.string();
+          continue;
+        case 31:
+          if (tag !== 250) {
+            break;
+          }
+
+          message.version = reader.string();
+          continue;
+        case 32:
+          if (tag !== 258) {
+            break;
+          }
+
+          message.platform = reader.string();
+          continue;
+        case 33:
+          if (tag !== 266) {
+            break;
+          }
+
+          message.dependencies.push(DependencyData.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): WorkerImageData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      language: isSet(object.language) ? globalThis.String(object.language) : "",
+      version: isSet(object.version) ? globalThis.String(object.version) : "",
+      platform: isSet(object.platform) ? globalThis.String(object.platform) : "",
+      dependencies: globalThis.Array.isArray(object?.dependencies)
+        ? object.dependencies.map((e: any) => DependencyData.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: WorkerImageData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.language !== "") {
+      obj.language = message.language;
+    }
+    if (message.version !== "") {
+      obj.version = message.version;
+    }
+    if (message.platform !== "") {
+      obj.platform = message.platform;
+    }
+    if (message.dependencies?.length) {
+      obj.dependencies = message.dependencies.map((e) => DependencyData.toJSON(e));
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WorkerImageData>, I>>(base?: I): WorkerImageData {
+    return WorkerImageData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WorkerImageData>, I>>(object: I): WorkerImageData {
+    const message = createBaseWorkerImageData();
+    message.metatype = object.metatype ?? 0;
+    message.language = object.language ?? "";
+    message.version = object.version ?? "";
+    message.platform = object.platform ?? "";
+    message.dependencies = object.dependencies?.map((e) => DependencyData.fromPartial(e)) || [];
     return message;
   },
 };
@@ -6459,6 +6568,307 @@ export const BaseNodeData = {
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseNotificationData(): NotificationData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    moduleId: "",
+    benchId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    type: 0,
+    status: 0,
+    expiresAt: undefined,
+    readAt: undefined,
+  };
+}
+
+export const NotificationData = {
+  encode(message: NotificationData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.moduleId !== "") {
+      writer.uint32(42).string(message.moduleId);
+    }
+    if (message.benchId !== "") {
+      writer.uint32(50).string(message.benchId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
+    }
+    if (message.type !== 0) {
+      writer.uint32(240).int32(message.type);
+    }
+    if (message.status !== 0) {
+      writer.uint32(248).int32(message.status);
+    }
+    if (message.expiresAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.expiresAt), writer.uint32(258).fork()).ldelim();
+    }
+    if (message.readAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.readAt), writer.uint32(266).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): NotificationData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseNotificationData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.moduleId = reader.string();
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.benchId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 15:
+          if (tag !== 122) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 30:
+          if (tag !== 240) {
+            break;
+          }
+
+          message.type = reader.int32() as any;
+          continue;
+        case 31:
+          if (tag !== 248) {
+            break;
+          }
+
+          message.status = reader.int32() as any;
+          continue;
+        case 32:
+          if (tag !== 258) {
+            break;
+          }
+
+          message.expiresAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 33:
+          if (tag !== 266) {
+            break;
+          }
+
+          message.readAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): NotificationData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      type: isSet(object.type) ? notificationTypeFromJSON(object.type) : 0,
+      status: isSet(object.status) ? notificationStatusFromJSON(object.status) : 0,
+      expiresAt: isSet(object.expiresAt) ? fromJsonTimestamp(object.expiresAt) : undefined,
+      readAt: isSet(object.readAt) ? fromJsonTimestamp(object.readAt) : undefined,
+    };
+  },
+
+  toJSON(message: NotificationData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.moduleId !== "") {
+      obj.moduleId = message.moduleId;
+    }
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.type !== 0) {
+      obj.type = notificationTypeToJSON(message.type);
+    }
+    if (message.status !== 0) {
+      obj.status = notificationStatusToJSON(message.status);
+    }
+    if (message.expiresAt !== undefined) {
+      obj.expiresAt = message.expiresAt.toISOString();
+    }
+    if (message.readAt !== undefined) {
+      obj.readAt = message.readAt.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<NotificationData>, I>>(base?: I): NotificationData {
+    return NotificationData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<NotificationData>, I>>(object: I): NotificationData {
+    const message = createBaseNotificationData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.moduleId = object.moduleId ?? "";
+    message.benchId = object.benchId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.type = object.type ?? 0;
+    message.status = object.status ?? 0;
+    message.expiresAt = object.expiresAt ?? undefined;
+    message.readAt = object.readAt ?? undefined;
     return message;
   },
 };
@@ -9787,9 +10197,8 @@ export const ViewData = {
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
     message.nodeType = object.nodeType ?? 0;
-    message.query = (object.query !== undefined && object.query !== null)
-      ? ExpressionData.fromPartial(object.query)
-      : undefined;
+    message.query =
+      object.query !== undefined && object.query !== null ? ExpressionData.fromPartial(object.query) : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     return message;
   },
@@ -9817,6 +10226,7 @@ function createBaseWorkerSetData(): WorkerSetData {
     availableReplicas: 0,
     readyReplicas: 0,
     lastActiveAt: undefined,
+    lastBumpedAt: undefined,
   };
 }
 
@@ -9881,6 +10291,9 @@ export const WorkerSetData = {
     }
     if (message.lastActiveAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastActiveAt), writer.uint32(314).fork()).ldelim();
+    }
+    if (message.lastBumpedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastBumpedAt), writer.uint32(322).fork()).ldelim();
     }
     return writer;
   },
@@ -10032,6 +10445,13 @@ export const WorkerSetData = {
 
           message.lastActiveAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 40:
+          if (tag !== 322) {
+            break;
+          }
+
+          message.lastBumpedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -10063,6 +10483,7 @@ export const WorkerSetData = {
       availableReplicas: isSet(object.availableReplicas) ? globalThis.Number(object.availableReplicas) : 0,
       readyReplicas: isSet(object.readyReplicas) ? globalThis.Number(object.readyReplicas) : 0,
       lastActiveAt: isSet(object.lastActiveAt) ? fromJsonTimestamp(object.lastActiveAt) : undefined,
+      lastBumpedAt: isSet(object.lastBumpedAt) ? fromJsonTimestamp(object.lastBumpedAt) : undefined,
     };
   },
 
@@ -10128,6 +10549,9 @@ export const WorkerSetData = {
     if (message.lastActiveAt !== undefined) {
       obj.lastActiveAt = message.lastActiveAt.toISOString();
     }
+    if (message.lastBumpedAt !== undefined) {
+      obj.lastBumpedAt = message.lastBumpedAt.toISOString();
+    }
     return obj;
   },
 
@@ -10156,6 +10580,7 @@ export const WorkerSetData = {
     message.availableReplicas = object.availableReplicas ?? 0;
     message.readyReplicas = object.readyReplicas ?? 0;
     message.lastActiveAt = object.lastActiveAt ?? undefined;
+    message.lastBumpedAt = object.lastBumpedAt ?? undefined;
     return message;
   },
 };
@@ -10220,6 +10645,9 @@ export const SomeNodeData = {
         break;
       case "client":
         ClientData.encode(message.node.client, writer.uint32(146).fork()).ldelim();
+        break;
+      case "notification":
+        NotificationData.encode(message.node.notification, writer.uint32(154).fork()).ldelim();
         break;
     }
     return writer;
@@ -10358,6 +10786,13 @@ export const SomeNodeData = {
 
           message.node = { $case: "client", client: ClientData.decode(reader, reader.uint32()) };
           continue;
+        case 19:
+          if (tag !== 154) {
+            break;
+          }
+
+          message.node = { $case: "notification", notification: NotificationData.decode(reader, reader.uint32()) };
+          continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -10405,6 +10840,8 @@ export const SomeNodeData = {
         ? { $case: "user", user: UserData.fromJSON(object.user) }
         : isSet(object.client)
         ? { $case: "client", client: ClientData.fromJSON(object.client) }
+        : isSet(object.notification)
+        ? { $case: "notification", notification: NotificationData.fromJSON(object.notification) }
         : undefined,
     };
   },
@@ -10464,6 +10901,9 @@ export const SomeNodeData = {
     }
     if (message.node?.$case === "client") {
       obj.client = ClientData.toJSON(message.node.client);
+    }
+    if (message.node?.$case === "notification") {
+      obj.notification = NotificationData.toJSON(message.node.notification);
     }
     return obj;
   },
@@ -10534,6 +10974,13 @@ export const SomeNodeData = {
     if (object.node?.$case === "client" && object.node?.client !== undefined && object.node?.client !== null) {
       message.node = { $case: "client", client: ClientData.fromPartial(object.node.client) };
     }
+    if (
+      object.node?.$case === "notification" &&
+      object.node?.notification !== undefined &&
+      object.node?.notification !== null
+    ) {
+      message.node = { $case: "notification", notification: NotificationData.fromPartial(object.node.notification) };
+    }
     return message;
   },
 };
@@ -10566,8 +11013,8 @@ export const SomeStructData = {
       case "inference":
         InferenceData.encode(message.struct.inference, writer.uint32(58).fork()).ldelim();
         break;
-      case "environment":
-        EnvironmentData.encode(message.struct.environment, writer.uint32(66).fork()).ldelim();
+      case "workerImage":
+        WorkerImageData.encode(message.struct.workerImage, writer.uint32(66).fork()).ldelim();
         break;
       case "dependency":
         DependencyData.encode(message.struct.dependency, writer.uint32(74).fork()).ldelim();
@@ -10640,7 +11087,7 @@ export const SomeStructData = {
             break;
           }
 
-          message.struct = { $case: "environment", environment: EnvironmentData.decode(reader, reader.uint32()) };
+          message.struct = { $case: "workerImage", workerImage: WorkerImageData.decode(reader, reader.uint32()) };
           continue;
         case 9:
           if (tag !== 74) {
@@ -10674,8 +11121,8 @@ export const SomeStructData = {
         ? { $case: "runError", runError: RunErrorData.fromJSON(object.runError) }
         : isSet(object.inference)
         ? { $case: "inference", inference: InferenceData.fromJSON(object.inference) }
-        : isSet(object.environment)
-        ? { $case: "environment", environment: EnvironmentData.fromJSON(object.environment) }
+        : isSet(object.workerImage)
+        ? { $case: "workerImage", workerImage: WorkerImageData.fromJSON(object.workerImage) }
         : isSet(object.dependency)
         ? { $case: "dependency", dependency: DependencyData.fromJSON(object.dependency) }
         : undefined,
@@ -10705,8 +11152,8 @@ export const SomeStructData = {
     if (message.struct?.$case === "inference") {
       obj.inference = InferenceData.toJSON(message.struct.inference);
     }
-    if (message.struct?.$case === "environment") {
-      obj.environment = EnvironmentData.toJSON(message.struct.environment);
+    if (message.struct?.$case === "workerImage") {
+      obj.workerImage = WorkerImageData.toJSON(message.struct.workerImage);
     }
     if (message.struct?.$case === "dependency") {
       obj.dependency = DependencyData.toJSON(message.struct.dependency);
@@ -10747,7 +11194,9 @@ export const SomeStructData = {
       message.struct = { $case: "expression", expression: ExpressionData.fromPartial(object.struct.expression) };
     }
     if (
-      object.struct?.$case === "logEntry" && object.struct?.logEntry !== undefined && object.struct?.logEntry !== null
+      object.struct?.$case === "logEntry" &&
+      object.struct?.logEntry !== undefined &&
+      object.struct?.logEntry !== null
     ) {
       message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
     }
@@ -10762,7 +11211,9 @@ export const SomeStructData = {
       };
     }
     if (
-      object.struct?.$case === "runError" && object.struct?.runError !== undefined && object.struct?.runError !== null
+      object.struct?.$case === "runError" &&
+      object.struct?.runError !== undefined &&
+      object.struct?.runError !== null
     ) {
       message.struct = { $case: "runError", runError: RunErrorData.fromPartial(object.struct.runError) };
     }
@@ -10774,11 +11225,11 @@ export const SomeStructData = {
       message.struct = { $case: "inference", inference: InferenceData.fromPartial(object.struct.inference) };
     }
     if (
-      object.struct?.$case === "environment" &&
-      object.struct?.environment !== undefined &&
-      object.struct?.environment !== null
+      object.struct?.$case === "workerImage" &&
+      object.struct?.workerImage !== undefined &&
+      object.struct?.workerImage !== null
     ) {
-      message.struct = { $case: "environment", environment: EnvironmentData.fromPartial(object.struct.environment) };
+      message.struct = { $case: "workerImage", workerImage: WorkerImageData.fromPartial(object.struct.workerImage) };
     }
     if (
       object.struct?.$case === "dependency" &&
@@ -10859,9 +11310,8 @@ export const ModuleTreeData = {
   },
   fromPartial<I extends Exact<DeepPartial<ModuleTreeData>, I>>(object: I): ModuleTreeData {
     const message = createBaseModuleTreeData();
-    message.module = (object.module !== undefined && object.module !== null)
-      ? ModuleData.fromPartial(object.module)
-      : undefined;
+    message.module =
+      object.module !== undefined && object.module !== null ? ModuleData.fromPartial(object.module) : undefined;
     message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
     return message;
   },
@@ -10869,15 +11319,21 @@ export const ModuleTreeData = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+  ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U>
+  ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string }
+  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {}
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

@@ -1,5 +1,4 @@
 import asyncio
-from pathlib import Path
 
 import structlog
 from django.core.management import BaseCommand, CommandParser
@@ -8,11 +7,7 @@ from psycopg import sql
 
 from bench import language as lang
 from bench import models
-from bench.language.const import NodeType
-from bench.models import packer
-from bench.models.utils import create_models_bfs
 from bench.proto import wire
-from bench.search.engine import update_os_schema
 from bench.sql.client import async_pg_cursor
 from bench.sql.engine import (
     PostgresConditionalOp,
@@ -22,8 +17,6 @@ from bench.sql.engine import (
     pg_pack_record_row,
     update_pg_schema,
 )
-from bench.utils.func import partition
-from bench.utils.utils import DEBUG, LOCAL
 
 logger = structlog.get_logger(__name__)
 
