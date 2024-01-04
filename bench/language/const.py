@@ -31,31 +31,31 @@ class NodeType(ProtoStrEnum):
     TRIGGER = "TRIGGER", 8
     TAGGING = "TAGGING", 9
     FIELD = "FIELD", 10
-    RECORD = "RECORD", 11
+    RECORD = "RECORD", 11  # (local)
     VIEW = "VIEW", 12
     # TILE = "TILE", 13
-    # interp
-    ISSUE = "ISSUE", 20
-    RESOLVED_FIELD = "RESOLVED_FIELD", 21
-    # remote
-    BLOB = "BLOB", 40
-    SECRET = "SECRET", 41
-    # session
+    BLOB = "BLOB", 14
+    SECRET = "SECRET", 15
+    ISSUE = "ISSUE", 16
+    RESOLVED_FIELD = "RESOLVED_FIELD", 17
+    # worker
+    WORKER_SET = "WORKER_SET", 40
+    # WORKER = "WORKER", 41
+    # WORKER_PROCESS = "WORKER_PROCESS", 42
+    # session (all local)
     SESSION = "SESSION", 60
     RUN = "RUN", 61
-    WORKER_SET = "WORKER_SET", 69
-    # SIGNAL = "SIGNAL", 70
-    # INTERRUPT = "INTERRUPT", 71
-    # EDIT = "EDIT", 72
+    SIGNAL = "SIGNAL", 70
+    HALT = "HALT", 71
     # user
-    USER = "USER", 80
-    # ORGANIZATION = "ORGANIZATION", 81
-    # MEMBERSHIP = "MEMBERSHIP", 82
-    # INVITE = "INVITE", 83
-    CLIENT = "CLIENT", 84
-    BADGE = "BADGE", 85
-    # COMMENT = "COMMENT", 90
-    NOTIFICATION = "NOTIFICATION", 99
+    USER = "USER", 100
+    # ORGANIZATION = "ORGANIZATION", 101
+    # INVITE = "INVITE", 102
+    # MEMBERSHIP = "MEMBERSHIP", 103
+    CLIENT = "CLIENT", 104
+    BADGE = "BADGE", 105
+    # COMMENT = "COMMENT", 106
+    NOTIFICATION = "NOTIFICATION", 107
 
     @property
     def caps_name(self):
@@ -98,7 +98,7 @@ else:
     BenchType.camel_name = NodeType.camel_name
 
 # local = only stored in user Bench, not host
-LOCAL_NODE_TYPES = (NodeType.RECORD,)
+LOCAL_NODE_TYPES = (NodeType.RECORD, NodeType.SESSION, NodeType.RUN)
 OUT_OF_LINE_NODE_TYPES = (
     NodeType.SESSION,
     NodeType.RUN,
@@ -457,7 +457,7 @@ class RunStatus(ProtoStrEnum):
     SCHEDULED = "Scheduled", 1
     QUEUED = "Queued", 2
     RUNNING = "Running", 3
-    SUSPENDED = "Suspended", 4
+    HALTED = "Halted", 4
     ABORTING = "Aborting", 5
     # terminal statuses
     CANCELLED = "Cancelled", 6
@@ -476,10 +476,10 @@ PENDING_RUN_STATUSES = {
     RunStatus.SCHEDULED,
     RunStatus.QUEUED,
     RunStatus.RUNNING,
-    RunStatus.SUSPENDED,
+    RunStatus.HALTED,
     RunStatus.ABORTING,
 }
-ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.SUSPENDED, RunStatus.ABORTING}
+ACTIVE_RUN_STATUSES = {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.HALTED, RunStatus.ABORTING}
 
 
 class RunErrorKind(ProtoStrEnum):

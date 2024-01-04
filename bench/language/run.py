@@ -138,7 +138,7 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
         return f"run.{input_hash}"
 
 
-@node(NodeType.RUN, index_in_os=True)
+@node(NodeType.RUN, index_in_os=True, local=True)
 class Run(ScopeNode, HasValue):
     """
     A run of a statement (in a session).

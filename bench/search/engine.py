@@ -21,8 +21,9 @@ from bench.language import (
     SortOp,
     TypeHint,
     TypeTag,
+    symbolx_lib,
 )
-from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
+from bench.language.const import RUNNABLE_STATEMENT_TYPES, EditKind, TypeFlag
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     Expression,
@@ -34,6 +35,7 @@ from bench.language.expression import (
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
 from bench.proto import wire
+from bench.proto.wire import EditData
 from bench.search import core as os
 from bench.search import mirror
 from bench.search.client import get_os_errors, os_client, os_client_sync
@@ -174,28 +176,12 @@ def map_to_os_field(field: lang.Field) -> os.Field:
     return os_field
 
 
-DOCUMENTS_BY_INDEX = {
-    IndexType.GLOBAL: [],
-    IndexType.LOCAL: [mirror.Record, mirror.Session, mirror.Run, mirror.LogEntry],
-}
-SEARCH_SEMANTIC_EDIT_TYPES = {
-    EditType.CREATE_FIELD,
-    EditType.UPDATE_FIELD,
-    EditType.UPDATE_FIELD_TYPE,
-    EditType.DELETE_FIELD,
-    EditType.TRUNCATE_RESOLVED_FIELDS,
-    EditType.CREATE_RESOLVED_FIELD,
-}
-
-
 async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
     """
     Updates *all* OpenSearch field mappings for a module
     TODO @Performance: update OS field mappings more efficiently on field edit
       (especially for library/dependency mappings)
     """
-    from bench.language import libs
-
     value_mappings: dict[str, os.Field] = {}
     inputs_mappings: dict[str, os.Field] = {}
     outputs_mappings: dict[str, os.Field] = {}
@@ -208,14 +194,13 @@ async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
             return None
 
     # get library mappings
-    for lib in libs.DEFAULT_MODULES.values():
-        for node in lib._nodes:
-            if HasRun in node._components:
-                for field in node.resolved_fields:
-                    if field.flags & TypeFlag.IS_OUTPUT:
-                        outputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
-                    else:
-                        inputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
+    for node in symbolx_lib._nodes:
+        if HasRun in node._components:
+            for field in node.resolved_fields:
+                if field.flags & TypeFlag.IS_OUTPUT:
+                    outputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
+                else:
+                    inputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
     # ensure library vectors are not indexed (would be pointless waste of resources)
     for field in (*inputs_mappings.values(), *outputs_mappings.values()):
         for f in field.walk():
@@ -223,7 +208,7 @@ async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
                 f.index = False
 
     # and 'static' value mappings (hard-coded)
-    for value_type in (libs.symbolx_lib.resolve(".reflect.RunMetadata"),):
+    for value_type in (symbolx_lib.resolve(".reflect.RunMetadata"),):
         for field in value_type.resolved_fields:
             value_mappings[field._typed_key] = _map_to_os_field_safe(field)
 
@@ -687,7 +672,7 @@ def create_global_os_index(upsert: bool = False) -> None:
         os.GLOBAL_INDEX_NAME,
         shards=GLOBAL_INDEX_SHARDS,
         replicas=GLOBAL_INDEX_REPLICAS,
-        documents=DOCUMENTS_BY_INDEX[IndexType.GLOBAL],
+        documents=[],  # nothing yet
         upsert=upsert,
     )
 

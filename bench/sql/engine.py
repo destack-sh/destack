@@ -23,7 +23,7 @@ from bench.language.expression import (
     FieldReference,
     QueryEngineIncapableError,
 )
-from bench.language.module import UNSET, Node, get_node_id
+from bench.language.module import NODE_CLASS_BY_NODE_TYPE, UNSET, Node, get_node_id
 from bench.proto import wire
 from bench.proto.wire import EditData
 from bench.sql import schema
@@ -84,7 +84,11 @@ def map_bench_node_to_pg_table(node: type[Node]) -> Table:
             is_nullable=not prop.is_required,
             is_encrypted=prop.is_encrypted,
         )
-        if prop.references and prop.name.endswith("_id"):
+        if (
+            prop.references
+            and prop.name.endswith("_id")
+            and node.__is_local__ == NODE_CLASS_BY_NODE_TYPE[prop.references[0]].__is_local__
+        ):
             assert len(prop.references) == 1, f"prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_bench_table_name(prop.references[0])
             column.on_delete = CascadeAction.CASCADE

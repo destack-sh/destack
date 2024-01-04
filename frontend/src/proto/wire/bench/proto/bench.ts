@@ -171,17 +171,19 @@ export enum BenchType {
   FIELD = 10,
   RECORD = 11,
   VIEW = 12,
-  ISSUE = 20,
-  RESOLVED_FIELD = 21,
-  BLOB = 40,
-  SECRET = 41,
+  BLOB = 14,
+  SECRET = 15,
+  ISSUE = 16,
+  RESOLVED_FIELD = 17,
+  WORKER_SET = 40,
   SESSION = 60,
   RUN = 61,
-  WORKER_SET = 69,
-  USER = 80,
-  CLIENT = 84,
-  BADGE = 85,
-  NOTIFICATION = 99,
+  SIGNAL = 70,
+  HALT = 71,
+  USER = 100,
+  CLIENT = 104,
+  BADGE = 105,
+  NOTIFICATION = 107,
   POLICY = 200,
   POLICY_RULE = 201,
   EXPRESSION = 210,
@@ -225,37 +227,43 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 12:
     case "BENCH_TYPE_VIEW":
       return BenchType.VIEW;
-    case 20:
+    case 14:
+    case "BENCH_TYPE_BLOB":
+      return BenchType.BLOB;
+    case 15:
+    case "BENCH_TYPE_SECRET":
+      return BenchType.SECRET;
+    case 16:
     case "BENCH_TYPE_ISSUE":
       return BenchType.ISSUE;
-    case 21:
+    case 17:
     case "BENCH_TYPE_RESOLVED_FIELD":
       return BenchType.RESOLVED_FIELD;
     case 40:
-    case "BENCH_TYPE_BLOB":
-      return BenchType.BLOB;
-    case 41:
-    case "BENCH_TYPE_SECRET":
-      return BenchType.SECRET;
+    case "BENCH_TYPE_WORKER_SET":
+      return BenchType.WORKER_SET;
     case 60:
     case "BENCH_TYPE_SESSION":
       return BenchType.SESSION;
     case 61:
     case "BENCH_TYPE_RUN":
       return BenchType.RUN;
-    case 69:
-    case "BENCH_TYPE_WORKER_SET":
-      return BenchType.WORKER_SET;
-    case 80:
+    case 70:
+    case "BENCH_TYPE_SIGNAL":
+      return BenchType.SIGNAL;
+    case 71:
+    case "BENCH_TYPE_HALT":
+      return BenchType.HALT;
+    case 100:
     case "BENCH_TYPE_USER":
       return BenchType.USER;
-    case 84:
+    case 104:
     case "BENCH_TYPE_CLIENT":
       return BenchType.CLIENT;
-    case 85:
+    case 105:
     case "BENCH_TYPE_BADGE":
       return BenchType.BADGE;
-    case 99:
+    case 107:
     case "BENCH_TYPE_NOTIFICATION":
       return BenchType.NOTIFICATION;
     case 200:
@@ -312,20 +320,24 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_RECORD";
     case BenchType.VIEW:
       return "BENCH_TYPE_VIEW";
-    case BenchType.ISSUE:
-      return "BENCH_TYPE_ISSUE";
-    case BenchType.RESOLVED_FIELD:
-      return "BENCH_TYPE_RESOLVED_FIELD";
     case BenchType.BLOB:
       return "BENCH_TYPE_BLOB";
     case BenchType.SECRET:
       return "BENCH_TYPE_SECRET";
+    case BenchType.ISSUE:
+      return "BENCH_TYPE_ISSUE";
+    case BenchType.RESOLVED_FIELD:
+      return "BENCH_TYPE_RESOLVED_FIELD";
+    case BenchType.WORKER_SET:
+      return "BENCH_TYPE_WORKER_SET";
     case BenchType.SESSION:
       return "BENCH_TYPE_SESSION";
     case BenchType.RUN:
       return "BENCH_TYPE_RUN";
-    case BenchType.WORKER_SET:
-      return "BENCH_TYPE_WORKER_SET";
+    case BenchType.SIGNAL:
+      return "BENCH_TYPE_SIGNAL";
+    case BenchType.HALT:
+      return "BENCH_TYPE_HALT";
     case BenchType.USER:
       return "BENCH_TYPE_USER";
     case BenchType.CLIENT:
@@ -1132,17 +1144,19 @@ export enum NodeType {
   FIELD = 10,
   RECORD = 11,
   VIEW = 12,
-  ISSUE = 20,
-  RESOLVED_FIELD = 21,
-  BLOB = 40,
-  SECRET = 41,
+  BLOB = 14,
+  SECRET = 15,
+  ISSUE = 16,
+  RESOLVED_FIELD = 17,
+  WORKER_SET = 40,
   SESSION = 60,
   RUN = 61,
-  WORKER_SET = 69,
-  USER = 80,
-  CLIENT = 84,
-  BADGE = 85,
-  NOTIFICATION = 99,
+  SIGNAL = 70,
+  HALT = 71,
+  USER = 100,
+  CLIENT = 104,
+  BADGE = 105,
+  NOTIFICATION = 107,
 }
 
 export function nodeTypeFromJSON(object: any): NodeType {
@@ -1177,37 +1191,43 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case 12:
     case "NODE_TYPE_VIEW":
       return NodeType.VIEW;
-    case 20:
+    case 14:
+    case "NODE_TYPE_BLOB":
+      return NodeType.BLOB;
+    case 15:
+    case "NODE_TYPE_SECRET":
+      return NodeType.SECRET;
+    case 16:
     case "NODE_TYPE_ISSUE":
       return NodeType.ISSUE;
-    case 21:
+    case 17:
     case "NODE_TYPE_RESOLVED_FIELD":
       return NodeType.RESOLVED_FIELD;
     case 40:
-    case "NODE_TYPE_BLOB":
-      return NodeType.BLOB;
-    case 41:
-    case "NODE_TYPE_SECRET":
-      return NodeType.SECRET;
+    case "NODE_TYPE_WORKER_SET":
+      return NodeType.WORKER_SET;
     case 60:
     case "NODE_TYPE_SESSION":
       return NodeType.SESSION;
     case 61:
     case "NODE_TYPE_RUN":
       return NodeType.RUN;
-    case 69:
-    case "NODE_TYPE_WORKER_SET":
-      return NodeType.WORKER_SET;
-    case 80:
+    case 70:
+    case "NODE_TYPE_SIGNAL":
+      return NodeType.SIGNAL;
+    case 71:
+    case "NODE_TYPE_HALT":
+      return NodeType.HALT;
+    case 100:
     case "NODE_TYPE_USER":
       return NodeType.USER;
-    case 84:
+    case 104:
     case "NODE_TYPE_CLIENT":
       return NodeType.CLIENT;
-    case 85:
+    case 105:
     case "NODE_TYPE_BADGE":
       return NodeType.BADGE;
-    case 99:
+    case 107:
     case "NODE_TYPE_NOTIFICATION":
       return NodeType.NOTIFICATION;
     default:
@@ -1237,20 +1257,24 @@ export function nodeTypeToJSON(object: NodeType): string {
       return "NODE_TYPE_RECORD";
     case NodeType.VIEW:
       return "NODE_TYPE_VIEW";
-    case NodeType.ISSUE:
-      return "NODE_TYPE_ISSUE";
-    case NodeType.RESOLVED_FIELD:
-      return "NODE_TYPE_RESOLVED_FIELD";
     case NodeType.BLOB:
       return "NODE_TYPE_BLOB";
     case NodeType.SECRET:
       return "NODE_TYPE_SECRET";
+    case NodeType.ISSUE:
+      return "NODE_TYPE_ISSUE";
+    case NodeType.RESOLVED_FIELD:
+      return "NODE_TYPE_RESOLVED_FIELD";
+    case NodeType.WORKER_SET:
+      return "NODE_TYPE_WORKER_SET";
     case NodeType.SESSION:
       return "NODE_TYPE_SESSION";
     case NodeType.RUN:
       return "NODE_TYPE_RUN";
-    case NodeType.WORKER_SET:
-      return "NODE_TYPE_WORKER_SET";
+    case NodeType.SIGNAL:
+      return "NODE_TYPE_SIGNAL";
+    case NodeType.HALT:
+      return "NODE_TYPE_HALT";
     case NodeType.USER:
       return "NODE_TYPE_USER";
     case NodeType.CLIENT:
@@ -1538,7 +1562,7 @@ export enum RunStatus {
   SCHEDULED = 1,
   QUEUED = 2,
   RUNNING = 3,
-  SUSPENDED = 4,
+  HALTED = 4,
   ABORTING = 5,
   CANCELLED = 6,
   ABORTED = 7,
@@ -1561,8 +1585,8 @@ export function runStatusFromJSON(object: any): RunStatus {
     case "RUN_STATUS_RUNNING":
       return RunStatus.RUNNING;
     case 4:
-    case "RUN_STATUS_SUSPENDED":
-      return RunStatus.SUSPENDED;
+    case "RUN_STATUS_HALTED":
+      return RunStatus.HALTED;
     case 5:
     case "RUN_STATUS_ABORTING":
       return RunStatus.ABORTING;
@@ -1593,8 +1617,8 @@ export function runStatusToJSON(object: RunStatus): string {
       return "RUN_STATUS_QUEUED";
     case RunStatus.RUNNING:
       return "RUN_STATUS_RUNNING";
-    case RunStatus.SUSPENDED:
-      return "RUN_STATUS_SUSPENDED";
+    case RunStatus.HALTED:
+      return "RUN_STATUS_HALTED";
     case RunStatus.ABORTING:
       return "RUN_STATUS_ABORTING";
     case RunStatus.CANCELLED:
@@ -2924,6 +2948,21 @@ export interface FileData {
   orderKey: string;
 }
 
+export interface HaltData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  moduleId: string;
+  benchId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+}
+
 export interface IssueData {
   metatype: BenchType;
   id: string;
@@ -3113,6 +3152,25 @@ export interface SessionData {
   inferenceRetries: number;
 }
 
+export interface SignalData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  moduleId: string;
+  benchId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  typeCk: string;
+  value: { [key: string]: any } | undefined;
+  sourceRunCk: string;
+  sourceStatementCk: string;
+}
+
 export interface StatementData {
   metatype: BenchType;
   id: string;
@@ -3254,13 +3312,15 @@ export interface SomeNodeData {
     | { $case: "field"; field: FieldData }
     | { $case: "record"; record: RecordData }
     | { $case: "view"; view: ViewData }
-    | { $case: "issue"; issue: IssueData }
-    | { $case: "resolvedField"; resolvedField: ResolvedFieldData }
     | { $case: "blob"; blob: BlobData }
     | { $case: "secret"; secret: SecretData }
+    | { $case: "issue"; issue: IssueData }
+    | { $case: "resolvedField"; resolvedField: ResolvedFieldData }
+    | { $case: "workerSet"; workerSet: WorkerSetData }
     | { $case: "session"; session: SessionData }
     | { $case: "run"; run: RunData }
-    | { $case: "workerSet"; workerSet: WorkerSetData }
+    | { $case: "signal"; signal: SignalData }
+    | { $case: "halt"; halt: HaltData }
     | { $case: "user"; user: UserData }
     | { $case: "client"; client: ClientData }
     | { $case: "badge"; badge: BadgeData }
@@ -6655,6 +6715,243 @@ export const FileData = {
   },
 };
 
+function createBaseHaltData(): HaltData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    moduleId: "",
+    benchId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+  };
+}
+
+export const HaltData = {
+  encode(message: HaltData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.moduleId !== "") {
+      writer.uint32(42).string(message.moduleId);
+    }
+    if (message.benchId !== "") {
+      writer.uint32(50).string(message.benchId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): HaltData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseHaltData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.moduleId = reader.string();
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.benchId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 15:
+          if (tag !== 122) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): HaltData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+    };
+  },
+
+  toJSON(message: HaltData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.moduleId !== "") {
+      obj.moduleId = message.moduleId;
+    }
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<HaltData>, I>>(base?: I): HaltData {
+    return HaltData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HaltData>, I>>(object: I): HaltData {
+    const message = createBaseHaltData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.moduleId = object.moduleId ?? "";
+    message.benchId = object.benchId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    return message;
+  },
+};
+
 function createBaseIssueData(): IssueData {
   return {
     metatype: 0,
@@ -9656,6 +9953,307 @@ export const SessionData = {
   },
 };
 
+function createBaseSignalData(): SignalData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    moduleId: "",
+    benchId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    typeCk: "",
+    value: undefined,
+    sourceRunCk: "",
+    sourceStatementCk: "",
+  };
+}
+
+export const SignalData = {
+  encode(message: SignalData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.moduleId !== "") {
+      writer.uint32(42).string(message.moduleId);
+    }
+    if (message.benchId !== "") {
+      writer.uint32(50).string(message.benchId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
+    }
+    if (message.typeCk !== "") {
+      writer.uint32(242).string(message.typeCk);
+    }
+    if (message.value !== undefined) {
+      Struct.encode(Struct.wrap(message.value), writer.uint32(250).fork()).ldelim();
+    }
+    if (message.sourceRunCk !== "") {
+      writer.uint32(258).string(message.sourceRunCk);
+    }
+    if (message.sourceStatementCk !== "") {
+      writer.uint32(266).string(message.sourceStatementCk);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): SignalData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseSignalData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.moduleId = reader.string();
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.benchId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 15:
+          if (tag !== 122) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 30:
+          if (tag !== 242) {
+            break;
+          }
+
+          message.typeCk = reader.string();
+          continue;
+        case 31:
+          if (tag !== 250) {
+            break;
+          }
+
+          message.value = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          continue;
+        case 32:
+          if (tag !== 258) {
+            break;
+          }
+
+          message.sourceRunCk = reader.string();
+          continue;
+        case 33:
+          if (tag !== 266) {
+            break;
+          }
+
+          message.sourceStatementCk = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): SignalData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      typeCk: isSet(object.typeCk) ? globalThis.String(object.typeCk) : "",
+      value: isObject(object.value) ? object.value : undefined,
+      sourceRunCk: isSet(object.sourceRunCk) ? globalThis.String(object.sourceRunCk) : "",
+      sourceStatementCk: isSet(object.sourceStatementCk) ? globalThis.String(object.sourceStatementCk) : "",
+    };
+  },
+
+  toJSON(message: SignalData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.moduleId !== "") {
+      obj.moduleId = message.moduleId;
+    }
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.typeCk !== "") {
+      obj.typeCk = message.typeCk;
+    }
+    if (message.value !== undefined) {
+      obj.value = message.value;
+    }
+    if (message.sourceRunCk !== "") {
+      obj.sourceRunCk = message.sourceRunCk;
+    }
+    if (message.sourceStatementCk !== "") {
+      obj.sourceStatementCk = message.sourceStatementCk;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<SignalData>, I>>(base?: I): SignalData {
+    return SignalData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<SignalData>, I>>(object: I): SignalData {
+    const message = createBaseSignalData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.moduleId = object.moduleId ?? "";
+    message.benchId = object.benchId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.typeCk = object.typeCk ?? "";
+    message.value = object.value ?? undefined;
+    message.sourceRunCk = object.sourceRunCk ?? "";
+    message.sourceStatementCk = object.sourceStatementCk ?? "";
+    return message;
+  },
+};
+
 function createBaseStatementData(): StatementData {
   return {
     metatype: 0,
@@ -11757,38 +12355,44 @@ export const SomeNodeData = {
       case "view":
         ViewData.encode(message.node.view, writer.uint32(74).fork()).ldelim();
         break;
-      case "issue":
-        IssueData.encode(message.node.issue, writer.uint32(82).fork()).ldelim();
-        break;
-      case "resolvedField":
-        ResolvedFieldData.encode(message.node.resolvedField, writer.uint32(90).fork()).ldelim();
-        break;
       case "blob":
-        BlobData.encode(message.node.blob, writer.uint32(98).fork()).ldelim();
+        BlobData.encode(message.node.blob, writer.uint32(82).fork()).ldelim();
         break;
       case "secret":
-        SecretData.encode(message.node.secret, writer.uint32(106).fork()).ldelim();
+        SecretData.encode(message.node.secret, writer.uint32(90).fork()).ldelim();
         break;
-      case "session":
-        SessionData.encode(message.node.session, writer.uint32(114).fork()).ldelim();
+      case "issue":
+        IssueData.encode(message.node.issue, writer.uint32(98).fork()).ldelim();
         break;
-      case "run":
-        RunData.encode(message.node.run, writer.uint32(122).fork()).ldelim();
+      case "resolvedField":
+        ResolvedFieldData.encode(message.node.resolvedField, writer.uint32(106).fork()).ldelim();
         break;
       case "workerSet":
-        WorkerSetData.encode(message.node.workerSet, writer.uint32(130).fork()).ldelim();
+        WorkerSetData.encode(message.node.workerSet, writer.uint32(114).fork()).ldelim();
+        break;
+      case "session":
+        SessionData.encode(message.node.session, writer.uint32(122).fork()).ldelim();
+        break;
+      case "run":
+        RunData.encode(message.node.run, writer.uint32(130).fork()).ldelim();
+        break;
+      case "signal":
+        SignalData.encode(message.node.signal, writer.uint32(138).fork()).ldelim();
+        break;
+      case "halt":
+        HaltData.encode(message.node.halt, writer.uint32(146).fork()).ldelim();
         break;
       case "user":
-        UserData.encode(message.node.user, writer.uint32(138).fork()).ldelim();
+        UserData.encode(message.node.user, writer.uint32(154).fork()).ldelim();
         break;
       case "client":
-        ClientData.encode(message.node.client, writer.uint32(146).fork()).ldelim();
+        ClientData.encode(message.node.client, writer.uint32(162).fork()).ldelim();
         break;
       case "badge":
-        BadgeData.encode(message.node.badge, writer.uint32(154).fork()).ldelim();
+        BadgeData.encode(message.node.badge, writer.uint32(170).fork()).ldelim();
         break;
       case "notification":
-        NotificationData.encode(message.node.notification, writer.uint32(162).fork()).ldelim();
+        NotificationData.encode(message.node.notification, writer.uint32(178).fork()).ldelim();
         break;
     }
     return writer;
@@ -11869,73 +12473,87 @@ export const SomeNodeData = {
             break;
           }
 
-          message.node = { $case: "issue", issue: IssueData.decode(reader, reader.uint32()) };
+          message.node = { $case: "blob", blob: BlobData.decode(reader, reader.uint32()) };
           continue;
         case 11:
           if (tag !== 90) {
             break;
           }
 
-          message.node = { $case: "resolvedField", resolvedField: ResolvedFieldData.decode(reader, reader.uint32()) };
+          message.node = { $case: "secret", secret: SecretData.decode(reader, reader.uint32()) };
           continue;
         case 12:
           if (tag !== 98) {
             break;
           }
 
-          message.node = { $case: "blob", blob: BlobData.decode(reader, reader.uint32()) };
+          message.node = { $case: "issue", issue: IssueData.decode(reader, reader.uint32()) };
           continue;
         case 13:
           if (tag !== 106) {
             break;
           }
 
-          message.node = { $case: "secret", secret: SecretData.decode(reader, reader.uint32()) };
+          message.node = { $case: "resolvedField", resolvedField: ResolvedFieldData.decode(reader, reader.uint32()) };
           continue;
         case 14:
           if (tag !== 114) {
             break;
           }
 
-          message.node = { $case: "session", session: SessionData.decode(reader, reader.uint32()) };
+          message.node = { $case: "workerSet", workerSet: WorkerSetData.decode(reader, reader.uint32()) };
           continue;
         case 15:
           if (tag !== 122) {
             break;
           }
 
-          message.node = { $case: "run", run: RunData.decode(reader, reader.uint32()) };
+          message.node = { $case: "session", session: SessionData.decode(reader, reader.uint32()) };
           continue;
         case 16:
           if (tag !== 130) {
             break;
           }
 
-          message.node = { $case: "workerSet", workerSet: WorkerSetData.decode(reader, reader.uint32()) };
+          message.node = { $case: "run", run: RunData.decode(reader, reader.uint32()) };
           continue;
         case 17:
           if (tag !== 138) {
             break;
           }
 
-          message.node = { $case: "user", user: UserData.decode(reader, reader.uint32()) };
+          message.node = { $case: "signal", signal: SignalData.decode(reader, reader.uint32()) };
           continue;
         case 18:
           if (tag !== 146) {
             break;
           }
 
-          message.node = { $case: "client", client: ClientData.decode(reader, reader.uint32()) };
+          message.node = { $case: "halt", halt: HaltData.decode(reader, reader.uint32()) };
           continue;
         case 19:
           if (tag !== 154) {
             break;
           }
 
-          message.node = { $case: "badge", badge: BadgeData.decode(reader, reader.uint32()) };
+          message.node = { $case: "user", user: UserData.decode(reader, reader.uint32()) };
           continue;
         case 20:
           if (tag !== 162) {
+            break;
+          }
+
+          message.node = { $case: "client", client: ClientData.decode(reader, reader.uint32()) };
+          continue;
+        case 21:
+          if (tag !== 170) {
+            break;
+          }
+
+          message.node = { $case: "badge", badge: BadgeData.decode(reader, reader.uint32()) };
+          continue;
+        case 22:
+          if (tag !== 178) {
             break;
           }
 
@@ -11970,20 +12588,24 @@ export const SomeNodeData = {
         ? { $case: "record", record: RecordData.fromJSON(object.record) }
         : isSet(object.view)
         ? { $case: "view", view: ViewData.fromJSON(object.view) }
-        : isSet(object.issue)
-        ? { $case: "issue", issue: IssueData.fromJSON(object.issue) }
-        : isSet(object.resolvedField)
-        ? { $case: "resolvedField", resolvedField: ResolvedFieldData.fromJSON(object.resolvedField) }
         : isSet(object.blob)
         ? { $case: "blob", blob: BlobData.fromJSON(object.blob) }
         : isSet(object.secret)
         ? { $case: "secret", secret: SecretData.fromJSON(object.secret) }
+        : isSet(object.issue)
+        ? { $case: "issue", issue: IssueData.fromJSON(object.issue) }
+        : isSet(object.resolvedField)
+        ? { $case: "resolvedField", resolvedField: ResolvedFieldData.fromJSON(object.resolvedField) }
+        : isSet(object.workerSet)
+        ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
         : isSet(object.session)
         ? { $case: "session", session: SessionData.fromJSON(object.session) }
         : isSet(object.run)
         ? { $case: "run", run: RunData.fromJSON(object.run) }
-        : isSet(object.workerSet)
-        ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
+        : isSet(object.signal)
+        ? { $case: "signal", signal: SignalData.fromJSON(object.signal) }
+        : isSet(object.halt)
+        ? { $case: "halt", halt: HaltData.fromJSON(object.halt) }
         : isSet(object.user)
         ? { $case: "user", user: UserData.fromJSON(object.user) }
         : isSet(object.client)
@@ -12025,17 +12647,20 @@ export const SomeNodeData = {
     if (message.node?.$case === "view") {
       obj.view = ViewData.toJSON(message.node.view);
     }
+    if (message.node?.$case === "blob") {
+      obj.blob = BlobData.toJSON(message.node.blob);
+    }
+    if (message.node?.$case === "secret") {
+      obj.secret = SecretData.toJSON(message.node.secret);
+    }
     if (message.node?.$case === "issue") {
       obj.issue = IssueData.toJSON(message.node.issue);
     }
     if (message.node?.$case === "resolvedField") {
       obj.resolvedField = ResolvedFieldData.toJSON(message.node.resolvedField);
     }
-    if (message.node?.$case === "blob") {
-      obj.blob = BlobData.toJSON(message.node.blob);
-    }
-    if (message.node?.$case === "secret") {
-      obj.secret = SecretData.toJSON(message.node.secret);
+    if (message.node?.$case === "workerSet") {
+      obj.workerSet = WorkerSetData.toJSON(message.node.workerSet);
     }
     if (message.node?.$case === "session") {
       obj.session = SessionData.toJSON(message.node.session);
@@ -12043,8 +12668,11 @@ export const SomeNodeData = {
     if (message.node?.$case === "run") {
       obj.run = RunData.toJSON(message.node.run);
     }
-    if (message.node?.$case === "workerSet") {
-      obj.workerSet = WorkerSetData.toJSON(message.node.workerSet);
+    if (message.node?.$case === "signal") {
+      obj.signal = SignalData.toJSON(message.node.signal);
+    }
+    if (message.node?.$case === "halt") {
+      obj.halt = HaltData.toJSON(message.node.halt);
     }
     if (message.node?.$case === "user") {
       obj.user = UserData.toJSON(message.node.user);
@@ -12093,6 +12721,12 @@ export const SomeNodeData = {
     if (object.node?.$case === "view" && object.node?.view !== undefined && object.node?.view !== null) {
       message.node = { $case: "view", view: ViewData.fromPartial(object.node.view) };
     }
+    if (object.node?.$case === "blob" && object.node?.blob !== undefined && object.node?.blob !== null) {
+      message.node = { $case: "blob", blob: BlobData.fromPartial(object.node.blob) };
+    }
+    if (object.node?.$case === "secret" && object.node?.secret !== undefined && object.node?.secret !== null) {
+      message.node = { $case: "secret", secret: SecretData.fromPartial(object.node.secret) };
+    }
     if (object.node?.$case === "issue" && object.node?.issue !== undefined && object.node?.issue !== null) {
       message.node = { $case: "issue", issue: IssueData.fromPartial(object.node.issue) };
     }
@@ -12106,11 +12740,8 @@ export const SomeNodeData = {
         resolvedField: ResolvedFieldData.fromPartial(object.node.resolvedField),
       };
     }
-    if (object.node?.$case === "blob" && object.node?.blob !== undefined && object.node?.blob !== null) {
-      message.node = { $case: "blob", blob: BlobData.fromPartial(object.node.blob) };
-    }
-    if (object.node?.$case === "secret" && object.node?.secret !== undefined && object.node?.secret !== null) {
-      message.node = { $case: "secret", secret: SecretData.fromPartial(object.node.secret) };
+    if (object.node?.$case === "workerSet" && object.node?.workerSet !== undefined && object.node?.workerSet !== null) {
+      message.node = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.node.workerSet) };
     }
     if (object.node?.$case === "session" && object.node?.session !== undefined && object.node?.session !== null) {
       message.node = { $case: "session", session: SessionData.fromPartial(object.node.session) };
@@ -12118,8 +12749,11 @@ export const SomeNodeData = {
     if (object.node?.$case === "run" && object.node?.run !== undefined && object.node?.run !== null) {
       message.node = { $case: "run", run: RunData.fromPartial(object.node.run) };
     }
-    if (object.node?.$case === "workerSet" && object.node?.workerSet !== undefined && object.node?.workerSet !== null) {
-      message.node = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.node.workerSet) };
+    if (object.node?.$case === "signal" && object.node?.signal !== undefined && object.node?.signal !== null) {
+      message.node = { $case: "signal", signal: SignalData.fromPartial(object.node.signal) };
+    }
+    if (object.node?.$case === "halt" && object.node?.halt !== undefined && object.node?.halt !== null) {
+      message.node = { $case: "halt", halt: HaltData.fromPartial(object.node.halt) };
     }
     if (object.node?.$case === "user" && object.node?.user !== undefined && object.node?.user !== null) {
       message.node = { $case: "user", user: UserData.fromPartial(object.node.user) };

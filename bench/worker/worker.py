@@ -52,7 +52,7 @@ class ModuleInfo:
 
 class WorkerNode(Monitored):
     """
-    A user worker to run user code, generally one worker process per bench (Bench).
+    A Bench worker to run a Bench in a sandbox.
     For local development a node can host multiple Benches.
     TODO @Architecture: merge WorkerNode/WorkerHost, processes should be 1:1 with ModuleWorkerProcess
      (see :BE-213)

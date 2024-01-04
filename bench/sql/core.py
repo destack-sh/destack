@@ -7,10 +7,8 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 from uuid import UUID, uuid5
 
-
 # TODO @Performance: check out asyncpg instead of psycopg (up to 5x faster)
 #  see https://github.com/MagicStack/asyncpg
-import psycopg
 from more_itertools import first
 
 from bench.language.const import BENCH_UUID_NAMESPACE
@@ -76,7 +74,10 @@ class Construct:
             elif isinstance(value, tuple):
                 if not value:
                     return None
-                return f"({', '.join(_source_repr(v) for v in value)})"
+                if len(value) > 1:
+                    return f"({', '.join(_source_repr(v) for v in value)})"
+                else:
+                    return f"({_source_repr(value[0])},)"
             elif isinstance(value, list):
                 if not value:
                     return None
@@ -426,7 +427,7 @@ class Table(Construct):
         return True
 
 
-# 'abstract' template for actual record tables (not a real table)
+# 'abstract' template for actual record tables (not a real table) :RecordSchema
 BASE_RECORD_TABLE = Table(
     "record_base",
     columns=(
@@ -506,18 +507,10 @@ class MigrationInfo:
 class Migration:
     """
     A stored SQL migration for internal mappings.
-    This does NOT concern in-Bench field changes, which are a layer above.
+    This does NOT relate to in-Bench migrations, which are a layer above.
     """
 
     id: int
-
-    async def apply(
-        self,
-        cur: psycopg.AsyncCursor,
-        tables: dict[str, Table],
-        constructs: dict[UUID, Construct],
-    ):
-        raise NotImplementedError
 
 
 class PostgresColumnType(enum.StrEnum):

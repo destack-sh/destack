@@ -52,8 +52,15 @@ LOCAL_RECORD_CACHE_LIMIT = 2048
 RECORD_UNSPECIFIED_BATCH_SIZE = 500
 
 
-@node(NodeType.RECORD, passthrough=(("value", _Passthrough.Full),), local=True, index_in_os=True)
+@node(
+    NodeType.RECORD,
+    passthrough=(("value", _Passthrough.Full),),
+    local=True,
+    stored_custom=True,  # records can be materialized, that's why we have the local PG database
+    index_in_os=True,
+)
 class Record(HasValue, Node):
+    # :RecordSchema
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
     value: typing.Any | None = struct_property(
         30, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON

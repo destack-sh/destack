@@ -55,17 +55,19 @@ class BenchType(betterproto.Enum):
     FIELD = 10
     RECORD = 11
     VIEW = 12
-    ISSUE = 20
-    RESOLVED_FIELD = 21
-    BLOB = 40
-    SECRET = 41
+    BLOB = 14
+    SECRET = 15
+    ISSUE = 16
+    RESOLVED_FIELD = 17
+    WORKER_SET = 40
     SESSION = 60
     RUN = 61
-    WORKER_SET = 69
-    USER = 80
-    CLIENT = 84
-    BADGE = 85
-    NOTIFICATION = 99
+    SIGNAL = 70
+    HALT = 71
+    USER = 100
+    CLIENT = 104
+    BADGE = 105
+    NOTIFICATION = 107
     POLICY = 200
     POLICY_RULE = 201
     EXPRESSION = 210
@@ -217,17 +219,19 @@ class NodeType(betterproto.Enum):
     FIELD = 10
     RECORD = 11
     VIEW = 12
-    ISSUE = 20
-    RESOLVED_FIELD = 21
-    BLOB = 40
-    SECRET = 41
+    BLOB = 14
+    SECRET = 15
+    ISSUE = 16
+    RESOLVED_FIELD = 17
+    WORKER_SET = 40
     SESSION = 60
     RUN = 61
-    WORKER_SET = 69
-    USER = 80
-    CLIENT = 84
-    BADGE = 85
-    NOTIFICATION = 99
+    SIGNAL = 70
+    HALT = 71
+    USER = 100
+    CLIENT = 104
+    BADGE = 105
+    NOTIFICATION = 107
 
 
 class NotificationStatus(betterproto.Enum):
@@ -281,7 +285,7 @@ class RunStatus(betterproto.Enum):
     SCHEDULED = 1
     QUEUED = 2
     RUNNING = 3
-    SUSPENDED = 4
+    HALTED = 4
     ABORTING = 5
     CANCELLED = 6
     ABORTED = 7
@@ -721,6 +725,22 @@ class FileData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class HaltData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    module_id: str = betterproto.string_field(5)
+    bench_id: str = betterproto.string_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(15)
+
+
+@dataclass(eq=False, repr=False)
 class IssueData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -919,6 +939,26 @@ class SessionData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class SignalData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    module_id: str = betterproto.string_field(5)
+    bench_id: str = betterproto.string_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(15)
+    type_ck: str = betterproto.string_field(30)
+    value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(31)
+    source_run_ck: str = betterproto.string_field(32)
+    source_statement_ck: str = betterproto.string_field(33)
+
+
+@dataclass(eq=False, repr=False)
 class StatementData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1065,17 +1105,19 @@ class SomeNodeData(betterproto.Message):
     field: "FieldData" = betterproto.message_field(7, group="node")
     record: "RecordData" = betterproto.message_field(8, group="node")
     view: "ViewData" = betterproto.message_field(9, group="node")
-    issue: "IssueData" = betterproto.message_field(10, group="node")
-    resolved_field: "ResolvedFieldData" = betterproto.message_field(11, group="node")
-    blob: "BlobData" = betterproto.message_field(12, group="node")
-    secret: "SecretData" = betterproto.message_field(13, group="node")
-    session: "SessionData" = betterproto.message_field(14, group="node")
-    run: "RunData" = betterproto.message_field(15, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(16, group="node")
-    user: "UserData" = betterproto.message_field(17, group="node")
-    client: "ClientData" = betterproto.message_field(18, group="node")
-    badge: "BadgeData" = betterproto.message_field(19, group="node")
-    notification: "NotificationData" = betterproto.message_field(20, group="node")
+    blob: "BlobData" = betterproto.message_field(10, group="node")
+    secret: "SecretData" = betterproto.message_field(11, group="node")
+    issue: "IssueData" = betterproto.message_field(12, group="node")
+    resolved_field: "ResolvedFieldData" = betterproto.message_field(13, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(14, group="node")
+    session: "SessionData" = betterproto.message_field(15, group="node")
+    run: "RunData" = betterproto.message_field(16, group="node")
+    signal: "SignalData" = betterproto.message_field(17, group="node")
+    halt: "HaltData" = betterproto.message_field(18, group="node")
+    user: "UserData" = betterproto.message_field(19, group="node")
+    client: "ClientData" = betterproto.message_field(20, group="node")
+    badge: "BadgeData" = betterproto.message_field(21, group="node")
+    notification: "NotificationData" = betterproto.message_field(22, group="node")
 
 
 @dataclass(eq=False, repr=False)
