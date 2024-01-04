@@ -27,7 +27,6 @@ class ActionKind(betterproto.Enum):
     RESTORE = 5
     BUMP = 6
     DELETE = 7
-    TRUNCATE = 8
     START = 20
     PAUSE = 21
     RESUME = 22
@@ -62,7 +61,7 @@ class BenchType(betterproto.Enum):
     SECRET = 41
     SESSION = 60
     RUN = 61
-    WORKER_SET = 64
+    WORKER_SET = 69
     USER = 80
     CLIENT = 84
     BADGE = 85
@@ -224,7 +223,7 @@ class NodeType(betterproto.Enum):
     SECRET = 41
     SESSION = 60
     RUN = 61
-    WORKER_SET = 64
+    WORKER_SET = 69
     USER = 80
     CLIENT = 84
     BADGE = 85
@@ -508,7 +507,7 @@ class ExpressionData(betterproto.Message):
     field_key: str = betterproto.string_field(32)
     clauses: List["ExpressionData"] = betterproto.message_field(33)
     value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(34)
-    mode: str = betterproto.string_field(35)
+    mode: "SortMode" = betterproto.enum_field(35)
 
 
 @dataclass(eq=False, repr=False)
@@ -549,12 +548,12 @@ class PolicyData(betterproto.Message):
 class PolicyRuleData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     subject_authenticated: bool = betterproto.bool_field(30)
-    subject_users_ck: str = betterproto.string_field(31)
+    subject_users_ck: List[str] = betterproto.string_field(31)
     effect: "PolicyEffect" = betterproto.enum_field(40)
-    verb: List[str] = betterproto.string_field(41)
-    object_type: str = betterproto.string_field(50)
-    object_nodes_ck: str = betterproto.string_field(51)
-    object_fields_ck: str = betterproto.string_field(52)
+    verb: List["ActionKind"] = betterproto.enum_field(41)
+    object_types: List["BenchType"] = betterproto.enum_field(50)
+    object_nodes_ck: List[str] = betterproto.string_field(51)
+    object_fields_ck: List[str] = betterproto.string_field(52)
     condition: "ExpressionData" = betterproto.message_field(60)
 
 
@@ -623,8 +622,10 @@ class BenchData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
+    policies: List["PolicyData"] = betterproto.message_field(20)
     name: str = betterproto.string_field(30)
     slug: str = betterproto.string_field(31)
     description: str = betterproto.string_field(32)
@@ -644,6 +645,7 @@ class BlobData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     sha512: str = betterproto.string_field(30)
     content_length: int = betterproto.int64_field(31)
@@ -664,6 +666,7 @@ class ClientData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     type: "ClientType" = betterproto.enum_field(30)
     device_name: str = betterproto.string_field(31)
@@ -684,6 +687,7 @@ class FieldData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     name: str = betterproto.string_field(30)
     order_key: str = betterproto.string_field(31)
@@ -691,7 +695,7 @@ class FieldData(betterproto.Message):
     tag: "TypeTag" = betterproto.enum_field(33)
     key: str = betterproto.string_field(34)
     value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(35)
-    hint: str = betterproto.string_field(36)
+    hint: "TypeHint" = betterproto.enum_field(36)
     flags: int = betterproto.int64_field(37)
     reference_ck: str = betterproto.string_field(38)
 
@@ -728,6 +732,7 @@ class IssueData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     type: "IssueType" = betterproto.enum_field(30)
     kind: "IssueKind" = betterproto.enum_field(31)
@@ -749,8 +754,10 @@ class ModuleData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
+    policies: List["PolicyData"] = betterproto.message_field(20)
     is_snapshot: bool = betterproto.bool_field(32)
 
 
@@ -766,6 +773,7 @@ class BaseNodeData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
 
 
@@ -801,6 +809,7 @@ class RecordData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(30)
 
@@ -817,6 +826,7 @@ class ResolvedFieldData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     name: str = betterproto.string_field(30)
     order_key: str = betterproto.string_field(31)
@@ -824,7 +834,7 @@ class ResolvedFieldData(betterproto.Message):
     tag: "TypeTag" = betterproto.enum_field(33)
     key: str = betterproto.string_field(34)
     value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(35)
-    hint: str = betterproto.string_field(36)
+    hint: "TypeHint" = betterproto.enum_field(36)
     flags: int = betterproto.int64_field(37)
     reference_ck: str = betterproto.string_field(38)
     field_ck: str = betterproto.string_field(50)
@@ -842,6 +852,7 @@ class RunData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
     session_id: str = betterproto.string_field(30)
@@ -853,7 +864,7 @@ class RunData(betterproto.Message):
     scheduled_at: datetime = betterproto.message_field(36)
     started_at: datetime = betterproto.message_field(37)
     terminated_at: datetime = betterproto.message_field(38)
-    trigger_type: str = betterproto.string_field(39)
+    trigger_type: "TriggerType" = betterproto.enum_field(39)
     trigger_id: str = betterproto.string_field(40)
     access_level: int = betterproto.int64_field(41)
     status: "RunStatus" = betterproto.enum_field(42)
@@ -875,6 +886,7 @@ class SecretData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     sha512: str = betterproto.string_field(30)
     value: str = betterproto.string_field(31)
@@ -892,6 +904,7 @@ class SessionData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
     access_level: int = betterproto.int64_field(30)
@@ -945,6 +958,7 @@ class TaggingData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     key: str = betterproto.string_field(30)
     value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(31)
@@ -963,10 +977,11 @@ class TriggerData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     type: "TriggerType" = betterproto.enum_field(30)
     active: bool = betterproto.bool_field(31)
-    schedule_type: str = betterproto.string_field(32)
+    schedule_type: "ScheduleType" = betterproto.enum_field(32)
     timezone: str = betterproto.string_field(33)
     interval: int = betterproto.int64_field(34)
     cron: str = betterproto.string_field(35)
@@ -984,6 +999,7 @@ class UserData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     username: str = betterproto.string_field(30)
     email: str = betterproto.string_field(31)
@@ -1001,6 +1017,7 @@ class ViewData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
     policies: List["PolicyData"] = betterproto.message_field(20)
@@ -1023,6 +1040,7 @@ class WorkerSetData(betterproto.Message):
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
     deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     region: "ProjectRegion" = betterproto.enum_field(31)
     profile: "WorkerProfile" = betterproto.enum_field(32)
@@ -1089,9 +1107,8 @@ class EditData(betterproto.Message):
     kind: "EditKind" = betterproto.enum_field(1)
     module_id: str = betterproto.string_field(2)
     node: "SomeNodeData" = betterproto.message_field(3)
-    target: "NodeType" = betterproto.enum_field(4)
-    revision: int = betterproto.int64_field(5)
-    properties: List[str] = betterproto.string_field(6)
+    revision: int = betterproto.int64_field(4)
+    properties: List[str] = betterproto.string_field(5)
 
 
 @dataclass(eq=False, repr=False)

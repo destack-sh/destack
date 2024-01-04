@@ -140,9 +140,6 @@ class Bench(UUIDModel):
     visibility = models.CharField(
         max_length=32, choices=BenchVisibility.choices, default=BenchVisibility.PRIVATE
     )
-    sharing_enabled = models.BooleanField(default=True)
-    sharing_token = models.UUIDField(default=uuid4)
-    sharing_level = models.IntegerField(default=ModuleAccessLevel.Read)
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="benches", null=True
     )
@@ -267,8 +264,6 @@ class Bench(UUIDModel):
                 fields=["user", "slug"],
                 condition=models.Q(user__isnull=False),
             ),
-            # unique sharing token
-            models.UniqueConstraint(name="bench_bench_sharing_token_ak", fields=["sharing_token"]),
             # must have at least one owner (organization or user)
             models.CheckConstraint(
                 name="bench_bench_owner_ck",
@@ -346,21 +341,13 @@ class Module(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
-    parent_bench = models.ForeignKey(Bench, on_delete=models.CASCADE, related_name="versions")
+    parent_bench = models.ForeignKey(Bench, on_delete=models.CASCADE, related_name="+")
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     is_snapshot = models.BooleanField(default=False)
 
     def __str__(self) -> str:
-        return f"{self.parent_bench.path}@{self.tag or self.id.hex}"
-
-    @property
-    def parent_id(self) -> Optional[uuid.UUID]:
-        return None
-
-    @property
-    def parent(self) -> Optional["Node"]:
-        return None
+        return f"{self.parent_bench.path}"
 
     class Meta:
         managed = False

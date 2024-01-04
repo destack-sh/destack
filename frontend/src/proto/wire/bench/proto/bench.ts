@@ -15,7 +15,6 @@ export enum ActionKind {
   RESTORE = 5,
   BUMP = 6,
   DELETE = 7,
-  TRUNCATE = 8,
   START = 20,
   PAUSE = 21,
   RESUME = 22,
@@ -48,9 +47,6 @@ export function actionKindFromJSON(object: any): ActionKind {
     case 7:
     case "ACTION_KIND_DELETE":
       return ActionKind.DELETE;
-    case 8:
-    case "ACTION_KIND_TRUNCATE":
-      return ActionKind.TRUNCATE;
     case 20:
     case "ACTION_KIND_START":
       return ActionKind.START;
@@ -86,8 +82,6 @@ export function actionKindToJSON(object: ActionKind): string {
       return "ACTION_KIND_BUMP";
     case ActionKind.DELETE:
       return "ACTION_KIND_DELETE";
-    case ActionKind.TRUNCATE:
-      return "ACTION_KIND_TRUNCATE";
     case ActionKind.START:
       return "ACTION_KIND_START";
     case ActionKind.PAUSE:
@@ -183,7 +177,7 @@ export enum BenchType {
   SECRET = 41,
   SESSION = 60,
   RUN = 61,
-  WORKER_SET = 64,
+  WORKER_SET = 69,
   USER = 80,
   CLIENT = 84,
   BADGE = 85,
@@ -249,7 +243,7 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 61:
     case "BENCH_TYPE_RUN":
       return BenchType.RUN;
-    case 64:
+    case 69:
     case "BENCH_TYPE_WORKER_SET":
       return BenchType.WORKER_SET;
     case 80:
@@ -1144,7 +1138,7 @@ export enum NodeType {
   SECRET = 41,
   SESSION = 60,
   RUN = 61,
-  WORKER_SET = 64,
+  WORKER_SET = 69,
   USER = 80,
   CLIENT = 84,
   BADGE = 85,
@@ -1201,7 +1195,7 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case 61:
     case "NODE_TYPE_RUN":
       return NodeType.RUN;
-    case 64:
+    case 69:
     case "NODE_TYPE_WORKER_SET":
       return NodeType.WORKER_SET;
     case 80:
@@ -2730,7 +2724,7 @@ export interface ExpressionData {
   fieldKey: string;
   clauses: ExpressionData[];
   value: { [key: string]: any } | undefined;
-  mode: string;
+  mode: SortMode;
 }
 
 export interface InferenceData {
@@ -2767,12 +2761,12 @@ export interface PolicyData {
 export interface PolicyRuleData {
   metatype: BenchType;
   subjectAuthenticated: boolean;
-  subjectUsersCk: string;
+  subjectUsersCk: string[];
   effect: PolicyEffect;
-  verb: string[];
-  objectType: string;
-  objectNodesCk: string;
-  objectFieldsCk: string;
+  verb: ActionKind[];
+  objectTypes: BenchType[];
+  objectNodesCk: string[];
+  objectFieldsCk: string[];
   condition: ExpressionData | undefined;
 }
 
@@ -2836,8 +2830,10 @@ export interface BenchData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
+  policies: PolicyData[];
   name: string;
   slug: string;
   description: string;
@@ -2856,6 +2852,7 @@ export interface BlobData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   sha512: string;
   contentLength: number;
@@ -2875,6 +2872,7 @@ export interface ClientData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   type: ClientType;
   deviceName: string;
@@ -2894,6 +2892,7 @@ export interface FieldData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   name: string;
   orderKey: string;
@@ -2901,7 +2900,7 @@ export interface FieldData {
   tag: TypeTag;
   key: string;
   value: { [key: string]: any } | undefined;
-  hint: string;
+  hint: TypeHint;
   flags: number;
   referenceCk: string;
 }
@@ -2936,6 +2935,7 @@ export interface IssueData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   type: IssueType;
   kind: IssueKind;
@@ -2956,8 +2956,10 @@ export interface ModuleData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
+  policies: PolicyData[];
   isSnapshot: boolean;
 }
 
@@ -2972,6 +2974,7 @@ export interface BaseNodeData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
 }
 
@@ -3005,6 +3008,7 @@ export interface RecordData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   value: { [key: string]: any } | undefined;
 }
@@ -3020,6 +3024,7 @@ export interface ResolvedFieldData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   name: string;
   orderKey: string;
@@ -3027,7 +3032,7 @@ export interface ResolvedFieldData {
   tag: TypeTag;
   key: string;
   value: { [key: string]: any } | undefined;
-  hint: string;
+  hint: TypeHint;
   flags: number;
   referenceCk: string;
   fieldCk: string;
@@ -3044,6 +3049,7 @@ export interface RunData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
   sessionId: string;
@@ -3055,7 +3061,7 @@ export interface RunData {
   scheduledAt: Date | undefined;
   startedAt: Date | undefined;
   terminatedAt: Date | undefined;
-  triggerType: string;
+  triggerType: TriggerType;
   triggerId: string;
   accessLevel: number;
   status: RunStatus;
@@ -3076,6 +3082,7 @@ export interface SecretData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   sha512: string;
   value: string;
@@ -3092,6 +3099,7 @@ export interface SessionData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
   accessLevel: number;
@@ -3143,6 +3151,7 @@ export interface TaggingData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   key: string;
   value: { [key: string]: any } | undefined;
@@ -3160,10 +3169,11 @@ export interface TriggerData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   type: TriggerType;
   active: boolean;
-  scheduleType: string;
+  scheduleType: ScheduleType;
   timezone: string;
   interval: number;
   cron: string;
@@ -3180,6 +3190,7 @@ export interface UserData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   username: string;
   email: string;
@@ -3196,6 +3207,7 @@ export interface ViewData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
   policies: PolicyData[];
@@ -3217,6 +3229,7 @@ export interface WorkerSetData {
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
   deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   region: ProjectRegion;
   profile: WorkerProfile;
@@ -3364,7 +3377,7 @@ export const DependencyData = {
 };
 
 function createBaseExpressionData(): ExpressionData {
-  return { metatype: 0, op: 0, fieldCk: "", fieldKey: "", clauses: [], value: undefined, mode: "" };
+  return { metatype: 0, op: 0, fieldCk: "", fieldKey: "", clauses: [], value: undefined, mode: 0 };
 }
 
 export const ExpressionData = {
@@ -3387,8 +3400,8 @@ export const ExpressionData = {
     if (message.value !== undefined) {
       Struct.encode(Struct.wrap(message.value), writer.uint32(274).fork()).ldelim();
     }
-    if (message.mode !== "") {
-      writer.uint32(282).string(message.mode);
+    if (message.mode !== 0) {
+      writer.uint32(280).int32(message.mode);
     }
     return writer;
   },
@@ -3443,11 +3456,11 @@ export const ExpressionData = {
           message.value = Struct.unwrap(Struct.decode(reader, reader.uint32()));
           continue;
         case 35:
-          if (tag !== 282) {
+          if (tag !== 280) {
             break;
           }
 
-          message.mode = reader.string();
+          message.mode = reader.int32() as any;
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -3468,7 +3481,7 @@ export const ExpressionData = {
         ? object.clauses.map((e: any) => ExpressionData.fromJSON(e))
         : [],
       value: isObject(object.value) ? object.value : undefined,
-      mode: isSet(object.mode) ? globalThis.String(object.mode) : "",
+      mode: isSet(object.mode) ? sortModeFromJSON(object.mode) : 0,
     };
   },
 
@@ -3492,8 +3505,8 @@ export const ExpressionData = {
     if (message.value !== undefined) {
       obj.value = message.value;
     }
-    if (message.mode !== "") {
-      obj.mode = message.mode;
+    if (message.mode !== 0) {
+      obj.mode = sortModeToJSON(message.mode);
     }
     return obj;
   },
@@ -3509,7 +3522,7 @@ export const ExpressionData = {
     message.fieldKey = object.fieldKey ?? "";
     message.clauses = object.clauses?.map((e) => ExpressionData.fromPartial(e)) || [];
     message.value = object.value ?? undefined;
-    message.mode = object.mode ?? "";
+    message.mode = object.mode ?? 0;
     return message;
   },
 };
@@ -3994,12 +4007,12 @@ function createBasePolicyRuleData(): PolicyRuleData {
   return {
     metatype: 0,
     subjectAuthenticated: false,
-    subjectUsersCk: "",
+    subjectUsersCk: [],
     effect: 0,
     verb: [],
-    objectType: "",
-    objectNodesCk: "",
-    objectFieldsCk: "",
+    objectTypes: [],
+    objectNodesCk: [],
+    objectFieldsCk: [],
     condition: undefined,
   };
 }
@@ -4012,23 +4025,27 @@ export const PolicyRuleData = {
     if (message.subjectAuthenticated === true) {
       writer.uint32(240).bool(message.subjectAuthenticated);
     }
-    if (message.subjectUsersCk !== "") {
-      writer.uint32(250).string(message.subjectUsersCk);
+    for (const v of message.subjectUsersCk) {
+      writer.uint32(250).string(v!);
     }
     if (message.effect !== 0) {
       writer.uint32(320).int32(message.effect);
     }
+    writer.uint32(330).fork();
     for (const v of message.verb) {
-      writer.uint32(330).string(v!);
+      writer.int32(v);
     }
-    if (message.objectType !== "") {
-      writer.uint32(402).string(message.objectType);
+    writer.ldelim();
+    writer.uint32(402).fork();
+    for (const v of message.objectTypes) {
+      writer.int32(v);
     }
-    if (message.objectNodesCk !== "") {
-      writer.uint32(410).string(message.objectNodesCk);
+    writer.ldelim();
+    for (const v of message.objectNodesCk) {
+      writer.uint32(410).string(v!);
     }
-    if (message.objectFieldsCk !== "") {
-      writer.uint32(418).string(message.objectFieldsCk);
+    for (const v of message.objectFieldsCk) {
+      writer.uint32(418).string(v!);
     }
     if (message.condition !== undefined) {
       ExpressionData.encode(message.condition, writer.uint32(482).fork()).ldelim();
@@ -4062,7 +4079,7 @@ export const PolicyRuleData = {
             break;
           }
 
-          message.subjectUsersCk = reader.string();
+          message.subjectUsersCk.push(reader.string());
           continue;
         case 40:
           if (tag !== 320) {
@@ -4072,32 +4089,52 @@ export const PolicyRuleData = {
           message.effect = reader.int32() as any;
           continue;
         case 41:
-          if (tag !== 330) {
-            break;
+          if (tag === 328) {
+            message.verb.push(reader.int32() as any);
+
+            continue;
           }
 
-          message.verb.push(reader.string());
-          continue;
+          if (tag === 330) {
+            const end2 = reader.uint32() + reader.pos;
+            while (reader.pos < end2) {
+              message.verb.push(reader.int32() as any);
+            }
+
+            continue;
+          }
+
+          break;
         case 50:
-          if (tag !== 402) {
-            break;
+          if (tag === 400) {
+            message.objectTypes.push(reader.int32() as any);
+
+            continue;
           }
 
-          message.objectType = reader.string();
-          continue;
+          if (tag === 402) {
+            const end2 = reader.uint32() + reader.pos;
+            while (reader.pos < end2) {
+              message.objectTypes.push(reader.int32() as any);
+            }
+
+            continue;
+          }
+
+          break;
         case 51:
           if (tag !== 410) {
             break;
           }
 
-          message.objectNodesCk = reader.string();
+          message.objectNodesCk.push(reader.string());
           continue;
         case 52:
           if (tag !== 418) {
             break;
           }
 
-          message.objectFieldsCk = reader.string();
+          message.objectFieldsCk.push(reader.string());
           continue;
         case 60:
           if (tag !== 482) {
@@ -4121,12 +4158,20 @@ export const PolicyRuleData = {
       subjectAuthenticated: isSet(object.subjectAuthenticated)
         ? globalThis.Boolean(object.subjectAuthenticated)
         : false,
-      subjectUsersCk: isSet(object.subjectUsersCk) ? globalThis.String(object.subjectUsersCk) : "",
+      subjectUsersCk: globalThis.Array.isArray(object?.subjectUsersCk)
+        ? object.subjectUsersCk.map((e: any) => globalThis.String(e))
+        : [],
       effect: isSet(object.effect) ? policyEffectFromJSON(object.effect) : 0,
-      verb: globalThis.Array.isArray(object?.verb) ? object.verb.map((e: any) => globalThis.String(e)) : [],
-      objectType: isSet(object.objectType) ? globalThis.String(object.objectType) : "",
-      objectNodesCk: isSet(object.objectNodesCk) ? globalThis.String(object.objectNodesCk) : "",
-      objectFieldsCk: isSet(object.objectFieldsCk) ? globalThis.String(object.objectFieldsCk) : "",
+      verb: globalThis.Array.isArray(object?.verb) ? object.verb.map((e: any) => actionKindFromJSON(e)) : [],
+      objectTypes: globalThis.Array.isArray(object?.objectTypes)
+        ? object.objectTypes.map((e: any) => benchTypeFromJSON(e))
+        : [],
+      objectNodesCk: globalThis.Array.isArray(object?.objectNodesCk)
+        ? object.objectNodesCk.map((e: any) => globalThis.String(e))
+        : [],
+      objectFieldsCk: globalThis.Array.isArray(object?.objectFieldsCk)
+        ? object.objectFieldsCk.map((e: any) => globalThis.String(e))
+        : [],
       condition: isSet(object.condition) ? ExpressionData.fromJSON(object.condition) : undefined,
     };
   },
@@ -4139,22 +4184,22 @@ export const PolicyRuleData = {
     if (message.subjectAuthenticated === true) {
       obj.subjectAuthenticated = message.subjectAuthenticated;
     }
-    if (message.subjectUsersCk !== "") {
+    if (message.subjectUsersCk?.length) {
       obj.subjectUsersCk = message.subjectUsersCk;
     }
     if (message.effect !== 0) {
       obj.effect = policyEffectToJSON(message.effect);
     }
     if (message.verb?.length) {
-      obj.verb = message.verb;
+      obj.verb = message.verb.map((e) => actionKindToJSON(e));
     }
-    if (message.objectType !== "") {
-      obj.objectType = message.objectType;
+    if (message.objectTypes?.length) {
+      obj.objectTypes = message.objectTypes.map((e) => benchTypeToJSON(e));
     }
-    if (message.objectNodesCk !== "") {
+    if (message.objectNodesCk?.length) {
       obj.objectNodesCk = message.objectNodesCk;
     }
-    if (message.objectFieldsCk !== "") {
+    if (message.objectFieldsCk?.length) {
       obj.objectFieldsCk = message.objectFieldsCk;
     }
     if (message.condition !== undefined) {
@@ -4170,12 +4215,12 @@ export const PolicyRuleData = {
     const message = createBasePolicyRuleData();
     message.metatype = object.metatype ?? 0;
     message.subjectAuthenticated = object.subjectAuthenticated ?? false;
-    message.subjectUsersCk = object.subjectUsersCk ?? "";
+    message.subjectUsersCk = object.subjectUsersCk?.map((e) => e) || [];
     message.effect = object.effect ?? 0;
     message.verb = object.verb?.map((e) => e) || [];
-    message.objectType = object.objectType ?? "";
-    message.objectNodesCk = object.objectNodesCk ?? "";
-    message.objectFieldsCk = object.objectFieldsCk ?? "";
+    message.objectTypes = object.objectTypes?.map((e) => e) || [];
+    message.objectNodesCk = object.objectNodesCk?.map((e) => e) || [];
+    message.objectFieldsCk = object.objectFieldsCk?.map((e) => e) || [];
     message.condition =
       object.condition !== undefined && object.condition !== null
         ? ExpressionData.fromPartial(object.condition)
@@ -4953,8 +4998,10 @@ function createBaseBenchData(): BenchData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
+    policies: [],
     name: "",
     slug: "",
     description: "",
@@ -4995,11 +5042,17 @@ export const BenchData = {
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
     }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
+    }
+    for (const v of message.policies) {
+      PolicyData.encode(v!, writer.uint32(162).fork()).ldelim();
     }
     if (message.name !== "") {
       writer.uint32(242).string(message.name);
@@ -5096,6 +5149,13 @@ export const BenchData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -5109,6 +5169,13 @@ export const BenchData = {
           }
 
           message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.policies.push(PolicyData.decode(reader, reader.uint32()));
           continue;
         case 30:
           if (tag !== 242) {
@@ -5166,8 +5233,12 @@ export const BenchData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      policies: globalThis.Array.isArray(object?.policies)
+        ? object.policies.map((e: any) => PolicyData.fromJSON(e))
+        : [],
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       slug: isSet(object.slug) ? globalThis.String(object.slug) : "",
       description: isSet(object.description) ? globalThis.String(object.description) : "",
@@ -5208,11 +5279,17 @@ export const BenchData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
+    }
+    if (message.policies?.length) {
+      obj.policies = message.policies.map((e) => PolicyData.toJSON(e));
     }
     if (message.name !== "") {
       obj.name = message.name;
@@ -5247,8 +5324,10 @@ export const BenchData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.policies = object.policies?.map((e) => PolicyData.fromPartial(e)) || [];
     message.name = object.name ?? "";
     message.slug = object.slug ?? "";
     message.description = object.description ?? "";
@@ -5270,6 +5349,7 @@ function createBaseBlobData(): BlobData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     sha512: "",
     contentLength: 0,
@@ -5310,6 +5390,9 @@ export const BlobData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -5409,6 +5492,13 @@ export const BlobData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -5472,6 +5562,7 @@ export const BlobData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       sha512: isSet(object.sha512) ? globalThis.String(object.sha512) : "",
       contentLength: isSet(object.contentLength) ? globalThis.Number(object.contentLength) : 0,
@@ -5513,6 +5604,9 @@ export const BlobData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -5549,6 +5643,7 @@ export const BlobData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.sha512 = object.sha512 ?? "";
     message.contentLength = object.contentLength ?? 0;
@@ -5571,6 +5666,7 @@ function createBaseClientData(): ClientData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     type: 0,
     deviceName: "",
@@ -5611,6 +5707,9 @@ export const ClientData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -5710,6 +5809,13 @@ export const ClientData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -5773,6 +5879,7 @@ export const ClientData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       type: isSet(object.type) ? clientTypeFromJSON(object.type) : 0,
       deviceName: isSet(object.deviceName) ? globalThis.String(object.deviceName) : "",
@@ -5814,6 +5921,9 @@ export const ClientData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -5850,6 +5960,7 @@ export const ClientData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.type = object.type ?? 0;
     message.deviceName = object.deviceName ?? "";
@@ -5872,6 +5983,7 @@ function createBaseFieldData(): FieldData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     name: "",
     orderKey: "",
@@ -5879,7 +5991,7 @@ function createBaseFieldData(): FieldData {
     tag: 0,
     key: "",
     value: undefined,
-    hint: "",
+    hint: 0,
     flags: 0,
     referenceCk: "",
   };
@@ -5917,6 +6029,9 @@ export const FieldData = {
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
     }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
     }
@@ -5938,8 +6053,8 @@ export const FieldData = {
     if (message.value !== undefined) {
       Struct.encode(Struct.wrap(message.value), writer.uint32(282).fork()).ldelim();
     }
-    if (message.hint !== "") {
-      writer.uint32(290).string(message.hint);
+    if (message.hint !== 0) {
+      writer.uint32(288).int32(message.hint);
     }
     if (message.flags !== 0) {
       writer.uint32(296).int64(message.flags);
@@ -6027,6 +6142,13 @@ export const FieldData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -6077,11 +6199,11 @@ export const FieldData = {
           message.value = Struct.unwrap(Struct.decode(reader, reader.uint32()));
           continue;
         case 36:
-          if (tag !== 290) {
+          if (tag !== 288) {
             break;
           }
 
-          message.hint = reader.string();
+          message.hint = reader.int32() as any;
           continue;
         case 37:
           if (tag !== 296) {
@@ -6118,6 +6240,7 @@ export const FieldData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       orderKey: isSet(object.orderKey) ? globalThis.String(object.orderKey) : "",
@@ -6125,7 +6248,7 @@ export const FieldData = {
       tag: isSet(object.tag) ? typeTagFromJSON(object.tag) : 0,
       key: isSet(object.key) ? globalThis.String(object.key) : "",
       value: isObject(object.value) ? object.value : undefined,
-      hint: isSet(object.hint) ? globalThis.String(object.hint) : "",
+      hint: isSet(object.hint) ? typeHintFromJSON(object.hint) : 0,
       flags: isSet(object.flags) ? globalThis.Number(object.flags) : 0,
       referenceCk: isSet(object.referenceCk) ? globalThis.String(object.referenceCk) : "",
     };
@@ -6163,6 +6286,9 @@ export const FieldData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -6184,8 +6310,8 @@ export const FieldData = {
     if (message.value !== undefined) {
       obj.value = message.value;
     }
-    if (message.hint !== "") {
-      obj.hint = message.hint;
+    if (message.hint !== 0) {
+      obj.hint = typeHintToJSON(message.hint);
     }
     if (message.flags !== 0) {
       obj.flags = Math.round(message.flags);
@@ -6211,6 +6337,7 @@ export const FieldData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
@@ -6218,7 +6345,7 @@ export const FieldData = {
     message.tag = object.tag ?? 0;
     message.key = object.key ?? "";
     message.value = object.value ?? undefined;
-    message.hint = object.hint ?? "";
+    message.hint = object.hint ?? 0;
     message.flags = object.flags ?? 0;
     message.referenceCk = object.referenceCk ?? "";
     return message;
@@ -6540,6 +6667,7 @@ function createBaseIssueData(): IssueData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     type: 0,
     kind: 0,
@@ -6581,6 +6709,9 @@ export const IssueData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -6683,6 +6814,13 @@ export const IssueData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -6753,6 +6891,7 @@ export const IssueData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       type: isSet(object.type) ? issueTypeFromJSON(object.type) : 0,
       kind: isSet(object.kind) ? issueKindFromJSON(object.kind) : 0,
@@ -6797,6 +6936,9 @@ export const IssueData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -6836,6 +6978,7 @@ export const IssueData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.type = object.type ?? 0;
     message.kind = object.kind ?? 0;
@@ -6859,8 +7002,10 @@ function createBaseModuleData(): ModuleData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
+    policies: [],
     isSnapshot: false,
   };
 }
@@ -6897,11 +7042,17 @@ export const ModuleData = {
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
     }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
     }
     if (message.lastChangedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
+    }
+    for (const v of message.policies) {
+      PolicyData.encode(v!, writer.uint32(162).fork()).ldelim();
     }
     if (message.isSnapshot === true) {
       writer.uint32(256).bool(message.isSnapshot);
@@ -6986,6 +7137,13 @@ export const ModuleData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -6999,6 +7157,13 @@ export const ModuleData = {
           }
 
           message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 20:
+          if (tag !== 162) {
+            break;
+          }
+
+          message.policies.push(PolicyData.decode(reader, reader.uint32()));
           continue;
         case 32:
           if (tag !== 256) {
@@ -7028,8 +7193,12 @@ export const ModuleData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      policies: globalThis.Array.isArray(object?.policies)
+        ? object.policies.map((e: any) => PolicyData.fromJSON(e))
+        : [],
       isSnapshot: isSet(object.isSnapshot) ? globalThis.Boolean(object.isSnapshot) : false,
     };
   },
@@ -7066,11 +7235,17 @@ export const ModuleData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
+    }
+    if (message.policies?.length) {
+      obj.policies = message.policies.map((e) => PolicyData.toJSON(e));
     }
     if (message.isSnapshot === true) {
       obj.isSnapshot = message.isSnapshot;
@@ -7093,8 +7268,10 @@ export const ModuleData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.policies = object.policies?.map((e) => PolicyData.fromPartial(e)) || [];
     message.isSnapshot = object.isSnapshot ?? false;
     return message;
   },
@@ -7112,6 +7289,7 @@ function createBaseBaseNodeData(): BaseNodeData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
   };
 }
@@ -7147,6 +7325,9 @@ export const BaseNodeData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -7231,6 +7412,13 @@ export const BaseNodeData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -7259,6 +7447,7 @@ export const BaseNodeData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
     };
   },
@@ -7295,6 +7484,9 @@ export const BaseNodeData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -7316,6 +7508,7 @@ export const BaseNodeData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     return message;
   },
@@ -7634,6 +7827,7 @@ function createBaseRecordData(): RecordData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     value: undefined,
   };
@@ -7670,6 +7864,9 @@ export const RecordData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -7757,6 +7954,13 @@ export const RecordData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -7792,6 +7996,7 @@ export const RecordData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       value: isObject(object.value) ? object.value : undefined,
     };
@@ -7829,6 +8034,9 @@ export const RecordData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -7853,6 +8061,7 @@ export const RecordData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.value = object.value ?? undefined;
     return message;
@@ -7871,6 +8080,7 @@ function createBaseResolvedFieldData(): ResolvedFieldData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     name: "",
     orderKey: "",
@@ -7878,7 +8088,7 @@ function createBaseResolvedFieldData(): ResolvedFieldData {
     tag: 0,
     key: "",
     value: undefined,
-    hint: "",
+    hint: 0,
     flags: 0,
     referenceCk: "",
     fieldCk: "",
@@ -7917,6 +8127,9 @@ export const ResolvedFieldData = {
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
     }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
     }
@@ -7938,8 +8151,8 @@ export const ResolvedFieldData = {
     if (message.value !== undefined) {
       Struct.encode(Struct.wrap(message.value), writer.uint32(282).fork()).ldelim();
     }
-    if (message.hint !== "") {
-      writer.uint32(290).string(message.hint);
+    if (message.hint !== 0) {
+      writer.uint32(288).int32(message.hint);
     }
     if (message.flags !== 0) {
       writer.uint32(296).int64(message.flags);
@@ -8030,6 +8243,13 @@ export const ResolvedFieldData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -8080,11 +8300,11 @@ export const ResolvedFieldData = {
           message.value = Struct.unwrap(Struct.decode(reader, reader.uint32()));
           continue;
         case 36:
-          if (tag !== 290) {
+          if (tag !== 288) {
             break;
           }
 
-          message.hint = reader.string();
+          message.hint = reader.int32() as any;
           continue;
         case 37:
           if (tag !== 296) {
@@ -8128,6 +8348,7 @@ export const ResolvedFieldData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       orderKey: isSet(object.orderKey) ? globalThis.String(object.orderKey) : "",
@@ -8135,7 +8356,7 @@ export const ResolvedFieldData = {
       tag: isSet(object.tag) ? typeTagFromJSON(object.tag) : 0,
       key: isSet(object.key) ? globalThis.String(object.key) : "",
       value: isObject(object.value) ? object.value : undefined,
-      hint: isSet(object.hint) ? globalThis.String(object.hint) : "",
+      hint: isSet(object.hint) ? typeHintFromJSON(object.hint) : 0,
       flags: isSet(object.flags) ? globalThis.Number(object.flags) : 0,
       referenceCk: isSet(object.referenceCk) ? globalThis.String(object.referenceCk) : "",
       fieldCk: isSet(object.fieldCk) ? globalThis.String(object.fieldCk) : "",
@@ -8174,6 +8395,9 @@ export const ResolvedFieldData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -8195,8 +8419,8 @@ export const ResolvedFieldData = {
     if (message.value !== undefined) {
       obj.value = message.value;
     }
-    if (message.hint !== "") {
-      obj.hint = message.hint;
+    if (message.hint !== 0) {
+      obj.hint = typeHintToJSON(message.hint);
     }
     if (message.flags !== 0) {
       obj.flags = Math.round(message.flags);
@@ -8225,6 +8449,7 @@ export const ResolvedFieldData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
@@ -8232,7 +8457,7 @@ export const ResolvedFieldData = {
     message.tag = object.tag ?? 0;
     message.key = object.key ?? "";
     message.value = object.value ?? undefined;
-    message.hint = object.hint ?? "";
+    message.hint = object.hint ?? 0;
     message.flags = object.flags ?? 0;
     message.referenceCk = object.referenceCk ?? "";
     message.fieldCk = object.fieldCk ?? "";
@@ -8252,6 +8477,7 @@ function createBaseRunData(): RunData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
     sessionId: "",
@@ -8263,7 +8489,7 @@ function createBaseRunData(): RunData {
     scheduledAt: undefined,
     startedAt: undefined,
     terminatedAt: undefined,
-    triggerType: "",
+    triggerType: 0,
     triggerId: "",
     accessLevel: 0,
     status: 0,
@@ -8306,6 +8532,9 @@ export const RunData = {
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
     }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
     }
@@ -8339,8 +8568,8 @@ export const RunData = {
     if (message.terminatedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.terminatedAt), writer.uint32(306).fork()).ldelim();
     }
-    if (message.triggerType !== "") {
-      writer.uint32(314).string(message.triggerType);
+    if (message.triggerType !== 0) {
+      writer.uint32(312).int32(message.triggerType);
     }
     if (message.triggerId !== "") {
       writer.uint32(322).string(message.triggerId);
@@ -8443,6 +8672,13 @@ export const RunData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -8521,11 +8757,11 @@ export const RunData = {
           message.terminatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 39:
-          if (tag !== 314) {
+          if (tag !== 312) {
             break;
           }
 
-          message.triggerType = reader.string();
+          message.triggerType = reader.int32() as any;
           continue;
         case 40:
           if (tag !== 322) {
@@ -8597,6 +8833,7 @@ export const RunData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
       sessionId: isSet(object.sessionId) ? globalThis.String(object.sessionId) : "",
@@ -8608,7 +8845,7 @@ export const RunData = {
       scheduledAt: isSet(object.scheduledAt) ? fromJsonTimestamp(object.scheduledAt) : undefined,
       startedAt: isSet(object.startedAt) ? fromJsonTimestamp(object.startedAt) : undefined,
       terminatedAt: isSet(object.terminatedAt) ? fromJsonTimestamp(object.terminatedAt) : undefined,
-      triggerType: isSet(object.triggerType) ? globalThis.String(object.triggerType) : "",
+      triggerType: isSet(object.triggerType) ? triggerTypeFromJSON(object.triggerType) : 0,
       triggerId: isSet(object.triggerId) ? globalThis.String(object.triggerId) : "",
       accessLevel: isSet(object.accessLevel) ? globalThis.Number(object.accessLevel) : 0,
       status: isSet(object.status) ? runStatusFromJSON(object.status) : 0,
@@ -8651,6 +8888,9 @@ export const RunData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -8684,8 +8924,8 @@ export const RunData = {
     if (message.terminatedAt !== undefined) {
       obj.terminatedAt = message.terminatedAt.toISOString();
     }
-    if (message.triggerType !== "") {
-      obj.triggerType = message.triggerType;
+    if (message.triggerType !== 0) {
+      obj.triggerType = triggerTypeToJSON(message.triggerType);
     }
     if (message.triggerId !== "") {
       obj.triggerId = message.triggerId;
@@ -8726,6 +8966,7 @@ export const RunData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.sessionId = object.sessionId ?? "";
@@ -8737,7 +8978,7 @@ export const RunData = {
     message.scheduledAt = object.scheduledAt ?? undefined;
     message.startedAt = object.startedAt ?? undefined;
     message.terminatedAt = object.terminatedAt ?? undefined;
-    message.triggerType = object.triggerType ?? "";
+    message.triggerType = object.triggerType ?? 0;
     message.triggerId = object.triggerId ?? "";
     message.accessLevel = object.accessLevel ?? 0;
     message.status = object.status ?? 0;
@@ -8761,6 +9002,7 @@ function createBaseSecretData(): SecretData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     sha512: "",
     value: "",
@@ -8798,6 +9040,9 @@ export const SecretData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -8888,6 +9133,13 @@ export const SecretData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -8930,6 +9182,7 @@ export const SecretData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       sha512: isSet(object.sha512) ? globalThis.String(object.sha512) : "",
       value: isSet(object.value) ? globalThis.String(object.value) : "",
@@ -8968,6 +9221,9 @@ export const SecretData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -8995,6 +9251,7 @@ export const SecretData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.sha512 = object.sha512 ?? "";
     message.value = object.value ?? "";
@@ -9014,6 +9271,7 @@ function createBaseSessionData(): SessionData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
     accessLevel: 0,
@@ -9059,6 +9317,9 @@ export const SessionData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -9173,6 +9434,13 @@ export const SessionData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -9271,6 +9539,7 @@ export const SessionData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
       accessLevel: isSet(object.accessLevel) ? globalThis.Number(object.accessLevel) : 0,
@@ -9316,6 +9585,9 @@ export const SessionData = {
     }
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
     }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
@@ -9368,6 +9640,7 @@ export const SessionData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.accessLevel = object.accessLevel ?? 0;
@@ -9826,6 +10099,7 @@ function createBaseTaggingData(): TaggingData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     key: "",
     value: undefined,
@@ -9864,6 +10138,9 @@ export const TaggingData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -9957,6 +10234,13 @@ export const TaggingData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -10006,6 +10290,7 @@ export const TaggingData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       key: isSet(object.key) ? globalThis.String(object.key) : "",
       value: isObject(object.value) ? object.value : undefined,
@@ -10045,6 +10330,9 @@ export const TaggingData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -10075,6 +10363,7 @@ export const TaggingData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.key = object.key ?? "";
     message.value = object.value ?? undefined;
@@ -10095,10 +10384,11 @@ function createBaseTriggerData(): TriggerData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     type: 0,
     active: false,
-    scheduleType: "",
+    scheduleType: 0,
     timezone: "",
     interval: 0,
     cron: "",
@@ -10137,6 +10427,9 @@ export const TriggerData = {
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
     }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
     }
@@ -10146,8 +10439,8 @@ export const TriggerData = {
     if (message.active === true) {
       writer.uint32(248).bool(message.active);
     }
-    if (message.scheduleType !== "") {
-      writer.uint32(258).string(message.scheduleType);
+    if (message.scheduleType !== 0) {
+      writer.uint32(256).int32(message.scheduleType);
     }
     if (message.timezone !== "") {
       writer.uint32(266).string(message.timezone);
@@ -10238,6 +10531,13 @@ export const TriggerData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -10260,11 +10560,11 @@ export const TriggerData = {
           message.active = reader.bool();
           continue;
         case 32:
-          if (tag !== 258) {
+          if (tag !== 256) {
             break;
           }
 
-          message.scheduleType = reader.string();
+          message.scheduleType = reader.int32() as any;
           continue;
         case 33:
           if (tag !== 266) {
@@ -10308,10 +10608,11 @@ export const TriggerData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       type: isSet(object.type) ? triggerTypeFromJSON(object.type) : 0,
       active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
-      scheduleType: isSet(object.scheduleType) ? globalThis.String(object.scheduleType) : "",
+      scheduleType: isSet(object.scheduleType) ? scheduleTypeFromJSON(object.scheduleType) : 0,
       timezone: isSet(object.timezone) ? globalThis.String(object.timezone) : "",
       interval: isSet(object.interval) ? globalThis.Number(object.interval) : 0,
       cron: isSet(object.cron) ? globalThis.String(object.cron) : "",
@@ -10350,6 +10651,9 @@ export const TriggerData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -10359,8 +10663,8 @@ export const TriggerData = {
     if (message.active === true) {
       obj.active = message.active;
     }
-    if (message.scheduleType !== "") {
-      obj.scheduleType = message.scheduleType;
+    if (message.scheduleType !== 0) {
+      obj.scheduleType = scheduleTypeToJSON(message.scheduleType);
     }
     if (message.timezone !== "") {
       obj.timezone = message.timezone;
@@ -10389,10 +10693,11 @@ export const TriggerData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.type = object.type ?? 0;
     message.active = object.active ?? false;
-    message.scheduleType = object.scheduleType ?? "";
+    message.scheduleType = object.scheduleType ?? 0;
     message.timezone = object.timezone ?? "";
     message.interval = object.interval ?? 0;
     message.cron = object.cron ?? "";
@@ -10412,6 +10717,7 @@ function createBaseUserData(): UserData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     username: "",
     email: "",
@@ -10449,6 +10755,9 @@ export const UserData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -10539,6 +10848,13 @@ export const UserData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -10581,6 +10897,7 @@ export const UserData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       username: isSet(object.username) ? globalThis.String(object.username) : "",
       email: isSet(object.email) ? globalThis.String(object.email) : "",
@@ -10619,6 +10936,9 @@ export const UserData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -10646,6 +10966,7 @@ export const UserData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.username = object.username ?? "";
     message.email = object.email ?? "";
@@ -10665,6 +10986,7 @@ function createBaseViewData(): ViewData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
     policies: [],
@@ -10707,6 +11029,9 @@ export const ViewData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -10812,6 +11137,13 @@ export const ViewData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -10889,6 +11221,7 @@ export const ViewData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
       policies: globalThis.Array.isArray(object?.policies)
@@ -10934,6 +11267,9 @@ export const ViewData = {
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
     }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
@@ -10976,6 +11312,7 @@ export const ViewData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.policies = object.policies?.map((e) => PolicyData.fromPartial(e)) || [];
@@ -11001,6 +11338,7 @@ function createBaseWorkerSetData(): WorkerSetData {
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
+    archivedAt: undefined,
     lastEditedAt: undefined,
     region: 0,
     profile: 0,
@@ -11046,6 +11384,9 @@ export const WorkerSetData = {
     }
     if (message.deletedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
@@ -11160,6 +11501,13 @@ export const WorkerSetData = {
 
           message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 15:
           if (tag !== 122) {
             break;
@@ -11258,6 +11606,7 @@ export const WorkerSetData = {
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       region: isSet(object.region) ? projectRegionFromJSON(object.region) : 0,
       profile: isSet(object.profile) ? workerProfileFromJSON(object.profile) : 0,
@@ -11303,6 +11652,9 @@ export const WorkerSetData = {
     }
     if (message.deletedAt !== undefined) {
       obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
     }
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
@@ -11355,6 +11707,7 @@ export const WorkerSetData = {
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
     message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.region = object.region ?? 0;
     message.profile = object.profile ?? 0;

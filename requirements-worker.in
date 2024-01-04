@@ -40,7 +40,6 @@ jedi==0.17.2
 jinja2==3.1.2
 jq==1.6.0
 jsonschema==4.16.0
-langchain==0.0.236
 langcodes==3.3.0
 linkedin_scraper==2.11.2
 lxml==4.9.1

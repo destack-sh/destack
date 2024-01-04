@@ -21,20 +21,21 @@ class Policy(Struct):
 
 @struct(StructType.POLICY_RULE)
 class PolicyRule(Struct):
-    """A rule in a policy of the form subject + verb + object [if condition]."""
+    """A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition]."""
 
     # subject
     subject_authenticated: bool = struct_internal(30, default=False)
-    subject_users: Optional[list["User"]] = struct_internal(31, references=NodeType.USER)
-    # principal_groups, principal_roles, ...
-    # nocheckin: ensure policy serializes correctly (PolicyRuleData.verb etc. is str??)
+    subject_users: Optional[list["User"]] = struct_internal(
+        31, array=True, references=NodeType.USER
+    )
+    # subject_groups, subject_roles, ...
     # verb
     effect: PolicyEffect = struct_internal(40, default=PolicyEffect.ALLOW)
     verb: Optional[list[ActionKind]] = struct_internal(41, default=None)
     # object
-    object_type: Optional[BenchType] = struct_internal(50, default=None)
-    object_nodes: list[Node] | None = struct_internal(51, references=tuple(NodeType))
-    object_fields: list["Field"] | None = struct_internal(52, references=NodeType.FIELD)
+    object_types: Optional[list[BenchType]] = struct_internal(50, default=None)
+    object_nodes: list[Node] | None = struct_internal(51, array=True, references=tuple(NodeType))
+    object_fields: list["Field"] | None = struct_internal(52, array=True, references=NodeType.FIELD)
     # [condition]
     condition: Optional["Expression"] = struct_internal(
         60, default=None, struct_t=StructType.EXPRESSION

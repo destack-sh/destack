@@ -55,7 +55,7 @@ from bench.language.validation import (
 )
 from bench.proto import wire
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, ModuleTreeData, SomeNodeData
+from bench.proto.wire import EditData, SomeNodeData
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -78,7 +78,16 @@ from bench.utils.utils import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Field, File, Issue, NodeVisitor, Session, symbolx_lib
+    from bench.language import (
+        Expression,
+        Field,
+        File,
+        Issue,
+        NodeVisitor,
+        Policy,
+        Session,
+        symbolx_lib,
+    )
     from bench.language.issue import IssueHandler
     from bench.proto.wiring import AnyNodeData
 
@@ -469,7 +478,7 @@ class Property(_FieldExpressionBase):
 
     @property
     def is_enum(self):
-        return isinstance(self.py_type_raw, enum.EnumMeta)
+        return isinstance(self.py_type_stripped, enum.EnumMeta)
 
     def equals_type(self, other: "Property") -> bool:
         """Compares everything but the source component."""
@@ -605,6 +614,7 @@ class Property(_FieldExpressionBase):
                 return (ancestor_id_prop,)
         elif self.references is not None:
             # regular reference to node (via ck, resolved during interp)
+            assert self.is_array is not UNSET, f"must set is_array on {self!r}"
             reference_ck_prop = Property(
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_ck",
@@ -616,7 +626,7 @@ class Property(_FieldExpressionBase):
                 is_real=True,
                 is_wired=True,
                 is_stored=True,
-                is_array=False,
+                is_array=self.is_array,
                 is_indexed_in_pg=self.is_indexed_in_pg,
                 column_type=ColumnType.UUID,
             )
@@ -663,6 +673,7 @@ def struct_property(
     require: bool = False,
     reflect: bool = False,
     unique: bool = False,
+    array: bool = UNSET,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
     struct_t: StructType = None,
@@ -682,6 +693,7 @@ def struct_property(
         struct_type=struct_t,
         column_type=column_type,
         is_unique=unique,
+        is_array=array,
     )
 
 
@@ -699,6 +711,7 @@ def struct_internal(
     store: bool = UNSET,
     column_type: ColumnType = UNSET,
     index_in_pg: bool = False,
+    array: bool = UNSET,
     defer: bool = False,
     encrypt: bool = False,
     unique: bool = False,
@@ -717,6 +730,7 @@ def struct_internal(
         is_stored=store,
         struct_type=struct_t,
         column_type=column_type,
+        is_array=array,
         is_deferred=defer,
         is_encrypted=encrypt,
         is_indexed_in_pg=index_in_pg,
@@ -1761,10 +1775,6 @@ class NodeTreeBase(abc.ABC, typing.Generic[NT]):
         """Remove a node from the tree (incl. all descendants if recursive)"""
         raise NotImplementedError
 
-    def truncate(self, node: NT, node_type: NodeType):
-        """Remove all descendants of a node"""
-        raise NotImplementedError
-
     def get_descendants(
         self,
         node_id: UUID,
@@ -1909,19 +1919,6 @@ class NodeTree(NodeTreeBase[NT]):
             descendant_parent_id = to_uuid(descendant.parent_id)
             if descendant_parent_id in self.node_id_by_parent_id:
                 self.node_id_by_parent_id[descendant_parent_id].remove(descendant_id)
-
-    def truncate(self, node: NT, node_type: NodeType, recursive: bool = True):
-        """Truncate descendants of a node"""
-        descendants = self.get_descendants(to_uuid(node.id), node_type, recursive=recursive)
-        for descendant in descendants:
-            descendant_id = to_uuid(descendant.id)
-            if descendant_id in self.node_id_by_parent_id:
-                self.node_id_by_parent_id.pop(descendant_id)
-            descendant_parent_id = to_uuid(descendant.parent_id)
-            if descendant_parent_id in self.node_id_by_parent_id:
-                self.node_id_by_parent_id[descendant_parent_id].remove(descendant_id)
-            self.nodes_by_id.pop(descendant_id)
-            self.nodes_by_ck.pop(to_uuid(descendant.ck))
 
     def prune(self, t: type[NT]):
         """Prune all nodes of the given type"""
@@ -2192,16 +2189,6 @@ class DetachedNodeTree(NodeTreeBase[NT]):
                 self.nodes_by_parent_ck[to_uuid(descendant.parent.ck)].remove(descendant)
             if descendant_ck in self.nodes_by_ck:
                 self.nodes_by_ck.pop(descendant_ck)
-
-    def truncate(self, node: "Node", node_type: NodeType):
-        """Remove all descendants of a node"""
-        descendants = self.get_descendants(to_uuid(node.ck), node_type, recursive=True)
-        for descendant in descendants:
-            if descendant.ck in self.nodes_by_parent_ck:
-                self.nodes_by_parent_ck.pop(descendant.ck)
-            if descendant.parent and descendant.parent.ck in self.nodes_by_parent_ck:
-                self.nodes_by_parent_ck[descendant.parent.ck].remove(descendant)
-            self.nodes_by_ck.pop(descendant.ck)
 
     def get_descendants(
         self,
@@ -2505,15 +2492,14 @@ class Node(Struct):
     created_at: datetime = struct_internal(11, default=None, require=True, reflect=True)
     updated_at: datetime = struct_internal(12, default=None, require=True, reflect=True)
     deleted_at: datetime = struct_internal(13, default=None, reflect=True)
-    # only some nodes can be archived (File/Statement)
-    # archived_at: datetime = struct_internal(14, default=None, reflect=True)
+    archived_at: datetime = struct_internal(14, default=None, reflect=True)
     last_edited_at: datetime = struct_internal(15, default=None, require=True, reflect=True)
     # only scope nodes can have 'inner' changes
     # last_changed_at: datetime = struct_internal(16, default=None, reflect=True)
-    # created_by: Optional["User"] = struct_internal(17, default=None, reflect=True)
-    # last_edited_by: Optional["User"] = struct_internal(18, default=None, reflect=True)
-    # last_changed_by: Optional["User"] = struct_internal(19, default=None, reflect=True)
-    # policies: Optional[list["Policy"]] = struct_internal(20, default=None, struct_t=StructType.POLICY)
+    # created_by: ... = struct_internal(17, default=None, reflect=True)
+    # last_edited_by: ... = struct_internal(18, default=None, reflect=True)
+    # last_changed_by: ... = struct_internal(19, default=None, reflect=True)
+    # policies: ... = struct_internal(20, default=None, struct_t=StructType.POLICY)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
@@ -3075,6 +3061,9 @@ class Bench(ScopeNode):
     """
 
     parent: None = node_parent(4)
+    policies: Optional[list["Policy"]] = struct_internal(
+        20, default_factory=list, struct_t=StructType.POLICY
+    )
     name: str = struct_internal(30)
     slug: str = struct_internal(31)
     description: str = struct_internal(32, default=None)
@@ -3119,6 +3108,9 @@ class ModuleChange:
 @node(NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
     parent: Bench = node_parent(4, NodeType.BENCH)
+    policies: Optional[list["Policy"]] = struct_internal(
+        20, default_factory=list, struct_t=StructType.POLICY
+    )
     is_main: bool = struct_internal(31, default=False, store=False)  # main environment?
     is_snapshot: bool = struct_internal(32, default=False)  # snapshot or head?
 
@@ -3387,7 +3379,6 @@ class Module(ScopeNode):
 #     kind: EditKind = struct_internal(20)
 #     module: "Module" = struct_internal(21, references=NodeType.MODULE)
 #     node: "Node" = --> <???> <--
-#     scope: NodeType | None = struct_internal(23, default=None)  # select children for truncate
 #     revision: Optional[int] = struct_internal(23, default=None)
 #     properties: list[str] = struct_internal(24, default=None)
 
@@ -3449,9 +3440,6 @@ class NodeTreeEditor:
             return wiring.pack_node(node)
         else:
             return dataclasses.replace(node)  # shallow copy
-
-    def truncate(self, node: EditableNode, scope: NodeType) -> EditData:
-        return self._make_edit(EditKind.TRUNCATE, node, scope=scope)
 
     def create_many(self, *nodes: EditableNode) -> list[EditData]:
         return [self.create(node) for node in nodes]
@@ -3538,40 +3526,6 @@ class EditBundle:
                 except ValueError:
                     if raise_on_error:
                         raise
-
-
-def diff_modules(
-    old_module: ModuleTreeData, new_module: ModuleTreeData, bench_id: UUID
-) -> list[EditData]:
-    """
-    Get the edits needed to transform old_module into new_module.
-    Find nodes by their id (not ck).
-    """
-    old_tree = NodeTree(old_module.nodes)
-    editor = NodeTreeEditor(old_tree, old_module.id, bench_id)
-    new_tree = NodeTree(new_module.nodes)
-
-    for new_node in new_tree.walk_bfs():
-        if new_node.metatype == NodeType.MODULE:
-            continue  # ignore module itself
-        if new_node.id not in old_tree.nodes_by_id:
-            old_tree.apply_edit(editor.create(new_node))
-        else:
-            old_node = old_tree.nodes_by_id[new_node.id]
-            if not new_node.equals_content(old_node):
-                old_tree.apply_edit(editor.update(new_node))
-    for old_node in old_tree.walk_bfs():
-        if old_node.metatype == NodeType.MODULE:
-            continue
-        if old_node.id not in new_tree.nodes_by_id:
-            old_tree.apply_edit(editor.delete(old_node))
-    # sort into delete -> create -> update
-    edits = [
-        *(e for e in editor.edits if e.type.kind == EditKind.DELETE),
-        *(e for e in editor.edits if e.type.kind == EditKind.CREATE),
-        *(e for e in editor.edits if e.type.kind == EditKind.UPDATE),
-    ]
-    return edits
 
 
 _FINAL_BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}

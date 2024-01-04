@@ -25,9 +25,8 @@ if TYPE_CHECKING:
 @node(NodeType.FILE, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
     parent: Union["File", Module] = node_parent(4, NodeType.FILE, NodeType.MODULE)
-    archived_at: datetime = struct_internal(14, default=None, reflect=True)
     policies: Optional[list["Policy"]] = struct_internal(
-        20, default=None, struct_t=StructType.POLICY
+        20, default_factory=list, struct_t=StructType.POLICY
     )
     name: Optional[str] = struct_property(30, validate=validate_name)
     order_key: Optional[str] = struct_internal(31, default=None, unique=True)

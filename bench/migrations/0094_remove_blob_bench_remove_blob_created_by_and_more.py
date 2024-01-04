@@ -249,6 +249,10 @@ class Migration(migrations.Migration):
             model_name="trigger",
             name="parent_statement",
         ),
+        migrations.RemoveField(
+            model_name="module",
+            name="last_edited_in",
+        ),
         # not scary: doesn't actually delete because these aren't managed by Django anymore
         migrations.DeleteModel(
             name="Notification",

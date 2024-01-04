@@ -43,8 +43,8 @@ def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThin
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
     if prop.is_struct or prop.is_enum and prop.column_type == ColumnType.STRING:
-        struct_type = bench_t_to_proto_t(prop.py_type_stripped, cache)
-        return Field(id=prop.id, name=prop.name, type=struct_type, repeated=prop.is_array)
+        proto_t = bench_t_to_proto_t(prop.py_type_stripped, cache)
+        return Field(id=prop.id, name=prop.name, type=proto_t, repeated=prop.is_array)
     elif prop.column_type in PROTO_FIELD_TYPE_BY_COLUMN_TYPE:
         field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.column_type]
         return Field(id=prop.id, name=prop.name, type=field_type, repeated=prop.is_array)

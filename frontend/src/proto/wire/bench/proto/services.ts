@@ -92,7 +92,6 @@ export interface EditData {
   kind: EditKind;
   moduleId: string;
   node: SomeNodeData | undefined;
-  target: NodeType;
   revision: number;
   properties: string[];
 }
@@ -396,7 +395,7 @@ export interface KillRunResponse {
 }
 
 function createBaseEditData(): EditData {
-  return { kind: 0, moduleId: "", node: undefined, target: 0, revision: 0, properties: [] };
+  return { kind: 0, moduleId: "", node: undefined, revision: 0, properties: [] };
 }
 
 export const EditData = {
@@ -410,14 +409,11 @@ export const EditData = {
     if (message.node !== undefined) {
       SomeNodeData.encode(message.node, writer.uint32(26).fork()).ldelim();
     }
-    if (message.target !== 0) {
-      writer.uint32(32).int32(message.target);
-    }
     if (message.revision !== 0) {
-      writer.uint32(40).int64(message.revision);
+      writer.uint32(32).int64(message.revision);
     }
     for (const v of message.properties) {
-      writer.uint32(50).string(v!);
+      writer.uint32(42).string(v!);
     }
     return writer;
   },
@@ -455,17 +451,10 @@ export const EditData = {
             break;
           }
 
-          message.target = reader.int32() as any;
-          continue;
-        case 5:
-          if (tag !== 40) {
-            break;
-          }
-
           message.revision = longToNumber(reader.int64() as Long);
           continue;
-        case 6:
-          if (tag !== 50) {
+        case 5:
+          if (tag !== 42) {
             break;
           }
 
@@ -485,7 +474,6 @@ export const EditData = {
       kind: isSet(object.kind) ? editKindFromJSON(object.kind) : 0,
       moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
       node: isSet(object.node) ? SomeNodeData.fromJSON(object.node) : undefined,
-      target: isSet(object.target) ? nodeTypeFromJSON(object.target) : 0,
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       properties: globalThis.Array.isArray(object?.properties)
         ? object.properties.map((e: any) => globalThis.String(e))
@@ -503,9 +491,6 @@ export const EditData = {
     }
     if (message.node !== undefined) {
       obj.node = SomeNodeData.toJSON(message.node);
-    }
-    if (message.target !== 0) {
-      obj.target = nodeTypeToJSON(message.target);
     }
     if (message.revision !== 0) {
       obj.revision = Math.round(message.revision);
@@ -525,7 +510,6 @@ export const EditData = {
     message.moduleId = object.moduleId ?? "";
     message.node =
       object.node !== undefined && object.node !== null ? SomeNodeData.fromPartial(object.node) : undefined;
-    message.target = object.target ?? 0;
     message.revision = object.revision ?? 0;
     message.properties = object.properties?.map((e) => e) || [];
     return message;

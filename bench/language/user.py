@@ -4,7 +4,7 @@ from bench.language.const import ClientType, NodeType, NotificationStatus, Notif
 from bench.language.module import Node, node, node_parent, struct_internal
 
 
-@node(NodeType.USER, managed=False)
+@node(NodeType.USER, managed=False, detached=True)
 class User(Node):
     """A (global) Bench user."""
 
@@ -37,4 +37,3 @@ class Notification(Node):
     status: NotificationStatus = struct_internal(31)
     expires_at: datetime = struct_internal(32)
     read_at: datetime = struct_internal(33)
-    archived_at: datetime = struct_internal(14)

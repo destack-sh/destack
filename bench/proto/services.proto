@@ -15,9 +15,8 @@ message EditData {
   EditKind kind = 1;
   string module_id = 2;
   SomeNodeData node = 3;
-  NodeType target = 4;
-  int64 revision = 5;
-  repeated string properties = 6;
+  int64 revision = 4;
+  repeated string properties = 5;
 }
 
 message ClientOrigin {
