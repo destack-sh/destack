@@ -1164,6 +1164,7 @@ def node(
     detached: bool = False,
     managed: bool = True,
     stored: bool = True,
+    stored_custom: bool = False,
     index_in_os: bool = False,
     local: bool = False,
     reserved: set[str | int] = None,
@@ -1179,6 +1180,7 @@ def node(
         )
         cls.__is_managed__ = managed
         cls.__is_stored__ = stored
+        cls.__is_stored_custom__ = stored_custom
         cls.__is_indexed_in_os__ = index_in_os
         cls.__is_local__ = local
         return cls
@@ -2474,6 +2476,7 @@ class Node(Struct):
     __is_detached__: ClassVar[bool] = False  # not part of inline module tree
     __is_managed__: ClassVar[bool] = False  # storage fully controlled by Bench runtime
     __is_stored__: ClassVar[bool] = False  # stored in PG (runtime or local)
+    __is_stored_custom__: ClassVar[bool] = False  # custom PG storage logic (for records)
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
 

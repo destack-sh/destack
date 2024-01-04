@@ -9,7 +9,6 @@ from django.db.models import Q
 
 from bench import models
 from bench.language.const import ACTIVE_RUN_STATUSES, PENDING_RUN_STATUSES, WorkerSetStatus
-from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.runtime import k8
 from bench.runtime.host import RuntimeHost
@@ -123,10 +122,8 @@ class RuntimeSupervisor(Monitored):
         log.info("worker_observer.wait_until_healthy.done")
 
     async def run(self):
-        await nc_init.wait()
         logger.info("start")
 
-        logger.info("load_modules")
         benches = await sync_to_async(_get_benches_to_manage)()
         self._worker_sets_by_bench_id = {
             ws.bench_id: ws

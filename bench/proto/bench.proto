@@ -40,17 +40,19 @@ enum BenchType {
   BENCH_TYPE_FIELD = 10;
   BENCH_TYPE_RECORD = 11;
   BENCH_TYPE_VIEW = 12;
-  BENCH_TYPE_ISSUE = 20;
-  BENCH_TYPE_RESOLVED_FIELD = 21;
-  BENCH_TYPE_BLOB = 40;
-  BENCH_TYPE_SECRET = 41;
+  BENCH_TYPE_BLOB = 14;
+  BENCH_TYPE_SECRET = 15;
+  BENCH_TYPE_ISSUE = 16;
+  BENCH_TYPE_RESOLVED_FIELD = 17;
+  BENCH_TYPE_WORKER_SET = 40;
   BENCH_TYPE_SESSION = 60;
   BENCH_TYPE_RUN = 61;
-  BENCH_TYPE_WORKER_SET = 69;
-  BENCH_TYPE_USER = 80;
-  BENCH_TYPE_CLIENT = 84;
-  BENCH_TYPE_BADGE = 85;
-  BENCH_TYPE_NOTIFICATION = 99;
+  BENCH_TYPE_SIGNAL = 70;
+  BENCH_TYPE_HALT = 71;
+  BENCH_TYPE_USER = 100;
+  BENCH_TYPE_CLIENT = 104;
+  BENCH_TYPE_BADGE = 105;
+  BENCH_TYPE_NOTIFICATION = 107;
   BENCH_TYPE_POLICY = 200;
   BENCH_TYPE_POLICY_RULE = 201;
   BENCH_TYPE_EXPRESSION = 210;
@@ -203,17 +205,19 @@ enum NodeType {
   NODE_TYPE_FIELD = 10;
   NODE_TYPE_RECORD = 11;
   NODE_TYPE_VIEW = 12;
-  NODE_TYPE_ISSUE = 20;
-  NODE_TYPE_RESOLVED_FIELD = 21;
-  NODE_TYPE_BLOB = 40;
-  NODE_TYPE_SECRET = 41;
+  NODE_TYPE_BLOB = 14;
+  NODE_TYPE_SECRET = 15;
+  NODE_TYPE_ISSUE = 16;
+  NODE_TYPE_RESOLVED_FIELD = 17;
+  NODE_TYPE_WORKER_SET = 40;
   NODE_TYPE_SESSION = 60;
   NODE_TYPE_RUN = 61;
-  NODE_TYPE_WORKER_SET = 69;
-  NODE_TYPE_USER = 80;
-  NODE_TYPE_CLIENT = 84;
-  NODE_TYPE_BADGE = 85;
-  NODE_TYPE_NOTIFICATION = 99;
+  NODE_TYPE_SIGNAL = 70;
+  NODE_TYPE_HALT = 71;
+  NODE_TYPE_USER = 100;
+  NODE_TYPE_CLIENT = 104;
+  NODE_TYPE_BADGE = 105;
+  NODE_TYPE_NOTIFICATION = 107;
 }
 
 enum NotificationStatus {
@@ -267,7 +271,7 @@ enum RunStatus {
   RUN_STATUS_SCHEDULED = 1;
   RUN_STATUS_QUEUED = 2;
   RUN_STATUS_RUNNING = 3;
-  RUN_STATUS_SUSPENDED = 4;
+  RUN_STATUS_HALTED = 4;
   RUN_STATUS_ABORTING = 5;
   RUN_STATUS_CANCELLED = 6;
   RUN_STATUS_ABORTED = 7;
@@ -675,6 +679,21 @@ message FileData {
   string order_key = 31;
 }
 
+message HaltData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  string module_id = 5;
+  string bench_id = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+}
+
 message IssueData {
   BenchType metatype = 1;
   string id = 2;
@@ -864,6 +883,25 @@ message SessionData {
   int64 inference_retries = 38;
 }
 
+message SignalData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  string module_id = 5;
+  string bench_id = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  string type_ck = 30;
+  google.protobuf.Struct value = 31;
+  string source_run_ck = 32;
+  string source_statement_ck = 33;
+}
+
 message StatementData {
   BenchType metatype = 1;
   string id = 2;
@@ -1005,17 +1043,19 @@ message SomeNodeData {
     FieldData field = 7;
     RecordData record = 8;
     ViewData view = 9;
-    IssueData issue = 10;
-    ResolvedFieldData resolved_field = 11;
-    BlobData blob = 12;
-    SecretData secret = 13;
-    SessionData session = 14;
-    RunData run = 15;
-    WorkerSetData worker_set = 16;
-    UserData user = 17;
-    ClientData client = 18;
-    BadgeData badge = 19;
-    NotificationData notification = 20;
+    BlobData blob = 10;
+    SecretData secret = 11;
+    IssueData issue = 12;
+    ResolvedFieldData resolved_field = 13;
+    WorkerSetData worker_set = 14;
+    SessionData session = 15;
+    RunData run = 16;
+    SignalData signal = 17;
+    HaltData halt = 18;
+    UserData user = 19;
+    ClientData client = 20;
+    BadgeData badge = 21;
+    NotificationData notification = 22;
   };
 }
 

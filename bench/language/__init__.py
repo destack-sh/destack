@@ -28,6 +28,7 @@ from .render import render, render_as_python
 from .run import HasRun, Run, RunError
 from .secret import Secret
 from .session import LogEntry, PermissionError, Session
+from .signal import Halt, Signal
 from .statement import Statement
 from .tagging import HasTags, Tagging
 from .text import HasText
@@ -35,6 +36,7 @@ from .trigger import HasTriggers, Trigger
 from .user import Client, User
 from .value import HasValue
 from .view import View
+from .worker import Dependency, WorkerImage, WorkerSet
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
@@ -45,6 +47,7 @@ __all__ = [
     "C",
     "Client",
     "ConditionalOp",
+    "Dependency",
     "E",
     "Expression",
     "Field",
@@ -57,6 +60,7 @@ __all__ = [
     "HasTriggers",
     "HasType",
     "HasValue",
+    "Halt",
     "Issue",
     "IssueType",
     "LogEntry",
@@ -81,6 +85,7 @@ __all__ = [
     "Secret",
     "Session",
     "SessionAccessLevel",
+    "Signal",
     "SortMode",
     "SortOp",
     "Statement",
@@ -98,7 +103,10 @@ __all__ = [
     "TypeTag",
     "User",
     "View",
+    "WorkerImage",
+    "WorkerSet",
 ]
+
 
 # after all the imports, we can finalize
 _complete_bench_setup()

@@ -62,7 +62,7 @@ class Command(BaseCommand):
             ]
             for node_t in NodeType:
                 node_cls = NODE_CLASS_BY_NODE_TYPE[node_t]
-                if not node_cls.__is_stored__ or node_cls.__is_local__:
+                if not node_cls.__is_stored__ or node_cls.__is_stored_custom__:
                     continue
                 table = map_bench_node_to_pg_table(node_cls)
                 const_name = f"{node_cls.metatype.name}_TABLE"

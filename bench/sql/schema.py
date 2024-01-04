@@ -149,7 +149,7 @@ FILE_TABLE = Table(
     constraints=(
         Constraint(
             "bench_unique_order_key", ConstraintType.UNIQUE, source=31, columns=["order_key"]
-        )
+        ),
     ),
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
@@ -467,6 +467,89 @@ VIEW_TABLE = Table(
     ),
 )
 
+BLOB_TABLE = Table(
+    "bench_blob",
+    (
+        Column("id", ColumnType.UUID, source=2),
+        Column("ck", ColumnType.UUID, source=3),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            source=5,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column("revision", ColumnType.BIGINT, source=10),
+        Column("created_at", ColumnType.DATETIME, source=11),
+        Column("updated_at", ColumnType.DATETIME, source=12),
+        Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
+        Column("last_edited_at", ColumnType.DATETIME, source=15),
+        Column("sha512", ColumnType.STRING, source=30, is_nullable=True),
+        Column("content_length", ColumnType.BIGINT, source=31, is_nullable=True),
+        Column("content_type", ColumnType.STRING, source=32, is_nullable=True),
+        Column("name", ColumnType.STRING, source=33, is_nullable=True),
+        Column("status", ColumnType.STRING, source=34, is_nullable=True),
+    ),
+    source=14,
+    indexes=(
+        Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
+        Index(
+            "bench_idx_module_deleted_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_deleted_at"],
+            source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
+        ),
+    ),
+)
+
+SECRET_TABLE = Table(
+    "bench_secret",
+    (
+        Column("id", ColumnType.UUID, source=2),
+        Column("ck", ColumnType.UUID, source=3),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            source=5,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column("revision", ColumnType.BIGINT, source=10),
+        Column("created_at", ColumnType.DATETIME, source=11),
+        Column("updated_at", ColumnType.DATETIME, source=12),
+        Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
+        Column("last_edited_at", ColumnType.DATETIME, source=15),
+        Column("sha512", ColumnType.STRING, source=30, is_nullable=True),
+        Column("value", ColumnType.STRING, source=31, is_nullable=True, is_encrypted=True),
+    ),
+    source=15,
+    indexes=(
+        Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
+        Index(
+            "bench_idx_module_deleted_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_deleted_at"],
+            source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
+        ),
+    ),
+)
+
 ISSUE_TABLE = Table(
     "bench_issue",
     (
@@ -509,7 +592,7 @@ ISSUE_TABLE = Table(
         Column("path", ColumnType.STRING, source=34, is_nullable=True),
         Column("properties", ColumnType.STRING, source=35, is_array=True, is_nullable=True),
     ),
-    source=20,
+    source=16,
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
         Index(
@@ -565,7 +648,7 @@ RESOLVED_FIELD_TABLE = Table(
         Column("reference_ck", ColumnType.UUID, source=38, is_nullable=True),
         Column("field_ck", ColumnType.UUID, source=50, is_nullable=True),
     ),
-    source=21,
+    source=17,
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
         Index(
@@ -583,8 +666,8 @@ RESOLVED_FIELD_TABLE = Table(
     ),
 )
 
-BLOB_TABLE = Table(
-    "bench_blob",
+WORKER_SET_TABLE = Table(
+    "bench_workerset",
     (
         Column("id", ColumnType.UUID, source=2),
         Column("ck", ColumnType.UUID, source=3),
@@ -602,53 +685,18 @@ BLOB_TABLE = Table(
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
         Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
-        Column("sha512", ColumnType.STRING, source=30, is_nullable=True),
-        Column("content_length", ColumnType.BIGINT, source=31, is_nullable=True),
-        Column("content_type", ColumnType.STRING, source=32, is_nullable=True),
-        Column("name", ColumnType.STRING, source=33, is_nullable=True),
+        Column("region", ColumnType.STRING, source=31, is_nullable=True),
+        Column("profile", ColumnType.STRING, source=32, is_nullable=True),
+        Column("sleeping", ColumnType.BOOLEAN, source=33, is_nullable=True),
         Column("status", ColumnType.STRING, source=34, is_nullable=True),
+        Column("desired_replicas", ColumnType.BIGINT, source=35, is_nullable=True),
+        Column("target_replicas", ColumnType.BIGINT, source=36, is_nullable=True),
+        Column("available_replicas", ColumnType.BIGINT, source=37, is_nullable=True),
+        Column("ready_replicas", ColumnType.BIGINT, source=38, is_nullable=True),
+        Column("last_active_at", ColumnType.DATETIME, source=39, is_nullable=True),
+        Column("last_bumped_at", ColumnType.DATETIME, source=40, is_nullable=True),
     ),
     source=40,
-    indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
-        Index(
-            "bench_idx_module_deleted_at",
-            IndexType.BTREE,
-            ["bench_module_id", "bench_deleted_at"],
-            source=13,
-        ),
-        Index(
-            "bench_idx_module_archived_at",
-            IndexType.BTREE,
-            ["bench_module_id", "bench_archived_at"],
-            source=14,
-        ),
-    ),
-)
-
-SECRET_TABLE = Table(
-    "bench_secret",
-    (
-        Column("id", ColumnType.UUID, source=2),
-        Column("ck", ColumnType.UUID, source=3),
-        Column(
-            "module_id",
-            ColumnType.UUID,
-            source=5,
-            is_foreign_key_to="bench_module",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column("revision", ColumnType.BIGINT, source=10),
-        Column("created_at", ColumnType.DATETIME, source=11),
-        Column("updated_at", ColumnType.DATETIME, source=12),
-        Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
-        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
-        Column("last_edited_at", ColumnType.DATETIME, source=15),
-        Column("sha512", ColumnType.STRING, source=30, is_nullable=True),
-        Column("value", ColumnType.STRING, source=31, is_nullable=True, is_encrypted=True),
-    ),
-    source=41,
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
         Index(
@@ -671,14 +719,7 @@ SESSION_TABLE = Table(
     (
         Column("id", ColumnType.UUID, source=2),
         Column("ck", ColumnType.UUID, source=3),
-        Column(
-            "module_id",
-            ColumnType.UUID,
-            source=5,
-            is_foreign_key_to="bench_module",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("module_id", ColumnType.UUID, source=5, is_nullable=True),
         Column("revision", ColumnType.BIGINT, source=10),
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
@@ -735,14 +776,7 @@ RUN_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
-        Column(
-            "module_id",
-            ColumnType.UUID,
-            source=5,
-            is_foreign_key_to="bench_module",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("module_id", ColumnType.UUID, source=5, is_nullable=True),
         Column("revision", ColumnType.BIGINT, source=10),
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
@@ -805,37 +839,71 @@ RUN_TABLE = Table(
     ),
 )
 
-WORKER_SET_TABLE = Table(
-    "bench_workerset",
+SIGNAL_TABLE = Table(
+    "bench_signal",
     (
         Column("id", ColumnType.UUID, source=2),
         Column("ck", ColumnType.UUID, source=3),
-        Column(
-            "module_id",
-            ColumnType.UUID,
-            source=5,
-            is_foreign_key_to="bench_module",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
+        Column("module_id", ColumnType.UUID, source=5, is_nullable=True),
         Column("revision", ColumnType.BIGINT, source=10),
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
         Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
-        Column("region", ColumnType.STRING, source=31, is_nullable=True),
-        Column("profile", ColumnType.STRING, source=32, is_nullable=True),
-        Column("sleeping", ColumnType.BOOLEAN, source=33, is_nullable=True),
-        Column("status", ColumnType.STRING, source=34, is_nullable=True),
-        Column("desired_replicas", ColumnType.BIGINT, source=35, is_nullable=True),
-        Column("target_replicas", ColumnType.BIGINT, source=36, is_nullable=True),
-        Column("available_replicas", ColumnType.BIGINT, source=37, is_nullable=True),
-        Column("ready_replicas", ColumnType.BIGINT, source=38, is_nullable=True),
-        Column("last_active_at", ColumnType.DATETIME, source=39, is_nullable=True),
-        Column("last_bumped_at", ColumnType.DATETIME, source=40, is_nullable=True),
+        Column("type_ck", ColumnType.UUID, source=30, is_nullable=True),
+        Column("value", ColumnType.JSON, source=31, is_nullable=True),
+        Column("source_run_ck", ColumnType.UUID, source=32, is_nullable=True),
+        Column("source_statement_ck", ColumnType.UUID, source=33, is_nullable=True),
     ),
-    source=69,
+    source=70,
+    indexes=(
+        Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
+        Index(
+            "bench_idx_module_deleted_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_deleted_at"],
+            source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
+        ),
+    ),
+)
+
+HALT_TABLE = Table(
+    "bench_halt",
+    (
+        Column("id", ColumnType.UUID, source=2),
+        Column("ck", ColumnType.UUID, source=3),
+        Column(
+            "parent_run_id",
+            ColumnType.UUID,
+            source=4,
+            is_foreign_key_to="bench_run",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column("module_id", ColumnType.UUID, source=5, is_nullable=True),
+        Column("revision", ColumnType.BIGINT, source=10),
+        Column("created_at", ColumnType.DATETIME, source=11),
+        Column("updated_at", ColumnType.DATETIME, source=12),
+        Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
+        Column("last_edited_at", ColumnType.DATETIME, source=15),
+        Column(
+            "session_id",
+            ColumnType.UUID,
+            source=30,
+            is_foreign_key_to="bench_session",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+    ),
+    source=71,
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
         Index(
@@ -875,7 +943,7 @@ USER_TABLE = Table(
         Column("username", ColumnType.STRING, source=30, is_nullable=True),
         Column("email", ColumnType.STRING, source=31, is_nullable=True),
     ),
-    source=80,
+    source=100,
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
         Index(
@@ -937,11 +1005,11 @@ BADGE_TABLE = Table(
         ),
         Column("secret_value", ColumnType.STRING, source=52, is_nullable=True, is_encrypted=True),
     ),
-    source=85,
+    source=105,
     constraints=(
         Constraint(
             "bench_unique_link_token", ConstraintType.UNIQUE, source=41, columns=["link_token"]
-        )
+        ),
     ),
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
@@ -992,7 +1060,7 @@ NOTIFICATION_TABLE = Table(
         Column("expires_at", ColumnType.DATETIME, source=32, is_nullable=True),
         Column("read_at", ColumnType.DATETIME, source=33, is_nullable=True),
     ),
-    source=99,
+    source=107,
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
         Index(
