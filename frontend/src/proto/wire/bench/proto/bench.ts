@@ -176,14 +176,17 @@ export enum BenchType {
   ISSUE = 16,
   RESOLVED_FIELD = 17,
   WORKER_SET = 40,
+  WORKER = 41,
   SESSION = 60,
   RUN = 61,
   SIGNAL = 70,
   HALT = 71,
-  USER = 100,
-  CLIENT = 104,
-  BADGE = 105,
-  NOTIFICATION = 107,
+  HANDLE = 100,
+  USER = 101,
+  ORGANIZATION = 102,
+  CLIENT = 103,
+  NOTIFICATION = 104,
+  BADGE = 120,
   POLICY = 200,
   POLICY_RULE = 201,
   EXPRESSION = 210,
@@ -242,6 +245,9 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 40:
     case "BENCH_TYPE_WORKER_SET":
       return BenchType.WORKER_SET;
+    case 41:
+    case "BENCH_TYPE_WORKER":
+      return BenchType.WORKER;
     case 60:
     case "BENCH_TYPE_SESSION":
       return BenchType.SESSION;
@@ -255,17 +261,23 @@ export function benchTypeFromJSON(object: any): BenchType {
     case "BENCH_TYPE_HALT":
       return BenchType.HALT;
     case 100:
+    case "BENCH_TYPE_HANDLE":
+      return BenchType.HANDLE;
+    case 101:
     case "BENCH_TYPE_USER":
       return BenchType.USER;
-    case 104:
+    case 102:
+    case "BENCH_TYPE_ORGANIZATION":
+      return BenchType.ORGANIZATION;
+    case 103:
     case "BENCH_TYPE_CLIENT":
       return BenchType.CLIENT;
-    case 105:
-    case "BENCH_TYPE_BADGE":
-      return BenchType.BADGE;
-    case 107:
+    case 104:
     case "BENCH_TYPE_NOTIFICATION":
       return BenchType.NOTIFICATION;
+    case 120:
+    case "BENCH_TYPE_BADGE":
+      return BenchType.BADGE;
     case 200:
     case "BENCH_TYPE_POLICY":
       return BenchType.POLICY;
@@ -330,6 +342,8 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_RESOLVED_FIELD";
     case BenchType.WORKER_SET:
       return "BENCH_TYPE_WORKER_SET";
+    case BenchType.WORKER:
+      return "BENCH_TYPE_WORKER";
     case BenchType.SESSION:
       return "BENCH_TYPE_SESSION";
     case BenchType.RUN:
@@ -338,14 +352,18 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_SIGNAL";
     case BenchType.HALT:
       return "BENCH_TYPE_HALT";
+    case BenchType.HANDLE:
+      return "BENCH_TYPE_HANDLE";
     case BenchType.USER:
       return "BENCH_TYPE_USER";
+    case BenchType.ORGANIZATION:
+      return "BENCH_TYPE_ORGANIZATION";
     case BenchType.CLIENT:
       return "BENCH_TYPE_CLIENT";
-    case BenchType.BADGE:
-      return "BENCH_TYPE_BADGE";
     case BenchType.NOTIFICATION:
       return "BENCH_TYPE_NOTIFICATION";
+    case BenchType.BADGE:
+      return "BENCH_TYPE_BADGE";
     case BenchType.POLICY:
       return "BENCH_TYPE_POLICY";
     case BenchType.POLICY_RULE:
@@ -1149,14 +1167,17 @@ export enum NodeType {
   ISSUE = 16,
   RESOLVED_FIELD = 17,
   WORKER_SET = 40,
+  WORKER = 41,
   SESSION = 60,
   RUN = 61,
   SIGNAL = 70,
   HALT = 71,
-  USER = 100,
-  CLIENT = 104,
-  BADGE = 105,
-  NOTIFICATION = 107,
+  HANDLE = 100,
+  USER = 101,
+  ORGANIZATION = 102,
+  CLIENT = 103,
+  NOTIFICATION = 104,
+  BADGE = 120,
 }
 
 export function nodeTypeFromJSON(object: any): NodeType {
@@ -1206,6 +1227,9 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case 40:
     case "NODE_TYPE_WORKER_SET":
       return NodeType.WORKER_SET;
+    case 41:
+    case "NODE_TYPE_WORKER":
+      return NodeType.WORKER;
     case 60:
     case "NODE_TYPE_SESSION":
       return NodeType.SESSION;
@@ -1219,17 +1243,23 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case "NODE_TYPE_HALT":
       return NodeType.HALT;
     case 100:
+    case "NODE_TYPE_HANDLE":
+      return NodeType.HANDLE;
+    case 101:
     case "NODE_TYPE_USER":
       return NodeType.USER;
-    case 104:
+    case 102:
+    case "NODE_TYPE_ORGANIZATION":
+      return NodeType.ORGANIZATION;
+    case 103:
     case "NODE_TYPE_CLIENT":
       return NodeType.CLIENT;
-    case 105:
-    case "NODE_TYPE_BADGE":
-      return NodeType.BADGE;
-    case 107:
+    case 104:
     case "NODE_TYPE_NOTIFICATION":
       return NodeType.NOTIFICATION;
+    case 120:
+    case "NODE_TYPE_BADGE":
+      return NodeType.BADGE;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum NodeType");
   }
@@ -1267,6 +1297,8 @@ export function nodeTypeToJSON(object: NodeType): string {
       return "NODE_TYPE_RESOLVED_FIELD";
     case NodeType.WORKER_SET:
       return "NODE_TYPE_WORKER_SET";
+    case NodeType.WORKER:
+      return "NODE_TYPE_WORKER";
     case NodeType.SESSION:
       return "NODE_TYPE_SESSION";
     case NodeType.RUN:
@@ -1275,14 +1307,18 @@ export function nodeTypeToJSON(object: NodeType): string {
       return "NODE_TYPE_SIGNAL";
     case NodeType.HALT:
       return "NODE_TYPE_HALT";
+    case NodeType.HANDLE:
+      return "NODE_TYPE_HANDLE";
     case NodeType.USER:
       return "NODE_TYPE_USER";
+    case NodeType.ORGANIZATION:
+      return "NODE_TYPE_ORGANIZATION";
     case NodeType.CLIENT:
       return "NODE_TYPE_CLIENT";
-    case NodeType.BADGE:
-      return "NODE_TYPE_BADGE";
     case NodeType.NOTIFICATION:
       return "NODE_TYPE_NOTIFICATION";
+    case NodeType.BADGE:
+      return "NODE_TYPE_BADGE";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum NodeType");
   }
@@ -1858,14 +1894,15 @@ export enum StatementType {
   BLANK = 3,
   CLASS = 4,
   CHOICE = 5,
-  TASK = 6,
-  CODE = 7,
-  FLOW = 8,
-  MODEL = 9,
-  VARIABLE = 10,
-  DATABASE = 11,
-  VIEW = 12,
-  SCREEN = 13,
+  SIGNAL = 6,
+  TASK = 7,
+  CODE = 8,
+  FLOW = 9,
+  MODEL = 10,
+  VARIABLE = 11,
+  DATABASE = 12,
+  VIEW = 13,
+  SCREEN = 14,
 }
 
 export function statementTypeFromJSON(object: any): StatementType {
@@ -1889,27 +1926,30 @@ export function statementTypeFromJSON(object: any): StatementType {
     case "STATEMENT_TYPE_CHOICE":
       return StatementType.CHOICE;
     case 6:
+    case "STATEMENT_TYPE_SIGNAL":
+      return StatementType.SIGNAL;
+    case 7:
     case "STATEMENT_TYPE_TASK":
       return StatementType.TASK;
-    case 7:
+    case 8:
     case "STATEMENT_TYPE_CODE":
       return StatementType.CODE;
-    case 8:
+    case 9:
     case "STATEMENT_TYPE_FLOW":
       return StatementType.FLOW;
-    case 9:
+    case 10:
     case "STATEMENT_TYPE_MODEL":
       return StatementType.MODEL;
-    case 10:
+    case 11:
     case "STATEMENT_TYPE_VARIABLE":
       return StatementType.VARIABLE;
-    case 11:
+    case 12:
     case "STATEMENT_TYPE_DATABASE":
       return StatementType.DATABASE;
-    case 12:
+    case 13:
     case "STATEMENT_TYPE_VIEW":
       return StatementType.VIEW;
-    case 13:
+    case 14:
     case "STATEMENT_TYPE_SCREEN":
       return StatementType.SCREEN;
     default:
@@ -1931,6 +1971,8 @@ export function statementTypeToJSON(object: StatementType): string {
       return "STATEMENT_TYPE_CLASS";
     case StatementType.CHOICE:
       return "STATEMENT_TYPE_CHOICE";
+    case StatementType.SIGNAL:
+      return "STATEMENT_TYPE_SIGNAL";
     case StatementType.TASK:
       return "STATEMENT_TYPE_TASK";
     case StatementType.CODE:
@@ -2861,8 +2903,15 @@ export interface BenchData {
   name: string;
   slug: string;
   description: string;
-  osName: string;
+  organizationCk: string;
+  userCk: string;
+  headCk: string;
   pgName: string;
+  pgUsername: string;
+  pgPassword: string;
+  osName: string;
+  osUsername: string;
+  osPassword: string;
 }
 
 export interface BlobData {
@@ -2963,6 +3012,22 @@ export interface HaltData {
   lastEditedAt: Date | undefined;
 }
 
+export interface HandleData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  moduleId: string;
+  benchId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  slug: string;
+}
+
 export interface IssueData {
   metatype: BenchType;
   id: string;
@@ -3034,6 +3099,23 @@ export interface NotificationData {
   status: NotificationStatus;
   expiresAt: Date | undefined;
   readAt: Date | undefined;
+}
+
+export interface OrganizationData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  moduleId: string;
+  benchId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  lastChangedAt: Date | undefined;
+  handleCk: string;
 }
 
 export interface RecordData {
@@ -3250,8 +3332,12 @@ export interface UserData {
   deletedAt: Date | undefined;
   archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
+  lastChangedAt: Date | undefined;
+  handleCk: string;
   username: string;
+  name: string;
   email: string;
+  passwordHash: string;
 }
 
 export interface ViewData {
@@ -3276,6 +3362,24 @@ export interface ViewData {
   sort: ExpressionData[];
 }
 
+export interface WorkerData {
+  metatype: BenchType;
+  id: string;
+  ck: string;
+  parentId: string;
+  moduleId: string;
+  benchId: string;
+  revision: number;
+  createdAt: Date | undefined;
+  updatedAt: Date | undefined;
+  deletedAt: Date | undefined;
+  archivedAt: Date | undefined;
+  lastEditedAt: Date | undefined;
+  externalId: string;
+  profile: WorkerProfile;
+  image: WorkerImageData | undefined;
+}
+
 export interface WorkerSetData {
   metatype: BenchType;
   id: string;
@@ -3289,6 +3393,7 @@ export interface WorkerSetData {
   deletedAt: Date | undefined;
   archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
+  lastChangedAt: Date | undefined;
   region: ProjectRegion;
   profile: WorkerProfile;
   sleeping: boolean;
@@ -3317,14 +3422,17 @@ export interface SomeNodeData {
     | { $case: "issue"; issue: IssueData }
     | { $case: "resolvedField"; resolvedField: ResolvedFieldData }
     | { $case: "workerSet"; workerSet: WorkerSetData }
+    | { $case: "worker"; worker: WorkerData }
     | { $case: "session"; session: SessionData }
     | { $case: "run"; run: RunData }
     | { $case: "signal"; signal: SignalData }
     | { $case: "halt"; halt: HaltData }
+    | { $case: "handle"; handle: HandleData }
     | { $case: "user"; user: UserData }
+    | { $case: "organization"; organization: OrganizationData }
     | { $case: "client"; client: ClientData }
-    | { $case: "badge"; badge: BadgeData }
     | { $case: "notification"; notification: NotificationData }
+    | { $case: "badge"; badge: BadgeData }
     | undefined;
 }
 
@@ -5065,8 +5173,15 @@ function createBaseBenchData(): BenchData {
     name: "",
     slug: "",
     description: "",
-    osName: "",
+    organizationCk: "",
+    userCk: "",
+    headCk: "",
     pgName: "",
+    pgUsername: "",
+    pgPassword: "",
+    osName: "",
+    osUsername: "",
+    osPassword: "",
   };
 }
 
@@ -5123,11 +5238,32 @@ export const BenchData = {
     if (message.description !== "") {
       writer.uint32(258).string(message.description);
     }
-    if (message.osName !== "") {
-      writer.uint32(266).string(message.osName);
+    if (message.organizationCk !== "") {
+      writer.uint32(266).string(message.organizationCk);
+    }
+    if (message.userCk !== "") {
+      writer.uint32(274).string(message.userCk);
+    }
+    if (message.headCk !== "") {
+      writer.uint32(322).string(message.headCk);
     }
     if (message.pgName !== "") {
-      writer.uint32(274).string(message.pgName);
+      writer.uint32(330).string(message.pgName);
+    }
+    if (message.pgUsername !== "") {
+      writer.uint32(338).string(message.pgUsername);
+    }
+    if (message.pgPassword !== "") {
+      writer.uint32(346).string(message.pgPassword);
+    }
+    if (message.osName !== "") {
+      writer.uint32(354).string(message.osName);
+    }
+    if (message.osUsername !== "") {
+      writer.uint32(362).string(message.osUsername);
+    }
+    if (message.osPassword !== "") {
+      writer.uint32(370).string(message.osPassword);
     }
     return writer;
   },
@@ -5263,14 +5399,63 @@ export const BenchData = {
             break;
           }
 
-          message.osName = reader.string();
+          message.organizationCk = reader.string();
           continue;
         case 34:
           if (tag !== 274) {
             break;
           }
 
+          message.userCk = reader.string();
+          continue;
+        case 40:
+          if (tag !== 322) {
+            break;
+          }
+
+          message.headCk = reader.string();
+          continue;
+        case 41:
+          if (tag !== 330) {
+            break;
+          }
+
           message.pgName = reader.string();
+          continue;
+        case 42:
+          if (tag !== 338) {
+            break;
+          }
+
+          message.pgUsername = reader.string();
+          continue;
+        case 43:
+          if (tag !== 346) {
+            break;
+          }
+
+          message.pgPassword = reader.string();
+          continue;
+        case 44:
+          if (tag !== 354) {
+            break;
+          }
+
+          message.osName = reader.string();
+          continue;
+        case 45:
+          if (tag !== 362) {
+            break;
+          }
+
+          message.osUsername = reader.string();
+          continue;
+        case 46:
+          if (tag !== 370) {
+            break;
+          }
+
+          message.osPassword = reader.string();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -5302,8 +5487,15 @@ export const BenchData = {
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       slug: isSet(object.slug) ? globalThis.String(object.slug) : "",
       description: isSet(object.description) ? globalThis.String(object.description) : "",
-      osName: isSet(object.osName) ? globalThis.String(object.osName) : "",
+      organizationCk: isSet(object.organizationCk) ? globalThis.String(object.organizationCk) : "",
+      userCk: isSet(object.userCk) ? globalThis.String(object.userCk) : "",
+      headCk: isSet(object.headCk) ? globalThis.String(object.headCk) : "",
       pgName: isSet(object.pgName) ? globalThis.String(object.pgName) : "",
+      pgUsername: isSet(object.pgUsername) ? globalThis.String(object.pgUsername) : "",
+      pgPassword: isSet(object.pgPassword) ? globalThis.String(object.pgPassword) : "",
+      osName: isSet(object.osName) ? globalThis.String(object.osName) : "",
+      osUsername: isSet(object.osUsername) ? globalThis.String(object.osUsername) : "",
+      osPassword: isSet(object.osPassword) ? globalThis.String(object.osPassword) : "",
     };
   },
 
@@ -5360,11 +5552,32 @@ export const BenchData = {
     if (message.description !== "") {
       obj.description = message.description;
     }
-    if (message.osName !== "") {
-      obj.osName = message.osName;
+    if (message.organizationCk !== "") {
+      obj.organizationCk = message.organizationCk;
+    }
+    if (message.userCk !== "") {
+      obj.userCk = message.userCk;
+    }
+    if (message.headCk !== "") {
+      obj.headCk = message.headCk;
     }
     if (message.pgName !== "") {
       obj.pgName = message.pgName;
+    }
+    if (message.pgUsername !== "") {
+      obj.pgUsername = message.pgUsername;
+    }
+    if (message.pgPassword !== "") {
+      obj.pgPassword = message.pgPassword;
+    }
+    if (message.osName !== "") {
+      obj.osName = message.osName;
+    }
+    if (message.osUsername !== "") {
+      obj.osUsername = message.osUsername;
+    }
+    if (message.osPassword !== "") {
+      obj.osPassword = message.osPassword;
     }
     return obj;
   },
@@ -5391,8 +5604,15 @@ export const BenchData = {
     message.name = object.name ?? "";
     message.slug = object.slug ?? "";
     message.description = object.description ?? "";
-    message.osName = object.osName ?? "";
+    message.organizationCk = object.organizationCk ?? "";
+    message.userCk = object.userCk ?? "";
+    message.headCk = object.headCk ?? "";
     message.pgName = object.pgName ?? "";
+    message.pgUsername = object.pgUsername ?? "";
+    message.pgPassword = object.pgPassword ?? "";
+    message.osName = object.osName ?? "";
+    message.osUsername = object.osUsername ?? "";
+    message.osPassword = object.osPassword ?? "";
     return message;
   },
 };
@@ -6952,6 +7172,259 @@ export const HaltData = {
   },
 };
 
+function createBaseHandleData(): HandleData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    moduleId: "",
+    benchId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    slug: "",
+  };
+}
+
+export const HandleData = {
+  encode(message: HandleData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.moduleId !== "") {
+      writer.uint32(42).string(message.moduleId);
+    }
+    if (message.benchId !== "") {
+      writer.uint32(50).string(message.benchId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
+    }
+    if (message.slug !== "") {
+      writer.uint32(242).string(message.slug);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): HandleData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseHandleData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.moduleId = reader.string();
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.benchId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 15:
+          if (tag !== 122) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 30:
+          if (tag !== 242) {
+            break;
+          }
+
+          message.slug = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): HandleData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      slug: isSet(object.slug) ? globalThis.String(object.slug) : "",
+    };
+  },
+
+  toJSON(message: HandleData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.moduleId !== "") {
+      obj.moduleId = message.moduleId;
+    }
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.slug !== "") {
+      obj.slug = message.slug;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<HandleData>, I>>(base?: I): HandleData {
+    return HandleData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<HandleData>, I>>(object: I): HandleData {
+    const message = createBaseHandleData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.moduleId = object.moduleId ?? "";
+    message.benchId = object.benchId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.slug = object.slug ?? "";
+    return message;
+  },
+};
+
 function createBaseIssueData(): IssueData {
   return {
     metatype: 0,
@@ -8108,6 +8581,275 @@ export const NotificationData = {
     message.status = object.status ?? 0;
     message.expiresAt = object.expiresAt ?? undefined;
     message.readAt = object.readAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseOrganizationData(): OrganizationData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    moduleId: "",
+    benchId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    lastChangedAt: undefined,
+    handleCk: "",
+  };
+}
+
+export const OrganizationData = {
+  encode(message: OrganizationData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.moduleId !== "") {
+      writer.uint32(42).string(message.moduleId);
+    }
+    if (message.benchId !== "") {
+      writer.uint32(50).string(message.benchId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
+    }
+    if (message.lastChangedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
+    }
+    if (message.handleCk !== "") {
+      writer.uint32(242).string(message.handleCk);
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): OrganizationData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseOrganizationData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.moduleId = reader.string();
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.benchId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 15:
+          if (tag !== 122) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 16:
+          if (tag !== 130) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 30:
+          if (tag !== 242) {
+            break;
+          }
+
+          message.handleCk = reader.string();
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): OrganizationData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      handleCk: isSet(object.handleCk) ? globalThis.String(object.handleCk) : "",
+    };
+  },
+
+  toJSON(message: OrganizationData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.moduleId !== "") {
+      obj.moduleId = message.moduleId;
+    }
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.lastChangedAt !== undefined) {
+      obj.lastChangedAt = message.lastChangedAt.toISOString();
+    }
+    if (message.handleCk !== "") {
+      obj.handleCk = message.handleCk;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<OrganizationData>, I>>(base?: I): OrganizationData {
+    return OrganizationData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<OrganizationData>, I>>(object: I): OrganizationData {
+    const message = createBaseOrganizationData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.moduleId = object.moduleId ?? "";
+    message.benchId = object.benchId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.handleCk = object.handleCk ?? "";
     return message;
   },
 };
@@ -11317,8 +12059,12 @@ function createBaseUserData(): UserData {
     deletedAt: undefined,
     archivedAt: undefined,
     lastEditedAt: undefined,
+    lastChangedAt: undefined,
+    handleCk: "",
     username: "",
+    name: "",
     email: "",
+    passwordHash: "",
   };
 }
 
@@ -11360,11 +12106,23 @@ export const UserData = {
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
     }
+    if (message.lastChangedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
+    }
+    if (message.handleCk !== "") {
+      writer.uint32(242).string(message.handleCk);
+    }
     if (message.username !== "") {
-      writer.uint32(242).string(message.username);
+      writer.uint32(250).string(message.username);
+    }
+    if (message.name !== "") {
+      writer.uint32(258).string(message.name);
     }
     if (message.email !== "") {
-      writer.uint32(250).string(message.email);
+      writer.uint32(266).string(message.email);
+    }
+    if (message.passwordHash !== "") {
+      writer.uint32(274).string(message.passwordHash);
     }
     return writer;
   },
@@ -11460,19 +12218,47 @@ export const UserData = {
 
           message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 16:
+          if (tag !== 130) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 30:
           if (tag !== 242) {
             break;
           }
 
-          message.username = reader.string();
+          message.handleCk = reader.string();
           continue;
         case 31:
           if (tag !== 250) {
             break;
           }
 
+          message.username = reader.string();
+          continue;
+        case 32:
+          if (tag !== 258) {
+            break;
+          }
+
+          message.name = reader.string();
+          continue;
+        case 33:
+          if (tag !== 266) {
+            break;
+          }
+
           message.email = reader.string();
+          continue;
+        case 34:
+          if (tag !== 274) {
+            break;
+          }
+
+          message.passwordHash = reader.string();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -11497,8 +12283,12 @@ export const UserData = {
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
       archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
+      handleCk: isSet(object.handleCk) ? globalThis.String(object.handleCk) : "",
       username: isSet(object.username) ? globalThis.String(object.username) : "",
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
       email: isSet(object.email) ? globalThis.String(object.email) : "",
+      passwordHash: isSet(object.passwordHash) ? globalThis.String(object.passwordHash) : "",
     };
   },
 
@@ -11540,11 +12330,23 @@ export const UserData = {
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
+    if (message.lastChangedAt !== undefined) {
+      obj.lastChangedAt = message.lastChangedAt.toISOString();
+    }
+    if (message.handleCk !== "") {
+      obj.handleCk = message.handleCk;
+    }
     if (message.username !== "") {
       obj.username = message.username;
     }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
     if (message.email !== "") {
       obj.email = message.email;
+    }
+    if (message.passwordHash !== "") {
+      obj.passwordHash = message.passwordHash;
     }
     return obj;
   },
@@ -11566,8 +12368,12 @@ export const UserData = {
     message.deletedAt = object.deletedAt ?? undefined;
     message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.lastChangedAt = object.lastChangedAt ?? undefined;
+    message.handleCk = object.handleCk ?? "";
     message.username = object.username ?? "";
+    message.name = object.name ?? "";
     message.email = object.email ?? "";
+    message.passwordHash = object.passwordHash ?? "";
     return message;
   },
 };
@@ -11924,6 +12730,292 @@ export const ViewData = {
   },
 };
 
+function createBaseWorkerData(): WorkerData {
+  return {
+    metatype: 0,
+    id: "",
+    ck: "",
+    parentId: "",
+    moduleId: "",
+    benchId: "",
+    revision: 0,
+    createdAt: undefined,
+    updatedAt: undefined,
+    deletedAt: undefined,
+    archivedAt: undefined,
+    lastEditedAt: undefined,
+    externalId: "",
+    profile: 0,
+    image: undefined,
+  };
+}
+
+export const WorkerData = {
+  encode(message: WorkerData, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
+    if (message.metatype !== 0) {
+      writer.uint32(8).int32(message.metatype);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    if (message.ck !== "") {
+      writer.uint32(26).string(message.ck);
+    }
+    if (message.parentId !== "") {
+      writer.uint32(34).string(message.parentId);
+    }
+    if (message.moduleId !== "") {
+      writer.uint32(42).string(message.moduleId);
+    }
+    if (message.benchId !== "") {
+      writer.uint32(50).string(message.benchId);
+    }
+    if (message.revision !== 0) {
+      writer.uint32(80).int64(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(90).fork()).ldelim();
+    }
+    if (message.updatedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.updatedAt), writer.uint32(98).fork()).ldelim();
+    }
+    if (message.deletedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.deletedAt), writer.uint32(106).fork()).ldelim();
+    }
+    if (message.archivedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.archivedAt), writer.uint32(114).fork()).ldelim();
+    }
+    if (message.lastEditedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
+    }
+    if (message.externalId !== "") {
+      writer.uint32(242).string(message.externalId);
+    }
+    if (message.profile !== 0) {
+      writer.uint32(248).int32(message.profile);
+    }
+    if (message.image !== undefined) {
+      WorkerImageData.encode(message.image, writer.uint32(258).fork()).ldelim();
+    }
+    return writer;
+  },
+
+  decode(input: _m0.Reader | Uint8Array, length?: number): WorkerData {
+    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseWorkerData();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1:
+          if (tag !== 8) {
+            break;
+          }
+
+          message.metatype = reader.int32() as any;
+          continue;
+        case 2:
+          if (tag !== 18) {
+            break;
+          }
+
+          message.id = reader.string();
+          continue;
+        case 3:
+          if (tag !== 26) {
+            break;
+          }
+
+          message.ck = reader.string();
+          continue;
+        case 4:
+          if (tag !== 34) {
+            break;
+          }
+
+          message.parentId = reader.string();
+          continue;
+        case 5:
+          if (tag !== 42) {
+            break;
+          }
+
+          message.moduleId = reader.string();
+          continue;
+        case 6:
+          if (tag !== 50) {
+            break;
+          }
+
+          message.benchId = reader.string();
+          continue;
+        case 10:
+          if (tag !== 80) {
+            break;
+          }
+
+          message.revision = longToNumber(reader.int64() as Long);
+          continue;
+        case 11:
+          if (tag !== 90) {
+            break;
+          }
+
+          message.createdAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 12:
+          if (tag !== 98) {
+            break;
+          }
+
+          message.updatedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 13:
+          if (tag !== 106) {
+            break;
+          }
+
+          message.deletedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 14:
+          if (tag !== 114) {
+            break;
+          }
+
+          message.archivedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 15:
+          if (tag !== 122) {
+            break;
+          }
+
+          message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
+        case 30:
+          if (tag !== 242) {
+            break;
+          }
+
+          message.externalId = reader.string();
+          continue;
+        case 31:
+          if (tag !== 248) {
+            break;
+          }
+
+          message.profile = reader.int32() as any;
+          continue;
+        case 32:
+          if (tag !== 258) {
+            break;
+          }
+
+          message.image = WorkerImageData.decode(reader, reader.uint32());
+          continue;
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skipType(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): WorkerData {
+    return {
+      metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
+      parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
+      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
+      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
+      revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
+      createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
+      updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
+      deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
+      archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
+      lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      externalId: isSet(object.externalId) ? globalThis.String(object.externalId) : "",
+      profile: isSet(object.profile) ? workerProfileFromJSON(object.profile) : 0,
+      image: isSet(object.image) ? WorkerImageData.fromJSON(object.image) : undefined,
+    };
+  },
+
+  toJSON(message: WorkerData): unknown {
+    const obj: any = {};
+    if (message.metatype !== 0) {
+      obj.metatype = benchTypeToJSON(message.metatype);
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.ck !== "") {
+      obj.ck = message.ck;
+    }
+    if (message.parentId !== "") {
+      obj.parentId = message.parentId;
+    }
+    if (message.moduleId !== "") {
+      obj.moduleId = message.moduleId;
+    }
+    if (message.benchId !== "") {
+      obj.benchId = message.benchId;
+    }
+    if (message.revision !== 0) {
+      obj.revision = Math.round(message.revision);
+    }
+    if (message.createdAt !== undefined) {
+      obj.createdAt = message.createdAt.toISOString();
+    }
+    if (message.updatedAt !== undefined) {
+      obj.updatedAt = message.updatedAt.toISOString();
+    }
+    if (message.deletedAt !== undefined) {
+      obj.deletedAt = message.deletedAt.toISOString();
+    }
+    if (message.archivedAt !== undefined) {
+      obj.archivedAt = message.archivedAt.toISOString();
+    }
+    if (message.lastEditedAt !== undefined) {
+      obj.lastEditedAt = message.lastEditedAt.toISOString();
+    }
+    if (message.externalId !== "") {
+      obj.externalId = message.externalId;
+    }
+    if (message.profile !== 0) {
+      obj.profile = workerProfileToJSON(message.profile);
+    }
+    if (message.image !== undefined) {
+      obj.image = WorkerImageData.toJSON(message.image);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<WorkerData>, I>>(base?: I): WorkerData {
+    return WorkerData.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<WorkerData>, I>>(object: I): WorkerData {
+    const message = createBaseWorkerData();
+    message.metatype = object.metatype ?? 0;
+    message.id = object.id ?? "";
+    message.ck = object.ck ?? "";
+    message.parentId = object.parentId ?? "";
+    message.moduleId = object.moduleId ?? "";
+    message.benchId = object.benchId ?? "";
+    message.revision = object.revision ?? 0;
+    message.createdAt = object.createdAt ?? undefined;
+    message.updatedAt = object.updatedAt ?? undefined;
+    message.deletedAt = object.deletedAt ?? undefined;
+    message.archivedAt = object.archivedAt ?? undefined;
+    message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.externalId = object.externalId ?? "";
+    message.profile = object.profile ?? 0;
+    message.image =
+      object.image !== undefined && object.image !== null ? WorkerImageData.fromPartial(object.image) : undefined;
+    return message;
+  },
+};
+
 function createBaseWorkerSetData(): WorkerSetData {
   return {
     metatype: 0,
@@ -11938,6 +13030,7 @@ function createBaseWorkerSetData(): WorkerSetData {
     deletedAt: undefined,
     archivedAt: undefined,
     lastEditedAt: undefined,
+    lastChangedAt: undefined,
     region: 0,
     profile: 0,
     sleeping: false,
@@ -11988,6 +13081,9 @@ export const WorkerSetData = {
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
+    }
+    if (message.lastChangedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
     }
     if (message.region !== 0) {
       writer.uint32(248).int32(message.region);
@@ -12113,6 +13209,13 @@ export const WorkerSetData = {
 
           message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
+        case 16:
+          if (tag !== 130) {
+            break;
+          }
+
+          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+          continue;
         case 31:
           if (tag !== 248) {
             break;
@@ -12206,6 +13309,7 @@ export const WorkerSetData = {
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
       archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
       region: isSet(object.region) ? projectRegionFromJSON(object.region) : 0,
       profile: isSet(object.profile) ? workerProfileFromJSON(object.profile) : 0,
       sleeping: isSet(object.sleeping) ? globalThis.Boolean(object.sleeping) : false,
@@ -12257,6 +13361,9 @@ export const WorkerSetData = {
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
+    if (message.lastChangedAt !== undefined) {
+      obj.lastChangedAt = message.lastChangedAt.toISOString();
+    }
     if (message.region !== 0) {
       obj.region = projectRegionToJSON(message.region);
     }
@@ -12307,6 +13414,7 @@ export const WorkerSetData = {
     message.deletedAt = object.deletedAt ?? undefined;
     message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.region = object.region ?? 0;
     message.profile = object.profile ?? 0;
     message.sleeping = object.sleeping ?? false;
@@ -12370,29 +13478,38 @@ export const SomeNodeData = {
       case "workerSet":
         WorkerSetData.encode(message.node.workerSet, writer.uint32(114).fork()).ldelim();
         break;
+      case "worker":
+        WorkerData.encode(message.node.worker, writer.uint32(122).fork()).ldelim();
+        break;
       case "session":
-        SessionData.encode(message.node.session, writer.uint32(122).fork()).ldelim();
+        SessionData.encode(message.node.session, writer.uint32(130).fork()).ldelim();
         break;
       case "run":
-        RunData.encode(message.node.run, writer.uint32(130).fork()).ldelim();
+        RunData.encode(message.node.run, writer.uint32(138).fork()).ldelim();
         break;
       case "signal":
-        SignalData.encode(message.node.signal, writer.uint32(138).fork()).ldelim();
+        SignalData.encode(message.node.signal, writer.uint32(146).fork()).ldelim();
         break;
       case "halt":
-        HaltData.encode(message.node.halt, writer.uint32(146).fork()).ldelim();
+        HaltData.encode(message.node.halt, writer.uint32(154).fork()).ldelim();
+        break;
+      case "handle":
+        HandleData.encode(message.node.handle, writer.uint32(162).fork()).ldelim();
         break;
       case "user":
-        UserData.encode(message.node.user, writer.uint32(154).fork()).ldelim();
+        UserData.encode(message.node.user, writer.uint32(170).fork()).ldelim();
+        break;
+      case "organization":
+        OrganizationData.encode(message.node.organization, writer.uint32(178).fork()).ldelim();
         break;
       case "client":
-        ClientData.encode(message.node.client, writer.uint32(162).fork()).ldelim();
-        break;
-      case "badge":
-        BadgeData.encode(message.node.badge, writer.uint32(170).fork()).ldelim();
+        ClientData.encode(message.node.client, writer.uint32(186).fork()).ldelim();
         break;
       case "notification":
-        NotificationData.encode(message.node.notification, writer.uint32(178).fork()).ldelim();
+        NotificationData.encode(message.node.notification, writer.uint32(194).fork()).ldelim();
+        break;
+      case "badge":
+        BadgeData.encode(message.node.badge, writer.uint32(202).fork()).ldelim();
         break;
     }
     return writer;
@@ -12508,56 +13625,77 @@ export const SomeNodeData = {
             break;
           }
 
-          message.node = { $case: "session", session: SessionData.decode(reader, reader.uint32()) };
+          message.node = { $case: "worker", worker: WorkerData.decode(reader, reader.uint32()) };
           continue;
         case 16:
           if (tag !== 130) {
             break;
           }
 
-          message.node = { $case: "run", run: RunData.decode(reader, reader.uint32()) };
+          message.node = { $case: "session", session: SessionData.decode(reader, reader.uint32()) };
           continue;
         case 17:
           if (tag !== 138) {
             break;
           }
 
-          message.node = { $case: "signal", signal: SignalData.decode(reader, reader.uint32()) };
+          message.node = { $case: "run", run: RunData.decode(reader, reader.uint32()) };
           continue;
         case 18:
           if (tag !== 146) {
             break;
           }
 
-          message.node = { $case: "halt", halt: HaltData.decode(reader, reader.uint32()) };
+          message.node = { $case: "signal", signal: SignalData.decode(reader, reader.uint32()) };
           continue;
         case 19:
           if (tag !== 154) {
             break;
           }
 
-          message.node = { $case: "user", user: UserData.decode(reader, reader.uint32()) };
+          message.node = { $case: "halt", halt: HaltData.decode(reader, reader.uint32()) };
           continue;
         case 20:
           if (tag !== 162) {
             break;
           }
 
-          message.node = { $case: "client", client: ClientData.decode(reader, reader.uint32()) };
+          message.node = { $case: "handle", handle: HandleData.decode(reader, reader.uint32()) };
           continue;
         case 21:
           if (tag !== 170) {
             break;
           }
 
-          message.node = { $case: "badge", badge: BadgeData.decode(reader, reader.uint32()) };
+          message.node = { $case: "user", user: UserData.decode(reader, reader.uint32()) };
           continue;
         case 22:
           if (tag !== 178) {
             break;
           }
 
+          message.node = { $case: "organization", organization: OrganizationData.decode(reader, reader.uint32()) };
+          continue;
+        case 23:
+          if (tag !== 186) {
+            break;
+          }
+
+          message.node = { $case: "client", client: ClientData.decode(reader, reader.uint32()) };
+          continue;
+        case 24:
+          if (tag !== 194) {
+            break;
+          }
+
           message.node = { $case: "notification", notification: NotificationData.decode(reader, reader.uint32()) };
+          continue;
+        case 25:
+          if (tag !== 202) {
+            break;
+          }
+
+          message.node = { $case: "badge", badge: BadgeData.decode(reader, reader.uint32()) };
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -12598,6 +13736,8 @@ export const SomeNodeData = {
         ? { $case: "resolvedField", resolvedField: ResolvedFieldData.fromJSON(object.resolvedField) }
         : isSet(object.workerSet)
         ? { $case: "workerSet", workerSet: WorkerSetData.fromJSON(object.workerSet) }
+        : isSet(object.worker)
+        ? { $case: "worker", worker: WorkerData.fromJSON(object.worker) }
         : isSet(object.session)
         ? { $case: "session", session: SessionData.fromJSON(object.session) }
         : isSet(object.run)
@@ -12606,14 +13746,18 @@ export const SomeNodeData = {
         ? { $case: "signal", signal: SignalData.fromJSON(object.signal) }
         : isSet(object.halt)
         ? { $case: "halt", halt: HaltData.fromJSON(object.halt) }
+        : isSet(object.handle)
+        ? { $case: "handle", handle: HandleData.fromJSON(object.handle) }
         : isSet(object.user)
         ? { $case: "user", user: UserData.fromJSON(object.user) }
+        : isSet(object.organization)
+        ? { $case: "organization", organization: OrganizationData.fromJSON(object.organization) }
         : isSet(object.client)
         ? { $case: "client", client: ClientData.fromJSON(object.client) }
-        : isSet(object.badge)
-        ? { $case: "badge", badge: BadgeData.fromJSON(object.badge) }
         : isSet(object.notification)
         ? { $case: "notification", notification: NotificationData.fromJSON(object.notification) }
+        : isSet(object.badge)
+        ? { $case: "badge", badge: BadgeData.fromJSON(object.badge) }
         : undefined,
     };
   },
@@ -12662,6 +13806,9 @@ export const SomeNodeData = {
     if (message.node?.$case === "workerSet") {
       obj.workerSet = WorkerSetData.toJSON(message.node.workerSet);
     }
+    if (message.node?.$case === "worker") {
+      obj.worker = WorkerData.toJSON(message.node.worker);
+    }
     if (message.node?.$case === "session") {
       obj.session = SessionData.toJSON(message.node.session);
     }
@@ -12674,17 +13821,23 @@ export const SomeNodeData = {
     if (message.node?.$case === "halt") {
       obj.halt = HaltData.toJSON(message.node.halt);
     }
+    if (message.node?.$case === "handle") {
+      obj.handle = HandleData.toJSON(message.node.handle);
+    }
     if (message.node?.$case === "user") {
       obj.user = UserData.toJSON(message.node.user);
+    }
+    if (message.node?.$case === "organization") {
+      obj.organization = OrganizationData.toJSON(message.node.organization);
     }
     if (message.node?.$case === "client") {
       obj.client = ClientData.toJSON(message.node.client);
     }
-    if (message.node?.$case === "badge") {
-      obj.badge = BadgeData.toJSON(message.node.badge);
-    }
     if (message.node?.$case === "notification") {
       obj.notification = NotificationData.toJSON(message.node.notification);
+    }
+    if (message.node?.$case === "badge") {
+      obj.badge = BadgeData.toJSON(message.node.badge);
     }
     return obj;
   },
@@ -12743,6 +13896,9 @@ export const SomeNodeData = {
     if (object.node?.$case === "workerSet" && object.node?.workerSet !== undefined && object.node?.workerSet !== null) {
       message.node = { $case: "workerSet", workerSet: WorkerSetData.fromPartial(object.node.workerSet) };
     }
+    if (object.node?.$case === "worker" && object.node?.worker !== undefined && object.node?.worker !== null) {
+      message.node = { $case: "worker", worker: WorkerData.fromPartial(object.node.worker) };
+    }
     if (object.node?.$case === "session" && object.node?.session !== undefined && object.node?.session !== null) {
       message.node = { $case: "session", session: SessionData.fromPartial(object.node.session) };
     }
@@ -12755,14 +13911,21 @@ export const SomeNodeData = {
     if (object.node?.$case === "halt" && object.node?.halt !== undefined && object.node?.halt !== null) {
       message.node = { $case: "halt", halt: HaltData.fromPartial(object.node.halt) };
     }
+    if (object.node?.$case === "handle" && object.node?.handle !== undefined && object.node?.handle !== null) {
+      message.node = { $case: "handle", handle: HandleData.fromPartial(object.node.handle) };
+    }
     if (object.node?.$case === "user" && object.node?.user !== undefined && object.node?.user !== null) {
       message.node = { $case: "user", user: UserData.fromPartial(object.node.user) };
     }
+    if (
+      object.node?.$case === "organization" &&
+      object.node?.organization !== undefined &&
+      object.node?.organization !== null
+    ) {
+      message.node = { $case: "organization", organization: OrganizationData.fromPartial(object.node.organization) };
+    }
     if (object.node?.$case === "client" && object.node?.client !== undefined && object.node?.client !== null) {
       message.node = { $case: "client", client: ClientData.fromPartial(object.node.client) };
-    }
-    if (object.node?.$case === "badge" && object.node?.badge !== undefined && object.node?.badge !== null) {
-      message.node = { $case: "badge", badge: BadgeData.fromPartial(object.node.badge) };
     }
     if (
       object.node?.$case === "notification" &&
@@ -12770,6 +13933,9 @@ export const SomeNodeData = {
       object.node?.notification !== null
     ) {
       message.node = { $case: "notification", notification: NotificationData.fromPartial(object.node.notification) };
+    }
+    if (object.node?.$case === "badge" && object.node?.badge !== undefined && object.node?.badge !== null) {
+      message.node = { $case: "badge", badge: BadgeData.fromPartial(object.node.badge) };
     }
     return message;
   },

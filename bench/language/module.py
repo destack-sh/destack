@@ -84,8 +84,11 @@ if TYPE_CHECKING:
         File,
         Issue,
         NodeVisitor,
+        Organization,
         Policy,
         Session,
+        User,
+        WorkerSet,
         symbolx_lib,
     )
     from bench.language.issue import IssueHandler
@@ -614,6 +617,7 @@ class Property(_FieldExpressionBase):
                 return (ancestor_id_prop,)
         elif self.references is not None:
             # regular reference to node (via ck, resolved during interp)
+            # nocheckin: support reference by id, generate multiple stored _id props for that case
             assert self.is_array is not UNSET, f"must set is_array on {self!r}"
             reference_ck_prop = Property(
                 id=self.id,  # re-use id, self is not stored
@@ -2482,6 +2486,7 @@ class Node(Struct):
 
     # 1-9: reserved for node identity
     id: UUID = struct_internal(2, default=None, require=True, reflect=True)
+    # nocheckin: ensure id == ck for >=Bench/detached nodes
     ck: UUID = struct_internal(3, default=None, require=True, reflect=True)
     parent: Optional["Node"] = node_parent(4)
     module: Optional["Module"] = node_ancestor(
@@ -3056,11 +3061,10 @@ class ScopeNode(Node):
         return [i for i in self.errors or [] if i.parent == self]
 
 
-@node(NodeType.BENCH, managed=False)
+@node(NodeType.BENCH)
 class Bench(ScopeNode):
     """
-    A Bench is the root of all modules and everything in a Bench.
-    We don't use this on its own, only through Module.
+    A Bench is the root of all modules and everything that's not outside of it.
     """
 
     parent: None = node_parent(4)
@@ -3070,10 +3074,26 @@ class Bench(ScopeNode):
     name: str = struct_internal(30)
     slug: str = struct_internal(31)
     description: str = struct_internal(32, default=None)
-    os_name: Optional[str] = struct_internal(33, default=None)
-    pg_name: Optional[str] = struct_internal(34, default=None)
+    organization: Optional["Organization"] = struct_internal(
+        33, array=False, references=NodeType.ORGANIZATION
+    )
+    user: Optional["User"] = struct_internal(34, array=False, references=NodeType.USER)
 
+    # *per* environment stuff (will be moved into Environment or such later)
+    head = struct_internal(40, array=False, references=NodeType.MODULE)
+    pg_name: Optional[str] = struct_internal(41, default=None)
+    pg_username: Optional[str] = struct_internal(42, default=None, defer=True)
+    pg_password: Optional[str] = struct_internal(43, default=None, defer=True, encrypt=True)
+    os_name: Optional[str] = struct_internal(44, default=None)
+    os_username: Optional[str] = struct_internal(45, default=None, defer=True)
+    os_password: Optional[str] = struct_internal(46, default=None, defer=True, encrypt=True)
+
+    worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET, NRel.Flat)
     # versions: NodeList["Module"] = node_children(NodeType.MODULE, NRel.Remote)
+
+    @property
+    def owner(self) -> Union["Organization", "User"]:
+        return self.organization or self.user
 
     @property
     def attached(self) -> bool:

@@ -60,14 +60,17 @@ class BenchType(betterproto.Enum):
     ISSUE = 16
     RESOLVED_FIELD = 17
     WORKER_SET = 40
+    WORKER = 41
     SESSION = 60
     RUN = 61
     SIGNAL = 70
     HALT = 71
-    USER = 100
-    CLIENT = 104
-    BADGE = 105
-    NOTIFICATION = 107
+    HANDLE = 100
+    USER = 101
+    ORGANIZATION = 102
+    CLIENT = 103
+    NOTIFICATION = 104
+    BADGE = 120
     POLICY = 200
     POLICY_RULE = 201
     EXPRESSION = 210
@@ -224,14 +227,17 @@ class NodeType(betterproto.Enum):
     ISSUE = 16
     RESOLVED_FIELD = 17
     WORKER_SET = 40
+    WORKER = 41
     SESSION = 60
     RUN = 61
     SIGNAL = 70
     HALT = 71
-    USER = 100
-    CLIENT = 104
-    BADGE = 105
-    NOTIFICATION = 107
+    HANDLE = 100
+    USER = 101
+    ORGANIZATION = 102
+    CLIENT = 103
+    NOTIFICATION = 104
+    BADGE = 120
 
 
 class NotificationStatus(betterproto.Enum):
@@ -337,14 +343,15 @@ class StatementType(betterproto.Enum):
     BLANK = 3
     CLASS = 4
     CHOICE = 5
-    TASK = 6
-    CODE = 7
-    FLOW = 8
-    MODEL = 9
-    VARIABLE = 10
-    DATABASE = 11
-    VIEW = 12
-    SCREEN = 13
+    SIGNAL = 6
+    TASK = 7
+    CODE = 8
+    FLOW = 9
+    MODEL = 10
+    VARIABLE = 11
+    DATABASE = 12
+    VIEW = 13
+    SCREEN = 14
 
 
 class StructType(betterproto.Enum):
@@ -633,8 +640,15 @@ class BenchData(betterproto.Message):
     name: str = betterproto.string_field(30)
     slug: str = betterproto.string_field(31)
     description: str = betterproto.string_field(32)
-    os_name: str = betterproto.string_field(33)
-    pg_name: str = betterproto.string_field(34)
+    organization_ck: str = betterproto.string_field(33)
+    user_ck: str = betterproto.string_field(34)
+    head_ck: str = betterproto.string_field(40)
+    pg_name: str = betterproto.string_field(41)
+    pg_username: str = betterproto.string_field(42)
+    pg_password: str = betterproto.string_field(43)
+    os_name: str = betterproto.string_field(44)
+    os_username: str = betterproto.string_field(45)
+    os_password: str = betterproto.string_field(46)
 
 
 @dataclass(eq=False, repr=False)
@@ -741,6 +755,23 @@ class HaltData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class HandleData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    module_id: str = betterproto.string_field(5)
+    bench_id: str = betterproto.string_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(15)
+    slug: str = betterproto.string_field(30)
+
+
+@dataclass(eq=False, repr=False)
 class IssueData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -815,6 +846,24 @@ class NotificationData(betterproto.Message):
     status: "NotificationStatus" = betterproto.enum_field(31)
     expires_at: datetime = betterproto.message_field(32)
     read_at: datetime = betterproto.message_field(33)
+
+
+@dataclass(eq=False, repr=False)
+class OrganizationData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    module_id: str = betterproto.string_field(5)
+    bench_id: str = betterproto.string_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(15)
+    last_changed_at: datetime = betterproto.message_field(16)
+    handle_ck: str = betterproto.string_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -1041,8 +1090,12 @@ class UserData(betterproto.Message):
     deleted_at: datetime = betterproto.message_field(13)
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
-    username: str = betterproto.string_field(30)
-    email: str = betterproto.string_field(31)
+    last_changed_at: datetime = betterproto.message_field(16)
+    handle_ck: str = betterproto.string_field(30)
+    username: str = betterproto.string_field(31)
+    name: str = betterproto.string_field(32)
+    email: str = betterproto.string_field(33)
+    password_hash: str = betterproto.string_field(34)
 
 
 @dataclass(eq=False, repr=False)
@@ -1069,6 +1122,25 @@ class ViewData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class WorkerData(betterproto.Message):
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_id: str = betterproto.string_field(4)
+    module_id: str = betterproto.string_field(5)
+    bench_id: str = betterproto.string_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: datetime = betterproto.message_field(13)
+    archived_at: datetime = betterproto.message_field(14)
+    last_edited_at: datetime = betterproto.message_field(15)
+    external_id: str = betterproto.string_field(30)
+    profile: "WorkerProfile" = betterproto.enum_field(31)
+    image: "WorkerImageData" = betterproto.message_field(32)
+
+
+@dataclass(eq=False, repr=False)
 class WorkerSetData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1082,6 +1154,7 @@ class WorkerSetData(betterproto.Message):
     deleted_at: datetime = betterproto.message_field(13)
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
+    last_changed_at: datetime = betterproto.message_field(16)
     region: "ProjectRegion" = betterproto.enum_field(31)
     profile: "WorkerProfile" = betterproto.enum_field(32)
     sleeping: bool = betterproto.bool_field(33)
@@ -1110,14 +1183,17 @@ class SomeNodeData(betterproto.Message):
     issue: "IssueData" = betterproto.message_field(12, group="node")
     resolved_field: "ResolvedFieldData" = betterproto.message_field(13, group="node")
     worker_set: "WorkerSetData" = betterproto.message_field(14, group="node")
-    session: "SessionData" = betterproto.message_field(15, group="node")
-    run: "RunData" = betterproto.message_field(16, group="node")
-    signal: "SignalData" = betterproto.message_field(17, group="node")
-    halt: "HaltData" = betterproto.message_field(18, group="node")
-    user: "UserData" = betterproto.message_field(19, group="node")
-    client: "ClientData" = betterproto.message_field(20, group="node")
-    badge: "BadgeData" = betterproto.message_field(21, group="node")
-    notification: "NotificationData" = betterproto.message_field(22, group="node")
+    worker: "WorkerData" = betterproto.message_field(15, group="node")
+    session: "SessionData" = betterproto.message_field(16, group="node")
+    run: "RunData" = betterproto.message_field(17, group="node")
+    signal: "SignalData" = betterproto.message_field(18, group="node")
+    halt: "HaltData" = betterproto.message_field(19, group="node")
+    handle: "HandleData" = betterproto.message_field(20, group="node")
+    user: "UserData" = betterproto.message_field(21, group="node")
+    organization: "OrganizationData" = betterproto.message_field(22, group="node")
+    client: "ClientData" = betterproto.message_field(23, group="node")
+    notification: "NotificationData" = betterproto.message_field(24, group="node")
+    badge: "BadgeData" = betterproto.message_field(25, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -1165,11 +1241,6 @@ class NodePointer(betterproto.Message):
     node_type: "NodeType" = betterproto.enum_field(1)
     node_ck: str = betterproto.string_field(2, group="node")
     node_id: str = betterproto.string_field(3, group="node")
-
-
-@dataclass(eq=False, repr=False)
-class DidCreateProjectRequest(betterproto.Message):
-    project_id: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1436,23 +1507,6 @@ class KillRunResponse(betterproto.Message):
 
 
 class RuntimeSupervisorStub(betterproto.ServiceStub):
-    async def did_create_project(
-        self,
-        did_create_project_request: "DidCreateProjectRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "betterproto_lib_google_protobuf.Empty":
-        return await self._unary_unary(
-            "/RuntimeSupervisor/DidCreateProject",
-            did_create_project_request,
-            betterproto_lib_google_protobuf.Empty,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
     async def get_notifications(
         self,
         get_notifications_request: "GetNotificationsRequest",
@@ -1889,11 +1943,6 @@ class WorkerNodeStub(betterproto.ServiceStub):
 
 
 class RuntimeSupervisorBase(ServiceBase):
-    async def did_create_project(
-        self, did_create_project_request: "DidCreateProjectRequest"
-    ) -> "betterproto_lib_google_protobuf.Empty":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
     async def get_notifications(
         self, get_notifications_request: "GetNotificationsRequest"
     ) -> AsyncIterator["GetNotificationsResponse"]:
@@ -1925,14 +1974,6 @@ class RuntimeSupervisorBase(ServiceBase):
         self, ping_worker_set_request: "PingWorkerSetRequest"
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def __rpc_did_create_project(
-        self,
-        stream: "grpclib.server.Stream[DidCreateProjectRequest, betterproto_lib_google_protobuf.Empty]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.did_create_project(request)
-        await stream.send_message(response)
 
     async def __rpc_get_notifications(
         self,
@@ -1990,12 +2031,6 @@ class RuntimeSupervisorBase(ServiceBase):
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/RuntimeSupervisor/DidCreateProject": grpclib.const.Handler(
-                self.__rpc_did_create_project,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                DidCreateProjectRequest,
-                betterproto_lib_google_protobuf.Empty,
-            ),
             "/RuntimeSupervisor/GetNotifications": grpclib.const.Handler(
                 self.__rpc_get_notifications,
                 grpclib.const.Cardinality.UNARY_STREAM,

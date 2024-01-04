@@ -7,9 +7,7 @@ import structlog
 from asgiref.sync import sync_to_async
 from django.db.models import Q
 
-from bench import models
 from bench.language.const import ACTIVE_RUN_STATUSES, PENDING_RUN_STATUSES, WorkerSetStatus
-from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.runtime import k8
 from bench.runtime.host import RuntimeHost
 from bench.search.engine import write_runs_to_os

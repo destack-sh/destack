@@ -81,12 +81,12 @@ class Command(BaseCommand):
     ):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        owner_slug, bench_slug = module.split("/")
+        handle, bench_slug = module.split("/")
         try:
-            bench = models.Bench.objects.get_by_slug(owner_slug, bench_slug)
+            bench = models.Bench.objects.get_by_slug(handle, bench_slug)
         except models.Bench.DoesNotExist:
             if create:
-                owner = models.OwnerSlug.objects.get(slug=owner_slug).owner
+                owner = models.Handle.objects.get(slug=handle).owner
                 bench = models.Bench.objects.create_bench(
                     owner=owner,
                     name=bench_slug,

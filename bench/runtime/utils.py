@@ -25,9 +25,7 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
             raise RuntimeError("versioned module fetch not supported (must be head)")
         module = (
             await Bench.objects.filter(slug=bench)
-            .filter(
-                models.Q(organization__owner_slug_id=owner) | models.Q(user__owner_slug_id=owner)
-            )
+            .filter(models.Q(organization__handle_id=owner) | models.Q(user__handle_id=owner))
             .select_related("head", "user", "organization")
             .aget()
         )

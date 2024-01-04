@@ -107,10 +107,6 @@ export interface NodePointer {
   node?: { $case: "nodeCk"; nodeCk: string } | { $case: "nodeId"; nodeId: string } | undefined;
 }
 
-export interface DidCreateProjectRequest {
-  projectId: string;
-}
-
 export interface GetNotificationsRequest {}
 
 /** repeated NotificationData notifications = 1; */
@@ -699,63 +695,6 @@ export const NodePointer = {
     if (object.node?.$case === "nodeId" && object.node?.nodeId !== undefined && object.node?.nodeId !== null) {
       message.node = { $case: "nodeId", nodeId: object.node.nodeId };
     }
-    return message;
-  },
-};
-
-function createBaseDidCreateProjectRequest(): DidCreateProjectRequest {
-  return { projectId: "" };
-}
-
-export const DidCreateProjectRequest = {
-  encode(message: DidCreateProjectRequest, writer: _m0.Writer = _m0.Writer.create()): _m0.Writer {
-    if (message.projectId !== "") {
-      writer.uint32(10).string(message.projectId);
-    }
-    return writer;
-  },
-
-  decode(input: _m0.Reader | Uint8Array, length?: number): DidCreateProjectRequest {
-    const reader = input instanceof _m0.Reader ? input : _m0.Reader.create(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseDidCreateProjectRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1:
-          if (tag !== 10) {
-            break;
-          }
-
-          message.projectId = reader.string();
-          continue;
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skipType(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): DidCreateProjectRequest {
-    return { projectId: isSet(object.projectId) ? globalThis.String(object.projectId) : "" };
-  },
-
-  toJSON(message: DidCreateProjectRequest): unknown {
-    const obj: any = {};
-    if (message.projectId !== "") {
-      obj.projectId = message.projectId;
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<DidCreateProjectRequest>, I>>(base?: I): DidCreateProjectRequest {
-    return DidCreateProjectRequest.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<DidCreateProjectRequest>, I>>(object: I): DidCreateProjectRequest {
-    const message = createBaseDidCreateProjectRequest();
-    message.projectId = object.projectId ?? "";
     return message;
   },
 };
@@ -4251,8 +4190,6 @@ export const KillRunResponse = {
  * Frontend connects to this directly.
  */
 export interface RuntimeSupervisor {
-  /** Notify supervisor of a new Bench. */
-  DidCreateProject(request: DeepPartial<DidCreateProjectRequest>, metadata?: grpc.Metadata): Promise<Empty>;
   /** Get notifications for a client. (Not sure yet where this belongs.) */
   GetNotifications(
     request: DeepPartial<GetNotificationsRequest>,
@@ -4284,21 +4221,12 @@ export class RuntimeSupervisorClientImpl implements RuntimeSupervisor {
 
   constructor(rpc: Rpc) {
     this.rpc = rpc;
-    this.DidCreateProject = this.DidCreateProject.bind(this);
     this.GetNotifications = this.GetNotifications.bind(this);
     this.GetWorkerChanges = this.GetWorkerChanges.bind(this);
     this.ConfigureWorkerSet = this.ConfigureWorkerSet.bind(this);
     this.RestartWorkerSet = this.RestartWorkerSet.bind(this);
     this.GetWorkerImage = this.GetWorkerImage.bind(this);
     this.PingWorkerSet = this.PingWorkerSet.bind(this);
-  }
-
-  DidCreateProject(request: DeepPartial<DidCreateProjectRequest>, metadata?: grpc.Metadata): Promise<Empty> {
-    return this.rpc.unary(
-      RuntimeSupervisorDidCreateProjectDesc,
-      DidCreateProjectRequest.fromPartial(request),
-      metadata
-    );
   }
 
   GetNotifications(
@@ -4355,29 +4283,6 @@ export class RuntimeSupervisorClientImpl implements RuntimeSupervisor {
 }
 
 export const RuntimeSupervisorDesc = { serviceName: "RuntimeSupervisor" };
-
-export const RuntimeSupervisorDidCreateProjectDesc: UnaryMethodDefinitionish = {
-  methodName: "DidCreateProject",
-  service: RuntimeSupervisorDesc,
-  requestStream: false,
-  responseStream: false,
-  requestType: {
-    serializeBinary() {
-      return DidCreateProjectRequest.encode(this).finish();
-    },
-  } as any,
-  responseType: {
-    deserializeBinary(data: Uint8Array) {
-      const value = Empty.decode(data);
-      return {
-        ...value,
-        toObject() {
-          return value;
-        },
-      };
-    },
-  } as any,
-};
 
 export const RuntimeSupervisorGetNotificationsDesc: UnaryMethodDefinitionish = {
   methodName: "GetNotifications",

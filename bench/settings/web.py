@@ -1,7 +1,5 @@
 # Application definition
-import os
 
-from bench.settings.base import DEBUG
 from bench.utils.utils import SOME_TYPE_CHECKING, get_from_env, str_to_bool
 
 INSTALLED_APPS = [
@@ -17,7 +15,6 @@ INSTALLED_APPS = [
     "rest_framework",
     "loginas",
     "corsheaders",
-    "social_django",
     "django_filters",
     "django_prometheus",
     "drf_spectacular",
@@ -77,54 +74,6 @@ STRAWBERRY_DJANGO = {
 }
 BROTLI_COMPRESSION_ENABLED = get_from_env("BROTLI_COMPRESSION_ENABLED", True, type_cast=str_to_bool)
 BROTLI_QUALITY_LEVEL = get_from_env("BROTLI_QUALITY_LEVEL", 4, type_cast=int)
-
-# Auth
-
-AUTH_USER_MODEL = "bench.User"
-SOCIAL_AUTH_USER_MODEL = "bench.User"
-SOCIAL_AUTH_JSONFIELD_ENABLED = True
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = get_from_env(
-    "SOCIAL_AUTH_REDIRECT_IS_HTTPS", not DEBUG, type_cast=str_to_bool
-)
-SOCIAL_AUTH_URL_NAMESPACE = "social"
-SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = False
-SOCIAL_AUTH_SLUGIFY_USERNAMES = True
-SOCIAL_AUTH_CLEAN_USERNAMES = True
-SOCIAL_AUTH_STRATEGY = "social_django.strategy.DjangoStrategy"
-SOCIAL_AUTH_STORAGE = "social_django.models.DjangoStorage"
-SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = []
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = WEBAPP_URL  # default to home
-SOCIAL_AUTH_SANITIZE_REDIRECTS = False
-
-AUTHENTICATION_BACKENDS: list[str] = [
-    "social_core.backends.github.GithubOAuth2",
-    "social_core.backends.gitlab.GitLabOAuth2",
-    "social_core.backends.google.GoogleOAuth2",
-    "django.contrib.auth.backends.ModelBackend",
-]
-
-SOCIAL_AUTH_PIPELINE = (
-    "social_core.pipeline.social_auth.social_details",
-    "social_core.pipeline.social_auth.social_uid",
-    "social_core.pipeline.social_auth.auth_allowed",
-    "social_core.pipeline.social_auth.social_user",
-    "social_core.pipeline.social_auth.associate_by_email",
-    "bench.api.auth.social_create_user",  # :SocialAuth
-    "social_core.pipeline.social_auth.associate_user",
-    "social_core.pipeline.social_auth.load_extra_data",
-    "social_core.pipeline.user.user_details",
-)
-
-# :SocialAuthProviders
-# Auth - social GitHub
-SOCIAL_AUTH_GITHUB_SCOPE = ["user:email"]
-SOCIAL_AUTH_GITHUB_KEY = os.environ.get("SOCIAL_AUTH_GITHUB_KEY")
-SOCIAL_AUTH_GITHUB_SECRET = os.environ.get("SOCIAL_AUTH_GITHUB_SECRET")
-
-# Auth - via Google
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ["email", "profile"]
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.environ.get("SOCIAL_AUTH_GOOGLE_OAUTH2_KEY")
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.environ.get("SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET")
 
 # Password validation
 # https://docs.djangobench.com/en/4.0/ref/settings/#auth-password-validators

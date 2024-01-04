@@ -33,7 +33,7 @@ from .statement import Statement
 from .tagging import HasTags, Tagging
 from .text import HasText
 from .trigger import HasTriggers, Trigger
-from .user import Client, User
+from .user import Client, Handle, Organization, User
 from .value import HasValue
 from .view import View
 from .worker import Dependency, WorkerImage, WorkerSet
@@ -52,6 +52,8 @@ __all__ = [
     "Expression",
     "Field",
     "File",
+    "Halt",
+    "Handle",
     "HasDatabase",
     "HasFields",
     "HasRun",
@@ -60,13 +62,13 @@ __all__ = [
     "HasTriggers",
     "HasType",
     "HasValue",
-    "Halt",
     "Issue",
     "IssueType",
     "LogEntry",
     "Module",
     "Node",
     "NodeVisitor",
+    "Organization",
     "PermissionError",
     "Policy",
     "PolicyEffect",

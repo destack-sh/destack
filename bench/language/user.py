@@ -1,19 +1,36 @@
 from datetime import datetime
 
 from bench.language.const import ClientType, NodeType, NotificationStatus, NotificationType
-from bench.language.module import Node, node, node_parent, struct_internal
+from bench.language.module import Node, ScopeNode, node, node_parent, struct_internal
 
 
-@node(NodeType.USER, managed=False, detached=True)
-class User(Node):
+@node(NodeType.HANDLE, detached=True)
+class Handle(Node):
+    """A (global) Bench handle."""
+
+    slug: str = struct_internal(30, unique=True)
+
+
+@node(NodeType.USER, detached=True)
+class User(ScopeNode):
     """A (global) Bench user."""
 
-    username: str = struct_internal(30)
-    email: str = struct_internal(31, defer=True)
+    handle: Handle = struct_internal(30, array=False, references=NodeType.HANDLE)
+    username: str = struct_internal(31)
+    name: str = struct_internal(32)
+    email: str = struct_internal(33, defer=True)
+    password_hash: str = struct_internal(34, defer=True, encrypt=True)
 
     @property
     def path(self):
         return self.username
+
+
+@node(NodeType.ORGANIZATION, detached=True)
+class Organization(ScopeNode):
+    """A (global) Bench organization."""
+
+    handle: Handle = struct_internal(30, array=False, references=NodeType.HANDLE)
 
 
 @node(NodeType.CLIENT, stored=False)

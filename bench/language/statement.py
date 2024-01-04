@@ -110,6 +110,13 @@ _s(
     passthrough=(("fields", _Passthrough.Full),),
 )
 _s(
+    StatementType.SIGNAL,
+    (InstantiableType, HasFields, HasText),
+    IdentT.TYPE,
+    tag=TypeTag.STRUCT,
+    passthrough=(("fields", _Passthrough.Full),),
+)
+_s(
     StatementType.CHOICE,
     (InstantiableType, HasFields, HasText),
     IdentT.TYPE,

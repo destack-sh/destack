@@ -44,10 +44,6 @@ enum ServiceType {
 // Runtime supervisor
 //
 
-message DidCreateProjectRequest {
-  string project_id = 1;
-}
-
 message GetNotificationsRequest {
 }
 message GetNotificationsResponse {
@@ -89,8 +85,6 @@ message PingWorkerSetRequest {
 // Also orchestrates the corresponding worker sets/nodes.
 // Frontend connects to this directly.
 service RuntimeSupervisor {
-  // Notify supervisor of a new Bench.
-  rpc DidCreateProject(DidCreateProjectRequest) returns (google.protobuf.Empty);
   // Get notifications for a client. (Not sure yet where this belongs.)
   rpc GetNotifications(GetNotificationsRequest) returns (stream GetNotificationsResponse);
   // Get all changes to the worker sets for a Bench.
