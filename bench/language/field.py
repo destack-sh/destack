@@ -360,7 +360,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
     hint: TypeHint | None = struct_property(36, default=None, validate=enum_validator(TypeHint))
     flags: TypeFlag = struct_property(37, default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
     reference: Optional["Statement"] = struct_internal(
-        38, require=False, references=NodeType.STATEMENT
+        38, require=False, array=False, references=NodeType.STATEMENT
     )
     _reflected: bool = struct_runtime(default=False)
 
@@ -550,7 +550,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
 @node(NodeType.RESOLVED_FIELD)
 class ResolvedField(Field):
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
-    field: Field = struct_internal(50, references=NodeType.FIELD)
+    field: Field = struct_internal(50, array=False, references=NodeType.FIELD)
 
     @property
     def resolved_fields(self):

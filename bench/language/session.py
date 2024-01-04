@@ -126,15 +126,17 @@ class LogEntry(Struct):
     """
 
     id: UUID = struct_internal(2, default_factory=uuid4)
-    module: Module = struct_internal(5, references=NodeType.MODULE)
-    bench: Module = struct_internal(6, references=NodeType.BENCH)
+    module: Module = struct_internal(5, array=False, references=NodeType.MODULE)
+    bench: Module = struct_internal(6, array=False, references=NodeType.BENCH)
     created_at: datetime = struct_internal(32, default_factory=utcnow_with_tz)
     stream: str = struct_internal(33)
-    session: "Session" = struct_internal(34, references=NodeType.SESSION)
+    session: "Session" = struct_internal(34, array=False, references=NodeType.SESSION)
     level: Optional[str] = struct_internal(35, default=None)
     logger: Optional[str] = struct_internal(36, default=None)
-    statement: Optional["Statement"] = struct_internal(37, references=NodeType.STATEMENT)
-    run: Optional["Run"] = struct_internal(38, references=NodeType.RUN)
+    statement: Optional["Statement"] = struct_internal(
+        37, array=False, references=NodeType.STATEMENT
+    )
+    run: Optional["Run"] = struct_internal(38, array=False, references=NodeType.RUN)
     message: Optional[str] = struct_internal(39, default=None)
     value: dict[str, Any] | None = struct_internal(
         40,
@@ -710,15 +712,6 @@ class SessionTracer:
                 if n.metatype in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
                 self._edit(EditKind.DELETE, node=n)
-
-    def node_truncate(self, node: Node, node_type: NodeType):
-        if node.metatype in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
-            return
-        if self.session.access_level < SessionAccessLevel.Delete:
-            raise PermissionError(f"{self.session!r} may not truncate {node!r}")
-        if node_type == NodeType.RECORD:
-            raise ValueError(f"cannot truncate records: {node!r}")
-        self._edit(EditKind.TRUNCATE, node, target=node_type)
 
     #
     # Session

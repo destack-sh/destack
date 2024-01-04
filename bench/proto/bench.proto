@@ -12,7 +12,6 @@ enum ActionKind {
   ACTION_KIND_RESTORE = 5;
   ACTION_KIND_BUMP = 6;
   ACTION_KIND_DELETE = 7;
-  ACTION_KIND_TRUNCATE = 8;
   ACTION_KIND_START = 20;
   ACTION_KIND_PAUSE = 21;
   ACTION_KIND_RESUME = 22;
@@ -47,7 +46,7 @@ enum BenchType {
   BENCH_TYPE_SECRET = 41;
   BENCH_TYPE_SESSION = 60;
   BENCH_TYPE_RUN = 61;
-  BENCH_TYPE_WORKER_SET = 64;
+  BENCH_TYPE_WORKER_SET = 69;
   BENCH_TYPE_USER = 80;
   BENCH_TYPE_CLIENT = 84;
   BENCH_TYPE_BADGE = 85;
@@ -210,7 +209,7 @@ enum NodeType {
   NODE_TYPE_SECRET = 41;
   NODE_TYPE_SESSION = 60;
   NODE_TYPE_RUN = 61;
-  NODE_TYPE_WORKER_SET = 64;
+  NODE_TYPE_WORKER_SET = 69;
   NODE_TYPE_USER = 80;
   NODE_TYPE_CLIENT = 84;
   NODE_TYPE_BADGE = 85;
@@ -476,7 +475,7 @@ message ExpressionData {
   string field_key = 32;
   repeated ExpressionData clauses = 33;
   google.protobuf.Struct value = 34;
-  string mode = 35;
+  SortMode mode = 35;
 }
 
 message InferenceData {
@@ -513,12 +512,12 @@ message PolicyData {
 message PolicyRuleData {
   BenchType metatype = 1;
   bool subject_authenticated = 30;
-  string subject_users_ck = 31;
+  repeated string subject_users_ck = 31;
   PolicyEffect effect = 40;
-  repeated string verb = 41;
-  string object_type = 50;
-  string object_nodes_ck = 51;
-  string object_fields_ck = 52;
+  repeated ActionKind verb = 41;
+  repeated BenchType object_types = 50;
+  repeated string object_nodes_ck = 51;
+  repeated string object_fields_ck = 52;
   ExpressionData condition = 60;
 }
 
@@ -582,8 +581,10 @@ message BenchData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
+  repeated PolicyData policies = 20;
   string name = 30;
   string slug = 31;
   string description = 32;
@@ -602,6 +603,7 @@ message BlobData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   string sha512 = 30;
   int64 content_length = 31;
@@ -621,6 +623,7 @@ message ClientData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   ClientType type = 30;
   string device_name = 31;
@@ -640,6 +643,7 @@ message FieldData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   string name = 30;
   string order_key = 31;
@@ -647,7 +651,7 @@ message FieldData {
   TypeTag tag = 33;
   string key = 34;
   google.protobuf.Struct value = 35;
-  string hint = 36;
+  TypeHint hint = 36;
   int64 flags = 37;
   string reference_ck = 38;
 }
@@ -682,6 +686,7 @@ message IssueData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   IssueType type = 30;
   IssueKind kind = 31;
@@ -702,8 +707,10 @@ message ModuleData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
+  repeated PolicyData policies = 20;
   bool is_snapshot = 32;
 }
 
@@ -718,6 +725,7 @@ message BaseNodeData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
 }
 
@@ -751,6 +759,7 @@ message RecordData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Struct value = 30;
 }
@@ -766,6 +775,7 @@ message ResolvedFieldData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   string name = 30;
   string order_key = 31;
@@ -773,7 +783,7 @@ message ResolvedFieldData {
   TypeTag tag = 33;
   string key = 34;
   google.protobuf.Struct value = 35;
-  string hint = 36;
+  TypeHint hint = 36;
   int64 flags = 37;
   string reference_ck = 38;
   string field_ck = 50;
@@ -790,6 +800,7 @@ message RunData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
   string session_id = 30;
@@ -801,7 +812,7 @@ message RunData {
   google.protobuf.Timestamp scheduled_at = 36;
   google.protobuf.Timestamp started_at = 37;
   google.protobuf.Timestamp terminated_at = 38;
-  string trigger_type = 39;
+  TriggerType trigger_type = 39;
   string trigger_id = 40;
   int64 access_level = 41;
   RunStatus status = 42;
@@ -822,6 +833,7 @@ message SecretData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   string sha512 = 30;
   string value = 31;
@@ -838,6 +850,7 @@ message SessionData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
   int64 access_level = 30;
@@ -889,6 +902,7 @@ message TaggingData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   string key = 30;
   google.protobuf.Struct value = 31;
@@ -906,10 +920,11 @@ message TriggerData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   TriggerType type = 30;
   bool active = 31;
-  string schedule_type = 32;
+  ScheduleType schedule_type = 32;
   string timezone = 33;
   int64 interval = 34;
   string cron = 35;
@@ -926,6 +941,7 @@ message UserData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   string username = 30;
   string email = 31;
@@ -942,6 +958,7 @@ message ViewData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
   repeated PolicyData policies = 20;
@@ -963,6 +980,7 @@ message WorkerSetData {
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   ProjectRegion region = 31;
   WorkerProfile profile = 32;

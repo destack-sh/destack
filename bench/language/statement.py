@@ -189,16 +189,15 @@ class Statement(ScopeNode, HasTags):
         NodeType.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
-    archived_at: datetime = struct_internal(14, default=None, reflect=True)
     policies: Optional[list["Policy"]] = struct_internal(
-        20, default=None, struct_t=StructType.POLICY
+        20, default_factory=list, struct_t=StructType.POLICY
     )
     type: StatementType = struct_internal(30, default=StatementType.BLANK)
     file: Optional["File"] = node_ancestor(31, NodeType.FILE)
     name: str | None = struct_property(32, default=None, validate=validate_name)
     order_key: str | None = struct_internal(33, default=None)
     reference: Optional["Statement"] = struct_property(
-        34, copy=identity, references=NodeType.STATEMENT
+        34, copy=identity, array=False, references=NodeType.STATEMENT
     )
     heading_level: Optional["TextHeadingLevel"] = struct_property(
         35, default=None, validate=enum_validator(TextHeadingLevel)

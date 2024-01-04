@@ -65,9 +65,6 @@ class Bench(relay.Node):
 
     owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
     base_level: int
-    sharing_enabled: bool
-    sharing_token: Optional[UUID]
-    sharing_level: int
 
     usage: BenchUsage = strawberry_django.field(resolver=get_bench_usage)
 

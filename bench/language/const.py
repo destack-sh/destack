@@ -43,8 +43,8 @@ class NodeType(ProtoStrEnum):
     # session
     SESSION = "SESSION", 60
     RUN = "RUN", 61
-    WORKER_SET = "WORKER_SET", 64
-    # EVENT = "EVENT", 70
+    WORKER_SET = "WORKER_SET", 69
+    # SIGNAL = "SIGNAL", 70
     # INTERRUPT = "INTERRUPT", 71
     # EDIT = "EDIT", 72
     # user
@@ -142,7 +142,6 @@ class ActionKind(ProtoStrEnum):
     RESTORE = "RESTORE", 5
     BUMP = "BUMP", 6
     DELETE = "DELETE", 7
-    TRUNCATE = "TRUNCATE", 8
     # run kinds
     START = "START_RUN", 20
     PAUSE = "PAUSE_RUN", 21

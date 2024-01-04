@@ -157,7 +157,7 @@ class Run(ScopeNode, HasValue):
     worker_node_id: str = struct_internal(32, reflect=True, index_in_pg=True)
     worker_process_id: Optional[str] = struct_internal(33, reflect=True)
     statement: Optional["Statement"] = struct_internal(
-        34, references=NodeType.STATEMENT, index_in_pg=True
+        34, references=NodeType.STATEMENT, array=False, index_in_pg=True
     )
     statement_path: Optional[str] = struct_internal(35, default=None)
     scheduled_at: Optional[datetime] = struct_internal(36, default=None)
@@ -297,7 +297,9 @@ class RunError(Struct, Exception):  # can this really be a subclass of Exception
     kind: RunErrorKind = struct_internal(30)
     type: str = struct_internal(31)
     message: Optional[str] = struct_internal(32, default=None)
-    statement: Optional["Statement"] = struct_internal(33, references=NodeType.STATEMENT)
+    statement: Optional["Statement"] = struct_internal(
+        33, array=False, references=NodeType.STATEMENT
+    )
     traceback: list[RunCodeFrame] = struct_internal(
         34, default_factory=list, struct_t=StructType.RUN_CODE_FRAME
     )

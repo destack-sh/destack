@@ -28,8 +28,10 @@ BENCH_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("last_changed_at", ColumnType.DATETIME, source=16, is_nullable=True),
+        Column("policies", ColumnType.BYTES, source=20, is_array=True, is_nullable=True),
         Column("name", ColumnType.STRING, source=30, is_nullable=True),
         Column("slug", ColumnType.STRING, source=31, is_nullable=True),
         Column("description", ColumnType.STRING, source=32, is_nullable=True),
@@ -44,6 +46,12 @@ BENCH_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -73,8 +81,10 @@ MODULE_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("last_changed_at", ColumnType.DATETIME, source=16, is_nullable=True),
+        Column("policies", ColumnType.BYTES, source=20, is_array=True, is_nullable=True),
         Column("is_snapshot", ColumnType.BOOLEAN, source=32, is_nullable=True),
     ),
     source=5,
@@ -85,6 +95,12 @@ MODULE_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -243,6 +259,7 @@ TRIGGER_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("type", ColumnType.STRING, source=30),
         Column("active", ColumnType.BOOLEAN, source=31, is_nullable=True),
@@ -259,6 +276,12 @@ TRIGGER_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -304,6 +327,7 @@ TAGGING_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("key", ColumnType.STRING, source=30, is_nullable=True),
         Column("value", ColumnType.JSON, source=31, is_nullable=True),
@@ -317,6 +341,12 @@ TAGGING_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -346,6 +376,7 @@ FIELD_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("name", ColumnType.STRING, source=30, is_nullable=True),
         Column("order_key", ColumnType.STRING, source=31, is_nullable=True),
@@ -365,6 +396,12 @@ FIELD_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -402,6 +439,7 @@ VIEW_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("last_changed_at", ColumnType.DATETIME, source=16, is_nullable=True),
         Column("policies", ColumnType.BYTES, source=20, is_array=True, is_nullable=True),
@@ -419,6 +457,12 @@ VIEW_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -456,6 +500,7 @@ ISSUE_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("type", ColumnType.STRING, source=30),
         Column("kind", ColumnType.STRING, source=31, is_nullable=True),
@@ -472,6 +517,12 @@ ISSUE_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -501,6 +552,7 @@ RESOLVED_FIELD_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("name", ColumnType.STRING, source=30, is_nullable=True),
         Column("order_key", ColumnType.STRING, source=31, is_nullable=True),
@@ -522,6 +574,12 @@ RESOLVED_FIELD_TABLE = Table(
             ["bench_module_id", "bench_deleted_at"],
             source=13,
         ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
+        ),
     ),
 )
 
@@ -542,6 +600,7 @@ BLOB_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("sha512", ColumnType.STRING, source=30, is_nullable=True),
         Column("content_length", ColumnType.BIGINT, source=31, is_nullable=True),
@@ -557,6 +616,12 @@ BLOB_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -578,6 +643,7 @@ SECRET_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("sha512", ColumnType.STRING, source=30, is_nullable=True),
         Column("value", ColumnType.STRING, source=31, is_nullable=True, is_encrypted=True),
@@ -590,6 +656,12 @@ SECRET_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -611,6 +683,7 @@ SESSION_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("last_changed_at", ColumnType.DATETIME, source=16, is_nullable=True),
         Column("access_level", ColumnType.BIGINT, source=30, is_nullable=True),
@@ -631,6 +704,12 @@ SESSION_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -668,6 +747,7 @@ RUN_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("last_changed_at", ColumnType.DATETIME, source=16, is_nullable=True),
         Column(
@@ -716,6 +796,12 @@ RUN_TABLE = Table(
             ["bench_module_id", "bench_deleted_at"],
             source=13,
         ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
+        ),
     ),
 )
 
@@ -736,6 +822,7 @@ WORKER_SET_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("region", ColumnType.STRING, source=31, is_nullable=True),
         Column("profile", ColumnType.STRING, source=32, is_nullable=True),
@@ -748,7 +835,7 @@ WORKER_SET_TABLE = Table(
         Column("last_active_at", ColumnType.DATETIME, source=39, is_nullable=True),
         Column("last_bumped_at", ColumnType.DATETIME, source=40, is_nullable=True),
     ),
-    source=64,
+    source=69,
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"], source=5),
         Index(
@@ -756,6 +843,12 @@ WORKER_SET_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
@@ -777,6 +870,7 @@ USER_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, source=11),
         Column("updated_at", ColumnType.DATETIME, source=12),
         Column("deleted_at", ColumnType.DATETIME, source=13, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, source=14, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, source=15),
         Column("username", ColumnType.STRING, source=30, is_nullable=True),
         Column("email", ColumnType.STRING, source=31, is_nullable=True),
@@ -789,6 +883,12 @@ USER_TABLE = Table(
             IndexType.BTREE,
             ["bench_module_id", "bench_deleted_at"],
             source=13,
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+            source=14,
         ),
     ),
 )
