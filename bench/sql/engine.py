@@ -64,7 +64,7 @@ def get_bench_table_name(node_type: NodeType) -> str:
     return f"bench_{node_type.name.lower().replace('_', '')}"
 
 
-def map_bench_node_to_pg_table(node: type[Node]) -> Table:
+def map_node_type_to_pg_table(node: type[Node]) -> Table:
     # TODO @Robustness: add Bench check constraints in Postgres
     columns: list[Column] = []
     constraints: list[Constraint] = []

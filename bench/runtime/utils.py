@@ -3,10 +3,10 @@ from uuid import UUID
 from asgiref.sync import sync_to_async
 
 from bench import models
-from bench.language import Module, libs
+from bench.language import Module
 from bench.language.builtin import symbolx_lib
 from bench.language.const import INTERP_NODE_TYPES, ModuleReference
-from bench.models import Bench, Module, packer
+from bench.models import Bench, Module
 from bench.proto import wire, wiring
 from bench.utils.func import to_uuid
 
@@ -43,8 +43,7 @@ async def interp_module(ref: ModuleReference | UUID) -> tuple[Module, models.Ben
     module = wiring.unpack_node_inline(
         module.nodes, my_root=to_uuid(module.module.ck), parent=None, exclude=INTERP_NODE_TYPES
     )
-    for dependency in libs.DEFAULT_MODULES.values():
-        module.add_dependency(dependency)
+    module.add_dependency(symbolx_lib)
     module.add_builtin(symbolx_lib.files.get("builtins"))
     module._interp_rec()
     return module, bench

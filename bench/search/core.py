@@ -1,14 +1,9 @@
-import dataclasses
 import enum
-import inspect
 import typing
 from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, ClassVar
-from uuid import UUID
+from typing import Any
 
 from bench.language.const import NodeType
-from bench.language.expression import TYPE_DISCRIMINATOR_KEY
 
 # different from LOCAL_NODE_TYPES (which is the source of truth, this is just OS indexing)
 LOCAL_OS_NODE_TYPES = (NodeType.SESSION, NodeType.RUN, NodeType.RECORD)
@@ -266,130 +261,7 @@ class Document:
     Base for OpenSearch-style dataclass document.
     """
 
-    Partial: ClassVar[typing.Type["Document"]] = None
-    __fields__: ClassVar[dict[str, Field]] = {}
-    __type__: ClassVar[typing.Optional[str]] = None
-    __store_type__: ClassVar[bool] = True
-
-    id: UUID  # not technically a field on the document, so no Field annotation (goes into _id)
-
-    def to_dict(self) -> dict[str, Any]:
-        """
-        Convert this document to a dict wireable to OpenSearch.
-        We convert top level fields to JSON-able types - inner fields are left as is,
-         as they are all user-defined and thus already JSON-able.
-        """
-        serialized = {}
-        if self.__type__ is not None and self.__store_type__:
-            serialized[TYPE_DISCRIMINATOR_KEY] = self.__type__
-        for name, field in self.__fields__.items():
-            if not field.can_set_directly:
-                continue
-            value = getattr(self, name)
-            if value is None:
-                continue
-            if isinstance(value, datetime):
-                value = value.isoformat()
-            elif isinstance(value, UUID):
-                value = str(value)
-            elif isinstance(value, enum.Enum):
-                value = value.value
-            serialized[name] = value
-        return serialized
-
-    @classmethod
-    def from_dict(cls, d: dict[str, Any], id: str) -> "Document":
-        """
-        Convert a dict wireable from OpenSearch to a document, converting to pythonic types.
-        """
-        deserialized = {"id": UUID(id)}
-        if TYPE_DISCRIMINATOR_KEY in d:
-            d.pop(TYPE_DISCRIMINATOR_KEY)
-        for name, field in cls.__fields__.items():
-            if not field.can_set_directly:
-                continue
-            value = d.pop(name, None)
-            if value is None:
-                pass  # just leave it as None
-            elif field.type == FT.DATE:
-                if value == "-":
-                    value = None  # used to reset a date field
-                else:
-                    value = datetime.fromisoformat(value)
-            elif field._annotation == UUID:
-                value = UUID(value)
-            elif field.type == FT.TEXT:
-                value = value
-            deserialized[name] = value
-        return cls(**deserialized)
-
-
-_DocumentT = typing.TypeVar("_DocumentT", bound=Document)
-
-
-@typing.dataclass_transform()
-def document(cls: typing.Optional[_DocumentT], _type: str = None, store_type: bool = None):
-    """Decorator for mapping a class as an OpenSearch-style dataclass."""
-
-    def decorator(cls: _DocumentT) -> _DocumentT:
-        # first convert the fields to dataclass fields (and store the original fields)
-        fields = {}
-
-        for name, field in cls.__dict__.items():
-            # ignore reserved names and non-fields
-            if (
-                name.startswith("_")
-                or name == "Partial"
-                or field is None
-                or inspect.ismethod(field)
-                or inspect.isfunction(field)
-                or isinstance(field, property)
-            ):
-                continue
-            if not isinstance(field, Field):
-                raise TypeError(f"{name} is not a Field in {cls.__name__}")
-            field._annotation = cls.__annotations__[name]
-            fields[name] = field
-        # remove field values from annotation (since it's not a dataclass field)
-        for name, field in fields.items():
-            if not field.can_set_directly:
-                setattr(cls, name, dataclasses.field(init=False))
-            else:
-                delattr(cls, name)
-        # add fields from parent classes
-        for base in reversed(cls.__bases__):
-            if base is Document:
-                continue
-            fields.update(base.__fields__)  # type: ignore
-        # then convert the class to a dataclass
-        cls = dataclasses.dataclass(cls, repr=False)  # type: ignore
-        # then add the fields back
-        cls.__fields__ = fields
-        # add a partial class with all fields optional (copy and set fields with default None)
-        partial_fields = {
-            **{name: dataclasses.field(default=None) for name, field in fields.items()},
-            "id": dataclasses.field(default=None),
-        }
-        partial_cls = type(cls.__name__ + "Partial", (cls,), partial_fields)
-        # copy all type annotations from the original class and its bases
-        for c in cls.__mro__[:-2]:  # skip object and Document
-            for name in fields:
-                if name in c.__annotations__:
-                    partial_cls.__annotations__[name] = c.__annotations__[name]
-        partial_cls.__annotations__["id"] = UUID
-        partial_cls = dataclasses.dataclass(partial_cls, repr=False)  # type: ignore
-        cls.Partial = partial_cls
-        if _type is not None:
-            if not isinstance(_type, str):
-                raise TypeError(f"_type must be a string, not {_type!r}: {_type}")
-            cls.__type__ = _type
-        cls.__store_type__ = store_type
-        return cls
-
-    if cls is None:
-        return decorator
-    else:
-        return decorator(cls)
+    fields: dict[str, Field]
 
 
 class Tokenizer(enum.StrEnum):
@@ -437,17 +309,3 @@ CUSTOM_ANALYZERS = {
 }
 
 GLOBAL_INDEX_NAME = "bench-global"
-
-
-class IndexType(enum.StrEnum):
-    """The index type within Bench."""
-
-    GLOBAL = "global"
-    LOCAL = "bench"
-
-
-class DocumentType(enum.StrEnum):
-    RECORD = "record"
-    SESSION = "session"
-    RUN = "run"
-    LOG_ENTRY = "log_entry"

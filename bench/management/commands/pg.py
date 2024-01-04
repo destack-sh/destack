@@ -10,7 +10,7 @@ from bench.models import Bench
 from bench.sql.engine import (
     create_local_pg_database,
     delete_local_pg_database,
-    map_bench_node_to_pg_table,
+    map_node_type_to_pg_table,
     update_pg_schema,
 )
 from bench.utils.utils import format_python
@@ -64,7 +64,7 @@ class Command(BaseCommand):
                 node_cls = NODE_CLASS_BY_NODE_TYPE[node_t]
                 if not node_cls.__is_stored__ or node_cls.__is_stored_custom__:
                     continue
-                table = map_bench_node_to_pg_table(node_cls)
+                table = map_node_type_to_pg_table(node_cls)
                 const_name = f"{node_cls.metatype.name}_TABLE"
                 table_def = f"{const_name} = {table.source_repr()}"
                 chunks.append(table_def)
