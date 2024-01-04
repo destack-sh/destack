@@ -2,7 +2,7 @@ import base64
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, NamedTuple, Optional, Type, Union
+from typing import Any, NamedTuple, Optional, Union
 from uuid import UUID
 
 import psycopg
@@ -23,7 +23,7 @@ from bench.language import (
     TypeTag,
     symbolx_lib,
 )
-from bench.language.const import RUNNABLE_STATEMENT_TYPES, EditKind, TypeFlag
+from bench.language.const import RUNNABLE_STATEMENT_TYPES, BenchType, EditKind, TypeFlag
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     Expression,
@@ -34,12 +34,19 @@ from bench.language.expression import (
     S,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
-from bench.proto import wire
+from bench.language.module import (
+    BENCH_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_STRUCT_TYPE,
+    Node,
+    Property,
+    Struct,
+)
+from bench.proto import wire, wiring
 from bench.proto.wire import EditData
 from bench.search import core as os
-from bench.search import mirror
 from bench.search.client import get_os_errors, os_client, os_client_sync
-from bench.search.core import LOCAL_OS_NODE_TYPES, DocumentType, IndexType, SubfieldType
+from bench.search.core import LOCAL_OS_NODE_TYPES, SubfieldType
+from bench.sql.core import ColumnType
 
 logger = structlog.get_logger(__name__)
 
@@ -372,7 +379,7 @@ def compile_os_sort(ctx: CompilationContext, sort: Expression) -> dict[str, Any]
 class OsSearch:
     """Compiled search query for OS."""
 
-    type: DocumentType
+    metatype: BenchType
     limit: int | None = None
     skip: int | None = None
     count: bool = True
@@ -410,17 +417,15 @@ class OsSearchResult:
     cursors: list[str]
     start_cursor: Optional[str]
 
-    def as_records(self) -> list[wire.RecordData]:
-        records_data: list[wire.RecordData] = []
+    def as_records(self) -> list[wiring.AnyNodeData]:
+        records_data: list[wiring.AnyNodeData] = []
         for result in self.results:
-            record_doc = mirror.Record.from_dict(result["_source"], result["_id"])
-            record_data = mirror.pack_node_flat(record_doc)
-            records_data.append(record_data)
+            records_data.append(unpack_struct(result["_source"]))
         return records_data
 
 
 def compile_os_search(
-    type: DocumentType,
+    metatype: BenchType,
     query: Optional[Expression] = None,
     sort: Optional[list[Expression]] = None,
     limit: int | None = None,
@@ -432,7 +437,7 @@ def compile_os_search(
         raise ValueError("cannot specify both after and skip")
     combined_query = C(
         ConditionalOp.AND,
-        clauses=[C(ConditionalOp.EQUALS, field_key=TYPE_DISCRIMINATOR_KEY, value=type.value)],
+        clauses=[C(ConditionalOp.EQUALS, field_key=TYPE_DISCRIMINATOR_KEY, value=metatype.name)],
     )
     if query is not None:
         combined_query &= query
@@ -463,7 +468,7 @@ def _wrap_os_error(
 
 async def os_search(
     os_name: str,
-    type: "DocumentType",
+    metatype: BenchType,
     filter: Optional[Expression] = None,
     sort: Optional[list[Expression]] = None,
     limit: int | None = None,
@@ -472,7 +477,7 @@ async def os_search(
     after: Optional[str] = None,
 ) -> OsSearchResult:
     """Executes a search query against OpenSearch."""
-    search = compile_os_search(type, filter, sort, limit, skip, count, after)
+    search = compile_os_search(metatype, filter, sort, limit, skip, count, after)
     logger.debug("os.search", os_name=os_name, search=search)
     try:
         os_results = await os_client.search(index=os_name, body=search.to_dict())
@@ -486,7 +491,7 @@ async def os_search(
 
 def os_search_sync(
     os_name: str,
-    type: "DocumentType",
+    metatype: BenchType,
     filter: Optional[Expression] = None,
     sort: Optional[list[Expression]] = None,
     limit: int | None = None,
@@ -497,7 +502,7 @@ def os_search_sync(
     """
     Executes a search query against OpenSearch.
     """
-    search = compile_os_search(type, filter, sort, limit, skip, count, after)
+    search = compile_os_search(metatype, filter, sort, limit, skip, count, after)
     logger.debug("os.search", os_name=os_name, search=search)
     try:
         os_results = os_client_sync.search(index=os_name, body=search.to_dict())
@@ -519,6 +524,126 @@ def encode_os_cursor(record: dict[str, Any], after: Optional[str], i: int) -> st
         if not isinstance(after, int):
             raise ValueError("invalid cursor")
         return base64.b64encode(json.dumps(after + i).encode()).decode("utf-8")
+
+
+#
+# Mapping nodes to documents
+#
+
+
+NAME_FIELD = os.Field(
+    os.FT.TEXT,
+    fields={
+        os.SubfieldType.starts_with: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
+        os.SubfieldType.key: os.Field(os.FieldType.KEYWORD),
+    },
+)
+HTML_FIELD = os.Field(os.FieldType.TEXT, analyzer=os.Analyzer.HTML)
+TEXT_FIELD = HTML_FIELD
+
+FIELD_TYPE_BY_COLUMN_TYPE = {
+    ColumnType.BOOLEAN: os.FieldType.BOOLEAN,
+    ColumnType.DATETIME: os.FieldType.DATE,
+    ColumnType.FLOAT: os.FieldType.DOUBLE,
+    ColumnType.BIGINT: os.FieldType.LONG,
+    ColumnType.JSON: os.FieldType.OBJECT,
+    ColumnType.STRING: os.FieldType.TEXT,
+    ColumnType.UUID: os.FieldType.KEYWORD,
+}
+
+
+def _is_property_indexed(prop: lang.Property) -> bool:
+    return prop.is_stored and not prop.is_encrypted and not prop.is_deferred
+
+
+def map_struct_type_to_os_document(struct: type[Struct]) -> os.Document:
+    fields: dict[str, os.Field] = {}
+
+    for prop in struct.__stored_properties__.values():
+        if not _is_property_indexed(prop):
+            continue
+        if prop.is_enum:
+            field = os.Field(os.FieldType.KEYWORD)
+        elif prop.is_struct:
+            struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[prop.struct_type]
+            field = os.Field(
+                os.FieldType.OBJECT, properties=map_struct_type_to_os_document(struct_cls).fields
+            )
+        elif prop.column_type == ColumnType.JSON:
+            field = os.Field(os.FieldType.OBJECT, dynamic="strict")
+        else:
+            field_type = FIELD_TYPE_BY_COLUMN_TYPE.get(prop.column_type)
+            if field_type is None:
+                raise ValueError(f"unsupported column type in {prop!r}: {prop.column_type}")
+            field = os.Field(field_type)
+            if field.type == os.FieldType.DATE:
+                field.ignore_malformed = True  # allow 'resetting' dates to null
+        fields[prop.name] = field
+    if issubclass(struct, Node) and "name" not in fields:
+        fields["name"] = NAME_FIELD
+    return os.Document(fields=fields)
+
+
+LOCAL_DOCUMENTS: tuple[os.Document, ...] = tuple(
+    map_struct_type_to_os_document(struct)
+    for struct in BENCH_CLASS_BY_TYPE.values()
+    if struct.__is_indexed_in_os__
+)
+
+
+def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    if value is None:
+        return None
+    elif prop.is_array and not ignore_array:
+        return [_pack_struct_prop(prop, v, ignore_array=True) for v in value]
+    elif prop.is_struct:
+        return pack_struct(value)
+    elif prop.column_type == ColumnType.JSON:
+        return wiring.pack_jsonable(value)
+    elif prop.is_enum:
+        return wiring.pack_enum(value)
+    else:
+        return value
+
+
+def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    if value is None:
+        return None
+    elif prop.is_array and not ignore_array:
+        return [_unpack_struct_prop(prop, v, ignore_array=True) for v in value]
+    elif prop.is_struct:
+        return unpack_struct(value)
+    elif prop.column_type == ColumnType.JSON:
+        return wiring.unpack_jsonable(value)
+    elif prop.is_enum:
+        return wiring.unpack_enum(prop.enum_cls, value)
+    else:
+        return value
+
+
+def pack_struct(node: wiring.AnyNodeData | wiring.AnyStructData) -> dict:
+    metatype = wiring.unpack_enum(BenchType, node.metatype)
+    bench_cls = BENCH_CLASS_BY_TYPE[metatype]
+    document: dict[str, Any] = {TYPE_DISCRIMINATOR_KEY: metatype.name}
+    for prop in bench_cls.__stored_properties__.values():
+        if not _is_property_indexed(prop):
+            continue
+        value = getattr(node, prop.name)
+        document[prop.name] = _pack_struct_prop(prop, value, ignore_array=False)
+    return document
+
+
+def unpack_struct(source: dict) -> wiring.AnyNodeData | wiring.AnyStructData:
+    metatype = BenchType(source[TYPE_DISCRIMINATOR_KEY])
+    bench_cls = BENCH_CLASS_BY_TYPE[metatype]
+    proto_cls = wiring.PROTO_CLASS_BY_TYPE[metatype]
+    proto_kwargs = {}
+    for prop in bench_cls.__stored_properties__.values():
+        if not _is_property_indexed(prop):
+            continue
+        value = source.get(prop.name)
+        proto_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
+    return proto_cls(**proto_kwargs)
 
 
 async def sync_pg_databases_to_os(
@@ -577,16 +702,15 @@ async def sync_pg_databases_to_os(
 
         # upsert records
         for record_data in records_data:
-            record_mirror = mirror.unpack_node_flat(module, record_data, database)
             ops.append({"index": {"_index": os_name, "_id": str(record_data.id)}})
-            ops.append(record_mirror.to_dict())
+            ops.append(pack_struct(record_data))
 
     await _flush()
     log.debug("os.sync_pg_databases_to_os.done")
 
 
 DEFAULT_FIELDS = {
-    os.TYPE_DISCRIMINATOR_KEY: os.TYPE_DISCRIMINATOR_FIELD,
+    TYPE_DISCRIMINATOR_KEY: os.TYPE_DISCRIMINATOR_FIELD,
 }
 GLOBAL_INDEX_SHARDS = 5
 GLOBAL_INDEX_REPLICAS = 1
@@ -596,10 +720,10 @@ BENCH_INDEX_REPLICAS = 0
 BENCH_MAPPING_TOTAL_FIELDS_LIMIT = 10000  # TODO @Performance: reconsider OS mapping limit
 
 
-def _collect_fields(doc_classes: list[os.Document]) -> dict[str, os.Field]:
+def _collect_fields(docs: list[os.Document]) -> dict[str, os.Field]:
     fields = {}
-    for doc_class in doc_classes:
-        for field_name, field in doc_class.__fields__.items():
+    for doc in docs:
+        for field_name, field in doc.fields.items():
             existing_field = fields.get(field_name)
             if existing_field is not None and existing_field != field:
                 raise ValueError(
@@ -614,7 +738,7 @@ def _create_os_index(
     *,
     shards: int,
     replicas: int,
-    documents: list[Type[os.Document]],
+    documents: list[os.Document],
     upsert: bool = False,
 ) -> None:
     fields = {**DEFAULT_FIELDS, **_collect_fields(documents)}
@@ -710,7 +834,7 @@ def create_local_os_index(
         index_name=os_name,
         shards=BENCH_INDEX_SHARDS,
         replicas=BENCH_INDEX_REPLICAS,
-        documents=DOCUMENTS_BY_INDEX[IndexType.LOCAL],
+        documents=LOCAL_DOCUMENTS,
         upsert=upsert,
     )
 
@@ -843,8 +967,8 @@ async def write_edits_to_os(
         index = (
             module.os_name if edit.type.node_type in LOCAL_OS_NODE_TYPES else os.GLOBAL_INDEX_NAME
         )
-        node = edit.thing or edit.node  # local nodes don't have a model thing, only data node
-        if not mirror.has_mirror(node):
+        metatype = wiring.unpack_enum(BenchType, edit.node.metatype)
+        if not BENCH_CLASS_BY_TYPE[metatype].__is_indexed_in_os__:
             continue  # ignore
         elif edit.type.kind in (
             EditKind.CREATE,
@@ -853,15 +977,10 @@ async def write_edits_to_os(
             EditKind.SOFT_DELETE,
             EditKind.RESTORE,
         ):
-            if isinstance(node, models.Node):
-                mirrored_data = mirror.mirror_node(module, node).to_dict()
-            else:
-                parent = module.resolve(node.parent_id)
-                mirrored_data = mirror.unpack_node_flat(module, node, parent).to_dict()
-            ops.append({"index": {"_index": index, "_id": str(node.id)}})
-            ops.append(mirrored_data)
+            ops.append({"index": {"_index": index, "_id": str(edit.node.id)}})
+            ops.append(pack_struct(edit.node))
         elif edit.type.kind == EditKind.DELETE:
-            ops.append({"delete": {"_index": index, "_id": str(node.id)}})
+            ops.append({"delete": {"_index": index, "_id": str(edit.node.id)}})
         else:
             raise ValueError(f"unexpected edit type: {edit!r}")
 
@@ -890,7 +1009,7 @@ async def sync_databases_to_os(module: Module, databases: list[HasDatabase]) -> 
     log.debug("os.write_edits.flush", records=len(all_records))
     # wipe all databases by query
     filter = [
-        {"term": {TYPE_DISCRIMINATOR_KEY: DocumentType.RECORD}},
+        {"term": {TYPE_DISCRIMINATOR_KEY: BenchType.RECORD}},
         {"terms": {"statement_key": [d.key for d in databases]}},
     ]
     await os_client.delete_by_query(module.os_name, body={"query": {"bool": {"filter": filter}}})
@@ -902,9 +1021,8 @@ async def write_records_to_os(module: Module, records: list[wire.RecordData]) ->
         return
     ops: list[dict] = []
     for record_data in records:
-        parent = module._local_tree.nodes_by_id[record_data.parent_id]
         ops.append({"index": {"_index": module.os_name, "_id": str(record_data.id)}})
-        ops.append(mirror.unpack_node_flat(module, record_data, parent).to_dict())
+        ops.append(pack_struct(record_data))
     logger.debug("os.write_records", operations=len(ops))
     ret = await os_client.bulk(ops)
     if ret.get("errors"):
@@ -916,23 +1034,3 @@ def enable_os_strict_mapping(index_name: str) -> None:
     rep = os_client_sync.indices.put_mapping(index=index_name, body={"dynamic": "strict"})
     if rep.get("error"):
         raise RuntimeError(f"failed to enable strict dynamic mapping: {rep['error']}")
-
-
-def write_runs_to_os(
-    modules: models.Module | list[models.Module], runs: list[wire.RunData]
-) -> None:
-    """Writes/mirrors runs (from different sessions/benches) to OpenSearch."""
-
-    if not runs:
-        return
-    if isinstance(modules, list) and len(modules) != len(runs):
-        raise ValueError(f"len(modules) != len(runs): {len(modules)} != {len(runs)}")
-    ops: list[dict] = []
-    for i, run in enumerate(runs):
-        module_pg = modules[i] if isinstance(modules, list) else modules
-        ops.append({"index": {"_index": module_pg.os_name, "_id": str(run.id)}})
-        ops.append(mirror.unpack_node_flat(module_pg, run, None).to_dict())
-    logger.debug("os.write_runs", operations=len(ops))
-    ret = os_client_sync.bulk(ops)
-    if ret.get("errors"):
-        raise RuntimeError(f"failed to write runs to OpenSearch: {get_os_errors(ret)}")

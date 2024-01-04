@@ -150,7 +150,7 @@ class LogEntry(Struct):
         return f"<LogEntry {self}>"
 
 
-@node(NodeType.SESSION, detached=True, local=True)
+@node(NodeType.SESSION, detached=True, local=True, index_in_os=True)
 class Session(ScopeNode):
     """
     A managed context for running a Bench module (in a worker).
@@ -408,7 +408,7 @@ class Session(ScopeNode):
 
     async def _write_logs(self, logs: list[LogEntry]) -> None:
         from bench.proto import wiring
-        from bench.search import mirror
+        from bench.search.engine import pack_struct
 
         if not logs:
             return
@@ -418,7 +418,7 @@ class Session(ScopeNode):
         logs = [wiring.pack_struct(log) for log in logs]
         for log in logs:
             ops.append({"index": {"_index": os_name, "_id": str(log.id)}})
-            ops.append(mirror.unpack_node_flat(self.module, log, None).to_dict())
+            ops.append(pack_struct(log))
         ret = await os_client.bulk(ops)
         if ret["errors"]:
             raise RuntimeError(f"failed to write logs: {get_os_errors(ret)}")

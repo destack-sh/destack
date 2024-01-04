@@ -31,7 +31,7 @@ from bench.utils.utils import hybridmethod, to_snake_case
 logger = structlog.get_logger(__name__)
 # could auto-gen the Any types?
 AnyNodeData = Union[wire.ModuleData, wire.FileData, wire.StatementData, wire.FieldData]
-AnyStructData = Union[wire.EnvironmentData, wire.ExpressionData]
+AnyStructData = Union[wire.WorkerImageData, wire.ExpressionData]
 
 
 # monkey-patch betterproto 'Struct' to fix from_dict/to_dict
@@ -128,17 +128,21 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.is_struct:
         return pack_struct(value)
     elif prop.is_enum:
-        if issubclass(prop.py_type_stripped, enum.IntFlag):
-            return int(value)
-        else:
-            proto_enum_cls = getattr(wire, prop.py_type_raw.__name__)
-            return proto_enum_cls[value.name]
+        return pack_enum(prop.py_type_stripped, value)
     elif prop.column_type == ColumnType.UUID:
         return str(value)  # uuids are wired as strings
     elif prop.column_type == ColumnType.JSON:
         return BetterprotoStruct.from_dict(value)
     else:
         return value
+
+
+def pack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
+    if issubclass(enum_cls, enum.IntFlag):
+        return int(value)
+    else:
+        proto_enum_cls = getattr(wire, enum_cls.__name__)
+        return proto_enum_cls[value.name]
 
 
 def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
@@ -150,14 +154,7 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         elif prop.is_struct:
             return unpack_struct(value)
         elif prop.is_enum:
-            if issubclass(prop.py_type_stripped, int):
-                return prop.py_type_raw(value)
-            elif type(value) == str:
-                return prop.py_type_raw(value)
-            elif value.name == "UNSPECIFIED":
-                return None  # revert to default
-            else:
-                return prop.py_type_raw[value.name]
+            return unpack_enum(prop.py_type_stripped, value)
         elif prop.column_type == ColumnType.UUID:
             return to_uuid(value)  # uuids are wired as strings
         elif prop.column_type == ColumnType.JSON:
@@ -166,6 +163,17 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
             return value
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack value: {value!r} for {prop!r}") from e
+
+
+def unpack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
+    if issubclass(enum_cls, int):
+        return enum_cls(value)
+    elif type(value) == str:
+        return enum_cls(value)
+    elif value.name == "UNSPECIFIED":
+        return None  # revert to default
+    else:
+        return enum_cls[value.name]
 
 
 def pack_struct(struct: Struct) -> AnyStructData:

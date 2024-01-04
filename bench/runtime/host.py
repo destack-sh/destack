@@ -33,8 +33,6 @@ from bench.language.module import NodeTree, NodeTreeEditor, on_issue_raise, walk
 from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
-from bench.models import Module, packer
-from bench.models.packer import get_default_pack_filters, write_host_db_edits
 from bench.models.user import loops_request
 from bench.proto import wire, wiring
 from bench.proto.wire import ClientOrigin, EditData

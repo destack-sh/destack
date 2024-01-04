@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from bench.language import Run, Session, Statement
 
 
-@node(NodeType.SIGNAL, local=True, detached=True)
+@node(NodeType.SIGNAL, local=True, detached=True, index_in_os=True)
 class Signal(HasValue):
     parent: None = node_parent(4)
     type: Optional["Statement"] = struct_internal(30, array=False, references=NodeType.STATEMENT)

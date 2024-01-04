@@ -36,7 +36,6 @@ from bench.language.module import (
     struct_runtime,
 )
 from bench.language.value import HasValue
-from bench.search.core import DocumentType
 from bench.sql.core import EPHEMERAL_RECORD_TABLE, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
@@ -232,7 +231,7 @@ class RecordQuery:
         if target_engine == QueryEngine.OPENSEARCH:
             os_results = await os_search(
                 os_name=self._database.module.os_name,
-                type=DocumentType.RECORD,
+                metatype=NodeType.RECORD,
                 filter=where,
                 limit=first,
                 skip=self._skip,
