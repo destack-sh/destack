@@ -45,14 +45,17 @@ enum BenchType {
   BENCH_TYPE_ISSUE = 16;
   BENCH_TYPE_RESOLVED_FIELD = 17;
   BENCH_TYPE_WORKER_SET = 40;
+  BENCH_TYPE_WORKER = 41;
   BENCH_TYPE_SESSION = 60;
   BENCH_TYPE_RUN = 61;
   BENCH_TYPE_SIGNAL = 70;
   BENCH_TYPE_HALT = 71;
-  BENCH_TYPE_USER = 100;
-  BENCH_TYPE_CLIENT = 104;
-  BENCH_TYPE_BADGE = 105;
-  BENCH_TYPE_NOTIFICATION = 107;
+  BENCH_TYPE_HANDLE = 100;
+  BENCH_TYPE_USER = 101;
+  BENCH_TYPE_ORGANIZATION = 102;
+  BENCH_TYPE_CLIENT = 103;
+  BENCH_TYPE_NOTIFICATION = 104;
+  BENCH_TYPE_BADGE = 120;
   BENCH_TYPE_POLICY = 200;
   BENCH_TYPE_POLICY_RULE = 201;
   BENCH_TYPE_EXPRESSION = 210;
@@ -210,14 +213,17 @@ enum NodeType {
   NODE_TYPE_ISSUE = 16;
   NODE_TYPE_RESOLVED_FIELD = 17;
   NODE_TYPE_WORKER_SET = 40;
+  NODE_TYPE_WORKER = 41;
   NODE_TYPE_SESSION = 60;
   NODE_TYPE_RUN = 61;
   NODE_TYPE_SIGNAL = 70;
   NODE_TYPE_HALT = 71;
-  NODE_TYPE_USER = 100;
-  NODE_TYPE_CLIENT = 104;
-  NODE_TYPE_BADGE = 105;
-  NODE_TYPE_NOTIFICATION = 107;
+  NODE_TYPE_HANDLE = 100;
+  NODE_TYPE_USER = 101;
+  NODE_TYPE_ORGANIZATION = 102;
+  NODE_TYPE_CLIENT = 103;
+  NODE_TYPE_NOTIFICATION = 104;
+  NODE_TYPE_BADGE = 120;
 }
 
 enum NotificationStatus {
@@ -324,14 +330,15 @@ enum StatementType {
   STATEMENT_TYPE_BLANK = 3;
   STATEMENT_TYPE_CLASS = 4;
   STATEMENT_TYPE_CHOICE = 5;
-  STATEMENT_TYPE_TASK = 6;
-  STATEMENT_TYPE_CODE = 7;
-  STATEMENT_TYPE_FLOW = 8;
-  STATEMENT_TYPE_MODEL = 9;
-  STATEMENT_TYPE_VARIABLE = 10;
-  STATEMENT_TYPE_DATABASE = 11;
-  STATEMENT_TYPE_VIEW = 12;
-  STATEMENT_TYPE_SCREEN = 13;
+  STATEMENT_TYPE_SIGNAL = 6;
+  STATEMENT_TYPE_TASK = 7;
+  STATEMENT_TYPE_CODE = 8;
+  STATEMENT_TYPE_FLOW = 9;
+  STATEMENT_TYPE_MODEL = 10;
+  STATEMENT_TYPE_VARIABLE = 11;
+  STATEMENT_TYPE_DATABASE = 12;
+  STATEMENT_TYPE_VIEW = 13;
+  STATEMENT_TYPE_SCREEN = 14;
 }
 
 enum StructType {
@@ -592,8 +599,15 @@ message BenchData {
   string name = 30;
   string slug = 31;
   string description = 32;
-  string os_name = 33;
-  string pg_name = 34;
+  string organization_ck = 33;
+  string user_ck = 34;
+  string head_ck = 40;
+  string pg_name = 41;
+  string pg_username = 42;
+  string pg_password = 43;
+  string os_name = 44;
+  string os_username = 45;
+  string os_password = 46;
 }
 
 message BlobData {
@@ -694,6 +708,22 @@ message HaltData {
   google.protobuf.Timestamp last_edited_at = 15;
 }
 
+message HandleData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  string module_id = 5;
+  string bench_id = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  string slug = 30;
+}
+
 message IssueData {
   BenchType metatype = 1;
   string id = 2;
@@ -765,6 +795,23 @@ message NotificationData {
   NotificationStatus status = 31;
   google.protobuf.Timestamp expires_at = 32;
   google.protobuf.Timestamp read_at = 33;
+}
+
+message OrganizationData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  string module_id = 5;
+  string bench_id = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  google.protobuf.Timestamp last_changed_at = 16;
+  string handle_ck = 30;
 }
 
 message RecordData {
@@ -981,8 +1028,12 @@ message UserData {
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  string username = 30;
-  string email = 31;
+  google.protobuf.Timestamp last_changed_at = 16;
+  string handle_ck = 30;
+  string username = 31;
+  string name = 32;
+  string email = 33;
+  string password_hash = 34;
 }
 
 message ViewData {
@@ -1007,6 +1058,24 @@ message ViewData {
   repeated ExpressionData sort = 34;
 }
 
+message WorkerData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  string parent_id = 4;
+  string module_id = 5;
+  string bench_id = 6;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  google.protobuf.Timestamp deleted_at = 13;
+  google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
+  string external_id = 30;
+  WorkerProfile profile = 31;
+  WorkerImageData image = 32;
+}
+
 message WorkerSetData {
   BenchType metatype = 1;
   string id = 2;
@@ -1020,6 +1089,7 @@ message WorkerSetData {
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
+  google.protobuf.Timestamp last_changed_at = 16;
   ProjectRegion region = 31;
   WorkerProfile profile = 32;
   bool sleeping = 33;
@@ -1048,14 +1118,17 @@ message SomeNodeData {
     IssueData issue = 12;
     ResolvedFieldData resolved_field = 13;
     WorkerSetData worker_set = 14;
-    SessionData session = 15;
-    RunData run = 16;
-    SignalData signal = 17;
-    HaltData halt = 18;
-    UserData user = 19;
-    ClientData client = 20;
-    BadgeData badge = 21;
-    NotificationData notification = 22;
+    WorkerData worker = 15;
+    SessionData session = 16;
+    RunData run = 17;
+    SignalData signal = 18;
+    HaltData halt = 19;
+    HandleData handle = 20;
+    UserData user = 21;
+    OrganizationData organization = 22;
+    ClientData client = 23;
+    NotificationData notification = 24;
+    BadgeData badge = 25;
   };
 }
 

@@ -40,7 +40,7 @@ class NodeType(ProtoStrEnum):
     RESOLVED_FIELD = "RESOLVED_FIELD", 17
     # worker
     WORKER_SET = "WORKER_SET", 40
-    # WORKER = "WORKER", 41
+    WORKER = "WORKER", 41
     # WORKER_PROCESS = "WORKER_PROCESS", 42
     # session (all local)
     SESSION = "SESSION", 60
@@ -48,14 +48,16 @@ class NodeType(ProtoStrEnum):
     SIGNAL = "SIGNAL", 70
     HALT = "HALT", 71
     # user
-    USER = "USER", 100
-    # ORGANIZATION = "ORGANIZATION", 101
-    # INVITE = "INVITE", 102
-    # MEMBERSHIP = "MEMBERSHIP", 103
-    CLIENT = "CLIENT", 104
-    BADGE = "BADGE", 105
-    # COMMENT = "COMMENT", 106
-    NOTIFICATION = "NOTIFICATION", 107
+    HANDLE = "HANDLE", 100
+    USER = "USER", 101
+    ORGANIZATION = "ORGANIZATION", 102
+    CLIENT = "CLIENT", 103
+    NOTIFICATION = "NOTIFICATION", 104
+    # INVITE = "INVITE", 110
+    # MEMBERSHIP = "MEMBERSHIP", 111
+    BADGE = "BADGE", 120
+
+    # COMMENT = "COMMENT", 130
 
     @property
     def caps_name(self):
@@ -118,14 +120,14 @@ INTERP_NODE_TYPES = {NodeType.ISSUE, NodeType.RESOLVED_FIELD}
 
 
 class EditKind(ProtoStrEnum):
-    CREATE = "CREATE", 1
-    UPDATE = "UPDATE", 2
-    MOVE = "MOVE", 3
-    SOFT_DELETE = "SOFT_DELETE", 4
-    RESTORE = "RESTORE", 5
-    BUMP = "BUMP", 6
-    DELETE = "DELETE", 7
-    TRUNCATE = "TRUNCATE", 8
+    CREATE = "CREATE", 10  # start at 10, so we can have read 'actions' as well
+    UPDATE = "UPDATE", 11
+    MOVE = "MOVE", 12
+    SOFT_DELETE = "SOFT_DELETE", 13
+    RESTORE = "RESTORE", 14
+    BUMP = "BUMP", 15
+    DELETE = "DELETE", 16
+    TRUNCATE = "TRUNCATE", 17
 
 
 class PolicyEffect(ProtoStrEnum):
@@ -134,14 +136,16 @@ class PolicyEffect(ProtoStrEnum):
 
 
 class ActionKind(ProtoStrEnum):
+    READ = "READ", 1
+    LIST = "LIST", 2
     # edit kinds
-    CREATE = "CREATE", 1
-    UPDATE = "UPDATE", 2
-    MOVE = "MOVE", 3
-    SOFT_DELETE = "SOFT_DELETE", 4
-    RESTORE = "RESTORE", 5
-    BUMP = "BUMP", 6
-    DELETE = "DELETE", 7
+    CREATE = "CREATE", 10
+    UPDATE = "UPDATE", 11
+    MOVE = "MOVE", 12
+    SOFT_DELETE = "SOFT_DELETE", 13
+    RESTORE = "RESTORE", 14
+    BUMP = "BUMP", 15
+    DELETE = "DELETE", 16
     # run kinds
     START = "START_RUN", 20
     PAUSE = "PAUSE_RUN", 21
@@ -171,14 +175,15 @@ class StatementType(ProtoStrEnum):
     BLANK = "blank", 3
     CLASS = "class", 4
     CHOICE = "choice", 5
-    TASK = "task", 6
-    CODE = "code", 7
-    FLOW = "flow", 8
-    MODEL = "model", 9
-    VARIABLE = "variable", 10
-    DATABASE = "database", 11
-    VIEW = "view", 12
-    SCREEN = "screen", 13
+    SIGNAL = "signal", 6
+    TASK = "task", 7
+    CODE = "code", 8
+    FLOW = "flow", 9
+    MODEL = "model", 10
+    VARIABLE = "variable", 11
+    DATABASE = "database", 12
+    VIEW = "view", 13
+    SCREEN = "screen", 14
 
     @property
     def camel_name(self):

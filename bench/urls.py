@@ -9,11 +9,6 @@ from django.http import HttpResponse
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.views import SpectacularAPIView
-from strawberry.django.views import GraphQLView
-
-from bench.api.rest import run
-from bench.api.root import schema
-from bench.settings import DEBUG
 
 
 @csrf_exempt
@@ -26,12 +21,5 @@ urlpatterns = [
     path("", empty_view, name="index"),
     path("admin/", admin.site.urls),
     path("", include("django_prometheus.urls")),
-    path("", include("social_django.urls", namespace="social")),
     path("schema", SpectacularAPIView.as_view(), name="schema"),
-    path("<owner>/<bench>/run", run, name="run"),
-    path(
-        "graphql",
-        GraphQLView.as_view(schema=schema, graphiql=DEBUG, allow_queries_via_get=False),
-        name="graphql",
-    ),
 ]
