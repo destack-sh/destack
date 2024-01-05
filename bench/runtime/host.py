@@ -9,12 +9,12 @@ from uuid import UUID
 
 import structlog
 
-from bench.proto.messaging import nc_init
+from bench.utils.monitoring import Monitored
 
 logger = structlog.get_logger(__name__)
 
 
-class WorkerHost:
+class WorkerNode(Monitored):
     """
     Manages the lifecycle of the worker node's worker processes in a main sidecar process.
     During local development, this may also launch the worker node in the same process.
@@ -40,13 +40,8 @@ class WorkerHost:
     def __repr__(self):
         return f"<WorkerHost {self}>"
 
-    async def run_forever(self):
         await nc_init.wait()
         logger.info("host.start", worker_process=self.worker_process, host=self)
-        if self.bench_id:
-            pass
-        else:
-            pass
         # launch worker process
         suspiciously_rapid_restarts = 0
         while not self._stopped:
