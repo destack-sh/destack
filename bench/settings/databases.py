@@ -1,6 +1,5 @@
 import os
 
-import dj_database_url
 import structlog
 from django.core.exceptions import ImproperlyConfigured
 

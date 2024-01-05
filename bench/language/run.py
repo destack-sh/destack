@@ -87,46 +87,13 @@ class HasRun(Node):
 
 @dataclass(slots=True)
 class CachedRun:
-    """A cached run of a node."""
+    # nocheckin: replace with Run / some struct (Inference?
 
     generated_in: UUID
     generated_at: datetime
     duration: float
     inputs: dict[str, Any]
     outputs: dict[str, Any]
-
-    @staticmethod
-    def bytes_from_run(generated_in: UUID, inputs: dict, outputs: dict, started_at: datetime):
-        now = utcnow_with_tz()
-        run = CachedRun(
-            generated_in=generated_in,
-            generated_at=now,
-            duration=(now - started_at).total_seconds(),
-            inputs=inputs,
-            outputs=outputs,
-        )
-        return run.to_json_bytes()
-
-    def to_json_bytes(self) -> bytes:
-        run_json = {
-            "generated_in": self.generated_in.hex,
-            "generated_at": self.generated_at.isoformat(),
-            "duration": self.duration,
-            "inputs": self.inputs,
-            "outputs": self.outputs,
-        }
-        return msgpack.packb(run_json, use_bin_type=True)
-
-    @staticmethod
-    def from_json_bytes(json_bytes: bytes) -> "CachedRun":
-        run_json = msgpack.unpackb(json_bytes, raw=False)
-        return CachedRun(
-            generated_in=UUID(run_json["generated_in"]),
-            generated_at=datetime.fromisoformat(run_json["generated_at"]),
-            duration=run_json["duration"],
-            inputs=run_json["inputs"],
-            outputs=run_json["outputs"],
-        )
 
 
 def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):

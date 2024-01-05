@@ -606,15 +606,14 @@ class Property(_FieldExpressionBase):
             )
             self.reference_key = ancestor_id_prop
             if self.is_stored or self.is_wired:
-                self.is_stored = False  # the id is stored instead
+                self.is_stored = False  # the key is stored instead
                 if self.is_wired is True:
-                    self.is_wired = False  # the id is wired instead
+                    self.is_wired = False  # the key is wired instead
                 return (ancestor_id_prop,)
         elif self.references is not None:
-            # regular reference to node (via ck, resolved during interp)
-            # nocheckin: support reference by id, generate multiple stored _id props for that case
+            # regular reference to node (via ck for in-module nodes, id otherwise)
             assert self.is_array is not UNSET, f"must set is_array on {self!r}"
-            reference_ck_prop = Property(
+            self.reference_key = Property(
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_ck",
                 component=self.component,
@@ -629,8 +628,7 @@ class Property(_FieldExpressionBase):
                 is_indexed_in_pg=self.is_indexed_in_pg,
                 column_type=ColumnType.UUID,
             )
-            self.reference_key = reference_ck_prop
-            return (reference_ck_prop,)
+            return (self.reference_key,)
 
         return tuple()
 
