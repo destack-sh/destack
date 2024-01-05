@@ -8,13 +8,17 @@ export const protobufPackage = "";
 
 export enum ActionKind {
   UNSPECIFIED = 0,
-  CREATE = 1,
-  UPDATE = 2,
-  MOVE = 3,
-  SOFT_DELETE = 4,
-  RESTORE = 5,
-  BUMP = 6,
-  DELETE = 7,
+  READ = 1,
+  LIST = 2,
+  CREATE = 10,
+  UPDATE = 11,
+  MOVE = 12,
+  BUMP = 13,
+  SOFT_DELETE = 13,
+  RESTORE = 14,
+  ARCHIVE = 15,
+  UNARCHIVE = 16,
+  DELETE = 17,
   START = 20,
   PAUSE = 21,
   RESUME = 22,
@@ -27,24 +31,36 @@ export function actionKindFromJSON(object: any): ActionKind {
     case "ACTION_KIND_UNSPECIFIED":
       return ActionKind.UNSPECIFIED;
     case 1:
+    case "ACTION_KIND_READ":
+      return ActionKind.READ;
+    case 2:
+    case "ACTION_KIND_LIST":
+      return ActionKind.LIST;
+    case 10:
     case "ACTION_KIND_CREATE":
       return ActionKind.CREATE;
-    case 2:
+    case 11:
     case "ACTION_KIND_UPDATE":
       return ActionKind.UPDATE;
-    case 3:
+    case 12:
     case "ACTION_KIND_MOVE":
       return ActionKind.MOVE;
-    case 4:
-    case "ACTION_KIND_SOFT_DELETE":
-      return ActionKind.SOFT_DELETE;
-    case 5:
-    case "ACTION_KIND_RESTORE":
-      return ActionKind.RESTORE;
-    case 6:
+    case 13:
     case "ACTION_KIND_BUMP":
       return ActionKind.BUMP;
-    case 7:
+    case 13:
+    case "ACTION_KIND_SOFT_DELETE":
+      return ActionKind.SOFT_DELETE;
+    case 14:
+    case "ACTION_KIND_RESTORE":
+      return ActionKind.RESTORE;
+    case 15:
+    case "ACTION_KIND_ARCHIVE":
+      return ActionKind.ARCHIVE;
+    case 16:
+    case "ACTION_KIND_UNARCHIVE":
+      return ActionKind.UNARCHIVE;
+    case 17:
     case "ACTION_KIND_DELETE":
       return ActionKind.DELETE;
     case 20:
@@ -68,18 +84,26 @@ export function actionKindToJSON(object: ActionKind): string {
   switch (object) {
     case ActionKind.UNSPECIFIED:
       return "ACTION_KIND_UNSPECIFIED";
+    case ActionKind.READ:
+      return "ACTION_KIND_READ";
+    case ActionKind.LIST:
+      return "ACTION_KIND_LIST";
     case ActionKind.CREATE:
       return "ACTION_KIND_CREATE";
     case ActionKind.UPDATE:
       return "ACTION_KIND_UPDATE";
     case ActionKind.MOVE:
       return "ACTION_KIND_MOVE";
+    case ActionKind.BUMP:
+      return "ACTION_KIND_BUMP";
     case ActionKind.SOFT_DELETE:
       return "ACTION_KIND_SOFT_DELETE";
     case ActionKind.RESTORE:
       return "ACTION_KIND_RESTORE";
-    case ActionKind.BUMP:
-      return "ACTION_KIND_BUMP";
+    case ActionKind.ARCHIVE:
+      return "ACTION_KIND_ARCHIVE";
+    case ActionKind.UNARCHIVE:
+      return "ACTION_KIND_UNARCHIVE";
     case ActionKind.DELETE:
       return "ACTION_KIND_DELETE";
     case ActionKind.START:
@@ -160,6 +184,76 @@ export function aggregationOpToJSON(object: AggregationOp): string {
   }
 }
 
+export enum BadgeType {
+  UNSPECIFIED = 0,
+  SHARING_LINK = 1,
+  ACCESS_KEY = 2,
+}
+
+export function badgeTypeFromJSON(object: any): BadgeType {
+  switch (object) {
+    case 0:
+    case "BADGE_TYPE_UNSPECIFIED":
+      return BadgeType.UNSPECIFIED;
+    case 1:
+    case "BADGE_TYPE_SHARING_LINK":
+      return BadgeType.SHARING_LINK;
+    case 2:
+    case "BADGE_TYPE_ACCESS_KEY":
+      return BadgeType.ACCESS_KEY;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum BadgeType");
+  }
+}
+
+export function badgeTypeToJSON(object: BadgeType): string {
+  switch (object) {
+    case BadgeType.UNSPECIFIED:
+      return "BADGE_TYPE_UNSPECIFIED";
+    case BadgeType.SHARING_LINK:
+      return "BADGE_TYPE_SHARING_LINK";
+    case BadgeType.ACCESS_KEY:
+      return "BADGE_TYPE_ACCESS_KEY";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum BadgeType");
+  }
+}
+
+export enum BenchRegion {
+  UNSPECIFIED = 0,
+  EU_CENTRAL = 1,
+  US_WEST = 10,
+}
+
+export function benchRegionFromJSON(object: any): BenchRegion {
+  switch (object) {
+    case 0:
+    case "BENCH_REGION_UNSPECIFIED":
+      return BenchRegion.UNSPECIFIED;
+    case 1:
+    case "BENCH_REGION_EU_CENTRAL":
+      return BenchRegion.EU_CENTRAL;
+    case 10:
+    case "BENCH_REGION_US_WEST":
+      return BenchRegion.US_WEST;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum BenchRegion");
+  }
+}
+
+export function benchRegionToJSON(object: BenchRegion): string {
+  switch (object) {
+    case BenchRegion.UNSPECIFIED:
+      return "BENCH_REGION_UNSPECIFIED";
+    case BenchRegion.EU_CENTRAL:
+      return "BENCH_REGION_EU_CENTRAL";
+    case BenchRegion.US_WEST:
+      return "BENCH_REGION_US_WEST";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum BenchRegion");
+  }
+}
+
 export enum BenchType {
   UNSPECIFIED = 0,
   BENCH = 1,
@@ -179,8 +273,8 @@ export enum BenchType {
   WORKER = 41,
   SESSION = 60,
   RUN = 61,
+  HALT = 62,
   SIGNAL = 70,
-  HALT = 71,
   HANDLE = 100,
   USER = 101,
   ORGANIZATION = 102,
@@ -254,12 +348,12 @@ export function benchTypeFromJSON(object: any): BenchType {
     case 61:
     case "BENCH_TYPE_RUN":
       return BenchType.RUN;
+    case 62:
+    case "BENCH_TYPE_HALT":
+      return BenchType.HALT;
     case 70:
     case "BENCH_TYPE_SIGNAL":
       return BenchType.SIGNAL;
-    case 71:
-    case "BENCH_TYPE_HALT":
-      return BenchType.HALT;
     case 100:
     case "BENCH_TYPE_HANDLE":
       return BenchType.HANDLE;
@@ -348,10 +442,10 @@ export function benchTypeToJSON(object: BenchType): string {
       return "BENCH_TYPE_SESSION";
     case BenchType.RUN:
       return "BENCH_TYPE_RUN";
-    case BenchType.SIGNAL:
-      return "BENCH_TYPE_SIGNAL";
     case BenchType.HALT:
       return "BENCH_TYPE_HALT";
+    case BenchType.SIGNAL:
+      return "BENCH_TYPE_SIGNAL";
     case BenchType.HANDLE:
       return "BENCH_TYPE_HANDLE";
     case BenchType.USER:
@@ -608,14 +702,15 @@ export function conditionalOpToJSON(object: ConditionalOp): string {
 
 export enum EditKind {
   UNSPECIFIED = 0,
-  CREATE = 1,
-  UPDATE = 2,
-  MOVE = 3,
-  SOFT_DELETE = 4,
-  RESTORE = 5,
-  BUMP = 6,
-  DELETE = 7,
-  TRUNCATE = 8,
+  CREATE = 10,
+  UPDATE = 11,
+  MOVE = 12,
+  BUMP = 13,
+  SOFT_DELETE = 13,
+  RESTORE = 14,
+  ARCHIVE = 15,
+  UNARCHIVE = 16,
+  DELETE = 17,
 }
 
 export function editKindFromJSON(object: any): EditKind {
@@ -623,30 +718,33 @@ export function editKindFromJSON(object: any): EditKind {
     case 0:
     case "EDIT_KIND_UNSPECIFIED":
       return EditKind.UNSPECIFIED;
-    case 1:
+    case 10:
     case "EDIT_KIND_CREATE":
       return EditKind.CREATE;
-    case 2:
+    case 11:
     case "EDIT_KIND_UPDATE":
       return EditKind.UPDATE;
-    case 3:
+    case 12:
     case "EDIT_KIND_MOVE":
       return EditKind.MOVE;
-    case 4:
-    case "EDIT_KIND_SOFT_DELETE":
-      return EditKind.SOFT_DELETE;
-    case 5:
-    case "EDIT_KIND_RESTORE":
-      return EditKind.RESTORE;
-    case 6:
+    case 13:
     case "EDIT_KIND_BUMP":
       return EditKind.BUMP;
-    case 7:
+    case 13:
+    case "EDIT_KIND_SOFT_DELETE":
+      return EditKind.SOFT_DELETE;
+    case 14:
+    case "EDIT_KIND_RESTORE":
+      return EditKind.RESTORE;
+    case 15:
+    case "EDIT_KIND_ARCHIVE":
+      return EditKind.ARCHIVE;
+    case 16:
+    case "EDIT_KIND_UNARCHIVE":
+      return EditKind.UNARCHIVE;
+    case 17:
     case "EDIT_KIND_DELETE":
       return EditKind.DELETE;
-    case 8:
-    case "EDIT_KIND_TRUNCATE":
-      return EditKind.TRUNCATE;
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum EditKind");
   }
@@ -662,16 +760,18 @@ export function editKindToJSON(object: EditKind): string {
       return "EDIT_KIND_UPDATE";
     case EditKind.MOVE:
       return "EDIT_KIND_MOVE";
+    case EditKind.BUMP:
+      return "EDIT_KIND_BUMP";
     case EditKind.SOFT_DELETE:
       return "EDIT_KIND_SOFT_DELETE";
     case EditKind.RESTORE:
       return "EDIT_KIND_RESTORE";
-    case EditKind.BUMP:
-      return "EDIT_KIND_BUMP";
+    case EditKind.ARCHIVE:
+      return "EDIT_KIND_ARCHIVE";
+    case EditKind.UNARCHIVE:
+      return "EDIT_KIND_UNARCHIVE";
     case EditKind.DELETE:
       return "EDIT_KIND_DELETE";
-    case EditKind.TRUNCATE:
-      return "EDIT_KIND_TRUNCATE";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum EditKind");
   }
@@ -1170,8 +1270,8 @@ export enum NodeType {
   WORKER = 41,
   SESSION = 60,
   RUN = 61,
+  HALT = 62,
   SIGNAL = 70,
-  HALT = 71,
   HANDLE = 100,
   USER = 101,
   ORGANIZATION = 102,
@@ -1236,12 +1336,12 @@ export function nodeTypeFromJSON(object: any): NodeType {
     case 61:
     case "NODE_TYPE_RUN":
       return NodeType.RUN;
+    case 62:
+    case "NODE_TYPE_HALT":
+      return NodeType.HALT;
     case 70:
     case "NODE_TYPE_SIGNAL":
       return NodeType.SIGNAL;
-    case 71:
-    case "NODE_TYPE_HALT":
-      return NodeType.HALT;
     case 100:
     case "NODE_TYPE_HANDLE":
       return NodeType.HANDLE;
@@ -1303,10 +1403,10 @@ export function nodeTypeToJSON(object: NodeType): string {
       return "NODE_TYPE_SESSION";
     case NodeType.RUN:
       return "NODE_TYPE_RUN";
-    case NodeType.SIGNAL:
-      return "NODE_TYPE_SIGNAL";
     case NodeType.HALT:
       return "NODE_TYPE_HALT";
+    case NodeType.SIGNAL:
+      return "NODE_TYPE_SIGNAL";
     case NodeType.HANDLE:
       return "NODE_TYPE_HANDLE";
     case NodeType.USER:
@@ -1435,41 +1535,6 @@ export function policyEffectToJSON(object: PolicyEffect): string {
   }
 }
 
-export enum ProjectRegion {
-  UNSPECIFIED = 0,
-  US_WEST = 1,
-  EU_CENTRAL = 2,
-}
-
-export function projectRegionFromJSON(object: any): ProjectRegion {
-  switch (object) {
-    case 0:
-    case "PROJECT_REGION_UNSPECIFIED":
-      return ProjectRegion.UNSPECIFIED;
-    case 1:
-    case "PROJECT_REGION_US_WEST":
-      return ProjectRegion.US_WEST;
-    case 2:
-    case "PROJECT_REGION_EU_CENTRAL":
-      return ProjectRegion.EU_CENTRAL;
-    default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ProjectRegion");
-  }
-}
-
-export function projectRegionToJSON(object: ProjectRegion): string {
-  switch (object) {
-    case ProjectRegion.UNSPECIFIED:
-      return "PROJECT_REGION_UNSPECIFIED";
-    case ProjectRegion.US_WEST:
-      return "PROJECT_REGION_US_WEST";
-    case ProjectRegion.EU_CENTRAL:
-      return "PROJECT_REGION_EU_CENTRAL";
-    default:
-      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ProjectRegion");
-  }
-}
-
 export enum ProtoStrEnum {
   UNSPECIFIED = 0,
 }
@@ -1540,6 +1605,41 @@ export function queryEngineToJSON(object: QueryEngine): string {
   }
 }
 
+export enum ReadKind {
+  UNSPECIFIED = 0,
+  READ = 1,
+  LIST = 2,
+}
+
+export function readKindFromJSON(object: any): ReadKind {
+  switch (object) {
+    case 0:
+    case "READ_KIND_UNSPECIFIED":
+      return ReadKind.UNSPECIFIED;
+    case 1:
+    case "READ_KIND_READ":
+      return ReadKind.READ;
+    case 2:
+    case "READ_KIND_LIST":
+      return ReadKind.LIST;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ReadKind");
+  }
+}
+
+export function readKindToJSON(object: ReadKind): string {
+  switch (object) {
+    case ReadKind.UNSPECIFIED:
+      return "READ_KIND_UNSPECIFIED";
+    case ReadKind.READ:
+      return "READ_KIND_READ";
+    case ReadKind.LIST:
+      return "READ_KIND_LIST";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum ReadKind");
+  }
+}
+
 export enum RunErrorKind {
   UNSPECIFIED = 0,
   Internal = 1,
@@ -1590,6 +1690,53 @@ export function runErrorKindToJSON(object: RunErrorKind): string {
       return "RUN_ERROR_KIND_Untrusted";
     default:
       throw new globalThis.Error("Unrecognized enum value " + object + " for enum RunErrorKind");
+  }
+}
+
+export enum RunKind {
+  UNSPECIFIED = 0,
+  START = 20,
+  PAUSE = 21,
+  RESUME = 22,
+  KILL = 23,
+}
+
+export function runKindFromJSON(object: any): RunKind {
+  switch (object) {
+    case 0:
+    case "RUN_KIND_UNSPECIFIED":
+      return RunKind.UNSPECIFIED;
+    case 20:
+    case "RUN_KIND_START":
+      return RunKind.START;
+    case 21:
+    case "RUN_KIND_PAUSE":
+      return RunKind.PAUSE;
+    case 22:
+    case "RUN_KIND_RESUME":
+      return RunKind.RESUME;
+    case 23:
+    case "RUN_KIND_KILL":
+      return RunKind.KILL;
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum RunKind");
+  }
+}
+
+export function runKindToJSON(object: RunKind): string {
+  switch (object) {
+    case RunKind.UNSPECIFIED:
+      return "RUN_KIND_UNSPECIFIED";
+    case RunKind.START:
+      return "RUN_KIND_START";
+    case RunKind.PAUSE:
+      return "RUN_KIND_PAUSE";
+    case RunKind.RESUME:
+      return "RUN_KIND_RESUME";
+    case RunKind.KILL:
+      return "RUN_KIND_KILL";
+    default:
+      throw new globalThis.Error("Unrecognized enum value " + object + " for enum RunKind");
   }
 }
 
@@ -2875,14 +3022,14 @@ export interface BadgeData {
   deletedAt: Date | undefined;
   archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
+  type: BadgeType;
   name: string;
   policy: PolicyData | undefined;
-  linkEnabled: boolean;
   linkToken: string;
+  linkPassword: string;
   linkPasswordDigest: string;
-  secretEnabled: boolean;
-  secretValueDigest: string;
-  secretValue: string;
+  keyValue: string;
+  keyValueDigest: string;
 }
 
 export interface BenchData {
@@ -3394,7 +3541,6 @@ export interface WorkerSetData {
   archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
   lastChangedAt: Date | undefined;
-  region: ProjectRegion;
   profile: WorkerProfile;
   sleeping: boolean;
   status: WorkerSetStatus;
@@ -3425,8 +3571,8 @@ export interface SomeNodeData {
     | { $case: "worker"; worker: WorkerData }
     | { $case: "session"; session: SessionData }
     | { $case: "run"; run: RunData }
-    | { $case: "signal"; signal: SignalData }
     | { $case: "halt"; halt: HaltData }
+    | { $case: "signal"; signal: SignalData }
     | { $case: "handle"; handle: HandleData }
     | { $case: "user"; user: UserData }
     | { $case: "organization"; organization: OrganizationData }
@@ -4389,10 +4535,9 @@ export const PolicyRuleData = {
     message.objectTypes = object.objectTypes?.map((e) => e) || [];
     message.objectNodesCk = object.objectNodesCk?.map((e) => e) || [];
     message.objectFieldsCk = object.objectFieldsCk?.map((e) => e) || [];
-    message.condition =
-      object.condition !== undefined && object.condition !== null
-        ? ExpressionData.fromPartial(object.condition)
-        : undefined;
+    message.condition = (object.condition !== undefined && object.condition !== null)
+      ? ExpressionData.fromPartial(object.condition)
+      : undefined;
     return message;
   },
 };
@@ -4802,14 +4947,14 @@ function createBaseBadgeData(): BadgeData {
     deletedAt: undefined,
     archivedAt: undefined,
     lastEditedAt: undefined,
+    type: 0,
     name: "",
     policy: undefined,
-    linkEnabled: false,
     linkToken: "",
+    linkPassword: "",
     linkPasswordDigest: "",
-    secretEnabled: false,
-    secretValueDigest: "",
-    secretValue: "",
+    keyValue: "",
+    keyValueDigest: "",
   };
 }
 
@@ -4851,29 +4996,29 @@ export const BadgeData = {
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
     }
+    if (message.type !== 0) {
+      writer.uint32(240).int32(message.type);
+    }
     if (message.name !== "") {
-      writer.uint32(242).string(message.name);
+      writer.uint32(250).string(message.name);
     }
     if (message.policy !== undefined) {
-      PolicyData.encode(message.policy, writer.uint32(250).fork()).ldelim();
-    }
-    if (message.linkEnabled === true) {
-      writer.uint32(320).bool(message.linkEnabled);
+      PolicyData.encode(message.policy, writer.uint32(258).fork()).ldelim();
     }
     if (message.linkToken !== "") {
-      writer.uint32(330).string(message.linkToken);
+      writer.uint32(322).string(message.linkToken);
+    }
+    if (message.linkPassword !== "") {
+      writer.uint32(330).string(message.linkPassword);
     }
     if (message.linkPasswordDigest !== "") {
       writer.uint32(338).string(message.linkPasswordDigest);
     }
-    if (message.secretEnabled === true) {
-      writer.uint32(400).bool(message.secretEnabled);
+    if (message.keyValue !== "") {
+      writer.uint32(402).string(message.keyValue);
     }
-    if (message.secretValueDigest !== "") {
-      writer.uint32(410).string(message.secretValueDigest);
-    }
-    if (message.secretValue !== "") {
-      writer.uint32(418).string(message.secretValue);
+    if (message.keyValueDigest !== "") {
+      writer.uint32(410).string(message.keyValueDigest);
     }
     return writer;
   },
@@ -4970,32 +5115,39 @@ export const BadgeData = {
           message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
         case 30:
-          if (tag !== 242) {
+          if (tag !== 240) {
             break;
           }
 
-          message.name = reader.string();
+          message.type = reader.int32() as any;
           continue;
         case 31:
           if (tag !== 250) {
             break;
           }
 
-          message.policy = PolicyData.decode(reader, reader.uint32());
+          message.name = reader.string();
           continue;
-        case 40:
-          if (tag !== 320) {
+        case 32:
+          if (tag !== 258) {
             break;
           }
 
-          message.linkEnabled = reader.bool();
+          message.policy = PolicyData.decode(reader, reader.uint32());
+          continue;
+        case 40:
+          if (tag !== 322) {
+            break;
+          }
+
+          message.linkToken = reader.string();
           continue;
         case 41:
           if (tag !== 330) {
             break;
           }
 
-          message.linkToken = reader.string();
+          message.linkPassword = reader.string();
           continue;
         case 42:
           if (tag !== 338) {
@@ -5005,25 +5157,18 @@ export const BadgeData = {
           message.linkPasswordDigest = reader.string();
           continue;
         case 50:
-          if (tag !== 400) {
+          if (tag !== 402) {
             break;
           }
 
-          message.secretEnabled = reader.bool();
+          message.keyValue = reader.string();
           continue;
         case 51:
           if (tag !== 410) {
             break;
           }
 
-          message.secretValueDigest = reader.string();
-          continue;
-        case 52:
-          if (tag !== 418) {
-            break;
-          }
-
-          message.secretValue = reader.string();
+          message.keyValueDigest = reader.string();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -5048,14 +5193,14 @@ export const BadgeData = {
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
       archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      type: isSet(object.type) ? badgeTypeFromJSON(object.type) : 0,
       name: isSet(object.name) ? globalThis.String(object.name) : "",
       policy: isSet(object.policy) ? PolicyData.fromJSON(object.policy) : undefined,
-      linkEnabled: isSet(object.linkEnabled) ? globalThis.Boolean(object.linkEnabled) : false,
       linkToken: isSet(object.linkToken) ? globalThis.String(object.linkToken) : "",
+      linkPassword: isSet(object.linkPassword) ? globalThis.String(object.linkPassword) : "",
       linkPasswordDigest: isSet(object.linkPasswordDigest) ? globalThis.String(object.linkPasswordDigest) : "",
-      secretEnabled: isSet(object.secretEnabled) ? globalThis.Boolean(object.secretEnabled) : false,
-      secretValueDigest: isSet(object.secretValueDigest) ? globalThis.String(object.secretValueDigest) : "",
-      secretValue: isSet(object.secretValue) ? globalThis.String(object.secretValue) : "",
+      keyValue: isSet(object.keyValue) ? globalThis.String(object.keyValue) : "",
+      keyValueDigest: isSet(object.keyValueDigest) ? globalThis.String(object.keyValueDigest) : "",
     };
   },
 
@@ -5097,29 +5242,29 @@ export const BadgeData = {
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
+    if (message.type !== 0) {
+      obj.type = badgeTypeToJSON(message.type);
+    }
     if (message.name !== "") {
       obj.name = message.name;
     }
     if (message.policy !== undefined) {
       obj.policy = PolicyData.toJSON(message.policy);
     }
-    if (message.linkEnabled === true) {
-      obj.linkEnabled = message.linkEnabled;
-    }
     if (message.linkToken !== "") {
       obj.linkToken = message.linkToken;
+    }
+    if (message.linkPassword !== "") {
+      obj.linkPassword = message.linkPassword;
     }
     if (message.linkPasswordDigest !== "") {
       obj.linkPasswordDigest = message.linkPasswordDigest;
     }
-    if (message.secretEnabled === true) {
-      obj.secretEnabled = message.secretEnabled;
+    if (message.keyValue !== "") {
+      obj.keyValue = message.keyValue;
     }
-    if (message.secretValueDigest !== "") {
-      obj.secretValueDigest = message.secretValueDigest;
-    }
-    if (message.secretValue !== "") {
-      obj.secretValue = message.secretValue;
+    if (message.keyValueDigest !== "") {
+      obj.keyValueDigest = message.keyValueDigest;
     }
     return obj;
   },
@@ -5141,15 +5286,16 @@ export const BadgeData = {
     message.deletedAt = object.deletedAt ?? undefined;
     message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.type = object.type ?? 0;
     message.name = object.name ?? "";
-    message.policy =
-      object.policy !== undefined && object.policy !== null ? PolicyData.fromPartial(object.policy) : undefined;
-    message.linkEnabled = object.linkEnabled ?? false;
+    message.policy = (object.policy !== undefined && object.policy !== null)
+      ? PolicyData.fromPartial(object.policy)
+      : undefined;
     message.linkToken = object.linkToken ?? "";
+    message.linkPassword = object.linkPassword ?? "";
     message.linkPasswordDigest = object.linkPasswordDigest ?? "";
-    message.secretEnabled = object.secretEnabled ?? false;
-    message.secretValueDigest = object.secretValueDigest ?? "";
-    message.secretValue = object.secretValue ?? "";
+    message.keyValue = object.keyValue ?? "";
+    message.keyValueDigest = object.keyValueDigest ?? "";
     return message;
   },
 };
@@ -12723,8 +12869,9 @@ export const ViewData = {
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
     message.nodeType = object.nodeType ?? 0;
-    message.query =
-      object.query !== undefined && object.query !== null ? ExpressionData.fromPartial(object.query) : undefined;
+    message.query = (object.query !== undefined && object.query !== null)
+      ? ExpressionData.fromPartial(object.query)
+      : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     return message;
   },
@@ -13010,8 +13157,9 @@ export const WorkerData = {
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.externalId = object.externalId ?? "";
     message.profile = object.profile ?? 0;
-    message.image =
-      object.image !== undefined && object.image !== null ? WorkerImageData.fromPartial(object.image) : undefined;
+    message.image = (object.image !== undefined && object.image !== null)
+      ? WorkerImageData.fromPartial(object.image)
+      : undefined;
     return message;
   },
 };
@@ -13031,7 +13179,6 @@ function createBaseWorkerSetData(): WorkerSetData {
     archivedAt: undefined,
     lastEditedAt: undefined,
     lastChangedAt: undefined,
-    region: 0,
     profile: 0,
     sleeping: false,
     status: 0,
@@ -13085,35 +13232,32 @@ export const WorkerSetData = {
     if (message.lastChangedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
     }
-    if (message.region !== 0) {
-      writer.uint32(248).int32(message.region);
-    }
     if (message.profile !== 0) {
-      writer.uint32(256).int32(message.profile);
+      writer.uint32(248).int32(message.profile);
     }
     if (message.sleeping === true) {
-      writer.uint32(264).bool(message.sleeping);
+      writer.uint32(256).bool(message.sleeping);
     }
     if (message.status !== 0) {
-      writer.uint32(272).int32(message.status);
+      writer.uint32(264).int32(message.status);
     }
     if (message.desiredReplicas !== 0) {
-      writer.uint32(280).int64(message.desiredReplicas);
+      writer.uint32(272).int64(message.desiredReplicas);
     }
     if (message.targetReplicas !== 0) {
-      writer.uint32(288).int64(message.targetReplicas);
+      writer.uint32(280).int64(message.targetReplicas);
     }
     if (message.availableReplicas !== 0) {
-      writer.uint32(296).int64(message.availableReplicas);
+      writer.uint32(288).int64(message.availableReplicas);
     }
     if (message.readyReplicas !== 0) {
-      writer.uint32(304).int64(message.readyReplicas);
+      writer.uint32(296).int64(message.readyReplicas);
     }
     if (message.lastActiveAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastActiveAt), writer.uint32(314).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastActiveAt), writer.uint32(306).fork()).ldelim();
     }
     if (message.lastBumpedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastBumpedAt), writer.uint32(322).fork()).ldelim();
+      Timestamp.encode(toTimestamp(message.lastBumpedAt), writer.uint32(314).fork()).ldelim();
     }
     return writer;
   },
@@ -13221,66 +13365,59 @@ export const WorkerSetData = {
             break;
           }
 
-          message.region = reader.int32() as any;
+          message.profile = reader.int32() as any;
           continue;
         case 32:
           if (tag !== 256) {
             break;
           }
 
-          message.profile = reader.int32() as any;
+          message.sleeping = reader.bool();
           continue;
         case 33:
           if (tag !== 264) {
             break;
           }
 
-          message.sleeping = reader.bool();
+          message.status = reader.int32() as any;
           continue;
         case 34:
           if (tag !== 272) {
             break;
           }
 
-          message.status = reader.int32() as any;
+          message.desiredReplicas = longToNumber(reader.int64() as Long);
           continue;
         case 35:
           if (tag !== 280) {
             break;
           }
 
-          message.desiredReplicas = longToNumber(reader.int64() as Long);
+          message.targetReplicas = longToNumber(reader.int64() as Long);
           continue;
         case 36:
           if (tag !== 288) {
             break;
           }
 
-          message.targetReplicas = longToNumber(reader.int64() as Long);
+          message.availableReplicas = longToNumber(reader.int64() as Long);
           continue;
         case 37:
           if (tag !== 296) {
             break;
           }
 
-          message.availableReplicas = longToNumber(reader.int64() as Long);
-          continue;
-        case 38:
-          if (tag !== 304) {
-            break;
-          }
-
           message.readyReplicas = longToNumber(reader.int64() as Long);
           continue;
-        case 39:
-          if (tag !== 314) {
+        case 38:
+          if (tag !== 306) {
             break;
           }
 
           message.lastActiveAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 40:
-          if (tag !== 322) {
+        case 39:
+          if (tag !== 314) {
             break;
           }
 
@@ -13310,7 +13447,6 @@ export const WorkerSetData = {
       archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
       lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
-      region: isSet(object.region) ? projectRegionFromJSON(object.region) : 0,
       profile: isSet(object.profile) ? workerProfileFromJSON(object.profile) : 0,
       sleeping: isSet(object.sleeping) ? globalThis.Boolean(object.sleeping) : false,
       status: isSet(object.status) ? workerSetStatusFromJSON(object.status) : 0,
@@ -13364,9 +13500,6 @@ export const WorkerSetData = {
     if (message.lastChangedAt !== undefined) {
       obj.lastChangedAt = message.lastChangedAt.toISOString();
     }
-    if (message.region !== 0) {
-      obj.region = projectRegionToJSON(message.region);
-    }
     if (message.profile !== 0) {
       obj.profile = workerProfileToJSON(message.profile);
     }
@@ -13415,7 +13548,6 @@ export const WorkerSetData = {
     message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.lastChangedAt = object.lastChangedAt ?? undefined;
-    message.region = object.region ?? 0;
     message.profile = object.profile ?? 0;
     message.sleeping = object.sleeping ?? false;
     message.status = object.status ?? 0;
@@ -13487,11 +13619,11 @@ export const SomeNodeData = {
       case "run":
         RunData.encode(message.node.run, writer.uint32(138).fork()).ldelim();
         break;
-      case "signal":
-        SignalData.encode(message.node.signal, writer.uint32(146).fork()).ldelim();
-        break;
       case "halt":
-        HaltData.encode(message.node.halt, writer.uint32(154).fork()).ldelim();
+        HaltData.encode(message.node.halt, writer.uint32(146).fork()).ldelim();
+        break;
+      case "signal":
+        SignalData.encode(message.node.signal, writer.uint32(154).fork()).ldelim();
         break;
       case "handle":
         HandleData.encode(message.node.handle, writer.uint32(162).fork()).ldelim();
@@ -13646,14 +13778,14 @@ export const SomeNodeData = {
             break;
           }
 
-          message.node = { $case: "signal", signal: SignalData.decode(reader, reader.uint32()) };
+          message.node = { $case: "halt", halt: HaltData.decode(reader, reader.uint32()) };
           continue;
         case 19:
           if (tag !== 154) {
             break;
           }
 
-          message.node = { $case: "halt", halt: HaltData.decode(reader, reader.uint32()) };
+          message.node = { $case: "signal", signal: SignalData.decode(reader, reader.uint32()) };
           continue;
         case 20:
           if (tag !== 162) {
@@ -13742,10 +13874,10 @@ export const SomeNodeData = {
         ? { $case: "session", session: SessionData.fromJSON(object.session) }
         : isSet(object.run)
         ? { $case: "run", run: RunData.fromJSON(object.run) }
-        : isSet(object.signal)
-        ? { $case: "signal", signal: SignalData.fromJSON(object.signal) }
         : isSet(object.halt)
         ? { $case: "halt", halt: HaltData.fromJSON(object.halt) }
+        : isSet(object.signal)
+        ? { $case: "signal", signal: SignalData.fromJSON(object.signal) }
         : isSet(object.handle)
         ? { $case: "handle", handle: HandleData.fromJSON(object.handle) }
         : isSet(object.user)
@@ -13815,11 +13947,11 @@ export const SomeNodeData = {
     if (message.node?.$case === "run") {
       obj.run = RunData.toJSON(message.node.run);
     }
-    if (message.node?.$case === "signal") {
-      obj.signal = SignalData.toJSON(message.node.signal);
-    }
     if (message.node?.$case === "halt") {
       obj.halt = HaltData.toJSON(message.node.halt);
+    }
+    if (message.node?.$case === "signal") {
+      obj.signal = SignalData.toJSON(message.node.signal);
     }
     if (message.node?.$case === "handle") {
       obj.handle = HandleData.toJSON(message.node.handle);
@@ -13905,11 +14037,11 @@ export const SomeNodeData = {
     if (object.node?.$case === "run" && object.node?.run !== undefined && object.node?.run !== null) {
       message.node = { $case: "run", run: RunData.fromPartial(object.node.run) };
     }
-    if (object.node?.$case === "signal" && object.node?.signal !== undefined && object.node?.signal !== null) {
-      message.node = { $case: "signal", signal: SignalData.fromPartial(object.node.signal) };
-    }
     if (object.node?.$case === "halt" && object.node?.halt !== undefined && object.node?.halt !== null) {
       message.node = { $case: "halt", halt: HaltData.fromPartial(object.node.halt) };
+    }
+    if (object.node?.$case === "signal" && object.node?.signal !== undefined && object.node?.signal !== null) {
+      message.node = { $case: "signal", signal: SignalData.fromPartial(object.node.signal) };
     }
     if (object.node?.$case === "handle" && object.node?.handle !== undefined && object.node?.handle !== null) {
       message.node = { $case: "handle", handle: HandleData.fromPartial(object.node.handle) };
@@ -14137,9 +14269,7 @@ export const SomeStructData = {
       message.struct = { $case: "expression", expression: ExpressionData.fromPartial(object.struct.expression) };
     }
     if (
-      object.struct?.$case === "logEntry" &&
-      object.struct?.logEntry !== undefined &&
-      object.struct?.logEntry !== null
+      object.struct?.$case === "logEntry" && object.struct?.logEntry !== undefined && object.struct?.logEntry !== null
     ) {
       message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
     }
@@ -14154,9 +14284,7 @@ export const SomeStructData = {
       };
     }
     if (
-      object.struct?.$case === "runError" &&
-      object.struct?.runError !== undefined &&
-      object.struct?.runError !== null
+      object.struct?.$case === "runError" && object.struct?.runError !== undefined && object.struct?.runError !== null
     ) {
       message.struct = { $case: "runError", runError: RunErrorData.fromPartial(object.struct.runError) };
     }
@@ -14253,8 +14381,9 @@ export const ModuleTreeData = {
   },
   fromPartial<I extends Exact<DeepPartial<ModuleTreeData>, I>>(object: I): ModuleTreeData {
     const message = createBaseModuleTreeData();
-    message.module =
-      object.module !== undefined && object.module !== null ? ModuleData.fromPartial(object.module) : undefined;
+    message.module = (object.module !== undefined && object.module !== null)
+      ? ModuleData.fromPartial(object.module)
+      : undefined;
     message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
     return message;
   },
@@ -14262,21 +14391,15 @@ export const ModuleTreeData = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin
-  ? T
-  : T extends globalThis.Array<infer U>
-  ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U>
-  ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string }
-  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {}
-  ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin ? T
+  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin
-  ? P
+export type Exact<P, I extends P> = P extends Builtin ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

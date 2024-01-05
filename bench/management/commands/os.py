@@ -5,10 +5,8 @@ from asgiref.sync import async_to_sync
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from bench import models
 from bench.language.const import NodeType, StatementType
-from bench.models import Bench, BenchVisibility
-from bench.runtime.utils import interp_module
+from bench.server.utils import interp_module
 from bench.search.client import os_client_sync
 from bench.search.engine import (
     create_global_os_index,

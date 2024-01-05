@@ -4,14 +4,19 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
 enum ActionKind {
+  option allow_alias = true;
   ACTION_KIND_UNSPECIFIED = 0;
-  ACTION_KIND_CREATE = 1;
-  ACTION_KIND_UPDATE = 2;
-  ACTION_KIND_MOVE = 3;
-  ACTION_KIND_SOFT_DELETE = 4;
-  ACTION_KIND_RESTORE = 5;
-  ACTION_KIND_BUMP = 6;
-  ACTION_KIND_DELETE = 7;
+  ACTION_KIND_READ = 1;
+  ACTION_KIND_LIST = 2;
+  ACTION_KIND_CREATE = 10;
+  ACTION_KIND_UPDATE = 11;
+  ACTION_KIND_MOVE = 12;
+  ACTION_KIND_BUMP = 13;
+  ACTION_KIND_SOFT_DELETE = 13;
+  ACTION_KIND_RESTORE = 14;
+  ACTION_KIND_ARCHIVE = 15;
+  ACTION_KIND_UNARCHIVE = 16;
+  ACTION_KIND_DELETE = 17;
   ACTION_KIND_START = 20;
   ACTION_KIND_PAUSE = 21;
   ACTION_KIND_RESUME = 22;
@@ -27,6 +32,18 @@ enum AggregationOp {
   AGGREGATION_OP_MAX = 5;
   AGGREGATION_OP_MEDIAN = 6;
   AGGREGATION_OP_HISTOGRAM = 7;
+}
+
+enum BadgeType {
+  BADGE_TYPE_UNSPECIFIED = 0;
+  BADGE_TYPE_SHARING_LINK = 1;
+  BADGE_TYPE_ACCESS_KEY = 2;
+}
+
+enum BenchRegion {
+  BENCH_REGION_UNSPECIFIED = 0;
+  BENCH_REGION_EU_CENTRAL = 1;
+  BENCH_REGION_US_WEST = 10;
 }
 
 enum BenchType {
@@ -48,8 +65,8 @@ enum BenchType {
   BENCH_TYPE_WORKER = 41;
   BENCH_TYPE_SESSION = 60;
   BENCH_TYPE_RUN = 61;
+  BENCH_TYPE_HALT = 62;
   BENCH_TYPE_SIGNAL = 70;
-  BENCH_TYPE_HALT = 71;
   BENCH_TYPE_HANDLE = 100;
   BENCH_TYPE_USER = 101;
   BENCH_TYPE_ORGANIZATION = 102;
@@ -105,15 +122,17 @@ enum ConditionalOp {
 }
 
 enum EditKind {
+  option allow_alias = true;
   EDIT_KIND_UNSPECIFIED = 0;
-  EDIT_KIND_CREATE = 1;
-  EDIT_KIND_UPDATE = 2;
-  EDIT_KIND_MOVE = 3;
-  EDIT_KIND_SOFT_DELETE = 4;
-  EDIT_KIND_RESTORE = 5;
-  EDIT_KIND_BUMP = 6;
-  EDIT_KIND_DELETE = 7;
-  EDIT_KIND_TRUNCATE = 8;
+  EDIT_KIND_CREATE = 10;
+  EDIT_KIND_UPDATE = 11;
+  EDIT_KIND_MOVE = 12;
+  EDIT_KIND_BUMP = 13;
+  EDIT_KIND_SOFT_DELETE = 13;
+  EDIT_KIND_RESTORE = 14;
+  EDIT_KIND_ARCHIVE = 15;
+  EDIT_KIND_UNARCHIVE = 16;
+  EDIT_KIND_DELETE = 17;
 }
 
 enum ExpressionKind {
@@ -216,8 +235,8 @@ enum NodeType {
   NODE_TYPE_WORKER = 41;
   NODE_TYPE_SESSION = 60;
   NODE_TYPE_RUN = 61;
+  NODE_TYPE_HALT = 62;
   NODE_TYPE_SIGNAL = 70;
-  NODE_TYPE_HALT = 71;
   NODE_TYPE_HANDLE = 100;
   NODE_TYPE_USER = 101;
   NODE_TYPE_ORGANIZATION = 102;
@@ -245,12 +264,6 @@ enum PolicyEffect {
   POLICY_EFFECT_DENY = 2;
 }
 
-enum ProjectRegion {
-  PROJECT_REGION_UNSPECIFIED = 0;
-  PROJECT_REGION_US_WEST = 1;
-  PROJECT_REGION_EU_CENTRAL = 2;
-}
-
 enum ProtoStrEnum {
   PROTO_STR_ENUM_UNSPECIFIED = 0;
 }
@@ -263,6 +276,12 @@ enum QueryEngine {
   QUERY_ENGINE_POSTGRES = 4;
 }
 
+enum ReadKind {
+  READ_KIND_UNSPECIFIED = 0;
+  READ_KIND_READ = 1;
+  READ_KIND_LIST = 2;
+}
+
 enum RunErrorKind {
   RUN_ERROR_KIND_UNSPECIFIED = 0;
   RUN_ERROR_KIND_Internal = 1;
@@ -270,6 +289,14 @@ enum RunErrorKind {
   RUN_ERROR_KIND_Validation = 3;
   RUN_ERROR_KIND_Runtime = 4;
   RUN_ERROR_KIND_Untrusted = 5;
+}
+
+enum RunKind {
+  RUN_KIND_UNSPECIFIED = 0;
+  RUN_KIND_START = 20;
+  RUN_KIND_PAUSE = 21;
+  RUN_KIND_RESUME = 22;
+  RUN_KIND_KILL = 23;
 }
 
 enum RunStatus {
@@ -571,14 +598,14 @@ message BadgeData {
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  string name = 30;
-  PolicyData policy = 31;
-  bool link_enabled = 40;
-  string link_token = 41;
+  BadgeType type = 30;
+  string name = 31;
+  PolicyData policy = 32;
+  string link_token = 40;
+  string link_password = 41;
   string link_password_digest = 42;
-  bool secret_enabled = 50;
-  string secret_value_digest = 51;
-  string secret_value = 52;
+  string key_value = 50;
+  string key_value_digest = 51;
 }
 
 message BenchData {
@@ -1090,16 +1117,15 @@ message WorkerSetData {
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
-  ProjectRegion region = 31;
-  WorkerProfile profile = 32;
-  bool sleeping = 33;
-  WorkerSetStatus status = 34;
-  int64 desired_replicas = 35;
-  int64 target_replicas = 36;
-  int64 available_replicas = 37;
-  int64 ready_replicas = 38;
-  google.protobuf.Timestamp last_active_at = 39;
-  google.protobuf.Timestamp last_bumped_at = 40;
+  WorkerProfile profile = 31;
+  bool sleeping = 32;
+  WorkerSetStatus status = 33;
+  int64 desired_replicas = 34;
+  int64 target_replicas = 35;
+  int64 available_replicas = 36;
+  int64 ready_replicas = 37;
+  google.protobuf.Timestamp last_active_at = 38;
+  google.protobuf.Timestamp last_bumped_at = 39;
 }
 
 message SomeNodeData {
@@ -1121,8 +1147,8 @@ message SomeNodeData {
     WorkerData worker = 15;
     SessionData session = 16;
     RunData run = 17;
-    SignalData signal = 18;
-    HaltData halt = 19;
+    HaltData halt = 18;
+    SignalData signal = 19;
     HandleData handle = 20;
     UserData user = 21;
     OrganizationData organization = 22;

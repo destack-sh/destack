@@ -2,7 +2,14 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
-from bench.language.const import ActionKind, BenchType, NodeType, PolicyEffect, StructType
+from bench.language.const import (
+    ActionKind,
+    BenchType,
+    NodeType,
+    PolicyEffect,
+    StructType,
+    BadgeType,
+)
 from bench.language.module import Bench, Node, Struct, node, node_parent, struct, struct_internal
 
 if TYPE_CHECKING:
@@ -30,8 +37,8 @@ class PolicyRule(Struct):
     )
     # subject_groups, subject_roles, ...
     # verb
-    effect: PolicyEffect = struct_internal(40, default=PolicyEffect.ALLOW)
-    verb: Optional[list[ActionKind]] = struct_internal(41, default=None)
+    effect: PolicyEffect = struct_internal(40)
+    verb: Optional[list[ActionKind]] = struct_internal(41)
     # object
     object_types: Optional[list[BenchType]] = struct_internal(50, default=None)
     object_nodes: list[Node] | None = struct_internal(51, array=True, references=tuple(NodeType))
@@ -47,14 +54,13 @@ class Badge(Node):
     """A badge for a non-member to access parts of this Bench (via web or programmatically)."""
 
     parent: Bench = node_parent(4, NodeType.BENCH)
-    archived_at: datetime = struct_internal(14, default=None, reflect=True)
-    name: Optional[str] = struct_internal(30, default=None)
-    policy: Policy = struct_internal(31, struct_t=StructType.POLICY)
+    type: BadgeType = struct_internal(30)
+    name: Optional[str] = struct_internal(31)
+    policy: Policy = struct_internal(32, struct_t=StructType.POLICY)
     # sharing link
-    link_enabled: bool = struct_internal(40, default=False)
-    link_token: Optional[UUID] = struct_internal(41, default=None, unique=True)
+    link_token: Optional[UUID] = struct_internal(40, default=None, unique=True)
+    link_password: Optional[str] = struct_internal(41, default=None, encrypt=True, defer=True)
     link_password_digest: Optional[str] = struct_internal(42, default=None, encrypt=True)
-    # access token
-    secret_enabled: bool = struct_internal(50, default=False)
-    secret_value: Optional[str] = struct_internal(52, default=None, encrypt=True, defer=True)
-    secret_value_digest: Optional[str] = struct_internal(51, default=None, encrypt=True)
+    # access key
+    key_value: Optional[str] = struct_internal(50, default=None, encrypt=True, defer=True)
+    key_value_digest: Optional[str] = struct_internal(51, default=None, encrypt=True)

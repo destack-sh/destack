@@ -25,10 +25,10 @@ from .issue import BenchError, Issue
 from .module import Module, Node, Property, ScopeNode, Struct, _complete_bench_setup
 from .projection import NodeVisitor
 from .render import render, render_as_python
-from .run import HasRun, Run, RunError
+from .run import HasRun, Run, RunError, Halt
 from .secret import Secret
 from .session import LogEntry, PermissionError, Session
-from .signal import Halt, Signal
+from .signal import Signal
 from .statement import Statement
 from .tagging import HasTags, Tagging
 from .text import HasText

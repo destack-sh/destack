@@ -45,8 +45,8 @@ class NodeType(ProtoStrEnum):
     # session (all local)
     SESSION = "SESSION", 60
     RUN = "RUN", 61
+    HALT = "HALT", 62
     SIGNAL = "SIGNAL", 70
-    HALT = "HALT", 71
     # user
     HANDLE = "HANDLE", 100
     USER = "USER", 101
@@ -119,38 +119,47 @@ BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
 INTERP_NODE_TYPES = {NodeType.ISSUE, NodeType.RESOLVED_FIELD}
 
 
+class ReadKind(ProtoStrEnum):
+    READ = "READ", 1
+    LIST = "LIST", 2
+
+
 class EditKind(ProtoStrEnum):
     CREATE = "CREATE", 10  # start at 10, so we can have read 'actions' as well
     UPDATE = "UPDATE", 11
     MOVE = "MOVE", 12
+    BUMP = "BUMP", 13
     SOFT_DELETE = "SOFT_DELETE", 13
     RESTORE = "RESTORE", 14
-    BUMP = "BUMP", 15
-    DELETE = "DELETE", 16
-    TRUNCATE = "TRUNCATE", 17
+    ARCHIVE = "ARCHIVE", 15
+    UNARCHIVE = "UNARCHIVE", 16
+    DELETE = "DELETE", 17
+
+
+class RunKind(ProtoStrEnum):
+    START = "START", 20
+    PAUSE = "PAUSE", 21
+    RESUME = "RESUME", 22
+    KILL = "KILL", 23
+
+
+if typing.TYPE_CHECKING:
+    ActionKind = ReadKind | EditKind | RunKind
+else:
+    ActionKind = ProtoStrEnum(
+        "ActionKind",
+        {ak.name: (ak.name, ak.id) for ak in chain(ReadKind, EditKind, RunKind)},
+    )
+
+
+class BadgeType(ProtoStrEnum):
+    SHARING_LINK = "SHARING_LINK", 1
+    ACCESS_KEY = "ACCESS_KEY", 2
 
 
 class PolicyEffect(ProtoStrEnum):
     ALLOW = "ALLOW", 1
     DENY = "DENY", 2
-
-
-class ActionKind(ProtoStrEnum):
-    READ = "READ", 1
-    LIST = "LIST", 2
-    # edit kinds
-    CREATE = "CREATE", 10
-    UPDATE = "UPDATE", 11
-    MOVE = "MOVE", 12
-    SOFT_DELETE = "SOFT_DELETE", 13
-    RESTORE = "RESTORE", 14
-    BUMP = "BUMP", 15
-    DELETE = "DELETE", 16
-    # run kinds
-    START = "START_RUN", 20
-    PAUSE = "PAUSE_RUN", 21
-    RESUME = "RESUME_RUN", 22
-    KILL = "KILL_RUN", 23
 
 
 class ClientType(ProtoStrEnum):
@@ -437,9 +446,9 @@ class IssueType(ProtoStrEnum):
     TASK_IS_STATIC = "TASK_IS_STATIC", 13
 
 
-class ProjectRegion(ProtoStrEnum):
-    US_WEST = "US_WEST", 1
-    EU_CENTRAL = "EU_CENTRAL", 2
+class BenchRegion(ProtoStrEnum):
+    EU_CENTRAL = "EU_CENTRAL", 1
+    US_WEST = "US_WEST", 10
 
 
 class WorkerSetStatus(ProtoStrEnum):

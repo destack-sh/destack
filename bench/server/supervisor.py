@@ -8,8 +8,8 @@ from asgiref.sync import sync_to_async
 from django.db.models import Q
 
 from bench.language.const import ACTIVE_RUN_STATUSES, PENDING_RUN_STATUSES, WorkerSetStatus
-from bench.runtime import k8
-from bench.runtime.host import RuntimeHost
+from bench.server import k8
+from bench.server.host import RuntimeHost
 from bench.search.engine import write_runs_to_os
 from bench.settings import KUBERNETES_ENABLED
 from bench.utils.cache import redis

@@ -13,8 +13,8 @@ import structlog
 from kubernetes import config as sync_config
 from kubernetes_asyncio import client, config, watch
 
-from bench import models, settings
-from bench.language.const import ProjectRegion, WorkerProfile, WorkerSetStatus
+from bench import settings
+from bench.language.const import BenchRegion, WorkerProfile, WorkerSetStatus
 from bench.settings.k8 import (
     KUBERNETES_WORKER_ENV_VARS_STR,
     KUBERNETES_WORKER_IMAGE,
@@ -143,7 +143,7 @@ class Pod:
     deployment_name: str
     bench_id: UUID
     worker_set_id: UUID
-    region: ProjectRegion
+    region: BenchRegion
     profile: WorkerProfile
 
     def __str__(self):
@@ -160,7 +160,7 @@ class Pod:
             deployment_name=labels["deployment"],
             bench_id=UUID(labels["bench_id"]),
             worker_set_id=UUID(labels["worker_set_id"]),
-            region=ProjectRegion(labels["region"].upper()),
+            region=BenchRegion(labels["region"].upper()),
             profile=WorkerProfile(labels["profile"].upper()),
         )
 
@@ -169,7 +169,7 @@ class Pod:
 class Deployment:
     bench_id: UUID
     worker_set_id: UUID
-    region: ProjectRegion
+    region: BenchRegion
     profile: WorkerProfile
     target_replicas: int
     # read from k8
@@ -279,7 +279,7 @@ class Deployment:
         return cls(
             bench_id=UUID(labels["bench_id"]),
             worker_set_id=UUID(labels["worker_set_id"]),
-            region=ProjectRegion(labels["region"].upper()),
+            region=BenchRegion(labels["region"].upper()),
             profile=WorkerProfile(labels["profile"].upper()),
             status=_get_deployment_status(deployment),
             target_replicas=deployment.spec.replicas,

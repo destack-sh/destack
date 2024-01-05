@@ -156,7 +156,7 @@ class Session(ScopeNode):
     A managed context for running a Bench module (in a worker).
     """
 
-    parent: None = node_parent(4)
+    parent: Module = node_parent(4, NodeType.MODULE)
     access_level: SessionAccessLevel = struct_internal(30)
     worker_node_id: str = struct_internal(31, reflect=True)
     worker_process_id: Optional[str] = struct_internal(32, reflect=True)

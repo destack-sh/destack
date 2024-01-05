@@ -4,14 +4,14 @@ from bench.language.const import ClientType, NodeType, NotificationStatus, Notif
 from bench.language.module import Node, ScopeNode, node, node_parent, struct_internal
 
 
-@node(NodeType.HANDLE, detached=True)
+@node(NodeType.HANDLE, detached=True, root=None)
 class Handle(Node):
     """A (global) Bench handle."""
 
     slug: str = struct_internal(30, unique=True)
 
 
-@node(NodeType.USER, detached=True)
+@node(NodeType.USER, detached=True, root=None)
 class User(ScopeNode):
     """A (global) Bench user."""
 
@@ -26,14 +26,14 @@ class User(ScopeNode):
         return self.username
 
 
-@node(NodeType.ORGANIZATION, detached=True)
+@node(NodeType.ORGANIZATION, detached=True, root=None)
 class Organization(ScopeNode):
     """A (global) Bench organization."""
 
     handle: Handle = struct_internal(30, array=False, references=NodeType.HANDLE)
 
 
-@node(NodeType.CLIENT, stored=False)
+@node(NodeType.CLIENT, stored=False, root=NodeType.USER)
 class Client(Node):
     """A client to this Bench. Can be a user or a worker."""
 
@@ -45,7 +45,7 @@ class Client(Node):
     closed_at: int = struct_internal(34)
 
 
-@node(NodeType.NOTIFICATION)
+@node(NodeType.NOTIFICATION, root=NodeType.USER)
 class Notification(Node):
     """A notification for a user."""
 
