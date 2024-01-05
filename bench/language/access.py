@@ -4,11 +4,11 @@ from uuid import UUID
 
 from bench.language.const import (
     ActionKind,
+    BadgeType,
     BenchType,
     NodeType,
     PolicyEffect,
     StructType,
-    BadgeType,
 )
 from bench.language.module import Bench, Node, Struct, node, node_parent, struct, struct_internal
 
@@ -49,7 +49,7 @@ class PolicyRule(Struct):
     )
 
 
-@node(NodeType.BADGE, detached=True)
+@node(NodeType.BADGE, in_module=False)
 class Badge(Node):
     """A badge for a non-member to access parts of this Bench (via web or programmatically)."""
 

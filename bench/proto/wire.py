@@ -5,19 +5,12 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -107,7 +100,7 @@ class BenchType(betterproto.Enum):
 
 class BlobStatus(betterproto.Enum):
     UNSPECIFIED = 0
-    PREPARED = 1
+    PENDING = 1
     UPLOADING = 2
     AVAILABLE = 3
 
@@ -567,8 +560,6 @@ class InferenceData(betterproto.Message):
 class LogEntryData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    module_ck: str = betterproto.string_field(5)
-    bench_ck: str = betterproto.string_field(6)
     created_at: datetime = betterproto.message_field(32)
     stream: str = betterproto.string_field(33)
     session_ck: str = betterproto.string_field(34)
@@ -633,9 +624,7 @@ class WorkerImageData(betterproto.Message):
 class BadgeData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
     bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -657,9 +646,7 @@ class BadgeData(betterproto.Message):
 class BenchData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
     bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -687,9 +674,7 @@ class BenchData(betterproto.Message):
 class BlobData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
     bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -708,10 +693,7 @@ class BlobData(betterproto.Message):
 class ClientData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
-    bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -790,10 +772,7 @@ class HaltData(betterproto.Message):
 class HandleData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
-    bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -848,10 +827,7 @@ class ModuleData(betterproto.Message):
 class BaseNodeData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
-    bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -864,10 +840,7 @@ class BaseNodeData(betterproto.Message):
 class NotificationData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
-    bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -884,10 +857,7 @@ class NotificationData(betterproto.Message):
 class OrganizationData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
-    bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -979,9 +949,7 @@ class RunData(betterproto.Message):
 class SecretData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
     bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -989,8 +957,9 @@ class SecretData(betterproto.Message):
     deleted_at: datetime = betterproto.message_field(13)
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
-    sha512: str = betterproto.string_field(30)
-    value: str = betterproto.string_field(31)
+    type_ck: str = betterproto.string_field(30)
+    value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(31)
+    sha512: str = betterproto.string_field(32)
 
 
 @dataclass(eq=False, repr=False)
@@ -1112,10 +1081,7 @@ class TriggerData(betterproto.Message):
 class UserData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
-    bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1144,7 +1110,6 @@ class ViewData(betterproto.Message):
     deleted_at: datetime = betterproto.message_field(13)
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
-    last_changed_at: datetime = betterproto.message_field(16)
     policies: List["PolicyData"] = betterproto.message_field(20)
     name: str = betterproto.string_field(30)
     order_key: str = betterproto.string_field(31)
@@ -1157,9 +1122,7 @@ class ViewData(betterproto.Message):
 class WorkerData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
     bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -1176,9 +1139,7 @@ class WorkerData(betterproto.Message):
 class WorkerSetData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
     parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
     bench_id: str = betterproto.string_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -1510,9 +1471,7 @@ class StartRunRequest(betterproto.Message):
     keyed_return: bool = betterproto.bool_field(12)
     tags: List[str] = betterproto.string_field(13)
     root_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(14)
-    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(
-        15
-    )
+    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(15)
     access_level: "SessionAccessLevel" = betterproto.enum_field(16)
 
 
@@ -1985,9 +1944,7 @@ class WorkerNodeStub(betterproto.ServiceStub):
 
 
 class GlobalSupervisorBase(ServiceBase):
-    async def create_user(
-        self, create_user_request: "CreateUserRequest"
-    ) -> "CreateUserResponse":
+    async def create_user(self, create_user_request: "CreateUserRequest") -> "CreateUserResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def create_organization(
@@ -2000,9 +1957,7 @@ class GlobalSupervisorBase(ServiceBase):
     ) -> "CreateBenchResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def read_nodes(
-        self, read_nodes_request: "ReadNodesRequest"
-    ) -> "ReadNodesResponse":
+    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -2160,9 +2115,7 @@ class GlobalSupervisorBase(ServiceBase):
 
 
 class ModuleHostBase(ServiceBase):
-    async def read_nodes(
-        self, read_nodes_request: "ReadNodesRequest"
-    ) -> "ReadNodesResponse":
+    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -2181,9 +2134,7 @@ class ModuleHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
-    async def upload_blob(
-        self, upload_blob_request: "UploadBlobRequest"
-    ) -> "UploadBlobResponse":
+    async def upload_blob(self, upload_blob_request: "UploadBlobRequest") -> "UploadBlobResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def download_blob(
@@ -2191,9 +2142,7 @@ class ModuleHostBase(ServiceBase):
     ) -> "DownloadBlobResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def paste_nodes(
-        self, paste_nodes_request: "PasteNodesRequest"
-    ) -> "PasteNodesResponse":
+    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def snapshot(
@@ -2201,9 +2150,7 @@ class ModuleHostBase(ServiceBase):
     ) -> "SnapshotModuleResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def search_logs(
-        self, search_logs_request: "SearchLogsRequest"
-    ) -> "SearchLogsResponse":
+    async def search_logs(self, search_logs_request: "SearchLogsRequest") -> "SearchLogsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def watch_logs(
@@ -2212,9 +2159,7 @@ class ModuleHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchLogsResponse()
 
-    async def start_run(
-        self, start_run_request: "StartRunRequest"
-    ) -> "StartRunResponse":
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
@@ -2432,9 +2377,7 @@ class WorkerNodeBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def start_run(
-        self, start_run_request: "StartRunRequest"
-    ) -> "StartRunResponse":
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":

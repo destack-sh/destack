@@ -483,7 +483,7 @@ export function benchTypeToJSON(object: BenchType): string {
 
 export enum BlobStatus {
   UNSPECIFIED = 0,
-  PREPARED = 1,
+  PENDING = 1,
   UPLOADING = 2,
   AVAILABLE = 3,
 }
@@ -494,8 +494,8 @@ export function blobStatusFromJSON(object: any): BlobStatus {
     case "BLOB_STATUS_UNSPECIFIED":
       return BlobStatus.UNSPECIFIED;
     case 1:
-    case "BLOB_STATUS_PREPARED":
-      return BlobStatus.PREPARED;
+    case "BLOB_STATUS_PENDING":
+      return BlobStatus.PENDING;
     case 2:
     case "BLOB_STATUS_UPLOADING":
       return BlobStatus.UPLOADING;
@@ -511,8 +511,8 @@ export function blobStatusToJSON(object: BlobStatus): string {
   switch (object) {
     case BlobStatus.UNSPECIFIED:
       return "BLOB_STATUS_UNSPECIFIED";
-    case BlobStatus.PREPARED:
-      return "BLOB_STATUS_PREPARED";
+    case BlobStatus.PENDING:
+      return "BLOB_STATUS_PENDING";
     case BlobStatus.UPLOADING:
       return "BLOB_STATUS_UPLOADING";
     case BlobStatus.AVAILABLE:
@@ -2952,8 +2952,6 @@ export interface InferenceData {
 export interface LogEntryData {
   metatype: BenchType;
   id: string;
-  moduleCk: string;
-  benchCk: string;
   createdAt: Date | undefined;
   stream: string;
   sessionCk: string;
@@ -3012,9 +3010,7 @@ export interface WorkerImageData {
 export interface BadgeData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
   benchId: string;
   revision: number;
   createdAt: Date | undefined;
@@ -3035,9 +3031,7 @@ export interface BadgeData {
 export interface BenchData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
   benchId: string;
   revision: number;
   createdAt: Date | undefined;
@@ -3064,9 +3058,7 @@ export interface BenchData {
 export interface BlobData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
   benchId: string;
   revision: number;
   createdAt: Date | undefined;
@@ -3084,10 +3076,7 @@ export interface BlobData {
 export interface ClientData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
-  benchId: string;
   revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
@@ -3162,10 +3151,7 @@ export interface HaltData {
 export interface HandleData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
-  benchId: string;
   revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
@@ -3217,10 +3203,7 @@ export interface ModuleData {
 export interface BaseNodeData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
-  benchId: string;
   revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
@@ -3232,10 +3215,7 @@ export interface BaseNodeData {
 export interface NotificationData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
-  benchId: string;
   revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
@@ -3251,10 +3231,7 @@ export interface NotificationData {
 export interface OrganizationData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
-  benchId: string;
   revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
@@ -3342,9 +3319,7 @@ export interface RunData {
 export interface SecretData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
   benchId: string;
   revision: number;
   createdAt: Date | undefined;
@@ -3352,8 +3327,9 @@ export interface SecretData {
   deletedAt: Date | undefined;
   archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
+  typeCk: string;
+  value: { [key: string]: any } | undefined;
   sha512: string;
-  value: string;
 }
 
 export interface SessionData {
@@ -3469,10 +3445,7 @@ export interface TriggerData {
 export interface UserData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
-  benchId: string;
   revision: number;
   createdAt: Date | undefined;
   updatedAt: Date | undefined;
@@ -3500,7 +3473,6 @@ export interface ViewData {
   deletedAt: Date | undefined;
   archivedAt: Date | undefined;
   lastEditedAt: Date | undefined;
-  lastChangedAt: Date | undefined;
   policies: PolicyData[];
   name: string;
   orderKey: string;
@@ -3512,9 +3484,7 @@ export interface ViewData {
 export interface WorkerData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
   benchId: string;
   revision: number;
   createdAt: Date | undefined;
@@ -3530,9 +3500,7 @@ export interface WorkerData {
 export interface WorkerSetData {
   metatype: BenchType;
   id: string;
-  ck: string;
   parentId: string;
-  moduleId: string;
   benchId: string;
   revision: number;
   createdAt: Date | undefined;
@@ -3979,8 +3947,6 @@ function createBaseLogEntryData(): LogEntryData {
   return {
     metatype: 0,
     id: "",
-    moduleCk: "",
-    benchCk: "",
     createdAt: undefined,
     stream: "",
     sessionCk: "",
@@ -4000,12 +3966,6 @@ export const LogEntryData = {
     }
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
-    }
-    if (message.moduleCk !== "") {
-      writer.uint32(42).string(message.moduleCk);
-    }
-    if (message.benchCk !== "") {
-      writer.uint32(50).string(message.benchCk);
     }
     if (message.createdAt !== undefined) {
       Timestamp.encode(toTimestamp(message.createdAt), writer.uint32(258).fork()).ldelim();
@@ -4057,20 +4017,6 @@ export const LogEntryData = {
           }
 
           message.id = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleCk = reader.string();
-          continue;
-        case 6:
-          if (tag !== 50) {
-            break;
-          }
-
-          message.benchCk = reader.string();
           continue;
         case 32:
           if (tag !== 258) {
@@ -4148,8 +4094,6 @@ export const LogEntryData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      moduleCk: isSet(object.moduleCk) ? globalThis.String(object.moduleCk) : "",
-      benchCk: isSet(object.benchCk) ? globalThis.String(object.benchCk) : "",
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       stream: isSet(object.stream) ? globalThis.String(object.stream) : "",
       sessionCk: isSet(object.sessionCk) ? globalThis.String(object.sessionCk) : "",
@@ -4169,12 +4113,6 @@ export const LogEntryData = {
     }
     if (message.id !== "") {
       obj.id = message.id;
-    }
-    if (message.moduleCk !== "") {
-      obj.moduleCk = message.moduleCk;
-    }
-    if (message.benchCk !== "") {
-      obj.benchCk = message.benchCk;
     }
     if (message.createdAt !== undefined) {
       obj.createdAt = message.createdAt.toISOString();
@@ -4213,8 +4151,6 @@ export const LogEntryData = {
     const message = createBaseLogEntryData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.moduleCk = object.moduleCk ?? "";
-    message.benchCk = object.benchCk ?? "";
     message.createdAt = object.createdAt ?? undefined;
     message.stream = object.stream ?? "";
     message.sessionCk = object.sessionCk ?? "";
@@ -4535,9 +4471,10 @@ export const PolicyRuleData = {
     message.objectTypes = object.objectTypes?.map((e) => e) || [];
     message.objectNodesCk = object.objectNodesCk?.map((e) => e) || [];
     message.objectFieldsCk = object.objectFieldsCk?.map((e) => e) || [];
-    message.condition = (object.condition !== undefined && object.condition !== null)
-      ? ExpressionData.fromPartial(object.condition)
-      : undefined;
+    message.condition =
+      object.condition !== undefined && object.condition !== null
+        ? ExpressionData.fromPartial(object.condition)
+        : undefined;
     return message;
   },
 };
@@ -4937,9 +4874,7 @@ function createBaseBadgeData(): BadgeData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
     benchId: "",
     revision: 0,
     createdAt: undefined,
@@ -4966,14 +4901,8 @@ export const BadgeData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
     }
     if (message.benchId !== "") {
       writer.uint32(50).string(message.benchId);
@@ -5044,26 +4973,12 @@ export const BadgeData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
           continue;
         case 6:
           if (tag !== 50) {
@@ -5183,9 +5098,7 @@ export const BadgeData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
       benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
@@ -5212,14 +5125,8 @@ export const BadgeData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
     }
     if (message.benchId !== "") {
       obj.benchId = message.benchId;
@@ -5276,9 +5183,7 @@ export const BadgeData = {
     const message = createBaseBadgeData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
     message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
@@ -5288,9 +5193,8 @@ export const BadgeData = {
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.type = object.type ?? 0;
     message.name = object.name ?? "";
-    message.policy = (object.policy !== undefined && object.policy !== null)
-      ? PolicyData.fromPartial(object.policy)
-      : undefined;
+    message.policy =
+      object.policy !== undefined && object.policy !== null ? PolicyData.fromPartial(object.policy) : undefined;
     message.linkToken = object.linkToken ?? "";
     message.linkPassword = object.linkPassword ?? "";
     message.linkPasswordDigest = object.linkPasswordDigest ?? "";
@@ -5304,9 +5208,7 @@ function createBaseBenchData(): BenchData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
     benchId: "",
     revision: 0,
     createdAt: undefined,
@@ -5339,14 +5241,8 @@ export const BenchData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
     }
     if (message.benchId !== "") {
       writer.uint32(50).string(message.benchId);
@@ -5435,26 +5331,12 @@ export const BenchData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
           continue;
         case 6:
           if (tag !== 50) {
@@ -5616,9 +5498,7 @@ export const BenchData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
       benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
@@ -5653,14 +5533,8 @@ export const BenchData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
     }
     if (message.benchId !== "") {
       obj.benchId = message.benchId;
@@ -5735,9 +5609,7 @@ export const BenchData = {
     const message = createBaseBenchData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
     message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
@@ -5767,9 +5639,7 @@ function createBaseBlobData(): BlobData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
     benchId: "",
     revision: 0,
     createdAt: undefined,
@@ -5793,14 +5663,8 @@ export const BlobData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
     }
     if (message.benchId !== "") {
       writer.uint32(50).string(message.benchId);
@@ -5862,26 +5726,12 @@ export const BlobData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
           continue;
         case 6:
           if (tag !== 50) {
@@ -5980,9 +5830,7 @@ export const BlobData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
       benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
@@ -6006,14 +5854,8 @@ export const BlobData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
     }
     if (message.benchId !== "") {
       obj.benchId = message.benchId;
@@ -6061,9 +5903,7 @@ export const BlobData = {
     const message = createBaseBlobData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
     message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
@@ -6084,10 +5924,7 @@ function createBaseClientData(): ClientData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
-    benchId: "",
     revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
@@ -6110,17 +5947,8 @@ export const ClientData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
-    }
-    if (message.benchId !== "") {
-      writer.uint32(50).string(message.benchId);
     }
     if (message.revision !== 0) {
       writer.uint32(80).int64(message.revision);
@@ -6179,33 +6007,12 @@ export const ClientData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
-          continue;
-        case 6:
-          if (tag !== 50) {
-            break;
-          }
-
-          message.benchId = reader.string();
           continue;
         case 10:
           if (tag !== 80) {
@@ -6297,10 +6104,7 @@ export const ClientData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
-      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
@@ -6323,17 +6127,8 @@ export const ClientData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
-    }
-    if (message.benchId !== "") {
-      obj.benchId = message.benchId;
     }
     if (message.revision !== 0) {
       obj.revision = Math.round(message.revision);
@@ -6378,10 +6173,7 @@ export const ClientData = {
     const message = createBaseClientData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
-    message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
@@ -7322,10 +7114,7 @@ function createBaseHandleData(): HandleData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
-    benchId: "",
     revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
@@ -7344,17 +7133,8 @@ export const HandleData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
-    }
-    if (message.benchId !== "") {
-      writer.uint32(50).string(message.benchId);
     }
     if (message.revision !== 0) {
       writer.uint32(80).int64(message.revision);
@@ -7401,33 +7181,12 @@ export const HandleData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
-          continue;
-        case 6:
-          if (tag !== 50) {
-            break;
-          }
-
-          message.benchId = reader.string();
           continue;
         case 10:
           if (tag !== 80) {
@@ -7491,10 +7250,7 @@ export const HandleData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
-      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
@@ -7513,17 +7269,8 @@ export const HandleData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
-    }
-    if (message.benchId !== "") {
-      obj.benchId = message.benchId;
     }
     if (message.revision !== 0) {
       obj.revision = Math.round(message.revision);
@@ -7556,10 +7303,7 @@ export const HandleData = {
     const message = createBaseHandleData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
-    message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
@@ -8197,10 +7941,7 @@ function createBaseBaseNodeData(): BaseNodeData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
-    benchId: "",
     revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
@@ -8218,17 +7959,8 @@ export const BaseNodeData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
-    }
-    if (message.benchId !== "") {
-      writer.uint32(50).string(message.benchId);
     }
     if (message.revision !== 0) {
       writer.uint32(80).int64(message.revision);
@@ -8272,33 +8004,12 @@ export const BaseNodeData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
-          continue;
-        case 6:
-          if (tag !== 50) {
-            break;
-          }
-
-          message.benchId = reader.string();
           continue;
         case 10:
           if (tag !== 80) {
@@ -8355,10 +8066,7 @@ export const BaseNodeData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
-      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
@@ -8376,17 +8084,8 @@ export const BaseNodeData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
-    }
-    if (message.benchId !== "") {
-      obj.benchId = message.benchId;
     }
     if (message.revision !== 0) {
       obj.revision = Math.round(message.revision);
@@ -8416,10 +8115,7 @@ export const BaseNodeData = {
     const message = createBaseBaseNodeData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
-    message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
@@ -8434,10 +8130,7 @@ function createBaseNotificationData(): NotificationData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
-    benchId: "",
     revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
@@ -8459,17 +8152,8 @@ export const NotificationData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
-    }
-    if (message.benchId !== "") {
-      writer.uint32(50).string(message.benchId);
     }
     if (message.revision !== 0) {
       writer.uint32(80).int64(message.revision);
@@ -8525,33 +8209,12 @@ export const NotificationData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
-          continue;
-        case 6:
-          if (tag !== 50) {
-            break;
-          }
-
-          message.benchId = reader.string();
           continue;
         case 10:
           if (tag !== 80) {
@@ -8636,10 +8299,7 @@ export const NotificationData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
-      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
@@ -8661,17 +8321,8 @@ export const NotificationData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
-    }
-    if (message.benchId !== "") {
-      obj.benchId = message.benchId;
     }
     if (message.revision !== 0) {
       obj.revision = Math.round(message.revision);
@@ -8713,10 +8364,7 @@ export const NotificationData = {
     const message = createBaseNotificationData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
-    message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
@@ -8735,10 +8383,7 @@ function createBaseOrganizationData(): OrganizationData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
-    benchId: "",
     revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
@@ -8758,17 +8403,8 @@ export const OrganizationData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
-    }
-    if (message.benchId !== "") {
-      writer.uint32(50).string(message.benchId);
     }
     if (message.revision !== 0) {
       writer.uint32(80).int64(message.revision);
@@ -8818,33 +8454,12 @@ export const OrganizationData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
-          continue;
-        case 6:
-          if (tag !== 50) {
-            break;
-          }
-
-          message.benchId = reader.string();
           continue;
         case 10:
           if (tag !== 80) {
@@ -8915,10 +8530,7 @@ export const OrganizationData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
-      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
@@ -8938,17 +8550,8 @@ export const OrganizationData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
-    }
-    if (message.benchId !== "") {
-      obj.benchId = message.benchId;
     }
     if (message.revision !== 0) {
       obj.revision = Math.round(message.revision);
@@ -8984,10 +8587,7 @@ export const OrganizationData = {
     const message = createBaseOrganizationData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
-    message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
@@ -10179,9 +9779,7 @@ function createBaseSecretData(): SecretData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
     benchId: "",
     revision: 0,
     createdAt: undefined,
@@ -10189,8 +9787,9 @@ function createBaseSecretData(): SecretData {
     deletedAt: undefined,
     archivedAt: undefined,
     lastEditedAt: undefined,
+    typeCk: "",
+    value: undefined,
     sha512: "",
-    value: "",
   };
 }
 
@@ -10202,14 +9801,8 @@ export const SecretData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
     }
     if (message.benchId !== "") {
       writer.uint32(50).string(message.benchId);
@@ -10232,11 +9825,14 @@ export const SecretData = {
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
     }
-    if (message.sha512 !== "") {
-      writer.uint32(242).string(message.sha512);
+    if (message.typeCk !== "") {
+      writer.uint32(242).string(message.typeCk);
     }
-    if (message.value !== "") {
-      writer.uint32(250).string(message.value);
+    if (message.value !== undefined) {
+      Struct.encode(Struct.wrap(message.value), writer.uint32(250).fork()).ldelim();
+    }
+    if (message.sha512 !== "") {
+      writer.uint32(258).string(message.sha512);
     }
     return writer;
   },
@@ -10262,26 +9858,12 @@ export const SecretData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
           continue;
         case 6:
           if (tag !== 50) {
@@ -10337,14 +9919,21 @@ export const SecretData = {
             break;
           }
 
-          message.sha512 = reader.string();
+          message.typeCk = reader.string();
           continue;
         case 31:
           if (tag !== 250) {
             break;
           }
 
-          message.value = reader.string();
+          message.value = Struct.unwrap(Struct.decode(reader, reader.uint32()));
+          continue;
+        case 32:
+          if (tag !== 258) {
+            break;
+          }
+
+          message.sha512 = reader.string();
           continue;
       }
       if ((tag & 7) === 4 || tag === 0) {
@@ -10359,9 +9948,7 @@ export const SecretData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
       benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
@@ -10369,8 +9956,9 @@ export const SecretData = {
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
       archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
+      typeCk: isSet(object.typeCk) ? globalThis.String(object.typeCk) : "",
+      value: isObject(object.value) ? object.value : undefined,
       sha512: isSet(object.sha512) ? globalThis.String(object.sha512) : "",
-      value: isSet(object.value) ? globalThis.String(object.value) : "",
     };
   },
 
@@ -10382,14 +9970,8 @@ export const SecretData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
     }
     if (message.benchId !== "") {
       obj.benchId = message.benchId;
@@ -10412,11 +9994,14 @@ export const SecretData = {
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
+    if (message.typeCk !== "") {
+      obj.typeCk = message.typeCk;
+    }
+    if (message.value !== undefined) {
+      obj.value = message.value;
+    }
     if (message.sha512 !== "") {
       obj.sha512 = message.sha512;
-    }
-    if (message.value !== "") {
-      obj.value = message.value;
     }
     return obj;
   },
@@ -10428,9 +10013,7 @@ export const SecretData = {
     const message = createBaseSecretData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
     message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
@@ -10438,8 +10021,9 @@ export const SecretData = {
     message.deletedAt = object.deletedAt ?? undefined;
     message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
+    message.typeCk = object.typeCk ?? "";
+    message.value = object.value ?? undefined;
     message.sha512 = object.sha512 ?? "";
-    message.value = object.value ?? "";
     return message;
   },
 };
@@ -12195,10 +11779,7 @@ function createBaseUserData(): UserData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
-    benchId: "",
     revision: 0,
     createdAt: undefined,
     updatedAt: undefined,
@@ -12222,17 +11803,8 @@ export const UserData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
-    }
-    if (message.benchId !== "") {
-      writer.uint32(50).string(message.benchId);
     }
     if (message.revision !== 0) {
       writer.uint32(80).int64(message.revision);
@@ -12294,33 +11866,12 @@ export const UserData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
-          continue;
-        case 6:
-          if (tag !== 50) {
-            break;
-          }
-
-          message.benchId = reader.string();
           continue;
         case 10:
           if (tag !== 80) {
@@ -12419,10 +11970,7 @@ export const UserData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
-      benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
       updatedAt: isSet(object.updatedAt) ? fromJsonTimestamp(object.updatedAt) : undefined,
@@ -12446,17 +11994,8 @@ export const UserData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
-    }
-    if (message.benchId !== "") {
-      obj.benchId = message.benchId;
     }
     if (message.revision !== 0) {
       obj.revision = Math.round(message.revision);
@@ -12504,10 +12043,7 @@ export const UserData = {
     const message = createBaseUserData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
-    message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
     message.updatedAt = object.updatedAt ?? undefined;
@@ -12538,7 +12074,6 @@ function createBaseViewData(): ViewData {
     deletedAt: undefined,
     archivedAt: undefined,
     lastEditedAt: undefined,
-    lastChangedAt: undefined,
     policies: [],
     name: "",
     orderKey: "",
@@ -12585,9 +12120,6 @@ export const ViewData = {
     }
     if (message.lastEditedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.lastEditedAt), writer.uint32(122).fork()).ldelim();
-    }
-    if (message.lastChangedAt !== undefined) {
-      Timestamp.encode(toTimestamp(message.lastChangedAt), writer.uint32(130).fork()).ldelim();
     }
     for (const v of message.policies) {
       PolicyData.encode(v!, writer.uint32(162).fork()).ldelim();
@@ -12701,13 +12233,6 @@ export const ViewData = {
 
           message.lastEditedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
           continue;
-        case 16:
-          if (tag !== 130) {
-            break;
-          }
-
-          message.lastChangedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
-          continue;
         case 20:
           if (tag !== 162) {
             break;
@@ -12773,7 +12298,6 @@ export const ViewData = {
       deletedAt: isSet(object.deletedAt) ? fromJsonTimestamp(object.deletedAt) : undefined,
       archivedAt: isSet(object.archivedAt) ? fromJsonTimestamp(object.archivedAt) : undefined,
       lastEditedAt: isSet(object.lastEditedAt) ? fromJsonTimestamp(object.lastEditedAt) : undefined,
-      lastChangedAt: isSet(object.lastChangedAt) ? fromJsonTimestamp(object.lastChangedAt) : undefined,
       policies: globalThis.Array.isArray(object?.policies)
         ? object.policies.map((e: any) => PolicyData.fromJSON(e))
         : [],
@@ -12823,9 +12347,6 @@ export const ViewData = {
     if (message.lastEditedAt !== undefined) {
       obj.lastEditedAt = message.lastEditedAt.toISOString();
     }
-    if (message.lastChangedAt !== undefined) {
-      obj.lastChangedAt = message.lastChangedAt.toISOString();
-    }
     if (message.policies?.length) {
       obj.policies = message.policies.map((e) => PolicyData.toJSON(e));
     }
@@ -12864,14 +12385,12 @@ export const ViewData = {
     message.deletedAt = object.deletedAt ?? undefined;
     message.archivedAt = object.archivedAt ?? undefined;
     message.lastEditedAt = object.lastEditedAt ?? undefined;
-    message.lastChangedAt = object.lastChangedAt ?? undefined;
     message.policies = object.policies?.map((e) => PolicyData.fromPartial(e)) || [];
     message.name = object.name ?? "";
     message.orderKey = object.orderKey ?? "";
     message.nodeType = object.nodeType ?? 0;
-    message.query = (object.query !== undefined && object.query !== null)
-      ? ExpressionData.fromPartial(object.query)
-      : undefined;
+    message.query =
+      object.query !== undefined && object.query !== null ? ExpressionData.fromPartial(object.query) : undefined;
     message.sort = object.sort?.map((e) => ExpressionData.fromPartial(e)) || [];
     return message;
   },
@@ -12881,9 +12400,7 @@ function createBaseWorkerData(): WorkerData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
     benchId: "",
     revision: 0,
     createdAt: undefined,
@@ -12905,14 +12422,8 @@ export const WorkerData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
     }
     if (message.benchId !== "") {
       writer.uint32(50).string(message.benchId);
@@ -12968,26 +12479,12 @@ export const WorkerData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
           continue;
         case 6:
           if (tag !== 50) {
@@ -13072,9 +12569,7 @@ export const WorkerData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
       benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
@@ -13096,14 +12591,8 @@ export const WorkerData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
     }
     if (message.benchId !== "") {
       obj.benchId = message.benchId;
@@ -13145,9 +12634,7 @@ export const WorkerData = {
     const message = createBaseWorkerData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
     message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
@@ -13157,9 +12644,8 @@ export const WorkerData = {
     message.lastEditedAt = object.lastEditedAt ?? undefined;
     message.externalId = object.externalId ?? "";
     message.profile = object.profile ?? 0;
-    message.image = (object.image !== undefined && object.image !== null)
-      ? WorkerImageData.fromPartial(object.image)
-      : undefined;
+    message.image =
+      object.image !== undefined && object.image !== null ? WorkerImageData.fromPartial(object.image) : undefined;
     return message;
   },
 };
@@ -13168,9 +12654,7 @@ function createBaseWorkerSetData(): WorkerSetData {
   return {
     metatype: 0,
     id: "",
-    ck: "",
     parentId: "",
-    moduleId: "",
     benchId: "",
     revision: 0,
     createdAt: undefined,
@@ -13199,14 +12683,8 @@ export const WorkerSetData = {
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
     }
-    if (message.ck !== "") {
-      writer.uint32(26).string(message.ck);
-    }
     if (message.parentId !== "") {
       writer.uint32(34).string(message.parentId);
-    }
-    if (message.moduleId !== "") {
-      writer.uint32(42).string(message.moduleId);
     }
     if (message.benchId !== "") {
       writer.uint32(50).string(message.benchId);
@@ -13283,26 +12761,12 @@ export const WorkerSetData = {
 
           message.id = reader.string();
           continue;
-        case 3:
-          if (tag !== 26) {
-            break;
-          }
-
-          message.ck = reader.string();
-          continue;
         case 4:
           if (tag !== 34) {
             break;
           }
 
           message.parentId = reader.string();
-          continue;
-        case 5:
-          if (tag !== 42) {
-            break;
-          }
-
-          message.moduleId = reader.string();
           continue;
         case 6:
           if (tag !== 50) {
@@ -13436,9 +12900,7 @@ export const WorkerSetData = {
     return {
       metatype: isSet(object.metatype) ? benchTypeFromJSON(object.metatype) : 0,
       id: isSet(object.id) ? globalThis.String(object.id) : "",
-      ck: isSet(object.ck) ? globalThis.String(object.ck) : "",
       parentId: isSet(object.parentId) ? globalThis.String(object.parentId) : "",
-      moduleId: isSet(object.moduleId) ? globalThis.String(object.moduleId) : "",
       benchId: isSet(object.benchId) ? globalThis.String(object.benchId) : "",
       revision: isSet(object.revision) ? globalThis.Number(object.revision) : 0,
       createdAt: isSet(object.createdAt) ? fromJsonTimestamp(object.createdAt) : undefined,
@@ -13467,14 +12929,8 @@ export const WorkerSetData = {
     if (message.id !== "") {
       obj.id = message.id;
     }
-    if (message.ck !== "") {
-      obj.ck = message.ck;
-    }
     if (message.parentId !== "") {
       obj.parentId = message.parentId;
-    }
-    if (message.moduleId !== "") {
-      obj.moduleId = message.moduleId;
     }
     if (message.benchId !== "") {
       obj.benchId = message.benchId;
@@ -13537,9 +12993,7 @@ export const WorkerSetData = {
     const message = createBaseWorkerSetData();
     message.metatype = object.metatype ?? 0;
     message.id = object.id ?? "";
-    message.ck = object.ck ?? "";
     message.parentId = object.parentId ?? "";
-    message.moduleId = object.moduleId ?? "";
     message.benchId = object.benchId ?? "";
     message.revision = object.revision ?? 0;
     message.createdAt = object.createdAt ?? undefined;
@@ -14269,7 +13723,9 @@ export const SomeStructData = {
       message.struct = { $case: "expression", expression: ExpressionData.fromPartial(object.struct.expression) };
     }
     if (
-      object.struct?.$case === "logEntry" && object.struct?.logEntry !== undefined && object.struct?.logEntry !== null
+      object.struct?.$case === "logEntry" &&
+      object.struct?.logEntry !== undefined &&
+      object.struct?.logEntry !== null
     ) {
       message.struct = { $case: "logEntry", logEntry: LogEntryData.fromPartial(object.struct.logEntry) };
     }
@@ -14284,7 +13740,9 @@ export const SomeStructData = {
       };
     }
     if (
-      object.struct?.$case === "runError" && object.struct?.runError !== undefined && object.struct?.runError !== null
+      object.struct?.$case === "runError" &&
+      object.struct?.runError !== undefined &&
+      object.struct?.runError !== null
     ) {
       message.struct = { $case: "runError", runError: RunErrorData.fromPartial(object.struct.runError) };
     }
@@ -14381,9 +13839,8 @@ export const ModuleTreeData = {
   },
   fromPartial<I extends Exact<DeepPartial<ModuleTreeData>, I>>(object: I): ModuleTreeData {
     const message = createBaseModuleTreeData();
-    message.module = (object.module !== undefined && object.module !== null)
-      ? ModuleData.fromPartial(object.module)
-      : undefined;
+    message.module =
+      object.module !== undefined && object.module !== null ? ModuleData.fromPartial(object.module) : undefined;
     message.nodes = object.nodes?.map((e) => SomeNodeData.fromPartial(e)) || [];
     return message;
   },
@@ -14391,15 +13848,21 @@ export const ModuleTreeData = {
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | undefined;
 
-export type DeepPartial<T> = T extends Builtin ? T
-  : T extends globalThis.Array<infer U> ? globalThis.Array<DeepPartial<U>>
-  : T extends ReadonlyArray<infer U> ? ReadonlyArray<DeepPartial<U>>
-  : T extends { $case: string } ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
-  : T extends {} ? { [K in keyof T]?: DeepPartial<T[K]> }
+export type DeepPartial<T> = T extends Builtin
+  ? T
+  : T extends globalThis.Array<infer U>
+  ? globalThis.Array<DeepPartial<U>>
+  : T extends ReadonlyArray<infer U>
+  ? ReadonlyArray<DeepPartial<U>>
+  : T extends { $case: string }
+  ? { [K in keyof Omit<T, "$case">]?: DeepPartial<T[K]> } & { $case: T["$case"] }
+  : T extends {}
+  ? { [K in keyof T]?: DeepPartial<T[K]> }
   : Partial<T>;
 
 type KeysOfUnion<T> = T extends T ? keyof T : never;
-export type Exact<P, I extends P> = P extends Builtin ? P
+export type Exact<P, I extends P> = P extends Builtin
+  ? P
   : P & { [K in keyof P]: Exact<P[K], I[K]> } & { [K in Exclude<keyof I, KeysOfUnion<P>>]: never };
 
 function toTimestamp(date: Date): Timestamp {

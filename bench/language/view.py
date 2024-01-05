@@ -3,14 +3,14 @@ from typing import Optional
 
 from bench.language.const import NodeType, StructType
 from bench.language.expression import Expression
-from bench.language.module import ScopeNode, node, node_parent, struct_internal, struct_property
+from bench.language.module import Node, node, node_parent, struct_internal, struct_property
 
 if typing.TYPE_CHECKING:
     from bench.language import File, Policy, Statement
 
 
 @node(NodeType.VIEW)
-class View(ScopeNode):
+class View(Node):
     parent: typing.Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
     policies: Optional[list["Policy"]] = struct_internal(
         20, default=None, struct_t=StructType.POLICY

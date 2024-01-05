@@ -99,6 +99,16 @@ else:
     BenchType.caps_name = NodeType.caps_name
     BenchType.camel_name = NodeType.camel_name
 
+
+def to_bench_metatype(_type: typing.Union[BenchType, int]) -> BenchType:
+    from bench.proto.wire import BenchType as WireBenchType
+
+    if isinstance(_type, WireBenchType):
+        assert _type.name != "UNSPECIFIED", f"cannot convert unspecified type {_type!r}"
+        return BenchType[_type.name]
+    return _type
+
+
 # local = only stored in user Bench, not host
 LOCAL_NODE_TYPES = (NodeType.RECORD, NodeType.SESSION, NodeType.RUN)
 OUT_OF_LINE_NODE_TYPES = (
@@ -397,9 +407,9 @@ class TypeStorageFormat(ProtoStrEnum):
 
 
 class BlobStatus(ProtoStrEnum):
-    PREPARED = "prepared", 1
-    UPLOADING = "uploading", 2
-    AVAILABLE = "available", 3
+    PENDING = "PENDING", 1
+    UPLOADING = "UPLOADING", 2
+    AVAILABLE = "AVAILABLE", 3
 
 
 class TriggerType(ProtoStrEnum):

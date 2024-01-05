@@ -1,17 +1,31 @@
-from typing import Any, Optional
+from copy import deepcopy
+from typing import TYPE_CHECKING, Any, Optional
 
-from bench.language import Node
 from bench.language.builtin import _auto_async_to_sync
 from bench.language.const import NodeType
-from bench.language.module import node, struct_internal, struct_property
+from bench.language.module import Bench, Node, node, node_parent, struct_internal, struct_property
+from bench.language.value import HasValue
+from bench.sql.core import ColumnType
+
+if TYPE_CHECKING:
+    from bench.language import Statement
 
 
-@node(NodeType.SECRET, detached=True)
-class Secret(Node):
+@node(NodeType.SECRET, in_module=False)
+class Secret(HasValue):
     """A shared secret with a deferred value (loaded on demand)t."""
 
-    sha512: str = struct_property(30)
-    value: Optional[str] = struct_internal(31, default=None, defer=True, encrypt=True)
+    parent: Bench = node_parent(4, NodeType.BENCH)
+    type: Optional["Statement"] = struct_internal(30, array=False, references=NodeType.STATEMENT)
+    value: Any | None = struct_property(
+        31,
+        default_factory=dict,
+        copy=deepcopy,
+        column_type=ColumnType.JSON,
+        encrypt=True,
+        ignore_conflicts_with=(HasValue,),
+    )
+    sha512: str = struct_internal(32)
 
     def __str__(self):
         return f"{self.id} ({self.sha512[:8]})"

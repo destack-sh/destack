@@ -1,4 +1,4 @@
-from .access import Policy, PolicyRule
+from .access import Badge, Policy, PolicyRule
 from .blob import Blob
 from .builtin import symbolx_bench, symbolx_lib
 from .const import (
@@ -25,7 +25,7 @@ from .issue import BenchError, Issue
 from .module import Module, Node, Property, ScopeNode, Struct, _complete_bench_setup
 from .projection import NodeVisitor
 from .render import render, render_as_python
-from .run import HasRun, Run, RunError, Halt
+from .run import Halt, HasRun, Run, RunError
 from .secret import Secret
 from .session import LogEntry, PermissionError, Session
 from .signal import Signal
@@ -42,7 +42,7 @@ from .worker import Dependency, WorkerImage, WorkerSet
 __all__ = [
     "A",
     "ActionKind",
-    "BenchError",
+    "Badge",
     "Blob",
     "C",
     "Client",
@@ -54,14 +54,6 @@ __all__ = [
     "File",
     "Halt",
     "Handle",
-    "HasDatabase",
-    "HasFields",
-    "HasRun",
-    "HasTags",
-    "HasText",
-    "HasTriggers",
-    "HasType",
-    "HasValue",
     "Issue",
     "IssueType",
     "LogEntry",
@@ -108,7 +100,6 @@ __all__ = [
     "WorkerImage",
     "WorkerSet",
 ]
-
 
 # after all the imports, we can finalize
 _complete_bench_setup()
