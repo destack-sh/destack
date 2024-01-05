@@ -4,7 +4,7 @@ import sys
 from bench.proto.wire import DependencyData, WorkerImageData
 
 
-def collect_environment() -> WorkerImageData:
+def get_actual_image() -> WorkerImageData:
     dependencies: list[DependencyData] = []
 
     # load packages from requirements-worker.txt
@@ -25,7 +25,3 @@ def collect_environment() -> WorkerImageData:
         platform=f"{osinfo.system} {osinfo.release}".split("-")[0],
         packages=dependency,
     )
-
-
-def install_environment(environment: WorkerImageData) -> None:
-    raise NotImplementedError

@@ -150,7 +150,7 @@ class LogEntry(Struct):
         return f"<LogEntry {self}>"
 
 
-@node(NodeType.SESSION, detached=True, local=True, index_in_os=True)
+@node(NodeType.SESSION, local=True, index_in_os=True)
 class Session(ScopeNode):
     """
     A managed context for running a Bench module (in a worker).

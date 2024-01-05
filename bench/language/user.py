@@ -4,21 +4,21 @@ from bench.language.const import ClientType, NodeType, NotificationStatus, Notif
 from bench.language.module import Node, ScopeNode, node, node_parent, struct_internal
 
 
-@node(NodeType.HANDLE, detached=True, root=None)
+@node(NodeType.HANDLE, root=None, in_module=False, in_bench=False)
 class Handle(Node):
     """A (global) Bench handle."""
 
     slug: str = struct_internal(30, unique=True)
 
 
-@node(NodeType.USER, detached=True, root=None)
+@node(NodeType.USER, root=None, in_module=False, in_bench=False)
 class User(ScopeNode):
     """A (global) Bench user."""
 
     handle: Handle = struct_internal(30, array=False, references=NodeType.HANDLE)
-    username: str = struct_internal(31)
+    username: str = struct_internal(31, unique=True)
     name: str = struct_internal(32)
-    email: str = struct_internal(33, defer=True)
+    email: str = struct_internal(33, defer=True, unique=True)
     password_hash: str = struct_internal(34, defer=True, encrypt=True)
 
     @property
@@ -26,14 +26,14 @@ class User(ScopeNode):
         return self.username
 
 
-@node(NodeType.ORGANIZATION, detached=True, root=None)
+@node(NodeType.ORGANIZATION, root=None, in_module=False, in_bench=False)
 class Organization(ScopeNode):
     """A (global) Bench organization."""
 
     handle: Handle = struct_internal(30, array=False, references=NodeType.HANDLE)
 
 
-@node(NodeType.CLIENT, stored=False, root=NodeType.USER)
+@node(NodeType.CLIENT, root=NodeType.USER, in_bench=False, in_module=False)
 class Client(Node):
     """A client to this Bench. Can be a user or a worker."""
 
@@ -45,7 +45,7 @@ class Client(Node):
     closed_at: int = struct_internal(34)
 
 
-@node(NodeType.NOTIFICATION, root=NodeType.USER)
+@node(NodeType.NOTIFICATION, root=NodeType.USER, in_bench=False, in_module=False)
 class Notification(Node):
     """A notification for a user."""
 

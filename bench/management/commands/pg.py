@@ -3,10 +3,9 @@ from asgiref.sync import async_to_sync
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from bench import models
 from bench.language.const import NodeType
 from bench.language.module import NODE_CLASS_BY_NODE_TYPE
-from bench.models import Bench
+from bench.proto.wire import ModuleData
 from bench.sql.engine import (
     create_local_pg_database,
     delete_local_pg_database,
@@ -18,7 +17,7 @@ from bench.utils.utils import format_python
 logger = structlog.get_logger(__name__)
 
 
-async def update_pg_schema_from_db(module: models.Module) -> None:
+async def update_pg_schema_from_db(module: ModuleData) -> None:
     from bench.server.utils import interp_module
 
     logger.info("pg.update_mappings", module=repr(module))
@@ -33,13 +32,6 @@ class Command(BaseCommand):
         parser.add_argument("action", type=str)
         # optional arguments
         parser.add_argument("slug", type=str, nargs="?")
-
-    def get_bench(self, slug: str) -> Bench:
-        owner, bench_name = slug.split("/")
-        bench = Bench.objects.get_by_slug(owner, bench_name)
-        for attr in ("user", "organization", "head", "pg_username", "pg_password"):
-            getattr(bench, attr)
-        return bench
 
     @transaction.atomic
     def handle(self, action: str, slug: str | None, *args, **options):

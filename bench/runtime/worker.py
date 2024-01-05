@@ -26,6 +26,7 @@ from bench.language.run import RunErrorKind
 from bench.language.session import RuntimeHost, Session
 from bench.proto import wire, wiring
 from bench.proto.wire import ClientOrigin, EditData, RunData
+from bench.runtime.image import get_actual_image
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import wrap_task
@@ -33,7 +34,6 @@ from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, required_field, sentry_capture
 from bench.utils.uuidt import UUIDT
-from bench.runtime.environment import collect_environment
 
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 3000, type_cast=int)
 WORKER_ACTIVE_TIMEOUT = timedelta(seconds=30)
@@ -301,7 +301,7 @@ class WorkerNode(Monitored):
             await msg.reply(RepKillRunPayload(success=success))
 
     async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
-        await msg.reply(RepGetEnvironmentPayload(environment=collect_environment()))
+        await msg.reply(RepGetEnvironmentPayload(environment=get_actual_image()))
 
     async def ping(self, msg: NMessage[ReqPingWorkerSetPayload]):
         await msg.reply(RepPingWorkerSetPayload(success=self.healthy))

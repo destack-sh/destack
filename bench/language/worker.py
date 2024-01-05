@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from bench.language.const import NodeType, BenchRegion, StructType, WorkerProfile, WorkerSetStatus
+from bench.language.const import BenchRegion, NodeType, StructType, WorkerProfile, WorkerSetStatus
 from bench.language.module import (
     Bench,
     Node,
@@ -17,7 +17,7 @@ from bench.language.module import (
 from bench.utils.dt import utcnow_with_tz
 
 
-@node(NodeType.WORKER_SET)
+@node(NodeType.WORKER_SET, in_module=False)
 class WorkerSet(ScopeNode):
     """
     Set of workers to run a Bench's modules.
@@ -37,7 +37,7 @@ class WorkerSet(ScopeNode):
     workers: list["Worker"] = node_children(NodeType.WORKER)
 
 
-@node(NodeType.WORKER)
+@node(NodeType.WORKER, in_module=False)
 class Worker(Node):
     parent: "WorkerSet" = node_parent(4, NodeType.WORKER_SET)
     external_id: str = struct_internal(30, unique=True)

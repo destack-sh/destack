@@ -111,16 +111,17 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             constraints.append(constraint)
 
     # index module + deleted_at and module + archived_at if applicable
-    for prop_name in ("deleted_at", "archived_at"):
-        prop = node.__properties__.get(prop_name)
-        if prop is not None:
-            index = Index(
-                f"bench_idx_module_{prop_name}",
-                type=IndexType.BTREE,
-                source=prop.id,
-                columns=["bench_module_id", f"bench_{prop_name}"],
-            )
-            indexes.append(index)
+    if node.__is_in_module__:
+        for prop_name in ("deleted_at", "archived_at"):
+            prop = node.__properties__.get(prop_name)
+            if prop is not None:
+                index = Index(
+                    f"bench_idx_module_{prop_name}",
+                    type=IndexType.BTREE,
+                    source=prop.id,
+                    columns=["bench_module_id", f"bench_{prop_name}"],
+                )
+                indexes.append(index)
 
     table = Table(
         source=node.metatype.id,

@@ -141,11 +141,12 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
 @node(NodeType.RUN, index_in_os=True, local=True)
 class Run(ScopeNode, HasValue):
     """
-    A run of a statement (in a session).
-    NOTE we don't 'activate' runs in sessions yet
-     (because we don't edit them outside of the source session,
-      and because it's unclear how run/session edits should interact with 'regular' module edits)
+    A 'run' of a statement (in a session).
     """
+
+    # NOTE we don't 'activate' runs in sessions yet
+    #  (because we don't edit them outside of the source session,
+    #   and because it's unclear how run/session edits should interact with 'regular' module edits)
 
     parent: Union["Session", "Run"] = node_parent(4, NodeType.SESSION, NodeType.RUN)
     session: "Session" = node_ancestor(
@@ -291,9 +292,7 @@ class RunCodeFrame(Struct):
 
 
 @struct(StructType.RUN_ERROR)
-class RunError(Struct, Exception):  # can this really be a subclass of Exception?
-    """Wire-able representation of an exception."""
-
+class RunError(Struct, Exception):
     kind: RunErrorKind = struct_internal(30)
     type: str = struct_internal(31)
     message: Optional[str] = struct_internal(32, default=None)
@@ -325,6 +324,8 @@ class RunError(Struct, Exception):  # can this really be a subclass of Exception
 
 @node(NodeType.HALT, local=True)
 class Halt(Node):
+    """A resumable interruption in the execution (Run) of a statement."""
+
     parent: "Run" = node_parent(4, NodeType.RUN)
     session: "Session" = node_ancestor(30, NodeType.SESSION, store=True)
     # (placeholder)
