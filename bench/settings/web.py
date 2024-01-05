@@ -11,13 +11,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
-    "strawberry_django",
-    "rest_framework",
-    "loginas",
-    "corsheaders",
-    "django_filters",
-    "django_prometheus",
-    "drf_spectacular",
     "pgcrypto",
     "bench.apps.BenchConfig",
 ]
@@ -112,11 +105,6 @@ STATIC_URL = "/static/"
 
 
 CSRF_COOKIE_NAME = "bench_csrftoken"
-
-REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
-    "EXCEPTION_HANDLER": "exceptions_hog.exception_handler",
-}
 
 EXCEPTIONS_HOG = {
     "EXCEPTION_REPORTING": "exceptions_hog.handler.exception_reporter",

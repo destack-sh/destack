@@ -20,11 +20,8 @@ rm -r $TARGET_PY_PATH
 rm -rf $TARGET_TS_DIR
 echo "generate $TARGET_TS_DIR"
 mkdir -p $TARGET_TS_DIR
-protoc --plugin=./node_modules/.bin/protoc-gen-ts_proto \
- --ts_proto_opt=oneof=unions \
- --ts_proto_opt=removeEnumPrefix=true \
- --ts_proto_opt=unrecognizedEnum=false \
- --ts_proto_opt=outputClientImpl=grpc-web \
- --ts_proto_out=$TARGET_TS_DIR $GENERATED_PROTO_FILE $EXTRA_PROTO_FILES
+npx protoc --ts_out $TARGET_TS_DIR --ts_opt long_type_string --proto_path . $GENERATED_PROTO_FILE $EXTRA_PROTO_FILES
+# prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
+find $TARGET_TS_DIR -type f -name "*.ts" -exec sh -c 'echo "/* eslint-disable */" | cat - "{}" > temp && mv temp "{}"' \;
 # re-export everything from the TS files to frontend/wire/index.ts
 echo "export * from \"@/proto/wire/bench/proto/bench\";" > $TARGET_TS_DIR/index.ts

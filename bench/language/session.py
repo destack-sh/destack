@@ -73,10 +73,9 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class RuntimeHost(abc.ABC):
+class ModuleHost(abc.ABC):
     """
     Central Bench runtime server for synchronizing modules and sessions.
-    nocheckin: inherit from RuntimeHost service?
     """
 
     @property
@@ -157,7 +156,7 @@ class Session(ScopeNode):
     """
 
     parent: Module = node_parent(4, NodeType.MODULE)
-    access_level: SessionAccessLevel = struct_internal(30)
+    policies: SessionAccessLevel = struct_internal(30)
     worker_node_id: str = struct_internal(31, reflect=True)
     worker_process_id: Optional[str] = struct_internal(32, reflect=True)
     trigger_type: TriggerType = struct_internal(33, reflect=True)
@@ -167,7 +166,7 @@ class Session(ScopeNode):
     inference_timeout: int = struct_internal(37, default=300)
     inference_retries: int = struct_internal(38, default=5)
     runs: NodeList[Run] = node_children(NodeType.RUN, flags=NRel.Flat)
-    _runtime: RuntimeHost | None = struct_runtime(default=None)
+    _runtime: ModuleHost | None = struct_runtime(default=None)
     _root_run_id: UUID | None = struct_runtime(default=None)
     _root_run_value: dict | None = struct_runtime(default=None)
     _global_run_value: dict | None = struct_runtime(default=None)
@@ -201,7 +200,7 @@ class Session(ScopeNode):
         else:
             status = "not opened"
         return (
-            f"{self.module.name} ({self.access_level.name}, {status}, "
+            f"{self.module.name} ({status}, "
             f"{len(self._tracer._local_edits)} local edits, {len(self._tracer._host_module_edits)} host edits"
             f")"
         )
@@ -228,24 +227,6 @@ class Session(ScopeNode):
 
     def bind_run_value(self, **kwargs):
         return self._tracer.value(**kwargs)
-
-    @contextlib.contextmanager
-    def bind_access_level(self, access_level: SessionAccessLevel):
-        if access_level > self.access_level:
-            raise PermissionError(
-                f"cannot increase access level from {self.access_level} to {access_level}"
-            )
-        old_access = self.access_level
-        self.access_level = access_level
-        try:
-            yield
-        finally:
-            self.access_level = old_access
-
-    def check_access(self, access_level: SessionAccessLevel):
-        if access_level > self.access_level:
-            access_level_name = SessionAccessLevel(access_level).name.lower()
-            raise PermissionError(f"cannot {access_level_name} in {self!r}")
 
     @property
     def dangling(self) -> list[Node]:
@@ -696,10 +677,6 @@ class SessionTracer:
     @property
     def cached_logs(self) -> list[LogEntry]:
         return list(self._cached_logs)
-
-    @property
-    def pending_logs(self) -> list[LogEntry]:
-        return self._pending_logs
 
     def _track_log(self, log: LogEntry):
         self._pending_logs.append(log)

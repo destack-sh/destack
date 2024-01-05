@@ -137,20 +137,14 @@ django==4.2.3
     #   -c requirements.txt
     #   -r requirements.in
     #   dj-database-url
-    #   django-stubs
-    #   django-stubs-ext
 django-choices-field==2.1
     # via
     #   -c requirements.txt
     #   -r requirements.in
-django-stubs==4.2.3
+django-pgcrypto-fields==2.6.0
     # via
-    #   -r requirements-dev.in
-    #   djangorestframework-stubs
-django-stubs-ext==4.2.2
-    # via django-stubs
-djangorestframework-stubs==3.14.2
-    # via -r requirements-dev.in
+    #   -c requirements.txt
+    #   -r requirements.in
 execnet==2.0.2
     # via pytest-xdist
 filelock==3.13.1
@@ -277,15 +271,8 @@ multidict==6.0.4
     #   aiohttp
     #   grpclib
     #   yarl
-mypy==1.5.1
-    # via
-    #   -r requirements-dev.in
-    #   django-stubs
-    #   djangorestframework-stubs
 mypy-extensions==1.0.0
-    # via
-    #   black
-    #   mypy
+    # via black
 nodeenv==1.8.0
     # via
     #   pre-commit
@@ -382,15 +369,12 @@ pyopenssl==23.2.0
     #   twisted
 pyproject-hooks==1.0.0
     # via build
-pyright==1.1.322
+pyright==1.1.344
     # via -r requirements-dev.in
 pytest==7.4.0
     # via
     #   -r requirements-dev.in
-    #   pytest-django
     #   pytest-xdist
-pytest-django==4.5.2
-    # via -r requirements-dev.in
 pytest-xdist==3.0.2
     # via -r requirements-dev.in
 python-dateutil==2.8.2
@@ -425,7 +409,6 @@ redis[hiredis]==4.5.4
 requests==2.31.0
     # via
     #   -c requirements.txt
-    #   djangorestframework-stubs
     #   huggingface-hub
     #   kubernetes
     #   openai
@@ -477,6 +460,10 @@ starlette==0.34.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
+structlog==23.1.0
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 tqdm==4.66.1
     # via
     #   -c requirements.txt
@@ -490,35 +477,17 @@ txaio==23.1.1
     # via
     #   -c requirements.txt
     #   autobahn
-types-dj-database-url==1.0.0
-    # via -r requirements-dev.in
 types-docutils==0.20.0.3
     # via types-pygments
-types-psycopg2==2.9.21.2
-    # via -r requirements-dev.in
 types-pygments==2.13.1.1
     # via -r requirements-dev.in
-types-pytz==2023.3.0.1
-    # via django-stubs
-types-pyyaml==6.0.12.11
-    # via
-    #   django-stubs
-    #   djangorestframework-stubs
-types-requests==2.31.0.2
-    # via djangorestframework-stubs
 types-setuptools==68.1.0.1
     # via types-pygments
-types-urllib3==1.26.25.14
-    # via types-requests
 typing-extensions==4.7.1
     # via
     #   -c requirements.txt
     #   betterproto
-    #   django-stubs
-    #   django-stubs-ext
-    #   djangorestframework-stubs
     #   huggingface-hub
-    #   mypy
     #   psycopg
     #   psycopg-pool
     #   twisted

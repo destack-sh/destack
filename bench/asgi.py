@@ -10,18 +10,10 @@ https://channels.readthedocs.io/en/latest/deploying.html
 """
 import os
 
-from channels.auth import AuthMiddlewareStack
-from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.security.websocket import AllowedHostsOriginValidator
 from django.core.asgi import get_asgi_application
-from django.urls import re_path
-from starlette.middleware.cors import CORSMiddleware
-from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
 from bench.settings import (
-    BROTLI_COMPRESSION_ENABLED,
-    CORS_ALLOWED_ORIGINS,
     RUN_LANGUAGE_SERVER_IN_API,
     RUN_ORCHESTRATION_SERVER_IN_API,
 )
@@ -30,43 +22,6 @@ from bench.utils.func import wrap_task
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
 django_asgi_app = get_asgi_application()
-
-# import Strawberry schema after creating the django ASGI application
-# (ensures django.setup() has been called before any ORM models are imported)
-from bench.api import schema  # noqa
-from bench.api.middleware import BrotliCompressionMiddleware, CProfileMiddleware  # noqa
-
-websocket_urlpatterns = [
-    re_path(r"graphql", GraphQLWSConsumer.as_asgi(schema=schema)),
-]
-
-gql_http_consumer = CORSMiddleware(
-    AuthMiddlewareStack(GraphQLHTTPConsumer.as_asgi(schema=schema)),
-    allow_origins=CORS_ALLOWED_ORIGINS,
-    # see https://docs.sentry.io/platforms/javascript/guides/react/performance/instrumentation/automatic-instrumentation
-    allow_headers=["sentry-trace", "baggage", "x-client-nonce", "x-sharing-token"],
-    allow_methods=["*"],
-    allow_credentials=True,
-)
-if BROTLI_COMPRESSION_ENABLED:
-    gql_http_consumer = BrotliCompressionMiddleware(gql_http_consumer)
-
-gql_ws_consumer = GraphQLWSConsumer.as_asgi(schema=schema)
-application = ProtocolTypeRouter(
-    {
-        "http": (
-            URLRouter(
-                [
-                    re_path("^graphql", (gql_http_consumer)),
-                    re_path("^", django_asgi_app),
-                ]
-            )
-        ),
-        "websocket": AllowedHostsOriginValidator(
-            AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
-        ),
-    }
-)
 
 reactor._asyncioEventloop.create_task(test_redis_connection())
 

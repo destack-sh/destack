@@ -1033,7 +1033,7 @@ def _process_struct_base_cls(
         # set attribute and annotation accordingly
         if attr is not UNSET:
             setattr(cls, name, attr)
-        if isinstance(remove, dataclasses.Field):
+        if isinstance(attr, dataclasses.Field):
             cls.__annotations__[name] = prop.py_type_raw
         elif name in cls.__annotations__:
             del cls.__annotations__[name]

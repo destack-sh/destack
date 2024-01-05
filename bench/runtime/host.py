@@ -40,7 +40,6 @@ class WorkerNode(Monitored):
     def __repr__(self):
         return f"<WorkerHost {self}>"
 
-        await nc_init.wait()
         logger.info("host.start", worker_process=self.worker_process, host=self)
         # launch worker process
         suspiciously_rapid_restarts = 0

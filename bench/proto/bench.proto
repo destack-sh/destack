@@ -922,7 +922,7 @@ message SessionData {
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
-  int64 access_level = 30;
+  int64 policies = 30;
   string worker_node_id = 31;
   string worker_process_id = 32;
   TriggerType trigger_type = 33;

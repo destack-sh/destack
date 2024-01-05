@@ -168,7 +168,7 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
 def unpack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
     if issubclass(enum_cls, int):
         return enum_cls(value)
-    elif type(value) == str:
+    elif type(value) == str:  # noqa
         return enum_cls(value)
     elif value.name == "UNSPECIFIED":
         return None  # revert to default
