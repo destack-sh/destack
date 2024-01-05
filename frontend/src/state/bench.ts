@@ -1,18 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-  StatementType,
-  type Record as BRecord,
-  type Field,
-  type File,
-  type Project,
-  type ProjectVersion,
-  type Scalars,
-  type Statement,
-  type Sort,
-  type RunError,
-  type Conditional,
-} from "@/gql/graphql";
-import {
   CONTENT_MARGIN_X_NARROW,
   CONTENT_MARGIN_X_WIDE,
   CONTENT_WIDTH_NARROW,
@@ -83,44 +70,6 @@ export function projectAccessGte(a: ModuleAccessLevel, b: ModuleAccessLevel): bo
 export function projectAccessLt(a: ModuleAccessLevel, b: ModuleAccessLevel): boolean {
   return PROJECT_ACCESS_LEVELS.indexOf(a) < PROJECT_ACCESS_LEVELS.indexOf(b);
 }
-
-export type ProjectHeader = Pick<
-  Project,
-  | "id"
-  | "name"
-  | "slug"
-  | "accessLevel"
-  | "createdAt"
-  | "updatedAt"
-  | "baseLevel"
-  | "sharingEnabled"
-  | "sharingToken"
-  | "sharingLevel"
-  | "owner"
->;
-export type ProjectVersionHeader = Pick<
-  ProjectVersion,
-  "id" | "ck" | "name" | "tag" | "description" | "createdAt" | "committed" | "committedAt"
->;
-export type FileHeader = Pick<
-  File,
-  "__typename" | "id" | "ck" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "parent"
->;
-export type StatementHeader = Pick<
-  Statement,
-  | "__typename"
-  | "id"
-  | "ck"
-  | "type"
-  | "name"
-  | "text"
-  | "headingLevel"
-  | "createdAt"
-  | "updatedAt"
-  | "deletedAt"
-  | "orderKey"
-  | "parent"
->;
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "environment" | "tests" | "comments";
 

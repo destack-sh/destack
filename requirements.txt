@@ -86,6 +86,8 @@ django==4.2.3
     #   dj-database-url
 django-choices-field==2.1
     # via -r requirements.in
+django-pgcrypto-fields==2.6.0
+    # via -r requirements.in
 filelock==3.13.1
     # via huggingface-hub
 frozenlist==1.4.0
@@ -243,6 +245,8 @@ sqlparse==0.4.4
     #   -r requirements.in
     #   django
 starlette==0.34.0
+    # via -r requirements.in
+structlog==23.1.0
     # via -r requirements.in
 tqdm==4.66.1
     # via

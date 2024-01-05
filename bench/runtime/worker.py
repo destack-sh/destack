@@ -9,7 +9,7 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import Blob, File, HasDatabase, Module, RunError, Secret, Statement
+from bench.language import Blob, File, Module, RunError, Secret, Statement
 from bench.language.builtin import symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
@@ -23,9 +23,9 @@ from bench.language.model import ModelError
 from bench.language.module import _NodeChange
 from bench.language.packer import map_value, unkey_value, unpack_value_flat
 from bench.language.run import RunErrorKind
-from bench.language.session import RuntimeHost, Session
+from bench.language.session import ModuleHost, Session
 from bench.proto import wire, wiring
-from bench.proto.wire import ClientOrigin, EditData, RunData
+from bench.proto.wire import ClientOrigin, EditData, RunData, StartRunResponseErrorType
 from bench.runtime.image import get_actual_image
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
@@ -51,12 +51,7 @@ class ModuleInfo:
 
 
 class WorkerNode(Monitored):
-    """
-    A Bench worker to run a Bench in a sandbox.
-    For local development a node can host multiple Benches.
-    TODO @Architecture: merge WorkerNode/WorkerHost, processes should be 1:1 with ModuleWorkerProcess
-     (see :BE-213)
-    """
+    """A Bench worker to run a Bench."""
 
     def __init__(
         self,
@@ -195,7 +190,7 @@ class WorkerNode(Monitored):
             if msg.p.statement:
                 statement = worker.module.lookup(msg.p.statement)
                 if statement is None or statement.type not in RUNNABLE_STATEMENT_TYPES:
-                    raise RunStartError(StartRunErrorType.INVALID_RUN)
+                    raise RunStartError(StartRunResponseErrorType.INVALID_RUN)
             else:
                 statement = None
 
@@ -265,7 +260,7 @@ class WorkerNode(Monitored):
             # job can fail to start even once successfully queued (e.g. maybe statement is invalid)
             if (
                 isinstance(job.exception, RunError)
-                and job.exception.type == StartRunErrorType.INVALID_RUN
+                and job.exception.type == StartRunResponseErrorType.INVALID_RUN
             ):
                 await msg.reply(RepStartRunPayload(error=job.exception.type))
                 return
@@ -379,14 +374,12 @@ class MakeJob(Job):
 
 
 class RunStartError(Exception):
-    def __init__(self, type: StartRunErrorType):
+    def __init__(self, type: StartRunResponseErrorType):
         self.type = type
 
 
-class WorkerProcess(RuntimeHost):
-    """
-    A user worker that helps run a specific module.
-    """
+class WorkerProcess:
+    """Worker process to run one 'thread' for a Bench module."""
 
     def __init__(self, module_id: UUID, node: "WorkerNode", process_id: Optional[str]):
         self.node = node
@@ -525,7 +518,7 @@ class WorkerProcess(RuntimeHost):
         """
 
         if run_data.id in self._prepared_runs:
-            raise RunStartError(StartRunErrorType.ALREADY_PREPARED)
+            raise RunStartError(StartRunResponseErrorType.ALREADY_PREPARED)
 
         session_id = session_id or UUIDT()
         job = RunJob(run_data=run_data, session_id=session_id, global_value=global_value, tags=tags)
@@ -581,7 +574,7 @@ class WorkerProcess(RuntimeHost):
                 if statement is None or statement.type not in RUNNABLE_STATEMENT_TYPES:
                     raise RunError(
                         kind=RunErrorKind.Runtime,
-                        type=StartRunErrorType.INVALID_RUN,
+                        type=StartRunResponseErrorType.INVALID_RUN,
                         message=f"statement {statement!r} cannot be run",
                         statement=statement,
                     )
@@ -590,7 +583,7 @@ class WorkerProcess(RuntimeHost):
                 if code is None:
                     raise RunError(
                         kind=RunErrorKind.Runtime,
-                        type=StartRunErrorType.INVALID_RUN,
+                        type=StartRunResponseErrorType.INVALID_RUN,
                         message="missing code for anonymous run",
                         statement=None,
                     )
@@ -610,7 +603,7 @@ class WorkerProcess(RuntimeHost):
                 if statement.issues:
                     raise RunError(
                         kind=RunErrorKind.Runtime,
-                        type=StartRunErrorType.INVALID_RUN,
+                        type=StartRunResponseErrorType.INVALID_RUN,
                         message=f"invalid anonymous run: {statement.issues}",
                         statement=statement,
                     )

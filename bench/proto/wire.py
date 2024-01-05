@@ -5,12 +5,19 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -977,7 +984,7 @@ class SessionData(betterproto.Message):
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
-    access_level: int = betterproto.int64_field(30)
+    policies: int = betterproto.int64_field(30)
     worker_node_id: str = betterproto.string_field(31)
     worker_process_id: str = betterproto.string_field(32)
     trigger_type: "TriggerType" = betterproto.enum_field(33)
@@ -1471,7 +1478,9 @@ class StartRunRequest(betterproto.Message):
     keyed_return: bool = betterproto.bool_field(12)
     tags: List[str] = betterproto.string_field(13)
     root_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(14)
-    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(15)
+    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(
+        15
+    )
     access_level: "SessionAccessLevel" = betterproto.enum_field(16)
 
 
@@ -1943,8 +1952,46 @@ class WorkerNodeStub(betterproto.ServiceStub):
         )
 
 
+class WorkerProcessStub(betterproto.ServiceStub):
+    async def start_run(
+        self,
+        start_run_request: "StartRunRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "StartRunResponse":
+        return await self._unary_unary(
+            "/WorkerProcess/StartRun",
+            start_run_request,
+            StartRunResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def kill_run(
+        self,
+        kill_run_request: "KillRunRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "KillRunResponse":
+        return await self._unary_unary(
+            "/WorkerProcess/KillRun",
+            kill_run_request,
+            KillRunResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+
 class GlobalSupervisorBase(ServiceBase):
-    async def create_user(self, create_user_request: "CreateUserRequest") -> "CreateUserResponse":
+    async def create_user(
+        self, create_user_request: "CreateUserRequest"
+    ) -> "CreateUserResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def create_organization(
@@ -1957,7 +2004,9 @@ class GlobalSupervisorBase(ServiceBase):
     ) -> "CreateBenchResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
+    async def read_nodes(
+        self, read_nodes_request: "ReadNodesRequest"
+    ) -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -2115,7 +2164,9 @@ class GlobalSupervisorBase(ServiceBase):
 
 
 class ModuleHostBase(ServiceBase):
-    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
+    async def read_nodes(
+        self, read_nodes_request: "ReadNodesRequest"
+    ) -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -2134,7 +2185,9 @@ class ModuleHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
-    async def upload_blob(self, upload_blob_request: "UploadBlobRequest") -> "UploadBlobResponse":
+    async def upload_blob(
+        self, upload_blob_request: "UploadBlobRequest"
+    ) -> "UploadBlobResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def download_blob(
@@ -2142,7 +2195,9 @@ class ModuleHostBase(ServiceBase):
     ) -> "DownloadBlobResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
+    async def paste_nodes(
+        self, paste_nodes_request: "PasteNodesRequest"
+    ) -> "PasteNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def snapshot(
@@ -2150,7 +2205,9 @@ class ModuleHostBase(ServiceBase):
     ) -> "SnapshotModuleResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def search_logs(self, search_logs_request: "SearchLogsRequest") -> "SearchLogsResponse":
+    async def search_logs(
+        self, search_logs_request: "SearchLogsRequest"
+    ) -> "SearchLogsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def watch_logs(
@@ -2159,7 +2216,9 @@ class ModuleHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchLogsResponse()
 
-    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
+    async def start_run(
+        self, start_run_request: "StartRunRequest"
+    ) -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
@@ -2377,7 +2436,9 @@ class WorkerNodeBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
+    async def start_run(
+        self, start_run_request: "StartRunRequest"
+    ) -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
@@ -2420,6 +2481,46 @@ class WorkerNodeBase(ServiceBase):
                 StartRunResponse,
             ),
             "/WorkerNode/KillRun": grpclib.const.Handler(
+                self.__rpc_kill_run,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                KillRunRequest,
+                KillRunResponse,
+            ),
+        }
+
+
+class WorkerProcessBase(ServiceBase):
+    async def start_run(
+        self, start_run_request: "StartRunRequest"
+    ) -> "StartRunResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def __rpc_start_run(
+        self, stream: "grpclib.server.Stream[StartRunRequest, StartRunResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.start_run(request)
+        await stream.send_message(response)
+
+    async def __rpc_kill_run(
+        self, stream: "grpclib.server.Stream[KillRunRequest, KillRunResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.kill_run(request)
+        await stream.send_message(response)
+
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {
+            "/WorkerProcess/StartRun": grpclib.const.Handler(
+                self.__rpc_start_run,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                StartRunRequest,
+                StartRunResponse,
+            ),
+            "/WorkerProcess/KillRun": grpclib.const.Handler(
                 self.__rpc_kill_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 KillRunRequest,

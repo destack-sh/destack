@@ -307,15 +307,24 @@ message KillRunResponse {
   RunData run = 1;
 }
 
-// A hosted Worker providing a Bench runtime.
+// A hosted Worker providing a Bench runtime with a set of worker processes.
 // Service is scoped to bench_id/worker_set_id.
 // Not accessible from the outside.
 service WorkerNode {
   // Restart this worker immediately.
   rpc RestartWorker(RestartWorkerRequest) returns (google.protobuf.Empty);
-  // Starts a run in this worker (if not already known).
+  // Starts a run in a process in this worker.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
-  // Kills a run in this worker.
+  // Kills a run in a process in this worker.
   rpc KillRun(KillRunRequest) returns (KillRunResponse);
 }
 
+// The actual worker process executing a Bench 'thread'.
+// Service is scoped to bench_id/worker_set_id/worker_process_id.
+// Not accessible from the outside.
+service WorkerProcess {
+  // Starts a run in this worker process.
+  rpc StartRun(StartRunRequest) returns (StartRunResponse);
+  // Kills a run in this worker process.
+  rpc KillRun(KillRunRequest) returns (KillRunResponse);
+}
