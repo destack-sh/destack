@@ -21,8 +21,8 @@ from bench.utils.analytics import init_sentry  # noqa: E402
 from bench.utils.cache import test_redis_connection  # noqa: E402
 from bench.utils.monitoring import restart_on_file_changes  # noqa: E402
 from bench.utils.utils import DEBUG, LOCAL  # noqa: E402
-from bench.worker import WorkerNode  # noqa: E402
-from bench.worker.host import WorkerHost  # noqa: E402
+from bench.runtime import WorkerNode  # noqa: E402
+from bench.runtime.host import WorkerHost  # noqa: E402
 
 if not (LOCAL or DEBUG):
     init_sentry(django=False)

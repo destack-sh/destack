@@ -321,3 +321,10 @@ class RunError(Struct, Exception):  # can this really be a subclass of Exception
             statement=statement,
             traceback=stack,
         )
+
+
+@node(NodeType.HALT, local=True)
+class Halt(Node):
+    parent: "Run" = node_parent(4, NodeType.RUN)
+    session: "Session" = node_ancestor(30, NodeType.SESSION, store=True)
+    # (placeholder)

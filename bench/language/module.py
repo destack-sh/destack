@@ -337,17 +337,13 @@ class Property(_FieldExpressionBase):
     alias: str | None = None  # for node list relations
     is_array: bool = UNSET
     is_required: bool = False  # must be non-null
-    is_internal: bool = False
+    is_internal: bool = False  # = not directly editable for user
+    is_protected: bool = False  # = only editable by us/supervisor
     is_runtime_only: bool = False
     is_computed: bool = False
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
-    struct_type: StructType | None = None  # for struct properties
-    references: tuple[NodeType, ...] | None = None  # for reference relations
-    reference_key: Optional["Property"] = None  # for reference relations
-    parents: tuple[NodeType, ...] | None = None
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
-    ancestor: NodeType | None = None
     is_real: bool = UNSET  # exists on runtime instance?
     is_wired: bool = UNSET  # serialized onto wire?
     is_stored: bool = UNSET  # stored in DB?
@@ -355,6 +351,11 @@ class Property(_FieldExpressionBase):
     is_unique: bool = False  # unique index in DB?
     is_deferred: bool = False  # not loaded immediately (only for stored node properties)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
+    struct_type: StructType | None = None  # for struct properties
+    references: tuple[NodeType, ...] | None = None  # for reference relations
+    reference_key: Optional["Property"] = None  # for reference relations
+    parents: tuple[NodeType, ...] | None = None
+    ancestor: NodeType | None = None
     column_type: ColumnType | None = UNSET  # auto-detect
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
@@ -425,6 +426,7 @@ class Property(_FieldExpressionBase):
             "is_array",
             "is_required",
             "is_internal",
+            "is_protected",
             "is_runtime_only",
             "is_computed",
             "is_reflected",
@@ -719,11 +721,13 @@ def struct_internal(
     defer: bool = False,
     encrypt: bool = False,
     unique: bool = False,
+    protect: bool = False,
 ):
     """Internal only struct/node property."""
     return Property(
         id=id,
         is_internal=True,
+        is_protected=protect,
         is_required=require,
         default=default,
         default_factory=default_factory,
@@ -783,6 +787,7 @@ def node_ancestor(
         default=None,
         is_internal=True,
         is_computed=True,
+        is_protected=True,
         is_ancestor_nearest=nearest,
         is_ancestor_self=include_self,
         is_stored=store,
@@ -1166,7 +1171,7 @@ def node(
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
     detached: bool = False,
-    managed: bool = True,
+    root: NodeType | None = NodeType.BENCH,
     stored: bool = True,
     stored_custom: bool = False,
     index_in_os: bool = False,
@@ -1182,11 +1187,11 @@ def node(
             detached=detached,
             reserved=reserved,
         )
-        cls.__is_managed__ = managed
         cls.__is_stored__ = stored
         cls.__is_stored_custom__ = stored_custom
         cls.__is_indexed_in_os__ = index_in_os
         cls.__is_local__ = local
+        cls.__root_node_type__ = root
         return cls
 
     return decorate
@@ -2478,16 +2483,17 @@ class Node(Struct):
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
     __has_scope__: ClassVar[bool] = False  # can have node children
     __is_detached__: ClassVar[bool] = False  # not part of inline module tree
-    __is_managed__: ClassVar[bool] = False  # storage fully controlled by Bench runtime
+    __root_node_type__: ClassVar[NodeType | None] = UNSET
+    # nocheckin: 'detached' -> root node type (Module, Bench, User, nothing)
     __is_stored__: ClassVar[bool] = False  # stored in PG (runtime or local)
     __is_stored_custom__: ClassVar[bool] = False  # custom PG storage logic (for records)
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
 
     # 1-9: reserved for node identity
-    id: UUID = struct_internal(2, default=None, require=True, reflect=True)
+    id: UUID = struct_internal(2, default=None, require=True, protect=True, reflect=True)
     # nocheckin: ensure id == ck for >=Bench/detached nodes
-    ck: UUID = struct_internal(3, default=None, require=True, reflect=True)
+    ck: UUID = struct_internal(3, default=None, require=True, protect=True, reflect=True)
     parent: Optional["Node"] = node_parent(4)
     module: Optional["Module"] = node_ancestor(
         5, NodeType.MODULE, store=True, wire=True, index_in_pg=True
@@ -2496,12 +2502,18 @@ class Node(Struct):
     # prototype/template: Optional["Node"] = node_template(7)
 
     # 10-29: reserved for node tracking
-    revision: int = struct_internal(10, default=0, require=True, reflect=True)
-    created_at: datetime = struct_internal(11, default=None, require=True, reflect=True)
-    updated_at: datetime = struct_internal(12, default=None, require=True, reflect=True)
-    deleted_at: datetime = struct_internal(13, default=None, reflect=True)
-    archived_at: datetime = struct_internal(14, default=None, reflect=True)
-    last_edited_at: datetime = struct_internal(15, default=None, require=True, reflect=True)
+    revision: int = struct_internal(10, default=0, require=True, protect=True, reflect=True)
+    created_at: datetime = struct_internal(
+        11, default=None, require=True, protect=True, reflect=True
+    )
+    updated_at: datetime = struct_internal(
+        12, default=None, require=True, protect=True, reflect=True
+    )
+    deleted_at: datetime = struct_internal(13, default=None, protect=True, reflect=True)
+    archived_at: datetime = struct_internal(14, default=None, protect=True, reflect=True)
+    last_edited_at: datetime = struct_internal(
+        15, default=None, require=True, protect=True, reflect=True
+    )
     # only scope nodes can have 'inner' changes
     # last_changed_at: datetime = struct_internal(16, default=None, reflect=True)
     # created_by: ... = struct_internal(17, default=None, reflect=True)
@@ -3061,7 +3073,7 @@ class ScopeNode(Node):
         return [i for i in self.errors or [] if i.parent == self]
 
 
-@node(NodeType.BENCH)
+@node(NodeType.BENCH, root=None)
 class Bench(ScopeNode):
     """
     A Bench is the root of all modules and everything that's not outside of it.
@@ -3089,6 +3101,7 @@ class Bench(ScopeNode):
     os_password: Optional[str] = struct_internal(46, default=None, defer=True, encrypt=True)
 
     worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET, NRel.Flat)
+
     # versions: NodeList["Module"] = node_children(NodeType.MODULE, NRel.Remote)
 
     @property
@@ -3137,9 +3150,8 @@ class Module(ScopeNode):
     is_main: bool = struct_internal(31, default=False, store=False)  # main environment?
     is_snapshot: bool = struct_internal(32, default=False)  # snapshot or head?
 
-    # branch: Branch | None = struct_internal(23, default=None, references=NodeType.BRANCH)
     files: NodeList["File"] = node_children(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
-    dependencies: dict[str, Union["Module", ModuleReference]] = struct_runtime(default_factory=dict)
+    dependencies: dict[str, "Module"] = struct_runtime(default_factory=dict)
     builtins: list["File"] = struct_runtime(default_factory=list)
 
     _lookup_cache: dict[str, NodeT] = struct_runtime(default_factory=dict)

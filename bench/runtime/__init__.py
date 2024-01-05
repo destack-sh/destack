@@ -1,4 +1,3 @@
-from .supervisor import ComputeOrchestrator
-from .host import RuntimeSupervisor
+from .worker import WorkerNode
 
-__all__ = ["ComputeOrchestrator", "RuntimeSupervisor"]
+__all__ = ["WorkerNode"]

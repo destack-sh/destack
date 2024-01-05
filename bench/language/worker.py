@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from bench.language.const import NodeType, ProjectRegion, StructType, WorkerProfile, WorkerSetStatus
+from bench.language.const import NodeType, BenchRegion, StructType, WorkerProfile, WorkerSetStatus
 from bench.language.module import (
     Bench,
     Node,
@@ -12,6 +12,7 @@ from bench.language.module import (
     node_parent,
     struct,
     struct_internal,
+    struct_property,
 )
 from bench.utils.dt import utcnow_with_tz
 
@@ -23,16 +24,15 @@ class WorkerSet(ScopeNode):
     """
 
     parent: "Bench" = node_parent(4, NodeType.BENCH)
-    region: ProjectRegion = struct_internal(31)
-    profile: WorkerProfile = struct_internal(32)
-    sleeping: bool = struct_internal(33)
-    status: WorkerSetStatus = struct_internal(34)
-    desired_replicas: int = struct_internal(35)
-    target_replicas: int = struct_internal(36)
-    available_replicas: int = struct_internal(37)
-    ready_replicas: int = struct_internal(38)
-    last_active_at: datetime = struct_internal(39, default_factory=utcnow_with_tz)
-    last_bumped_at: datetime = struct_internal(40, default_factory=utcnow_with_tz)
+    profile: WorkerProfile = struct_property(31)
+    sleeping: bool = struct_internal(32)
+    status: WorkerSetStatus = struct_internal(33)
+    desired_replicas: int = struct_internal(34)
+    target_replicas: int = struct_property(35)
+    available_replicas: int = struct_internal(36)
+    ready_replicas: int = struct_internal(37)
+    last_active_at: datetime = struct_internal(38, default_factory=utcnow_with_tz)
+    last_bumped_at: datetime = struct_internal(39, default_factory=utcnow_with_tz)
 
     workers: list["Worker"] = node_children(NodeType.WORKER)
 
@@ -40,7 +40,7 @@ class WorkerSet(ScopeNode):
 @node(NodeType.WORKER)
 class Worker(Node):
     parent: "WorkerSet" = node_parent(4, NodeType.WORKER_SET)
-    external_id: str = struct_internal(30)
+    external_id: str = struct_internal(30, unique=True)
     profile: WorkerProfile = struct_internal(31)
     image: Optional["WorkerImage"] = struct_internal(32, struct_t=StructType.WORKER_IMAGE)
 

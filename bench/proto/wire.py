@@ -5,12 +5,19 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -20,13 +27,17 @@ if TYPE_CHECKING:
 
 class ActionKind(betterproto.Enum):
     UNSPECIFIED = 0
-    CREATE = 1
-    UPDATE = 2
-    MOVE = 3
-    SOFT_DELETE = 4
-    RESTORE = 5
-    BUMP = 6
-    DELETE = 7
+    READ = 1
+    LIST = 2
+    CREATE = 10
+    UPDATE = 11
+    MOVE = 12
+    BUMP = 13
+    SOFT_DELETE = 13
+    RESTORE = 14
+    ARCHIVE = 15
+    UNARCHIVE = 16
+    DELETE = 17
     START = 20
     PAUSE = 21
     RESUME = 22
@@ -42,6 +53,18 @@ class AggregationOp(betterproto.Enum):
     MAX = 5
     MEDIAN = 6
     HISTOGRAM = 7
+
+
+class BadgeType(betterproto.Enum):
+    UNSPECIFIED = 0
+    SHARING_LINK = 1
+    ACCESS_KEY = 2
+
+
+class BenchRegion(betterproto.Enum):
+    UNSPECIFIED = 0
+    EU_CENTRAL = 1
+    US_WEST = 10
 
 
 class BenchType(betterproto.Enum):
@@ -63,8 +86,8 @@ class BenchType(betterproto.Enum):
     WORKER = 41
     SESSION = 60
     RUN = 61
+    HALT = 62
     SIGNAL = 70
-    HALT = 71
     HANDLE = 100
     USER = 101
     ORGANIZATION = 102
@@ -121,14 +144,15 @@ class ConditionalOp(betterproto.Enum):
 
 class EditKind(betterproto.Enum):
     UNSPECIFIED = 0
-    CREATE = 1
-    UPDATE = 2
-    MOVE = 3
-    SOFT_DELETE = 4
-    RESTORE = 5
-    BUMP = 6
-    DELETE = 7
-    TRUNCATE = 8
+    CREATE = 10
+    UPDATE = 11
+    MOVE = 12
+    BUMP = 13
+    SOFT_DELETE = 13
+    RESTORE = 14
+    ARCHIVE = 15
+    UNARCHIVE = 16
+    DELETE = 17
 
 
 class ExpressionKind(betterproto.Enum):
@@ -230,8 +254,8 @@ class NodeType(betterproto.Enum):
     WORKER = 41
     SESSION = 60
     RUN = 61
+    HALT = 62
     SIGNAL = 70
-    HALT = 71
     HANDLE = 100
     USER = 101
     ORGANIZATION = 102
@@ -259,12 +283,6 @@ class PolicyEffect(betterproto.Enum):
     DENY = 2
 
 
-class ProjectRegion(betterproto.Enum):
-    UNSPECIFIED = 0
-    US_WEST = 1
-    EU_CENTRAL = 2
-
-
 class ProtoStrEnum(betterproto.Enum):
     UNSPECIFIED = 0
 
@@ -277,6 +295,12 @@ class QueryEngine(betterproto.Enum):
     POSTGRES = 4
 
 
+class ReadKind(betterproto.Enum):
+    UNSPECIFIED = 0
+    READ = 1
+    LIST = 2
+
+
 class RunErrorKind(betterproto.Enum):
     UNSPECIFIED = 0
     Internal = 1
@@ -284,6 +308,14 @@ class RunErrorKind(betterproto.Enum):
     Validation = 3
     Runtime = 4
     Untrusted = 5
+
+
+class RunKind(betterproto.Enum):
+    UNSPECIFIED = 0
+    START = 20
+    PAUSE = 21
+    RESUME = 22
+    KILL = 23
 
 
 class RunStatus(betterproto.Enum):
@@ -611,14 +643,14 @@ class BadgeData(betterproto.Message):
     deleted_at: datetime = betterproto.message_field(13)
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
-    name: str = betterproto.string_field(30)
-    policy: "PolicyData" = betterproto.message_field(31)
-    link_enabled: bool = betterproto.bool_field(40)
-    link_token: str = betterproto.string_field(41)
+    type: "BadgeType" = betterproto.enum_field(30)
+    name: str = betterproto.string_field(31)
+    policy: "PolicyData" = betterproto.message_field(32)
+    link_token: str = betterproto.string_field(40)
+    link_password: str = betterproto.string_field(41)
     link_password_digest: str = betterproto.string_field(42)
-    secret_enabled: bool = betterproto.bool_field(50)
-    secret_value_digest: str = betterproto.string_field(51)
-    secret_value: str = betterproto.string_field(52)
+    key_value: str = betterproto.string_field(50)
+    key_value_digest: str = betterproto.string_field(51)
 
 
 @dataclass(eq=False, repr=False)
@@ -1155,16 +1187,15 @@ class WorkerSetData(betterproto.Message):
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     last_changed_at: datetime = betterproto.message_field(16)
-    region: "ProjectRegion" = betterproto.enum_field(31)
-    profile: "WorkerProfile" = betterproto.enum_field(32)
-    sleeping: bool = betterproto.bool_field(33)
-    status: "WorkerSetStatus" = betterproto.enum_field(34)
-    desired_replicas: int = betterproto.int64_field(35)
-    target_replicas: int = betterproto.int64_field(36)
-    available_replicas: int = betterproto.int64_field(37)
-    ready_replicas: int = betterproto.int64_field(38)
-    last_active_at: datetime = betterproto.message_field(39)
-    last_bumped_at: datetime = betterproto.message_field(40)
+    profile: "WorkerProfile" = betterproto.enum_field(31)
+    sleeping: bool = betterproto.bool_field(32)
+    status: "WorkerSetStatus" = betterproto.enum_field(33)
+    desired_replicas: int = betterproto.int64_field(34)
+    target_replicas: int = betterproto.int64_field(35)
+    available_replicas: int = betterproto.int64_field(36)
+    ready_replicas: int = betterproto.int64_field(37)
+    last_active_at: datetime = betterproto.message_field(38)
+    last_bumped_at: datetime = betterproto.message_field(39)
 
 
 @dataclass(eq=False, repr=False)
@@ -1186,8 +1217,8 @@ class SomeNodeData(betterproto.Message):
     worker: "WorkerData" = betterproto.message_field(15, group="node")
     session: "SessionData" = betterproto.message_field(16, group="node")
     run: "RunData" = betterproto.message_field(17, group="node")
-    signal: "SignalData" = betterproto.message_field(18, group="node")
-    halt: "HaltData" = betterproto.message_field(19, group="node")
+    halt: "HaltData" = betterproto.message_field(18, group="node")
+    signal: "SignalData" = betterproto.message_field(19, group="node")
     handle: "HandleData" = betterproto.message_field(20, group="node")
     user: "UserData" = betterproto.message_field(21, group="node")
     organization: "OrganizationData" = betterproto.message_field(22, group="node")
@@ -1227,6 +1258,7 @@ class EditData(betterproto.Message):
     node: "SomeNodeData" = betterproto.message_field(3)
     revision: int = betterproto.int64_field(4)
     properties: List[str] = betterproto.string_field(5)
+    origin: "ClientOrigin" = betterproto.message_field(6)
 
 
 @dataclass(eq=False, repr=False)
@@ -1244,87 +1276,34 @@ class NodePointer(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class GetNotificationsRequest(betterproto.Message):
-    pass
+class CreateUserRequest(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class GetNotificationsResponse(betterproto.Message):
-    pass
+class CreateUserResponse(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class GetWorkerChangesRequest(betterproto.Message):
-    pass
+class CreateOrganizationRequest(betterproto.Message):
+    organization: "OrganizationData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class GetWorkerChangesResponse(betterproto.Message):
-    worker_sets: List["WorkerSetData"] = betterproto.message_field(1)
+class CreateOrganizationResponse(betterproto.Message):
+    organization: "OrganizationData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class ConfigureWorkerSetRequest(betterproto.Message):
-    project_id: str = betterproto.string_field(1)
-    profile: "WorkerProfile" = betterproto.enum_field(2)
-    region: "ProjectRegion" = betterproto.enum_field(3)
-    target_replicas: int = betterproto.int32_field(4)
+class CreateBenchRequest(betterproto.Message):
+    bench: "BenchData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class ConfigureWorkerSetResponse(betterproto.Message):
-    worker_set: "WorkerSetData" = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class RestartWorkerSetRequest(betterproto.Message):
-    project_id: str = betterproto.string_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class GetWorkerImageRequest(betterproto.Message):
-    project_id: str = betterproto.string_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class GetWorkerImageResponse(betterproto.Message):
-    image: "WorkerImageData" = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class PingWorkerSetRequest(betterproto.Message):
-    project_id: str = betterproto.string_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class GetBenchChangesRequest(betterproto.Message):
-    after_change_marker: int = betterproto.int64_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class GetBenchChangesResponse(betterproto.Message):
-    edits: List["EditData"] = betterproto.message_field(1)
-    snapshot: "ModuleData" = betterproto.message_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class GetModuleEditsRequest(betterproto.Message):
-    after_edit_marker: int = betterproto.int64_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class GetModuleEditsResponse(betterproto.Message):
-    edits: List["EditData"] = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class GetLogsRequest(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class GetLogsResponse(betterproto.Message):
-    logs: List["LogEntryData"] = betterproto.message_field(1)
+class CreateBenchResponse(betterproto.Message):
+    bench: "BenchData" = betterproto.message_field(1)
+    new_nodes: List["SomeNodeData"] = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -1336,6 +1315,7 @@ class ReadNodesRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ReadNodesResponse(betterproto.Message):
     nodes: List["SomeNodeData"] = betterproto.message_field(1)
+    edit_marker: int = betterproto.int64_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -1353,6 +1333,7 @@ class SearchNodesResponse(betterproto.Message):
     nodes: List["SomeNodeData"] = betterproto.message_field(1)
     cursors: List[str] = betterproto.string_field(2)
     start_cursor: str = betterproto.string_field(3)
+    edit_marker: int = betterproto.int64_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -1363,6 +1344,46 @@ class CommitEditsRequest(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CommitEditsResponse(betterproto.Message):
     changed_nodes: List["SomeNodeData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class WatchEditsRequest(betterproto.Message):
+    after_edit_marker: int = betterproto.int64_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class WatchEditsResponse(betterproto.Message):
+    edits: List["EditData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class RestartWorkerSetRequest(betterproto.Message):
+    bench_id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class RestartWorkerSetResponse(betterproto.Message):
+    worker_sets: List["WorkerSetData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class PingWorkerSetRequest(betterproto.Message):
+    bench_id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class PingWorkerSetResponse(betterproto.Message):
+    worker_sets: List["WorkerSetData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class GetLogsRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class GetLogsResponse(betterproto.Message):
+    logs: List["LogEntryData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1433,7 +1454,27 @@ class SnapshotModuleResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PushWorkerLogsRequest(betterproto.Message):
+class SearchLogsRequest(betterproto.Message):
+    filter: "ExpressionData" = betterproto.message_field(1)
+    sort: List["ExpressionData"] = betterproto.message_field(2)
+    limit: int = betterproto.int32_field(3)
+    after: str = betterproto.string_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class SearchLogsResponse(betterproto.Message):
+    logs: List["LogEntryData"] = betterproto.message_field(1)
+    cursors: List[str] = betterproto.string_field(2)
+    start_cursor: str = betterproto.string_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class WatchLogsRequest(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class WatchLogsResponse(betterproto.Message):
     logs: List["LogEntryData"] = betterproto.message_field(1)
 
 
@@ -1452,15 +1493,8 @@ class RunProxyStatementResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PullWorkerRunsRequest(betterproto.Message):
-    worker_set_id: str = betterproto.string_field(1)
-    worker_node_id: str = betterproto.string_field(2)
-    worker_process_id: str = betterproto.string_field(3)
-
-
-@dataclass(eq=False, repr=False)
-class PullWorkerRunsResponse(betterproto.Message):
-    runs: List["RunData"] = betterproto.message_field(1)
+class PushWorkerLogsRequest(betterproto.Message):
+    logs: List["LogEntryData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1470,30 +1504,23 @@ class RestartWorkerRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StartRunRequest(betterproto.Message):
-    trigger_type: "TriggerType" = betterproto.enum_field(1)
-    trigger_id: str = betterproto.string_field(2)
-    run_id: str = betterproto.string_field(3)
-    session_id: str = betterproto.string_field(4)
-    statement: str = betterproto.string_field(5)
-    scope: str = betterproto.string_field(6)
-    code: str = betterproto.string_field(7)
-    scheduled_at: datetime = betterproto.message_field(8)
-    inputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(9)
+    run: "RunData" = betterproto.message_field(1)
     block: bool = betterproto.bool_field(10)
     keyed: bool = betterproto.bool_field(11)
     keyed_return: bool = betterproto.bool_field(12)
     tags: List[str] = betterproto.string_field(13)
     root_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(14)
-    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(15)
+    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(
+        15
+    )
     access_level: "SessionAccessLevel" = betterproto.enum_field(16)
 
 
 @dataclass(eq=False, repr=False)
 class StartRunResponse(betterproto.Message):
     error_type: "StartRunResponseErrorType" = betterproto.enum_field(1)
-    run_id: str = betterproto.string_field(2)
-    run: "RunData" = betterproto.message_field(3)
-    logs: List["LogEntryData"] = betterproto.message_field(4)
+    run: "RunData" = betterproto.message_field(2)
+    logs: List["LogEntryData"] = betterproto.message_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -1503,151 +1530,60 @@ class KillRunRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class KillRunResponse(betterproto.Message):
-    success: bool = betterproto.bool_field(1)
+    run: "RunData" = betterproto.message_field(1)
 
 
-class RuntimeSupervisorStub(betterproto.ServiceStub):
-    async def get_notifications(
+class GlobalSupervisorStub(betterproto.ServiceStub):
+    async def create_user(
         self,
-        get_notifications_request: "GetNotificationsRequest",
+        create_user_request: "CreateUserRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> AsyncIterator["GetNotificationsResponse"]:
-        async for response in self._unary_stream(
-            "/RuntimeSupervisor/GetNotifications",
-            get_notifications_request,
-            GetNotificationsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
-
-    async def get_worker_changes(
-        self,
-        get_worker_changes_request: "GetWorkerChangesRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> AsyncIterator["GetWorkerChangesResponse"]:
-        async for response in self._unary_stream(
-            "/RuntimeSupervisor/GetWorkerChanges",
-            get_worker_changes_request,
-            GetWorkerChangesResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
-
-    async def configure_worker_set(
-        self,
-        configure_worker_set_request: "ConfigureWorkerSetRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "ConfigureWorkerSetResponse":
+    ) -> "CreateUserResponse":
         return await self._unary_unary(
-            "/RuntimeSupervisor/ConfigureWorkerSet",
-            configure_worker_set_request,
-            ConfigureWorkerSetResponse,
+            "/GlobalSupervisor/CreateUser",
+            create_user_request,
+            CreateUserResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def restart_worker_set(
+    async def create_organization(
         self,
-        restart_worker_set_request: "RestartWorkerSetRequest",
+        create_organization_request: "CreateOrganizationRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "betterproto_lib_google_protobuf.Empty":
+    ) -> "CreateOrganizationResponse":
         return await self._unary_unary(
-            "/RuntimeSupervisor/RestartWorkerSet",
-            restart_worker_set_request,
-            betterproto_lib_google_protobuf.Empty,
+            "/GlobalSupervisor/CreateOrganization",
+            create_organization_request,
+            CreateOrganizationResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def get_worker_image(
+    async def create_bench(
         self,
-        get_worker_image_request: "GetWorkerImageRequest",
+        create_bench_request: "CreateBenchRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "GetWorkerImageResponse":
+    ) -> "CreateBenchResponse":
         return await self._unary_unary(
-            "/RuntimeSupervisor/GetWorkerImage",
-            get_worker_image_request,
-            GetWorkerImageResponse,
+            "/GlobalSupervisor/CreateBench",
+            create_bench_request,
+            CreateBenchResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
-
-    async def ping_worker_set(
-        self,
-        ping_worker_set_request: "PingWorkerSetRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "betterproto_lib_google_protobuf.Empty":
-        return await self._unary_unary(
-            "/RuntimeSupervisor/PingWorkerSet",
-            ping_worker_set_request,
-            betterproto_lib_google_protobuf.Empty,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-
-class RuntimeHostStub(betterproto.ServiceStub):
-    async def get_bench_changes(
-        self,
-        get_bench_changes_request: "GetBenchChangesRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> AsyncIterator["GetBenchChangesResponse"]:
-        async for response in self._unary_stream(
-            "/RuntimeHost/GetBenchChanges",
-            get_bench_changes_request,
-            GetBenchChangesResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
-
-    async def get_module_edits(
-        self,
-        get_module_edits_request: "GetModuleEditsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> AsyncIterator["GetModuleEditsResponse"]:
-        async for response in self._unary_stream(
-            "/RuntimeHost/GetModuleEdits",
-            get_module_edits_request,
-            GetModuleEditsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        ):
-            yield response
 
     async def read_nodes(
         self,
@@ -1658,7 +1594,7 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "ReadNodesResponse":
         return await self._unary_unary(
-            "/RuntimeHost/ReadNodes",
+            "/GlobalSupervisor/ReadNodes",
             read_nodes_request,
             ReadNodesResponse,
             timeout=timeout,
@@ -1675,7 +1611,7 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "SearchNodesResponse":
         return await self._unary_unary(
-            "/RuntimeHost/SearchNodes",
+            "/GlobalSupervisor/SearchNodes",
             search_nodes_request,
             SearchNodesResponse,
             timeout=timeout,
@@ -1692,13 +1628,136 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "CommitEditsResponse":
         return await self._unary_unary(
-            "/RuntimeHost/CommitEdits",
+            "/GlobalSupervisor/CommitEdits",
             commit_edits_request,
             CommitEditsResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
+
+    async def watch_edits(
+        self,
+        watch_edits_request: "WatchEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        async for response in self._unary_stream(
+            "/GlobalSupervisor/WatchEdits",
+            watch_edits_request,
+            WatchEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
+
+    async def restart_worker_set(
+        self,
+        restart_worker_set_request: "RestartWorkerSetRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "PingWorkerSetResponse":
+        return await self._unary_unary(
+            "/GlobalSupervisor/RestartWorkerSet",
+            restart_worker_set_request,
+            PingWorkerSetResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def ping_worker_set(
+        self,
+        ping_worker_set_request: "PingWorkerSetRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "PingWorkerSetResponse":
+        return await self._unary_unary(
+            "/GlobalSupervisor/PingWorkerSet",
+            ping_worker_set_request,
+            PingWorkerSetResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+
+class ModuleHostStub(betterproto.ServiceStub):
+    async def read_nodes(
+        self,
+        read_nodes_request: "ReadNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "ReadNodesResponse":
+        return await self._unary_unary(
+            "/ModuleHost/ReadNodes",
+            read_nodes_request,
+            ReadNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def search_nodes(
+        self,
+        search_nodes_request: "SearchNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "SearchNodesResponse":
+        return await self._unary_unary(
+            "/ModuleHost/SearchNodes",
+            search_nodes_request,
+            SearchNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def commit_edits(
+        self,
+        commit_edits_request: "CommitEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "CommitEditsResponse":
+        return await self._unary_unary(
+            "/ModuleHost/CommitEdits",
+            commit_edits_request,
+            CommitEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def watch_edits(
+        self,
+        watch_edits_request: "WatchEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        async for response in self._unary_stream(
+            "/ModuleHost/WatchEdits",
+            watch_edits_request,
+            WatchEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        ):
+            yield response
 
     async def upload_blob(
         self,
@@ -1709,7 +1768,7 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "UploadBlobResponse":
         return await self._unary_unary(
-            "/RuntimeHost/UploadBlob",
+            "/ModuleHost/UploadBlob",
             upload_blob_request,
             UploadBlobResponse,
             timeout=timeout,
@@ -1726,26 +1785,9 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "DownloadBlobResponse":
         return await self._unary_unary(
-            "/RuntimeHost/DownloadBlob",
+            "/ModuleHost/DownloadBlob",
             download_blob_request,
             DownloadBlobResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def reveal_secret(
-        self,
-        reveal_secret_request: "RevealSecretRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "RevealSecretResponse":
-        return await self._unary_unary(
-            "/RuntimeHost/RevealSecret",
-            reveal_secret_request,
-            RevealSecretResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -1760,7 +1802,7 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "PasteNodesResponse":
         return await self._unary_unary(
-            "/RuntimeHost/PasteNodes",
+            "/ModuleHost/PasteNodes",
             paste_nodes_request,
             PasteNodesResponse,
             timeout=timeout,
@@ -1768,7 +1810,7 @@ class RuntimeHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def snapshot_module(
+    async def snapshot(
         self,
         snapshot_module_request: "SnapshotModuleRequest",
         *,
@@ -1777,7 +1819,7 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "SnapshotModuleResponse":
         return await self._unary_unary(
-            "/RuntimeHost/SnapshotModule",
+            "/ModuleHost/Snapshot",
             snapshot_module_request,
             SnapshotModuleResponse,
             timeout=timeout,
@@ -1785,18 +1827,35 @@ class RuntimeHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def get_logs(
+    async def search_logs(
         self,
-        get_logs_request: "GetLogsRequest",
+        search_logs_request: "SearchLogsRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> AsyncIterator["GetLogsResponse"]:
+    ) -> "SearchLogsResponse":
+        return await self._unary_unary(
+            "/ModuleHost/SearchLogs",
+            search_logs_request,
+            SearchLogsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def watch_logs(
+        self,
+        watch_logs_request: "WatchLogsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> AsyncIterator["WatchLogsResponse"]:
         async for response in self._unary_stream(
-            "/RuntimeHost/GetLogs",
-            get_logs_request,
-            GetLogsResponse,
+            "/ModuleHost/WatchLogs",
+            watch_logs_request,
+            WatchLogsResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -1812,7 +1871,7 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "StartRunResponse":
         return await self._unary_unary(
-            "/RuntimeHost/StartRun",
+            "/ModuleHost/StartRun",
             start_run_request,
             StartRunResponse,
             timeout=timeout,
@@ -1829,7 +1888,7 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "KillRunResponse":
         return await self._unary_unary(
-            "/RuntimeHost/KillRun",
+            "/ModuleHost/KillRun",
             kill_run_request,
             KillRunResponse,
             timeout=timeout,
@@ -1846,26 +1905,9 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "RunProxyStatementResponse":
         return await self._unary_unary(
-            "/RuntimeHost/RunProxyStatement",
+            "/ModuleHost/RunProxyStatement",
             run_proxy_statement_request,
             RunProxyStatementResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def pull_worker_runs(
-        self,
-        pull_worker_runs_request: "PullWorkerRunsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "PullWorkerRunsResponse":
-        return await self._unary_unary(
-            "/RuntimeHost/PullWorkerRuns",
-            pull_worker_runs_request,
-            PullWorkerRunsResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -1880,7 +1922,7 @@ class RuntimeHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "betterproto_lib_google_protobuf.Empty":
         return await self._unary_unary(
-            "/RuntimeHost/PushWorkerLogs",
+            "/ModuleHost/PushWorkerLogs",
             push_worker_logs_request,
             betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
@@ -1942,148 +1984,25 @@ class WorkerNodeStub(betterproto.ServiceStub):
         )
 
 
-class RuntimeSupervisorBase(ServiceBase):
-    async def get_notifications(
-        self, get_notifications_request: "GetNotificationsRequest"
-    ) -> AsyncIterator["GetNotificationsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield GetNotificationsResponse()
-
-    async def get_worker_changes(
-        self, get_worker_changes_request: "GetWorkerChangesRequest"
-    ) -> AsyncIterator["GetWorkerChangesResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield GetWorkerChangesResponse()
-
-    async def configure_worker_set(
-        self, configure_worker_set_request: "ConfigureWorkerSetRequest"
-    ) -> "ConfigureWorkerSetResponse":
+class GlobalSupervisorBase(ServiceBase):
+    async def create_user(
+        self, create_user_request: "CreateUserRequest"
+    ) -> "CreateUserResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def restart_worker_set(
-        self, restart_worker_set_request: "RestartWorkerSetRequest"
-    ) -> "betterproto_lib_google_protobuf.Empty":
+    async def create_organization(
+        self, create_organization_request: "CreateOrganizationRequest"
+    ) -> "CreateOrganizationResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def get_worker_image(
-        self, get_worker_image_request: "GetWorkerImageRequest"
-    ) -> "GetWorkerImageResponse":
+    async def create_bench(
+        self, create_bench_request: "CreateBenchRequest"
+    ) -> "CreateBenchResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def ping_worker_set(
-        self, ping_worker_set_request: "PingWorkerSetRequest"
-    ) -> "betterproto_lib_google_protobuf.Empty":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def __rpc_get_notifications(
-        self,
-        stream: "grpclib.server.Stream[GetNotificationsRequest, GetNotificationsResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.get_notifications,
-            stream,
-            request,
-        )
-
-    async def __rpc_get_worker_changes(
-        self,
-        stream: "grpclib.server.Stream[GetWorkerChangesRequest, GetWorkerChangesResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.get_worker_changes,
-            stream,
-            request,
-        )
-
-    async def __rpc_configure_worker_set(
-        self,
-        stream: "grpclib.server.Stream[ConfigureWorkerSetRequest, ConfigureWorkerSetResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.configure_worker_set(request)
-        await stream.send_message(response)
-
-    async def __rpc_restart_worker_set(
-        self,
-        stream: "grpclib.server.Stream[RestartWorkerSetRequest, betterproto_lib_google_protobuf.Empty]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.restart_worker_set(request)
-        await stream.send_message(response)
-
-    async def __rpc_get_worker_image(
-        self,
-        stream: "grpclib.server.Stream[GetWorkerImageRequest, GetWorkerImageResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.get_worker_image(request)
-        await stream.send_message(response)
-
-    async def __rpc_ping_worker_set(
-        self,
-        stream: "grpclib.server.Stream[PingWorkerSetRequest, betterproto_lib_google_protobuf.Empty]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.ping_worker_set(request)
-        await stream.send_message(response)
-
-    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
-        return {
-            "/RuntimeSupervisor/GetNotifications": grpclib.const.Handler(
-                self.__rpc_get_notifications,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                GetNotificationsRequest,
-                GetNotificationsResponse,
-            ),
-            "/RuntimeSupervisor/GetWorkerChanges": grpclib.const.Handler(
-                self.__rpc_get_worker_changes,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                GetWorkerChangesRequest,
-                GetWorkerChangesResponse,
-            ),
-            "/RuntimeSupervisor/ConfigureWorkerSet": grpclib.const.Handler(
-                self.__rpc_configure_worker_set,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                ConfigureWorkerSetRequest,
-                ConfigureWorkerSetResponse,
-            ),
-            "/RuntimeSupervisor/RestartWorkerSet": grpclib.const.Handler(
-                self.__rpc_restart_worker_set,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                RestartWorkerSetRequest,
-                betterproto_lib_google_protobuf.Empty,
-            ),
-            "/RuntimeSupervisor/GetWorkerImage": grpclib.const.Handler(
-                self.__rpc_get_worker_image,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                GetWorkerImageRequest,
-                GetWorkerImageResponse,
-            ),
-            "/RuntimeSupervisor/PingWorkerSet": grpclib.const.Handler(
-                self.__rpc_ping_worker_set,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                PingWorkerSetRequest,
-                betterproto_lib_google_protobuf.Empty,
-            ),
-        }
-
-
-class RuntimeHostBase(ServiceBase):
-    async def get_bench_changes(
-        self, get_bench_changes_request: "GetBenchChangesRequest"
-    ) -> AsyncIterator["GetBenchChangesResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield GetBenchChangesResponse()
-
-    async def get_module_edits(
-        self, get_module_edits_request: "GetModuleEditsRequest"
-    ) -> AsyncIterator["GetModuleEditsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield GetModuleEditsResponse()
-
-    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
+    async def read_nodes(
+        self, read_nodes_request: "ReadNodesRequest"
+    ) -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -2096,75 +2015,43 @@ class RuntimeHostBase(ServiceBase):
     ) -> "CommitEditsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def upload_blob(self, upload_blob_request: "UploadBlobRequest") -> "UploadBlobResponse":
+    async def watch_edits(
+        self, watch_edits_request: "WatchEditsRequest"
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchEditsResponse()
+
+    async def restart_worker_set(
+        self, restart_worker_set_request: "RestartWorkerSetRequest"
+    ) -> "PingWorkerSetResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def download_blob(
-        self, download_blob_request: "DownloadBlobRequest"
-    ) -> "DownloadBlobResponse":
+    async def ping_worker_set(
+        self, ping_worker_set_request: "PingWorkerSetRequest"
+    ) -> "PingWorkerSetResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def reveal_secret(
-        self, reveal_secret_request: "RevealSecretRequest"
-    ) -> "RevealSecretResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def snapshot_module(
-        self, snapshot_module_request: "SnapshotModuleRequest"
-    ) -> "SnapshotModuleResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def get_logs(
-        self, get_logs_request: "GetLogsRequest"
-    ) -> AsyncIterator["GetLogsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-        yield GetLogsResponse()
-
-    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def run_proxy_statement(
-        self, run_proxy_statement_request: "RunProxyStatementRequest"
-    ) -> "RunProxyStatementResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def pull_worker_runs(
-        self, pull_worker_runs_request: "PullWorkerRunsRequest"
-    ) -> "PullWorkerRunsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def push_worker_logs(
-        self, push_worker_logs_request: "PushWorkerLogsRequest"
-    ) -> "betterproto_lib_google_protobuf.Empty":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def __rpc_get_bench_changes(
-        self,
-        stream: "grpclib.server.Stream[GetBenchChangesRequest, GetBenchChangesResponse]",
+    async def __rpc_create_user(
+        self, stream: "grpclib.server.Stream[CreateUserRequest, CreateUserResponse]"
     ) -> None:
         request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.get_bench_changes,
-            stream,
-            request,
-        )
+        response = await self.create_user(request)
+        await stream.send_message(response)
 
-    async def __rpc_get_module_edits(
+    async def __rpc_create_organization(
         self,
-        stream: "grpclib.server.Stream[GetModuleEditsRequest, GetModuleEditsResponse]",
+        stream: "grpclib.server.Stream[CreateOrganizationRequest, CreateOrganizationResponse]",
     ) -> None:
         request = await stream.recv_message()
-        await self._call_rpc_handler_server_stream(
-            self.get_module_edits,
-            stream,
-            request,
-        )
+        response = await self.create_organization(request)
+        await stream.send_message(response)
+
+    async def __rpc_create_bench(
+        self, stream: "grpclib.server.Stream[CreateBenchRequest, CreateBenchResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.create_bench(request)
+        await stream.send_message(response)
 
     async def __rpc_read_nodes(
         self, stream: "grpclib.server.Stream[ReadNodesRequest, ReadNodesResponse]"
@@ -2187,6 +2074,193 @@ class RuntimeHostBase(ServiceBase):
         response = await self.commit_edits(request)
         await stream.send_message(response)
 
+    async def __rpc_watch_edits(
+        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_edits,
+            stream,
+            request,
+        )
+
+    async def __rpc_restart_worker_set(
+        self,
+        stream: "grpclib.server.Stream[RestartWorkerSetRequest, PingWorkerSetResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.restart_worker_set(request)
+        await stream.send_message(response)
+
+    async def __rpc_ping_worker_set(
+        self,
+        stream: "grpclib.server.Stream[PingWorkerSetRequest, PingWorkerSetResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.ping_worker_set(request)
+        await stream.send_message(response)
+
+    def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
+        return {
+            "/GlobalSupervisor/CreateUser": grpclib.const.Handler(
+                self.__rpc_create_user,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CreateUserRequest,
+                CreateUserResponse,
+            ),
+            "/GlobalSupervisor/CreateOrganization": grpclib.const.Handler(
+                self.__rpc_create_organization,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CreateOrganizationRequest,
+                CreateOrganizationResponse,
+            ),
+            "/GlobalSupervisor/CreateBench": grpclib.const.Handler(
+                self.__rpc_create_bench,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CreateBenchRequest,
+                CreateBenchResponse,
+            ),
+            "/GlobalSupervisor/ReadNodes": grpclib.const.Handler(
+                self.__rpc_read_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                ReadNodesRequest,
+                ReadNodesResponse,
+            ),
+            "/GlobalSupervisor/SearchNodes": grpclib.const.Handler(
+                self.__rpc_search_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                SearchNodesRequest,
+                SearchNodesResponse,
+            ),
+            "/GlobalSupervisor/CommitEdits": grpclib.const.Handler(
+                self.__rpc_commit_edits,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                CommitEditsRequest,
+                CommitEditsResponse,
+            ),
+            "/GlobalSupervisor/WatchEdits": grpclib.const.Handler(
+                self.__rpc_watch_edits,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchEditsRequest,
+                WatchEditsResponse,
+            ),
+            "/GlobalSupervisor/RestartWorkerSet": grpclib.const.Handler(
+                self.__rpc_restart_worker_set,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                RestartWorkerSetRequest,
+                PingWorkerSetResponse,
+            ),
+            "/GlobalSupervisor/PingWorkerSet": grpclib.const.Handler(
+                self.__rpc_ping_worker_set,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PingWorkerSetRequest,
+                PingWorkerSetResponse,
+            ),
+        }
+
+
+class ModuleHostBase(ServiceBase):
+    async def read_nodes(
+        self, read_nodes_request: "ReadNodesRequest"
+    ) -> "ReadNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def search_nodes(
+        self, search_nodes_request: "SearchNodesRequest"
+    ) -> "SearchNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def commit_edits(
+        self, commit_edits_request: "CommitEditsRequest"
+    ) -> "CommitEditsResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def watch_edits(
+        self, watch_edits_request: "WatchEditsRequest"
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchEditsResponse()
+
+    async def upload_blob(
+        self, upload_blob_request: "UploadBlobRequest"
+    ) -> "UploadBlobResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def download_blob(
+        self, download_blob_request: "DownloadBlobRequest"
+    ) -> "DownloadBlobResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def paste_nodes(
+        self, paste_nodes_request: "PasteNodesRequest"
+    ) -> "PasteNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def snapshot(
+        self, snapshot_module_request: "SnapshotModuleRequest"
+    ) -> "SnapshotModuleResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def search_logs(
+        self, search_logs_request: "SearchLogsRequest"
+    ) -> "SearchLogsResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def watch_logs(
+        self, watch_logs_request: "WatchLogsRequest"
+    ) -> AsyncIterator["WatchLogsResponse"]:
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        yield WatchLogsResponse()
+
+    async def start_run(
+        self, start_run_request: "StartRunRequest"
+    ) -> "StartRunResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def run_proxy_statement(
+        self, run_proxy_statement_request: "RunProxyStatementRequest"
+    ) -> "RunProxyStatementResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def push_worker_logs(
+        self, push_worker_logs_request: "PushWorkerLogsRequest"
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def __rpc_read_nodes(
+        self, stream: "grpclib.server.Stream[ReadNodesRequest, ReadNodesResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.read_nodes(request)
+        await stream.send_message(response)
+
+    async def __rpc_search_nodes(
+        self, stream: "grpclib.server.Stream[SearchNodesRequest, SearchNodesResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.search_nodes(request)
+        await stream.send_message(response)
+
+    async def __rpc_commit_edits(
+        self, stream: "grpclib.server.Stream[CommitEditsRequest, CommitEditsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.commit_edits(request)
+        await stream.send_message(response)
+
+    async def __rpc_watch_edits(
+        self, stream: "grpclib.server.Stream[WatchEditsRequest, WatchEditsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        await self._call_rpc_handler_server_stream(
+            self.watch_edits,
+            stream,
+            request,
+        )
+
     async def __rpc_upload_blob(
         self, stream: "grpclib.server.Stream[UploadBlobRequest, UploadBlobResponse]"
     ) -> None:
@@ -2201,13 +2275,6 @@ class RuntimeHostBase(ServiceBase):
         response = await self.download_blob(request)
         await stream.send_message(response)
 
-    async def __rpc_reveal_secret(
-        self, stream: "grpclib.server.Stream[RevealSecretRequest, RevealSecretResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.reveal_secret(request)
-        await stream.send_message(response)
-
     async def __rpc_paste_nodes(
         self, stream: "grpclib.server.Stream[PasteNodesRequest, PasteNodesResponse]"
     ) -> None:
@@ -2215,20 +2282,27 @@ class RuntimeHostBase(ServiceBase):
         response = await self.paste_nodes(request)
         await stream.send_message(response)
 
-    async def __rpc_snapshot_module(
+    async def __rpc_snapshot(
         self,
         stream: "grpclib.server.Stream[SnapshotModuleRequest, SnapshotModuleResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.snapshot_module(request)
+        response = await self.snapshot(request)
         await stream.send_message(response)
 
-    async def __rpc_get_logs(
-        self, stream: "grpclib.server.Stream[GetLogsRequest, GetLogsResponse]"
+    async def __rpc_search_logs(
+        self, stream: "grpclib.server.Stream[SearchLogsRequest, SearchLogsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.search_logs(request)
+        await stream.send_message(response)
+
+    async def __rpc_watch_logs(
+        self, stream: "grpclib.server.Stream[WatchLogsRequest, WatchLogsResponse]"
     ) -> None:
         request = await stream.recv_message()
         await self._call_rpc_handler_server_stream(
-            self.get_logs,
+            self.watch_logs,
             stream,
             request,
         )
@@ -2255,14 +2329,6 @@ class RuntimeHostBase(ServiceBase):
         response = await self.run_proxy_statement(request)
         await stream.send_message(response)
 
-    async def __rpc_pull_worker_runs(
-        self,
-        stream: "grpclib.server.Stream[PullWorkerRunsRequest, PullWorkerRunsResponse]",
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.pull_worker_runs(request)
-        await stream.send_message(response)
-
     async def __rpc_push_worker_logs(
         self,
         stream: "grpclib.server.Stream[PushWorkerLogsRequest, betterproto_lib_google_protobuf.Empty]",
@@ -2273,97 +2339,85 @@ class RuntimeHostBase(ServiceBase):
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/RuntimeHost/GetBenchChanges": grpclib.const.Handler(
-                self.__rpc_get_bench_changes,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                GetBenchChangesRequest,
-                GetBenchChangesResponse,
-            ),
-            "/RuntimeHost/GetModuleEdits": grpclib.const.Handler(
-                self.__rpc_get_module_edits,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                GetModuleEditsRequest,
-                GetModuleEditsResponse,
-            ),
-            "/RuntimeHost/ReadNodes": grpclib.const.Handler(
+            "/ModuleHost/ReadNodes": grpclib.const.Handler(
                 self.__rpc_read_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 ReadNodesRequest,
                 ReadNodesResponse,
             ),
-            "/RuntimeHost/SearchNodes": grpclib.const.Handler(
+            "/ModuleHost/SearchNodes": grpclib.const.Handler(
                 self.__rpc_search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchNodesRequest,
                 SearchNodesResponse,
             ),
-            "/RuntimeHost/CommitEdits": grpclib.const.Handler(
+            "/ModuleHost/CommitEdits": grpclib.const.Handler(
                 self.__rpc_commit_edits,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CommitEditsRequest,
                 CommitEditsResponse,
             ),
-            "/RuntimeHost/UploadBlob": grpclib.const.Handler(
+            "/ModuleHost/WatchEdits": grpclib.const.Handler(
+                self.__rpc_watch_edits,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchEditsRequest,
+                WatchEditsResponse,
+            ),
+            "/ModuleHost/UploadBlob": grpclib.const.Handler(
                 self.__rpc_upload_blob,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 UploadBlobRequest,
                 UploadBlobResponse,
             ),
-            "/RuntimeHost/DownloadBlob": grpclib.const.Handler(
+            "/ModuleHost/DownloadBlob": grpclib.const.Handler(
                 self.__rpc_download_blob,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 DownloadBlobRequest,
                 DownloadBlobResponse,
             ),
-            "/RuntimeHost/RevealSecret": grpclib.const.Handler(
-                self.__rpc_reveal_secret,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                RevealSecretRequest,
-                RevealSecretResponse,
-            ),
-            "/RuntimeHost/PasteNodes": grpclib.const.Handler(
+            "/ModuleHost/PasteNodes": grpclib.const.Handler(
                 self.__rpc_paste_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PasteNodesRequest,
                 PasteNodesResponse,
             ),
-            "/RuntimeHost/SnapshotModule": grpclib.const.Handler(
-                self.__rpc_snapshot_module,
+            "/ModuleHost/Snapshot": grpclib.const.Handler(
+                self.__rpc_snapshot,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SnapshotModuleRequest,
                 SnapshotModuleResponse,
             ),
-            "/RuntimeHost/GetLogs": grpclib.const.Handler(
-                self.__rpc_get_logs,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                GetLogsRequest,
-                GetLogsResponse,
+            "/ModuleHost/SearchLogs": grpclib.const.Handler(
+                self.__rpc_search_logs,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                SearchLogsRequest,
+                SearchLogsResponse,
             ),
-            "/RuntimeHost/StartRun": grpclib.const.Handler(
+            "/ModuleHost/WatchLogs": grpclib.const.Handler(
+                self.__rpc_watch_logs,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchLogsRequest,
+                WatchLogsResponse,
+            ),
+            "/ModuleHost/StartRun": grpclib.const.Handler(
                 self.__rpc_start_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 StartRunRequest,
                 StartRunResponse,
             ),
-            "/RuntimeHost/KillRun": grpclib.const.Handler(
+            "/ModuleHost/KillRun": grpclib.const.Handler(
                 self.__rpc_kill_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 KillRunRequest,
                 KillRunResponse,
             ),
-            "/RuntimeHost/RunProxyStatement": grpclib.const.Handler(
+            "/ModuleHost/RunProxyStatement": grpclib.const.Handler(
                 self.__rpc_run_proxy_statement,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 RunProxyStatementRequest,
                 RunProxyStatementResponse,
             ),
-            "/RuntimeHost/PullWorkerRuns": grpclib.const.Handler(
-                self.__rpc_pull_worker_runs,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                PullWorkerRunsRequest,
-                PullWorkerRunsResponse,
-            ),
-            "/RuntimeHost/PushWorkerLogs": grpclib.const.Handler(
+            "/ModuleHost/PushWorkerLogs": grpclib.const.Handler(
                 self.__rpc_push_worker_logs,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PushWorkerLogsRequest,
@@ -2378,7 +2432,9 @@ class WorkerNodeBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
+    async def start_run(
+        self, start_run_request: "StartRunRequest"
+    ) -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":

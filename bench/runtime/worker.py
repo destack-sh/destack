@@ -33,7 +33,7 @@ from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, required_field, sentry_capture
 from bench.utils.uuidt import UUIDT
-from bench.worker.environment import collect_environment
+from bench.runtime.environment import collect_environment
 
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 3000, type_cast=int)
 WORKER_ACTIVE_TIMEOUT = timedelta(seconds=30)
