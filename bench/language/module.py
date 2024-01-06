@@ -28,7 +28,6 @@ from cachetools import cached
 from bench.language.const import (
     BENCH_UUID_NAMESPACE,
     INTERP_NODE_TYPES,
-    OUT_OF_LINE_NODE_TYPES,
     BenchType,
     ConditionalOp,
     EditKind,

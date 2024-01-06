@@ -65,9 +65,6 @@ class Issue(Node):
     type: IssueType = struct_property(30, require=True, validate=enum_validator(IssueType))
     kind: IssueKind = struct_property(31, default=None, validate=enum_validator(IssueKind))
     message: str = struct_property(32, default=None)
-    subject: Union["Statement", "File"] = struct_property(
-        33, array=False, references=(NodeType.STATEMENT, NodeType.FILE)
-    )
     path: Optional[str] = struct_property(34, default=None)
     properties: list[str] = struct_property(35, default=None)
 

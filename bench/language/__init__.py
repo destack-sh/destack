@@ -19,7 +19,7 @@ from .const import (
 )
 from .database import Record
 from .expression import A, C, E, Expression, S
-from .field import Field, ResolvedField, Type, TypeStorageFormat
+from .field import Field, Type, TypeStorageFormat
 from .file import File
 from .issue import BenchError, Issue
 from .module import Module, Node, Property, ScopeNode, Struct, _complete_bench_setup
@@ -67,8 +67,6 @@ __all__ = [
     "QueryEngine",
     "Record",
     "render",
-    "render_as_python",
-    "ResolvedField",
     "Run",
     "RunError",
     "S",

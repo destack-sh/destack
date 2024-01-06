@@ -103,7 +103,12 @@ click==8.1.7
     #   -c requirements.txt
     #   black
     #   pip-tools
+    #   typer
     #   uvicorn
+colorama==0.4.6
+    # via
+    #   -c requirements.txt
+    #   typer
 constantly==15.1.0
     # via
     #   -c requirements.txt
@@ -249,10 +254,18 @@ kubernetes-asyncio==24.2.3
     # via
     #   -c requirements.txt
     #   -r requirements.in
+markdown-it-py==3.0.0
+    # via
+    #   -c requirements.txt
+    #   rich
 markupsafe==2.1.3
     # via jinja2
 mccabe==0.7.0
     # via flake8
+mdurl==0.1.2
+    # via
+    #   -c requirements.txt
+    #   markdown-it-py
 monotonic==1.6
     # via
     #   -c requirements.txt
@@ -363,6 +376,10 @@ pydub==0.25.1
     #   -r requirements.in
 pyflakes==3.1.0
     # via flake8
+pygments==2.17.2
+    # via
+    #   -c requirements.txt
+    #   rich
 pyopenssl==23.2.0
     # via
     #   -c requirements.txt
@@ -419,6 +436,10 @@ requests-oauthlib==1.3.1
     # via
     #   -c requirements.txt
     #   kubernetes
+rich==13.7.0
+    # via
+    #   -c requirements.txt
+    #   typer
 rsa==4.9
     # via
     #   -c requirements.txt
@@ -437,6 +458,10 @@ service-identity==23.1.0
     # via
     #   -c requirements.txt
     #   twisted
+shellingham==1.5.4
+    # via
+    #   -c requirements.txt
+    #   typer
 six==1.16.0
     # via
     #   -c requirements.txt
@@ -477,6 +502,10 @@ txaio==23.1.1
     # via
     #   -c requirements.txt
     #   autobahn
+typer[all]==0.9.0
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 types-docutils==0.20.0.3
     # via types-pygments
 types-pygments==2.13.1.1
@@ -491,6 +520,7 @@ typing-extensions==4.7.1
     #   psycopg
     #   psycopg-pool
     #   twisted
+    #   typer
 urllib3==1.26.16
     # via
     #   -c requirements.txt

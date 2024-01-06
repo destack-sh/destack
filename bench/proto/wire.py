@@ -5,19 +5,12 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -30,14 +23,14 @@ class ActionKind(betterproto.Enum):
     READ = 1
     LIST = 2
     CREATE = 10
-    UPDATE = 11
-    MOVE = 12
-    BUMP = 13
-    SOFT_DELETE = 13
-    RESTORE = 14
-    ARCHIVE = 15
-    UNARCHIVE = 16
-    DELETE = 17
+    UPDATE = 12
+    MOVE = 13
+    BUMP = 14
+    SOFT_DELETE = 15
+    RESTORE = 16
+    ARCHIVE = 17
+    UNARCHIVE = 18
+    DELETE = 19
     START = 20
     PAUSE = 21
     RESUME = 22
@@ -81,7 +74,6 @@ class BenchType(betterproto.Enum):
     BLOB = 14
     SECRET = 15
     ISSUE = 16
-    RESOLVED_FIELD = 17
     WORKER_SET = 40
     WORKER = 41
     SESSION = 60
@@ -145,14 +137,14 @@ class ConditionalOp(betterproto.Enum):
 class EditKind(betterproto.Enum):
     UNSPECIFIED = 0
     CREATE = 10
-    UPDATE = 11
-    MOVE = 12
-    BUMP = 13
-    SOFT_DELETE = 13
-    RESTORE = 14
-    ARCHIVE = 15
-    UNARCHIVE = 16
-    DELETE = 17
+    UPDATE = 12
+    MOVE = 13
+    BUMP = 14
+    SOFT_DELETE = 15
+    RESTORE = 16
+    ARCHIVE = 17
+    UNARCHIVE = 18
+    DELETE = 19
 
 
 class ExpressionKind(betterproto.Enum):
@@ -249,7 +241,6 @@ class NodeType(betterproto.Enum):
     BLOB = 14
     SECRET = 15
     ISSUE = 16
-    RESOLVED_FIELD = 17
     WORKER_SET = 40
     WORKER = 41
     SESSION = 60
@@ -806,7 +797,6 @@ class IssueData(betterproto.Message):
     type: "IssueType" = betterproto.enum_field(30)
     kind: "IssueKind" = betterproto.enum_field(31)
     message: str = betterproto.string_field(32)
-    subject_ck: str = betterproto.string_field(33)
     path: str = betterproto.string_field(34)
     properties: List[str] = betterproto.string_field(35)
 
@@ -890,32 +880,6 @@ class RecordData(betterproto.Message):
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
     value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(30)
-
-
-@dataclass(eq=False, repr=False)
-class ResolvedFieldData(betterproto.Message):
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_id: str = betterproto.string_field(4)
-    module_id: str = betterproto.string_field(5)
-    bench_id: str = betterproto.string_field(6)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: datetime = betterproto.message_field(13)
-    archived_at: datetime = betterproto.message_field(14)
-    last_edited_at: datetime = betterproto.message_field(15)
-    name: str = betterproto.string_field(30)
-    order_key: str = betterproto.string_field(31)
-    text: str = betterproto.string_field(32)
-    tag: "TypeTag" = betterproto.enum_field(33)
-    key: str = betterproto.string_field(34)
-    value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(35)
-    hint: "TypeHint" = betterproto.enum_field(36)
-    flags: int = betterproto.int64_field(37)
-    reference_ck: str = betterproto.string_field(38)
-    field_ck: str = betterproto.string_field(50)
 
 
 @dataclass(eq=False, repr=False)
@@ -1180,19 +1144,18 @@ class SomeNodeData(betterproto.Message):
     blob: "BlobData" = betterproto.message_field(10, group="node")
     secret: "SecretData" = betterproto.message_field(11, group="node")
     issue: "IssueData" = betterproto.message_field(12, group="node")
-    resolved_field: "ResolvedFieldData" = betterproto.message_field(13, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(14, group="node")
-    worker: "WorkerData" = betterproto.message_field(15, group="node")
-    session: "SessionData" = betterproto.message_field(16, group="node")
-    run: "RunData" = betterproto.message_field(17, group="node")
-    halt: "HaltData" = betterproto.message_field(18, group="node")
-    signal: "SignalData" = betterproto.message_field(19, group="node")
-    handle: "HandleData" = betterproto.message_field(20, group="node")
-    user: "UserData" = betterproto.message_field(21, group="node")
-    organization: "OrganizationData" = betterproto.message_field(22, group="node")
-    client: "ClientData" = betterproto.message_field(23, group="node")
-    notification: "NotificationData" = betterproto.message_field(24, group="node")
-    badge: "BadgeData" = betterproto.message_field(25, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(13, group="node")
+    worker: "WorkerData" = betterproto.message_field(14, group="node")
+    session: "SessionData" = betterproto.message_field(15, group="node")
+    run: "RunData" = betterproto.message_field(16, group="node")
+    halt: "HaltData" = betterproto.message_field(17, group="node")
+    signal: "SignalData" = betterproto.message_field(18, group="node")
+    handle: "HandleData" = betterproto.message_field(19, group="node")
+    user: "UserData" = betterproto.message_field(20, group="node")
+    organization: "OrganizationData" = betterproto.message_field(21, group="node")
+    client: "ClientData" = betterproto.message_field(22, group="node")
+    notification: "NotificationData" = betterproto.message_field(23, group="node")
+    badge: "BadgeData" = betterproto.message_field(24, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -1478,9 +1441,7 @@ class StartRunRequest(betterproto.Message):
     keyed_return: bool = betterproto.bool_field(12)
     tags: List[str] = betterproto.string_field(13)
     root_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(14)
-    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(
-        15
-    )
+    global_value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(15)
     access_level: "SessionAccessLevel" = betterproto.enum_field(16)
 
 
@@ -1989,9 +1950,7 @@ class WorkerProcessStub(betterproto.ServiceStub):
 
 
 class GlobalSupervisorBase(ServiceBase):
-    async def create_user(
-        self, create_user_request: "CreateUserRequest"
-    ) -> "CreateUserResponse":
+    async def create_user(self, create_user_request: "CreateUserRequest") -> "CreateUserResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def create_organization(
@@ -2004,9 +1963,7 @@ class GlobalSupervisorBase(ServiceBase):
     ) -> "CreateBenchResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def read_nodes(
-        self, read_nodes_request: "ReadNodesRequest"
-    ) -> "ReadNodesResponse":
+    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -2164,9 +2121,7 @@ class GlobalSupervisorBase(ServiceBase):
 
 
 class ModuleHostBase(ServiceBase):
-    async def read_nodes(
-        self, read_nodes_request: "ReadNodesRequest"
-    ) -> "ReadNodesResponse":
+    async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_nodes(
@@ -2185,9 +2140,7 @@ class ModuleHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
 
-    async def upload_blob(
-        self, upload_blob_request: "UploadBlobRequest"
-    ) -> "UploadBlobResponse":
+    async def upload_blob(self, upload_blob_request: "UploadBlobRequest") -> "UploadBlobResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def download_blob(
@@ -2195,9 +2148,7 @@ class ModuleHostBase(ServiceBase):
     ) -> "DownloadBlobResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def paste_nodes(
-        self, paste_nodes_request: "PasteNodesRequest"
-    ) -> "PasteNodesResponse":
+    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def snapshot(
@@ -2205,9 +2156,7 @@ class ModuleHostBase(ServiceBase):
     ) -> "SnapshotModuleResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def search_logs(
-        self, search_logs_request: "SearchLogsRequest"
-    ) -> "SearchLogsResponse":
+    async def search_logs(self, search_logs_request: "SearchLogsRequest") -> "SearchLogsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def watch_logs(
@@ -2216,9 +2165,7 @@ class ModuleHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchLogsResponse()
 
-    async def start_run(
-        self, start_run_request: "StartRunRequest"
-    ) -> "StartRunResponse":
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
@@ -2436,9 +2383,7 @@ class WorkerNodeBase(ServiceBase):
     ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def start_run(
-        self, start_run_request: "StartRunRequest"
-    ) -> "StartRunResponse":
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
@@ -2490,9 +2435,7 @@ class WorkerNodeBase(ServiceBase):
 
 
 class WorkerProcessBase(ServiceBase):
-    async def start_run(
-        self, start_run_request: "StartRunRequest"
-    ) -> "StartRunResponse":
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":

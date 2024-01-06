@@ -493,6 +493,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
         self.key = self.key or new_dynamic_node_key(self.ck)
 
     def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
+        # yes, the hint/tag/flags system needs a refactor...
         if self.hint is not None:
             tag = TYPE_TAG_BY_TYPE_HINT[self.hint]
             if self.tag != tag:
@@ -547,45 +548,6 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
         return None  # for FieldQueryOps
 
 
-@node(NodeType.RESOLVED_FIELD)
-class ResolvedField(Field):
-    parent: "Statement" = node_parent(4, NodeType.STATEMENT)
-    field: Field = struct_internal(50, array=False, references=NodeType.FIELD)
-
-    @property
-    def resolved_fields(self):
-        return self.reference.resolved_fields if isinstance(self.reference, Node) else []
-
-    @property
-    def _is_from_union(self) -> bool:
-        return self.parent != self.field.parent
-
-    @staticmethod
-    def from_field(for_parent: Node, field: Field) -> "ResolvedField":
-        if isinstance(field, ResolvedField):
-            field = field.field
-        if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
-            raise RuntimeError(f"unresolved reference {field.reference} in {field!r}")
-        ck = uuid.uuid5(for_parent.ck, field.ck.hex)
-        id = get_node_id(for_parent.module.id, ck) if for_parent.module else None
-        resolved_field = ResolvedField(
-            id=id,
-            ck=ck,
-            name=field.name,
-            tag=field.tag,
-            hint=field.hint,
-            order_key=field.order_key,
-            key=field.key,
-            text=field.text,
-            flags=field.flags,
-            reference=field.reference,
-            field=field,
-            _status=NS.SOURCE,
-        )
-        resolved_field._interp_self(for_parent, on_issue=on_issue_raise)
-        return resolved_field
-
-
 @node_component
 class HasFields(HasType):
     """A node with fields"""
@@ -594,9 +556,6 @@ class HasFields(HasType):
         NodeType.FIELD, NRel.Named | NRel.Scoped | NRel.Ordered
     )
 
-    resolved_fields: NodeList["ResolvedField"] = node_children(
-        NodeType.RESOLVED_FIELD, NRel.Named | NRel.Keyed | NRel.Ordered, alias="f"
-    )
     _did_resolve_fields: bool = struct_runtime(default=False)
 
     def _init_inner(self):
@@ -604,7 +563,6 @@ class HasFields(HasType):
             self.key = new_dynamic_node_key(self.ck)
 
     def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
-        self.resolved_fields.clear(_trigger=_NC.UpdateLists)
         self._did_resolve_fields = False
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
@@ -626,7 +584,7 @@ class HasFields(HasType):
 
         # resolve fields recursively (inlining any valid unions)
         path = path + [self]
-        resolved_fields: list[ResolvedField] = []
+        resolved_fields: list[Field] = []
         for field in self.fields:
             # try to resolve reference or skip this field
             if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
@@ -646,17 +604,17 @@ class HasFields(HasType):
                     existing = nextn(f for f in resolved_fields if f.py_ident == child.py_ident)
                     # check if self is compatible if overlapping
                     if existing is None:
-                        resolved_fields.append(ResolvedField.from_field(self, child))
+                        resolved_fields.append(child)
                     elif not existing.equals_type(child):
                         on_issue(self=IssueType.MISMATCHED_UNION, subject=self, other=existing)
             else:
                 # just a normal field
-                resolved_fields.append(ResolvedField.from_field(self, field))
+                resolved_fields.append(field)
 
         # add any special inlined fields
         if self.metatype == NodeType.STATEMENT and self.type == StatementType.TASK:
             run_config = symbolx_lib.resolve(".reflect.TaskRunConfig")
-            resolved_fields.extend(ResolvedField.from_field(self, f) for f in run_config.fields)
+            resolved_fields.extend(run_config.fields)
 
         # maintain resolved field order
         for i, ok in enumerate(generate_n_keys_between(None, None, len(resolved_fields))):
