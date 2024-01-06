@@ -7,7 +7,7 @@ from bench.utils.utils import SOME_TYPE_CHECKING
 # Sentry
 
 if not (TEST or DEBUG or SOME_TYPE_CHECKING):
-    init_sentry(django=True)
+    init_sentry()
 
 # Posthog
 posthog.bench_api_key = "phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma"

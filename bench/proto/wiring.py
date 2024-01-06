@@ -24,14 +24,12 @@ from bench.language.module import (
 )
 from bench.language.session import Session
 from bench.proto import wire
+from bench.proto.wire import AnyNodeData, AnyStructData
 from bench.sql.core import ColumnType
 from bench.utils.func import to_uuid
 from bench.utils.utils import hybridmethod, to_snake_case
 
 logger = structlog.get_logger(__name__)
-# could auto-gen the Any types?
-AnyNodeData = Union[wire.ModuleData, wire.FileData, wire.StatementData, wire.FieldData]
-AnyStructData = Union[wire.WorkerImageData, wire.ExpressionData]
 
 
 # monkey-patch betterproto 'Struct' to fix from_dict/to_dict

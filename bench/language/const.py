@@ -15,7 +15,8 @@ if typing.TYPE_CHECKING:
     from bench.language import Node, Statement  # noqa: F401
 
 # hard-coded, do not change ever :BenchUuidNamespace
-BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
+UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
+VERSION = "2024.01.06.4"
 
 
 class NodeType(ProtoStrEnum):

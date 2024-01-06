@@ -56,6 +56,8 @@ def _bench_struct_to_proto(
     node: type["Struct"], cache: dict[_BenchType, ProtoThing], alias: str = None
 ) -> Message:
     struct = Message(name=alias or node.__name__, reserved_names=[], reserved_ids=[], fields=[])
+    assert struct.__doc__, f"missing docstring for {node!r}"
+    struct.comment = node.__doc__.strip()
     cache[node] = struct  # to solve recursive references
     for prop in node.__properties__.values():
         if not prop.is_wired:
@@ -98,7 +100,10 @@ def _bench_enum_to_proto(
     if not any(v.id == 0 for v in enum_values):
         enum_values = [EnumValue(id=0, name=enum_prefix + "UNSPECIFIED"), *enum_values]
     has_duplicates = len(enum_values) != len(set(v.id for v in enum_values))
-    return Enum(name=alias or bench_t.__name__, values=enum_values, allow_alias=has_duplicates)
+    proto_t = Enum(name=alias or bench_t.__name__, values=enum_values, allow_alias=has_duplicates)
+    if bench_t.__doc__:
+        proto_t.comment = bench_t.__doc__.strip()
+    return proto_t
 
 
 def bench_t_to_proto_t(
@@ -123,7 +128,7 @@ def bench_t_to_proto_t(
 def generate_proto_schema(
     bench_types: Collection[type[Union["Node", "Struct", enum.Enum]]],
     aliases: dict[type[Union["Node", "Struct", enum.Enum]], str],
-    unions: dict[str, tuple[str, list[type[Union["Node", "Struct", enum.Enum]]]]],
+    unions: dict[str, tuple[str, Collection[type[Union["Node", "Struct", enum.Enum]]]]],
     extras: list[Enum | Message],
     message_postfix: str = "",
 ) -> ProtoSchema:

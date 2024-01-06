@@ -26,7 +26,7 @@ from bench.language.expression import (
 )
 from bench.language.module import NODE_CLASS_BY_NODE_TYPE, UNSET, Node, get_node_id
 from bench.proto import wire
-from bench.proto.wire import EditData
+from bench.proto.wire import AnyNodeData, EditData
 from bench.sql import schema
 from bench.sql.client import GLOBAL_RO_PASSWORD, GLOBAL_RO_USERNAME, async_pg_cursor
 from bench.sql.core import (
@@ -49,9 +49,6 @@ from bench.sql.core import (
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL, to_all_caps
-
-if typing.TYPE_CHECKING:
-    from bench.proto.wiring import AnyNodeData
 
 logger = structlog.get_logger(__name__)
 

@@ -34,13 +34,6 @@ message NodePointer {
   }
 }
 
-enum ServiceType {
-  SERVICE_TYPE_UNSPECIFIED = 0;
-  SERVICE_TYPE_RUNTIME_SUPERVISOR = 1;
-  SERVICE_TYPE_RUNTIME_HOST = 2;
-  SERVICE_TYPE_WORKER_NODE = 3;
-}
-
 //
 // Global supervisor
 //

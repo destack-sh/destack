@@ -61,7 +61,7 @@ class BenchError(ValueError):
 
 @node(NodeType.ISSUE)
 class Issue(Node):
-    parent: Union["Statement", "File", None] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
+    parent: Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
     type: IssueType = struct_property(30, require=True, validate=enum_validator(IssueType))
     kind: IssueKind = struct_property(31, default=None, validate=enum_validator(IssueKind))
     message: str = struct_property(32, default=None)

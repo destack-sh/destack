@@ -260,6 +260,9 @@ enum PolicyEffect {
   POLICY_EFFECT_DENY = 2;
 }
 
+// // enum.StrEnum with an additional id per value.
+//     TODO @Cleanup: convert ProtoStrEnum to 'regular' int enum
+//      (keep this class, but stop specifying name for everything and store all enums as int)
 enum ProtoStrEnum {
   PROTO_STR_ENUM_UNSPECIFIED = 0;
 }
@@ -308,6 +311,7 @@ enum RunStatus {
   RUN_STATUS_COMPLETED = 9;
 }
 
+// // Schedules for statements.
 enum ScheduleType {
   SCHEDULE_TYPE_UNSPECIFIED = 0;
   SCHEDULE_TYPE_INTERVAL = 1;
@@ -377,6 +381,7 @@ enum StructType {
   STRUCT_TYPE_DEPENDENCY = 231;
 }
 
+// // Classic headings big to small.
 enum TextHeadingLevel {
   TEXT_HEADING_LEVEL_UNSPECIFIED = 0;
   TEXT_HEADING_LEVEL_H1 = 1;
@@ -384,6 +389,7 @@ enum TextHeadingLevel {
   TEXT_HEADING_LEVEL_H3 = 3;
 }
 
+// // Triggers for statements (for both actual runs and pre-defined triggers).
 enum TriggerType {
   TRIGGER_TYPE_UNSPECIFIED = 0;
   TRIGGER_TYPE_INVOKE = 1;
@@ -395,6 +401,7 @@ enum TriggerType {
   TRIGGER_TYPE_API = 7;
 }
 
+// // Extra information for fields
 enum TypeFlag {
   TYPE_FLAG_ZERO = 0;
   TYPE_FLAG_IS_OUTPUT = 1;
@@ -409,6 +416,7 @@ enum TypeFlag {
   TYPE_FLAG_IS_HIDDEN = 512;
 }
 
+// // Extra representation/semantics of a field/type.
 enum TypeHint {
   TYPE_HINT_UNSPECIFIED = 0;
   TYPE_HINT_NAME = 1;
@@ -446,6 +454,7 @@ enum TypeHint {
   TYPE_HINT_AUDIO = 52;
 }
 
+// // The fundamental form of a field/type.:TypeStorageFormat
 enum TypeStorageFormat {
   TYPE_STORAGE_FORMAT_UNSPECIFIED = 0;
   TYPE_STORAGE_FORMAT_STRING = 1;
@@ -460,6 +469,7 @@ enum TypeStorageFormat {
   TYPE_STORAGE_FORMAT_RELATION = 10;
 }
 
+// // The Bench primitive type of a field/type.
 enum TypeTag {
   TYPE_TAG_UNSPECIFIED = 0;
   TYPE_TAG_STRING = 1;
@@ -480,9 +490,6 @@ enum WorkerProfile {
   WORKER_PROFILE_TINY = 1;
   WORKER_PROFILE_SMALL = 2;
   WORKER_PROFILE_MEDIUM = 3;
-  WORKER_PROFILE_LARGE = 4;
-  WORKER_PROFILE_XLARGE_CPU = 5;
-  WORKER_PROFILE_XLARGE_MEM = 6;
 }
 
 enum WorkerSetStatus {
@@ -496,12 +503,14 @@ enum WorkerSetStatus {
   WORKER_SET_STATUS_UNKNOWN = 7;
 }
 
+// // Dependency()
 message DependencyData {
   BenchType metatype = 1;
   string name = 30;
   string version = 31;
 }
 
+// // Expression()
 message ExpressionData {
   BenchType metatype = 1;
   ExpressionOp op = 30;
@@ -512,6 +521,7 @@ message ExpressionData {
   SortMode mode = 35;
 }
 
+// // A model inference - inputs/outputs are raw.
 message InferenceData {
   BenchType metatype = 1;
   google.protobuf.Timestamp generated_at = 30;
@@ -521,6 +531,7 @@ message InferenceData {
   google.protobuf.Struct outputs = 34;
 }
 
+// // An entry. In a log.
 message LogEntryData {
   BenchType metatype = 1;
   string id = 2;
@@ -535,12 +546,14 @@ message LogEntryData {
   google.protobuf.Struct value = 40;
 }
 
+// // A policy regulating access to resources, usually within this scope.
 message PolicyData {
   BenchType metatype = 1;
   string name = 30;
   repeated PolicyRuleData rules = 31;
 }
 
+// // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
 message PolicyRuleData {
   BenchType metatype = 1;
   bool subject_authenticated = 30;
@@ -553,6 +566,7 @@ message PolicyRuleData {
   ExpressionData condition = 60;
 }
 
+// // RunCodeFrame()
 message RunCodeFrameData {
   BenchType metatype = 1;
   string filename = 30;
@@ -562,6 +576,7 @@ message RunCodeFrameData {
   string line = 34;
 }
 
+// // RunError()
 message RunErrorData {
   BenchType metatype = 1;
   RunErrorKind kind = 30;
@@ -571,6 +586,7 @@ message RunErrorData {
   repeated RunCodeFrameData traceback = 34;
 }
 
+// // WorkerImage()
 message WorkerImageData {
   BenchType metatype = 1;
   string language = 30;
@@ -579,6 +595,7 @@ message WorkerImageData {
   repeated DependencyData dependencies = 33;
 }
 
+// // A badge for a non-member to access parts of this Bench (via web or programmatically).
 message BadgeData {
   BenchType metatype = 1;
   string id = 2;
@@ -600,6 +617,7 @@ message BadgeData {
   string key_value_digest = 51;
 }
 
+// // A Bench is the root of all modules and everything that's not outside of it.
 message BenchData {
   BenchType metatype = 1;
   string id = 2;
@@ -627,6 +645,8 @@ message BenchData {
   string os_password = 46;
 }
 
+// // A proxy to a remotely stored object behaving like a Python file on demand.
+//     :BlobType
 message BlobData {
   BenchType metatype = 1;
   string id = 2;
@@ -645,6 +665,7 @@ message BlobData {
   BlobStatus status = 34;
 }
 
+// // A client to this Bench. Can be a user or a worker.
 message ClientData {
   BenchType metatype = 1;
   string id = 2;
@@ -662,6 +683,7 @@ message ClientData {
   int64 closed_at = 34;
 }
 
+// // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = <factory>, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected: bool = False, reference_ck: uuid.UUID = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _text_parsed: Optional[ForwardRef('Text')] = None)
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
@@ -686,6 +708,7 @@ message FieldData {
   string reference_ck = 38;
 }
 
+// // File(parent: Union[ForwardRef('File'), bench.language.module.Module] = None, policies: Optional[list['Policy']] = <factory>, name: Optional[str] = <factory>, order_key: Optional[str] = None, children: bench.language.module.NodeList[typing.Union[ForwardRef('File'), ForwardRef('Statement')]] = None, statements: bench.language.module.NodeList['Statement'] = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, tags: bench.language.module.NodeList['Tagging'] = None, last_changed_at: datetime.datetime = None, issues: bench.language.module.NodeList['Issue'] = None, _scopes_by_name: dict[str, 'ScopeNode'] = <factory>, _names_by_ident: dict[str, str] = <factory>, _local_tree: Optional[ForwardRef('NodeTreeBase')] = None)
 message FileData {
   BenchType metatype = 1;
   string id = 2;
@@ -705,6 +728,7 @@ message FileData {
   string order_key = 31;
 }
 
+// // A resumable interruption in the execution (Run) of a statement.
 message HaltData {
   BenchType metatype = 1;
   string id = 2;
@@ -720,6 +744,7 @@ message HaltData {
   google.protobuf.Timestamp last_edited_at = 15;
 }
 
+// // A (global) Bench handle.
 message HandleData {
   BenchType metatype = 1;
   string id = 2;
@@ -733,6 +758,7 @@ message HandleData {
   string slug = 30;
 }
 
+// // Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[str] = None, properties: list[str] = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
 message IssueData {
   BenchType metatype = 1;
   string id = 2;
@@ -753,6 +779,7 @@ message IssueData {
   repeated string properties = 35;
 }
 
+// // Module(parent: bench.language.module.Bench = None, policies: Optional[list['Policy']] = <factory>, is_main: bool = False, is_snapshot: bool = False, files: bench.language.module.NodeList['File'] = None, dependencies: dict[str, 'Module'] = <factory>, builtins: list['File'] = <factory>, _lookup_cache: dict[str, ~NodeT] = <factory>, _source: Optional[bench.language.tree.NodeTree] = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, last_changed_at: datetime.datetime = None, issues: bench.language.module.NodeList['Issue'] = None, _scopes_by_name: dict[str, 'ScopeNode'] = <factory>, _names_by_ident: dict[str, str] = <factory>, _local_tree: Optional[ForwardRef('NodeTreeBase')] = None)
 message ModuleData {
   BenchType metatype = 1;
   string id = 2;
@@ -771,6 +798,9 @@ message ModuleData {
   bool is_snapshot = 32;
 }
 
+// // A node in a Bench module tree - basically struct + identity, so it can relate nodes.
+//     A node has a per-version unique id (id) and a constant identifier key (ck).
+//     The id is derived from the module id, so it's only assigned when the node is attached.
 message BaseNodeData {
   BenchType metatype = 1;
   string id = 2;
@@ -783,6 +813,7 @@ message BaseNodeData {
   google.protobuf.Timestamp last_edited_at = 15;
 }
 
+// // A notification for a user.
 message NotificationData {
   BenchType metatype = 1;
   string id = 2;
@@ -799,6 +830,7 @@ message NotificationData {
   google.protobuf.Timestamp read_at = 33;
 }
 
+// // A (global) Bench organization.
 message OrganizationData {
   BenchType metatype = 1;
   string id = 2;
@@ -813,6 +845,7 @@ message OrganizationData {
   string handle_ck = 30;
 }
 
+// // Record(parent: 'Statement' = None, value: typing.Any | None = <factory>, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
 message RecordData {
   BenchType metatype = 1;
   string id = 2;
@@ -829,6 +862,7 @@ message RecordData {
   google.protobuf.Struct value = 30;
 }
 
+// // A 'run' of a statement (in a session).
 message RunData {
   BenchType metatype = 1;
   string id = 2;
@@ -862,6 +896,7 @@ message RunData {
   google.protobuf.Struct value = 46;
 }
 
+// // A shared secret with a deferred value (loaded on demand)t.
 message SecretData {
   BenchType metatype = 1;
   string id = 2;
@@ -878,6 +913,7 @@ message SecretData {
   string sha512 = 32;
 }
 
+// // A managed context for running a Bench module (in a worker).
 message SessionData {
   BenchType metatype = 1;
   string id = 2;
@@ -903,6 +939,7 @@ message SessionData {
   int64 inference_retries = 38;
 }
 
+// // A signal received in this Bench. May be emitted by a Bench or an external source.
 message SignalData {
   BenchType metatype = 1;
   string id = 2;
@@ -922,6 +959,7 @@ message SignalData {
   string source_statement_ck = 33;
 }
 
+// // A Bench statement.
 message StatementData {
   BenchType metatype = 1;
   string id = 2;
@@ -949,6 +987,7 @@ message StatementData {
   bool shared = 40;
 }
 
+// // An association between a tag and a statement (with optional value).
 message TaggingData {
   BenchType metatype = 1;
   string id = 2;
@@ -967,6 +1006,7 @@ message TaggingData {
   string reference_ck = 32;
 }
 
+// // A trigger for a statement to run.
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;
@@ -988,6 +1028,7 @@ message TriggerData {
   string cron = 35;
 }
 
+// // A (global) Bench user.
 message UserData {
   BenchType metatype = 1;
   string id = 2;
@@ -1006,6 +1047,7 @@ message UserData {
   string password_hash = 34;
 }
 
+// // View(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, policies: Optional[list['Policy']] = None, name: str | None = None, order_key: str | None = None, node_type: bench.language.const.NodeType = <factory>, query: Optional[bench.language.expression.Expression] = None, sort: Optional[list[bench.language.expression.Expression]] = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
 message ViewData {
   BenchType metatype = 1;
   string id = 2;
@@ -1027,6 +1069,7 @@ message ViewData {
   repeated ExpressionData sort = 34;
 }
 
+// // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
 message WorkerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1043,6 +1086,7 @@ message WorkerData {
   WorkerImageData image = 32;
 }
 
+// // Set of workers to run a Bench's modules.
 message WorkerSetData {
   BenchType metatype = 1;
   string id = 2;
@@ -1068,44 +1112,44 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    BenchData bench = 1;
-    ModuleData module = 2;
-    FileData file = 3;
-    StatementData statement = 4;
-    TriggerData trigger = 5;
-    TaggingData tagging = 6;
-    FieldData field = 7;
+    BadgeData badge = 1;
+    OrganizationData organization = 2;
+    NotificationData notification = 3;
+    BenchData bench = 4;
+    StatementData statement = 5;
+    FieldData field = 6;
+    TaggingData tagging = 7;
     RecordData record = 8;
-    ViewData view = 9;
-    BlobData blob = 10;
-    SecretData secret = 11;
-    IssueData issue = 12;
-    WorkerSetData worker_set = 13;
-    WorkerData worker = 14;
-    SessionData session = 15;
-    RunData run = 16;
-    HaltData halt = 17;
-    SignalData signal = 18;
-    HandleData handle = 19;
-    UserData user = 20;
-    OrganizationData organization = 21;
-    ClientData client = 22;
-    NotificationData notification = 23;
-    BadgeData badge = 24;
+    SessionData session = 9;
+    WorkerSetData worker_set = 10;
+    BlobData blob = 11;
+    SecretData secret = 12;
+    SignalData signal = 13;
+    HaltData halt = 14;
+    ClientData client = 15;
+    ModuleData module = 16;
+    ViewData view = 17;
+    UserData user = 18;
+    WorkerData worker = 19;
+    FileData file = 20;
+    HandleData handle = 21;
+    IssueData issue = 22;
+    TriggerData trigger = 23;
+    RunData run = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
     PolicyData policy = 1;
-    PolicyRuleData policy_rule = 2;
-    ExpressionData expression = 3;
-    LogEntryData log_entry = 4;
-    RunCodeFrameData run_code_frame = 5;
-    RunErrorData run_error = 6;
-    InferenceData inference = 7;
-    WorkerImageData worker_image = 8;
-    DependencyData dependency = 9;
+    InferenceData inference = 2;
+    LogEntryData log_entry = 3;
+    ExpressionData expression = 4;
+    DependencyData dependency = 5;
+    WorkerImageData worker_image = 6;
+    RunCodeFrameData run_code_frame = 7;
+    PolicyRuleData policy_rule = 8;
+    RunErrorData run_error = 9;
   };
 }
 

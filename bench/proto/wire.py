@@ -275,6 +275,12 @@ class PolicyEffect(betterproto.Enum):
 
 
 class ProtoStrEnum(betterproto.Enum):
+    """
+    // enum.StrEnum with an additional id per value.     TODO @Cleanup: convert
+    ProtoStrEnum to 'regular' int enum      (keep this class, but stop
+    specifying name for everything and store all enums as int)
+    """
+
     UNSPECIFIED = 0
 
 
@@ -323,6 +329,8 @@ class RunStatus(betterproto.Enum):
 
 
 class ScheduleType(betterproto.Enum):
+    """// Schedules for statements."""
+
     UNSPECIFIED = 0
     INTERVAL = 1
     CRON = 2
@@ -391,6 +399,8 @@ class StructType(betterproto.Enum):
 
 
 class TextHeadingLevel(betterproto.Enum):
+    """// Classic headings big to small."""
+
     UNSPECIFIED = 0
     H1 = 1
     H2 = 2
@@ -398,6 +408,10 @@ class TextHeadingLevel(betterproto.Enum):
 
 
 class TriggerType(betterproto.Enum):
+    """
+    // Triggers for statements (for both actual runs and pre-defined triggers).
+    """
+
     UNSPECIFIED = 0
     INVOKE = 1
     TIME = 2
@@ -409,6 +423,8 @@ class TriggerType(betterproto.Enum):
 
 
 class TypeFlag(betterproto.Enum):
+    """// Extra information for fields"""
+
     ZERO = 0
     IS_OUTPUT = 1
     IS_ARRAY = 2
@@ -423,6 +439,8 @@ class TypeFlag(betterproto.Enum):
 
 
 class TypeHint(betterproto.Enum):
+    """// Extra representation/semantics of a field/type."""
+
     UNSPECIFIED = 0
     NAME = 1
     UUID = 2
@@ -460,6 +478,8 @@ class TypeHint(betterproto.Enum):
 
 
 class TypeStorageFormat(betterproto.Enum):
+    """// The fundamental form of a field/type.:TypeStorageFormat"""
+
     UNSPECIFIED = 0
     STRING = 1
     DOUBLE = 2
@@ -474,6 +494,8 @@ class TypeStorageFormat(betterproto.Enum):
 
 
 class TypeTag(betterproto.Enum):
+    """// The Bench primitive type of a field/type."""
+
     UNSPECIFIED = 0
     STRING = 1
     NUMBER = 2
@@ -493,9 +515,6 @@ class WorkerProfile(betterproto.Enum):
     TINY = 1
     SMALL = 2
     MEDIUM = 3
-    LARGE = 4
-    XLARGE_CPU = 5
-    XLARGE_MEM = 6
 
 
 class WorkerSetStatus(betterproto.Enum):
@@ -507,13 +526,6 @@ class WorkerSetStatus(betterproto.Enum):
     UNHEALTHY = 5
     UNAVAILABLE = 6
     UNKNOWN = 7
-
-
-class ServiceType(betterproto.Enum):
-    UNSPECIFIED = 0
-    RUNTIME_SUPERVISOR = 1
-    RUNTIME_HOST = 2
-    WORKER_NODE = 3
 
 
 class StartRunResponseErrorType(betterproto.Enum):
@@ -528,6 +540,8 @@ class StartRunResponseErrorType(betterproto.Enum):
 
 @dataclass(eq=False, repr=False)
 class DependencyData(betterproto.Message):
+    """// Dependency()"""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     name: str = betterproto.string_field(30)
     version: str = betterproto.string_field(31)
@@ -535,6 +549,8 @@ class DependencyData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ExpressionData(betterproto.Message):
+    """// Expression()"""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     op: "ExpressionOp" = betterproto.enum_field(30)
     field_ck: str = betterproto.string_field(31)
@@ -546,6 +562,8 @@ class ExpressionData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class InferenceData(betterproto.Message):
+    """// A model inference - inputs/outputs are raw."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     generated_at: datetime = betterproto.message_field(30)
     generated_in: str = betterproto.string_field(31)
@@ -556,6 +574,8 @@ class InferenceData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LogEntryData(betterproto.Message):
+    """// An entry. In a log."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     created_at: datetime = betterproto.message_field(32)
@@ -571,6 +591,10 @@ class LogEntryData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PolicyData(betterproto.Message):
+    """
+    // A policy regulating access to resources, usually within this scope.
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     name: str = betterproto.string_field(30)
     rules: List["PolicyRuleData"] = betterproto.message_field(31)
@@ -578,6 +602,11 @@ class PolicyData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PolicyRuleData(betterproto.Message):
+    """
+    // A rule in a policy: <subject> + can/cannot <verb> + <object> [if
+    condition].
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     subject_authenticated: bool = betterproto.bool_field(30)
     subject_users_ck: List[str] = betterproto.string_field(31)
@@ -591,6 +620,8 @@ class PolicyRuleData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunCodeFrameData(betterproto.Message):
+    """// RunCodeFrame()"""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     filename: str = betterproto.string_field(30)
     lineno: int = betterproto.int64_field(31)
@@ -601,6 +632,8 @@ class RunCodeFrameData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunErrorData(betterproto.Message):
+    """// RunError()"""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     kind: "RunErrorKind" = betterproto.enum_field(30)
     type: str = betterproto.string_field(31)
@@ -611,6 +644,8 @@ class RunErrorData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WorkerImageData(betterproto.Message):
+    """// WorkerImage()"""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     language: str = betterproto.string_field(30)
     version: str = betterproto.string_field(31)
@@ -620,6 +655,11 @@ class WorkerImageData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BadgeData(betterproto.Message):
+    """
+    // A badge for a non-member to access parts of this Bench (via web or
+    programmatically).
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -642,6 +682,11 @@ class BadgeData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BenchData(betterproto.Message):
+    """
+    // A Bench is the root of all modules and everything that's not outside of
+    it.
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -670,6 +715,11 @@ class BenchData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BlobData(betterproto.Message):
+    """
+    // A proxy to a remotely stored object behaving like a Python file on
+    demand.     :BlobType
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -689,6 +739,8 @@ class BlobData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ClientData(betterproto.Message):
+    """// A client to this Bench. Can be a user or a worker."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -707,6 +759,23 @@ class ClientData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class FieldData(betterproto.Message):
+    """
+    // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None
+    = None, order_key: str | None = None, text: str | None = None, tag:
+    bench.language.const.TypeTag = <factory>, key: str | None = None, value:
+    typing.Any | None = <factory>, hint: bench.language.const.TypeHint | None =
+    None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference:
+    Optional[ForwardRef('Statement')] = None, _reflected: bool = False,
+    reference_ck: uuid.UUID = None, _status: bench.language.module.NodeStatus =
+    None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0,
+    created_at: datetime.datetime = None, updated_at: datetime.datetime = None,
+    deleted_at: datetime.datetime = None, archived_at: datetime.datetime =
+    None, last_edited_at: datetime.datetime = None, _session:
+    Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
+    bool = False, _text_parsed: Optional[ForwardRef('Text')] = None)
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -732,6 +801,26 @@ class FieldData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class FileData(betterproto.Message):
+    """
+    // File(parent: Union[ForwardRef('File'), bench.language.module.Module] =
+    None, policies: Optional[list['Policy']] = <factory>, name: Optional[str] =
+    <factory>, order_key: Optional[str] = None, children:
+    bench.language.module.NodeList[typing.Union[ForwardRef('File'),
+    ForwardRef('Statement')]] = None, statements:
+    bench.language.module.NodeList['Statement'] = None, _status:
+    bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
+    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
+    updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
+    archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
+    None, _session: Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
+    bool = False, tags: bench.language.module.NodeList['Tagging'] = None,
+    last_changed_at: datetime.datetime = None, issues:
+    bench.language.module.NodeList['Issue'] = None, _scopes_by_name: dict[str,
+    'ScopeNode'] = <factory>, _names_by_ident: dict[str, str] = <factory>,
+    _local_tree: Optional[ForwardRef('NodeTreeBase')] = None)
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -752,6 +841,8 @@ class FileData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class HaltData(betterproto.Message):
+    """// A resumable interruption in the execution (Run) of a statement."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -768,6 +859,8 @@ class HaltData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class HandleData(betterproto.Message):
+    """// A (global) Bench handle."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -782,6 +875,20 @@ class HandleData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class IssueData(betterproto.Message):
+    """
+    // Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None,
+    type: bench.language.const.IssueType = <factory>, kind:
+    bench.language.const.IssueKind = None, message: str = None, path:
+    Optional[str] = None, properties: list[str] = None, _status:
+    bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
+    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
+    updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
+    archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
+    None, _session: Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
+    bool = False)
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -803,6 +910,25 @@ class IssueData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ModuleData(betterproto.Message):
+    """
+    // Module(parent: bench.language.module.Bench = None, policies:
+    Optional[list['Policy']] = <factory>, is_main: bool = False, is_snapshot:
+    bool = False, files: bench.language.module.NodeList['File'] = None,
+    dependencies: dict[str, 'Module'] = <factory>, builtins: list['File'] =
+    <factory>, _lookup_cache: dict[str, ~NodeT] = <factory>, _source:
+    Optional[bench.language.tree.NodeTree] = None, _status:
+    bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
+    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
+    updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
+    archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
+    None, _session: Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
+    bool = False, last_changed_at: datetime.datetime = None, issues:
+    bench.language.module.NodeList['Issue'] = None, _scopes_by_name: dict[str,
+    'ScopeNode'] = <factory>, _names_by_ident: dict[str, str] = <factory>,
+    _local_tree: Optional[ForwardRef('NodeTreeBase')] = None)
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -822,6 +948,13 @@ class ModuleData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BaseNodeData(betterproto.Message):
+    """
+    // A node in a Bench module tree - basically struct + identity, so it can
+    relate nodes.     A node has a per-version unique id (id) and a constant
+    identifier key (ck).     The id is derived from the module id, so it's only
+    assigned when the node is attached.
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -835,6 +968,8 @@ class BaseNodeData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class NotificationData(betterproto.Message):
+    """// A notification for a user."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -852,6 +987,8 @@ class NotificationData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class OrganizationData(betterproto.Message):
+    """// A (global) Bench organization."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -867,6 +1004,17 @@ class OrganizationData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RecordData(betterproto.Message):
+    """
+    // Record(parent: 'Statement' = None, value: typing.Any | None = <factory>,
+    _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
+    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
+    updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
+    archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
+    None, _session: Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
+    bool = False)
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -884,6 +1032,8 @@ class RecordData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunData(betterproto.Message):
+    """// A 'run' of a statement (in a session)."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -918,6 +1068,8 @@ class RunData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SecretData(betterproto.Message):
+    """// A shared secret with a deferred value (loaded on demand)t."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -935,6 +1087,8 @@ class SecretData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SessionData(betterproto.Message):
+    """// A managed context for running a Bench module (in a worker)."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -961,6 +1115,11 @@ class SessionData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SignalData(betterproto.Message):
+    """
+    // A signal received in this Bench. May be emitted by a Bench or an
+    external source.
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -981,6 +1140,8 @@ class SignalData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StatementData(betterproto.Message):
+    """// A Bench statement."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -1009,6 +1170,10 @@ class StatementData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TaggingData(betterproto.Message):
+    """
+    // An association between a tag and a statement (with optional value).
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -1028,6 +1193,8 @@ class TaggingData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class TriggerData(betterproto.Message):
+    """// A trigger for a statement to run."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -1050,6 +1217,8 @@ class TriggerData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class UserData(betterproto.Message):
+    """// A (global) Bench user."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -1069,6 +1238,21 @@ class UserData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ViewData(betterproto.Message):
+    """
+    // View(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None,
+    policies: Optional[list['Policy']] = None, name: str | None = None,
+    order_key: str | None = None, node_type: bench.language.const.NodeType =
+    <factory>, query: Optional[bench.language.expression.Expression] = None,
+    sort: Optional[list[bench.language.expression.Expression]] = None, _status:
+    bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
+    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
+    updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
+    archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
+    None, _session: Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
+    bool = False)
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
@@ -1091,6 +1275,19 @@ class ViewData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WorkerData(betterproto.Message):
+    """
+    // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>,
+    profile: bench.language.const.WorkerProfile = <factory>, image:
+    Optional[ForwardRef('WorkerImage')] = <factory>, _status:
+    bench.language.module.NodeStatus = None, id: uuid.UUID = None, revision:
+    int = 0, created_at: datetime.datetime = None, updated_at:
+    datetime.datetime = None, deleted_at: datetime.datetime = None,
+    archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
+    None, _session: Optional[ForwardRef('Session')] = None, _track:
+    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
+    bool = False)
+    """
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -1108,6 +1305,8 @@ class WorkerData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WorkerSetData(betterproto.Message):
+    """// Set of workers to run a Bench's modules."""
+
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     parent_id: str = betterproto.string_field(4)
@@ -1132,43 +1331,43 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    bench: "BenchData" = betterproto.message_field(1, group="node")
-    module: "ModuleData" = betterproto.message_field(2, group="node")
-    file: "FileData" = betterproto.message_field(3, group="node")
-    statement: "StatementData" = betterproto.message_field(4, group="node")
-    trigger: "TriggerData" = betterproto.message_field(5, group="node")
-    tagging: "TaggingData" = betterproto.message_field(6, group="node")
-    field: "FieldData" = betterproto.message_field(7, group="node")
+    badge: "BadgeData" = betterproto.message_field(1, group="node")
+    organization: "OrganizationData" = betterproto.message_field(2, group="node")
+    notification: "NotificationData" = betterproto.message_field(3, group="node")
+    bench: "BenchData" = betterproto.message_field(4, group="node")
+    statement: "StatementData" = betterproto.message_field(5, group="node")
+    field: "FieldData" = betterproto.message_field(6, group="node")
+    tagging: "TaggingData" = betterproto.message_field(7, group="node")
     record: "RecordData" = betterproto.message_field(8, group="node")
-    view: "ViewData" = betterproto.message_field(9, group="node")
-    blob: "BlobData" = betterproto.message_field(10, group="node")
-    secret: "SecretData" = betterproto.message_field(11, group="node")
-    issue: "IssueData" = betterproto.message_field(12, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(13, group="node")
-    worker: "WorkerData" = betterproto.message_field(14, group="node")
-    session: "SessionData" = betterproto.message_field(15, group="node")
-    run: "RunData" = betterproto.message_field(16, group="node")
-    halt: "HaltData" = betterproto.message_field(17, group="node")
-    signal: "SignalData" = betterproto.message_field(18, group="node")
-    handle: "HandleData" = betterproto.message_field(19, group="node")
-    user: "UserData" = betterproto.message_field(20, group="node")
-    organization: "OrganizationData" = betterproto.message_field(21, group="node")
-    client: "ClientData" = betterproto.message_field(22, group="node")
-    notification: "NotificationData" = betterproto.message_field(23, group="node")
-    badge: "BadgeData" = betterproto.message_field(24, group="node")
+    session: "SessionData" = betterproto.message_field(9, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(10, group="node")
+    blob: "BlobData" = betterproto.message_field(11, group="node")
+    secret: "SecretData" = betterproto.message_field(12, group="node")
+    signal: "SignalData" = betterproto.message_field(13, group="node")
+    halt: "HaltData" = betterproto.message_field(14, group="node")
+    client: "ClientData" = betterproto.message_field(15, group="node")
+    module: "ModuleData" = betterproto.message_field(16, group="node")
+    view: "ViewData" = betterproto.message_field(17, group="node")
+    user: "UserData" = betterproto.message_field(18, group="node")
+    worker: "WorkerData" = betterproto.message_field(19, group="node")
+    file: "FileData" = betterproto.message_field(20, group="node")
+    handle: "HandleData" = betterproto.message_field(21, group="node")
+    issue: "IssueData" = betterproto.message_field(22, group="node")
+    trigger: "TriggerData" = betterproto.message_field(23, group="node")
+    run: "RunData" = betterproto.message_field(24, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
     policy: "PolicyData" = betterproto.message_field(1, group="struct")
-    policy_rule: "PolicyRuleData" = betterproto.message_field(2, group="struct")
-    expression: "ExpressionData" = betterproto.message_field(3, group="struct")
-    log_entry: "LogEntryData" = betterproto.message_field(4, group="struct")
-    run_code_frame: "RunCodeFrameData" = betterproto.message_field(5, group="struct")
-    run_error: "RunErrorData" = betterproto.message_field(6, group="struct")
-    inference: "InferenceData" = betterproto.message_field(7, group="struct")
-    worker_image: "WorkerImageData" = betterproto.message_field(8, group="struct")
-    dependency: "DependencyData" = betterproto.message_field(9, group="struct")
+    inference: "InferenceData" = betterproto.message_field(2, group="struct")
+    log_entry: "LogEntryData" = betterproto.message_field(3, group="struct")
+    expression: "ExpressionData" = betterproto.message_field(4, group="struct")
+    dependency: "DependencyData" = betterproto.message_field(5, group="struct")
+    worker_image: "WorkerImageData" = betterproto.message_field(6, group="struct")
+    run_code_frame: "RunCodeFrameData" = betterproto.message_field(7, group="struct")
+    policy_rule: "PolicyRuleData" = betterproto.message_field(8, group="struct")
+    run_error: "RunErrorData" = betterproto.message_field(9, group="struct")
 
 
 @dataclass(eq=False, repr=False)
@@ -2470,3 +2669,44 @@ class WorkerProcessBase(ServiceBase):
                 KillRunResponse,
             ),
         }
+
+
+from typing import Union
+
+AnyNodeData = Union[
+    BadgeData,
+    OrganizationData,
+    NotificationData,
+    BenchData,
+    StatementData,
+    FieldData,
+    TaggingData,
+    RecordData,
+    SessionData,
+    WorkerSetData,
+    BlobData,
+    SecretData,
+    SignalData,
+    HaltData,
+    ClientData,
+    ModuleData,
+    ViewData,
+    UserData,
+    WorkerData,
+    FileData,
+    HandleData,
+    IssueData,
+    TriggerData,
+    RunData,
+]
+AnyStructData = Union[
+    PolicyData,
+    InferenceData,
+    LogEntryData,
+    ExpressionData,
+    DependencyData,
+    WorkerImageData,
+    RunCodeFrameData,
+    PolicyRuleData,
+    RunErrorData,
+]

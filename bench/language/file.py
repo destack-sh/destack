@@ -23,6 +23,10 @@ if TYPE_CHECKING:
 
 @node(NodeType.FILE, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
+    """
+    Files are how a Bench organizes statements. Files can also be folders to other files.
+    """
+
     parent: Union["File", Module] = node_parent(4, NodeType.FILE, NodeType.MODULE)
     policies: Optional[list["Policy"]] = struct_internal(
         20, default_factory=list, struct_t=StructType.POLICY

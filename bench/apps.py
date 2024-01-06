@@ -7,8 +7,8 @@ from django.conf import settings
 
 from bench.settings import DEBUG
 
-bench_root = Path(settings.BASE_DIR)
-os.environ["VERSION"] = Path(bench_root / "version").read_text().strip()
+project_root = Path(settings.BASE_DIR)
+os.environ["VERSION"] = Path(project_root / "version").read_text().strip()
 
 
 def is_migrating():
@@ -17,16 +17,7 @@ def is_migrating():
 
 class BenchConfig(AppConfig):
     name = "bench"
-    verbose_name = "The Bench"
+    verbose_name = "Bench"
 
     def ready(self) -> None:
-        # auto-update schema on startup during development
-        # (and if we're not running a command that doesn't run the server)
-        if DEBUG and "runserver" in sys.argv:
-            from bench.api.root import schema
-            from bench.management.commands.gql import write_schema
-
-            write_schema("schema.gen.graphql", schema)
-
-        # import libs to ensure they're populated
-        from bench.language import symbolx_lib  # noqa
+        pass

@@ -59,6 +59,8 @@ RECORD_UNSPECIFIED_BATCH_SIZE = 500
     index_in_os=True,
 )
 class Record(HasValue, Node):
+    """A record in a database. The containing table is usually a real Postgres table."""
+
     # :RecordSchema
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
     value: typing.Any | None = struct_property(
