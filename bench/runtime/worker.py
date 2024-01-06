@@ -55,13 +55,13 @@ class WorkerNode(Monitored):
 
     def __init__(
         self,
-        worker_node_id: str,
+        worker_id: str,
         worker_set_id: UUID | None,
         bench_id: UUID | None,
         module_id: UUID | None,
     ):
         self.worker_set_id = worker_set_id
-        self.worker_node_id = worker_node_id
+        self.worker_id = worker_id
         self.bench_id = bench_id
         self.module_id = module_id
         self.workers: dict[UUID, WorkerProcess] = {}
@@ -73,13 +73,13 @@ class WorkerNode(Monitored):
         self._cached_modules: dict[ModuleReference, Module] = {}
         self._ready = asyncio.Event()
         self.log = logger.bind(
-            worker_node=self.worker_node_id,
+            worker=self.worker_id,
             worker_set=self.worker_set_id,
             bench_id=self.bench_id,
         )
 
     def __str__(self):
-        return f"{self.bench_id} {self.worker_set_id} {self.worker_node_id}"
+        return f"{self.bench_id} {self.worker_set_id} {self.worker_id}"
 
     def __repr__(self):
         return f"<WorkerNode {self}>"
@@ -90,7 +90,7 @@ class WorkerNode(Monitored):
 
     @property
     def client(self):
-        return ClientOrigin(type="user-worker", id=self.worker_node_id, nonce=None)
+        return ClientOrigin(type="user-worker", id=self.worker_id, nonce=None)
 
     async def run(self):
         self.log.info("start")
@@ -159,7 +159,7 @@ class WorkerNode(Monitored):
 
     async def _mark_worker_as_active(self):
         # :WorkerSetActive
-        active_key = f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at"
+        active_key = f"worker_set.{self.worker_set_id}.{self.worker_id}.last_active_at"
         self.log.debug("mark_as_active", active_key=active_key)
         if not await redis.set(active_key, value=utcnow_with_tz().isoformat(), ex=24 * 60 * 60):
             self.log.error("mark_as_active.failed", active_key=active_key)
@@ -213,7 +213,7 @@ class WorkerNode(Monitored):
                 id=run_id,
                 ck=run_id,
                 bench_id=str(worker.bench_id),
-                worker_node_id=self.worker_node_id,
+                worker_id=self.worker_id,
                 worker_process_id=None,
                 statement_ck=statement.ck if statement else None,
                 statement_path=None,
@@ -393,7 +393,7 @@ class WorkerProcess:
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
             worker_set=str(self.node.worker_set_id),
-            worker_node=str(self.node.worker_node_id),
+            worker=str(self.node.worker_id),
             worker_process=str(process_id),
             module_id=str(self.module_id),
         )
@@ -445,7 +445,7 @@ class WorkerProcess:
                     bench_id=self.node.bench_id,
                     module_id=self.module_id,
                     worker_set_id=self.node.worker_set_id,
-                    worker_node_id=self.node.worker_node_id,
+                    worker_id=self.node.worker_id,
                     worker_process_id=None,
                 ),
                 RepPullWorkerRunsPayload,
@@ -623,7 +623,7 @@ class WorkerProcess:
                 module=self.module,
                 bench_id=self.bench_id,
                 access_level=job.run_data.access_level or SessionAccessLevel.Read,
-                worker_node_id=self.node.worker_node_id,
+                worker_id=self.node.worker_id,
                 worker_process_id=None,
                 trigger_type=job.run_data.trigger_type,
                 trigger_id=job.run_data.trigger_id,

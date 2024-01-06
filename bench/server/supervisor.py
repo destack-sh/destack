@@ -8,9 +8,9 @@ from asgiref.sync import sync_to_async
 from django.db.models import Q
 
 from bench.language.const import ACTIVE_RUN_STATUSES, PENDING_RUN_STATUSES, WorkerSetStatus
+from bench.search.engine import write_runs_to_os
 from bench.server import k8
 from bench.server.host import RuntimeHost
-from bench.search.engine import write_runs_to_os
 from bench.settings import KUBERNETES_ENABLED
 from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
@@ -186,8 +186,8 @@ class RuntimeSupervisor(Monitored):
             # fetch from k8
             k8_deployments, k8_revision_mark = await k8.get_all_deployments()
             k8_deployments_to_kill: list[k8.Deployment] = []
-            active_worker_node_ids: list[str] = []
-            dead_worker_node_ids: set[str] = set()
+            active_worker_ids: list[str] = []
+            dead_worker_ids: set[str] = set()
             for k8_deployment in k8_deployments:
                 worker_set = self.worker_sets_by_bench_id.get(k8_deployment.bench_id)
                 if not worker_set:  # shouldn't exist anymore
@@ -195,11 +195,11 @@ class RuntimeSupervisor(Monitored):
                     continue
                 for node_id in worker_set.active_replicas_ids:
                     if node_id not in k8_deployment.active_replicas_ids:
-                        dead_worker_node_ids.add(node_id)
+                        dead_worker_ids.add(node_id)
                 worker_set.status = k8_deployment.status
                 worker_set.ready_replicas = k8_deployment.ready_replicas
                 worker_set.active_replicas_ids = k8_deployment.active_replicas_ids
-                active_worker_node_ids.extend(k8_deployment.active_replicas_ids)
+                active_worker_ids.extend(k8_deployment.active_replicas_ids)
 
             if k8_deployments_to_kill:
                 await k8.delete_deployments(k8_deployments_to_kill)
@@ -211,21 +211,21 @@ class RuntimeSupervisor(Monitored):
             self.tasks.start(self._watch_worker_sets_in_k8_forever(k8_revision_mark))
             await self._deploy_worker_sets(self.worker_sets)
         else:  # mark local as deadish (just started)
-            dead_worker_node_ids = {"local"}
-            active_worker_node_ids = []
+            dead_worker_ids = {"local"}
+            active_worker_ids = []
 
         # also extend dead nodes by any worker nodes that have an active run but aren't in k8
         # (this can happen to any number of glitches in our run/worker tracking)
-        presumed_dead_worker_node_ids: set[str] = {
+        presumed_dead_worker_ids: set[str] = {
             i
             async for i in models.Run.objects.filter(
-                worker_node_id__isnull=False, status__in=PENDING_RUN_STATUSES
-            ).values_list("worker_node_id", flat=True)
-            if i not in active_worker_node_ids
+                worker_id__isnull=False, status__in=PENDING_RUN_STATUSES
+            ).values_list("worker_id", flat=True)
+            if i not in active_worker_ids
         }
-        dead_worker_node_ids = set(dead_worker_node_ids) | presumed_dead_worker_node_ids
-        if dead_worker_node_ids:
-            await self._mark_runs_dead(bench_id=None, worker_node_ids=dead_worker_node_ids)
+        dead_worker_ids = set(dead_worker_ids) | presumed_dead_worker_ids
+        if dead_worker_ids:
+            await self._mark_runs_dead(bench_id=None, worker_ids=dead_worker_ids)
 
         # start for real
         self.tasks.start(self._manage_worker_lifecycle_forever())
@@ -272,27 +272,27 @@ class RuntimeSupervisor(Monitored):
     async def _mark_runs_dead(
         self,
         bench_id: Optional[UUID],
-        worker_node_ids: Collection[str],
+        worker_ids: Collection[str],
         run_ids: Optional[Collection[UUID]] = None,
     ):
         """Marks runs on worker nodes as aborted (node may be lost or just restarting)."""
-        logger.debug("mark_runs_dead", worker_node_ids=worker_node_ids, run_ids=run_ids)
+        logger.debug("mark_runs_dead", worker_ids=worker_ids, run_ids=run_ids)
 
         if bench_id is not None:
-            # extend worker_node_ids by any worker nodes that have an active run but aren't in k8
+            # extend worker_ids by any worker nodes that have an active run but aren't in k8
             worker_set = self.worker_sets_by_bench_id.get(bench_id)
             active_runs = models.Run.objects.filter(
-                worker_node_id__isnull=False, status__in=ACTIVE_RUN_STATUSES
-            ).values_list("worker_node_id", flat=True)
-            also_dead_worker_node_ids = {
+                worker_id__isnull=False, status__in=ACTIVE_RUN_STATUSES
+            ).values_list("worker_id", flat=True)
+            also_dead_worker_ids = {
                 i async for i in active_runs if i not in worker_set.active_replicas_ids
             }
-            worker_node_ids = set(worker_node_ids) | also_dead_worker_node_ids
+            worker_ids = set(worker_ids) | also_dead_worker_ids
 
         # collect presumed dead runs
         dead_runs_qs = models.Run.objects.filter(
             Q(
-                Q(worker_node_id__in=worker_node_ids) | Q(worker_node_id=None),
+                Q(worker_id__in=worker_ids) | Q(worker_id=None),
                 status__in=ACTIVE_RUN_STATUSES,
             )
             | Q(id__in=run_ids or [])
@@ -481,11 +481,11 @@ class RuntimeSupervisor(Monitored):
             try:
                 # TODO @Robustness: do restart worker node only works with :1WorkerNode
                 rep: NMessage[RepDoRestartWorkerNodePayload] = await request(
-                    NMessageType.DO_RESTART_WORKER_NODE,
+                    NMessageType.DO_RESTART_WORKER,
                     ReqDoRestartWorkerNodePayload(
                         bench_id=msg.p.bench_id,
                         worker_set_id=worker_set.id,
-                        worker_node_id=None,
+                        worker_id=None,
                         worker_process_id=None,
                     ),
                     reply_t=RepDoRestartWorkerNodePayload,

@@ -1249,9 +1249,9 @@ export interface RunData {
    */
   rootId: string;
   /**
-   * @generated from protobuf field: string worker_node_id = 32;
+   * @generated from protobuf field: string worker_id = 32;
    */
-  workerNodeId: string;
+  workerId: string;
   /**
    * @generated from protobuf field: string worker_process_id = 33;
    */
@@ -1427,9 +1427,9 @@ export interface SessionData {
    */
   policies: string;
   /**
-   * @generated from protobuf field: string worker_node_id = 31;
+   * @generated from protobuf field: string worker_id = 31;
    */
-  workerNodeId: string;
+  workerId: string;
   /**
    * @generated from protobuf field: string worker_process_id = 32;
    */
@@ -7027,7 +7027,7 @@ class RunData$Type extends MessageType<RunData> {
       { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
       { no: 30, name: "session_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
       { no: 31, name: "root_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 32, name: "worker_node_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+      { no: 32, name: "worker_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
       { no: 33, name: "worker_process_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
       { no: 34, name: "statement_ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
       { no: 35, name: "statement_path", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -7055,7 +7055,7 @@ class RunData$Type extends MessageType<RunData> {
     message.revision = "0";
     message.sessionId = "";
     message.rootId = "";
-    message.workerNodeId = "";
+    message.workerId = "";
     message.workerProcessId = "";
     message.statementCk = "";
     message.statementPath = "";
@@ -7117,8 +7117,8 @@ class RunData$Type extends MessageType<RunData> {
         case /* string root_id */ 31:
           message.rootId = reader.string();
           break;
-        case /* string worker_node_id */ 32:
-          message.workerNodeId = reader.string();
+        case /* string worker_id */ 32:
+          message.workerId = reader.string();
           break;
         case /* string worker_process_id */ 33:
           message.workerProcessId = reader.string();
@@ -7221,8 +7221,8 @@ class RunData$Type extends MessageType<RunData> {
     if (message.sessionId !== "") writer.tag(30, WireType.LengthDelimited).string(message.sessionId);
     /* string root_id = 31; */
     if (message.rootId !== "") writer.tag(31, WireType.LengthDelimited).string(message.rootId);
-    /* string worker_node_id = 32; */
-    if (message.workerNodeId !== "") writer.tag(32, WireType.LengthDelimited).string(message.workerNodeId);
+    /* string worker_id = 32; */
+    if (message.workerId !== "") writer.tag(32, WireType.LengthDelimited).string(message.workerId);
     /* string worker_process_id = 33; */
     if (message.workerProcessId !== "") writer.tag(33, WireType.LengthDelimited).string(message.workerProcessId);
     /* string statement_ck = 34; */
@@ -7434,7 +7434,7 @@ class SessionData$Type extends MessageType<SessionData> {
       { no: 15, name: "last_edited_at", kind: "message", T: () => Timestamp },
       { no: 16, name: "last_changed_at", kind: "message", T: () => Timestamp },
       { no: 30, name: "policies", kind: "scalar", T: 3 /*ScalarType.INT64*/ },
-      { no: 31, name: "worker_node_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+      { no: 31, name: "worker_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
       { no: 32, name: "worker_process_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
       { no: 33, name: "trigger_type", kind: "enum", T: () => ["TriggerType", TriggerType, "TRIGGER_TYPE_"] },
       { no: 34, name: "trigger_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -7454,7 +7454,7 @@ class SessionData$Type extends MessageType<SessionData> {
     message.benchId = "";
     message.revision = "0";
     message.policies = "0";
-    message.workerNodeId = "";
+    message.workerId = "";
     message.workerProcessId = "";
     message.triggerType = 0;
     message.triggerId = "";
@@ -7516,8 +7516,8 @@ class SessionData$Type extends MessageType<SessionData> {
         case /* int64 policies */ 30:
           message.policies = reader.int64().toString();
           break;
-        case /* string worker_node_id */ 31:
-          message.workerNodeId = reader.string();
+        case /* string worker_id */ 31:
+          message.workerId = reader.string();
           break;
         case /* string worker_process_id */ 32:
           message.workerProcessId = reader.string();
@@ -7597,8 +7597,8 @@ class SessionData$Type extends MessageType<SessionData> {
       ).join();
     /* int64 policies = 30; */
     if (message.policies !== "0") writer.tag(30, WireType.Varint).int64(message.policies);
-    /* string worker_node_id = 31; */
-    if (message.workerNodeId !== "") writer.tag(31, WireType.LengthDelimited).string(message.workerNodeId);
+    /* string worker_id = 31; */
+    if (message.workerId !== "") writer.tag(31, WireType.LengthDelimited).string(message.workerId);
     /* string worker_process_id = 32; */
     if (message.workerProcessId !== "") writer.tag(32, WireType.LengthDelimited).string(message.workerProcessId);
     /* TriggerType trigger_type = 33; */

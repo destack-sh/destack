@@ -24,7 +24,8 @@ class NodeType(ProtoStrEnum):
     # ENVIRONMENT = "ENVIRONMENT", 2
     # CONTEXT = "CONTEXT", 3
     # BRANCH = "BRANCH", 4
-    # source
+
+    # module/source
     MODULE = "MODULE", 5
     FILE = "FILE", 6
     STATEMENT = "STATEMENT", 7
@@ -37,15 +38,18 @@ class NodeType(ProtoStrEnum):
     BLOB = "BLOB", 14
     SECRET = "SECRET", 15
     ISSUE = "ISSUE", 16
+
     # worker
     WORKER_SET = "WORKER_SET", 40
     WORKER = "WORKER", 41
     # WORKER_PROCESS = "WORKER_PROCESS", 42
+
     # session (all local)
     SESSION = "SESSION", 60
     RUN = "RUN", 61
     HALT = "HALT", 62
     SIGNAL = "SIGNAL", 70
+
     # user
     HANDLE = "HANDLE", 100
     USER = "USER", 101
@@ -55,7 +59,6 @@ class NodeType(ProtoStrEnum):
     # INVITE = "INVITE", 110
     # MEMBERSHIP = "MEMBERSHIP", 111
     BADGE = "BADGE", 120
-
     # COMMENT = "COMMENT", 130
 
     @property
@@ -507,9 +510,6 @@ class WorkerProfile(ProtoStrEnum):
     TINY = "TINY", 1
     SMALL = "SMALL", 2
     MEDIUM = "MEDIUM", 3
-    LARGE = "LARGE", 4
-    XLARGE_CPU = "XLARGE_CPU", 5
-    XLARGE_MEM = "XLARGE_MEM", 6
 
 
 class ExpressionKind(ProtoStrEnum):

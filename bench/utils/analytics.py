@@ -24,17 +24,13 @@ def traces_sampler(sampling_context: dict):
     return 1.0  # by default sample everything
 
 
-def init_sentry(*, django: bool):
+def init_sentry():
     sentry_sdk.utils.MAX_STRING_LENGTH = 10_000_000
     # https://docs.sentry.io/platforms/python/
     sentry_logging = LoggingIntegration(level=logging.DEBUG, event_level=None)
     environment = os.getenv("SENTRY_ENVIRONMENT", "production")
     dsn = os.environ["SENTRY_DSN"]
     integrations = [sentry_logging]
-    if django:
-        from sentry_sdk.integrations.django import DjangoIntegration
-
-        integrations.append(DjangoIntegration())
 
     sentry_sdk.init(
         dsn=dsn,
@@ -48,9 +44,4 @@ def init_sentry(*, django: bool):
             "profiles_sample_rate": 1.0,
         },
     )
-    logger.info(
-        "initialized_sentry",
-        django=django,
-        environment=environment,
-        dsn=dsn[:12] + "..." + dsn[-4:],
-    )
+    logger.info("initialized_sentry", environment=environment, dsn=dsn[:12] + "..." + dsn[-4:])

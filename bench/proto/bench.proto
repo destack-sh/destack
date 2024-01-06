@@ -845,7 +845,7 @@ message RunData {
   google.protobuf.Timestamp last_changed_at = 16;
   string session_id = 30;
   string root_id = 31;
-  string worker_node_id = 32;
+  string worker_id = 32;
   string worker_process_id = 33;
   string statement_ck = 34;
   string statement_path = 35;
@@ -893,7 +893,7 @@ message SessionData {
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
   int64 policies = 30;
-  string worker_node_id = 31;
+  string worker_id = 31;
   string worker_process_id = 32;
   TriggerType trigger_type = 33;
   string trigger_id = 34;
