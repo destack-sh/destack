@@ -4,19 +4,18 @@ import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
 enum ActionKind {
-  option allow_alias = true;
   ACTION_KIND_UNSPECIFIED = 0;
   ACTION_KIND_READ = 1;
   ACTION_KIND_LIST = 2;
   ACTION_KIND_CREATE = 10;
-  ACTION_KIND_UPDATE = 11;
-  ACTION_KIND_MOVE = 12;
-  ACTION_KIND_BUMP = 13;
-  ACTION_KIND_SOFT_DELETE = 13;
-  ACTION_KIND_RESTORE = 14;
-  ACTION_KIND_ARCHIVE = 15;
-  ACTION_KIND_UNARCHIVE = 16;
-  ACTION_KIND_DELETE = 17;
+  ACTION_KIND_UPDATE = 12;
+  ACTION_KIND_MOVE = 13;
+  ACTION_KIND_BUMP = 14;
+  ACTION_KIND_SOFT_DELETE = 15;
+  ACTION_KIND_RESTORE = 16;
+  ACTION_KIND_ARCHIVE = 17;
+  ACTION_KIND_UNARCHIVE = 18;
+  ACTION_KIND_DELETE = 19;
   ACTION_KIND_START = 20;
   ACTION_KIND_PAUSE = 21;
   ACTION_KIND_RESUME = 22;
@@ -60,7 +59,6 @@ enum BenchType {
   BENCH_TYPE_BLOB = 14;
   BENCH_TYPE_SECRET = 15;
   BENCH_TYPE_ISSUE = 16;
-  BENCH_TYPE_RESOLVED_FIELD = 17;
   BENCH_TYPE_WORKER_SET = 40;
   BENCH_TYPE_WORKER = 41;
   BENCH_TYPE_SESSION = 60;
@@ -122,17 +120,16 @@ enum ConditionalOp {
 }
 
 enum EditKind {
-  option allow_alias = true;
   EDIT_KIND_UNSPECIFIED = 0;
   EDIT_KIND_CREATE = 10;
-  EDIT_KIND_UPDATE = 11;
-  EDIT_KIND_MOVE = 12;
-  EDIT_KIND_BUMP = 13;
-  EDIT_KIND_SOFT_DELETE = 13;
-  EDIT_KIND_RESTORE = 14;
-  EDIT_KIND_ARCHIVE = 15;
-  EDIT_KIND_UNARCHIVE = 16;
-  EDIT_KIND_DELETE = 17;
+  EDIT_KIND_UPDATE = 12;
+  EDIT_KIND_MOVE = 13;
+  EDIT_KIND_BUMP = 14;
+  EDIT_KIND_SOFT_DELETE = 15;
+  EDIT_KIND_RESTORE = 16;
+  EDIT_KIND_ARCHIVE = 17;
+  EDIT_KIND_UNARCHIVE = 18;
+  EDIT_KIND_DELETE = 19;
 }
 
 enum ExpressionKind {
@@ -230,7 +227,6 @@ enum NodeType {
   NODE_TYPE_BLOB = 14;
   NODE_TYPE_SECRET = 15;
   NODE_TYPE_ISSUE = 16;
-  NODE_TYPE_RESOLVED_FIELD = 17;
   NODE_TYPE_WORKER_SET = 40;
   NODE_TYPE_WORKER = 41;
   NODE_TYPE_SESSION = 60;
@@ -753,7 +749,6 @@ message IssueData {
   IssueType type = 30;
   IssueKind kind = 31;
   string message = 32;
-  string subject_ck = 33;
   string path = 34;
   repeated string properties = 35;
 }
@@ -832,31 +827,6 @@ message RecordData {
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Struct value = 30;
-}
-
-message ResolvedFieldData {
-  BenchType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  string parent_id = 4;
-  string module_id = 5;
-  string bench_id = 6;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  google.protobuf.Timestamp deleted_at = 13;
-  google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
-  string name = 30;
-  string order_key = 31;
-  string text = 32;
-  TypeTag tag = 33;
-  string key = 34;
-  google.protobuf.Struct value = 35;
-  TypeHint hint = 36;
-  int64 flags = 37;
-  string reference_ck = 38;
-  string field_ck = 50;
 }
 
 message RunData {
@@ -1110,19 +1080,18 @@ message SomeNodeData {
     BlobData blob = 10;
     SecretData secret = 11;
     IssueData issue = 12;
-    ResolvedFieldData resolved_field = 13;
-    WorkerSetData worker_set = 14;
-    WorkerData worker = 15;
-    SessionData session = 16;
-    RunData run = 17;
-    HaltData halt = 18;
-    SignalData signal = 19;
-    HandleData handle = 20;
-    UserData user = 21;
-    OrganizationData organization = 22;
-    ClientData client = 23;
-    NotificationData notification = 24;
-    BadgeData badge = 25;
+    WorkerSetData worker_set = 13;
+    WorkerData worker = 14;
+    SessionData session = 15;
+    RunData run = 16;
+    HaltData halt = 17;
+    SignalData signal = 18;
+    HandleData handle = 19;
+    UserData user = 20;
+    OrganizationData organization = 21;
+    ClientData client = 22;
+    NotificationData notification = 23;
+    BadgeData badge = 24;
   };
 }
 

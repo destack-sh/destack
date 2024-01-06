@@ -37,7 +37,6 @@ class NodeType(ProtoStrEnum):
     BLOB = "BLOB", 14
     SECRET = "SECRET", 15
     ISSUE = "ISSUE", 16
-    RESOLVED_FIELD = "RESOLVED_FIELD", 17
     # worker
     WORKER_SET = "WORKER_SET", 40
     WORKER = "WORKER", 41
@@ -115,7 +114,7 @@ BENCH_TYPE_CAPS_CASE: dict[NodeType | StructType, str] = {
 BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
     _type: to_pyidentifier(_type, IdentifierType.TYPE) for _type in chain(NodeType, StructType)
 }
-INTERP_NODE_TYPES = {NodeType.ISSUE, NodeType.RESOLVED_FIELD}
+INTERP_NODE_TYPES = {NodeType.ISSUE}
 
 
 class ReadKind(ProtoStrEnum):
@@ -125,14 +124,15 @@ class ReadKind(ProtoStrEnum):
 
 class EditKind(ProtoStrEnum):
     CREATE = "CREATE", 10  # start at 10, so we can have read 'actions' as well
-    UPDATE = "UPDATE", 11
-    MOVE = "MOVE", 12
-    BUMP = "BUMP", 13
-    SOFT_DELETE = "SOFT_DELETE", 13
-    RESTORE = "RESTORE", 14
-    ARCHIVE = "ARCHIVE", 15
-    UNARCHIVE = "UNARCHIVE", 16
-    DELETE = "DELETE", 17
+    # UPSERT = "UPSERT", 11 # do we need this?
+    UPDATE = "UPDATE", 12
+    MOVE = "MOVE", 13
+    BUMP = "BUMP", 14
+    SOFT_DELETE = "SOFT_DELETE", 15
+    RESTORE = "RESTORE", 16
+    ARCHIVE = "ARCHIVE", 17
+    UNARCHIVE = "UNARCHIVE", 18
+    DELETE = "DELETE", 19
 
 
 class RunKind(ProtoStrEnum):

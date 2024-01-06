@@ -15,8 +15,9 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 import bench.language as lang
-from bench.language import ConditionalOp, Field, HasDatabase, Module, QueryEngine
+from bench.language import ConditionalOp, Field, Module, QueryEngine
 from bench.language.const import EditKind, NodeType, TypeFlag, TypeStorageFormat
+from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     ExpressionOps,

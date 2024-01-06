@@ -605,7 +605,7 @@ class SessionTracer:
         # assumes you've called node_create_preflight first (to check permission)
         with self._tracing_lock:  # do it
             for n in nodes:
-                if n.metatype == NodeType.FIELD or n.metatype == NodeType.RESOLVED_FIELD:
+                if n.metatype == NodeType.FIELD:
                     self._schema_changed = True
                 if n.metatype in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter
                     continue
@@ -621,7 +621,7 @@ class SessionTracer:
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
 
     def node_update(self, node: Node, properties: list[str]):
-        if node.metatype == NodeType.FIELD or node.metatype == NodeType.RESOLVED_FIELD:
+        if node.metatype == NodeType.FIELD:
             self._schema_changed = True
         if node.metatype in INTERP_NODE_TYPES or not (node._track & NTL.FULL):  # :InterpFilter
             return
@@ -652,7 +652,7 @@ class SessionTracer:
 
         with self._tracing_lock:  # do it
             for n in nodes:
-                if n.metatype == NodeType.FIELD or n.metatype == NodeType.RESOLVED_FIELD:
+                if n.metatype == NodeType.FIELD:
                     self._schema_changed = True
                 # :InterpFilter
                 if n.metatype in INTERP_NODE_TYPES or not (n._track & NTL.FULL):  # :InterpFilter

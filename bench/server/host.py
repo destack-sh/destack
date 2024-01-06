@@ -36,8 +36,8 @@ from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time
 from bench.proto import wire, wiring
 from bench.proto.wire import ClientOrigin, EditData, RuntimeHostStub
 from bench.proto.wiring import AnyNodeData
-from bench.server.utils import read_module
 from bench.search.engine import update_os_schema, write_edits_to_os, write_records_to_os
+from bench.server.utils import read_module
 from bench.sql.client import async_pg_cursor
 from bench.sql.engine import (
     SqlUndefinedConstruct,
@@ -288,9 +288,7 @@ class RuntimeHost(RuntimeHostStub):
             # apply edits to source directly (in memory)
             #  (restore edits were already applied above)
             host_change = self.module._apply_edits(host_module_edits + restore_edits, old_source)
-            schema_changed = host_change.includes(
-                NodeType.FIELD, NodeType.RESOLVED_FIELD, StatementType.DATABASE
-            )
+            schema_changed = host_change.includes(NodeType.FIELD, StatementType.DATABASE)
             db_edits = (
                 list(reversed(soft_delete_edits)) + host_change.all_edits + host_session_edits
             )
