@@ -17,12 +17,12 @@ from bench.utils.logging import configure_logging  # noqa: E402
 logger = structlog.get_logger(__name__)
 configure_logging(apply_logging=True, apply_structlog=True)
 
+from bench.runtime import WorkerNode  # noqa: E402
+from bench.runtime.host import WorkerHost  # noqa: E402
 from bench.utils.analytics import init_sentry  # noqa: E402
 from bench.utils.cache import test_redis_connection  # noqa: E402
 from bench.utils.monitoring import restart_on_file_changes  # noqa: E402
 from bench.utils.utils import DEBUG, LOCAL  # noqa: E402
-from bench.runtime import WorkerNode  # noqa: E402
-from bench.runtime.host import WorkerHost  # noqa: E402
 
 if not (LOCAL or DEBUG):
     init_sentry(django=False)
@@ -30,7 +30,7 @@ if not (LOCAL or DEBUG):
 if os.environ.get("DEBUG") == "1" and "WORKER_SET_ID" not in os.environ:
     # auto reload on file change if in dev mode
     worker_set_id = None
-    worker_node_id = "local"
+    worker_id = "local"
     bench_id = None
     module_id = None
     nats_name = "worker-local"
@@ -38,14 +38,14 @@ if os.environ.get("DEBUG") == "1" and "WORKER_SET_ID" not in os.environ:
 else:
     # production mode, one worker per process
     worker_set_id = UUID(os.environ["WORKER_SET_ID"])
-    worker_node_id = os.environ["WORKER_NODE_ID"].replace(".", "-")
+    worker_id = os.environ["WORKER_ID"].replace(".", "-")
     bench_id = UUID(os.environ["WORKER_BENCH_ID"])
     module_id = UUID(os.environ["WORKER_MODULE_ID"])
-    nats_name = f"worker-{worker_set_id}-{worker_node_id}"
+    nats_name = f"worker-{worker_set_id}-{worker_id}"
     logger.info(
         "worker.prod_mode",
         worker_set_id=worker_set_id,
-        worker_node_id=worker_node_id,
+        worker_id=worker_id,
         bench_id=bench_id,
     )
 
@@ -54,7 +54,7 @@ async def _run_node():
     await test_redis_connection()
     worker = WorkerNode(
         worker_set_id=worker_set_id,
-        worker_node_id=worker_node_id,
+        worker_id=worker_id,
         bench_id=bench_id,
         module_id=module_id,
     )
@@ -67,7 +67,7 @@ async def _run_host():
     await test_redis_connection()
     host = WorkerHost(
         worker_set_id=worker_set_id,
-        worker_node_id=worker_node_id,
+        worker_id=worker_id,
         bench_id=bench_id,
         module_id=module_id,
     )

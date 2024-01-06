@@ -75,18 +75,6 @@ WORKER_RESOURCES_BY_PROFILE = {
         requests={"cpu": "1", "memory": "2Gi"},
         limits={"cpu": "2", "memory": "4Gi"},
     ),
-    WorkerProfile.LARGE: client.V1ResourceRequirements(
-        requests={"cpu": "2", "memory": "4Gi"},
-        limits={"cpu": "4", "memory": "8Gi"},
-    ),
-    WorkerProfile.XLARGE_CPU: client.V1ResourceRequirements(
-        requests={"cpu": "4", "memory": "8Gi"},
-        limits={"cpu": "8", "memory": "16Gi"},
-    ),
-    WorkerProfile.XLARGE_MEM: client.V1ResourceRequirements(
-        requests={"cpu": "2", "memory": "32Gi"},
-        limits={"cpu": "4", "memory": "64Gi"},
-    ),
 }
 
 BASE_WORKER_ENV_VARS: list[client.V1EnvVar] = []
@@ -211,7 +199,7 @@ class Deployment:
             *(client.V1EnvVar(name=k, value=v) for k, v in env_vars.items()),
             # worker node id from k8
             client.V1EnvVar(
-                name="WORKER_NODE_ID",
+                name="WORKER_ID",
                 value_from=client.V1EnvVarSource(
                     field_ref=client.V1ObjectFieldSelector(field_path="spec.nodeName")
                 ),

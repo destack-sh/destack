@@ -23,19 +23,19 @@ class WorkerNode(Monitored):
     def __init__(
         self,
         worker_set_id: UUID | None,
-        worker_node_id: str,
+        worker_id: str,
         bench_id: UUID | None,
         module_id: UUID | None,
     ):
         self.worker_set_id = worker_set_id
-        self.worker_node_id = worker_node_id
+        self.worker_id = worker_id
         self.bench_id = bench_id
         self.module_id = module_id
         self.worker_process: Popen | None = None
         self._stopped = False
 
     def __str__(self):
-        return f"{self.bench_id} {self.worker_set_id} {self.worker_node_id}"
+        return f"{self.bench_id} {self.worker_set_id} {self.worker_id}"
 
     def __repr__(self):
         return f"<WorkerHost {self}>"
@@ -68,13 +68,13 @@ class WorkerNode(Monitored):
         # see https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
         os.killpg(os.getpgid(self.worker_process.pid), signal.SIGTERM)
 
-    async def do_restart_worker_node(self, msg: NMessage[ReqDoRestartWorkerNodePayload]):
+    async def do_restart_worker(self, msg: NMessage[ReqDoRestartWorkerNodePayload]):
         logger.info("host.restart", worker_process=self.worker_process)
         self._terminate_worker()
         await msg.reply(
             RepDoRestartWorkerNodePayload(
                 worker_set_id=self.worker_set_id,
-                worker_node_id=self.worker_node_id,
+                worker_id=self.worker_id,
                 worker_process_id=str(self.worker_process.pid),
                 success=True,
             )

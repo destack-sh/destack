@@ -122,7 +122,7 @@ class Run(ScopeNode, HasValue):
     root: Optional["Run"] = node_ancestor(
         31, NodeType.RUN, nearest=False, include_self=False, store=True, wire=True, index_in_pg=True
     )
-    worker_node_id: str = struct_internal(32, reflect=True, index_in_pg=True)
+    worker_id: str = struct_internal(32, reflect=True, index_in_pg=True)
     worker_process_id: Optional[str] = struct_internal(33, reflect=True)
     statement: Optional["Statement"] = struct_internal(
         34, references=NodeType.STATEMENT, array=False, index_in_pg=True

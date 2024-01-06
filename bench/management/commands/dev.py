@@ -38,7 +38,7 @@ class Command(BaseCommand):
                 bench = benches[0]
                 env_vars = {
                     "WORKER_SET_ID": str(bench.worker_set.id),
-                    "WORKER_NODE_ID": "local",
+                    "WORKER_ID": "local",
                     "WORKER_BENCH_ID": str(bench.id),
                     "WORKER_MODULE_ID": str(bench.head_id),
                     "LOCAL_PG_NAME": bench.pg_name,

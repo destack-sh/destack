@@ -157,7 +157,7 @@ class Session(ScopeNode):
 
     parent: Module = node_parent(4, NodeType.MODULE)
     policies: SessionAccessLevel = struct_internal(30)
-    worker_node_id: str = struct_internal(31, reflect=True)
+    worker_id: str = struct_internal(31, reflect=True)
     worker_process_id: Optional[str] = struct_internal(32, reflect=True)
     trigger_type: TriggerType = struct_internal(33, reflect=True)
     trigger_id: Optional[UUID] = struct_internal(34, default=None, reflect=True)
@@ -821,7 +821,7 @@ class SessionTracer:
             id=run_id,
             ck=run_id,  # "detached"
             bench_id=self.session.module.bench_id,
-            worker_node_id=self.session.worker_node_id,
+            worker_id=self.session.worker_id,
             worker_process_id=self.session.worker_process_id,
             statement=statement,
             trigger_type=trigger_type,

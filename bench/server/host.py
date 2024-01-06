@@ -718,7 +718,7 @@ class RuntimeHost(RuntimeHostStub):
     #
 
     async def pull_runs(
-        self, worker_set_id: UUID, worker_node_id: Optional[str], worker_process_id: Optional[str]
+        self, worker_set_id: UUID, worker_id: Optional[str], worker_process_id: Optional[str]
     ) -> list[wire.RunData]:
         """Pull any runs potentially missed by the worker."""
         prescheduled_runs = [
