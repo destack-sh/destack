@@ -109,17 +109,6 @@ def to_bench_metatype(_type: typing.Union[BenchType, int]) -> BenchType:
     return _type
 
 
-# local = only stored in user Bench, not host
-LOCAL_NODE_TYPES = (NodeType.RECORD, NodeType.SESSION, NodeType.RUN)
-OUT_OF_LINE_NODE_TYPES = (
-    NodeType.SESSION,
-    NodeType.RUN,
-    NodeType.RECORD,
-    NodeType.BLOB,
-    NodeType.SECRET,
-)
-INLINE_NODE_TYPES = (nt for nt in NodeType if nt not in OUT_OF_LINE_NODE_TYPES)
-HOST_NODE_TYPES = (nt for nt in NodeType if nt not in LOCAL_NODE_TYPES)
 BENCH_TYPE_CAPS_CASE: dict[NodeType | StructType, str] = {
     _type: to_all_caps(_type) for _type in chain(NodeType, StructType)
 }

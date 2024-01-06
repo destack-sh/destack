@@ -40,5 +40,14 @@ services:
       - '6379:6379'
     command: redis-server --appendonly yes
 
+  envoy:
+    image: envoyproxy/envoy:v1.28-latest
+    restart: on-failure
+    volumes:
+      - ./infra/envoy.yaml:/etc/envoy/envoy.yaml
+    network_mode: host
+    extra_hosts:
+        - "server:host-gateway"
+
 volumes:
   redis-data:
