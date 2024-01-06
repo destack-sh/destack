@@ -35,7 +35,6 @@ from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.proto import wire, wiring
 from bench.proto.wire import ClientOrigin, EditData, RuntimeHostStub
-from bench.proto.wiring import AnyNodeData
 from bench.search.engine import update_os_schema, write_edits_to_os, write_records_to_os
 from bench.server.utils import read_module
 from bench.sql.client import async_pg_cursor

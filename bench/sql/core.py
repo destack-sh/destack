@@ -11,7 +11,7 @@ from uuid import UUID, uuid5
 #  see https://github.com/MagicStack/asyncpg
 from more_itertools import first
 
-from bench.language.const import BENCH_UUID_NAMESPACE
+from bench.language.const import UUID_NAMESPACE
 
 
 def stable_hash(*args) -> int:
@@ -120,7 +120,7 @@ class Construct:
 
     @property
     def id(self):
-        return uuid5(BENCH_UUID_NAMESPACE, f"{self.kind.value}:{self.name}")
+        return uuid5(UUID_NAMESPACE, f"{self.kind.value}:{self.name}")
 
 
 @dataclass
@@ -140,7 +140,7 @@ class TableConstruct(Construct):
 
     @property
     def id(self) -> UUID:
-        return uuid5(BENCH_UUID_NAMESPACE, f"{self.kind.value}:{self._table.name}.{self.name}")
+        return uuid5(UUID_NAMESPACE, f"{self.kind.value}:{self._table.name}.{self.name}")
 
     def clone(self) -> "TableConstruct":
         """Deep copy this table construct without the table reference."""

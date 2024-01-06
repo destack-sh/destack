@@ -2,7 +2,7 @@ import dataclasses
 import enum
 import textwrap
 from dataclasses import dataclass
-from typing import ClassVar, Union
+from typing import ClassVar, Optional, Union
 
 
 class ProtoStrEnum(enum.StrEnum):
@@ -62,6 +62,11 @@ class ProtoSchema(ProtoThing):
         return ProtoSchema(name=name, imports=imports, types=types)
 
 
+def _to_multi_line_comment(comment: str) -> str:
+    """Convert a single line comment to a multi line comment."""
+    return "\n".join(f"// {line}" for line in comment.splitlines())
+
+
 @dataclass
 class Message(ProtoThing):
     """Proto message."""
@@ -70,6 +75,7 @@ class Message(ProtoThing):
     fields: list["Field"]
     reserved_names: list[str] = dataclasses.field(default_factory=list)
     reserved_ids: list[int] = dataclasses.field(default_factory=list)
+    comment: str | None = None
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
@@ -81,6 +87,8 @@ class Message(ProtoThing):
         for field in self.fields:
             source += f"{textwrap.indent(field.to_proto_source(), '  ')};\n"
         source += "}"
+        if self.comment:
+            source = f"// {_to_multi_line_comment(self.comment)}\n" + source
         return source
 
 
@@ -115,6 +123,7 @@ class Enum(ProtoThing):
     name: str
     values: list["EnumValue"]
     allow_alias: bool = False
+    comment: str | None = None
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
@@ -124,6 +133,8 @@ class Enum(ProtoThing):
         for value in self.values:
             source += f"  {value.to_proto_source()};\n"
         source += "}"
+        if self.comment:
+            source = f"// {_to_multi_line_comment(self.comment)}\n" + source
         return source
 
 

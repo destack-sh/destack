@@ -26,8 +26,8 @@ import structlog
 from cachetools import cached
 
 from bench.language.const import (
-    BENCH_UUID_NAMESPACE,
     INTERP_NODE_TYPES,
+    UUID_NAMESPACE,
     BenchType,
     ConditionalOp,
     EditKind,
@@ -84,7 +84,6 @@ if TYPE_CHECKING:
         symbolx_lib,
     )
     from bench.language.issue import IssueHandler
-    from bench.proto.wiring import AnyNodeData
 
 logger = structlog.get_logger(__name__)
 
@@ -383,7 +382,7 @@ class Property(_FieldExpressionBase):
             raise ValueError(f"unexpected column type in {self!r}: {self.column_type}")
         field = Field(
             name=self.name,
-            ck=uuid.uuid5(BENCH_UUID_NAMESPACE, f"{metatype_id}.{self.id}"),
+            ck=uuid.uuid5(UUID_NAMESPACE, f"{metatype_id}.{self.id}"),
             tag=tag,
             hint=hint,
         )
@@ -518,9 +517,9 @@ class Property(_FieldExpressionBase):
             # resolve manually if needed
             if isinstance(py_type, (str, typing.ForwardRef)):
                 py_type = py_type.__forward_arg__ if not isinstance(py_type, str) else py_type
-                if py_type not in _FINAL_BENCH_TYPES_BY_NAME:
+                if py_type not in _BENCH_TYPES_BY_NAME:
                     raise ValueError(f"cannot resolve type for {self!r}: {py_type!r}")
-                py_type = _FINAL_BENCH_TYPES_BY_NAME[py_type]
+                py_type = _BENCH_TYPES_BY_NAME[py_type]
             self.py_type_stripped = py_type
             # update info from annotation
             if self.is_array is UNSET:
@@ -2578,7 +2577,7 @@ class ScopeNode(Node):
 @node(NodeType.BENCH, in_module=False)
 class Bench(ScopeNode):
     """
-    A Bench is the root of all modules and everything that's not outside of it.
+    A Bench contains everything a young and growing AI needs to learn and grow.
     """
 
     parent: None = node_parent(4)
@@ -2645,6 +2644,8 @@ class ModuleChange:
 
 @node(NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
+    """A module is a semi-isolated version of a Bench, containing the actual files and so on."""
+
     parent: Bench = node_parent(4, NodeType.BENCH)
     policies: Optional[list["Policy"]] = struct_internal(
         20, default_factory=list, struct_t=StructType.POLICY
@@ -3013,78 +3014,32 @@ class NodeTreeEditor:
         return self._make_edit(EditKind.DELETE, node)
 
 
-class EditBundle:
-    """Indexed access to a constant list of edits."""
-
-    def __init__(self, edits: list[EditData]):
-        self.edits = edits
-
-    def __str__(self):
-        return f"edit {len(self.edits)}"
-
-    def __repr__(self):
-        return f"<EditBundle {self}>"
-
-    def batched(self) -> Iterator[tuple[tuple[EditKind, NodeType, NodeType], list[EditData]]]:
-        """
-        Batch consecutive edits by type in order of appearance.
-        """
-
-        current_batch: list[EditData] = []
-        current_type: tuple[EditKind, NodeType, NodeType] | None = None
-
-        for edit in self.edits:
-            edit_type = (edit.kind, edit.node_type, edit.scope)
-            if edit_type != current_type:
-                if current_type is not None:
-                    yield current_type, current_batch
-                current_batch = [edit_type]
-            current_batch.append(edit)
-
-        if current_batch:
-            yield current_type, current_batch
-
-    def batched_apply(
-        self, tree: NodeTree, raise_on_error: bool = True
-    ) -> Iterator[tuple[tuple[EditKind, NodeType, NodeType], list[EditData]]]:
-        """
-        Batch consecutive edits by type in order of appearance
-         AND optionally concurrently apply them to the given module tree.
-        (there may be multiple batches of the same type).
-        """
-
-        for type, batch in self.batched():
-            yield type, batch
-            if type[2] in OUT_OF_LINE_NODE_TYPES:
-                continue  # ignore since it's not in the inline tree
-            for edit in batch:
-                try:
-                    tree.apply_edit(edit)
-                except ValueError:
-                    if raise_on_error:
-                        raise
-
-
-_FINAL_BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
-FINAL_BENCH_TYPES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
+_BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
+BENCH_TYPES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
+NODE_TYPES: frozenset[type[Node]] = frozenset()
+STRUCT_TYPES: frozenset[type[Struct]] = frozenset()
 
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    global FINAL_BENCH_TYPES
+    global BENCH_TYPES
+    global NODE_TYPES
+    global STRUCT_TYPES
     from bench.language import const
 
     # populate known types
     for bench_t in chain(NODE_CLASS_BY_NODE_TYPE.values(), STRUCT_CLASS_BY_STRUCT_TYPE.values()):
-        _FINAL_BENCH_TYPES_BY_NAME[bench_t.__name__] = bench_t
+        _BENCH_TYPES_BY_NAME[bench_t.__name__] = bench_t
     for maybe_bench_t in const.__dict__.values():
         if isinstance(maybe_bench_t, type) and issubclass(maybe_bench_t, enum.Enum):
-            _FINAL_BENCH_TYPES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
-    FINAL_BENCH_TYPES = frozenset(_FINAL_BENCH_TYPES_BY_NAME.values())
+            _BENCH_TYPES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
+    BENCH_TYPES = frozenset(_BENCH_TYPES_BY_NAME.values())
     for node_t in NodeType:
         BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_NODE_TYPE[node_t]
     for struct_t in StructType:
         BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_STRUCT_TYPE[struct_t]
+    NODE_TYPES = frozenset(NODE_CLASS_BY_NODE_TYPE.values())
+    STRUCT_TYPES = frozenset(STRUCT_CLASS_BY_STRUCT_TYPE.values())
 
     # misc finalization on properties
     for cls in chain(get_subclasses(Node), get_subclasses(Struct)):

@@ -2,6 +2,7 @@ from .access import Badge, Policy, PolicyRule
 from .blob import Blob
 from .builtin import symbolx_bench, symbolx_lib
 from .const import (
+    VERSION,
     ActionKind,
     ConditionalOp,
     IssueType,
@@ -93,6 +94,7 @@ __all__ = [
     "TypeTag",
     "User",
     "View",
+    "VERSION",
     "WorkerImage",
     "WorkerSet",
 ]

@@ -417,8 +417,8 @@ class OsSearchResult:
     cursors: list[str]
     start_cursor: Optional[str]
 
-    def as_records(self) -> list[wiring.AnyNodeData]:
-        records_data: list[wiring.AnyNodeData] = []
+    def as_records(self) -> list[wire.AnyNodeData]:
+        records_data: list[wire.AnyNodeData] = []
         for result in self.results:
             records_data.append(unpack_struct(result["_source"]))
         return records_data
@@ -621,7 +621,7 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return value
 
 
-def pack_struct(node: wiring.AnyNodeData | wiring.AnyStructData) -> dict:
+def pack_struct(node: wire.AnyNodeData | wire.AnyStructData) -> dict:
     metatype = wiring.unpack_enum(BenchType, node.metatype)
     bench_cls = BENCH_CLASS_BY_TYPE[metatype]
     document: dict[str, Any] = {TYPE_DISCRIMINATOR_KEY: metatype.name}
@@ -633,7 +633,7 @@ def pack_struct(node: wiring.AnyNodeData | wiring.AnyStructData) -> dict:
     return document
 
 
-def unpack_struct(source: dict) -> wiring.AnyNodeData | wiring.AnyStructData:
+def unpack_struct(source: dict) -> wire.AnyNodeData | wire.AnyStructData:
     metatype = BenchType(source[TYPE_DISCRIMINATOR_KEY])
     bench_cls = BENCH_CLASS_BY_TYPE[metatype]
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[metatype]

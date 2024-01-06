@@ -19,8 +19,6 @@ for dot_env_file in DOT_ENV_FILES:
 
 
 def main():
-    os.environ["VERSION"] = Path("version").read_text().strip()
-
     """Run administrative tasks."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
     try:

@@ -189,7 +189,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node]] = tuple(
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
 class Statement(ScopeNode, HasTags):
-    """A Bench statement."""
+    """A Bench statement, the core building block containing logic, schemas, data and AI stuff."""
 
     parent: Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
     children: NodeList["Statement"] = node_children(
