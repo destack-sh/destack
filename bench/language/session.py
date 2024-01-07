@@ -85,9 +85,6 @@ class ModuleHost(abc.ABC):
     async def commit_edits(self, edits: Collection["EditData"]) -> None:
         raise NotImplementedError
 
-    async def notify_runs_changed(self, runs: Collection["RunData"]) -> None:
-        raise NotImplementedError
-
     async def notify_logs_changed(self, logs: Collection["LogEntryData"]) -> None:
         raise NotImplementedError
 
@@ -97,13 +94,7 @@ class ModuleHost(abc.ABC):
     async def download_blob(self, blob: "Blob") -> str:
         raise NotImplementedError
 
-    async def prepare_upload_blob(self, blob: "Blob") -> tuple["Blob", Optional[str]]:
-        raise NotImplementedError
-
-    async def mark_uploaded_blob(self, blob: "Blob") -> None:
-        raise NotImplementedError
-
-    async def reveal_secret(self, secret: "Secret") -> Any:
+    async def upload_blob(self, blob: "Blob") -> tuple["Blob", Optional[str]]:
         raise NotImplementedError
 
     async def run_proxy_statement(self, statement: "Statement", inputs: dict) -> dict:

@@ -45,6 +45,16 @@ message CreateUserResponse {
   UserData user = 1;
 }
 
+message LoginUserRequest {
+  UserData user = 1;
+}
+message LoginUserResponse {
+  UserData user = 1;
+}
+
+message LogoutUserRequest {
+}
+
 message CreateOrganizationRequest {
   OrganizationData organization = 1;
 }
@@ -118,6 +128,10 @@ message PingWorkerSetResponse {
 service GlobalSupervisor {
   // Create user account.
   rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+  // Login user account.
+  rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
+  // Logout user account.
+  rpc LogoutUser(LogoutUserRequest) returns (google.protobuf.Empty);
   // Create organization.
   rpc CreateOrganization(CreateOrganizationRequest) returns (CreateOrganizationResponse);
   // Create a Bench.
@@ -219,6 +233,10 @@ message RunProxyStatementResponse {
   google.protobuf.Struct error = 2;
 }
 
+message PushLocalEditsRequest {
+  repeated EditData edits = 1;
+}
+
 message PushWorkerLogsRequest {
   repeated LogEntryData logs = 1;
 }
@@ -257,6 +275,8 @@ service ModuleHost {
 
   // Runs a well-known internal statement in the host with our credentials.
   rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
+  // Push local edits from a worker.
+  rpc PushLocalEdits(PushLocalEditsRequest) returns (google.protobuf.Empty);
   // Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
   rpc PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
 }
@@ -303,7 +323,7 @@ message KillRunResponse {
 // A hosted Worker providing a Bench runtime with a set of worker processes.
 // Service is scoped to bench_id/worker_set_id.
 // Not accessible from the outside.
-service WorkerNode {
+service Worker {
   // Restart this worker immediately.
   rpc RestartWorker(RestartWorkerRequest) returns (google.protobuf.Empty);
   // Starts a run in a process in this worker.
