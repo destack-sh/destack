@@ -10,6 +10,6 @@ def db(bench: str = None):
 
 
 @app.command()
-def session():
+def session(bench: str = None):
     """Open a Session shell."""
     raise NotImplementedError

@@ -15,11 +15,6 @@ class Monitored(abc.ABC):
     def healthy(self) -> bool:
         return self.ready
 
-    async def launch_monitoring_server(self, host: str, port: int, daemon: bool = True) -> None:
-        """Launches a monitoring server for this monitored thing."""
-        server = MonitoringServer([self])
-        await server.launch(host, port, daemon=daemon)
-
 
 class MonitoringServer:
     """Uvicorn ASGI server to report /healthz and /ready to K8."""

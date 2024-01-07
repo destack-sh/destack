@@ -1,6 +1,9 @@
 import enum
 
+from grpclib.server import Server
 import typer
+
+from bench.server.supervisor import GlobalSupervisor
 
 app = typer.Typer()
 
@@ -10,6 +13,8 @@ def supervisor():
     """
     Run the supervisor.
     """
+    server = Server([GlobalSupervisor()])
+    # nocheckin: "proxy" ModuleHost / start and connect relevant Bench module hosts
     raise NotImplementedError
 
 

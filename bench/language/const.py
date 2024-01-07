@@ -59,6 +59,7 @@ class NodeType(ProtoStrEnum):
     NOTIFICATION = "NOTIFICATION", 104
     # INVITE = "INVITE", 110
     # MEMBERSHIP = "MEMBERSHIP", 111
+    # ROLE = "ROLE", 112
     BADGE = "BADGE", 120
     # COMMENT = "COMMENT", 130
 

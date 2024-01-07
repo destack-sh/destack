@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
@@ -17,11 +18,14 @@ if TYPE_CHECKING:
 
 @struct(StructType.POLICY)
 class Policy(Struct):
-    """A policy regulating access to resources, usually within this scope."""
+    """A policy regulating access to nodes within its scope."""
 
     name: Optional[str] = struct_internal(30, default=None)
     rules: list["PolicyRule"] = struct_internal(
         31, default_factory=list, struct_t=StructType.POLICY_RULE
+    )
+    hidden: bool = struct_internal(
+        32, default=False, description="Hide this policy and its effects from the denied."
     )
 
 
@@ -56,10 +60,11 @@ class Badge(Node):
     type: BadgeType = struct_internal(30)
     name: Optional[str] = struct_internal(31)
     policy: Policy = struct_internal(32, struct_t=StructType.POLICY)
-    # sharing link
+    expires_at: Optional[datetime] = struct_internal(33, default=None)
+    # sharing link badge
     link_token: Optional[UUID] = struct_internal(40, default=None, unique=True)
     link_password: Optional[str] = struct_internal(41, default=None, encrypt=True, defer=True)
     link_password_digest: Optional[str] = struct_internal(42, default=None, encrypt=True)
-    # access key
+    # access key badge
     key_value: Optional[str] = struct_internal(50, default=None, encrypt=True, defer=True)
     key_value_digest: Optional[str] = struct_internal(51, default=None, encrypt=True)

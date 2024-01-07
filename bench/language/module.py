@@ -321,6 +321,7 @@ class Property(_FieldExpressionBase):
 
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
     name: str | None = None  # name from LHS of assignment
+    description: str | None = None  # description from docstring
     component: type["Node"] | None = None  # source component class
     py_type_raw: typing.Any = None  # type annotation on LHS of assignment
     py_type_stripped: typing.Any = UNSET  # stripped type annotation
@@ -661,6 +662,7 @@ class Property(_FieldExpressionBase):
 def struct_property(
     id: int,
     *,
+    description: str = None,
     default: typing.Any = UNSET,
     default_factory: Callable[[], typing.Any] = None,
     copy: Callable[[typing.Any], typing.Any] = None,
@@ -678,6 +680,7 @@ def struct_property(
     """Standard user facing struct/node property."""
     return Property(
         id=id,
+        description=description,
         default=default,
         default_factory=default_factory,
         custom_copy=copy,
@@ -697,6 +700,7 @@ def struct_property(
 def struct_internal(
     id: int,
     *,
+    description: str = None,
     default: typing.Any = UNSET,
     default_factory: Callable[[], typing.Any] = None,
     copy: Callable[[typing.Any], typing.Any] = None,
@@ -717,6 +721,7 @@ def struct_internal(
     """Internal only struct/node property."""
     return Property(
         id=id,
+        description=description,
         is_internal=True,
         is_protected=protect,
         is_required=require,
@@ -2585,21 +2590,27 @@ class Bench(ScopeNode):
         20, default_factory=list, struct_t=StructType.POLICY
     )
     name: str = struct_internal(30)
-    slug: str = struct_internal(31)
+    slug: str = struct_internal(31, protect=True)
     description: str = struct_internal(32, default=None)
     organization: Optional["Organization"] = struct_internal(
-        33, array=False, references=NodeType.ORGANIZATION
+        33, protect=True, array=False, references=NodeType.ORGANIZATION
     )
-    user: Optional["User"] = struct_internal(34, array=False, references=NodeType.USER)
+    user: Optional["User"] = struct_internal(
+        34, protect=True, array=False, references=NodeType.USER
+    )
 
     # *per* environment stuff (will be moved into Environment or such later)
-    head = struct_internal(40, array=False, references=NodeType.MODULE)
-    pg_name: Optional[str] = struct_internal(41, default=None)
-    pg_username: Optional[str] = struct_internal(42, default=None, defer=True)
-    pg_password: Optional[str] = struct_internal(43, default=None, defer=True, encrypt=True)
-    os_name: Optional[str] = struct_internal(44, default=None)
-    os_username: Optional[str] = struct_internal(45, default=None, defer=True)
-    os_password: Optional[str] = struct_internal(46, default=None, defer=True, encrypt=True)
+    head = struct_internal(40, protect=True, array=False, references=NodeType.MODULE)
+    pg_name: Optional[str] = struct_internal(41, protect=True, default=None)
+    pg_username: Optional[str] = struct_internal(42, protect=True, default=None, defer=True)
+    pg_password: Optional[str] = struct_internal(
+        43, protect=True, default=None, defer=True, encrypt=True
+    )
+    os_name: Optional[str] = struct_internal(44, protect=True, default=None)
+    os_username: Optional[str] = struct_internal(45, protect=True, default=None, defer=True)
+    os_password: Optional[str] = struct_internal(
+        46, protect=True, default=None, defer=True, encrypt=True
+    )
 
     worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET, NRel.Flat)
 
@@ -2650,8 +2661,10 @@ class Module(ScopeNode):
     policies: Optional[list["Policy"]] = struct_internal(
         20, default_factory=list, struct_t=StructType.POLICY
     )
-    is_main: bool = struct_internal(31, default=False, store=False)  # main environment?
-    is_snapshot: bool = struct_internal(32, default=False)  # snapshot or head?
+    is_main: bool = struct_internal(
+        31, protect=True, default=False, store=False
+    )  # main environment?
+    is_snapshot: bool = struct_internal(32, protect=True, default=False)  # snapshot or head?
 
     files: NodeList["File"] = node_children(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
     dependencies: dict[str, "Module"] = struct_runtime(default_factory=dict)
