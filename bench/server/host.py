@@ -34,7 +34,7 @@ from bench.language.packer import pack_value, unpack_value
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.proto import wire, wiring
-from bench.proto.wire import ClientOrigin, EditData, RuntimeHostStub
+from bench.proto.wire import ClientOrigin, EditData, ModuleHostBase
 from bench.search.engine import update_os_schema, write_edits_to_os, write_records_to_os
 from bench.server.utils import read_module
 from bench.sql.client import async_pg_cursor
@@ -65,7 +65,7 @@ class ActiveTrigger:
     iter: TriggerScheduleIterator
 
 
-class RuntimeHost(RuntimeHostStub):
+class ModuleHost(ModuleHostBase):
     """
     Runtime host for a single module.
     Assumed to run as a singleton per module, mainly to ensure time triggers are processed

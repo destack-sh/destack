@@ -13,18 +13,4 @@ class Migration(migrations.Migration):
             old_name="OwnerSlug",
             new_name="Handle",
         ),
-        migrations.RemoveField(
-            model_name="workerset",
-            name="bench",
-        ),
-        migrations.RemoveField(
-            model_name="bench",
-            name="worker_set",
-        ),
-        migrations.DeleteModel(
-            name="AccessToken",
-        ),
-        migrations.DeleteModel(
-            name="WorkerSet",
-        ),
     ]

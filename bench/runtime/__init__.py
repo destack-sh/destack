@@ -1,3 +1,3 @@
-from .worker import WorkerNode
+from .process import WorkerNode
 
 __all__ = ["WorkerNode"]

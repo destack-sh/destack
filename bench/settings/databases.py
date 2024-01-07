@@ -1,5 +1,6 @@
 import os
 
+import dj_database_url
 import structlog
 from django.core.exceptions import ImproperlyConfigured
 
@@ -18,14 +19,14 @@ if TEST or DEBUG:
     PASSWORD = os.getenv("GLOBAL_PG_PASSWORD", "bench")
     PORT = os.getenv("GLOBAL_PG_PORT", "5432")
     DATABASE = os.getenv("GLOBAL_PG_NAME", "bench")
-    DATABASE_URL = os.getenv(
+    GLOBAL_PG_URL = os.getenv(
         "GLOBAL_PG_URL", f"postgres://{USER}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}"
     )
 else:
-    DATABASE_URL = os.getenv("DATABASE_URL", "")
+    GLOBAL_PG_URL = os.getenv("GLOBAL_PG_URL", "")
 
-if DATABASE_URL:
-    DATABASES = {"default": dj_database_url.config(default=DATABASE_URL, conn_max_age=600)}
+if GLOBAL_PG_URL:
+    DATABASES = {"default": dj_database_url.config(default=GLOBAL_PG_URL, conn_max_age=600)}
 elif os.getenv("GLOBAL_PG_NAME"):
     DATABASES = {
         "default": {
@@ -39,7 +40,7 @@ elif os.getenv("GLOBAL_PG_NAME"):
         }
     }
 
-    DATABASE_URL = "postgres://{}{}{}{}:{}/{}".format(
+    GLOBAL_PG_URL = "postgres://{}{}{}{}:{}/{}".format(
         DATABASES["default"]["USER"],
         ":" + DATABASES["default"]["PASSWORD"] if DATABASES["default"]["PASSWORD"] else "",
         "@" if DATABASES["default"]["USER"] or DATABASES["default"]["PASSWORD"] else "",
