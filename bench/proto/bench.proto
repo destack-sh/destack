@@ -546,11 +546,12 @@ message LogEntryData {
   google.protobuf.Struct value = 40;
 }
 
-// // A policy regulating access to resources, usually within this scope.
+// // A policy regulating access to nodes within its scope.
 message PolicyData {
   BenchType metatype = 1;
   string name = 30;
   repeated PolicyRuleData rules = 31;
+  bool hidden = 32;
 }
 
 // // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
@@ -610,6 +611,7 @@ message BadgeData {
   BadgeType type = 30;
   string name = 31;
   PolicyData policy = 32;
+  google.protobuf.Timestamp expires_at = 33;
   string link_token = 40;
   string link_password = 41;
   string link_password_digest = 42;
@@ -617,7 +619,7 @@ message BadgeData {
   string key_value_digest = 51;
 }
 
-// // A Bench is the root of all modules and everything that's not outside of it.
+// // A Bench contains everything a young and growing AI needs to learn and grow.
 message BenchData {
   BenchType metatype = 1;
   string id = 2;
@@ -708,7 +710,7 @@ message FieldData {
   string reference_ck = 38;
 }
 
-// // File(parent: Union[ForwardRef('File'), bench.language.module.Module] = None, policies: Optional[list['Policy']] = <factory>, name: Optional[str] = <factory>, order_key: Optional[str] = None, children: bench.language.module.NodeList[typing.Union[ForwardRef('File'), ForwardRef('Statement')]] = None, statements: bench.language.module.NodeList['Statement'] = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, tags: bench.language.module.NodeList['Tagging'] = None, last_changed_at: datetime.datetime = None, issues: bench.language.module.NodeList['Issue'] = None, _scopes_by_name: dict[str, 'ScopeNode'] = <factory>, _names_by_ident: dict[str, str] = <factory>, _local_tree: Optional[ForwardRef('NodeTreeBase')] = None)
+// // Files are how a Bench organizes statements. Files can also be folders to other files.
 message FileData {
   BenchType metatype = 1;
   string id = 2;
@@ -779,7 +781,7 @@ message IssueData {
   repeated string properties = 35;
 }
 
-// // Module(parent: bench.language.module.Bench = None, policies: Optional[list['Policy']] = <factory>, is_main: bool = False, is_snapshot: bool = False, files: bench.language.module.NodeList['File'] = None, dependencies: dict[str, 'Module'] = <factory>, builtins: list['File'] = <factory>, _lookup_cache: dict[str, ~NodeT] = <factory>, _source: Optional[bench.language.tree.NodeTree] = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, last_changed_at: datetime.datetime = None, issues: bench.language.module.NodeList['Issue'] = None, _scopes_by_name: dict[str, 'ScopeNode'] = <factory>, _names_by_ident: dict[str, str] = <factory>, _local_tree: Optional[ForwardRef('NodeTreeBase')] = None)
+// // A module is a semi-isolated version of a Bench, containing the actual files and so on.
 message ModuleData {
   BenchType metatype = 1;
   string id = 2;
@@ -845,7 +847,7 @@ message OrganizationData {
   string handle_ck = 30;
 }
 
-// // Record(parent: 'Statement' = None, value: typing.Any | None = <factory>, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
+// // A record in a database. The containing table is usually a real Postgres table.
 message RecordData {
   BenchType metatype = 1;
   string id = 2;
@@ -959,7 +961,7 @@ message SignalData {
   string source_statement_ck = 33;
 }
 
-// // A Bench statement.
+// // A Bench statement, the core building block containing logic, schemas, data and AI stuff.
 message StatementData {
   BenchType metatype = 1;
   string id = 2;
@@ -1112,43 +1114,43 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    BadgeData badge = 1;
-    OrganizationData organization = 2;
-    NotificationData notification = 3;
-    BenchData bench = 4;
-    StatementData statement = 5;
-    FieldData field = 6;
-    TaggingData tagging = 7;
-    RecordData record = 8;
-    SessionData session = 9;
-    WorkerSetData worker_set = 10;
-    BlobData blob = 11;
-    SecretData secret = 12;
-    SignalData signal = 13;
-    HaltData halt = 14;
-    ClientData client = 15;
-    ModuleData module = 16;
-    ViewData view = 17;
-    UserData user = 18;
-    WorkerData worker = 19;
-    FileData file = 20;
-    HandleData handle = 21;
-    IssueData issue = 22;
-    TriggerData trigger = 23;
-    RunData run = 24;
+    RecordData record = 1;
+    ViewData view = 2;
+    WorkerSetData worker_set = 3;
+    FileData file = 4;
+    IssueData issue = 5;
+    TriggerData trigger = 6;
+    SessionData session = 7;
+    StatementData statement = 8;
+    ClientData client = 9;
+    UserData user = 10;
+    HaltData halt = 11;
+    ModuleData module = 12;
+    BadgeData badge = 13;
+    HandleData handle = 14;
+    TaggingData tagging = 15;
+    SecretData secret = 16;
+    BlobData blob = 17;
+    SignalData signal = 18;
+    OrganizationData organization = 19;
+    NotificationData notification = 20;
+    FieldData field = 21;
+    RunData run = 22;
+    BenchData bench = 23;
+    WorkerData worker = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    PolicyData policy = 1;
-    InferenceData inference = 2;
-    LogEntryData log_entry = 3;
-    ExpressionData expression = 4;
-    DependencyData dependency = 5;
-    WorkerImageData worker_image = 6;
-    RunCodeFrameData run_code_frame = 7;
-    PolicyRuleData policy_rule = 8;
+    LogEntryData log_entry = 1;
+    ExpressionData expression = 2;
+    RunCodeFrameData run_code_frame = 3;
+    InferenceData inference = 4;
+    PolicyRuleData policy_rule = 5;
+    PolicyData policy = 6;
+    DependencyData dependency = 7;
+    WorkerImageData worker_image = 8;
     RunErrorData run_error = 9;
   };
 }

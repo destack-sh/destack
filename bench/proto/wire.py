@@ -5,12 +5,19 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -591,13 +598,12 @@ class LogEntryData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PolicyData(betterproto.Message):
-    """
-    // A policy regulating access to resources, usually within this scope.
-    """
+    """// A policy regulating access to nodes within its scope."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     name: str = betterproto.string_field(30)
     rules: List["PolicyRuleData"] = betterproto.message_field(31)
+    hidden: bool = betterproto.bool_field(32)
 
 
 @dataclass(eq=False, repr=False)
@@ -673,6 +679,7 @@ class BadgeData(betterproto.Message):
     type: "BadgeType" = betterproto.enum_field(30)
     name: str = betterproto.string_field(31)
     policy: "PolicyData" = betterproto.message_field(32)
+    expires_at: datetime = betterproto.message_field(33)
     link_token: str = betterproto.string_field(40)
     link_password: str = betterproto.string_field(41)
     link_password_digest: str = betterproto.string_field(42)
@@ -683,8 +690,8 @@ class BadgeData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class BenchData(betterproto.Message):
     """
-    // A Bench is the root of all modules and everything that's not outside of
-    it.
+    // A Bench contains everything a young and growing AI needs to learn and
+    grow.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -802,23 +809,8 @@ class FieldData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class FileData(betterproto.Message):
     """
-    // File(parent: Union[ForwardRef('File'), bench.language.module.Module] =
-    None, policies: Optional[list['Policy']] = <factory>, name: Optional[str] =
-    <factory>, order_key: Optional[str] = None, children:
-    bench.language.module.NodeList[typing.Union[ForwardRef('File'),
-    ForwardRef('Statement')]] = None, statements:
-    bench.language.module.NodeList['Statement'] = None, _status:
-    bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
-    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
-    updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
-    archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
-    None, _session: Optional[ForwardRef('Session')] = None, _track:
-    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
-    bool = False, tags: bench.language.module.NodeList['Tagging'] = None,
-    last_changed_at: datetime.datetime = None, issues:
-    bench.language.module.NodeList['Issue'] = None, _scopes_by_name: dict[str,
-    'ScopeNode'] = <factory>, _names_by_ident: dict[str, str] = <factory>,
-    _local_tree: Optional[ForwardRef('NodeTreeBase')] = None)
+    // Files are how a Bench organizes statements. Files can also be folders to
+    other files.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -911,22 +903,8 @@ class IssueData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ModuleData(betterproto.Message):
     """
-    // Module(parent: bench.language.module.Bench = None, policies:
-    Optional[list['Policy']] = <factory>, is_main: bool = False, is_snapshot:
-    bool = False, files: bench.language.module.NodeList['File'] = None,
-    dependencies: dict[str, 'Module'] = <factory>, builtins: list['File'] =
-    <factory>, _lookup_cache: dict[str, ~NodeT] = <factory>, _source:
-    Optional[bench.language.tree.NodeTree] = None, _status:
-    bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
-    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
-    updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
-    archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
-    None, _session: Optional[ForwardRef('Session')] = None, _track:
-    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
-    bool = False, last_changed_at: datetime.datetime = None, issues:
-    bench.language.module.NodeList['Issue'] = None, _scopes_by_name: dict[str,
-    'ScopeNode'] = <factory>, _names_by_ident: dict[str, str] = <factory>,
-    _local_tree: Optional[ForwardRef('NodeTreeBase')] = None)
+    // A module is a semi-isolated version of a Bench, containing the actual
+    files and so on.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1005,14 +983,8 @@ class OrganizationData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class RecordData(betterproto.Message):
     """
-    // Record(parent: 'Statement' = None, value: typing.Any | None = <factory>,
-    _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
-    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
-    updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
-    archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
-    None, _session: Optional[ForwardRef('Session')] = None, _track:
-    bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
-    bool = False)
+    // A record in a database. The containing table is usually a real Postgres
+    table.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1140,7 +1112,10 @@ class SignalData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class StatementData(betterproto.Message):
-    """// A Bench statement."""
+    """
+    // A Bench statement, the core building block containing logic, schemas,
+    data and AI stuff.
+    """
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1331,42 +1306,42 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    badge: "BadgeData" = betterproto.message_field(1, group="node")
-    organization: "OrganizationData" = betterproto.message_field(2, group="node")
-    notification: "NotificationData" = betterproto.message_field(3, group="node")
-    bench: "BenchData" = betterproto.message_field(4, group="node")
-    statement: "StatementData" = betterproto.message_field(5, group="node")
-    field: "FieldData" = betterproto.message_field(6, group="node")
-    tagging: "TaggingData" = betterproto.message_field(7, group="node")
-    record: "RecordData" = betterproto.message_field(8, group="node")
-    session: "SessionData" = betterproto.message_field(9, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(10, group="node")
-    blob: "BlobData" = betterproto.message_field(11, group="node")
-    secret: "SecretData" = betterproto.message_field(12, group="node")
-    signal: "SignalData" = betterproto.message_field(13, group="node")
-    halt: "HaltData" = betterproto.message_field(14, group="node")
-    client: "ClientData" = betterproto.message_field(15, group="node")
-    module: "ModuleData" = betterproto.message_field(16, group="node")
-    view: "ViewData" = betterproto.message_field(17, group="node")
-    user: "UserData" = betterproto.message_field(18, group="node")
-    worker: "WorkerData" = betterproto.message_field(19, group="node")
-    file: "FileData" = betterproto.message_field(20, group="node")
-    handle: "HandleData" = betterproto.message_field(21, group="node")
-    issue: "IssueData" = betterproto.message_field(22, group="node")
-    trigger: "TriggerData" = betterproto.message_field(23, group="node")
-    run: "RunData" = betterproto.message_field(24, group="node")
+    record: "RecordData" = betterproto.message_field(1, group="node")
+    view: "ViewData" = betterproto.message_field(2, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(3, group="node")
+    file: "FileData" = betterproto.message_field(4, group="node")
+    issue: "IssueData" = betterproto.message_field(5, group="node")
+    trigger: "TriggerData" = betterproto.message_field(6, group="node")
+    session: "SessionData" = betterproto.message_field(7, group="node")
+    statement: "StatementData" = betterproto.message_field(8, group="node")
+    client: "ClientData" = betterproto.message_field(9, group="node")
+    user: "UserData" = betterproto.message_field(10, group="node")
+    halt: "HaltData" = betterproto.message_field(11, group="node")
+    module: "ModuleData" = betterproto.message_field(12, group="node")
+    badge: "BadgeData" = betterproto.message_field(13, group="node")
+    handle: "HandleData" = betterproto.message_field(14, group="node")
+    tagging: "TaggingData" = betterproto.message_field(15, group="node")
+    secret: "SecretData" = betterproto.message_field(16, group="node")
+    blob: "BlobData" = betterproto.message_field(17, group="node")
+    signal: "SignalData" = betterproto.message_field(18, group="node")
+    organization: "OrganizationData" = betterproto.message_field(19, group="node")
+    notification: "NotificationData" = betterproto.message_field(20, group="node")
+    field: "FieldData" = betterproto.message_field(21, group="node")
+    run: "RunData" = betterproto.message_field(22, group="node")
+    bench: "BenchData" = betterproto.message_field(23, group="node")
+    worker: "WorkerData" = betterproto.message_field(24, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
-    policy: "PolicyData" = betterproto.message_field(1, group="struct")
-    inference: "InferenceData" = betterproto.message_field(2, group="struct")
-    log_entry: "LogEntryData" = betterproto.message_field(3, group="struct")
-    expression: "ExpressionData" = betterproto.message_field(4, group="struct")
-    dependency: "DependencyData" = betterproto.message_field(5, group="struct")
-    worker_image: "WorkerImageData" = betterproto.message_field(6, group="struct")
-    run_code_frame: "RunCodeFrameData" = betterproto.message_field(7, group="struct")
-    policy_rule: "PolicyRuleData" = betterproto.message_field(8, group="struct")
+    log_entry: "LogEntryData" = betterproto.message_field(1, group="struct")
+    expression: "ExpressionData" = betterproto.message_field(2, group="struct")
+    run_code_frame: "RunCodeFrameData" = betterproto.message_field(3, group="struct")
+    inference: "InferenceData" = betterproto.message_field(4, group="struct")
+    policy_rule: "PolicyRuleData" = betterproto.message_field(5, group="struct")
+    policy: "PolicyData" = betterproto.message_field(6, group="struct")
+    dependency: "DependencyData" = betterproto.message_field(7, group="struct")
+    worker_image: "WorkerImageData" = betterproto.message_field(8, group="struct")
     run_error: "RunErrorData" = betterproto.message_field(9, group="struct")
 
 
@@ -1412,6 +1387,26 @@ class CreateUserRequest(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class CreateUserResponse(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class LoginUserRequest(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class LoginUserResponse(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class LogoutUserRequest(betterproto.Message):
+    user: "UserData" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class LogoutUserResponse(betterproto.Message):
     user: "UserData" = betterproto.message_field(1)
 
 
@@ -1623,6 +1618,11 @@ class RunProxyStatementResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class PushLocalEditsRequest(betterproto.Message):
+    edits: List["EditData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class PushWorkerLogsRequest(betterproto.Message):
     logs: List["LogEntryData"] = betterproto.message_field(1)
 
@@ -1679,18 +1679,35 @@ class GlobalSupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def create_organization(
+    async def login_user(
         self,
-        create_organization_request: "CreateOrganizationRequest",
+        login_user_request: "LoginUserRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "CreateOrganizationResponse":
+    ) -> "LoginUserResponse":
         return await self._unary_unary(
-            "/GlobalSupervisor/CreateOrganization",
-            create_organization_request,
-            CreateOrganizationResponse,
+            "/GlobalSupervisor/LoginUser",
+            login_user_request,
+            LoginUserResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def logout_user(
+        self,
+        logout_user_request: "LogoutUserRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "LogoutUserResponse":
+        return await self._unary_unary(
+            "/GlobalSupervisor/LogoutUser",
+            logout_user_request,
+            LogoutUserResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2041,6 +2058,23 @@ class ModuleHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def push_local_edits(
+        self,
+        push_local_edits_request: "PushLocalEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        return await self._unary_unary(
+            "/ModuleHost/PushLocalEdits",
+            push_local_edits_request,
+            betterproto_lib_google_protobuf.Empty,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def push_worker_logs(
         self,
         push_worker_logs_request: "PushWorkerLogsRequest",
@@ -2059,7 +2093,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         )
 
 
-class WorkerNodeStub(betterproto.ServiceStub):
+class WorkerStub(betterproto.ServiceStub):
     async def restart_worker(
         self,
         restart_worker_request: "RestartWorkerRequest",
@@ -2069,7 +2103,7 @@ class WorkerNodeStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "betterproto_lib_google_protobuf.Empty":
         return await self._unary_unary(
-            "/WorkerNode/RestartWorker",
+            "/Worker/RestartWorker",
             restart_worker_request,
             betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
@@ -2086,7 +2120,7 @@ class WorkerNodeStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "StartRunResponse":
         return await self._unary_unary(
-            "/WorkerNode/StartRun",
+            "/Worker/StartRun",
             start_run_request,
             StartRunResponse,
             timeout=timeout,
@@ -2103,7 +2137,7 @@ class WorkerNodeStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "KillRunResponse":
         return await self._unary_unary(
-            "/WorkerNode/KillRun",
+            "/Worker/KillRun",
             kill_run_request,
             KillRunResponse,
             timeout=timeout,
@@ -2152,9 +2186,10 @@ class GlobalSupervisorBase(ServiceBase):
     async def create_user(self, create_user_request: "CreateUserRequest") -> "CreateUserResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def create_organization(
-        self, create_organization_request: "CreateOrganizationRequest"
-    ) -> "CreateOrganizationResponse":
+    async def login_user(self, login_user_request: "LoginUserRequest") -> "LoginUserResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def logout_user(self, logout_user_request: "LogoutUserRequest") -> "LogoutUserResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def create_bench(
@@ -2198,12 +2233,18 @@ class GlobalSupervisorBase(ServiceBase):
         response = await self.create_user(request)
         await stream.send_message(response)
 
-    async def __rpc_create_organization(
-        self,
-        stream: "grpclib.server.Stream[CreateOrganizationRequest, CreateOrganizationResponse]",
+    async def __rpc_login_user(
+        self, stream: "grpclib.server.Stream[LoginUserRequest, LoginUserResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.create_organization(request)
+        response = await self.login_user(request)
+        await stream.send_message(response)
+
+    async def __rpc_logout_user(
+        self, stream: "grpclib.server.Stream[LogoutUserRequest, LogoutUserResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.logout_user(request)
         await stream.send_message(response)
 
     async def __rpc_create_bench(
@@ -2268,11 +2309,17 @@ class GlobalSupervisorBase(ServiceBase):
                 CreateUserRequest,
                 CreateUserResponse,
             ),
-            "/GlobalSupervisor/CreateOrganization": grpclib.const.Handler(
-                self.__rpc_create_organization,
+            "/GlobalSupervisor/LoginUser": grpclib.const.Handler(
+                self.__rpc_login_user,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                CreateOrganizationRequest,
-                CreateOrganizationResponse,
+                LoginUserRequest,
+                LoginUserResponse,
+            ),
+            "/GlobalSupervisor/LogoutUser": grpclib.const.Handler(
+                self.__rpc_logout_user,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                LogoutUserRequest,
+                LogoutUserResponse,
             ),
             "/GlobalSupervisor/CreateBench": grpclib.const.Handler(
                 self.__rpc_create_bench,
@@ -2373,6 +2420,11 @@ class ModuleHostBase(ServiceBase):
     async def run_proxy_statement(
         self, run_proxy_statement_request: "RunProxyStatementRequest"
     ) -> "RunProxyStatementResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def push_local_edits(
+        self, push_local_edits_request: "PushLocalEditsRequest"
+    ) -> "betterproto_lib_google_protobuf.Empty":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def push_worker_logs(
@@ -2479,6 +2531,14 @@ class ModuleHostBase(ServiceBase):
         response = await self.run_proxy_statement(request)
         await stream.send_message(response)
 
+    async def __rpc_push_local_edits(
+        self,
+        stream: "grpclib.server.Stream[PushLocalEditsRequest, betterproto_lib_google_protobuf.Empty]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.push_local_edits(request)
+        await stream.send_message(response)
+
     async def __rpc_push_worker_logs(
         self,
         stream: "grpclib.server.Stream[PushWorkerLogsRequest, betterproto_lib_google_protobuf.Empty]",
@@ -2567,6 +2627,12 @@ class ModuleHostBase(ServiceBase):
                 RunProxyStatementRequest,
                 RunProxyStatementResponse,
             ),
+            "/ModuleHost/PushLocalEdits": grpclib.const.Handler(
+                self.__rpc_push_local_edits,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PushLocalEditsRequest,
+                betterproto_lib_google_protobuf.Empty,
+            ),
             "/ModuleHost/PushWorkerLogs": grpclib.const.Handler(
                 self.__rpc_push_worker_logs,
                 grpclib.const.Cardinality.UNARY_UNARY,
@@ -2576,7 +2642,7 @@ class ModuleHostBase(ServiceBase):
         }
 
 
-class WorkerNodeBase(ServiceBase):
+class WorkerBase(ServiceBase):
     async def restart_worker(
         self, restart_worker_request: "RestartWorkerRequest"
     ) -> "betterproto_lib_google_protobuf.Empty":
@@ -2612,19 +2678,19 @@ class WorkerNodeBase(ServiceBase):
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/WorkerNode/RestartWorker": grpclib.const.Handler(
+            "/Worker/RestartWorker": grpclib.const.Handler(
                 self.__rpc_restart_worker,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 RestartWorkerRequest,
                 betterproto_lib_google_protobuf.Empty,
             ),
-            "/WorkerNode/StartRun": grpclib.const.Handler(
+            "/Worker/StartRun": grpclib.const.Handler(
                 self.__rpc_start_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 StartRunRequest,
                 StartRunResponse,
             ),
-            "/WorkerNode/KillRun": grpclib.const.Handler(
+            "/Worker/KillRun": grpclib.const.Handler(
                 self.__rpc_kill_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 KillRunRequest,
@@ -2674,39 +2740,39 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union
 
 AnyNodeData = Union[
-    BadgeData,
-    OrganizationData,
-    NotificationData,
-    BenchData,
-    StatementData,
-    FieldData,
-    TaggingData,
     RecordData,
-    SessionData,
-    WorkerSetData,
-    BlobData,
-    SecretData,
-    SignalData,
-    HaltData,
-    ClientData,
-    ModuleData,
     ViewData,
-    UserData,
-    WorkerData,
+    WorkerSetData,
     FileData,
-    HandleData,
     IssueData,
     TriggerData,
+    SessionData,
+    StatementData,
+    ClientData,
+    UserData,
+    HaltData,
+    ModuleData,
+    BadgeData,
+    HandleData,
+    TaggingData,
+    SecretData,
+    BlobData,
+    SignalData,
+    OrganizationData,
+    NotificationData,
+    FieldData,
     RunData,
+    BenchData,
+    WorkerData,
 ]
 AnyStructData = Union[
-    PolicyData,
-    InferenceData,
     LogEntryData,
     ExpressionData,
+    RunCodeFrameData,
+    InferenceData,
+    PolicyRuleData,
+    PolicyData,
     DependencyData,
     WorkerImageData,
-    RunCodeFrameData,
-    PolicyRuleData,
     RunErrorData,
 ]

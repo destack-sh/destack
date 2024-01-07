@@ -40,721 +40,771 @@ import { EditKind } from "./bench";
  * @generated from protobuf message EditData
  */
 export interface EditData {
-  /**
-   * @generated from protobuf field: EditKind kind = 1;
-   */
-  kind: EditKind;
-  /**
-   * @generated from protobuf field: string module_id = 2;
-   */
-  moduleId: string;
-  /**
-   * @generated from protobuf field: SomeNodeData node = 3;
-   */
-  node?: SomeNodeData;
-  /**
-   * @generated from protobuf field: int64 revision = 4;
-   */
-  revision: string;
-  /**
-   * @generated from protobuf field: repeated string properties = 5;
-   */
-  properties: string[];
-  /**
-   * @generated from protobuf field: ClientOrigin origin = 6;
-   */
-  origin?: ClientOrigin;
+    /**
+     * @generated from protobuf field: EditKind kind = 1;
+     */
+    kind: EditKind;
+    /**
+     * @generated from protobuf field: string module_id = 2;
+     */
+    moduleId: string;
+    /**
+     * @generated from protobuf field: SomeNodeData node = 3;
+     */
+    node?: SomeNodeData;
+    /**
+     * @generated from protobuf field: int64 revision = 4;
+     */
+    revision: string;
+    /**
+     * @generated from protobuf field: repeated string properties = 5;
+     */
+    properties: string[];
+    /**
+     * @generated from protobuf field: ClientOrigin origin = 6;
+     */
+    origin?: ClientOrigin;
 }
 /**
  * @generated from protobuf message ClientOrigin
  */
 export interface ClientOrigin {
-  /**
-   * @generated from protobuf field: ClientType client_type = 1;
-   */
-  clientType: ClientType;
-  /**
-   * @generated from protobuf field: string client_id = 2;
-   */
-  clientId: string;
-  /**
-   * @generated from protobuf field: string nonce = 3;
-   */
-  nonce: string;
+    /**
+     * @generated from protobuf field: ClientType client_type = 1;
+     */
+    clientType: ClientType;
+    /**
+     * @generated from protobuf field: string client_id = 2;
+     */
+    clientId: string;
+    /**
+     * @generated from protobuf field: string nonce = 3;
+     */
+    nonce: string;
 }
 /**
  * @generated from protobuf message NodePointer
  */
 export interface NodePointer {
-  /**
-   * @generated from protobuf field: NodeType node_type = 1;
-   */
-  nodeType: NodeType;
-  /**
-   * @generated from protobuf oneof: node
-   */
-  node:
-    | {
+    /**
+     * @generated from protobuf field: NodeType node_type = 1;
+     */
+    nodeType: NodeType;
+    /**
+     * @generated from protobuf oneof: node
+     */
+    node: {
         oneofKind: "nodeCk";
         /**
          * @generated from protobuf field: string node_ck = 2;
          */
         nodeCk: string;
-      }
-    | {
+    } | {
         oneofKind: "nodeId";
         /**
          * @generated from protobuf field: string node_id = 3;
          */
         nodeId: string;
-      }
-    | {
+    } | {
         oneofKind: undefined;
-      };
+    };
 }
-//
+// 
 // Global supervisor
-//
+// 
 
 /**
  * @generated from protobuf message CreateUserRequest
  */
 export interface CreateUserRequest {
-  /**
-   * @generated from protobuf field: UserData user = 1;
-   */
-  user?: UserData;
+    /**
+     * @generated from protobuf field: UserData user = 1;
+     */
+    user?: UserData;
 }
 /**
  * @generated from protobuf message CreateUserResponse
  */
 export interface CreateUserResponse {
-  /**
-   * @generated from protobuf field: UserData user = 1;
-   */
-  user?: UserData;
+    /**
+     * @generated from protobuf field: UserData user = 1;
+     */
+    user?: UserData;
+}
+/**
+ * @generated from protobuf message LoginUserRequest
+ */
+export interface LoginUserRequest {
+    /**
+     * @generated from protobuf field: UserData user = 1;
+     */
+    user?: UserData;
+}
+/**
+ * @generated from protobuf message LoginUserResponse
+ */
+export interface LoginUserResponse {
+    /**
+     * @generated from protobuf field: UserData user = 1;
+     */
+    user?: UserData;
+}
+/**
+ * @generated from protobuf message LogoutUserRequest
+ */
+export interface LogoutUserRequest {
+    /**
+     * @generated from protobuf field: UserData user = 1;
+     */
+    user?: UserData;
+}
+/**
+ * @generated from protobuf message LogoutUserResponse
+ */
+export interface LogoutUserResponse {
+    /**
+     * @generated from protobuf field: UserData user = 1;
+     */
+    user?: UserData;
 }
 /**
  * @generated from protobuf message CreateOrganizationRequest
  */
 export interface CreateOrganizationRequest {
-  /**
-   * @generated from protobuf field: OrganizationData organization = 1;
-   */
-  organization?: OrganizationData;
+    /**
+     * @generated from protobuf field: OrganizationData organization = 1;
+     */
+    organization?: OrganizationData;
 }
 /**
  * @generated from protobuf message CreateOrganizationResponse
  */
 export interface CreateOrganizationResponse {
-  /**
-   * @generated from protobuf field: OrganizationData organization = 1;
-   */
-  organization?: OrganizationData;
+    /**
+     * @generated from protobuf field: OrganizationData organization = 1;
+     */
+    organization?: OrganizationData;
 }
 /**
  * @generated from protobuf message CreateBenchRequest
  */
 export interface CreateBenchRequest {
-  /**
-   * @generated from protobuf field: BenchData bench = 1;
-   */
-  bench?: BenchData;
+    /**
+     * @generated from protobuf field: BenchData bench = 1;
+     */
+    bench?: BenchData;
 }
 /**
  * @generated from protobuf message CreateBenchResponse
  */
 export interface CreateBenchResponse {
-  /**
-   * @generated from protobuf field: BenchData bench = 1;
-   */
-  bench?: BenchData;
-  /**
-   * @generated from protobuf field: repeated SomeNodeData new_nodes = 2;
-   */
-  newNodes: SomeNodeData[];
+    /**
+     * @generated from protobuf field: BenchData bench = 1;
+     */
+    bench?: BenchData;
+    /**
+     * @generated from protobuf field: repeated SomeNodeData new_nodes = 2;
+     */
+    newNodes: SomeNodeData[];
 }
 /**
  * @generated from protobuf message ReadNodesRequest
  */
 export interface ReadNodesRequest {
-  /**
-   * @generated from protobuf field: repeated NodePointer roots = 1;
-   */
-  roots: NodePointer[];
-  /**
-   * @generated from protobuf field: bool include_deferred_properties = 2;
-   */
-  includeDeferredProperties: boolean;
+    /**
+     * @generated from protobuf field: repeated NodePointer roots = 1;
+     */
+    roots: NodePointer[];
+    /**
+     * @generated from protobuf field: bool include_deferred_properties = 2;
+     */
+    includeDeferredProperties: boolean;
 }
 /**
  * @generated from protobuf message ReadNodesResponse
  */
 export interface ReadNodesResponse {
-  /**
-   * @generated from protobuf field: repeated SomeNodeData nodes = 1;
-   */
-  nodes: SomeNodeData[];
-  /**
-   * @generated from protobuf field: int64 edit_marker = 2;
-   */
-  editMarker: string;
+    /**
+     * @generated from protobuf field: repeated SomeNodeData nodes = 1;
+     */
+    nodes: SomeNodeData[];
+    /**
+     * @generated from protobuf field: int64 edit_marker = 2;
+     */
+    editMarker: string;
 }
 /**
  * @generated from protobuf message SearchNodesRequest
  */
 export interface SearchNodesRequest {
-  /**
-   * @generated from protobuf field: NodeType node_type = 1;
-   */
-  nodeType: NodeType;
-  /**
-   * @generated from protobuf field: string node_ck = 2;
-   */
-  nodeCk: string;
-  /**
-   * @generated from protobuf field: ExpressionData filter = 3;
-   */
-  filter?: ExpressionData;
-  /**
-   * @generated from protobuf field: repeated ExpressionData sort = 4;
-   */
-  sort: ExpressionData[];
-  /**
-   * @generated from protobuf field: int32 limit = 5;
-   */
-  limit: number;
-  /**
-   * @generated from protobuf field: string after = 6;
-   */
-  after: string;
+    /**
+     * @generated from protobuf field: NodeType node_type = 1;
+     */
+    nodeType: NodeType;
+    /**
+     * @generated from protobuf field: string node_ck = 2;
+     */
+    nodeCk: string;
+    /**
+     * @generated from protobuf field: ExpressionData filter = 3;
+     */
+    filter?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated ExpressionData sort = 4;
+     */
+    sort: ExpressionData[];
+    /**
+     * @generated from protobuf field: int32 limit = 5;
+     */
+    limit: number;
+    /**
+     * @generated from protobuf field: string after = 6;
+     */
+    after: string;
 }
 /**
  * @generated from protobuf message SearchNodesResponse
  */
 export interface SearchNodesResponse {
-  /**
-   * @generated from protobuf field: repeated SomeNodeData nodes = 1;
-   */
-  nodes: SomeNodeData[];
-  /**
-   * @generated from protobuf field: repeated string cursors = 2;
-   */
-  cursors: string[];
-  /**
-   * @generated from protobuf field: string start_cursor = 3;
-   */
-  startCursor: string;
-  /**
-   * @generated from protobuf field: int64 edit_marker = 4;
-   */
-  editMarker: string;
+    /**
+     * @generated from protobuf field: repeated SomeNodeData nodes = 1;
+     */
+    nodes: SomeNodeData[];
+    /**
+     * @generated from protobuf field: repeated string cursors = 2;
+     */
+    cursors: string[];
+    /**
+     * @generated from protobuf field: string start_cursor = 3;
+     */
+    startCursor: string;
+    /**
+     * @generated from protobuf field: int64 edit_marker = 4;
+     */
+    editMarker: string;
 }
 /**
  * @generated from protobuf message CommitEditsRequest
  */
 export interface CommitEditsRequest {
-  /**
-   * @generated from protobuf field: repeated EditData edits = 1;
-   */
-  edits: EditData[];
+    /**
+     * @generated from protobuf field: repeated EditData edits = 1;
+     */
+    edits: EditData[];
 }
 /**
  * @generated from protobuf message CommitEditsResponse
  */
 export interface CommitEditsResponse {
-  /**
-   * @generated from protobuf field: repeated SomeNodeData changed_nodes = 1;
-   */
-  changedNodes: SomeNodeData[];
+    /**
+     * @generated from protobuf field: repeated SomeNodeData changed_nodes = 1;
+     */
+    changedNodes: SomeNodeData[];
 }
 /**
  * @generated from protobuf message WatchEditsRequest
  */
 export interface WatchEditsRequest {
-  /**
-   * @generated from protobuf field: int64 after_edit_marker = 1;
-   */
-  afterEditMarker: string;
+    /**
+     * @generated from protobuf field: int64 after_edit_marker = 1;
+     */
+    afterEditMarker: string;
 }
 /**
  * @generated from protobuf message WatchEditsResponse
  */
 export interface WatchEditsResponse {
-  /**
-   * @generated from protobuf field: repeated EditData edits = 1;
-   */
-  edits: EditData[];
+    /**
+     * @generated from protobuf field: repeated EditData edits = 1;
+     */
+    edits: EditData[];
 }
 /**
  * @generated from protobuf message RestartWorkerSetRequest
  */
 export interface RestartWorkerSetRequest {
-  /**
-   * @generated from protobuf field: string bench_id = 1;
-   */
-  benchId: string;
+    /**
+     * @generated from protobuf field: string bench_id = 1;
+     */
+    benchId: string;
 }
 /**
  * @generated from protobuf message RestartWorkerSetResponse
  */
 export interface RestartWorkerSetResponse {
-  /**
-   * @generated from protobuf field: repeated WorkerSetData worker_sets = 1;
-   */
-  workerSets: WorkerSetData[];
+    /**
+     * @generated from protobuf field: repeated WorkerSetData worker_sets = 1;
+     */
+    workerSets: WorkerSetData[];
 }
 /**
  * @generated from protobuf message PingWorkerSetRequest
  */
 export interface PingWorkerSetRequest {
-  /**
-   * @generated from protobuf field: string bench_id = 1;
-   */
-  benchId: string;
+    /**
+     * @generated from protobuf field: string bench_id = 1;
+     */
+    benchId: string;
 }
 /**
  * @generated from protobuf message PingWorkerSetResponse
  */
 export interface PingWorkerSetResponse {
-  /**
-   * @generated from protobuf field: repeated WorkerSetData worker_sets = 1;
-   */
-  workerSets: WorkerSetData[];
+    /**
+     * @generated from protobuf field: repeated WorkerSetData worker_sets = 1;
+     */
+    workerSets: WorkerSetData[];
 }
-//
+// 
 // Module host
-//
+// 
 
 /**
  * @generated from protobuf message GetLogsRequest
  */
-export interface GetLogsRequest {}
+export interface GetLogsRequest {
+}
 /**
  * @generated from protobuf message GetLogsResponse
  */
 export interface GetLogsResponse {
-  /**
-   * @generated from protobuf field: repeated LogEntryData logs = 1;
-   */
-  logs: LogEntryData[];
+    /**
+     * @generated from protobuf field: repeated LogEntryData logs = 1;
+     */
+    logs: LogEntryData[];
 }
 /**
  * @generated from protobuf message UploadBlobRequest
  */
 export interface UploadBlobRequest {
-  /**
-   * @generated from protobuf field: BlobData blob = 1;
-   */
-  blob?: BlobData;
+    /**
+     * @generated from protobuf field: BlobData blob = 1;
+     */
+    blob?: BlobData;
 }
 /**
  * @generated from protobuf message UploadBlobResponse
  */
 export interface UploadBlobResponse {
-  /**
-   * @generated from protobuf field: string post_url = 1;
-   */
-  postUrl: string;
-  /**
-   * @generated from protobuf field: google.protobuf.Timestamp expires_at = 2;
-   */
-  expiresAt?: Timestamp;
+    /**
+     * @generated from protobuf field: string post_url = 1;
+     */
+    postUrl: string;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp expires_at = 2;
+     */
+    expiresAt?: Timestamp;
 }
 /**
  * @generated from protobuf message DownloadBlobRequest
  */
 export interface DownloadBlobRequest {
-  /**
-   * @generated from protobuf field: BlobData blob = 1;
-   */
-  blob?: BlobData;
+    /**
+     * @generated from protobuf field: BlobData blob = 1;
+     */
+    blob?: BlobData;
 }
 /**
  * @generated from protobuf message DownloadBlobResponse
  */
 export interface DownloadBlobResponse {
-  /**
-   * @generated from protobuf field: string get_url = 1;
-   */
-  getUrl: string;
-  /**
-   * @generated from protobuf field: google.protobuf.Timestamp expires_at = 2;
-   */
-  expiresAt?: Timestamp;
+    /**
+     * @generated from protobuf field: string get_url = 1;
+     */
+    getUrl: string;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp expires_at = 2;
+     */
+    expiresAt?: Timestamp;
 }
 /**
  * @generated from protobuf message RevealSecretRequest
  */
 export interface RevealSecretRequest {
-  /**
-   * @generated from protobuf field: SecretData secret = 1;
-   */
-  secret?: SecretData;
+    /**
+     * @generated from protobuf field: SecretData secret = 1;
+     */
+    secret?: SecretData;
 }
 /**
  * @generated from protobuf message RevealSecretResponse
  */
 export interface RevealSecretResponse {
-  /**
-   * @generated from protobuf field: SecretData secret = 1;
-   */
-  secret?: SecretData;
+    /**
+     * @generated from protobuf field: SecretData secret = 1;
+     */
+    secret?: SecretData;
 }
 /**
  * @generated from protobuf message PasteNodesRequest
  */
 export interface PasteNodesRequest {
-  /**
-   * @generated from protobuf field: string source_module_id = 1;
-   */
-  sourceModuleId: string;
-  /**
-   * @generated from protobuf field: repeated NodePointer source_nodes = 2;
-   */
-  sourceNodes: NodePointer[];
-  /**
-   * @generated from protobuf field: map<string, string> target_ids = 3;
-   */
-  targetIds: {
-    [key: string]: string;
-  };
-  /**
-   * @generated from protobuf field: map<string, string> target_cks = 4;
-   */
-  targetCks: {
-    [key: string]: string;
-  };
-  /**
-   * @generated from protobuf field: map<string, string> target_parent_ids = 5;
-   */
-  targetParentIds: {
-    [key: string]: string;
-  };
-  /**
-   * @generated from protobuf field: map<string, string> target_order_keys = 6;
-   */
-  targetOrderKeys: {
-    [key: string]: string;
-  };
+    /**
+     * @generated from protobuf field: string source_module_id = 1;
+     */
+    sourceModuleId: string;
+    /**
+     * @generated from protobuf field: repeated NodePointer source_nodes = 2;
+     */
+    sourceNodes: NodePointer[];
+    /**
+     * @generated from protobuf field: map<string, string> target_ids = 3;
+     */
+    targetIds: {
+        [key: string]: string;
+    };
+    /**
+     * @generated from protobuf field: map<string, string> target_cks = 4;
+     */
+    targetCks: {
+        [key: string]: string;
+    };
+    /**
+     * @generated from protobuf field: map<string, string> target_parent_ids = 5;
+     */
+    targetParentIds: {
+        [key: string]: string;
+    };
+    /**
+     * @generated from protobuf field: map<string, string> target_order_keys = 6;
+     */
+    targetOrderKeys: {
+        [key: string]: string;
+    };
 }
 /**
  * @generated from protobuf message PasteNodesResponse
  */
 export interface PasteNodesResponse {
-  /**
-   * @generated from protobuf field: repeated SomeNodeData pasted_nodes = 1;
-   */
-  pastedNodes: SomeNodeData[];
+    /**
+     * @generated from protobuf field: repeated SomeNodeData pasted_nodes = 1;
+     */
+    pastedNodes: SomeNodeData[];
 }
 /**
  * @generated from protobuf message SnapshotModuleRequest
  */
 export interface SnapshotModuleRequest {
-  /**
-   * @generated from protobuf field: string name = 1;
-   */
-  name: string;
-  /**
-   * @generated from protobuf field: string tag = 2;
-   */
-  tag: string;
-  /**
-   * @generated from protobuf field: string description = 3;
-   */
-  description: string;
+    /**
+     * @generated from protobuf field: string name = 1;
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: string tag = 2;
+     */
+    tag: string;
+    /**
+     * @generated from protobuf field: string description = 3;
+     */
+    description: string;
 }
 /**
  * @generated from protobuf message SnapshotModuleResponse
  */
 export interface SnapshotModuleResponse {
-  /**
-   * @generated from protobuf field: string snapshot_project_version_id = 1;
-   */
-  snapshotProjectVersionId: string;
+    /**
+     * @generated from protobuf field: string snapshot_project_version_id = 1;
+     */
+    snapshotProjectVersionId: string;
 }
 /**
  * @generated from protobuf message SearchLogsRequest
  */
 export interface SearchLogsRequest {
-  /**
-   * @generated from protobuf field: ExpressionData filter = 1;
-   */
-  filter?: ExpressionData;
-  /**
-   * @generated from protobuf field: repeated ExpressionData sort = 2;
-   */
-  sort: ExpressionData[];
-  /**
-   * @generated from protobuf field: int32 limit = 3;
-   */
-  limit: number;
-  /**
-   * @generated from protobuf field: string after = 4;
-   */
-  after: string;
+    /**
+     * @generated from protobuf field: ExpressionData filter = 1;
+     */
+    filter?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated ExpressionData sort = 2;
+     */
+    sort: ExpressionData[];
+    /**
+     * @generated from protobuf field: int32 limit = 3;
+     */
+    limit: number;
+    /**
+     * @generated from protobuf field: string after = 4;
+     */
+    after: string;
 }
 /**
  * @generated from protobuf message SearchLogsResponse
  */
 export interface SearchLogsResponse {
-  /**
-   * @generated from protobuf field: repeated LogEntryData logs = 1;
-   */
-  logs: LogEntryData[];
-  /**
-   * @generated from protobuf field: repeated string cursors = 2;
-   */
-  cursors: string[];
-  /**
-   * @generated from protobuf field: string start_cursor = 3;
-   */
-  startCursor: string;
+    /**
+     * @generated from protobuf field: repeated LogEntryData logs = 1;
+     */
+    logs: LogEntryData[];
+    /**
+     * @generated from protobuf field: repeated string cursors = 2;
+     */
+    cursors: string[];
+    /**
+     * @generated from protobuf field: string start_cursor = 3;
+     */
+    startCursor: string;
 }
 /**
  * @generated from protobuf message WatchLogsRequest
  */
-export interface WatchLogsRequest {}
+export interface WatchLogsRequest {
+}
 /**
  * @generated from protobuf message WatchLogsResponse
  */
 export interface WatchLogsResponse {
-  /**
-   * @generated from protobuf field: repeated LogEntryData logs = 1;
-   */
-  logs: LogEntryData[];
+    /**
+     * @generated from protobuf field: repeated LogEntryData logs = 1;
+     */
+    logs: LogEntryData[];
 }
 /**
  * @generated from protobuf message RunProxyStatementRequest
  */
 export interface RunProxyStatementRequest {
-  /**
-   * @generated from protobuf field: string statement = 1;
-   */
-  statement: string;
-  /**
-   * @generated from protobuf field: google.protobuf.Struct inputs = 2;
-   */
-  inputs?: Struct;
-  /**
-   * @generated from protobuf field: int32 timeout_ms = 3;
-   */
-  timeoutMs: number;
-  /**
-   * @generated from protobuf field: string run_id = 4;
-   */
-  runId: string;
+    /**
+     * @generated from protobuf field: string statement = 1;
+     */
+    statement: string;
+    /**
+     * @generated from protobuf field: google.protobuf.Struct inputs = 2;
+     */
+    inputs?: Struct;
+    /**
+     * @generated from protobuf field: int32 timeout_ms = 3;
+     */
+    timeoutMs: number;
+    /**
+     * @generated from protobuf field: string run_id = 4;
+     */
+    runId: string;
 }
 /**
  * @generated from protobuf message RunProxyStatementResponse
  */
 export interface RunProxyStatementResponse {
-  /**
-   * @generated from protobuf field: google.protobuf.Struct outputs = 1;
-   */
-  outputs?: Struct;
-  /**
-   * @generated from protobuf field: google.protobuf.Struct error = 2;
-   */
-  error?: Struct;
+    /**
+     * @generated from protobuf field: google.protobuf.Struct outputs = 1;
+     */
+    outputs?: Struct;
+    /**
+     * @generated from protobuf field: google.protobuf.Struct error = 2;
+     */
+    error?: Struct;
+}
+/**
+ * @generated from protobuf message PushLocalEditsRequest
+ */
+export interface PushLocalEditsRequest {
+    /**
+     * @generated from protobuf field: repeated EditData edits = 1;
+     */
+    edits: EditData[];
 }
 /**
  * @generated from protobuf message PushWorkerLogsRequest
  */
 export interface PushWorkerLogsRequest {
-  /**
-   * @generated from protobuf field: repeated LogEntryData logs = 1;
-   */
-  logs: LogEntryData[];
+    /**
+     * @generated from protobuf field: repeated LogEntryData logs = 1;
+     */
+    logs: LogEntryData[];
 }
-//
+// 
 // Worker node
-//
+// 
 
 /**
  * @generated from protobuf message RestartWorkerRequest
  */
-export interface RestartWorkerRequest {}
+export interface RestartWorkerRequest {
+}
 /**
  * @generated from protobuf message StartRunRequest
  */
 export interface StartRunRequest {
-  /**
-   * @generated from protobuf field: RunData run = 1;
-   */
-  run?: RunData;
-  /**
-   * @generated from protobuf field: bool block = 10;
-   */
-  block: boolean;
-  /**
-   * @generated from protobuf field: bool keyed = 11;
-   */
-  keyed: boolean;
-  /**
-   * @generated from protobuf field: bool keyed_return = 12;
-   */
-  keyedReturn: boolean;
-  /**
-   * @generated from protobuf field: repeated string tags = 13;
-   */
-  tags: string[];
-  /**
-   * @generated from protobuf field: google.protobuf.Struct root_value = 14;
-   */
-  rootValue?: Struct;
-  /**
-   * @generated from protobuf field: google.protobuf.Struct global_value = 15;
-   */
-  globalValue?: Struct;
-  /**
-   * @generated from protobuf field: SessionAccessLevel access_level = 16;
-   */
-  accessLevel: SessionAccessLevel;
+    /**
+     * @generated from protobuf field: RunData run = 1;
+     */
+    run?: RunData;
+    /**
+     * @generated from protobuf field: bool block = 10;
+     */
+    block: boolean;
+    /**
+     * @generated from protobuf field: bool keyed = 11;
+     */
+    keyed: boolean;
+    /**
+     * @generated from protobuf field: bool keyed_return = 12;
+     */
+    keyedReturn: boolean;
+    /**
+     * @generated from protobuf field: repeated string tags = 13;
+     */
+    tags: string[];
+    /**
+     * @generated from protobuf field: google.protobuf.Struct root_value = 14;
+     */
+    rootValue?: Struct;
+    /**
+     * @generated from protobuf field: google.protobuf.Struct global_value = 15;
+     */
+    globalValue?: Struct;
+    /**
+     * @generated from protobuf field: SessionAccessLevel access_level = 16;
+     */
+    accessLevel: SessionAccessLevel;
 }
 /**
  * @generated from protobuf message StartRunResponse
  */
 export interface StartRunResponse {
-  /**
-   * @generated from protobuf field: StartRunResponse.ErrorType error_type = 1;
-   */
-  errorType: StartRunResponse_ErrorType;
-  /**
-   * @generated from protobuf field: RunData run = 2;
-   */
-  run?: RunData;
-  /**
-   * @generated from protobuf field: repeated LogEntryData logs = 3;
-   */
-  logs: LogEntryData[];
+    /**
+     * @generated from protobuf field: StartRunResponse.ErrorType error_type = 1;
+     */
+    errorType: StartRunResponse_ErrorType;
+    /**
+     * @generated from protobuf field: RunData run = 2;
+     */
+    run?: RunData;
+    /**
+     * @generated from protobuf field: repeated LogEntryData logs = 3;
+     */
+    logs: LogEntryData[];
 }
 /**
  * @generated from protobuf enum StartRunResponse.ErrorType
  */
 export enum StartRunResponse_ErrorType {
-  /**
-   * @generated from protobuf enum value: START_RUN_ERROR_TYPE_UNSPECIFIED = 0;
-   */
-  START_RUN_ERROR_TYPE_UNSPECIFIED = 0,
-  /**
-   * @generated from protobuf enum value: START_RUN_ERROR_TYPE_UNAVAILABLE = 1;
-   */
-  START_RUN_ERROR_TYPE_UNAVAILABLE = 1,
-  /**
-   * @generated from protobuf enum value: START_RUN_ERROR_TYPE_INVALID = 2;
-   */
-  START_RUN_ERROR_TYPE_INVALID = 2,
-  /**
-   * @generated from protobuf enum value: START_RUN_ERROR_TYPE_INTERNAL = 3;
-   */
-  START_RUN_ERROR_TYPE_INTERNAL = 3,
-  /**
-   * @generated from protobuf enum value: START_RUN_ERROR_TYPE_TIMEOUT = 4;
-   */
-  START_RUN_ERROR_TYPE_TIMEOUT = 4,
-  /**
-   * @generated from protobuf enum value: START_RUN_ERROR_TYPE_RUNTIME = 5;
-   */
-  START_RUN_ERROR_TYPE_RUNTIME = 5,
-  /**
-   * @generated from protobuf enum value: START_RUN_ERROR_TYPE_DUPLICATE = 6;
-   */
-  START_RUN_ERROR_TYPE_DUPLICATE = 6,
+    /**
+     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_UNSPECIFIED = 0;
+     */
+    START_RUN_ERROR_TYPE_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_UNAVAILABLE = 1;
+     */
+    START_RUN_ERROR_TYPE_UNAVAILABLE = 1,
+    /**
+     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_INVALID = 2;
+     */
+    START_RUN_ERROR_TYPE_INVALID = 2,
+    /**
+     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_INTERNAL = 3;
+     */
+    START_RUN_ERROR_TYPE_INTERNAL = 3,
+    /**
+     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_TIMEOUT = 4;
+     */
+    START_RUN_ERROR_TYPE_TIMEOUT = 4,
+    /**
+     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_RUNTIME = 5;
+     */
+    START_RUN_ERROR_TYPE_RUNTIME = 5,
+    /**
+     * @generated from protobuf enum value: START_RUN_ERROR_TYPE_DUPLICATE = 6;
+     */
+    START_RUN_ERROR_TYPE_DUPLICATE = 6
 }
 /**
  * @generated from protobuf message KillRunRequest
  */
 export interface KillRunRequest {
-  /**
-   * @generated from protobuf field: string run_id = 1;
-   */
-  runId: string;
+    /**
+     * @generated from protobuf field: string run_id = 1;
+     */
+    runId: string;
 }
 /**
  * @generated from protobuf message KillRunResponse
  */
 export interface KillRunResponse {
-  /**
-   * @generated from protobuf field: RunData run = 1;
-   */
-  run?: RunData;
+    /**
+     * @generated from protobuf field: RunData run = 1;
+     */
+    run?: RunData;
 }
 // @generated message type with reflection information, may provide speed optimized methods
 class EditData$Type extends MessageType<EditData> {
-  constructor() {
-    super("EditData", [
-      { no: 1, name: "kind", kind: "enum", T: () => ["EditKind", EditKind, "EDIT_KIND_"] },
-      { no: 2, name: "module_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 3, name: "node", kind: "message", T: () => SomeNodeData },
-      { no: 4, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/ },
-      { no: 5, name: "properties", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-      { no: 6, name: "origin", kind: "message", T: () => ClientOrigin },
-    ]);
-  }
-  create(value?: PartialMessage<EditData>): EditData {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.kind = 0;
-    message.moduleId = "";
-    message.revision = "0";
-    message.properties = [];
-    if (value !== undefined) reflectionMergePartial<EditData>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditData): EditData {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* EditKind kind */ 1:
-          message.kind = reader.int32();
-          break;
-        case /* string module_id */ 2:
-          message.moduleId = reader.string();
-          break;
-        case /* SomeNodeData node */ 3:
-          message.node = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.node);
-          break;
-        case /* int64 revision */ 4:
-          message.revision = reader.int64().toString();
-          break;
-        case /* repeated string properties */ 5:
-          message.properties.push(reader.string());
-          break;
-        case /* ClientOrigin origin */ 6:
-          message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("EditData", [
+            { no: 1, name: "kind", kind: "enum", T: () => ["EditKind", EditKind, "EDIT_KIND_"] },
+            { no: 2, name: "module_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "node", kind: "message", T: () => SomeNodeData },
+            { no: 4, name: "revision", kind: "scalar", T: 3 /*ScalarType.INT64*/ },
+            { no: 5, name: "properties", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 6, name: "origin", kind: "message", T: () => ClientOrigin }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: EditData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* EditKind kind = 1; */
-    if (message.kind !== 0) writer.tag(1, WireType.Varint).int32(message.kind);
-    /* string module_id = 2; */
-    if (message.moduleId !== "") writer.tag(2, WireType.LengthDelimited).string(message.moduleId);
-    /* SomeNodeData node = 3; */
-    if (message.node)
-      SomeNodeData.internalBinaryWrite(message.node, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-    /* int64 revision = 4; */
-    if (message.revision !== "0") writer.tag(4, WireType.Varint).int64(message.revision);
-    /* repeated string properties = 5; */
-    for (let i = 0; i < message.properties.length; i++)
-      writer.tag(5, WireType.LengthDelimited).string(message.properties[i]);
-    /* ClientOrigin origin = 6; */
-    if (message.origin)
-      ClientOrigin.internalBinaryWrite(message.origin, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<EditData>): EditData {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.kind = 0;
+        message.moduleId = "";
+        message.revision = "0";
+        message.properties = [];
+        if (value !== undefined)
+            reflectionMergePartial<EditData>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditData): EditData {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* EditKind kind */ 1:
+                    message.kind = reader.int32();
+                    break;
+                case /* string module_id */ 2:
+                    message.moduleId = reader.string();
+                    break;
+                case /* SomeNodeData node */ 3:
+                    message.node = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.node);
+                    break;
+                case /* int64 revision */ 4:
+                    message.revision = reader.int64().toString();
+                    break;
+                case /* repeated string properties */ 5:
+                    message.properties.push(reader.string());
+                    break;
+                case /* ClientOrigin origin */ 6:
+                    message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: EditData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* EditKind kind = 1; */
+        if (message.kind !== 0)
+            writer.tag(1, WireType.Varint).int32(message.kind);
+        /* string module_id = 2; */
+        if (message.moduleId !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.moduleId);
+        /* SomeNodeData node = 3; */
+        if (message.node)
+            SomeNodeData.internalBinaryWrite(message.node, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* int64 revision = 4; */
+        if (message.revision !== "0")
+            writer.tag(4, WireType.Varint).int64(message.revision);
+        /* repeated string properties = 5; */
+        for (let i = 0; i < message.properties.length; i++)
+            writer.tag(5, WireType.LengthDelimited).string(message.properties[i]);
+        /* ClientOrigin origin = 6; */
+        if (message.origin)
+            ClientOrigin.internalBinaryWrite(message.origin, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message EditData
@@ -762,62 +812,62 @@ class EditData$Type extends MessageType<EditData> {
 export const EditData = new EditData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ClientOrigin$Type extends MessageType<ClientOrigin> {
-  constructor() {
-    super("ClientOrigin", [
-      { no: 1, name: "client_type", kind: "enum", T: () => ["ClientType", ClientType, "CLIENT_TYPE_"] },
-      { no: 2, name: "client_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 3, name: "nonce", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-    ]);
-  }
-  create(value?: PartialMessage<ClientOrigin>): ClientOrigin {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.clientType = 0;
-    message.clientId = "";
-    message.nonce = "";
-    if (value !== undefined) reflectionMergePartial<ClientOrigin>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: ClientOrigin
-  ): ClientOrigin {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* ClientType client_type */ 1:
-          message.clientType = reader.int32();
-          break;
-        case /* string client_id */ 2:
-          message.clientId = reader.string();
-          break;
-        case /* string nonce */ 3:
-          message.nonce = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("ClientOrigin", [
+            { no: 1, name: "client_type", kind: "enum", T: () => ["ClientType", ClientType, "CLIENT_TYPE_"] },
+            { no: 2, name: "client_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "nonce", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: ClientOrigin, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* ClientType client_type = 1; */
-    if (message.clientType !== 0) writer.tag(1, WireType.Varint).int32(message.clientType);
-    /* string client_id = 2; */
-    if (message.clientId !== "") writer.tag(2, WireType.LengthDelimited).string(message.clientId);
-    /* string nonce = 3; */
-    if (message.nonce !== "") writer.tag(3, WireType.LengthDelimited).string(message.nonce);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<ClientOrigin>): ClientOrigin {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.clientType = 0;
+        message.clientId = "";
+        message.nonce = "";
+        if (value !== undefined)
+            reflectionMergePartial<ClientOrigin>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ClientOrigin): ClientOrigin {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* ClientType client_type */ 1:
+                    message.clientType = reader.int32();
+                    break;
+                case /* string client_id */ 2:
+                    message.clientId = reader.string();
+                    break;
+                case /* string nonce */ 3:
+                    message.nonce = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ClientOrigin, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* ClientType client_type = 1; */
+        if (message.clientType !== 0)
+            writer.tag(1, WireType.Varint).int32(message.clientType);
+        /* string client_id = 2; */
+        if (message.clientId !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.clientId);
+        /* string nonce = 3; */
+        if (message.nonce !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.nonce);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message ClientOrigin
@@ -825,67 +875,67 @@ class ClientOrigin$Type extends MessageType<ClientOrigin> {
 export const ClientOrigin = new ClientOrigin$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class NodePointer$Type extends MessageType<NodePointer> {
-  constructor() {
-    super("NodePointer", [
-      { no: 1, name: "node_type", kind: "enum", T: () => ["NodeType", NodeType, "NODE_TYPE_"] },
-      { no: 2, name: "node_ck", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ },
-      { no: 3, name: "node_id", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ },
-    ]);
-  }
-  create(value?: PartialMessage<NodePointer>): NodePointer {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.nodeType = 0;
-    message.node = { oneofKind: undefined };
-    if (value !== undefined) reflectionMergePartial<NodePointer>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: NodePointer
-  ): NodePointer {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* NodeType node_type */ 1:
-          message.nodeType = reader.int32();
-          break;
-        case /* string node_ck */ 2:
-          message.node = {
-            oneofKind: "nodeCk",
-            nodeCk: reader.string(),
-          };
-          break;
-        case /* string node_id */ 3:
-          message.node = {
-            oneofKind: "nodeId",
-            nodeId: reader.string(),
-          };
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("NodePointer", [
+            { no: 1, name: "node_type", kind: "enum", T: () => ["NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "node_ck", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "node_id", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: NodePointer, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* NodeType node_type = 1; */
-    if (message.nodeType !== 0) writer.tag(1, WireType.Varint).int32(message.nodeType);
-    /* string node_ck = 2; */
-    if (message.node.oneofKind === "nodeCk") writer.tag(2, WireType.LengthDelimited).string(message.node.nodeCk);
-    /* string node_id = 3; */
-    if (message.node.oneofKind === "nodeId") writer.tag(3, WireType.LengthDelimited).string(message.node.nodeId);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<NodePointer>): NodePointer {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodeType = 0;
+        message.node = { oneofKind: undefined };
+        if (value !== undefined)
+            reflectionMergePartial<NodePointer>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NodePointer): NodePointer {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* NodeType node_type */ 1:
+                    message.nodeType = reader.int32();
+                    break;
+                case /* string node_ck */ 2:
+                    message.node = {
+                        oneofKind: "nodeCk",
+                        nodeCk: reader.string()
+                    };
+                    break;
+                case /* string node_id */ 3:
+                    message.node = {
+                        oneofKind: "nodeId",
+                        nodeId: reader.string()
+                    };
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: NodePointer, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* NodeType node_type = 1; */
+        if (message.nodeType !== 0)
+            writer.tag(1, WireType.Varint).int32(message.nodeType);
+        /* string node_ck = 2; */
+        if (message.node.oneofKind === "nodeCk")
+            writer.tag(2, WireType.LengthDelimited).string(message.node.nodeCk);
+        /* string node_id = 3; */
+        if (message.node.oneofKind === "nodeId")
+            writer.tag(3, WireType.LengthDelimited).string(message.node.nodeId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message NodePointer
@@ -893,46 +943,45 @@ class NodePointer$Type extends MessageType<NodePointer> {
 export const NodePointer = new NodePointer$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CreateUserRequest$Type extends MessageType<CreateUserRequest> {
-  constructor() {
-    super("CreateUserRequest", [{ no: 1, name: "user", kind: "message", T: () => UserData }]);
-  }
-  create(value?: PartialMessage<CreateUserRequest>): CreateUserRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<CreateUserRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: CreateUserRequest
-  ): CreateUserRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* UserData user */ 1:
-          message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("CreateUserRequest", [
+            { no: 1, name: "user", kind: "message", T: () => UserData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: CreateUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* UserData user = 1; */
-    if (message.user)
-      UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<CreateUserRequest>): CreateUserRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CreateUserRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateUserRequest): CreateUserRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message CreateUserRequest
@@ -940,106 +989,275 @@ class CreateUserRequest$Type extends MessageType<CreateUserRequest> {
 export const CreateUserRequest = new CreateUserRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CreateUserResponse$Type extends MessageType<CreateUserResponse> {
-  constructor() {
-    super("CreateUserResponse", [{ no: 1, name: "user", kind: "message", T: () => UserData }]);
-  }
-  create(value?: PartialMessage<CreateUserResponse>): CreateUserResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<CreateUserResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: CreateUserResponse
-  ): CreateUserResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* UserData user */ 1:
-          message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("CreateUserResponse", [
+            { no: 1, name: "user", kind: "message", T: () => UserData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: CreateUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* UserData user = 1; */
-    if (message.user)
-      UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<CreateUserResponse>): CreateUserResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CreateUserResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateUserResponse): CreateUserResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message CreateUserResponse
  */
 export const CreateUserResponse = new CreateUserResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class CreateOrganizationRequest$Type extends MessageType<CreateOrganizationRequest> {
-  constructor() {
-    super("CreateOrganizationRequest", [{ no: 1, name: "organization", kind: "message", T: () => OrganizationData }]);
-  }
-  create(value?: PartialMessage<CreateOrganizationRequest>): CreateOrganizationRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<CreateOrganizationRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: CreateOrganizationRequest
-  ): CreateOrganizationRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* OrganizationData organization */ 1:
-          message.organization = OrganizationData.internalBinaryRead(
-            reader,
-            reader.uint32(),
-            options,
-            message.organization
-          );
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
+    constructor() {
+        super("LoginUserRequest", [
+            { no: 1, name: "user", kind: "message", T: () => UserData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: CreateOrganizationRequest,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* OrganizationData organization = 1; */
-    if (message.organization)
-      OrganizationData.internalBinaryWrite(
-        message.organization,
-        writer.tag(1, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<LoginUserRequest>): LoginUserRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<LoginUserRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LoginUserRequest): LoginUserRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LoginUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message LoginUserRequest
+ */
+export const LoginUserRequest = new LoginUserRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
+    constructor() {
+        super("LoginUserResponse", [
+            { no: 1, name: "user", kind: "message", T: () => UserData }
+        ]);
+    }
+    create(value?: PartialMessage<LoginUserResponse>): LoginUserResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<LoginUserResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LoginUserResponse): LoginUserResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LoginUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message LoginUserResponse
+ */
+export const LoginUserResponse = new LoginUserResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class LogoutUserRequest$Type extends MessageType<LogoutUserRequest> {
+    constructor() {
+        super("LogoutUserRequest", [
+            { no: 1, name: "user", kind: "message", T: () => UserData }
+        ]);
+    }
+    create(value?: PartialMessage<LogoutUserRequest>): LogoutUserRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<LogoutUserRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LogoutUserRequest): LogoutUserRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LogoutUserRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message LogoutUserRequest
+ */
+export const LogoutUserRequest = new LogoutUserRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class LogoutUserResponse$Type extends MessageType<LogoutUserResponse> {
+    constructor() {
+        super("LogoutUserResponse", [
+            { no: 1, name: "user", kind: "message", T: () => UserData }
+        ]);
+    }
+    create(value?: PartialMessage<LogoutUserResponse>): LogoutUserResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<LogoutUserResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LogoutUserResponse): LogoutUserResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* UserData user */ 1:
+                    message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: LogoutUserResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* UserData user = 1; */
+        if (message.user)
+            UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message LogoutUserResponse
+ */
+export const LogoutUserResponse = new LogoutUserResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class CreateOrganizationRequest$Type extends MessageType<CreateOrganizationRequest> {
+    constructor() {
+        super("CreateOrganizationRequest", [
+            { no: 1, name: "organization", kind: "message", T: () => OrganizationData }
+        ]);
+    }
+    create(value?: PartialMessage<CreateOrganizationRequest>): CreateOrganizationRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CreateOrganizationRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateOrganizationRequest): CreateOrganizationRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* OrganizationData organization */ 1:
+                    message.organization = OrganizationData.internalBinaryRead(reader, reader.uint32(), options, message.organization);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateOrganizationRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* OrganizationData organization = 1; */
+        if (message.organization)
+            OrganizationData.internalBinaryWrite(message.organization, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message CreateOrganizationRequest
@@ -1047,59 +1265,45 @@ class CreateOrganizationRequest$Type extends MessageType<CreateOrganizationReque
 export const CreateOrganizationRequest = new CreateOrganizationRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CreateOrganizationResponse$Type extends MessageType<CreateOrganizationResponse> {
-  constructor() {
-    super("CreateOrganizationResponse", [{ no: 1, name: "organization", kind: "message", T: () => OrganizationData }]);
-  }
-  create(value?: PartialMessage<CreateOrganizationResponse>): CreateOrganizationResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<CreateOrganizationResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: CreateOrganizationResponse
-  ): CreateOrganizationResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* OrganizationData organization */ 1:
-          message.organization = OrganizationData.internalBinaryRead(
-            reader,
-            reader.uint32(),
-            options,
-            message.organization
-          );
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("CreateOrganizationResponse", [
+            { no: 1, name: "organization", kind: "message", T: () => OrganizationData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: CreateOrganizationResponse,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* OrganizationData organization = 1; */
-    if (message.organization)
-      OrganizationData.internalBinaryWrite(
-        message.organization,
-        writer.tag(1, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<CreateOrganizationResponse>): CreateOrganizationResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CreateOrganizationResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateOrganizationResponse): CreateOrganizationResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* OrganizationData organization */ 1:
+                    message.organization = OrganizationData.internalBinaryRead(reader, reader.uint32(), options, message.organization);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateOrganizationResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* OrganizationData organization = 1; */
+        if (message.organization)
+            OrganizationData.internalBinaryWrite(message.organization, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message CreateOrganizationResponse
@@ -1107,46 +1311,45 @@ class CreateOrganizationResponse$Type extends MessageType<CreateOrganizationResp
 export const CreateOrganizationResponse = new CreateOrganizationResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
-  constructor() {
-    super("CreateBenchRequest", [{ no: 1, name: "bench", kind: "message", T: () => BenchData }]);
-  }
-  create(value?: PartialMessage<CreateBenchRequest>): CreateBenchRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<CreateBenchRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: CreateBenchRequest
-  ): CreateBenchRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* BenchData bench */ 1:
-          message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("CreateBenchRequest", [
+            { no: 1, name: "bench", kind: "message", T: () => BenchData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: CreateBenchRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* BenchData bench = 1; */
-    if (message.bench)
-      BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<CreateBenchRequest>): CreateBenchRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<CreateBenchRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateBenchRequest): CreateBenchRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* BenchData bench */ 1:
+                    message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateBenchRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* BenchData bench = 1; */
+        if (message.bench)
+            BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message CreateBenchRequest
@@ -1154,60 +1357,53 @@ class CreateBenchRequest$Type extends MessageType<CreateBenchRequest> {
 export const CreateBenchRequest = new CreateBenchRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
-  constructor() {
-    super("CreateBenchResponse", [
-      { no: 1, name: "bench", kind: "message", T: () => BenchData },
-      { no: 2, name: "new_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-    ]);
-  }
-  create(value?: PartialMessage<CreateBenchResponse>): CreateBenchResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.newNodes = [];
-    if (value !== undefined) reflectionMergePartial<CreateBenchResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: CreateBenchResponse
-  ): CreateBenchResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* BenchData bench */ 1:
-          message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
-          break;
-        case /* repeated SomeNodeData new_nodes */ 2:
-          message.newNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("CreateBenchResponse", [
+            { no: 1, name: "bench", kind: "message", T: () => BenchData },
+            { no: 2, name: "new_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: CreateBenchResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* BenchData bench = 1; */
-    if (message.bench)
-      BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    /* repeated SomeNodeData new_nodes = 2; */
-    for (let i = 0; i < message.newNodes.length; i++)
-      SomeNodeData.internalBinaryWrite(
-        message.newNodes[i],
-        writer.tag(2, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<CreateBenchResponse>): CreateBenchResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.newNodes = [];
+        if (value !== undefined)
+            reflectionMergePartial<CreateBenchResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CreateBenchResponse): CreateBenchResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* BenchData bench */ 1:
+                    message.bench = BenchData.internalBinaryRead(reader, reader.uint32(), options, message.bench);
+                    break;
+                case /* repeated SomeNodeData new_nodes */ 2:
+                    message.newNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CreateBenchResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* BenchData bench = 1; */
+        if (message.bench)
+            BenchData.internalBinaryWrite(message.bench, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated SomeNodeData new_nodes = 2; */
+        for (let i = 0; i < message.newNodes.length; i++)
+            SomeNodeData.internalBinaryWrite(message.newNodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message CreateBenchResponse
@@ -1215,57 +1411,54 @@ class CreateBenchResponse$Type extends MessageType<CreateBenchResponse> {
 export const CreateBenchResponse = new CreateBenchResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
-  constructor() {
-    super("ReadNodesRequest", [
-      { no: 1, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodePointer },
-      { no: 2, name: "include_deferred_properties", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-    ]);
-  }
-  create(value?: PartialMessage<ReadNodesRequest>): ReadNodesRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.roots = [];
-    message.includeDeferredProperties = false;
-    if (value !== undefined) reflectionMergePartial<ReadNodesRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: ReadNodesRequest
-  ): ReadNodesRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated NodePointer roots */ 1:
-          message.roots.push(NodePointer.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        case /* bool include_deferred_properties */ 2:
-          message.includeDeferredProperties = reader.bool();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("ReadNodesRequest", [
+            { no: 1, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodePointer },
+            { no: 2, name: "include_deferred_properties", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: ReadNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated NodePointer roots = 1; */
-    for (let i = 0; i < message.roots.length; i++)
-      NodePointer.internalBinaryWrite(message.roots[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    /* bool include_deferred_properties = 2; */
-    if (message.includeDeferredProperties !== false)
-      writer.tag(2, WireType.Varint).bool(message.includeDeferredProperties);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<ReadNodesRequest>): ReadNodesRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.roots = [];
+        message.includeDeferredProperties = false;
+        if (value !== undefined)
+            reflectionMergePartial<ReadNodesRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReadNodesRequest): ReadNodesRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated NodePointer roots */ 1:
+                    message.roots.push(NodePointer.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* bool include_deferred_properties */ 2:
+                    message.includeDeferredProperties = reader.bool();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ReadNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated NodePointer roots = 1; */
+        for (let i = 0; i < message.roots.length; i++)
+            NodePointer.internalBinaryWrite(message.roots[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* bool include_deferred_properties = 2; */
+        if (message.includeDeferredProperties !== false)
+            writer.tag(2, WireType.Varint).bool(message.includeDeferredProperties);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message ReadNodesRequest
@@ -1273,60 +1466,54 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
 export const ReadNodesRequest = new ReadNodesRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
-  constructor() {
-    super("ReadNodesResponse", [
-      { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-      { no: 2, name: "edit_marker", kind: "scalar", T: 3 /*ScalarType.INT64*/ },
-    ]);
-  }
-  create(value?: PartialMessage<ReadNodesResponse>): ReadNodesResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.nodes = [];
-    message.editMarker = "0";
-    if (value !== undefined) reflectionMergePartial<ReadNodesResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: ReadNodesResponse
-  ): ReadNodesResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated SomeNodeData nodes */ 1:
-          message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        case /* int64 edit_marker */ 2:
-          message.editMarker = reader.int64().toString();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("ReadNodesResponse", [
+            { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
+            { no: 2, name: "edit_marker", kind: "scalar", T: 3 /*ScalarType.INT64*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: ReadNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated SomeNodeData nodes = 1; */
-    for (let i = 0; i < message.nodes.length; i++)
-      SomeNodeData.internalBinaryWrite(
-        message.nodes[i],
-        writer.tag(1, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    /* int64 edit_marker = 2; */
-    if (message.editMarker !== "0") writer.tag(2, WireType.Varint).int64(message.editMarker);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<ReadNodesResponse>): ReadNodesResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodes = [];
+        message.editMarker = "0";
+        if (value !== undefined)
+            reflectionMergePartial<ReadNodesResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ReadNodesResponse): ReadNodesResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated SomeNodeData nodes */ 1:
+                    message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* int64 edit_marker */ 2:
+                    message.editMarker = reader.int64().toString();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ReadNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated SomeNodeData nodes = 1; */
+        for (let i = 0; i < message.nodes.length; i++)
+            SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* int64 edit_marker = 2; */
+        if (message.editMarker !== "0")
+            writer.tag(2, WireType.Varint).int64(message.editMarker);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message ReadNodesResponse
@@ -1334,92 +1521,85 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
 export const ReadNodesResponse = new ReadNodesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
-  constructor() {
-    super("SearchNodesRequest", [
-      { no: 1, name: "node_type", kind: "enum", T: () => ["NodeType", NodeType, "NODE_TYPE_"] },
-      { no: 2, name: "node_ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
-      { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-      { no: 5, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-      { no: 6, name: "after", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-    ]);
-  }
-  create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.nodeType = 0;
-    message.nodeCk = "";
-    message.sort = [];
-    message.limit = 0;
-    message.after = "";
-    if (value !== undefined) reflectionMergePartial<SearchNodesRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: SearchNodesRequest
-  ): SearchNodesRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* NodeType node_type */ 1:
-          message.nodeType = reader.int32();
-          break;
-        case /* string node_ck */ 2:
-          message.nodeCk = reader.string();
-          break;
-        case /* ExpressionData filter */ 3:
-          message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-          break;
-        case /* repeated ExpressionData sort */ 4:
-          message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        case /* int32 limit */ 5:
-          message.limit = reader.int32();
-          break;
-        case /* string after */ 6:
-          message.after = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("SearchNodesRequest", [
+            { no: 1, name: "node_type", kind: "enum", T: () => ["NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "node_ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 5, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 6, name: "after", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: SearchNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* NodeType node_type = 1; */
-    if (message.nodeType !== 0) writer.tag(1, WireType.Varint).int32(message.nodeType);
-    /* string node_ck = 2; */
-    if (message.nodeCk !== "") writer.tag(2, WireType.LengthDelimited).string(message.nodeCk);
-    /* ExpressionData filter = 3; */
-    if (message.filter)
-      ExpressionData.internalBinaryWrite(
-        message.filter,
-        writer.tag(3, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    /* repeated ExpressionData sort = 4; */
-    for (let i = 0; i < message.sort.length; i++)
-      ExpressionData.internalBinaryWrite(
-        message.sort[i],
-        writer.tag(4, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    /* int32 limit = 5; */
-    if (message.limit !== 0) writer.tag(5, WireType.Varint).int32(message.limit);
-    /* string after = 6; */
-    if (message.after !== "") writer.tag(6, WireType.LengthDelimited).string(message.after);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodeType = 0;
+        message.nodeCk = "";
+        message.sort = [];
+        message.limit = 0;
+        message.after = "";
+        if (value !== undefined)
+            reflectionMergePartial<SearchNodesRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SearchNodesRequest): SearchNodesRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* NodeType node_type */ 1:
+                    message.nodeType = reader.int32();
+                    break;
+                case /* string node_ck */ 2:
+                    message.nodeCk = reader.string();
+                    break;
+                case /* ExpressionData filter */ 3:
+                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                case /* repeated ExpressionData sort */ 4:
+                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* int32 limit */ 5:
+                    message.limit = reader.int32();
+                    break;
+                case /* string after */ 6:
+                    message.after = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SearchNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* NodeType node_type = 1; */
+        if (message.nodeType !== 0)
+            writer.tag(1, WireType.Varint).int32(message.nodeType);
+        /* string node_ck = 2; */
+        if (message.nodeCk !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.nodeCk);
+        /* ExpressionData filter = 3; */
+        if (message.filter)
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* repeated ExpressionData sort = 4; */
+        for (let i = 0; i < message.sort.length; i++)
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* int32 limit = 5; */
+        if (message.limit !== 0)
+            writer.tag(5, WireType.Varint).int32(message.limit);
+        /* string after = 6; */
+        if (message.after !== "")
+            writer.tag(6, WireType.LengthDelimited).string(message.after);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message SearchNodesRequest
@@ -1427,74 +1607,70 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
 export const SearchNodesRequest = new SearchNodesRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
-  constructor() {
-    super("SearchNodesResponse", [
-      { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-      { no: 2, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-      { no: 3, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 4, name: "edit_marker", kind: "scalar", T: 3 /*ScalarType.INT64*/ },
-    ]);
-  }
-  create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.nodes = [];
-    message.cursors = [];
-    message.startCursor = "";
-    message.editMarker = "0";
-    if (value !== undefined) reflectionMergePartial<SearchNodesResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: SearchNodesResponse
-  ): SearchNodesResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated SomeNodeData nodes */ 1:
-          message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        case /* repeated string cursors */ 2:
-          message.cursors.push(reader.string());
-          break;
-        case /* string start_cursor */ 3:
-          message.startCursor = reader.string();
-          break;
-        case /* int64 edit_marker */ 4:
-          message.editMarker = reader.int64().toString();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("SearchNodesResponse", [
+            { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
+            { no: 2, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "edit_marker", kind: "scalar", T: 3 /*ScalarType.INT64*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: SearchNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated SomeNodeData nodes = 1; */
-    for (let i = 0; i < message.nodes.length; i++)
-      SomeNodeData.internalBinaryWrite(
-        message.nodes[i],
-        writer.tag(1, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    /* repeated string cursors = 2; */
-    for (let i = 0; i < message.cursors.length; i++) writer.tag(2, WireType.LengthDelimited).string(message.cursors[i]);
-    /* string start_cursor = 3; */
-    if (message.startCursor !== "") writer.tag(3, WireType.LengthDelimited).string(message.startCursor);
-    /* int64 edit_marker = 4; */
-    if (message.editMarker !== "0") writer.tag(4, WireType.Varint).int64(message.editMarker);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodes = [];
+        message.cursors = [];
+        message.startCursor = "";
+        message.editMarker = "0";
+        if (value !== undefined)
+            reflectionMergePartial<SearchNodesResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SearchNodesResponse): SearchNodesResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated SomeNodeData nodes */ 1:
+                    message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated string cursors */ 2:
+                    message.cursors.push(reader.string());
+                    break;
+                case /* string start_cursor */ 3:
+                    message.startCursor = reader.string();
+                    break;
+                case /* int64 edit_marker */ 4:
+                    message.editMarker = reader.int64().toString();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SearchNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated SomeNodeData nodes = 1; */
+        for (let i = 0; i < message.nodes.length; i++)
+            SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated string cursors = 2; */
+        for (let i = 0; i < message.cursors.length; i++)
+            writer.tag(2, WireType.LengthDelimited).string(message.cursors[i]);
+        /* string start_cursor = 3; */
+        if (message.startCursor !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.startCursor);
+        /* int64 edit_marker = 4; */
+        if (message.editMarker !== "0")
+            writer.tag(4, WireType.Varint).int64(message.editMarker);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message SearchNodesResponse
@@ -1502,49 +1678,46 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
 export const SearchNodesResponse = new SearchNodesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
-  constructor() {
-    super("CommitEditsRequest", [
-      { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-    ]);
-  }
-  create(value?: PartialMessage<CommitEditsRequest>): CommitEditsRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.edits = [];
-    if (value !== undefined) reflectionMergePartial<CommitEditsRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: CommitEditsRequest
-  ): CommitEditsRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated EditData edits */ 1:
-          message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("CommitEditsRequest", [
+            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: CommitEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated EditData edits = 1; */
-    for (let i = 0; i < message.edits.length; i++)
-      EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<CommitEditsRequest>): CommitEditsRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.edits = [];
+        if (value !== undefined)
+            reflectionMergePartial<CommitEditsRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitEditsRequest): CommitEditsRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated EditData edits */ 1:
+                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CommitEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated EditData edits = 1; */
+        for (let i = 0; i < message.edits.length; i++)
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message CommitEditsRequest
@@ -1552,53 +1725,46 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
 export const CommitEditsRequest = new CommitEditsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CommitEditsResponse$Type extends MessageType<CommitEditsResponse> {
-  constructor() {
-    super("CommitEditsResponse", [
-      { no: 1, name: "changed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-    ]);
-  }
-  create(value?: PartialMessage<CommitEditsResponse>): CommitEditsResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.changedNodes = [];
-    if (value !== undefined) reflectionMergePartial<CommitEditsResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: CommitEditsResponse
-  ): CommitEditsResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated SomeNodeData changed_nodes */ 1:
-          message.changedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("CommitEditsResponse", [
+            { no: 1, name: "changed_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: CommitEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated SomeNodeData changed_nodes = 1; */
-    for (let i = 0; i < message.changedNodes.length; i++)
-      SomeNodeData.internalBinaryWrite(
-        message.changedNodes[i],
-        writer.tag(1, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<CommitEditsResponse>): CommitEditsResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.changedNodes = [];
+        if (value !== undefined)
+            reflectionMergePartial<CommitEditsResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CommitEditsResponse): CommitEditsResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated SomeNodeData changed_nodes */ 1:
+                    message.changedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: CommitEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated SomeNodeData changed_nodes = 1; */
+        for (let i = 0; i < message.changedNodes.length; i++)
+            SomeNodeData.internalBinaryWrite(message.changedNodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message CommitEditsResponse
@@ -1606,46 +1772,46 @@ class CommitEditsResponse$Type extends MessageType<CommitEditsResponse> {
 export const CommitEditsResponse = new CommitEditsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
-  constructor() {
-    super("WatchEditsRequest", [{ no: 1, name: "after_edit_marker", kind: "scalar", T: 3 /*ScalarType.INT64*/ }]);
-  }
-  create(value?: PartialMessage<WatchEditsRequest>): WatchEditsRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.afterEditMarker = "0";
-    if (value !== undefined) reflectionMergePartial<WatchEditsRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: WatchEditsRequest
-  ): WatchEditsRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* int64 after_edit_marker */ 1:
-          message.afterEditMarker = reader.int64().toString();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("WatchEditsRequest", [
+            { no: 1, name: "after_edit_marker", kind: "scalar", T: 3 /*ScalarType.INT64*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: WatchEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* int64 after_edit_marker = 1; */
-    if (message.afterEditMarker !== "0") writer.tag(1, WireType.Varint).int64(message.afterEditMarker);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<WatchEditsRequest>): WatchEditsRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.afterEditMarker = "0";
+        if (value !== undefined)
+            reflectionMergePartial<WatchEditsRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WatchEditsRequest): WatchEditsRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* int64 after_edit_marker */ 1:
+                    message.afterEditMarker = reader.int64().toString();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: WatchEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* int64 after_edit_marker = 1; */
+        if (message.afterEditMarker !== "0")
+            writer.tag(1, WireType.Varint).int64(message.afterEditMarker);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message WatchEditsRequest
@@ -1653,49 +1819,46 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
 export const WatchEditsRequest = new WatchEditsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
-  constructor() {
-    super("WatchEditsResponse", [
-      { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-    ]);
-  }
-  create(value?: PartialMessage<WatchEditsResponse>): WatchEditsResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.edits = [];
-    if (value !== undefined) reflectionMergePartial<WatchEditsResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: WatchEditsResponse
-  ): WatchEditsResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated EditData edits */ 1:
-          message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("WatchEditsResponse", [
+            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: WatchEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated EditData edits = 1; */
-    for (let i = 0; i < message.edits.length; i++)
-      EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<WatchEditsResponse>): WatchEditsResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.edits = [];
+        if (value !== undefined)
+            reflectionMergePartial<WatchEditsResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WatchEditsResponse): WatchEditsResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated EditData edits */ 1:
+                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: WatchEditsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated EditData edits = 1; */
+        for (let i = 0; i < message.edits.length; i++)
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message WatchEditsResponse
@@ -1703,50 +1866,46 @@ class WatchEditsResponse$Type extends MessageType<WatchEditsResponse> {
 export const WatchEditsResponse = new WatchEditsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RestartWorkerSetRequest$Type extends MessageType<RestartWorkerSetRequest> {
-  constructor() {
-    super("RestartWorkerSetRequest", [{ no: 1, name: "bench_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }]);
-  }
-  create(value?: PartialMessage<RestartWorkerSetRequest>): RestartWorkerSetRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.benchId = "";
-    if (value !== undefined) reflectionMergePartial<RestartWorkerSetRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: RestartWorkerSetRequest
-  ): RestartWorkerSetRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* string bench_id */ 1:
-          message.benchId = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("RestartWorkerSetRequest", [
+            { no: 1, name: "bench_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: RestartWorkerSetRequest,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string bench_id = 1; */
-    if (message.benchId !== "") writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<RestartWorkerSetRequest>): RestartWorkerSetRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.benchId = "";
+        if (value !== undefined)
+            reflectionMergePartial<RestartWorkerSetRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartWorkerSetRequest): RestartWorkerSetRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string bench_id */ 1:
+                    message.benchId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RestartWorkerSetRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string bench_id = 1; */
+        if (message.benchId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message RestartWorkerSetRequest
@@ -1754,57 +1913,46 @@ class RestartWorkerSetRequest$Type extends MessageType<RestartWorkerSetRequest> 
 export const RestartWorkerSetRequest = new RestartWorkerSetRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RestartWorkerSetResponse$Type extends MessageType<RestartWorkerSetResponse> {
-  constructor() {
-    super("RestartWorkerSetResponse", [
-      { no: 1, name: "worker_sets", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => WorkerSetData },
-    ]);
-  }
-  create(value?: PartialMessage<RestartWorkerSetResponse>): RestartWorkerSetResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.workerSets = [];
-    if (value !== undefined) reflectionMergePartial<RestartWorkerSetResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: RestartWorkerSetResponse
-  ): RestartWorkerSetResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated WorkerSetData worker_sets */ 1:
-          message.workerSets.push(WorkerSetData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("RestartWorkerSetResponse", [
+            { no: 1, name: "worker_sets", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => WorkerSetData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: RestartWorkerSetResponse,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* repeated WorkerSetData worker_sets = 1; */
-    for (let i = 0; i < message.workerSets.length; i++)
-      WorkerSetData.internalBinaryWrite(
-        message.workerSets[i],
-        writer.tag(1, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<RestartWorkerSetResponse>): RestartWorkerSetResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.workerSets = [];
+        if (value !== undefined)
+            reflectionMergePartial<RestartWorkerSetResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartWorkerSetResponse): RestartWorkerSetResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated WorkerSetData worker_sets */ 1:
+                    message.workerSets.push(WorkerSetData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RestartWorkerSetResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated WorkerSetData worker_sets = 1; */
+        for (let i = 0; i < message.workerSets.length; i++)
+            WorkerSetData.internalBinaryWrite(message.workerSets[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message RestartWorkerSetResponse
@@ -1812,50 +1960,46 @@ class RestartWorkerSetResponse$Type extends MessageType<RestartWorkerSetResponse
 export const RestartWorkerSetResponse = new RestartWorkerSetResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PingWorkerSetRequest$Type extends MessageType<PingWorkerSetRequest> {
-  constructor() {
-    super("PingWorkerSetRequest", [{ no: 1, name: "bench_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }]);
-  }
-  create(value?: PartialMessage<PingWorkerSetRequest>): PingWorkerSetRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.benchId = "";
-    if (value !== undefined) reflectionMergePartial<PingWorkerSetRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: PingWorkerSetRequest
-  ): PingWorkerSetRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* string bench_id */ 1:
-          message.benchId = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("PingWorkerSetRequest", [
+            { no: 1, name: "bench_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: PingWorkerSetRequest,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string bench_id = 1; */
-    if (message.benchId !== "") writer.tag(1, WireType.LengthDelimited).string(message.benchId);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<PingWorkerSetRequest>): PingWorkerSetRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.benchId = "";
+        if (value !== undefined)
+            reflectionMergePartial<PingWorkerSetRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingWorkerSetRequest): PingWorkerSetRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string bench_id */ 1:
+                    message.benchId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PingWorkerSetRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string bench_id = 1; */
+        if (message.benchId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.benchId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message PingWorkerSetRequest
@@ -1863,57 +2007,46 @@ class PingWorkerSetRequest$Type extends MessageType<PingWorkerSetRequest> {
 export const PingWorkerSetRequest = new PingWorkerSetRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PingWorkerSetResponse$Type extends MessageType<PingWorkerSetResponse> {
-  constructor() {
-    super("PingWorkerSetResponse", [
-      { no: 1, name: "worker_sets", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => WorkerSetData },
-    ]);
-  }
-  create(value?: PartialMessage<PingWorkerSetResponse>): PingWorkerSetResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.workerSets = [];
-    if (value !== undefined) reflectionMergePartial<PingWorkerSetResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: PingWorkerSetResponse
-  ): PingWorkerSetResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated WorkerSetData worker_sets */ 1:
-          message.workerSets.push(WorkerSetData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("PingWorkerSetResponse", [
+            { no: 1, name: "worker_sets", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => WorkerSetData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: PingWorkerSetResponse,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* repeated WorkerSetData worker_sets = 1; */
-    for (let i = 0; i < message.workerSets.length; i++)
-      WorkerSetData.internalBinaryWrite(
-        message.workerSets[i],
-        writer.tag(1, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<PingWorkerSetResponse>): PingWorkerSetResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.workerSets = [];
+        if (value !== undefined)
+            reflectionMergePartial<PingWorkerSetResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PingWorkerSetResponse): PingWorkerSetResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated WorkerSetData worker_sets */ 1:
+                    message.workerSets.push(WorkerSetData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PingWorkerSetResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated WorkerSetData worker_sets = 1; */
+        for (let i = 0; i < message.workerSets.length; i++)
+            WorkerSetData.internalBinaryWrite(message.workerSets[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message PingWorkerSetResponse
@@ -1921,27 +2054,24 @@ class PingWorkerSetResponse$Type extends MessageType<PingWorkerSetResponse> {
 export const PingWorkerSetResponse = new PingWorkerSetResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetLogsRequest$Type extends MessageType<GetLogsRequest> {
-  constructor() {
-    super("GetLogsRequest", []);
-  }
-  create(value?: PartialMessage<GetLogsRequest>): GetLogsRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<GetLogsRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: GetLogsRequest
-  ): GetLogsRequest {
-    return target ?? this.create();
-  }
-  internalBinaryWrite(message: GetLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    constructor() {
+        super("GetLogsRequest", []);
+    }
+    create(value?: PartialMessage<GetLogsRequest>): GetLogsRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<GetLogsRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetLogsRequest): GetLogsRequest {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: GetLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message GetLogsRequest
@@ -1949,49 +2079,46 @@ class GetLogsRequest$Type extends MessageType<GetLogsRequest> {
 export const GetLogsRequest = new GetLogsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class GetLogsResponse$Type extends MessageType<GetLogsResponse> {
-  constructor() {
-    super("GetLogsResponse", [
-      { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData },
-    ]);
-  }
-  create(value?: PartialMessage<GetLogsResponse>): GetLogsResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.logs = [];
-    if (value !== undefined) reflectionMergePartial<GetLogsResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: GetLogsResponse
-  ): GetLogsResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated LogEntryData logs */ 1:
-          message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("GetLogsResponse", [
+            { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: GetLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated LogEntryData logs = 1; */
-    for (let i = 0; i < message.logs.length; i++)
-      LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<GetLogsResponse>): GetLogsResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.logs = [];
+        if (value !== undefined)
+            reflectionMergePartial<GetLogsResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetLogsResponse): GetLogsResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated LogEntryData logs */ 1:
+                    message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated LogEntryData logs = 1; */
+        for (let i = 0; i < message.logs.length; i++)
+            LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message GetLogsResponse
@@ -1999,46 +2126,45 @@ class GetLogsResponse$Type extends MessageType<GetLogsResponse> {
 export const GetLogsResponse = new GetLogsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UploadBlobRequest$Type extends MessageType<UploadBlobRequest> {
-  constructor() {
-    super("UploadBlobRequest", [{ no: 1, name: "blob", kind: "message", T: () => BlobData }]);
-  }
-  create(value?: PartialMessage<UploadBlobRequest>): UploadBlobRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<UploadBlobRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: UploadBlobRequest
-  ): UploadBlobRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* BlobData blob */ 1:
-          message.blob = BlobData.internalBinaryRead(reader, reader.uint32(), options, message.blob);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("UploadBlobRequest", [
+            { no: 1, name: "blob", kind: "message", T: () => BlobData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: UploadBlobRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* BlobData blob = 1; */
-    if (message.blob)
-      BlobData.internalBinaryWrite(message.blob, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<UploadBlobRequest>): UploadBlobRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<UploadBlobRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UploadBlobRequest): UploadBlobRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* BlobData blob */ 1:
+                    message.blob = BlobData.internalBinaryRead(reader, reader.uint32(), options, message.blob);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: UploadBlobRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* BlobData blob = 1; */
+        if (message.blob)
+            BlobData.internalBinaryWrite(message.blob, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message UploadBlobRequest
@@ -2046,55 +2172,53 @@ class UploadBlobRequest$Type extends MessageType<UploadBlobRequest> {
 export const UploadBlobRequest = new UploadBlobRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UploadBlobResponse$Type extends MessageType<UploadBlobResponse> {
-  constructor() {
-    super("UploadBlobResponse", [
-      { no: 1, name: "post_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 2, name: "expires_at", kind: "message", T: () => Timestamp },
-    ]);
-  }
-  create(value?: PartialMessage<UploadBlobResponse>): UploadBlobResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.postUrl = "";
-    if (value !== undefined) reflectionMergePartial<UploadBlobResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: UploadBlobResponse
-  ): UploadBlobResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* string post_url */ 1:
-          message.postUrl = reader.string();
-          break;
-        case /* google.protobuf.Timestamp expires_at */ 2:
-          message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("UploadBlobResponse", [
+            { no: 1, name: "post_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "expires_at", kind: "message", T: () => Timestamp }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: UploadBlobResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* string post_url = 1; */
-    if (message.postUrl !== "") writer.tag(1, WireType.LengthDelimited).string(message.postUrl);
-    /* google.protobuf.Timestamp expires_at = 2; */
-    if (message.expiresAt)
-      Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<UploadBlobResponse>): UploadBlobResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.postUrl = "";
+        if (value !== undefined)
+            reflectionMergePartial<UploadBlobResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UploadBlobResponse): UploadBlobResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string post_url */ 1:
+                    message.postUrl = reader.string();
+                    break;
+                case /* google.protobuf.Timestamp expires_at */ 2:
+                    message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: UploadBlobResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string post_url = 1; */
+        if (message.postUrl !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.postUrl);
+        /* google.protobuf.Timestamp expires_at = 2; */
+        if (message.expiresAt)
+            Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message UploadBlobResponse
@@ -2102,46 +2226,45 @@ class UploadBlobResponse$Type extends MessageType<UploadBlobResponse> {
 export const UploadBlobResponse = new UploadBlobResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DownloadBlobRequest$Type extends MessageType<DownloadBlobRequest> {
-  constructor() {
-    super("DownloadBlobRequest", [{ no: 1, name: "blob", kind: "message", T: () => BlobData }]);
-  }
-  create(value?: PartialMessage<DownloadBlobRequest>): DownloadBlobRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<DownloadBlobRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: DownloadBlobRequest
-  ): DownloadBlobRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* BlobData blob */ 1:
-          message.blob = BlobData.internalBinaryRead(reader, reader.uint32(), options, message.blob);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("DownloadBlobRequest", [
+            { no: 1, name: "blob", kind: "message", T: () => BlobData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: DownloadBlobRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* BlobData blob = 1; */
-    if (message.blob)
-      BlobData.internalBinaryWrite(message.blob, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<DownloadBlobRequest>): DownloadBlobRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<DownloadBlobRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DownloadBlobRequest): DownloadBlobRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* BlobData blob */ 1:
+                    message.blob = BlobData.internalBinaryRead(reader, reader.uint32(), options, message.blob);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: DownloadBlobRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* BlobData blob = 1; */
+        if (message.blob)
+            BlobData.internalBinaryWrite(message.blob, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message DownloadBlobRequest
@@ -2149,59 +2272,53 @@ class DownloadBlobRequest$Type extends MessageType<DownloadBlobRequest> {
 export const DownloadBlobRequest = new DownloadBlobRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class DownloadBlobResponse$Type extends MessageType<DownloadBlobResponse> {
-  constructor() {
-    super("DownloadBlobResponse", [
-      { no: 1, name: "get_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 2, name: "expires_at", kind: "message", T: () => Timestamp },
-    ]);
-  }
-  create(value?: PartialMessage<DownloadBlobResponse>): DownloadBlobResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.getUrl = "";
-    if (value !== undefined) reflectionMergePartial<DownloadBlobResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: DownloadBlobResponse
-  ): DownloadBlobResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* string get_url */ 1:
-          message.getUrl = reader.string();
-          break;
-        case /* google.protobuf.Timestamp expires_at */ 2:
-          message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("DownloadBlobResponse", [
+            { no: 1, name: "get_url", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "expires_at", kind: "message", T: () => Timestamp }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: DownloadBlobResponse,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string get_url = 1; */
-    if (message.getUrl !== "") writer.tag(1, WireType.LengthDelimited).string(message.getUrl);
-    /* google.protobuf.Timestamp expires_at = 2; */
-    if (message.expiresAt)
-      Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<DownloadBlobResponse>): DownloadBlobResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.getUrl = "";
+        if (value !== undefined)
+            reflectionMergePartial<DownloadBlobResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DownloadBlobResponse): DownloadBlobResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string get_url */ 1:
+                    message.getUrl = reader.string();
+                    break;
+                case /* google.protobuf.Timestamp expires_at */ 2:
+                    message.expiresAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.expiresAt);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: DownloadBlobResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string get_url = 1; */
+        if (message.getUrl !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.getUrl);
+        /* google.protobuf.Timestamp expires_at = 2; */
+        if (message.expiresAt)
+            Timestamp.internalBinaryWrite(message.expiresAt, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message DownloadBlobResponse
@@ -2209,46 +2326,45 @@ class DownloadBlobResponse$Type extends MessageType<DownloadBlobResponse> {
 export const DownloadBlobResponse = new DownloadBlobResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RevealSecretRequest$Type extends MessageType<RevealSecretRequest> {
-  constructor() {
-    super("RevealSecretRequest", [{ no: 1, name: "secret", kind: "message", T: () => SecretData }]);
-  }
-  create(value?: PartialMessage<RevealSecretRequest>): RevealSecretRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<RevealSecretRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: RevealSecretRequest
-  ): RevealSecretRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* SecretData secret */ 1:
-          message.secret = SecretData.internalBinaryRead(reader, reader.uint32(), options, message.secret);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("RevealSecretRequest", [
+            { no: 1, name: "secret", kind: "message", T: () => SecretData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: RevealSecretRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* SecretData secret = 1; */
-    if (message.secret)
-      SecretData.internalBinaryWrite(message.secret, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<RevealSecretRequest>): RevealSecretRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<RevealSecretRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RevealSecretRequest): RevealSecretRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* SecretData secret */ 1:
+                    message.secret = SecretData.internalBinaryRead(reader, reader.uint32(), options, message.secret);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RevealSecretRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* SecretData secret = 1; */
+        if (message.secret)
+            SecretData.internalBinaryWrite(message.secret, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message RevealSecretRequest
@@ -2256,50 +2372,45 @@ class RevealSecretRequest$Type extends MessageType<RevealSecretRequest> {
 export const RevealSecretRequest = new RevealSecretRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RevealSecretResponse$Type extends MessageType<RevealSecretResponse> {
-  constructor() {
-    super("RevealSecretResponse", [{ no: 1, name: "secret", kind: "message", T: () => SecretData }]);
-  }
-  create(value?: PartialMessage<RevealSecretResponse>): RevealSecretResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<RevealSecretResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: RevealSecretResponse
-  ): RevealSecretResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* SecretData secret */ 1:
-          message.secret = SecretData.internalBinaryRead(reader, reader.uint32(), options, message.secret);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("RevealSecretResponse", [
+            { no: 1, name: "secret", kind: "message", T: () => SecretData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: RevealSecretResponse,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* SecretData secret = 1; */
-    if (message.secret)
-      SecretData.internalBinaryWrite(message.secret, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<RevealSecretResponse>): RevealSecretResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<RevealSecretResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RevealSecretResponse): RevealSecretResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* SecretData secret */ 1:
+                    message.secret = SecretData.internalBinaryRead(reader, reader.uint32(), options, message.secret);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RevealSecretResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* SecretData secret = 1; */
+        if (message.secret)
+            SecretData.internalBinaryWrite(message.secret, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message RevealSecretResponse
@@ -2307,232 +2418,150 @@ class RevealSecretResponse$Type extends MessageType<RevealSecretResponse> {
 export const RevealSecretResponse = new RevealSecretResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
-  constructor() {
-    super("PasteNodesRequest", [
-      { no: 1, name: "source_module_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 2, name: "source_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodePointer },
-      {
-        no: 3,
-        name: "target_ids",
-        kind: "map",
-        K: 9 /*ScalarType.STRING*/,
-        V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      },
-      {
-        no: 4,
-        name: "target_cks",
-        kind: "map",
-        K: 9 /*ScalarType.STRING*/,
-        V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      },
-      {
-        no: 5,
-        name: "target_parent_ids",
-        kind: "map",
-        K: 9 /*ScalarType.STRING*/,
-        V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      },
-      {
-        no: 6,
-        name: "target_order_keys",
-        kind: "map",
-        K: 9 /*ScalarType.STRING*/,
-        V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      },
-    ]);
-  }
-  create(value?: PartialMessage<PasteNodesRequest>): PasteNodesRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.sourceModuleId = "";
-    message.sourceNodes = [];
-    message.targetIds = {};
-    message.targetCks = {};
-    message.targetParentIds = {};
-    message.targetOrderKeys = {};
-    if (value !== undefined) reflectionMergePartial<PasteNodesRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: PasteNodesRequest
-  ): PasteNodesRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* string source_module_id */ 1:
-          message.sourceModuleId = reader.string();
-          break;
-        case /* repeated NodePointer source_nodes */ 2:
-          message.sourceNodes.push(NodePointer.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        case /* map<string, string> target_ids */ 3:
-          this.binaryReadMap3(message.targetIds, reader, options);
-          break;
-        case /* map<string, string> target_cks */ 4:
-          this.binaryReadMap4(message.targetCks, reader, options);
-          break;
-        case /* map<string, string> target_parent_ids */ 5:
-          this.binaryReadMap5(message.targetParentIds, reader, options);
-          break;
-        case /* map<string, string> target_order_keys */ 6:
-          this.binaryReadMap6(message.targetOrderKeys, reader, options);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("PasteNodesRequest", [
+            { no: 1, name: "source_module_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "source_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodePointer },
+            { no: 3, name: "target_ids", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
+            { no: 4, name: "target_cks", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
+            { no: 5, name: "target_parent_ids", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
+            { no: 6, name: "target_order_keys", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } }
+        ]);
     }
-    return message;
-  }
-  private binaryReadMap3(map: PasteNodesRequest["targetIds"], reader: IBinaryReader, options: BinaryReadOptions): void {
-    let len = reader.uint32(),
-      end = reader.pos + len,
-      key: keyof PasteNodesRequest["targetIds"] | undefined,
-      val: PasteNodesRequest["targetIds"][any] | undefined;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case 1:
-          key = reader.string();
-          break;
-        case 2:
-          val = reader.string();
-          break;
-        default:
-          throw new globalThis.Error("unknown map entry field for field PasteNodesRequest.target_ids");
-      }
+    create(value?: PartialMessage<PasteNodesRequest>): PasteNodesRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.sourceModuleId = "";
+        message.sourceNodes = [];
+        message.targetIds = {};
+        message.targetCks = {};
+        message.targetParentIds = {};
+        message.targetOrderKeys = {};
+        if (value !== undefined)
+            reflectionMergePartial<PasteNodesRequest>(this, message, value);
+        return message;
     }
-    map[key ?? ""] = val ?? "";
-  }
-  private binaryReadMap4(map: PasteNodesRequest["targetCks"], reader: IBinaryReader, options: BinaryReadOptions): void {
-    let len = reader.uint32(),
-      end = reader.pos + len,
-      key: keyof PasteNodesRequest["targetCks"] | undefined,
-      val: PasteNodesRequest["targetCks"][any] | undefined;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case 1:
-          key = reader.string();
-          break;
-        case 2:
-          val = reader.string();
-          break;
-        default:
-          throw new globalThis.Error("unknown map entry field for field PasteNodesRequest.target_cks");
-      }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PasteNodesRequest): PasteNodesRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string source_module_id */ 1:
+                    message.sourceModuleId = reader.string();
+                    break;
+                case /* repeated NodePointer source_nodes */ 2:
+                    message.sourceNodes.push(NodePointer.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* map<string, string> target_ids */ 3:
+                    this.binaryReadMap3(message.targetIds, reader, options);
+                    break;
+                case /* map<string, string> target_cks */ 4:
+                    this.binaryReadMap4(message.targetCks, reader, options);
+                    break;
+                case /* map<string, string> target_parent_ids */ 5:
+                    this.binaryReadMap5(message.targetParentIds, reader, options);
+                    break;
+                case /* map<string, string> target_order_keys */ 6:
+                    this.binaryReadMap6(message.targetOrderKeys, reader, options);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
     }
-    map[key ?? ""] = val ?? "";
-  }
-  private binaryReadMap5(
-    map: PasteNodesRequest["targetParentIds"],
-    reader: IBinaryReader,
-    options: BinaryReadOptions
-  ): void {
-    let len = reader.uint32(),
-      end = reader.pos + len,
-      key: keyof PasteNodesRequest["targetParentIds"] | undefined,
-      val: PasteNodesRequest["targetParentIds"][any] | undefined;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case 1:
-          key = reader.string();
-          break;
-        case 2:
-          val = reader.string();
-          break;
-        default:
-          throw new globalThis.Error("unknown map entry field for field PasteNodesRequest.target_parent_ids");
-      }
+    private binaryReadMap3(map: PasteNodesRequest["targetIds"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof PasteNodesRequest["targetIds"] | undefined, val: PasteNodesRequest["targetIds"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = reader.string();
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field PasteNodesRequest.target_ids");
+            }
+        }
+        map[key ?? ""] = val ?? "";
     }
-    map[key ?? ""] = val ?? "";
-  }
-  private binaryReadMap6(
-    map: PasteNodesRequest["targetOrderKeys"],
-    reader: IBinaryReader,
-    options: BinaryReadOptions
-  ): void {
-    let len = reader.uint32(),
-      end = reader.pos + len,
-      key: keyof PasteNodesRequest["targetOrderKeys"] | undefined,
-      val: PasteNodesRequest["targetOrderKeys"][any] | undefined;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case 1:
-          key = reader.string();
-          break;
-        case 2:
-          val = reader.string();
-          break;
-        default:
-          throw new globalThis.Error("unknown map entry field for field PasteNodesRequest.target_order_keys");
-      }
+    private binaryReadMap4(map: PasteNodesRequest["targetCks"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof PasteNodesRequest["targetCks"] | undefined, val: PasteNodesRequest["targetCks"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = reader.string();
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field PasteNodesRequest.target_cks");
+            }
+        }
+        map[key ?? ""] = val ?? "";
     }
-    map[key ?? ""] = val ?? "";
-  }
-  internalBinaryWrite(message: PasteNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* string source_module_id = 1; */
-    if (message.sourceModuleId !== "") writer.tag(1, WireType.LengthDelimited).string(message.sourceModuleId);
-    /* repeated NodePointer source_nodes = 2; */
-    for (let i = 0; i < message.sourceNodes.length; i++)
-      NodePointer.internalBinaryWrite(
-        message.sourceNodes[i],
-        writer.tag(2, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    /* map<string, string> target_ids = 3; */
-    for (let k of globalThis.Object.keys(message.targetIds))
-      writer
-        .tag(3, WireType.LengthDelimited)
-        .fork()
-        .tag(1, WireType.LengthDelimited)
-        .string(k)
-        .tag(2, WireType.LengthDelimited)
-        .string(message.targetIds[k])
-        .join();
-    /* map<string, string> target_cks = 4; */
-    for (let k of globalThis.Object.keys(message.targetCks))
-      writer
-        .tag(4, WireType.LengthDelimited)
-        .fork()
-        .tag(1, WireType.LengthDelimited)
-        .string(k)
-        .tag(2, WireType.LengthDelimited)
-        .string(message.targetCks[k])
-        .join();
-    /* map<string, string> target_parent_ids = 5; */
-    for (let k of globalThis.Object.keys(message.targetParentIds))
-      writer
-        .tag(5, WireType.LengthDelimited)
-        .fork()
-        .tag(1, WireType.LengthDelimited)
-        .string(k)
-        .tag(2, WireType.LengthDelimited)
-        .string(message.targetParentIds[k])
-        .join();
-    /* map<string, string> target_order_keys = 6; */
-    for (let k of globalThis.Object.keys(message.targetOrderKeys))
-      writer
-        .tag(6, WireType.LengthDelimited)
-        .fork()
-        .tag(1, WireType.LengthDelimited)
-        .string(k)
-        .tag(2, WireType.LengthDelimited)
-        .string(message.targetOrderKeys[k])
-        .join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    private binaryReadMap5(map: PasteNodesRequest["targetParentIds"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof PasteNodesRequest["targetParentIds"] | undefined, val: PasteNodesRequest["targetParentIds"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = reader.string();
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field PasteNodesRequest.target_parent_ids");
+            }
+        }
+        map[key ?? ""] = val ?? "";
+    }
+    private binaryReadMap6(map: PasteNodesRequest["targetOrderKeys"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof PasteNodesRequest["targetOrderKeys"] | undefined, val: PasteNodesRequest["targetOrderKeys"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = reader.string();
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for field PasteNodesRequest.target_order_keys");
+            }
+        }
+        map[key ?? ""] = val ?? "";
+    }
+    internalBinaryWrite(message: PasteNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string source_module_id = 1; */
+        if (message.sourceModuleId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.sourceModuleId);
+        /* repeated NodePointer source_nodes = 2; */
+        for (let i = 0; i < message.sourceNodes.length; i++)
+            NodePointer.internalBinaryWrite(message.sourceNodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, string> target_ids = 3; */
+        for (let k of globalThis.Object.keys(message.targetIds))
+            writer.tag(3, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetIds[k]).join();
+        /* map<string, string> target_cks = 4; */
+        for (let k of globalThis.Object.keys(message.targetCks))
+            writer.tag(4, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetCks[k]).join();
+        /* map<string, string> target_parent_ids = 5; */
+        for (let k of globalThis.Object.keys(message.targetParentIds))
+            writer.tag(5, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetParentIds[k]).join();
+        /* map<string, string> target_order_keys = 6; */
+        for (let k of globalThis.Object.keys(message.targetOrderKeys))
+            writer.tag(6, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetOrderKeys[k]).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message PasteNodesRequest
@@ -2540,53 +2569,46 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
 export const PasteNodesRequest = new PasteNodesRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class PasteNodesResponse$Type extends MessageType<PasteNodesResponse> {
-  constructor() {
-    super("PasteNodesResponse", [
-      { no: 1, name: "pasted_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-    ]);
-  }
-  create(value?: PartialMessage<PasteNodesResponse>): PasteNodesResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.pastedNodes = [];
-    if (value !== undefined) reflectionMergePartial<PasteNodesResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: PasteNodesResponse
-  ): PasteNodesResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated SomeNodeData pasted_nodes */ 1:
-          message.pastedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("PasteNodesResponse", [
+            { no: 1, name: "pasted_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: PasteNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated SomeNodeData pasted_nodes = 1; */
-    for (let i = 0; i < message.pastedNodes.length; i++)
-      SomeNodeData.internalBinaryWrite(
-        message.pastedNodes[i],
-        writer.tag(1, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<PasteNodesResponse>): PasteNodesResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.pastedNodes = [];
+        if (value !== undefined)
+            reflectionMergePartial<PasteNodesResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PasteNodesResponse): PasteNodesResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated SomeNodeData pasted_nodes */ 1:
+                    message.pastedNodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PasteNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated SomeNodeData pasted_nodes = 1; */
+        for (let i = 0; i < message.pastedNodes.length; i++)
+            SomeNodeData.internalBinaryWrite(message.pastedNodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message PasteNodesResponse
@@ -2594,66 +2616,62 @@ class PasteNodesResponse$Type extends MessageType<PasteNodesResponse> {
 export const PasteNodesResponse = new PasteNodesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SnapshotModuleRequest$Type extends MessageType<SnapshotModuleRequest> {
-  constructor() {
-    super("SnapshotModuleRequest", [
-      { no: 1, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 2, name: "tag", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 3, name: "description", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-    ]);
-  }
-  create(value?: PartialMessage<SnapshotModuleRequest>): SnapshotModuleRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.name = "";
-    message.tag = "";
-    message.description = "";
-    if (value !== undefined) reflectionMergePartial<SnapshotModuleRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: SnapshotModuleRequest
-  ): SnapshotModuleRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* string name */ 1:
-          message.name = reader.string();
-          break;
-        case /* string tag */ 2:
-          message.tag = reader.string();
-          break;
-        case /* string description */ 3:
-          message.description = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("SnapshotModuleRequest", [
+            { no: 1, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "tag", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "description", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: SnapshotModuleRequest,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string name = 1; */
-    if (message.name !== "") writer.tag(1, WireType.LengthDelimited).string(message.name);
-    /* string tag = 2; */
-    if (message.tag !== "") writer.tag(2, WireType.LengthDelimited).string(message.tag);
-    /* string description = 3; */
-    if (message.description !== "") writer.tag(3, WireType.LengthDelimited).string(message.description);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<SnapshotModuleRequest>): SnapshotModuleRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.name = "";
+        message.tag = "";
+        message.description = "";
+        if (value !== undefined)
+            reflectionMergePartial<SnapshotModuleRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotModuleRequest): SnapshotModuleRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string name */ 1:
+                    message.name = reader.string();
+                    break;
+                case /* string tag */ 2:
+                    message.tag = reader.string();
+                    break;
+                case /* string description */ 3:
+                    message.description = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SnapshotModuleRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string name = 1; */
+        if (message.name !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.name);
+        /* string tag = 2; */
+        if (message.tag !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.tag);
+        /* string description = 3; */
+        if (message.description !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.description);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message SnapshotModuleRequest
@@ -2661,53 +2679,46 @@ class SnapshotModuleRequest$Type extends MessageType<SnapshotModuleRequest> {
 export const SnapshotModuleRequest = new SnapshotModuleRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SnapshotModuleResponse$Type extends MessageType<SnapshotModuleResponse> {
-  constructor() {
-    super("SnapshotModuleResponse", [
-      { no: 1, name: "snapshot_project_version_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-    ]);
-  }
-  create(value?: PartialMessage<SnapshotModuleResponse>): SnapshotModuleResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.snapshotProjectVersionId = "";
-    if (value !== undefined) reflectionMergePartial<SnapshotModuleResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: SnapshotModuleResponse
-  ): SnapshotModuleResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* string snapshot_project_version_id */ 1:
-          message.snapshotProjectVersionId = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("SnapshotModuleResponse", [
+            { no: 1, name: "snapshot_project_version_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: SnapshotModuleResponse,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string snapshot_project_version_id = 1; */
-    if (message.snapshotProjectVersionId !== "")
-      writer.tag(1, WireType.LengthDelimited).string(message.snapshotProjectVersionId);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<SnapshotModuleResponse>): SnapshotModuleResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.snapshotProjectVersionId = "";
+        if (value !== undefined)
+            reflectionMergePartial<SnapshotModuleResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotModuleResponse): SnapshotModuleResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string snapshot_project_version_id */ 1:
+                    message.snapshotProjectVersionId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SnapshotModuleResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string snapshot_project_version_id = 1; */
+        if (message.snapshotProjectVersionId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.snapshotProjectVersionId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message SnapshotModuleResponse
@@ -2715,78 +2726,69 @@ class SnapshotModuleResponse$Type extends MessageType<SnapshotModuleResponse> {
 export const SnapshotModuleResponse = new SnapshotModuleResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SearchLogsRequest$Type extends MessageType<SearchLogsRequest> {
-  constructor() {
-    super("SearchLogsRequest", [
-      { no: 1, name: "filter", kind: "message", T: () => ExpressionData },
-      { no: 2, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-      { no: 3, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-      { no: 4, name: "after", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-    ]);
-  }
-  create(value?: PartialMessage<SearchLogsRequest>): SearchLogsRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.sort = [];
-    message.limit = 0;
-    message.after = "";
-    if (value !== undefined) reflectionMergePartial<SearchLogsRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: SearchLogsRequest
-  ): SearchLogsRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* ExpressionData filter */ 1:
-          message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
-          break;
-        case /* repeated ExpressionData sort */ 2:
-          message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        case /* int32 limit */ 3:
-          message.limit = reader.int32();
-          break;
-        case /* string after */ 4:
-          message.after = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("SearchLogsRequest", [
+            { no: 1, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 2, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 3, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "after", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: SearchLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* ExpressionData filter = 1; */
-    if (message.filter)
-      ExpressionData.internalBinaryWrite(
-        message.filter,
-        writer.tag(1, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    /* repeated ExpressionData sort = 2; */
-    for (let i = 0; i < message.sort.length; i++)
-      ExpressionData.internalBinaryWrite(
-        message.sort[i],
-        writer.tag(2, WireType.LengthDelimited).fork(),
-        options
-      ).join();
-    /* int32 limit = 3; */
-    if (message.limit !== 0) writer.tag(3, WireType.Varint).int32(message.limit);
-    /* string after = 4; */
-    if (message.after !== "") writer.tag(4, WireType.LengthDelimited).string(message.after);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<SearchLogsRequest>): SearchLogsRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.sort = [];
+        message.limit = 0;
+        message.after = "";
+        if (value !== undefined)
+            reflectionMergePartial<SearchLogsRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SearchLogsRequest): SearchLogsRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* ExpressionData filter */ 1:
+                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                case /* repeated ExpressionData sort */ 2:
+                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* int32 limit */ 3:
+                    message.limit = reader.int32();
+                    break;
+                case /* string after */ 4:
+                    message.after = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SearchLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* ExpressionData filter = 1; */
+        if (message.filter)
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated ExpressionData sort = 2; */
+        for (let i = 0; i < message.sort.length; i++)
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* int32 limit = 3; */
+        if (message.limit !== 0)
+            writer.tag(3, WireType.Varint).int32(message.limit);
+        /* string after = 4; */
+        if (message.after !== "")
+            writer.tag(4, WireType.LengthDelimited).string(message.after);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message SearchLogsRequest
@@ -2794,63 +2796,62 @@ class SearchLogsRequest$Type extends MessageType<SearchLogsRequest> {
 export const SearchLogsRequest = new SearchLogsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SearchLogsResponse$Type extends MessageType<SearchLogsResponse> {
-  constructor() {
-    super("SearchLogsResponse", [
-      { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData },
-      { no: 2, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-      { no: 3, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-    ]);
-  }
-  create(value?: PartialMessage<SearchLogsResponse>): SearchLogsResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.logs = [];
-    message.cursors = [];
-    message.startCursor = "";
-    if (value !== undefined) reflectionMergePartial<SearchLogsResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: SearchLogsResponse
-  ): SearchLogsResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated LogEntryData logs */ 1:
-          message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        case /* repeated string cursors */ 2:
-          message.cursors.push(reader.string());
-          break;
-        case /* string start_cursor */ 3:
-          message.startCursor = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("SearchLogsResponse", [
+            { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData },
+            { no: 2, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: SearchLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated LogEntryData logs = 1; */
-    for (let i = 0; i < message.logs.length; i++)
-      LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    /* repeated string cursors = 2; */
-    for (let i = 0; i < message.cursors.length; i++) writer.tag(2, WireType.LengthDelimited).string(message.cursors[i]);
-    /* string start_cursor = 3; */
-    if (message.startCursor !== "") writer.tag(3, WireType.LengthDelimited).string(message.startCursor);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<SearchLogsResponse>): SearchLogsResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.logs = [];
+        message.cursors = [];
+        message.startCursor = "";
+        if (value !== undefined)
+            reflectionMergePartial<SearchLogsResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SearchLogsResponse): SearchLogsResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated LogEntryData logs */ 1:
+                    message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated string cursors */ 2:
+                    message.cursors.push(reader.string());
+                    break;
+                case /* string start_cursor */ 3:
+                    message.startCursor = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SearchLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated LogEntryData logs = 1; */
+        for (let i = 0; i < message.logs.length; i++)
+            LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated string cursors = 2; */
+        for (let i = 0; i < message.cursors.length; i++)
+            writer.tag(2, WireType.LengthDelimited).string(message.cursors[i]);
+        /* string start_cursor = 3; */
+        if (message.startCursor !== "")
+            writer.tag(3, WireType.LengthDelimited).string(message.startCursor);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message SearchLogsResponse
@@ -2858,27 +2859,24 @@ class SearchLogsResponse$Type extends MessageType<SearchLogsResponse> {
 export const SearchLogsResponse = new SearchLogsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class WatchLogsRequest$Type extends MessageType<WatchLogsRequest> {
-  constructor() {
-    super("WatchLogsRequest", []);
-  }
-  create(value?: PartialMessage<WatchLogsRequest>): WatchLogsRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<WatchLogsRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: WatchLogsRequest
-  ): WatchLogsRequest {
-    return target ?? this.create();
-  }
-  internalBinaryWrite(message: WatchLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    constructor() {
+        super("WatchLogsRequest", []);
+    }
+    create(value?: PartialMessage<WatchLogsRequest>): WatchLogsRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<WatchLogsRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WatchLogsRequest): WatchLogsRequest {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: WatchLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message WatchLogsRequest
@@ -2886,49 +2884,46 @@ class WatchLogsRequest$Type extends MessageType<WatchLogsRequest> {
 export const WatchLogsRequest = new WatchLogsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class WatchLogsResponse$Type extends MessageType<WatchLogsResponse> {
-  constructor() {
-    super("WatchLogsResponse", [
-      { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData },
-    ]);
-  }
-  create(value?: PartialMessage<WatchLogsResponse>): WatchLogsResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.logs = [];
-    if (value !== undefined) reflectionMergePartial<WatchLogsResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: WatchLogsResponse
-  ): WatchLogsResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated LogEntryData logs */ 1:
-          message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("WatchLogsResponse", [
+            { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: WatchLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* repeated LogEntryData logs = 1; */
-    for (let i = 0; i < message.logs.length; i++)
-      LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<WatchLogsResponse>): WatchLogsResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.logs = [];
+        if (value !== undefined)
+            reflectionMergePartial<WatchLogsResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: WatchLogsResponse): WatchLogsResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated LogEntryData logs */ 1:
+                    message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: WatchLogsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated LogEntryData logs = 1; */
+        for (let i = 0; i < message.logs.length; i++)
+            LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message WatchLogsResponse
@@ -2936,73 +2931,69 @@ class WatchLogsResponse$Type extends MessageType<WatchLogsResponse> {
 export const WatchLogsResponse = new WatchLogsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RunProxyStatementRequest$Type extends MessageType<RunProxyStatementRequest> {
-  constructor() {
-    super("RunProxyStatementRequest", [
-      { no: 1, name: "statement", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-      { no: 2, name: "inputs", kind: "message", T: () => Struct },
-      { no: 3, name: "timeout_ms", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-      { no: 4, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-    ]);
-  }
-  create(value?: PartialMessage<RunProxyStatementRequest>): RunProxyStatementRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.statement = "";
-    message.timeoutMs = 0;
-    message.runId = "";
-    if (value !== undefined) reflectionMergePartial<RunProxyStatementRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: RunProxyStatementRequest
-  ): RunProxyStatementRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* string statement */ 1:
-          message.statement = reader.string();
-          break;
-        case /* google.protobuf.Struct inputs */ 2:
-          message.inputs = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputs);
-          break;
-        case /* int32 timeout_ms */ 3:
-          message.timeoutMs = reader.int32();
-          break;
-        case /* string run_id */ 4:
-          message.runId = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("RunProxyStatementRequest", [
+            { no: 1, name: "statement", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "inputs", kind: "message", T: () => Struct },
+            { no: 3, name: "timeout_ms", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 4, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: RunProxyStatementRequest,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* string statement = 1; */
-    if (message.statement !== "") writer.tag(1, WireType.LengthDelimited).string(message.statement);
-    /* google.protobuf.Struct inputs = 2; */
-    if (message.inputs)
-      Struct.internalBinaryWrite(message.inputs, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-    /* int32 timeout_ms = 3; */
-    if (message.timeoutMs !== 0) writer.tag(3, WireType.Varint).int32(message.timeoutMs);
-    /* string run_id = 4; */
-    if (message.runId !== "") writer.tag(4, WireType.LengthDelimited).string(message.runId);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<RunProxyStatementRequest>): RunProxyStatementRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.statement = "";
+        message.timeoutMs = 0;
+        message.runId = "";
+        if (value !== undefined)
+            reflectionMergePartial<RunProxyStatementRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunProxyStatementRequest): RunProxyStatementRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string statement */ 1:
+                    message.statement = reader.string();
+                    break;
+                case /* google.protobuf.Struct inputs */ 2:
+                    message.inputs = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputs);
+                    break;
+                case /* int32 timeout_ms */ 3:
+                    message.timeoutMs = reader.int32();
+                    break;
+                case /* string run_id */ 4:
+                    message.runId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RunProxyStatementRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string statement = 1; */
+        if (message.statement !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.statement);
+        /* google.protobuf.Struct inputs = 2; */
+        if (message.inputs)
+            Struct.internalBinaryWrite(message.inputs, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* int32 timeout_ms = 3; */
+        if (message.timeoutMs !== 0)
+            writer.tag(3, WireType.Varint).int32(message.timeoutMs);
+        /* string run_id = 4; */
+        if (message.runId !== "")
+            writer.tag(4, WireType.LengthDelimited).string(message.runId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message RunProxyStatementRequest
@@ -3010,113 +3001,146 @@ class RunProxyStatementRequest$Type extends MessageType<RunProxyStatementRequest
 export const RunProxyStatementRequest = new RunProxyStatementRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RunProxyStatementResponse$Type extends MessageType<RunProxyStatementResponse> {
-  constructor() {
-    super("RunProxyStatementResponse", [
-      { no: 1, name: "outputs", kind: "message", T: () => Struct },
-      { no: 2, name: "error", kind: "message", T: () => Struct },
-    ]);
-  }
-  create(value?: PartialMessage<RunProxyStatementResponse>): RunProxyStatementResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<RunProxyStatementResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: RunProxyStatementResponse
-  ): RunProxyStatementResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* google.protobuf.Struct outputs */ 1:
-          message.outputs = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputs);
-          break;
-        case /* google.protobuf.Struct error */ 2:
-          message.error = Struct.internalBinaryRead(reader, reader.uint32(), options, message.error);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("RunProxyStatementResponse", [
+            { no: 1, name: "outputs", kind: "message", T: () => Struct },
+            { no: 2, name: "error", kind: "message", T: () => Struct }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: RunProxyStatementResponse,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* google.protobuf.Struct outputs = 1; */
-    if (message.outputs)
-      Struct.internalBinaryWrite(message.outputs, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    /* google.protobuf.Struct error = 2; */
-    if (message.error)
-      Struct.internalBinaryWrite(message.error, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<RunProxyStatementResponse>): RunProxyStatementResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<RunProxyStatementResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunProxyStatementResponse): RunProxyStatementResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* google.protobuf.Struct outputs */ 1:
+                    message.outputs = Struct.internalBinaryRead(reader, reader.uint32(), options, message.outputs);
+                    break;
+                case /* google.protobuf.Struct error */ 2:
+                    message.error = Struct.internalBinaryRead(reader, reader.uint32(), options, message.error);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RunProxyStatementResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* google.protobuf.Struct outputs = 1; */
+        if (message.outputs)
+            Struct.internalBinaryWrite(message.outputs, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Struct error = 2; */
+        if (message.error)
+            Struct.internalBinaryWrite(message.error, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message RunProxyStatementResponse
  */
 export const RunProxyStatementResponse = new RunProxyStatementResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PushWorkerLogsRequest$Type extends MessageType<PushWorkerLogsRequest> {
-  constructor() {
-    super("PushWorkerLogsRequest", [
-      { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData },
-    ]);
-  }
-  create(value?: PartialMessage<PushWorkerLogsRequest>): PushWorkerLogsRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.logs = [];
-    if (value !== undefined) reflectionMergePartial<PushWorkerLogsRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: PushWorkerLogsRequest
-  ): PushWorkerLogsRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* repeated LogEntryData logs */ 1:
-          message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+class PushLocalEditsRequest$Type extends MessageType<PushLocalEditsRequest> {
+    constructor() {
+        super("PushLocalEditsRequest", [
+            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(
-    message: PushWorkerLogsRequest,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    /* repeated LogEntryData logs = 1; */
-    for (let i = 0; i < message.logs.length; i++)
-      LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<PushLocalEditsRequest>): PushLocalEditsRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.edits = [];
+        if (value !== undefined)
+            reflectionMergePartial<PushLocalEditsRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushLocalEditsRequest): PushLocalEditsRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated EditData edits */ 1:
+                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PushLocalEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated EditData edits = 1; */
+        for (let i = 0; i < message.edits.length; i++)
+            EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message PushLocalEditsRequest
+ */
+export const PushLocalEditsRequest = new PushLocalEditsRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class PushWorkerLogsRequest$Type extends MessageType<PushWorkerLogsRequest> {
+    constructor() {
+        super("PushWorkerLogsRequest", [
+            { no: 1, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData }
+        ]);
+    }
+    create(value?: PartialMessage<PushWorkerLogsRequest>): PushWorkerLogsRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.logs = [];
+        if (value !== undefined)
+            reflectionMergePartial<PushWorkerLogsRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushWorkerLogsRequest): PushWorkerLogsRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated LogEntryData logs */ 1:
+                    message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: PushWorkerLogsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated LogEntryData logs = 1; */
+        for (let i = 0; i < message.logs.length; i++)
+            LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message PushWorkerLogsRequest
@@ -3124,31 +3148,24 @@ class PushWorkerLogsRequest$Type extends MessageType<PushWorkerLogsRequest> {
 export const PushWorkerLogsRequest = new PushWorkerLogsRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RestartWorkerRequest$Type extends MessageType<RestartWorkerRequest> {
-  constructor() {
-    super("RestartWorkerRequest", []);
-  }
-  create(value?: PartialMessage<RestartWorkerRequest>): RestartWorkerRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<RestartWorkerRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: RestartWorkerRequest
-  ): RestartWorkerRequest {
-    return target ?? this.create();
-  }
-  internalBinaryWrite(
-    message: RestartWorkerRequest,
-    writer: IBinaryWriter,
-    options: BinaryWriteOptions
-  ): IBinaryWriter {
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    constructor() {
+        super("RestartWorkerRequest", []);
+    }
+    create(value?: PartialMessage<RestartWorkerRequest>): RestartWorkerRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<RestartWorkerRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RestartWorkerRequest): RestartWorkerRequest {
+        return target ?? this.create();
+    }
+    internalBinaryWrite(message: RestartWorkerRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message RestartWorkerRequest
@@ -3156,102 +3173,99 @@ class RestartWorkerRequest$Type extends MessageType<RestartWorkerRequest> {
 export const RestartWorkerRequest = new RestartWorkerRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class StartRunRequest$Type extends MessageType<StartRunRequest> {
-  constructor() {
-    super("StartRunRequest", [
-      { no: 1, name: "run", kind: "message", T: () => RunData },
-      { no: 10, name: "block", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-      { no: 11, name: "keyed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-      { no: 12, name: "keyed_return", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-      { no: 13, name: "tags", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-      { no: 14, name: "root_value", kind: "message", T: () => Struct },
-      { no: 15, name: "global_value", kind: "message", T: () => Struct },
-      {
-        no: 16,
-        name: "access_level",
-        kind: "enum",
-        T: () => ["SessionAccessLevel", SessionAccessLevel, "SESSION_ACCESS_LEVEL_"],
-      },
-    ]);
-  }
-  create(value?: PartialMessage<StartRunRequest>): StartRunRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.block = false;
-    message.keyed = false;
-    message.keyedReturn = false;
-    message.tags = [];
-    message.accessLevel = 0;
-    if (value !== undefined) reflectionMergePartial<StartRunRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: StartRunRequest
-  ): StartRunRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* RunData run */ 1:
-          message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
-          break;
-        case /* bool block */ 10:
-          message.block = reader.bool();
-          break;
-        case /* bool keyed */ 11:
-          message.keyed = reader.bool();
-          break;
-        case /* bool keyed_return */ 12:
-          message.keyedReturn = reader.bool();
-          break;
-        case /* repeated string tags */ 13:
-          message.tags.push(reader.string());
-          break;
-        case /* google.protobuf.Struct root_value */ 14:
-          message.rootValue = Struct.internalBinaryRead(reader, reader.uint32(), options, message.rootValue);
-          break;
-        case /* google.protobuf.Struct global_value */ 15:
-          message.globalValue = Struct.internalBinaryRead(reader, reader.uint32(), options, message.globalValue);
-          break;
-        case /* SessionAccessLevel access_level */ 16:
-          message.accessLevel = reader.int32();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("StartRunRequest", [
+            { no: 1, name: "run", kind: "message", T: () => RunData },
+            { no: 10, name: "block", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 11, name: "keyed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 12, name: "keyed_return", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 13, name: "tags", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 14, name: "root_value", kind: "message", T: () => Struct },
+            { no: 15, name: "global_value", kind: "message", T: () => Struct },
+            { no: 16, name: "access_level", kind: "enum", T: () => ["SessionAccessLevel", SessionAccessLevel, "SESSION_ACCESS_LEVEL_"] }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: StartRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* RunData run = 1; */
-    if (message.run)
-      RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    /* bool block = 10; */
-    if (message.block !== false) writer.tag(10, WireType.Varint).bool(message.block);
-    /* bool keyed = 11; */
-    if (message.keyed !== false) writer.tag(11, WireType.Varint).bool(message.keyed);
-    /* bool keyed_return = 12; */
-    if (message.keyedReturn !== false) writer.tag(12, WireType.Varint).bool(message.keyedReturn);
-    /* repeated string tags = 13; */
-    for (let i = 0; i < message.tags.length; i++) writer.tag(13, WireType.LengthDelimited).string(message.tags[i]);
-    /* google.protobuf.Struct root_value = 14; */
-    if (message.rootValue)
-      Struct.internalBinaryWrite(message.rootValue, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-    /* google.protobuf.Struct global_value = 15; */
-    if (message.globalValue)
-      Struct.internalBinaryWrite(message.globalValue, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-    /* SessionAccessLevel access_level = 16; */
-    if (message.accessLevel !== 0) writer.tag(16, WireType.Varint).int32(message.accessLevel);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<StartRunRequest>): StartRunRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.block = false;
+        message.keyed = false;
+        message.keyedReturn = false;
+        message.tags = [];
+        message.accessLevel = 0;
+        if (value !== undefined)
+            reflectionMergePartial<StartRunRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StartRunRequest): StartRunRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* RunData run */ 1:
+                    message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
+                    break;
+                case /* bool block */ 10:
+                    message.block = reader.bool();
+                    break;
+                case /* bool keyed */ 11:
+                    message.keyed = reader.bool();
+                    break;
+                case /* bool keyed_return */ 12:
+                    message.keyedReturn = reader.bool();
+                    break;
+                case /* repeated string tags */ 13:
+                    message.tags.push(reader.string());
+                    break;
+                case /* google.protobuf.Struct root_value */ 14:
+                    message.rootValue = Struct.internalBinaryRead(reader, reader.uint32(), options, message.rootValue);
+                    break;
+                case /* google.protobuf.Struct global_value */ 15:
+                    message.globalValue = Struct.internalBinaryRead(reader, reader.uint32(), options, message.globalValue);
+                    break;
+                case /* SessionAccessLevel access_level */ 16:
+                    message.accessLevel = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StartRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* RunData run = 1; */
+        if (message.run)
+            RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* bool block = 10; */
+        if (message.block !== false)
+            writer.tag(10, WireType.Varint).bool(message.block);
+        /* bool keyed = 11; */
+        if (message.keyed !== false)
+            writer.tag(11, WireType.Varint).bool(message.keyed);
+        /* bool keyed_return = 12; */
+        if (message.keyedReturn !== false)
+            writer.tag(12, WireType.Varint).bool(message.keyedReturn);
+        /* repeated string tags = 13; */
+        for (let i = 0; i < message.tags.length; i++)
+            writer.tag(13, WireType.LengthDelimited).string(message.tags[i]);
+        /* google.protobuf.Struct root_value = 14; */
+        if (message.rootValue)
+            Struct.internalBinaryWrite(message.rootValue, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Struct global_value = 15; */
+        if (message.globalValue)
+            Struct.internalBinaryWrite(message.globalValue, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
+        /* SessionAccessLevel access_level = 16; */
+        if (message.accessLevel !== 0)
+            writer.tag(16, WireType.Varint).int32(message.accessLevel);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message StartRunRequest
@@ -3259,63 +3273,61 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
 export const StartRunRequest = new StartRunRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class StartRunResponse$Type extends MessageType<StartRunResponse> {
-  constructor() {
-    super("StartRunResponse", [
-      { no: 1, name: "error_type", kind: "enum", T: () => ["StartRunResponse.ErrorType", StartRunResponse_ErrorType] },
-      { no: 2, name: "run", kind: "message", T: () => RunData },
-      { no: 3, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData },
-    ]);
-  }
-  create(value?: PartialMessage<StartRunResponse>): StartRunResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.errorType = 0;
-    message.logs = [];
-    if (value !== undefined) reflectionMergePartial<StartRunResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: StartRunResponse
-  ): StartRunResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* StartRunResponse.ErrorType error_type */ 1:
-          message.errorType = reader.int32();
-          break;
-        case /* RunData run */ 2:
-          message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
-          break;
-        case /* repeated LogEntryData logs */ 3:
-          message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("StartRunResponse", [
+            { no: 1, name: "error_type", kind: "enum", T: () => ["StartRunResponse.ErrorType", StartRunResponse_ErrorType] },
+            { no: 2, name: "run", kind: "message", T: () => RunData },
+            { no: 3, name: "logs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => LogEntryData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: StartRunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* StartRunResponse.ErrorType error_type = 1; */
-    if (message.errorType !== 0) writer.tag(1, WireType.Varint).int32(message.errorType);
-    /* RunData run = 2; */
-    if (message.run)
-      RunData.internalBinaryWrite(message.run, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-    /* repeated LogEntryData logs = 3; */
-    for (let i = 0; i < message.logs.length; i++)
-      LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<StartRunResponse>): StartRunResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.errorType = 0;
+        message.logs = [];
+        if (value !== undefined)
+            reflectionMergePartial<StartRunResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StartRunResponse): StartRunResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* StartRunResponse.ErrorType error_type */ 1:
+                    message.errorType = reader.int32();
+                    break;
+                case /* RunData run */ 2:
+                    message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
+                    break;
+                case /* repeated LogEntryData logs */ 3:
+                    message.logs.push(LogEntryData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: StartRunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* StartRunResponse.ErrorType error_type = 1; */
+        if (message.errorType !== 0)
+            writer.tag(1, WireType.Varint).int32(message.errorType);
+        /* RunData run = 2; */
+        if (message.run)
+            RunData.internalBinaryWrite(message.run, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* repeated LogEntryData logs = 3; */
+        for (let i = 0; i < message.logs.length; i++)
+            LogEntryData.internalBinaryWrite(message.logs[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message StartRunResponse
@@ -3323,46 +3335,46 @@ class StartRunResponse$Type extends MessageType<StartRunResponse> {
 export const StartRunResponse = new StartRunResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class KillRunRequest$Type extends MessageType<KillRunRequest> {
-  constructor() {
-    super("KillRunRequest", [{ no: 1, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }]);
-  }
-  create(value?: PartialMessage<KillRunRequest>): KillRunRequest {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    message.runId = "";
-    if (value !== undefined) reflectionMergePartial<KillRunRequest>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: KillRunRequest
-  ): KillRunRequest {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* string run_id */ 1:
-          message.runId = reader.string();
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("KillRunRequest", [
+            { no: 1, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: KillRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* string run_id = 1; */
-    if (message.runId !== "") writer.tag(1, WireType.LengthDelimited).string(message.runId);
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<KillRunRequest>): KillRunRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.runId = "";
+        if (value !== undefined)
+            reflectionMergePartial<KillRunRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: KillRunRequest): KillRunRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string run_id */ 1:
+                    message.runId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: KillRunRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string run_id = 1; */
+        if (message.runId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.runId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message KillRunRequest
@@ -3370,46 +3382,45 @@ class KillRunRequest$Type extends MessageType<KillRunRequest> {
 export const KillRunRequest = new KillRunRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class KillRunResponse$Type extends MessageType<KillRunResponse> {
-  constructor() {
-    super("KillRunResponse", [{ no: 1, name: "run", kind: "message", T: () => RunData }]);
-  }
-  create(value?: PartialMessage<KillRunResponse>): KillRunResponse {
-    const message = globalThis.Object.create(this.messagePrototype!);
-    if (value !== undefined) reflectionMergePartial<KillRunResponse>(this, message, value);
-    return message;
-  }
-  internalBinaryRead(
-    reader: IBinaryReader,
-    length: number,
-    options: BinaryReadOptions,
-    target?: KillRunResponse
-  ): KillRunResponse {
-    let message = target ?? this.create(),
-      end = reader.pos + length;
-    while (reader.pos < end) {
-      let [fieldNo, wireType] = reader.tag();
-      switch (fieldNo) {
-        case /* RunData run */ 1:
-          message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
-          break;
-        default:
-          let u = options.readUnknownField;
-          if (u === "throw")
-            throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-          let d = reader.skip(wireType);
-          if (u !== false) (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-      }
+    constructor() {
+        super("KillRunResponse", [
+            { no: 1, name: "run", kind: "message", T: () => RunData }
+        ]);
     }
-    return message;
-  }
-  internalBinaryWrite(message: KillRunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-    /* RunData run = 1; */
-    if (message.run)
-      RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-    let u = options.writeUnknownFields;
-    if (u !== false) (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-    return writer;
-  }
+    create(value?: PartialMessage<KillRunResponse>): KillRunResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<KillRunResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: KillRunResponse): KillRunResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* RunData run */ 1:
+                    message.run = RunData.internalBinaryRead(reader, reader.uint32(), options, message.run);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: KillRunResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* RunData run = 1; */
+        if (message.run)
+            RunData.internalBinaryWrite(message.run, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
 }
 /**
  * @generated MessageType for protobuf message KillRunResponse
@@ -3419,47 +3430,49 @@ export const KillRunResponse = new KillRunResponse$Type();
  * @generated ServiceType for protobuf service GlobalSupervisor
  */
 export const GlobalSupervisor = new ServiceType("GlobalSupervisor", [
-  { name: "CreateUser", options: {}, I: CreateUserRequest, O: CreateUserResponse },
-  { name: "CreateOrganization", options: {}, I: CreateOrganizationRequest, O: CreateOrganizationResponse },
-  { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse },
-  { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
-  { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
-  { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
-  { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
-  { name: "RestartWorkerSet", options: {}, I: RestartWorkerSetRequest, O: PingWorkerSetResponse },
-  { name: "PingWorkerSet", options: {}, I: PingWorkerSetRequest, O: PingWorkerSetResponse },
+    { name: "CreateUser", options: {}, I: CreateUserRequest, O: CreateUserResponse },
+    { name: "LoginUser", options: {}, I: LoginUserRequest, O: LoginUserResponse },
+    { name: "LogoutUser", options: {}, I: LogoutUserRequest, O: LogoutUserResponse },
+    { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse },
+    { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
+    { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
+    { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
+    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
+    { name: "RestartWorkerSet", options: {}, I: RestartWorkerSetRequest, O: PingWorkerSetResponse },
+    { name: "PingWorkerSet", options: {}, I: PingWorkerSetRequest, O: PingWorkerSetResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service ModuleHost
  */
 export const ModuleHost = new ServiceType("ModuleHost", [
-  { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
-  { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
-  { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
-  { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
-  { name: "UploadBlob", options: {}, I: UploadBlobRequest, O: UploadBlobResponse },
-  { name: "DownloadBlob", options: {}, I: DownloadBlobRequest, O: DownloadBlobResponse },
-  { name: "PasteNodes", options: {}, I: PasteNodesRequest, O: PasteNodesResponse },
-  { name: "Snapshot", options: {}, I: SnapshotModuleRequest, O: SnapshotModuleResponse },
-  { name: "SearchLogs", options: {}, I: SearchLogsRequest, O: SearchLogsResponse },
-  { name: "WatchLogs", serverStreaming: true, options: {}, I: WatchLogsRequest, O: WatchLogsResponse },
-  { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
-  { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse },
-  { name: "RunProxyStatement", options: {}, I: RunProxyStatementRequest, O: RunProxyStatementResponse },
-  { name: "PushWorkerLogs", options: {}, I: PushWorkerLogsRequest, O: Empty },
+    { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
+    { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
+    { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
+    { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
+    { name: "UploadBlob", options: {}, I: UploadBlobRequest, O: UploadBlobResponse },
+    { name: "DownloadBlob", options: {}, I: DownloadBlobRequest, O: DownloadBlobResponse },
+    { name: "PasteNodes", options: {}, I: PasteNodesRequest, O: PasteNodesResponse },
+    { name: "Snapshot", options: {}, I: SnapshotModuleRequest, O: SnapshotModuleResponse },
+    { name: "SearchLogs", options: {}, I: SearchLogsRequest, O: SearchLogsResponse },
+    { name: "WatchLogs", serverStreaming: true, options: {}, I: WatchLogsRequest, O: WatchLogsResponse },
+    { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
+    { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse },
+    { name: "RunProxyStatement", options: {}, I: RunProxyStatementRequest, O: RunProxyStatementResponse },
+    { name: "PushLocalEdits", options: {}, I: PushLocalEditsRequest, O: Empty },
+    { name: "PushWorkerLogs", options: {}, I: PushWorkerLogsRequest, O: Empty }
 ]);
 /**
- * @generated ServiceType for protobuf service WorkerNode
+ * @generated ServiceType for protobuf service Worker
  */
-export const WorkerNode = new ServiceType("WorkerNode", [
-  { name: "RestartWorker", options: {}, I: RestartWorkerRequest, O: Empty },
-  { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
-  { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse },
+export const Worker = new ServiceType("Worker", [
+    { name: "RestartWorker", options: {}, I: RestartWorkerRequest, O: Empty },
+    { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
+    { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service WorkerProcess
  */
 export const WorkerProcess = new ServiceType("WorkerProcess", [
-  { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
-  { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse },
+    { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
+    { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse }
 ]);

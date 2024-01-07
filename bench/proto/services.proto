@@ -53,6 +53,10 @@ message LoginUserResponse {
 }
 
 message LogoutUserRequest {
+  UserData user = 1;
+}
+message LogoutUserResponse {
+  UserData user = 1;
 }
 
 message CreateOrganizationRequest {
@@ -131,9 +135,7 @@ service GlobalSupervisor {
   // Login user account.
   rpc LoginUser(LoginUserRequest) returns (LoginUserResponse);
   // Logout user account.
-  rpc LogoutUser(LogoutUserRequest) returns (google.protobuf.Empty);
-  // Create organization.
-  rpc CreateOrganization(CreateOrganizationRequest) returns (CreateOrganizationResponse);
+  rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
   // Create a Bench.
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
   // Get global nodes.

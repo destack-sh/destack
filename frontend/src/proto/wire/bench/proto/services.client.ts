@@ -7,11 +7,12 @@
 //All the services and any additional stuff not auto-generated in bench.proto.
 //
 import { WorkerProcess } from "./services";
-import { WorkerNode } from "./services";
+import { Worker } from "./services";
 import type { RestartWorkerRequest } from "./services";
 import { ModuleHost } from "./services";
-import type { Empty } from "../../google/protobuf/empty";
 import type { PushWorkerLogsRequest } from "./services";
+import type { Empty } from "../../google/protobuf/empty";
+import type { PushLocalEditsRequest } from "./services";
 import type { RunProxyStatementResponse } from "./services";
 import type { RunProxyStatementRequest } from "./services";
 import type { KillRunResponse } from "./services";
@@ -47,8 +48,10 @@ import type { ReadNodesResponse } from "./services";
 import type { ReadNodesRequest } from "./services";
 import type { CreateBenchResponse } from "./services";
 import type { CreateBenchRequest } from "./services";
-import type { CreateOrganizationResponse } from "./services";
-import type { CreateOrganizationRequest } from "./services";
+import type { LogoutUserResponse } from "./services";
+import type { LogoutUserRequest } from "./services";
+import type { LoginUserResponse } from "./services";
+import type { LoginUserRequest } from "./services";
 import { stackIntercept } from "@protobuf-ts/runtime-rpc";
 import type { CreateUserResponse } from "./services";
 import type { CreateUserRequest } from "./services";
@@ -69,11 +72,17 @@ export interface IGlobalSupervisorClient {
      */
     createUser(input: CreateUserRequest, options?: RpcOptions): UnaryCall<CreateUserRequest, CreateUserResponse>;
     /**
-     * Create organization.
+     * Login user account.
      *
-     * @generated from protobuf rpc: CreateOrganization(CreateOrganizationRequest) returns (CreateOrganizationResponse);
+     * @generated from protobuf rpc: LoginUser(LoginUserRequest) returns (LoginUserResponse);
      */
-    createOrganization(input: CreateOrganizationRequest, options?: RpcOptions): UnaryCall<CreateOrganizationRequest, CreateOrganizationResponse>;
+    loginUser(input: LoginUserRequest, options?: RpcOptions): UnaryCall<LoginUserRequest, LoginUserResponse>;
+    /**
+     * Logout user account.
+     *
+     * @generated from protobuf rpc: LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
+     */
+    logoutUser(input: LogoutUserRequest, options?: RpcOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse>;
     /**
      * Create a Bench.
      *
@@ -140,13 +149,22 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         return stackIntercept<CreateUserRequest, CreateUserResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Create organization.
+     * Login user account.
      *
-     * @generated from protobuf rpc: CreateOrganization(CreateOrganizationRequest) returns (CreateOrganizationResponse);
+     * @generated from protobuf rpc: LoginUser(LoginUserRequest) returns (LoginUserResponse);
      */
-    createOrganization(input: CreateOrganizationRequest, options?: RpcOptions): UnaryCall<CreateOrganizationRequest, CreateOrganizationResponse> {
+    loginUser(input: LoginUserRequest, options?: RpcOptions): UnaryCall<LoginUserRequest, LoginUserResponse> {
         const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CreateOrganizationRequest, CreateOrganizationResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<LoginUserRequest, LoginUserResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * Logout user account.
+     *
+     * @generated from protobuf rpc: LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
+     */
+    logoutUser(input: LogoutUserRequest, options?: RpcOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse> {
+        const method = this.methods[2], opt = this._transport.mergeOptions(options);
+        return stackIntercept<LogoutUserRequest, LogoutUserResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * Create a Bench.
@@ -154,7 +172,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
      */
     createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
         return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -163,7 +181,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
      */
     readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<ReadNodesRequest, ReadNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -172,7 +190,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
      */
     searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -181,7 +199,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
      */
     commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -190,7 +208,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
+        const method = this.methods[7], opt = this._transport.mergeOptions(options);
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
@@ -199,7 +217,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: RestartWorkerSet(RestartWorkerSetRequest) returns (PingWorkerSetResponse);
      */
     restartWorkerSet(input: RestartWorkerSetRequest, options?: RpcOptions): UnaryCall<RestartWorkerSetRequest, PingWorkerSetResponse> {
-        const method = this.methods[7], opt = this._transport.mergeOptions(options);
+        const method = this.methods[8], opt = this._transport.mergeOptions(options);
         return stackIntercept<RestartWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -208,7 +226,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
      */
     pingWorkerSet(input: PingWorkerSetRequest, options?: RpcOptions): UnaryCall<PingWorkerSetRequest, PingWorkerSetResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        const method = this.methods[9], opt = this._transport.mergeOptions(options);
         return stackIntercept<PingWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
     }
 }
@@ -299,6 +317,12 @@ export interface IModuleHostClient {
      * @generated from protobuf rpc: RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
      */
     runProxyStatement(input: RunProxyStatementRequest, options?: RpcOptions): UnaryCall<RunProxyStatementRequest, RunProxyStatementResponse>;
+    /**
+     * Push local edits from a worker.
+     *
+     * @generated from protobuf rpc: PushLocalEdits(PushLocalEditsRequest) returns (google.protobuf.Empty);
+     */
+    pushLocalEdits(input: PushLocalEditsRequest, options?: RpcOptions): UnaryCall<PushLocalEditsRequest, Empty>;
     /**
      * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
      *
@@ -438,12 +462,21 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<RunProxyStatementRequest, RunProxyStatementResponse>("unary", this._transport, method, opt, input);
     }
     /**
+     * Push local edits from a worker.
+     *
+     * @generated from protobuf rpc: PushLocalEdits(PushLocalEditsRequest) returns (google.protobuf.Empty);
+     */
+    pushLocalEdits(input: PushLocalEditsRequest, options?: RpcOptions): UnaryCall<PushLocalEditsRequest, Empty> {
+        const method = this.methods[13], opt = this._transport.mergeOptions(options);
+        return stackIntercept<PushLocalEditsRequest, Empty>("unary", this._transport, method, opt, input);
+    }
+    /**
      * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
      *
      * @generated from protobuf rpc: PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
      */
     pushWorkerLogs(input: PushWorkerLogsRequest, options?: RpcOptions): UnaryCall<PushWorkerLogsRequest, Empty> {
-        const method = this.methods[13], opt = this._transport.mergeOptions(options);
+        const method = this.methods[14], opt = this._transport.mergeOptions(options);
         return stackIntercept<PushWorkerLogsRequest, Empty>("unary", this._transport, method, opt, input);
     }
 }
@@ -452,9 +485,9 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
  * Service is scoped to bench_id/worker_set_id.
  * Not accessible from the outside.
  *
- * @generated from protobuf service WorkerNode
+ * @generated from protobuf service Worker
  */
-export interface IWorkerNodeClient {
+export interface IWorkerClient {
     /**
      * Restart this worker immediately.
      *
@@ -479,12 +512,12 @@ export interface IWorkerNodeClient {
  * Service is scoped to bench_id/worker_set_id.
  * Not accessible from the outside.
  *
- * @generated from protobuf service WorkerNode
+ * @generated from protobuf service Worker
  */
-export class WorkerNodeClient implements IWorkerNodeClient, ServiceInfo {
-    typeName = WorkerNode.typeName;
-    methods = WorkerNode.methods;
-    options = WorkerNode.options;
+export class WorkerClient implements IWorkerClient, ServiceInfo {
+    typeName = Worker.typeName;
+    methods = Worker.methods;
+    options = Worker.options;
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
