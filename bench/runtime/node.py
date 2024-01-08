@@ -3,7 +3,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.proto.wire import WorkerBase
+from bench.proto.wire import WorkerBase, RestartWorkerRequest
 from bench.utils.monitoring import Monitored
 
 logger = structlog.get_logger(__name__)
@@ -37,3 +37,14 @@ class Worker(Monitored, WorkerBase):
 
     async def run(self):
         raise NotImplementedError("nocheckin: worker.run")
+
+    async def restart_worker(
+        self, restart_worker_request: "RestartWorkerRequest"
+    ) -> "RestartWorkerResponse":
+        return await super().restart_worker(restart_worker_request)
+
+    async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
+        return await super().start_run(start_run_request)
+
+    async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
+        return await super().kill_run(kill_run_request)

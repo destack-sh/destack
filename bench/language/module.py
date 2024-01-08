@@ -369,7 +369,7 @@ class Property(_FieldExpressionBase):
         from bench.language.field import Field
 
         # derive constant ck for field using ids
-        metatype = getattr(self.component, "metatype", None)  # (Node/Struct don't have metatype)
+        metatype = getattr(self.component, "metatype", None)  # (ABCs don't have a metatype)
         metatype_id = metatype.id if metatype is not None else None
         if self.column_type == ColumnType.BOOLEAN:
             tag, hint = TypeTag.BOOLEAN, None

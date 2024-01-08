@@ -9,10 +9,6 @@ async def global_session(commit: bool = False) -> "Session":
     session = Session(
         parent=None,
     )
-    try:
-        yield session
-    finally:
-        if commit:
-            await session.commit()
-        else:
-            await session.rollback()
+    yield session
+    if commit:
+        await session.commit()

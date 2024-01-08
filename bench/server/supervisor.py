@@ -5,6 +5,7 @@ import structlog
 from bench.language import Client, Handle, User
 from bench.language.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.proto import wiring
+from bench.proto.discovery import ExtendedServiceBase
 from bench.proto.wire import (
     CommitEditsRequest,
     CommitEditsResponse,
@@ -36,7 +37,7 @@ WORKER_SET_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
 WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
-class GlobalSupervisor(Monitored, GlobalSupervisorBase):
+class GlobalSupervisor(ExtendedServiceBase, GlobalSupervisorBase):
     @property
     def ready(self):
         return True
@@ -46,7 +47,7 @@ class GlobalSupervisor(Monitored, GlobalSupervisorBase):
         return True
 
     async def create_user(self, create_user_request: "CreateUserRequest") -> "CreateUserResponse":
-        async with global_session() as session:
+        async with global_session(commit=True) as session:
             user = wiring.unpack_node(create_user_request.user, parent=None, session=session)
             user.password_salt = generate_salt()
             user.password_hash = hash_password(create_user_request.password, user.password_salt)
@@ -54,11 +55,10 @@ class GlobalSupervisor(Monitored, GlobalSupervisorBase):
             client = wiring.unpack_node(create_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.create(client)
-            await session.commit()
         return CreateUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def login_user(self, login_user_request: "LoginUserRequest") -> "LoginUserResponse":
-        async with global_session() as session:
+        async with global_session(commit=True) as session:
             if login_user_request.user.username:
                 user = await User.get(username=login_user_request.user.username)
             elif login_user_request.user.email:
@@ -73,7 +73,6 @@ class GlobalSupervisor(Monitored, GlobalSupervisorBase):
             client = wiring.unpack_node(login_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.upsert(client)
-            await session.commit()
         return LoginUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def logout_user(self, logout_user_request: "LogoutUserRequest") -> "LogoutUserResponse":
