@@ -14,7 +14,6 @@ from bench.language.builtin import _auto_async_to_sync, active_session
 from bench.language.const import BlobStatus, NodeType
 from bench.language.module import (
     Bench,
-    Module,
     Node,
     node,
     node_parent,
@@ -212,45 +211,3 @@ class Blob(Node):
         if suffix not in ("txt", "md", "csv", "rst", "log", "json", "yaml", "yml", "toml"):
             name += ".txt"
         return await Blob.from_content(name, "text/plain", content.encode())
-
-
-class Blobs:
-    """Convenience wrapper around a module's blob storage."""
-
-    def __init__(self, module: Module):
-        self.module = module
-
-    def __str__(self):
-        return f"{self.module} storage"
-
-    def __repr__(self):
-        return f"<Storage {self}>"
-
-    @_auto_async_to_sync
-    async def upload(
-        self, file: typing.BinaryIO, name: str = None, content_type: str = None
-    ) -> Blob:
-        """Upload a file to blob storage."""
-        return await Blob.from_file(file, name=name, content_type=content_type)
-
-    @_auto_async_to_sync
-    async def upload_content(
-        self, name: str, content_type: str, content: bytes | typing.BinaryIO
-    ) -> Blob:
-        """Upload a file to blob storage."""
-        return await Blob.from_content(name, content_type, content)
-
-    @_auto_async_to_sync
-    async def upload_text(self, name: str, content: str) -> Blob:
-        """Upload a file to blob storage."""
-        return await Blob.from_text(name, content)
-
-    @_auto_async_to_sync
-    async def upload_from_url(self, url: str, name: str = None, timeout: int = None) -> Blob:
-        """Upload a file to blob storage."""
-        return await Blob.from_url(url, self.module.session, name=name, timeout=timeout)
-
-    @_auto_async_to_sync
-    async def upload_from_requests(self, response: requests.Response, name: str = None) -> Blob:
-        """Upload a file to blob storage."""
-        return await Blob.from_requests(response, self.module.session, name=name)

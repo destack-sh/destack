@@ -2,7 +2,7 @@ from pathlib import Path
 
 import typer
 
-app = typer.Typer()
+app = typer.Typer(short_help="dev only")
 
 worker = typer.Typer()
 

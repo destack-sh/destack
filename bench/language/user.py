@@ -1,6 +1,7 @@
 from datetime import datetime
+from typing import Optional
 
-from bench.language.const import ClientType, NodeType, NotificationStatus, NotificationType
+from bench.language.const import NodeType, NotificationStatus, NotificationType
 from bench.language.module import Node, ScopeNode, node, node_parent, struct_internal
 
 
@@ -17,9 +18,10 @@ class User(ScopeNode):
 
     handle: Handle = struct_internal(30, array=False, references=NodeType.HANDLE)
     username: str = struct_internal(31, protect=True)  # already unique via slug
-    name: str = struct_internal(32, reflect=True, protect=True)
-    email: str = struct_internal(33, defer=True, unique=True, reflect=True)
-    password_hash: str = struct_internal(34, defer=True, encrypt=True, protect=True)
+    name: str = struct_internal(32, reflect=True)
+    email: str = struct_internal(33, defer=True, unique=True, protect=True, reflect=True)
+    password_salt: bytes = struct_internal(34, defer=True, encrypt=True, protect=True)
+    password_hash: bytes = struct_internal(35, defer=True, encrypt=True, protect=True)
 
     @property
     def path(self):
@@ -38,11 +40,13 @@ class Client(Node):
     """A client to this Bench. Can be a user or a worker."""
 
     parent: User = node_parent(4, NodeType.USER)
-    type: ClientType = struct_internal(30)
+    name: Optional[str] = struct_internal(30)
     device_name: str = struct_internal(31)
-    browser_name: str = struct_internal(32)
-    last_seen_at: int = struct_internal(33)
-    closed_at: int = struct_internal(34)
+    browser_name: Optional[str] = struct_internal(32)
+    last_seen_at: datetime = struct_internal(33)
+    access_token: Optional[str] = struct_internal(
+        34, default=None, protect=True, defer=True, unique=True
+    )
 
 
 @node(NodeType.NOTIFICATION, root=NodeType.USER, in_bench=False, in_module=False)

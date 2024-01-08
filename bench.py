@@ -18,11 +18,12 @@ for dot_env_file in DOT_ENV_FILES:
 
 cli = typer.Typer()
 
+
 # add all 'app' instances from ./bench/management/*.py
-for path in Path.glob(Path(__file__).parent / "bench" / "management", "*.py"):
+for path in Path.glob(Path(__file__).parent / "bench" / "cli", "*.py"):
     if path.stem in ("__init__", "os", "local"):
         continue
-    module = __import__(f"bench.management.{path.stem}", fromlist=["app"])
+    module = __import__(f"bench.cli.{path.stem}", fromlist=["app"])
     if hasattr(module, "app"):
         cli.add_typer(module.app, name=path.stem)
 
@@ -30,5 +31,4 @@ if __name__ == "__main__":
     from bench.language.const import VERSION
 
     console = Console()
-    console.rule(f"Bench CLI - {VERSION}", align="center", characters="=")
     cli()

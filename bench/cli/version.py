@@ -7,7 +7,7 @@ from rich import print
 
 from bench.language.const import VERSION
 
-app = typer.Typer()
+app = typer.Typer(short_help="manage versioning")
 
 
 @app.command()

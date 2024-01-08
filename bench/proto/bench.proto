@@ -89,12 +89,6 @@ enum BlobStatus {
   BLOB_STATUS_AVAILABLE = 3;
 }
 
-enum ClientType {
-  CLIENT_TYPE_UNSPECIFIED = 0;
-  CLIENT_TYPE_WEB = 1;
-  CLIENT_TYPE_WORKER = 2;
-}
-
 enum ConditionalOp {
   CONDITIONAL_OP_UNSPECIFIED = 0;
   CONDITIONAL_OP_TRUE = 1;
@@ -269,8 +263,8 @@ enum ProtoStrEnum {
 
 enum QueryEngine {
   QUERY_ENGINE_UNSPECIFIED = 0;
-  QUERY_ENGINE_LOCAL = 1;
-  QUERY_ENGINE_RUNTIME = 2;
+  QUERY_ENGINE_MEMORY = 1;
+  QUERY_ENGINE_GLOBAL = 2;
   QUERY_ENGINE_OPENSEARCH = 3;
   QUERY_ENGINE_POSTGRES = 4;
 }
@@ -678,11 +672,11 @@ message ClientData {
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  ClientType type = 30;
+  string name = 30;
   string device_name = 31;
   string browser_name = 32;
-  int64 last_seen_at = 33;
-  int64 closed_at = 34;
+  google.protobuf.Timestamp last_seen_at = 33;
+  string access_token = 34;
 }
 
 // // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = <factory>, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected: bool = False, reference_ck: uuid.UUID = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _text_parsed: Optional[ForwardRef('Text')] = None)
@@ -916,6 +910,8 @@ message SecretData {
 }
 
 // // A managed context for running a Bench module (in a worker).
+//     nocheckin: prepare Session for 'global'/detached sessions
+//      (merge Session with SessionTracer, support 'external' edits, ...)
 message SessionData {
   BenchType metatype = 1;
   string id = 2;
@@ -930,8 +926,8 @@ message SessionData {
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
-  int64 policies = 30;
-  string worker_id = 31;
+  repeated PolicyData policies = 30;
+  string worker_ck = 31;
   string worker_process_id = 32;
   TriggerType trigger_type = 33;
   string trigger_id = 34;
@@ -1046,7 +1042,8 @@ message UserData {
   string username = 31;
   string name = 32;
   string email = 33;
-  string password_hash = 34;
+  bytes password_salt = 34;
+  bytes password_hash = 35;
 }
 
 // // View(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, policies: Optional[list['Policy']] = None, name: str | None = None, order_key: str | None = None, node_type: bench.language.const.NodeType = <factory>, query: Optional[bench.language.expression.Expression] = None, sort: Optional[list[bench.language.expression.Expression]] = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
@@ -1114,44 +1111,44 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    RecordData record = 1;
-    ViewData view = 2;
-    WorkerSetData worker_set = 3;
-    FileData file = 4;
-    IssueData issue = 5;
-    TriggerData trigger = 6;
-    SessionData session = 7;
-    StatementData statement = 8;
-    ClientData client = 9;
-    UserData user = 10;
-    HaltData halt = 11;
-    ModuleData module = 12;
-    BadgeData badge = 13;
-    HandleData handle = 14;
-    TaggingData tagging = 15;
-    SecretData secret = 16;
-    BlobData blob = 17;
-    SignalData signal = 18;
-    OrganizationData organization = 19;
-    NotificationData notification = 20;
-    FieldData field = 21;
-    RunData run = 22;
-    BenchData bench = 23;
-    WorkerData worker = 24;
+    ModuleData module = 1;
+    FieldData field = 2;
+    FileData file = 3;
+    SignalData signal = 4;
+    RunData run = 5;
+    HandleData handle = 6;
+    BadgeData badge = 7;
+    ClientData client = 8;
+    WorkerSetData worker_set = 9;
+    IssueData issue = 10;
+    WorkerData worker = 11;
+    ViewData view = 12;
+    BlobData blob = 13;
+    TaggingData tagging = 14;
+    UserData user = 15;
+    BenchData bench = 16;
+    RecordData record = 17;
+    StatementData statement = 18;
+    TriggerData trigger = 19;
+    HaltData halt = 20;
+    OrganizationData organization = 21;
+    NotificationData notification = 22;
+    SecretData secret = 23;
+    SessionData session = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    LogEntryData log_entry = 1;
-    ExpressionData expression = 2;
-    RunCodeFrameData run_code_frame = 3;
-    InferenceData inference = 4;
-    PolicyRuleData policy_rule = 5;
-    PolicyData policy = 6;
-    DependencyData dependency = 7;
-    WorkerImageData worker_image = 8;
-    RunErrorData run_error = 9;
+    DependencyData dependency = 1;
+    RunCodeFrameData run_code_frame = 2;
+    InferenceData inference = 3;
+    ExpressionData expression = 4;
+    PolicyData policy = 5;
+    WorkerImageData worker_image = 6;
+    PolicyRuleData policy_rule = 7;
+    RunErrorData run_error = 8;
+    LogEntryData log_entry = 9;
   };
 }
 

@@ -35,7 +35,7 @@ from .tagging import Tagging
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .view import View
-from .worker import Dependency, WorkerImage, WorkerSet
+from .worker import Dependency, WorkerImage, WorkerSet, Worker
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
@@ -97,6 +97,7 @@ __all__ = [
     "VERSION",
     "WorkerImage",
     "WorkerSet",
+    "Worker",
 ]
 
 # after all the imports, we can finalize

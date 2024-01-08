@@ -10,9 +10,8 @@ import { WorkerProcess } from "./services";
 import { Worker } from "./services";
 import type { RestartWorkerRequest } from "./services";
 import { ModuleHost } from "./services";
-import type { PushWorkerLogsRequest } from "./services";
 import type { Empty } from "../../google/protobuf/empty";
-import type { PushLocalEditsRequest } from "./services";
+import type { PushWorkerLogsRequest } from "./services";
 import type { RunProxyStatementResponse } from "./services";
 import type { RunProxyStatementRequest } from "./services";
 import type { KillRunResponse } from "./services";
@@ -318,12 +317,6 @@ export interface IModuleHostClient {
      */
     runProxyStatement(input: RunProxyStatementRequest, options?: RpcOptions): UnaryCall<RunProxyStatementRequest, RunProxyStatementResponse>;
     /**
-     * Push local edits from a worker.
-     *
-     * @generated from protobuf rpc: PushLocalEdits(PushLocalEditsRequest) returns (google.protobuf.Empty);
-     */
-    pushLocalEdits(input: PushLocalEditsRequest, options?: RpcOptions): UnaryCall<PushLocalEditsRequest, Empty>;
-    /**
      * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
      *
      * @generated from protobuf rpc: PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
@@ -462,21 +455,12 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<RunProxyStatementRequest, RunProxyStatementResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Push local edits from a worker.
-     *
-     * @generated from protobuf rpc: PushLocalEdits(PushLocalEditsRequest) returns (google.protobuf.Empty);
-     */
-    pushLocalEdits(input: PushLocalEditsRequest, options?: RpcOptions): UnaryCall<PushLocalEditsRequest, Empty> {
-        const method = this.methods[13], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PushLocalEditsRequest, Empty>("unary", this._transport, method, opt, input);
-    }
-    /**
      * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
      *
      * @generated from protobuf rpc: PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
      */
     pushWorkerLogs(input: PushWorkerLogsRequest, options?: RpcOptions): UnaryCall<PushWorkerLogsRequest, Empty> {
-        const method = this.methods[14], opt = this._transport.mergeOptions(options);
+        const method = this.methods[13], opt = this._transport.mergeOptions(options);
         return stackIntercept<PushWorkerLogsRequest, Empty>("unary", this._transport, method, opt, input);
     }
 }

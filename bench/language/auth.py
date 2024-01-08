@@ -1,4 +1,5 @@
 from datetime import datetime
+from os import urandom
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
@@ -68,3 +69,52 @@ class Badge(Node):
     # access key badge
     key_value: Optional[str] = struct_internal(50, default=None, encrypt=True, defer=True)
     key_value_digest: Optional[str] = struct_internal(51, default=None, encrypt=True)
+
+
+PASSWORD_MIN_LENGTH = 8  # characters
+PASSWORD_MAX_LENGTH = 128  # characters
+SALT_LENGTH = 16  # bytes
+SCRYPT_N = 2**15  # iterations count
+SCRYPT_R = 8  # block size in bytes
+SCRYPT_P = 1  # threads to use
+SCRYPT_MAXMEM = 2**24  # max memory to use in bytes
+SCRYPT_DKLEN = 32  # hash length in bytes
+ACCESS_TOKEN_LENGTH = 32  # bytes
+
+
+def generate_salt() -> bytes:
+    """Generate a random salt."""
+    raise urandom(SALT_LENGTH)
+
+
+def hash_password(password: str, salt: bytes) -> bytes:
+    """Hash a password using scrypt."""
+    from hashlib import scrypt
+
+    assert len(salt) == SALT_LENGTH, f"invalid salt length: {len(salt)} != {SALT_LENGTH}"
+    assert (
+        len(password) >= PASSWORD_MIN_LENGTH
+    ), f"password too short: {len(password)} < {PASSWORD_MIN_LENGTH}"
+    assert (
+        len(password) <= PASSWORD_MAX_LENGTH
+    ), f"password too long: {len(password)} > {PASSWORD_MAX_LENGTH}"
+
+    return scrypt(
+        password,
+        salt=salt,
+        n=SCRYPT_N,
+        r=SCRYPT_R,
+        p=SCRYPT_P,
+        maxmem=SCRYPT_MAXMEM,
+        dklen=SCRYPT_DKLEN,
+    )
+
+
+def check_password(password: str, salt: bytes, password_hash: bytes) -> bool:
+    """Check if a password matches its hash."""
+    return hash_password(password, salt) == password_hash
+
+
+def generate_access_token() -> str:
+    """Generate a random access token."""
+    return urandom(ACCESS_TOKEN_LENGTH).hex()

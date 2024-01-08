@@ -14,13 +14,13 @@ from bench.language.module import (
     STRUCT_TYPES,
     Node,
 )
-from bench.management.utils import _shell
+from bench.cli.utils import _shell
 from bench.proto.core import Field, Message
 from bench.proto.engine import generate_proto_schema
 from bench.sql.engine import map_node_type_to_pg_table
 from bench.utils.utils import format_python
 
-app = typer.Typer()
+app = typer.Typer(short_help="language state and migrations")
 
 TARGET_PY_PATH = "bench/proto/wire"
 TARGET_TS_DIR = "frontend/src/proto/wire"
@@ -58,7 +58,6 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     Path(TARGET_PY_PATH).mkdir(parents=True, exist_ok=True)
     _shell(
         f"protoc -I . --python_betterproto_out={TARGET_PY_PATH} {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
-        stdout=DEVNULL,
     )
     _shell(f"mv {TARGET_PY_PATH}/__init__.py {TARGET_PY_PATH}.py")
     Path(TARGET_PY_PATH + ".py").write_text(
@@ -75,7 +74,6 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     Path(TARGET_TS_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
         f"npx protoc --ts_out {TARGET_TS_DIR} --ts_opt long_type_string --proto_path . {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
-        stdout=DEVNULL,
     )
     # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
     for path in Path(TARGET_TS_DIR).glob("**/*.ts"):

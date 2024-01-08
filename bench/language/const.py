@@ -166,11 +166,6 @@ class PolicyEffect(ProtoStrEnum):
     DENY = "DENY", 2
 
 
-class ClientType(ProtoStrEnum):
-    WEB = "WEB", 1
-    WORKER = "WORKER", 2
-
-
 class NotificationType(ProtoStrEnum):
     EDIT = "EDIT", 1
 
@@ -595,8 +590,8 @@ class SortOp(ProtoStrEnum):
 
 
 class QueryEngine(ProtoStrEnum):
-    LOCAL = "LOCAL", 1
-    RUNTIME = "RUNTIME", 2
+    MEMORY = "MEMORY", 1
+    GLOBAL = "GLOBAL", 2
     OPENSEARCH = "OS", 3
     POSTGRES = "PG", 4
 

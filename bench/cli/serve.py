@@ -5,7 +5,7 @@ import typer
 
 from bench.server.supervisor import GlobalSupervisor
 
-app = typer.Typer()
+app = typer.Typer(short_help="run the services")
 
 
 @app.command()

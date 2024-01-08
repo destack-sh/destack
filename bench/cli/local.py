@@ -1,6 +1,7 @@
 import typer
 
-app = typer.Typer()
+app = typer.Typer(short_help="bench-local resources")
+
 pg = typer.Typer()
 os = typer.Typer()
 app.add_typer(pg, name="pg")
