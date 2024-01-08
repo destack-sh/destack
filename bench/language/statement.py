@@ -293,7 +293,7 @@ class Statement(ScopeNode, HasTags):
         self.type = to_type
         Statement._init_inner(self)
         if self.attached:
-            self._session._tracer.node_update(self, ["type"])
+            self._session.update(self, ["type"])
         # what else to do? trigger global reinterp? flush local PG edits?
         raise NotImplementedError(f"{self!r} does not support morphing yet")
 

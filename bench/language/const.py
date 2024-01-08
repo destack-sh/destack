@@ -9,7 +9,7 @@ from uuid import UUID
 
 from bench.proto.core import ProtoStrEnum
 from bench.utils.func import cyrb53a
-from bench.utils.utils import IdentifierType, to_all_caps, to_pyidentifier
+from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.language import Node, Statement  # noqa: F401
@@ -27,18 +27,18 @@ class NodeType(ProtoStrEnum):
     # BRANCH = "BRANCH", 4
 
     # module/source
-    MODULE = "MODULE", 5
-    FILE = "FILE", 6
-    STATEMENT = "STATEMENT", 7
-    TRIGGER = "TRIGGER", 8
-    TAGGING = "TAGGING", 9
-    FIELD = "FIELD", 10
-    RECORD = "RECORD", 11  # (local)
-    VIEW = "VIEW", 12
-    # TILE = "TILE", 13
-    BLOB = "BLOB", 14
-    SECRET = "SECRET", 15
-    ISSUE = "ISSUE", 16
+    MODULE = "MODULE", 10
+    FILE = "FILE", 11
+    STATEMENT = "STATEMENT", 12
+    TRIGGER = "TRIGGER", 13
+    TAGGING = "TAGGING", 14
+    FIELD = "FIELD", 15
+    RECORD = "RECORD", 16  # (local)
+    VIEW = "VIEW", 17
+    # TILE = "TILE", 18
+    BLOB = "BLOB", 19
+    SECRET = "SECRET", 20
+    ISSUE = "ISSUE", 21
 
     # worker
     WORKER_SET = "WORKER_SET", 40
@@ -49,7 +49,7 @@ class NodeType(ProtoStrEnum):
     SESSION = "SESSION", 60
     RUN = "RUN", 61
     HALT = "HALT", 62
-    SIGNAL = "SIGNAL", 70
+    SIGNAL = "SIGNAL", 63
 
     # user
     HANDLE = "HANDLE", 100
@@ -57,15 +57,12 @@ class NodeType(ProtoStrEnum):
     ORGANIZATION = "ORGANIZATION", 102
     CLIENT = "CLIENT", 103
     NOTIFICATION = "NOTIFICATION", 104
+    BADGE = "BADGE", 105
+
     # INVITE = "INVITE", 110
     # MEMBERSHIP = "MEMBERSHIP", 111
     # ROLE = "ROLE", 112
-    BADGE = "BADGE", 120
     # COMMENT = "COMMENT", 130
-
-    @property
-    def caps_name(self):
-        return BENCH_TYPE_CAPS_CASE[self]
 
     @property
     def camel_name(self):
@@ -85,10 +82,6 @@ class StructType(ProtoStrEnum):
     DEPENDENCY = "DEPENDENCY", 231
 
     @property
-    def caps_name(self):
-        return BENCH_TYPE_CAPS_CASE[self]
-
-    @property
     def camel_name(self):
         return BENCH_TYPE_CAMEL_CASE[self]
 
@@ -100,7 +93,6 @@ else:
         "BenchType",
         {bt.name: (bt.name, bt.id) for bt in chain(NodeType, StructType)},
     )
-    BenchType.caps_name = NodeType.caps_name
     BenchType.camel_name = NodeType.camel_name
 
 
@@ -113,9 +105,6 @@ def to_bench_metatype(_type: typing.Union[BenchType, int]) -> BenchType:
     return _type
 
 
-BENCH_TYPE_CAPS_CASE: dict[NodeType | StructType, str] = {
-    _type: to_all_caps(_type) for _type in chain(NodeType, StructType)
-}
 BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
     _type: to_pyidentifier(_type, IdentifierType.TYPE) for _type in chain(NodeType, StructType)
 }
@@ -129,7 +118,7 @@ class ReadKind(ProtoStrEnum):
 
 class EditKind(ProtoStrEnum):
     CREATE = "CREATE", 10  # start at 10, so we can have read 'actions' as well
-    # UPSERT = "UPSERT", 11 # do we need this?
+    UPSERT = "UPSERT", 11  # do we need this?
     UPDATE = "UPDATE", 12
     MOVE = "MOVE", 13
     BUMP = "BUMP", 14

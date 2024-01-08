@@ -8,6 +8,7 @@ enum ActionKind {
   ACTION_KIND_READ = 1;
   ACTION_KIND_LIST = 2;
   ACTION_KIND_CREATE = 10;
+  ACTION_KIND_UPSERT = 11;
   ACTION_KIND_UPDATE = 12;
   ACTION_KIND_MOVE = 13;
   ACTION_KIND_BUMP = 14;
@@ -48,29 +49,29 @@ enum BenchRegion {
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
-  BENCH_TYPE_MODULE = 5;
-  BENCH_TYPE_FILE = 6;
-  BENCH_TYPE_STATEMENT = 7;
-  BENCH_TYPE_TRIGGER = 8;
-  BENCH_TYPE_TAGGING = 9;
-  BENCH_TYPE_FIELD = 10;
-  BENCH_TYPE_RECORD = 11;
-  BENCH_TYPE_VIEW = 12;
-  BENCH_TYPE_BLOB = 14;
-  BENCH_TYPE_SECRET = 15;
-  BENCH_TYPE_ISSUE = 16;
+  BENCH_TYPE_MODULE = 10;
+  BENCH_TYPE_FILE = 11;
+  BENCH_TYPE_STATEMENT = 12;
+  BENCH_TYPE_TRIGGER = 13;
+  BENCH_TYPE_TAGGING = 14;
+  BENCH_TYPE_FIELD = 15;
+  BENCH_TYPE_RECORD = 16;
+  BENCH_TYPE_VIEW = 17;
+  BENCH_TYPE_BLOB = 19;
+  BENCH_TYPE_SECRET = 20;
+  BENCH_TYPE_ISSUE = 21;
   BENCH_TYPE_WORKER_SET = 40;
   BENCH_TYPE_WORKER = 41;
   BENCH_TYPE_SESSION = 60;
   BENCH_TYPE_RUN = 61;
   BENCH_TYPE_HALT = 62;
-  BENCH_TYPE_SIGNAL = 70;
+  BENCH_TYPE_SIGNAL = 63;
   BENCH_TYPE_HANDLE = 100;
   BENCH_TYPE_USER = 101;
   BENCH_TYPE_ORGANIZATION = 102;
   BENCH_TYPE_CLIENT = 103;
   BENCH_TYPE_NOTIFICATION = 104;
-  BENCH_TYPE_BADGE = 120;
+  BENCH_TYPE_BADGE = 105;
   BENCH_TYPE_POLICY = 200;
   BENCH_TYPE_POLICY_RULE = 201;
   BENCH_TYPE_EXPRESSION = 210;
@@ -116,6 +117,7 @@ enum ConditionalOp {
 enum EditKind {
   EDIT_KIND_UNSPECIFIED = 0;
   EDIT_KIND_CREATE = 10;
+  EDIT_KIND_UPSERT = 11;
   EDIT_KIND_UPDATE = 12;
   EDIT_KIND_MOVE = 13;
   EDIT_KIND_BUMP = 14;
@@ -210,29 +212,29 @@ enum NodeTrackingLevel {
 enum NodeType {
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_BENCH = 1;
-  NODE_TYPE_MODULE = 5;
-  NODE_TYPE_FILE = 6;
-  NODE_TYPE_STATEMENT = 7;
-  NODE_TYPE_TRIGGER = 8;
-  NODE_TYPE_TAGGING = 9;
-  NODE_TYPE_FIELD = 10;
-  NODE_TYPE_RECORD = 11;
-  NODE_TYPE_VIEW = 12;
-  NODE_TYPE_BLOB = 14;
-  NODE_TYPE_SECRET = 15;
-  NODE_TYPE_ISSUE = 16;
+  NODE_TYPE_MODULE = 10;
+  NODE_TYPE_FILE = 11;
+  NODE_TYPE_STATEMENT = 12;
+  NODE_TYPE_TRIGGER = 13;
+  NODE_TYPE_TAGGING = 14;
+  NODE_TYPE_FIELD = 15;
+  NODE_TYPE_RECORD = 16;
+  NODE_TYPE_VIEW = 17;
+  NODE_TYPE_BLOB = 19;
+  NODE_TYPE_SECRET = 20;
+  NODE_TYPE_ISSUE = 21;
   NODE_TYPE_WORKER_SET = 40;
   NODE_TYPE_WORKER = 41;
   NODE_TYPE_SESSION = 60;
   NODE_TYPE_RUN = 61;
   NODE_TYPE_HALT = 62;
-  NODE_TYPE_SIGNAL = 70;
+  NODE_TYPE_SIGNAL = 63;
   NODE_TYPE_HANDLE = 100;
   NODE_TYPE_USER = 101;
   NODE_TYPE_ORGANIZATION = 102;
   NODE_TYPE_CLIENT = 103;
   NODE_TYPE_NOTIFICATION = 104;
-  NODE_TYPE_BADGE = 120;
+  NODE_TYPE_BADGE = 105;
 }
 
 enum NotificationStatus {
@@ -875,7 +877,7 @@ message RunData {
   google.protobuf.Timestamp last_changed_at = 16;
   string session_id = 30;
   string root_id = 31;
-  string worker_id = 32;
+  string worker_ck = 32;
   string worker_process_id = 33;
   string statement_ck = 34;
   string statement_path = 35;
@@ -910,8 +912,6 @@ message SecretData {
 }
 
 // // A managed context for running a Bench module (in a worker).
-//     nocheckin: prepare Session for 'global'/detached sessions
-//      (merge Session with SessionTracer, support 'external' edits, ...)
 message SessionData {
   BenchType metatype = 1;
   string id = 2;
@@ -933,8 +933,6 @@ message SessionData {
   string trigger_id = 34;
   google.protobuf.Timestamp opened_at = 35;
   google.protobuf.Timestamp closed_at = 36;
-  int64 inference_timeout = 37;
-  int64 inference_retries = 38;
 }
 
 // // A signal received in this Bench. May be emitted by a Bench or an external source.
@@ -1111,44 +1109,44 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    ModuleData module = 1;
-    FieldData field = 2;
-    FileData file = 3;
-    SignalData signal = 4;
-    RunData run = 5;
-    HandleData handle = 6;
-    BadgeData badge = 7;
-    ClientData client = 8;
-    WorkerSetData worker_set = 9;
-    IssueData issue = 10;
-    WorkerData worker = 11;
-    ViewData view = 12;
-    BlobData blob = 13;
-    TaggingData tagging = 14;
-    UserData user = 15;
-    BenchData bench = 16;
-    RecordData record = 17;
-    StatementData statement = 18;
-    TriggerData trigger = 19;
-    HaltData halt = 20;
-    OrganizationData organization = 21;
-    NotificationData notification = 22;
-    SecretData secret = 23;
-    SessionData session = 24;
+    SignalData signal = 1;
+    FileData file = 2;
+    ModuleData module = 3;
+    RunData run = 4;
+    SessionData session = 5;
+    OrganizationData organization = 6;
+    RecordData record = 7;
+    TaggingData tagging = 8;
+    BlobData blob = 9;
+    StatementData statement = 10;
+    TriggerData trigger = 11;
+    WorkerData worker = 12;
+    IssueData issue = 13;
+    FieldData field = 14;
+    ViewData view = 15;
+    HaltData halt = 16;
+    BenchData bench = 17;
+    UserData user = 18;
+    NotificationData notification = 19;
+    BadgeData badge = 20;
+    WorkerSetData worker_set = 21;
+    ClientData client = 22;
+    HandleData handle = 23;
+    SecretData secret = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    DependencyData dependency = 1;
-    RunCodeFrameData run_code_frame = 2;
-    InferenceData inference = 3;
+    InferenceData inference = 1;
+    PolicyData policy = 2;
+    PolicyRuleData policy_rule = 3;
     ExpressionData expression = 4;
-    PolicyData policy = 5;
+    LogEntryData log_entry = 5;
     WorkerImageData worker_image = 6;
-    PolicyRuleData policy_rule = 7;
+    DependencyData dependency = 7;
     RunErrorData run_error = 8;
-    LogEntryData log_entry = 9;
+    RunCodeFrameData run_code_frame = 9;
   };
 }
 

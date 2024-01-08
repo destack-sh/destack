@@ -293,7 +293,7 @@ class HasCode(Node):
             inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer=True)
             try:
                 logger.debug("code.proxy", code=self, inputs=inputs_raw)
-                outputs = await self.session._runtime.run_proxy_statement(self, inputs_raw)
+                outputs = await self.session._host.run_proxy_statement(self, inputs_raw)
                 outputs = unpack_value(outputs, self, is_output=True)
                 return TypedDict(outputs, self, is_output=True)
             except BaseException as e:
@@ -314,7 +314,7 @@ class HasCode(Node):
                 run = CachedRun.from_json_bytes(cached_run)
                 outputs = unpack_value(run.outputs, self, ignore_outer=True, is_output=True)
                 check_type(outputs, self, is_output=True)
-                self.session._tracer.run_cached(
+                self.session._run_cached(
                     statement=self,
                     inputs=inputs,
                     outputs=outputs,
@@ -393,7 +393,7 @@ class HasCode(Node):
             def _test_sync(*args, **kwargs):
                 self.current_run.value.test = True
                 ret = callable(*args, **kwargs)
-                if self.session._tracer.has_edits and not self.session._failed_commit:
+                if self.session.has_regular_edits and not self.session._failed_commit:
                     self.session.commit()  # force commit errors to appear immediately
                 return ret
 
@@ -403,7 +403,7 @@ class HasCode(Node):
             async def _test_async(*args, **kwargs):
                 self.current_run.value.test = True
                 ret = await callable(*args, **kwargs)  # force commit errors to appear immediately
-                if self.session._tracer.has_edits and not self.session._failed_commit:
+                if self.session.has_regular_edits and not self.session._failed_commit:
                     await self.session.commit()
                 return ret
 
@@ -412,31 +412,27 @@ class HasCode(Node):
     async def _call_inner_async(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
         session = self.session
-        session._tracer.run_enter(self, is_async=True, inputs=inputs)
+        session._run_enter(self, is_async=True, inputs=inputs)
         try:
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
-            if session._should_autocommit:
-                await self.session.commit()
         except BaseException as exception:
-            session._tracer.run_exception(self, exception)
+            session._run_exception(self, exception)
             raise
-        session._tracer.run_exit(self, result if not self._export else None)
+        session._run_exit(self, result if not self._export else None)
         return _to_outputs_dict(self, result)
 
     def _call_inner_sync(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
         session = self.session
-        session._tracer.run_enter(self, is_async=False, inputs=inputs)
+        session._run_enter(self, is_async=False, inputs=inputs)
         try:
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
-            if session._should_autocommit:
-                session.commit()
         except BaseException as exception:
-            session._tracer.run_exception(self, exception)
+            session._run_exception(self, exception)
             raise
-        session._tracer.run_exit(self, result if not self._export else None)
+        session._run_exit(self, result if not self._export else None)
         return _to_outputs_dict(self, result)
 
 

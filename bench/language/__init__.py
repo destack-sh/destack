@@ -22,20 +22,20 @@ from .database import Record
 from .expression import A, C, E, Expression, S
 from .field import Field, Type, TypeStorageFormat
 from .file import File
-from .issue import BenchError, Issue
+from .issue import Issue
 from .module import Module, Node, Property, ScopeNode, Struct, _complete_bench_setup
 from .projection import NodeVisitor
-from .render import render, render_as_python
+from .render import render
 from .run import Halt, Run, RunError
 from .secret import Secret
-from .session import LogEntry, PermissionError, Session
+from .session import LogEntry, Session
 from .signal import Signal
 from .statement import Statement
 from .tagging import Tagging
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .view import View
-from .worker import Dependency, WorkerImage, WorkerSet, Worker
+from .worker import Dependency, Worker, WorkerImage, WorkerSet
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
@@ -60,7 +60,6 @@ __all__ = [
     "Node",
     "NodeVisitor",
     "Organization",
-    "PermissionError",
     "Policy",
     "PolicyEffect",
     "PolicyRule",

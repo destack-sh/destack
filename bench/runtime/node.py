@@ -9,13 +9,13 @@ from uuid import UUID
 
 import structlog
 
-from bench.proto.wire import WorkerNodeBase
+from bench.proto.wire import WorkerBase
 from bench.utils.monitoring import Monitored
 
 logger = structlog.get_logger(__name__)
 
 
-class WorkerNode(Monitored, WorkerNodeBase):
+class Worker(Monitored, WorkerBase):
     """
     Manages the lifecycle of the worker node's worker processes in a main sidecar process.
     During local development, this may also launch the worker node in the same process.

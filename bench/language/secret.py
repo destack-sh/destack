@@ -37,5 +37,5 @@ class Secret(HasValue):
     async def reveal(self) -> Any:
         if self.value is not None:
             return self.value
-        self.value = await self.session._runtime.reveal_secret(self)
+        self.value = await self.session._host.reveal_secret(self)
         return self.value

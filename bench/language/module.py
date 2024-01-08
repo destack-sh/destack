@@ -46,7 +46,7 @@ from bench.language.const import (
     parse_absolute_node_reference,
     parse_node_path,
 )
-from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase, NodeTreeEditor
+from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase
 from bench.language.validation import (
     PropertyValidationHandler,
     ValidationError,
@@ -329,7 +329,7 @@ class Property(_FieldExpressionBase):
     # config
     alias: str | None = None  # for node list relations
     is_array: bool = UNSET
-    is_required: bool = False  # must be non-null
+    is_required: bool = False  # = must be non-null
     is_internal: bool = False  # = not directly editable for user
     is_protected: bool = False  # = only editable by us/supervisor
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
@@ -337,19 +337,19 @@ class Property(_FieldExpressionBase):
     is_ancestor_self: bool | None = None  # for ancestor relations
     is_computed: bool = False
     is_runtime_only: bool = False
-    is_real: bool = UNSET  # exists on runtime instance?
+    is_runtime: bool = UNSET  # exists on runtime instance?
     is_wired: bool = UNSET  # serialized onto wire?
     is_stored: bool = UNSET  # stored in DB?
     is_indexed_in_pg: bool = False  # indexed in DB?
     is_unique: bool = False  # unique index in DB?
-    is_deferred: bool = False  # not loaded immediately (only for stored node properties)
+    is_deferred: bool = False  # loaded only on demand (only for stored node properties)
     is_encrypted: bool = False  # encrypt at rest (only node properties)
     struct_type: StructType | None = None  # for struct properties
     references: tuple[NodeType, ...] | None = None  # for reference relations
     reference_key: Optional["Property"] = None  # for reference relations
     parents: tuple[NodeType, ...] | None = None
     ancestor: NodeType | None = None
-    column_type: ColumnType | None = UNSET  # auto-detect
+    column_type: ColumnType | None = UNSET
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
     list_type: type["NodeListBase"] | None = None
@@ -507,8 +507,8 @@ class Property(_FieldExpressionBase):
             self.is_stored = True
         if self.is_wired is UNSET:
             self.is_wired = self.is_stored
-        if self.is_real is UNSET:
-            self.is_real = self.is_stored
+        if self.is_runtime is UNSET:
+            self.is_runtime = self.is_stored
 
         # resolve py type
         if self.is_runtime_only or self.parents is not None or self.references is not None:
@@ -576,7 +576,7 @@ class Property(_FieldExpressionBase):
                     references=(parent_node_type,),
                     is_required=self.is_required,
                     is_internal=True,
-                    is_real=False,
+                    is_runtime=False,
                     is_wired=False,
                     is_stored=True,
                     is_array=False,
@@ -623,7 +623,7 @@ class Property(_FieldExpressionBase):
                 references=self.references,
                 is_required=self.is_required,
                 is_internal=True,
-                is_real=True,
+                is_runtime=True,
                 is_wired=True,
                 is_stored=True,
                 is_array=self.is_array,
@@ -912,7 +912,7 @@ METATYPE_PROPERTY = Property(
     is_internal=True,
     is_required=True,
     is_computed=True,  # is set statically in runtime
-    is_real=False,
+    is_runtime=False,
     is_wired=True,
     is_stored=False,
     column_type=ColumnType.STRING,
@@ -1028,7 +1028,7 @@ def _process_struct_base_cls(
             attr = None  # only set attributes in final class
         elif prop.ancestor and cls.__name__ not in ("ScopeNode", "Node"):
             attr = _node_ancestor_prop(prop)
-        elif prop.is_computed or not prop.is_real:
+        elif prop.is_computed or not prop.is_runtime:
             attr = UNSET
         elif prop.default is not UNSET:
             attr = dataclasses.field(default=prop.default)
@@ -1330,7 +1330,7 @@ _NC = _NodeChange
 
 
 @dataclass
-class _ChangeEffect:
+class _InterpChange:
     """
     The effect of a change in nodes.
     TODO @Performance: optimize change effects (batch, lazy/mark dirty?, reduce impact radius)
@@ -1349,7 +1349,7 @@ class _ChangeEffect:
         to_parent: Optional["Node"],
         changed: list["Node"],
         level: _NC,
-    ) -> "_ChangeEffect":
+    ) -> "_InterpChange":
         """Collects nodes affected by a change in the given children."""
         assert changed, f"cannot create update on {to_parent!r} without changed nodes"
         assert from_parent or to_parent, f"cannot create update on {changed!r} without parent"
@@ -1383,7 +1383,7 @@ class _ChangeEffect:
         else:
             affected_nodes = None
 
-        return _ChangeEffect(
+        return _InterpChange(
             prev_session=to_parent._session if to_parent else None,
             prev_status=to_parent._status if to_parent else None,
             affected_node_types=affected_node_types,
@@ -1597,7 +1597,7 @@ class NodeList(NodeListBase[NodeT]):
             for n in _node._walk_rec():
                 if n.id is None:
                     n._assign_id(module_id)
-        change = _ChangeEffect._collect(None, self._parent, [_node], _trigger)
+        change = _InterpChange._collect(None, self._parent, [_node], _trigger)
         # update parent after updating ids (the above walks tree, which is changed here)
         _node.parent = self._parent
         # validate node now that it has a parent (while in session)
@@ -1608,15 +1608,11 @@ class NodeList(NodeListBase[NodeT]):
         if isinstance(_node, ScopeNode) and _node._local_tree is not None:
             # subsume if previously detached (ignores out of line nodes)
             added = _node._local_tree.get_descendants(_node.ck, recursive=True, include_self=True)
-            if _create and self._parent._session:
-                self._parent.session._tracer.node_create_preflight(*added)
             _node._local_tree.update(_node)  # parent changed
             self._parent._import_scope_tree(_node)
             _node._local_tree = None
         else:  # or just add
             added = [_node]
-            if _create and self._parent._session:
-                self._parent.session._tracer.node_create_preflight(*added)
             self._parent._local_root_tree.add(_node)
 
         # register node scope
@@ -1638,7 +1634,7 @@ class NodeList(NodeListBase[NodeT]):
 
         # 'create' node in session if it's attached
         if _create and self._parent._session and self._parent.attached:
-            self._parent._session._tracer.node_create(*added)
+            self._parent._session.create(*added)
         # temporarily hoisted records may no longer be in tree, so return our added nodes
         return added
 
@@ -1662,9 +1658,7 @@ class NodeList(NodeListBase[NodeT]):
 
         # as in append but batched: append, trigger, create
         #  (can we merge them somehow to simplify)?
-        if _create and self._parent._session:
-            self._parent._session._tracer.node_create_preflight(*nodes)
-        change = _ChangeEffect._collect(None, self._parent, nodes, _trigger)
+        change = _InterpChange._collect(None, self._parent, nodes, _trigger)
         change._effect(_trigger & ~_NC.Attach)
         added = []
         for node in nodes:
@@ -1673,12 +1667,12 @@ class NodeList(NodeListBase[NodeT]):
         if _trigger & _NC.UpdateLists:
             assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
         if _create and self._parent._session and self._parent.attached:
-            self._parent._session._tracer.node_create(*added)
+            self._parent._session.create(*added)
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
-        change = _ChangeEffect._collect(self._parent, None, [_node], _trigger)
+        change = _InterpChange._collect(self._parent, None, [_node], _trigger)
         if _delete and self._parent._session:
-            self._parent.session._tracer.node_delete(_node)
+            self._parent.session.delete(_node)
         self._parent._local_root_tree.remove(_node)
         _node.parent = None
         change._effect(_trigger)
@@ -1688,7 +1682,7 @@ class NodeList(NodeListBase[NodeT]):
     def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full):
         if not self._nodes:
             return
-        change = _ChangeEffect._collect(self._parent, None, self._nodes, _trigger)
+        change = _InterpChange._collect(self._parent, None, self._nodes, _trigger)
         removed = list(self._nodes)
         for _node in removed:
             self.remove(_node, _delete=_delete, _trigger=_NC.Ignore)
@@ -2132,10 +2126,10 @@ class Node(Struct):
                     reference_key_value = value.ck if value is not None else None
                     self.__dict__[prop.reference_key.name] = reference_key_value
                     if self.attached:
-                        self._session._tracer.node_update(self, [key])
+                        self._session.update(self, [key])
                         self._updated_self((prop.reference_key.name,))
                 elif self.attached:
-                    self._session._tracer.node_update(self, [key])
+                    self._session.update(self, [key])
                     self._updated_self((key,))
                 return
         elif key in self.__dict__:
@@ -2288,7 +2282,7 @@ class Node(Struct):
                     getattr(self, name).extend(*existing, _trigger=detach_trigger)
                     changed_nodes.extend(existing)
             if changed_nodes and was_interp:
-                _ChangeEffect._collect(None, self, changed_nodes, _NC.Attach)._effect(_NC.Attach)
+                _InterpChange._collect(None, self, changed_nodes, _NC.Attach)._effect(_NC.Attach)
 
         # validate if in session after all init are done
         if self._status >= NS.INTERP and self._session and self._session is not UNSET:
@@ -2415,7 +2409,7 @@ class ScopeNode(Node):
 
     def _updated_inner(self, properties: Collection[str]) -> None:
         if "name" in properties:
-            _ChangeEffect._collect(self.parent, self.parent, [self], _NC.Full)._effect(_NC.Full)
+            _InterpChange._collect(self.parent, self.parent, [self], _NC.Full)._effect(_NC.Full)
 
     _clear_rec = _make_rec_method(
         ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)

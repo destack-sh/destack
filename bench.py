@@ -28,7 +28,5 @@ for path in Path.glob(Path(__file__).parent / "bench" / "cli", "*.py"):
         cli.add_typer(module.app, name=path.stem)
 
 if __name__ == "__main__":
-    from bench.language.const import VERSION
-
     console = Console()
     cli()

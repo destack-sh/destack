@@ -103,7 +103,7 @@ class HasTask(Node):
         )
         await projection.view_records(seen_from_value.values(), limit=10)
 
-        self.session._tracer.run_enter(self, is_async=True, inputs=inputs)
+        self.session._run_enter(self, is_async=True, inputs=inputs)
         try:
             if builtin_model:
                 # passthrough model
@@ -111,12 +111,10 @@ class HasTask(Node):
                 outputs = await run_builtin_task(self, builtin_model, inputs)
             else:
                 outputs = await run_task(self, projection, inputs, nonce, models)
-            if self.session._should_autocommit:
-                await self.session.commit()
         except BaseException as e:
-            self.session._tracer.run_exception(self, e)
+            self.session._run_exception(self, e)
             raise
-        self.session._tracer.run_exit(self, outputs)
+        self.session._run_exit(self, outputs)
         return outputs
 
 

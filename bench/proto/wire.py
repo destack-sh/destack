@@ -5,19 +5,12 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    AsyncIterator,
-    Dict,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
-
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -30,6 +23,7 @@ class ActionKind(betterproto.Enum):
     READ = 1
     LIST = 2
     CREATE = 10
+    UPSERT = 11
     UPDATE = 12
     MOVE = 13
     BUMP = 14
@@ -70,29 +64,29 @@ class BenchRegion(betterproto.Enum):
 class BenchType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    MODULE = 5
-    FILE = 6
-    STATEMENT = 7
-    TRIGGER = 8
-    TAGGING = 9
-    FIELD = 10
-    RECORD = 11
-    VIEW = 12
-    BLOB = 14
-    SECRET = 15
-    ISSUE = 16
+    MODULE = 10
+    FILE = 11
+    STATEMENT = 12
+    TRIGGER = 13
+    TAGGING = 14
+    FIELD = 15
+    RECORD = 16
+    VIEW = 17
+    BLOB = 19
+    SECRET = 20
+    ISSUE = 21
     WORKER_SET = 40
     WORKER = 41
     SESSION = 60
     RUN = 61
     HALT = 62
-    SIGNAL = 70
+    SIGNAL = 63
     HANDLE = 100
     USER = 101
     ORGANIZATION = 102
     CLIENT = 103
     NOTIFICATION = 104
-    BADGE = 120
+    BADGE = 105
     POLICY = 200
     POLICY_RULE = 201
     EXPRESSION = 210
@@ -138,6 +132,7 @@ class ConditionalOp(betterproto.Enum):
 class EditKind(betterproto.Enum):
     UNSPECIFIED = 0
     CREATE = 10
+    UPSERT = 11
     UPDATE = 12
     MOVE = 13
     BUMP = 14
@@ -231,29 +226,29 @@ class NodeTrackingLevel(betterproto.Enum):
 class NodeType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    MODULE = 5
-    FILE = 6
-    STATEMENT = 7
-    TRIGGER = 8
-    TAGGING = 9
-    FIELD = 10
-    RECORD = 11
-    VIEW = 12
-    BLOB = 14
-    SECRET = 15
-    ISSUE = 16
+    MODULE = 10
+    FILE = 11
+    STATEMENT = 12
+    TRIGGER = 13
+    TAGGING = 14
+    FIELD = 15
+    RECORD = 16
+    VIEW = 17
+    BLOB = 19
+    SECRET = 20
+    ISSUE = 21
     WORKER_SET = 40
     WORKER = 41
     SESSION = 60
     RUN = 61
     HALT = 62
-    SIGNAL = 70
+    SIGNAL = 63
     HANDLE = 100
     USER = 101
     ORGANIZATION = 102
     CLIENT = 103
     NOTIFICATION = 104
-    BADGE = 120
+    BADGE = 105
 
 
 class NotificationStatus(betterproto.Enum):
@@ -1015,7 +1010,7 @@ class RunData(betterproto.Message):
     last_changed_at: datetime = betterproto.message_field(16)
     session_id: str = betterproto.string_field(30)
     root_id: str = betterproto.string_field(31)
-    worker_id: str = betterproto.string_field(32)
+    worker_ck: str = betterproto.string_field(32)
     worker_process_id: str = betterproto.string_field(33)
     statement_ck: str = betterproto.string_field(34)
     statement_path: str = betterproto.string_field(35)
@@ -1053,11 +1048,7 @@ class SecretData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SessionData(betterproto.Message):
-    """
-    // A managed context for running a Bench module (in a worker).
-    nocheckin: prepare Session for 'global'/detached sessions      (merge
-    Session with SessionTracer, support 'external' edits, ...)
-    """
+    """// A managed context for running a Bench module (in a worker)."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1079,8 +1070,6 @@ class SessionData(betterproto.Message):
     trigger_id: str = betterproto.string_field(34)
     opened_at: datetime = betterproto.message_field(35)
     closed_at: datetime = betterproto.message_field(36)
-    inference_timeout: int = betterproto.int64_field(37)
-    inference_retries: int = betterproto.int64_field(38)
 
 
 @dataclass(eq=False, repr=False)
@@ -1305,43 +1294,43 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    module: "ModuleData" = betterproto.message_field(1, group="node")
-    field: "FieldData" = betterproto.message_field(2, group="node")
-    file: "FileData" = betterproto.message_field(3, group="node")
-    signal: "SignalData" = betterproto.message_field(4, group="node")
-    run: "RunData" = betterproto.message_field(5, group="node")
-    handle: "HandleData" = betterproto.message_field(6, group="node")
-    badge: "BadgeData" = betterproto.message_field(7, group="node")
-    client: "ClientData" = betterproto.message_field(8, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(9, group="node")
-    issue: "IssueData" = betterproto.message_field(10, group="node")
-    worker: "WorkerData" = betterproto.message_field(11, group="node")
-    view: "ViewData" = betterproto.message_field(12, group="node")
-    blob: "BlobData" = betterproto.message_field(13, group="node")
-    tagging: "TaggingData" = betterproto.message_field(14, group="node")
-    user: "UserData" = betterproto.message_field(15, group="node")
-    bench: "BenchData" = betterproto.message_field(16, group="node")
-    record: "RecordData" = betterproto.message_field(17, group="node")
-    statement: "StatementData" = betterproto.message_field(18, group="node")
-    trigger: "TriggerData" = betterproto.message_field(19, group="node")
-    halt: "HaltData" = betterproto.message_field(20, group="node")
-    organization: "OrganizationData" = betterproto.message_field(21, group="node")
-    notification: "NotificationData" = betterproto.message_field(22, group="node")
-    secret: "SecretData" = betterproto.message_field(23, group="node")
-    session: "SessionData" = betterproto.message_field(24, group="node")
+    signal: "SignalData" = betterproto.message_field(1, group="node")
+    file: "FileData" = betterproto.message_field(2, group="node")
+    module: "ModuleData" = betterproto.message_field(3, group="node")
+    run: "RunData" = betterproto.message_field(4, group="node")
+    session: "SessionData" = betterproto.message_field(5, group="node")
+    organization: "OrganizationData" = betterproto.message_field(6, group="node")
+    record: "RecordData" = betterproto.message_field(7, group="node")
+    tagging: "TaggingData" = betterproto.message_field(8, group="node")
+    blob: "BlobData" = betterproto.message_field(9, group="node")
+    statement: "StatementData" = betterproto.message_field(10, group="node")
+    trigger: "TriggerData" = betterproto.message_field(11, group="node")
+    worker: "WorkerData" = betterproto.message_field(12, group="node")
+    issue: "IssueData" = betterproto.message_field(13, group="node")
+    field: "FieldData" = betterproto.message_field(14, group="node")
+    view: "ViewData" = betterproto.message_field(15, group="node")
+    halt: "HaltData" = betterproto.message_field(16, group="node")
+    bench: "BenchData" = betterproto.message_field(17, group="node")
+    user: "UserData" = betterproto.message_field(18, group="node")
+    notification: "NotificationData" = betterproto.message_field(19, group="node")
+    badge: "BadgeData" = betterproto.message_field(20, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(21, group="node")
+    client: "ClientData" = betterproto.message_field(22, group="node")
+    handle: "HandleData" = betterproto.message_field(23, group="node")
+    secret: "SecretData" = betterproto.message_field(24, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
-    dependency: "DependencyData" = betterproto.message_field(1, group="struct")
-    run_code_frame: "RunCodeFrameData" = betterproto.message_field(2, group="struct")
-    inference: "InferenceData" = betterproto.message_field(3, group="struct")
+    inference: "InferenceData" = betterproto.message_field(1, group="struct")
+    policy: "PolicyData" = betterproto.message_field(2, group="struct")
+    policy_rule: "PolicyRuleData" = betterproto.message_field(3, group="struct")
     expression: "ExpressionData" = betterproto.message_field(4, group="struct")
-    policy: "PolicyData" = betterproto.message_field(5, group="struct")
+    log_entry: "LogEntryData" = betterproto.message_field(5, group="struct")
     worker_image: "WorkerImageData" = betterproto.message_field(6, group="struct")
-    policy_rule: "PolicyRuleData" = betterproto.message_field(7, group="struct")
+    dependency: "DependencyData" = betterproto.message_field(7, group="struct")
     run_error: "RunErrorData" = betterproto.message_field(8, group="struct")
-    log_entry: "LogEntryData" = betterproto.message_field(9, group="struct")
+    run_code_frame: "RunCodeFrameData" = betterproto.message_field(9, group="struct")
 
 
 @dataclass(eq=False, repr=False)
@@ -1373,9 +1362,8 @@ class EditData(betterproto.Message):
     kind: "EditKind" = betterproto.enum_field(1)
     module_id: str = betterproto.string_field(2)
     node: "SomeNodeData" = betterproto.message_field(3)
-    revision: int = betterproto.int64_field(4)
-    properties: List[str] = betterproto.string_field(5)
-    origin: "ClientOrigin" = betterproto.message_field(6)
+    properties: List[str] = betterproto.string_field(4)
+    origin: "ClientOrigin" = betterproto.message_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -1468,13 +1456,18 @@ class SearchNodesResponse(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class CommitEditsRequest(betterproto.Message):
     edits: List["EditData"] = betterproto.message_field(1)
-    already_committed_edits: List["EditData"] = betterproto.message_field(2)
-    """'already applied' edits for workers passing along local edits"""
+    bypassed_edits: List["EditData"] = betterproto.message_field(2)
+    """'bypassed' edits for workers passing along local edits"""
 
 
 @dataclass(eq=False, repr=False)
 class CommitEditsResponse(betterproto.Message):
     changed_nodes: List["SomeNodeData"] = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class PushEditsRequest(betterproto.Message):
+    bypassed_edits: List["EditData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1615,6 +1608,7 @@ class RunProxyStatementRequest(betterproto.Message):
     inputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
     timeout_ms: int = betterproto.int32_field(3)
     run_id: str = betterproto.string_field(4)
+    run_ck: str = betterproto.string_field(5)
 
 
 @dataclass(eq=False, repr=False)
@@ -2041,6 +2035,23 @@ class ModuleHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def push_edits(
+        self,
+        push_edits_request: "PushEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        return await self._unary_unary(
+            "/ModuleHost/PushEdits",
+            push_edits_request,
+            betterproto_lib_google_protobuf.Empty,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def run_proxy_statement(
         self,
         run_proxy_statement_request: "RunProxyStatementRequest",
@@ -2400,6 +2411,11 @@ class ModuleHostBase(ServiceBase):
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def push_edits(
+        self, push_edits_request: "PushEditsRequest"
+    ) -> "betterproto_lib_google_protobuf.Empty":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def run_proxy_statement(
         self, run_proxy_statement_request: "RunProxyStatementRequest"
     ) -> "RunProxyStatementResponse":
@@ -2501,6 +2517,14 @@ class ModuleHostBase(ServiceBase):
         response = await self.kill_run(request)
         await stream.send_message(response)
 
+    async def __rpc_push_edits(
+        self,
+        stream: "grpclib.server.Stream[PushEditsRequest, betterproto_lib_google_protobuf.Empty]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.push_edits(request)
+        await stream.send_message(response)
+
     async def __rpc_run_proxy_statement(
         self,
         stream: "grpclib.server.Stream[RunProxyStatementRequest, RunProxyStatementResponse]",
@@ -2590,6 +2614,12 @@ class ModuleHostBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 KillRunRequest,
                 KillRunResponse,
+            ),
+            "/ModuleHost/PushEdits": grpclib.const.Handler(
+                self.__rpc_push_edits,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PushEditsRequest,
+                betterproto_lib_google_protobuf.Empty,
             ),
             "/ModuleHost/RunProxyStatement": grpclib.const.Handler(
                 self.__rpc_run_proxy_statement,
@@ -2704,39 +2734,39 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union
 
 AnyNodeData = Union[
-    ModuleData,
-    FieldData,
-    FileData,
     SignalData,
+    FileData,
+    ModuleData,
     RunData,
-    HandleData,
-    BadgeData,
-    ClientData,
-    WorkerSetData,
-    IssueData,
-    WorkerData,
-    ViewData,
-    BlobData,
-    TaggingData,
-    UserData,
-    BenchData,
+    SessionData,
+    OrganizationData,
     RecordData,
+    TaggingData,
+    BlobData,
     StatementData,
     TriggerData,
+    WorkerData,
+    IssueData,
+    FieldData,
+    ViewData,
     HaltData,
-    OrganizationData,
+    BenchData,
+    UserData,
     NotificationData,
+    BadgeData,
+    WorkerSetData,
+    ClientData,
+    HandleData,
     SecretData,
-    SessionData,
 ]
 AnyStructData = Union[
-    DependencyData,
-    RunCodeFrameData,
     InferenceData,
-    ExpressionData,
     PolicyData,
-    WorkerImageData,
     PolicyRuleData,
-    RunErrorData,
+    ExpressionData,
     LogEntryData,
+    WorkerImageData,
+    DependencyData,
+    RunErrorData,
+    RunCodeFrameData,
 ]

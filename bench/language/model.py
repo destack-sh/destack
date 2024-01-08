@@ -103,7 +103,7 @@ class HasModel(HasFields, Node):
                     )
                     log.debug("inference.cache.hit", output=describe_type(outputs))
                     check_type(outputs, self, is_output=True)
-                    self.session._tracer.run_cached(
+                    self.session._run_cached(
                         statement=self,
                         inputs=inputs,
                         outputs=outputs,
@@ -119,26 +119,26 @@ class HasModel(HasFields, Node):
         if self._remote:
             # request remotely proxied inference if needed (key not available locally)
 
-            self.session._tracer.run_enter(self, is_async=True, inputs=inputs)
+            self.session._run_enter(self, is_async=True, inputs=inputs)
             timeout = timeout if timeout is not None else self.session.inference_timeout
             try:
-                outputs = await self.session._runtime.run_proxy_inference(self, inputs_raw, timeout)
+                outputs = await self.session._host.run_proxy_inference(self, inputs_raw, timeout)
                 outputs = unpack_value(outputs, self, is_output=True)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
                 outputs = TypedDict(outputs, self, is_output=True)
             except BaseException as e:
-                self.session._tracer.run_exception(self, e)
+                self.session._run_exception(self, e)
                 log.warning("inference.remote.error", e=e, exc_info=e)
                 if isinstance(e, (ModelError, asyncio.CancelledError)):
                     raise
                 else:
                     raise ModelError(ModelErrorType.Unavailable, self, f"remote {self} failed")
-            self.session._tracer.run_exit(self, outputs)
+            self.session._run_exit(self, outputs)
             return outputs
         else:
             # otherwise run inference through endpoint :LibImplementation
             try:
-                self.session._tracer.run_enter(self, is_async=True, inputs=inputs)
+                self.session._run_enter(self, is_async=True, inputs=inputs)
                 timeout = timeout if timeout is not None else self.session.inference_timeout
                 outputs = await asyncio.wait_for(
                     asyncio.shield(
@@ -152,11 +152,11 @@ class HasModel(HasFields, Node):
                     ),
                     timeout,
                 )
-                self.session._tracer.run_exit(self, outputs)
+                self.session._run_exit(self, outputs)
                 log.debug("inference.exit", output=describe_type(outputs))
                 return TypedDict(outputs, self, is_output=True)
             except BaseException as e:
-                self.session._tracer.run_exception(self, e)
+                self.session._run_exception(self, e)
                 log.warning("inference.error", e=e, exc_info=e)
                 if isinstance(e, (ModelError, asyncio.CancelledError)):
                     raise

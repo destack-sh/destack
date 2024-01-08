@@ -89,7 +89,7 @@ class Blob(Node):
     async def get_url(self):
         if self.status != BlobStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
-        return await self.session._runtime.download_blob(self)
+        return await self.session._host.download_blob(self)
 
     @_auto_async_to_sync
     async def text(self) -> str:
@@ -112,7 +112,7 @@ class Blob(Node):
         Note that we perform a sleight of hand here: we change the id and status if the object
         already exists under a different id in the object store.
         """
-        blob, post_url = await self.session._runtime.prepare_upload_blob(self)
+        blob, post_url = await self.session._host.prepare_upload_blob(self)
         self._set_untracked("id", blob.id)
         self._set_untracked("ck", blob.ck)
         self.status = blob.status
@@ -120,7 +120,7 @@ class Blob(Node):
 
     async def _mark_uploaded(self) -> None:
         """Mark the object as uploaded to the remote storage."""
-        await self.session._runtime.mark_uploaded_blob(self)
+        await self.session._host.mark_uploaded_blob(self)
         self.status = BlobStatus.AVAILABLE
 
     async def _do_upload(self, content: bytes) -> None:
