@@ -118,6 +118,8 @@ message CommitEditsResponse {
 message PushEditsRequest {
   repeated EditData bypassed_edits = 1;
 }
+message PushEditsResponse {
+}
 
 message WatchEditsRequest {
   int64 after_edit_marker = 1;
@@ -219,6 +221,12 @@ message SnapshotModuleResponse {
   string snapshot_project_version_id = 1;
 }
 
+message PushWorkerLogsRequest {
+  repeated LogEntryData logs = 1;
+}
+message PushWorkerLogsResponse {
+}
+
 message SearchLogsRequest {
   ExpressionData filter = 1;
   repeated ExpressionData sort = 2;
@@ -250,50 +258,62 @@ message RunProxyStatementResponse {
   google.protobuf.Struct error = 2;
 }
 
-message PushWorkerLogsRequest {
-  repeated LogEntryData logs = 1;
-}
 
 // The Bench host for a specific module.
 // Service is scoped to bench_id/module_id.
 // Frontend connects to this directly.
 // Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
 service ModuleHost {
+  //
+  // Module IO
+  //
+
   // Reads the entire module tree.
   rpc ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
   // Searches out-of-line nodes in the module.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   // Commits a set of edits to the module. Optionally forward locally bypassed edits.
   rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
+  // Pushes locally bypassed edits to the module subscribers.
+  rpc PushEdits(PushEditsRequest) returns (PushEditsResponse);
   // Receive any relevant edits to this module.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
-  // Get a signed URL to upload a blob.
-  rpc UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
-  // Get a signed URL to download a blob.
-  rpc DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
   // Paste specific inline nodes (and only those nodes) from this or another module.
   rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
   // Create a full snapshot of this Bench module (copy to a new Bench module as specified).
   rpc Snapshot(SnapshotModuleRequest) returns (SnapshotModuleResponse);
 
+  //
+  // Blobs
+  //
+
+  // Get a signed URL to upload a blob.
+  rpc UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
+  // Get a signed URL to download a blob.
+  rpc DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
+
+  //
+  // Logs
+  //
+
   // Searches all existing logs.
   rpc SearchLogs(SearchLogsRequest) returns (SearchLogsResponse);
   // Subscribes to future logs.
   rpc WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
+  // Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
+  rpc PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
+
+  //
+  // Runs
+  //
 
   // Starts a run in an appropriate worker (same request/response as for WorkerNode).
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
   // Kills a run in the appropriate worker (same request/response as for WorkerNode).
   rpc KillRun(KillRunRequest) returns (KillRunResponse);
-
-  // Internal methods (for workers only).
-
-  // Pushes locally bypassed edits to the module subscribers.
-  rpc PushEdits(PushEditsRequest) returns (google.protobuf.Empty);
   // Runs a well-known internal statement in the host with our credentials.
   rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
-  // Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
-  rpc PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
+
 }
 
 //
@@ -301,15 +321,18 @@ service ModuleHost {
 //
 
 message RestartWorkerRequest {}
+message RestartWorkerResponse {
+  WorkerData worker = 1;
+}
 
 message StartRunRequest {
   RunData run = 1;
-  bool block = 10;
-  bool keyed_inputs = 11;
-  bool keyed_outputs = 12;
-  repeated string tags = 13;
-  google.protobuf.Struct root_value = 14;
-  google.protobuf.Struct global_value = 15;
+  bool block = 2;
+  bool keyed_inputs = 3;
+  bool keyed_outputs = 4;
+  repeated string tags = 5;
+  google.protobuf.Struct root_value = 6;
+  google.protobuf.Struct init_value = 7;
 }
 message StartRunResponse {
   ErrorType error_type = 1;
@@ -339,7 +362,7 @@ message KillRunResponse {
 // Not accessible from the outside.
 service Worker {
   // Restart this worker immediately.
-  rpc RestartWorker(RestartWorkerRequest) returns (google.protobuf.Empty);
+  rpc RestartWorker(RestartWorkerRequest) returns (WorkerSetData);
   // Starts a run in a process in this worker.
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
   // Kills a run in a process in this worker.

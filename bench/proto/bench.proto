@@ -1109,44 +1109,44 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    HandleData handle = 1;
-    BadgeData badge = 2;
-    ModuleData module = 3;
-    TaggingData tagging = 4;
-    BenchData bench = 5;
-    RunData run = 6;
-    OrganizationData organization = 7;
-    WorkerSetData worker_set = 8;
-    SessionData session = 9;
-    FieldData field = 10;
-    ViewData view = 11;
-    NotificationData notification = 12;
-    StatementData statement = 13;
-    WorkerData worker = 14;
+    TaggingData tagging = 1;
+    BenchData bench = 2;
+    FieldData field = 3;
+    RunData run = 4;
+    FileData file = 5;
+    BlobData blob = 6;
+    StatementData statement = 7;
+    ViewData view = 8;
+    HaltData halt = 9;
+    IssueData issue = 10;
+    TriggerData trigger = 11;
+    SecretData secret = 12;
+    WorkerSetData worker_set = 13;
+    SignalData signal = 14;
     UserData user = 15;
-    SecretData secret = 16;
-    BlobData blob = 17;
-    HaltData halt = 18;
-    FileData file = 19;
-    SignalData signal = 20;
-    RecordData record = 21;
-    TriggerData trigger = 22;
-    ClientData client = 23;
-    IssueData issue = 24;
+    SessionData session = 16;
+    ClientData client = 17;
+    NotificationData notification = 18;
+    HandleData handle = 19;
+    RecordData record = 20;
+    WorkerData worker = 21;
+    BadgeData badge = 22;
+    OrganizationData organization = 23;
+    ModuleData module = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    ExpressionData expression = 1;
+    PolicyRuleData policy_rule = 1;
     RunErrorData run_error = 2;
-    MiniRunData mini_run = 3;
-    DependencyData dependency = 4;
-    PolicyData policy = 5;
-    WorkerImageData worker_image = 6;
-    RunCodeFrameData run_code_frame = 7;
+    RunCodeFrameData run_code_frame = 3;
+    MiniRunData mini_run = 4;
+    WorkerImageData worker_image = 5;
+    DependencyData dependency = 6;
+    PolicyData policy = 7;
     LogEntryData log_entry = 8;
-    PolicyRuleData policy_rule = 9;
+    ExpressionData expression = 9;
   };
 }
 
