@@ -36,20 +36,20 @@ class NodeType(ProtoStrEnum):
     RECORD = "RECORD", 16  # (local)
     VIEW = "VIEW", 17
     # TILE = "TILE", 18
-    BLOB = "BLOB", 19
-    SECRET = "SECRET", 20
-    ISSUE = "ISSUE", 21
-
-    # worker
-    WORKER_SET = "WORKER_SET", 40
-    WORKER = "WORKER", 41
-    # WORKER_PROCESS = "WORKER_PROCESS", 42
+    ISSUE = "ISSUE", 19
+    BLOB = "BLOB", 30
+    SECRET = "SECRET", 31
 
     # session (all local)
-    SESSION = "SESSION", 60
-    RUN = "RUN", 61
-    HALT = "HALT", 62
-    SIGNAL = "SIGNAL", 63
+    SESSION = "SESSION", 40
+    RUN = "RUN", 41
+    HALT = "HALT", 42
+    SIGNAL = "SIGNAL", 43
+
+    # worker
+    WORKER_SET = "WORKER_SET", 60
+    WORKER = "WORKER", 61
+    # WORKER_PROCESS = "WORKER_PROCESS", 62
 
     # user
     HANDLE = "HANDLE", 100
@@ -69,6 +69,22 @@ class NodeType(ProtoStrEnum):
         return BENCH_TYPE_CAMEL_CASE[self]
 
 
+NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
+# (we duplicate in-module/in-bench info here to access it while initialising the node classes,
+#  but we check for consistency during finalization)
+IN_MODULE_NODE_TYPES: tuple[NodeType, ...] = tuple(
+    nt
+    for nt in NODE_TYPES
+    if NodeType.MODULE.id <= nt.id < NodeType.WORKER_SET.id
+    and nt not in (NodeType.BLOB, NodeType.SECRET)
+)
+IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(
+    nt
+    for nt in NODE_TYPES
+    if NodeType.BENCH.id <= nt.id < NodeType.HANDLE.id or nt in (NodeType.BADGE,)
+)
+
+
 class StructType(ProtoStrEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
     POLICY = "POLICY", 200
@@ -77,7 +93,7 @@ class StructType(ProtoStrEnum):
     LOG_ENTRY = "LOG_ENTRY", 220
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
     RUN_ERROR = "RUN_ERROR", 222
-    INFERENCE = "INFERENCE", 223
+    MINI_RUN = "MINI_RUN", 223
     WORKER_IMAGE = "WORKER_IMAGE", 230
     DEPENDENCY = "DEPENDENCY", 231
 
@@ -85,6 +101,8 @@ class StructType(ProtoStrEnum):
     def camel_name(self):
         return BENCH_TYPE_CAMEL_CASE[self]
 
+
+STRUCT_TYPES: tuple[StructType, ...] = tuple(StructType)
 
 if typing.TYPE_CHECKING:
     BenchType = NodeType | StructType
@@ -118,7 +136,7 @@ class ReadKind(ProtoStrEnum):
 
 class EditKind(ProtoStrEnum):
     CREATE = "CREATE", 10  # start at 10, so we can have read 'actions' as well
-    UPSERT = "UPSERT", 11  # do we need this?
+    UPSERT = "UPSERT", 11
     UPDATE = "UPDATE", 12
     MOVE = "MOVE", 13
     BUMP = "BUMP", 14

@@ -26,11 +26,12 @@ import structlog
 from cachetools import cached
 
 from bench.language.const import (
+    IN_BENCH_NODE_TYPES,
+    IN_MODULE_NODE_TYPES,
     INTERP_NODE_TYPES,
     UUID_NAMESPACE,
     BenchType,
     ConditionalOp,
-    EditKind,
     ExpressionOp,
     IssueKind,
     IssueType,
@@ -55,7 +56,7 @@ from bench.language.validation import (
 )
 from bench.proto.core import ProtoStrEnum
 from bench.proto.wire import EditData, SomeNodeData
-from bench.sql.core import ColumnType
+from bench.sql.core import CascadeAction, ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
 from bench.utils.func import did_you_mean_str, get_subclasses, nextn, strip_py_type, try_tuple
@@ -347,6 +348,8 @@ class Property(_FieldExpressionBase):
     struct_type: StructType | None = None  # for struct properties
     references: tuple[NodeType, ...] | None = None  # for reference relations
     reference_key: Optional["Property"] = None  # for reference relations
+    reference_source: Optional["Property"] = None  # for reference relations (reverse)
+    reference_on_delete: CascadeAction | None = UNSET
     parents: tuple[NodeType, ...] | None = None
     ancestor: NodeType | None = None
     column_type: ColumnType | None = UNSET
@@ -486,6 +489,7 @@ class Property(_FieldExpressionBase):
                 "component",
                 "ignore_conflicts_with",
                 "reference_key",
+                "reference_source",
                 "py_type_raw",
                 "py_type_stripped",
             ):
@@ -558,6 +562,7 @@ class Property(_FieldExpressionBase):
                 component=self.component,
                 py_type_raw=UUID,
                 default=None,
+                reference_source=self,
                 is_required=self.is_required,
                 is_internal=True,
                 is_computed=True,
@@ -569,11 +574,13 @@ class Property(_FieldExpressionBase):
             parent_id_props: list[Property] = []
             for parent_node_type in self.parents:
                 parent_id_prop = Property(
-                    id=self.id,  # re-use id, self is not stored
+                    id=self.id,
                     name=self.name + f"_{parent_node_type.name.lower()}_id",
                     component=self.component,
                     py_type_raw=UUID,
                     references=(parent_node_type,),
+                    reference_source=self,
+                    reference_on_delete=CascadeAction.CASCADE,
                     is_required=self.is_required,
                     is_internal=True,
                     is_runtime=False,
@@ -590,11 +597,13 @@ class Property(_FieldExpressionBase):
             assert self.is_stored is not UNSET, f"must set is_stored on {self!r}"
             assert self.is_wired is not UNSET, f"must set is_wired on {self!r}"
             ancestor_id_prop = Property(
-                id=self.id,  # re-use id, self is not stored
+                id=self.id,
                 name=self.name + "_id",
                 component=self.component,
                 py_type_raw=UUID,
                 references=(self.ancestor,),
+                reference_source=self,
+                reference_on_delete=CascadeAction.CASCADE,
                 is_required=self.is_required,
                 is_internal=True,
                 is_computed=True,
@@ -613,24 +622,53 @@ class Property(_FieldExpressionBase):
         elif self.references is not None:
             # regular reference to node (via ck for in-module nodes, id otherwise)
             assert self.is_array is not UNSET, f"must set is_array on {self!r}"
-            # nocheckin: store reference as _id if reference is not in-module
             #  (move contribute_properties to finalization step)
             self.reference_key = Property(
-                id=self.id,  # re-use id, self is not stored
-                name=self.name + "_ck",
+                id=self.id,
+                name=self.name + "_ck",  # we merge id/ck into 'ck' for wire/runtime
                 component=self.component,
                 py_type_raw=UUID,
                 references=self.references,
+                reference_source=self,
                 is_required=self.is_required,
                 is_internal=True,
                 is_runtime=True,
                 is_wired=True,
-                is_stored=True,
+                is_stored=False,
                 is_array=self.is_array,
                 is_indexed_in_pg=self.is_indexed_in_pg,
                 column_type=ColumnType.UUID,
             )
-            return (self.reference_key,)
+            reference_props = []
+            for ref_type in self.references:
+                store_as_id = ref_type not in IN_MODULE_NODE_TYPES
+                prop_postfix = "id" if store_as_id else "ck"
+                if self.name == ref_type.name.lower():
+                    prop_name = f"{self.name}_{prop_postfix}"
+                else:
+                    prop_name = f"{self.name}_{ref_type.name.lower()}_{prop_postfix}"
+                if prop_name == self.reference_key.name:
+                    self.reference_key.is_stored = True
+                    continue  # no need for a special store-only property
+                reference_prop = Property(
+                    id=self.id,
+                    name=prop_name,
+                    component=self.component,
+                    py_type_raw=UUID,
+                    references=(ref_type,),
+                    reference_source=self,
+                    reference_on_delete=CascadeAction.SET_NULL,
+                    is_required=self.is_required,
+                    is_internal=True,
+                    is_runtime=False,
+                    is_wired=False,
+                    is_stored=True,
+                    is_array=self.is_array,
+                    is_indexed_in_pg=self.is_indexed_in_pg,
+                    column_type=ColumnType.UUID,
+                )
+                reference_props.append(reference_prop)
+            return (self.reference_key, *reference_props)
 
         return tuple()
 
@@ -3005,6 +3043,10 @@ def _complete_bench_setup():
             raise ValueError(
                 f"{node_cls!r} parent types are inconsistent: root={node_cls.__root__} implies in_bench={in_bench} and in_module={in_module}, but got in_bench={node_cls.__is_in_bench__} and in_module={node_cls.__is_in_module__}"
             )
+    in_bench_types = [t.metatype for t in NODE_CLASS_BY_NODE_TYPE.values() if t.__is_in_bench__]
+    in_module_types = [t.metatype for t in NODE_CLASS_BY_NODE_TYPE.values() if t.__is_in_module__]
+    assert set(IN_BENCH_NODE_TYPES) == set(in_bench_types), f"IN_BENCH_NODE_TYPES inconsistent"
+    assert set(IN_MODULE_NODE_TYPES) == set(in_module_types), f"IN_MODULE_NODE_TYPES inconsistent"
 
     # check that all enum types are valid proto-able enums
     for struct_t in chain(STRUCT_CLASS_BY_STRUCT_TYPE.values(), NODE_CLASS_BY_NODE_TYPE.values()):

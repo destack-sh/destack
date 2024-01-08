@@ -3,7 +3,6 @@ import hashlib
 import sys
 import traceback
 from copy import deepcopy
-from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
@@ -38,7 +37,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.language import Session, Statement, Worker, symbolx_lib
+    from bench.language import Session, Statement, Worker
 
 
 @node_component
@@ -85,15 +84,13 @@ class HasRun(Node):
         raise NotImplementedError
 
 
-@dataclass(slots=True)
-class CachedRun:
-    # nocheckin: replace with Run / some struct (Inference?
-
-    generated_in: UUID
-    generated_at: datetime
-    duration: float
-    inputs: dict[str, Any]
-    outputs: dict[str, Any]
+@struct(StructType.MINI_RUN)
+class MiniRun(Struct):
+    generated_at: datetime = struct_internal(30)
+    generated_in: UUID = struct_internal(31)
+    duration: float = struct_internal(32)
+    inputs: Any = struct_internal(33, column_type=ColumnType.JSON)
+    outputs: Any = struct_internal(34, column_type=ColumnType.JSON)
 
 
 def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
