@@ -10,10 +10,11 @@ import { WorkerProcess } from "./services";
 import { Worker } from "./services";
 import type { RestartWorkerRequest } from "./services";
 import { ModuleHost } from "./services";
-import type { Empty } from "../../google/protobuf/empty";
 import type { PushWorkerLogsRequest } from "./services";
 import type { RunProxyStatementResponse } from "./services";
 import type { RunProxyStatementRequest } from "./services";
+import type { Empty } from "../../google/protobuf/empty";
+import type { PushEditsRequest } from "./services";
 import type { KillRunResponse } from "./services";
 import type { KillRunRequest } from "./services";
 import type { StartRunResponse } from "./services";
@@ -64,66 +65,75 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  * @generated from protobuf service GlobalSupervisor
  */
 export interface IGlobalSupervisorClient {
-    /**
-     * Create user account.
-     *
-     * @generated from protobuf rpc: CreateUser(CreateUserRequest) returns (CreateUserResponse);
-     */
-    createUser(input: CreateUserRequest, options?: RpcOptions): UnaryCall<CreateUserRequest, CreateUserResponse>;
-    /**
-     * Login user account.
-     *
-     * @generated from protobuf rpc: LoginUser(LoginUserRequest) returns (LoginUserResponse);
-     */
-    loginUser(input: LoginUserRequest, options?: RpcOptions): UnaryCall<LoginUserRequest, LoginUserResponse>;
-    /**
-     * Logout user account.
-     *
-     * @generated from protobuf rpc: LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
-     */
-    logoutUser(input: LogoutUserRequest, options?: RpcOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse>;
-    /**
-     * Create a Bench.
-     *
-     * @generated from protobuf rpc: CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
-     */
-    createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
-    /**
-     * Get global nodes.
-     *
-     * @generated from protobuf rpc: ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
-     */
-    readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse>;
-    /**
-     * Search global nodes.
-     *
-     * @generated from protobuf rpc: SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-     */
-    searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
-    /**
-     * Commits edits to global nodes.
-     *
-     * @generated from protobuf rpc: CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
-     */
-    commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse>;
-    /**
-     * Subscribes to relevant global edits.
-     *
-     * @generated from protobuf rpc: WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
-    /**
-     * Force restart the worker set for a Bench.
-     *
-     * @generated from protobuf rpc: RestartWorkerSet(RestartWorkerSetRequest) returns (PingWorkerSetResponse);
-     */
-    restartWorkerSet(input: RestartWorkerSetRequest, options?: RpcOptions): UnaryCall<RestartWorkerSetRequest, PingWorkerSetResponse>;
-    /**
-     * Ensure the worker set for a Bench is running.
-     *
-     * @generated from protobuf rpc: PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
-     */
-    pingWorkerSet(input: PingWorkerSetRequest, options?: RpcOptions): UnaryCall<PingWorkerSetRequest, PingWorkerSetResponse>;
+  /**
+   * Create user account.
+   *
+   * @generated from protobuf rpc: CreateUser(CreateUserRequest) returns (CreateUserResponse);
+   */
+  createUser(input: CreateUserRequest, options?: RpcOptions): UnaryCall<CreateUserRequest, CreateUserResponse>;
+  /**
+   * Login user account.
+   *
+   * @generated from protobuf rpc: LoginUser(LoginUserRequest) returns (LoginUserResponse);
+   */
+  loginUser(input: LoginUserRequest, options?: RpcOptions): UnaryCall<LoginUserRequest, LoginUserResponse>;
+  /**
+   * Logout user account.
+   *
+   * @generated from protobuf rpc: LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
+   */
+  logoutUser(input: LogoutUserRequest, options?: RpcOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse>;
+  /**
+   * Create a Bench.
+   *
+   * @generated from protobuf rpc: CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
+   */
+  createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
+  /**
+   * Get global nodes.
+   *
+   * @generated from protobuf rpc: ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
+   */
+  readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse>;
+  /**
+   * Search global nodes.
+   *
+   * @generated from protobuf rpc: SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+   */
+  searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
+  /**
+   * Commits edits to global nodes.
+   *
+   * @generated from protobuf rpc: CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
+   */
+  commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse>;
+  /**
+   * Subscribes to relevant global edits.
+   *
+   * @generated from protobuf rpc: WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+   */
+  watchEdits(
+    input: WatchEditsRequest,
+    options?: RpcOptions
+  ): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
+  /**
+   * Force restart the worker set for a Bench.
+   *
+   * @generated from protobuf rpc: RestartWorkerSet(RestartWorkerSetRequest) returns (PingWorkerSetResponse);
+   */
+  restartWorkerSet(
+    input: RestartWorkerSetRequest,
+    options?: RpcOptions
+  ): UnaryCall<RestartWorkerSetRequest, PingWorkerSetResponse>;
+  /**
+   * Ensure the worker set for a Bench is running.
+   *
+   * @generated from protobuf rpc: PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
+   */
+  pingWorkerSet(
+    input: PingWorkerSetRequest,
+    options?: RpcOptions
+  ): UnaryCall<PingWorkerSetRequest, PingWorkerSetResponse>;
 }
 /**
  * Global supervisor: the 'control plane' for global stuff like Benches, Users, Workers, etc..
@@ -133,101 +143,125 @@ export interface IGlobalSupervisorClient {
  * @generated from protobuf service GlobalSupervisor
  */
 export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceInfo {
-    typeName = GlobalSupervisor.typeName;
-    methods = GlobalSupervisor.methods;
-    options = GlobalSupervisor.options;
-    constructor(private readonly _transport: RpcTransport) {
-    }
-    /**
-     * Create user account.
-     *
-     * @generated from protobuf rpc: CreateUser(CreateUserRequest) returns (CreateUserResponse);
-     */
-    createUser(input: CreateUserRequest, options?: RpcOptions): UnaryCall<CreateUserRequest, CreateUserResponse> {
-        const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CreateUserRequest, CreateUserResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Login user account.
-     *
-     * @generated from protobuf rpc: LoginUser(LoginUserRequest) returns (LoginUserResponse);
-     */
-    loginUser(input: LoginUserRequest, options?: RpcOptions): UnaryCall<LoginUserRequest, LoginUserResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<LoginUserRequest, LoginUserResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Logout user account.
-     *
-     * @generated from protobuf rpc: LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
-     */
-    logoutUser(input: LogoutUserRequest, options?: RpcOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
-        return stackIntercept<LogoutUserRequest, LogoutUserResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Create a Bench.
-     *
-     * @generated from protobuf rpc: CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
-     */
-    createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Get global nodes.
-     *
-     * @generated from protobuf rpc: ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
-     */
-    readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<ReadNodesRequest, ReadNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Search global nodes.
-     *
-     * @generated from protobuf rpc: SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-     */
-    searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Commits edits to global nodes.
-     *
-     * @generated from protobuf rpc: CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
-     */
-    commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Subscribes to relevant global edits.
-     *
-     * @generated from protobuf rpc: WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
-        const method = this.methods[7], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
-     * Force restart the worker set for a Bench.
-     *
-     * @generated from protobuf rpc: RestartWorkerSet(RestartWorkerSetRequest) returns (PingWorkerSetResponse);
-     */
-    restartWorkerSet(input: RestartWorkerSetRequest, options?: RpcOptions): UnaryCall<RestartWorkerSetRequest, PingWorkerSetResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RestartWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Ensure the worker set for a Bench is running.
-     *
-     * @generated from protobuf rpc: PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
-     */
-    pingWorkerSet(input: PingWorkerSetRequest, options?: RpcOptions): UnaryCall<PingWorkerSetRequest, PingWorkerSetResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PingWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
-    }
+  typeName = GlobalSupervisor.typeName;
+  methods = GlobalSupervisor.methods;
+  options = GlobalSupervisor.options;
+  constructor(private readonly _transport: RpcTransport) {}
+  /**
+   * Create user account.
+   *
+   * @generated from protobuf rpc: CreateUser(CreateUserRequest) returns (CreateUserResponse);
+   */
+  createUser(input: CreateUserRequest, options?: RpcOptions): UnaryCall<CreateUserRequest, CreateUserResponse> {
+    const method = this.methods[0],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<CreateUserRequest, CreateUserResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Login user account.
+   *
+   * @generated from protobuf rpc: LoginUser(LoginUserRequest) returns (LoginUserResponse);
+   */
+  loginUser(input: LoginUserRequest, options?: RpcOptions): UnaryCall<LoginUserRequest, LoginUserResponse> {
+    const method = this.methods[1],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<LoginUserRequest, LoginUserResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Logout user account.
+   *
+   * @generated from protobuf rpc: LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
+   */
+  logoutUser(input: LogoutUserRequest, options?: RpcOptions): UnaryCall<LogoutUserRequest, LogoutUserResponse> {
+    const method = this.methods[2],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<LogoutUserRequest, LogoutUserResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Create a Bench.
+   *
+   * @generated from protobuf rpc: CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
+   */
+  createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse> {
+    const method = this.methods[3],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Get global nodes.
+   *
+   * @generated from protobuf rpc: ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
+   */
+  readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse> {
+    const method = this.methods[4],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<ReadNodesRequest, ReadNodesResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Search global nodes.
+   *
+   * @generated from protobuf rpc: SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+   */
+  searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse> {
+    const method = this.methods[5],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Commits edits to global nodes.
+   *
+   * @generated from protobuf rpc: CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
+   */
+  commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse> {
+    const method = this.methods[6],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Subscribes to relevant global edits.
+   *
+   * @generated from protobuf rpc: WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+   */
+  watchEdits(
+    input: WatchEditsRequest,
+    options?: RpcOptions
+  ): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
+    const method = this.methods[7],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<WatchEditsRequest, WatchEditsResponse>(
+      "serverStreaming",
+      this._transport,
+      method,
+      opt,
+      input
+    );
+  }
+  /**
+   * Force restart the worker set for a Bench.
+   *
+   * @generated from protobuf rpc: RestartWorkerSet(RestartWorkerSetRequest) returns (PingWorkerSetResponse);
+   */
+  restartWorkerSet(
+    input: RestartWorkerSetRequest,
+    options?: RpcOptions
+  ): UnaryCall<RestartWorkerSetRequest, PingWorkerSetResponse> {
+    const method = this.methods[8],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<RestartWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Ensure the worker set for a Bench is running.
+   *
+   * @generated from protobuf rpc: PingWorkerSet(PingWorkerSetRequest) returns (PingWorkerSetResponse);
+   */
+  pingWorkerSet(
+    input: PingWorkerSetRequest,
+    options?: RpcOptions
+  ): UnaryCall<PingWorkerSetRequest, PingWorkerSetResponse> {
+    const method = this.methods[9],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<PingWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
+  }
 }
 /**
  * The Bench host for a specific module.
@@ -238,90 +272,107 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
  * @generated from protobuf service ModuleHost
  */
 export interface IModuleHostClient {
-    /**
-     * Reads the entire module tree.
-     *
-     * @generated from protobuf rpc: ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
-     */
-    readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse>;
-    /**
-     * Searches out-of-line nodes in the module.
-     *
-     * @generated from protobuf rpc: SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-     */
-    searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
-    /**
-     * Commits a set of edits to the module.
-     *
-     * @generated from protobuf rpc: CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
-     */
-    commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse>;
-    /**
-     * Receive any relevant edits to this module.
-     *
-     * @generated from protobuf rpc: WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
-    /**
-     * Get a signed URL to upload a blob.
-     *
-     * @generated from protobuf rpc: UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
-     */
-    uploadBlob(input: UploadBlobRequest, options?: RpcOptions): UnaryCall<UploadBlobRequest, UploadBlobResponse>;
-    /**
-     * Get a signed URL to download a blob.
-     *
-     * @generated from protobuf rpc: DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
-     */
-    downloadBlob(input: DownloadBlobRequest, options?: RpcOptions): UnaryCall<DownloadBlobRequest, DownloadBlobResponse>;
-    /**
-     * Paste specific inline nodes (and only those nodes) from this or another module.
-     *
-     * @generated from protobuf rpc: PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
-     */
-    pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse>;
-    /**
-     * Create a full snapshot of this Bench module (copy to a new Bench module as specified).
-     *
-     * @generated from protobuf rpc: Snapshot(SnapshotModuleRequest) returns (SnapshotModuleResponse);
-     */
-    snapshot(input: SnapshotModuleRequest, options?: RpcOptions): UnaryCall<SnapshotModuleRequest, SnapshotModuleResponse>;
-    /**
-     * Searches all existing logs.
-     *
-     * @generated from protobuf rpc: SearchLogs(SearchLogsRequest) returns (SearchLogsResponse);
-     */
-    searchLogs(input: SearchLogsRequest, options?: RpcOptions): UnaryCall<SearchLogsRequest, SearchLogsResponse>;
-    /**
-     * Subscribes to future logs.
-     *
-     * @generated from protobuf rpc: WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
-     */
-    watchLogs(input: WatchLogsRequest, options?: RpcOptions): ServerStreamingCall<WatchLogsRequest, WatchLogsResponse>;
-    /**
-     * Starts a run in an appropriate worker (same request/response as for WorkerNode).
-     *
-     * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
-    /**
-     * Kills a run in the appropriate worker (same request/response as for WorkerNode).
-     *
-     * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
-    /**
-     * Runs a well-known internal statement in the host with our credentials.
-     *
-     * @generated from protobuf rpc: RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
-     */
-    runProxyStatement(input: RunProxyStatementRequest, options?: RpcOptions): UnaryCall<RunProxyStatementRequest, RunProxyStatementResponse>;
-    /**
-     * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
-     *
-     * @generated from protobuf rpc: PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
-     */
-    pushWorkerLogs(input: PushWorkerLogsRequest, options?: RpcOptions): UnaryCall<PushWorkerLogsRequest, Empty>;
+  /**
+   * Reads the entire module tree.
+   *
+   * @generated from protobuf rpc: ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
+   */
+  readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse>;
+  /**
+   * Searches out-of-line nodes in the module.
+   *
+   * @generated from protobuf rpc: SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+   */
+  searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
+  /**
+   * Commits a set of edits to the module. Optionally forward locally bypassed edits.
+   *
+   * @generated from protobuf rpc: CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
+   */
+  commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse>;
+  /**
+   * Receive any relevant edits to this module.
+   *
+   * @generated from protobuf rpc: WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+   */
+  watchEdits(
+    input: WatchEditsRequest,
+    options?: RpcOptions
+  ): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
+  /**
+   * Get a signed URL to upload a blob.
+   *
+   * @generated from protobuf rpc: UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
+   */
+  uploadBlob(input: UploadBlobRequest, options?: RpcOptions): UnaryCall<UploadBlobRequest, UploadBlobResponse>;
+  /**
+   * Get a signed URL to download a blob.
+   *
+   * @generated from protobuf rpc: DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
+   */
+  downloadBlob(input: DownloadBlobRequest, options?: RpcOptions): UnaryCall<DownloadBlobRequest, DownloadBlobResponse>;
+  /**
+   * Paste specific inline nodes (and only those nodes) from this or another module.
+   *
+   * @generated from protobuf rpc: PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
+   */
+  pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse>;
+  /**
+   * Create a full snapshot of this Bench module (copy to a new Bench module as specified).
+   *
+   * @generated from protobuf rpc: Snapshot(SnapshotModuleRequest) returns (SnapshotModuleResponse);
+   */
+  snapshot(
+    input: SnapshotModuleRequest,
+    options?: RpcOptions
+  ): UnaryCall<SnapshotModuleRequest, SnapshotModuleResponse>;
+  /**
+   * Searches all existing logs.
+   *
+   * @generated from protobuf rpc: SearchLogs(SearchLogsRequest) returns (SearchLogsResponse);
+   */
+  searchLogs(input: SearchLogsRequest, options?: RpcOptions): UnaryCall<SearchLogsRequest, SearchLogsResponse>;
+  /**
+   * Subscribes to future logs.
+   *
+   * @generated from protobuf rpc: WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
+   */
+  watchLogs(input: WatchLogsRequest, options?: RpcOptions): ServerStreamingCall<WatchLogsRequest, WatchLogsResponse>;
+  /**
+   * Starts a run in an appropriate worker (same request/response as for WorkerNode).
+   *
+   * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
+   */
+  startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
+  /**
+   * Kills a run in the appropriate worker (same request/response as for WorkerNode).
+   *
+   * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
+   */
+  killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
+  // Internal methods (for workers only).
+
+  /**
+   * Pushes locally bypassed edits to the module subscribers.
+   *
+   * @generated from protobuf rpc: PushEdits(PushEditsRequest) returns (google.protobuf.Empty);
+   */
+  pushEdits(input: PushEditsRequest, options?: RpcOptions): UnaryCall<PushEditsRequest, Empty>;
+  /**
+   * Runs a well-known internal statement in the host with our credentials.
+   *
+   * @generated from protobuf rpc: RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
+   */
+  runProxyStatement(
+    input: RunProxyStatementRequest,
+    options?: RpcOptions
+  ): UnaryCall<RunProxyStatementRequest, RunProxyStatementResponse>;
+  /**
+   * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
+   *
+   * @generated from protobuf rpc: PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
+   */
+  pushWorkerLogs(input: PushWorkerLogsRequest, options?: RpcOptions): UnaryCall<PushWorkerLogsRequest, Empty>;
 }
 /**
  * The Bench host for a specific module.
@@ -332,137 +383,183 @@ export interface IModuleHostClient {
  * @generated from protobuf service ModuleHost
  */
 export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
-    typeName = ModuleHost.typeName;
-    methods = ModuleHost.methods;
-    options = ModuleHost.options;
-    constructor(private readonly _transport: RpcTransport) {
-    }
-    /**
-     * Reads the entire module tree.
-     *
-     * @generated from protobuf rpc: ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
-     */
-    readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse> {
-        const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<ReadNodesRequest, ReadNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Searches out-of-line nodes in the module.
-     *
-     * @generated from protobuf rpc: SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-     */
-    searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Commits a set of edits to the module.
-     *
-     * @generated from protobuf rpc: CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
-     */
-    commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Receive any relevant edits to this module.
-     *
-     * @generated from protobuf rpc: WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
-     */
-    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
-     * Get a signed URL to upload a blob.
-     *
-     * @generated from protobuf rpc: UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
-     */
-    uploadBlob(input: UploadBlobRequest, options?: RpcOptions): UnaryCall<UploadBlobRequest, UploadBlobResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
-        return stackIntercept<UploadBlobRequest, UploadBlobResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Get a signed URL to download a blob.
-     *
-     * @generated from protobuf rpc: DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
-     */
-    downloadBlob(input: DownloadBlobRequest, options?: RpcOptions): UnaryCall<DownloadBlobRequest, DownloadBlobResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
-        return stackIntercept<DownloadBlobRequest, DownloadBlobResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Paste specific inline nodes (and only those nodes) from this or another module.
-     *
-     * @generated from protobuf rpc: PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
-     */
-    pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PasteNodesRequest, PasteNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Create a full snapshot of this Bench module (copy to a new Bench module as specified).
-     *
-     * @generated from protobuf rpc: Snapshot(SnapshotModuleRequest) returns (SnapshotModuleResponse);
-     */
-    snapshot(input: SnapshotModuleRequest, options?: RpcOptions): UnaryCall<SnapshotModuleRequest, SnapshotModuleResponse> {
-        const method = this.methods[7], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SnapshotModuleRequest, SnapshotModuleResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Searches all existing logs.
-     *
-     * @generated from protobuf rpc: SearchLogs(SearchLogsRequest) returns (SearchLogsResponse);
-     */
-    searchLogs(input: SearchLogsRequest, options?: RpcOptions): UnaryCall<SearchLogsRequest, SearchLogsResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SearchLogsRequest, SearchLogsResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Subscribes to future logs.
-     *
-     * @generated from protobuf rpc: WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
-     */
-    watchLogs(input: WatchLogsRequest, options?: RpcOptions): ServerStreamingCall<WatchLogsRequest, WatchLogsResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchLogsRequest, WatchLogsResponse>("serverStreaming", this._transport, method, opt, input);
-    }
-    /**
-     * Starts a run in an appropriate worker (same request/response as for WorkerNode).
-     *
-     * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[10], opt = this._transport.mergeOptions(options);
-        return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Kills a run in the appropriate worker (same request/response as for WorkerNode).
-     *
-     * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[11], opt = this._transport.mergeOptions(options);
-        return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Runs a well-known internal statement in the host with our credentials.
-     *
-     * @generated from protobuf rpc: RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
-     */
-    runProxyStatement(input: RunProxyStatementRequest, options?: RpcOptions): UnaryCall<RunProxyStatementRequest, RunProxyStatementResponse> {
-        const method = this.methods[12], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RunProxyStatementRequest, RunProxyStatementResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
-     *
-     * @generated from protobuf rpc: PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
-     */
-    pushWorkerLogs(input: PushWorkerLogsRequest, options?: RpcOptions): UnaryCall<PushWorkerLogsRequest, Empty> {
-        const method = this.methods[13], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PushWorkerLogsRequest, Empty>("unary", this._transport, method, opt, input);
-    }
+  typeName = ModuleHost.typeName;
+  methods = ModuleHost.methods;
+  options = ModuleHost.options;
+  constructor(private readonly _transport: RpcTransport) {}
+  /**
+   * Reads the entire module tree.
+   *
+   * @generated from protobuf rpc: ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
+   */
+  readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse> {
+    const method = this.methods[0],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<ReadNodesRequest, ReadNodesResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Searches out-of-line nodes in the module.
+   *
+   * @generated from protobuf rpc: SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+   */
+  searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse> {
+    const method = this.methods[1],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Commits a set of edits to the module. Optionally forward locally bypassed edits.
+   *
+   * @generated from protobuf rpc: CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
+   */
+  commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse> {
+    const method = this.methods[2],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Receive any relevant edits to this module.
+   *
+   * @generated from protobuf rpc: WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+   */
+  watchEdits(
+    input: WatchEditsRequest,
+    options?: RpcOptions
+  ): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
+    const method = this.methods[3],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<WatchEditsRequest, WatchEditsResponse>(
+      "serverStreaming",
+      this._transport,
+      method,
+      opt,
+      input
+    );
+  }
+  /**
+   * Get a signed URL to upload a blob.
+   *
+   * @generated from protobuf rpc: UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
+   */
+  uploadBlob(input: UploadBlobRequest, options?: RpcOptions): UnaryCall<UploadBlobRequest, UploadBlobResponse> {
+    const method = this.methods[4],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<UploadBlobRequest, UploadBlobResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Get a signed URL to download a blob.
+   *
+   * @generated from protobuf rpc: DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
+   */
+  downloadBlob(input: DownloadBlobRequest, options?: RpcOptions): UnaryCall<DownloadBlobRequest, DownloadBlobResponse> {
+    const method = this.methods[5],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<DownloadBlobRequest, DownloadBlobResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Paste specific inline nodes (and only those nodes) from this or another module.
+   *
+   * @generated from protobuf rpc: PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
+   */
+  pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse> {
+    const method = this.methods[6],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<PasteNodesRequest, PasteNodesResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Create a full snapshot of this Bench module (copy to a new Bench module as specified).
+   *
+   * @generated from protobuf rpc: Snapshot(SnapshotModuleRequest) returns (SnapshotModuleResponse);
+   */
+  snapshot(
+    input: SnapshotModuleRequest,
+    options?: RpcOptions
+  ): UnaryCall<SnapshotModuleRequest, SnapshotModuleResponse> {
+    const method = this.methods[7],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<SnapshotModuleRequest, SnapshotModuleResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Searches all existing logs.
+   *
+   * @generated from protobuf rpc: SearchLogs(SearchLogsRequest) returns (SearchLogsResponse);
+   */
+  searchLogs(input: SearchLogsRequest, options?: RpcOptions): UnaryCall<SearchLogsRequest, SearchLogsResponse> {
+    const method = this.methods[8],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<SearchLogsRequest, SearchLogsResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Subscribes to future logs.
+   *
+   * @generated from protobuf rpc: WatchLogs(WatchLogsRequest) returns (stream WatchLogsResponse);
+   */
+  watchLogs(input: WatchLogsRequest, options?: RpcOptions): ServerStreamingCall<WatchLogsRequest, WatchLogsResponse> {
+    const method = this.methods[9],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<WatchLogsRequest, WatchLogsResponse>("serverStreaming", this._transport, method, opt, input);
+  }
+  /**
+   * Starts a run in an appropriate worker (same request/response as for WorkerNode).
+   *
+   * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
+   */
+  startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
+    const method = this.methods[10],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Kills a run in the appropriate worker (same request/response as for WorkerNode).
+   *
+   * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
+   */
+  killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
+    const method = this.methods[11],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
+  }
+  // Internal methods (for workers only).
+
+  /**
+   * Pushes locally bypassed edits to the module subscribers.
+   *
+   * @generated from protobuf rpc: PushEdits(PushEditsRequest) returns (google.protobuf.Empty);
+   */
+  pushEdits(input: PushEditsRequest, options?: RpcOptions): UnaryCall<PushEditsRequest, Empty> {
+    const method = this.methods[12],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<PushEditsRequest, Empty>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Runs a well-known internal statement in the host with our credentials.
+   *
+   * @generated from protobuf rpc: RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
+   */
+  runProxyStatement(
+    input: RunProxyStatementRequest,
+    options?: RpcOptions
+  ): UnaryCall<RunProxyStatementRequest, RunProxyStatementResponse> {
+    const method = this.methods[13],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<RunProxyStatementRequest, RunProxyStatementResponse>(
+      "unary",
+      this._transport,
+      method,
+      opt,
+      input
+    );
+  }
+  /**
+   * Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
+   *
+   * @generated from protobuf rpc: PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
+   */
+  pushWorkerLogs(input: PushWorkerLogsRequest, options?: RpcOptions): UnaryCall<PushWorkerLogsRequest, Empty> {
+    const method = this.methods[14],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<PushWorkerLogsRequest, Empty>("unary", this._transport, method, opt, input);
+  }
 }
 /**
  * A hosted Worker providing a Bench runtime with a set of worker processes.
@@ -472,24 +569,24 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
  * @generated from protobuf service Worker
  */
 export interface IWorkerClient {
-    /**
-     * Restart this worker immediately.
-     *
-     * @generated from protobuf rpc: RestartWorker(RestartWorkerRequest) returns (google.protobuf.Empty);
-     */
-    restartWorker(input: RestartWorkerRequest, options?: RpcOptions): UnaryCall<RestartWorkerRequest, Empty>;
-    /**
-     * Starts a run in a process in this worker.
-     *
-     * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
-    /**
-     * Kills a run in a process in this worker.
-     *
-     * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
+  /**
+   * Restart this worker immediately.
+   *
+   * @generated from protobuf rpc: RestartWorker(RestartWorkerRequest) returns (google.protobuf.Empty);
+   */
+  restartWorker(input: RestartWorkerRequest, options?: RpcOptions): UnaryCall<RestartWorkerRequest, Empty>;
+  /**
+   * Starts a run in a process in this worker.
+   *
+   * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
+   */
+  startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
+  /**
+   * Kills a run in a process in this worker.
+   *
+   * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
+   */
+  killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
 }
 /**
  * A hosted Worker providing a Bench runtime with a set of worker processes.
@@ -499,38 +596,40 @@ export interface IWorkerClient {
  * @generated from protobuf service Worker
  */
 export class WorkerClient implements IWorkerClient, ServiceInfo {
-    typeName = Worker.typeName;
-    methods = Worker.methods;
-    options = Worker.options;
-    constructor(private readonly _transport: RpcTransport) {
-    }
-    /**
-     * Restart this worker immediately.
-     *
-     * @generated from protobuf rpc: RestartWorker(RestartWorkerRequest) returns (google.protobuf.Empty);
-     */
-    restartWorker(input: RestartWorkerRequest, options?: RpcOptions): UnaryCall<RestartWorkerRequest, Empty> {
-        const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RestartWorkerRequest, Empty>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Starts a run in a process in this worker.
-     *
-     * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Kills a run in a process in this worker.
-     *
-     * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
-        return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
-    }
+  typeName = Worker.typeName;
+  methods = Worker.methods;
+  options = Worker.options;
+  constructor(private readonly _transport: RpcTransport) {}
+  /**
+   * Restart this worker immediately.
+   *
+   * @generated from protobuf rpc: RestartWorker(RestartWorkerRequest) returns (google.protobuf.Empty);
+   */
+  restartWorker(input: RestartWorkerRequest, options?: RpcOptions): UnaryCall<RestartWorkerRequest, Empty> {
+    const method = this.methods[0],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<RestartWorkerRequest, Empty>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Starts a run in a process in this worker.
+   *
+   * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
+   */
+  startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
+    const method = this.methods[1],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Kills a run in a process in this worker.
+   *
+   * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
+   */
+  killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
+    const method = this.methods[2],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
+  }
 }
 /**
  * The actual worker process executing a Bench 'thread'.
@@ -540,18 +639,18 @@ export class WorkerClient implements IWorkerClient, ServiceInfo {
  * @generated from protobuf service WorkerProcess
  */
 export interface IWorkerProcessClient {
-    /**
-     * Starts a run in this worker process.
-     *
-     * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
-    /**
-     * Kills a run in this worker process.
-     *
-     * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
+  /**
+   * Starts a run in this worker process.
+   *
+   * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
+   */
+  startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse>;
+  /**
+   * Kills a run in this worker process.
+   *
+   * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
+   */
+  killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
 }
 /**
  * The actual worker process executing a Bench 'thread'.
@@ -561,27 +660,28 @@ export interface IWorkerProcessClient {
  * @generated from protobuf service WorkerProcess
  */
 export class WorkerProcessClient implements IWorkerProcessClient, ServiceInfo {
-    typeName = WorkerProcess.typeName;
-    methods = WorkerProcess.methods;
-    options = WorkerProcess.options;
-    constructor(private readonly _transport: RpcTransport) {
-    }
-    /**
-     * Starts a run in this worker process.
-     *
-     * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
-     */
-    startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
-     * Kills a run in this worker process.
-     *
-     * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
-     */
-    killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
-    }
+  typeName = WorkerProcess.typeName;
+  methods = WorkerProcess.methods;
+  options = WorkerProcess.options;
+  constructor(private readonly _transport: RpcTransport) {}
+  /**
+   * Starts a run in this worker process.
+   *
+   * @generated from protobuf rpc: StartRun(StartRunRequest) returns (StartRunResponse);
+   */
+  startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
+    const method = this.methods[0],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
+  }
+  /**
+   * Kills a run in this worker process.
+   *
+   * @generated from protobuf rpc: KillRun(KillRunRequest) returns (KillRunResponse);
+   */
+  killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
+    const method = this.methods[1],
+      opt = this._transport.mergeOptions(options);
+    return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
+  }
 }

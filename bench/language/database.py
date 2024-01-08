@@ -299,7 +299,7 @@ class RecordQuery:
         from bench.proto import wiring
 
         session = self._database.session
-        if not _no_flush and session._tracer._local_edits:
+        if not _no_flush and session._local_edits:
             await session.flush_local()  # first flush any local edits
         fetched = await self._do_fetch(pg_cursor=await self._database._get_pg_cursor())
         records: list[Record] = []
@@ -420,7 +420,7 @@ class RecordQuery:
         assert not self._first and not self._skip and not self._sort, "cannot count with limits"
         query = coerce_conditional(self._database, query, kwargs)
 
-        if not _no_flush and self._database.session._tracer._local_edits:
+        if not _no_flush and self._database.session._local_edits:
             await self._database.session.flush_local()
 
         where = compile_pg_conditional(self._database, query & self._combined_filter)
@@ -440,7 +440,7 @@ class RecordQuery:
         if query is None and self._cached_records is not None:
             return bool(self._cached_records)
 
-        if self._database.session._tracer._local_edits:
+        if self._database.session._local_edits:
             await self._database.session.flush_local()
 
         if query is None:
@@ -464,7 +464,7 @@ class RecordQuery:
 
         session = self._database.session
         session.check_access(SessionAccessLevel.Update)
-        if session._tracer._local_edits:
+        if session._local_edits:
             await session.flush_local()
 
         # 'serialize' values (probably need a better way here to retain some native types?)
@@ -486,7 +486,7 @@ class RecordQuery:
             returning=[self._database._table._columns_by_name["id"]],
         )
         updated_records_ids = {r["id"] for r in updated_rows}
-        session._tracer._records_changed(self._database, updated_records_ids)  # mark for OS sync
+        session._records_changed(self._database, updated_records_ids)  # mark for OS sync
         return len(updated_rows)
 
     @_auto_async_to_sync
@@ -498,7 +498,7 @@ class RecordQuery:
         assert not self._engine, "cannot delete with forced query engine"
         session = self._database.session
         session.check_access(SessionAccessLevel.Delete)
-        if session._tracer._local_edits:
+        if session._local_edits:
             await session.flush_local()
         where = Expression.and_if_set(
             self._filter,
@@ -511,7 +511,7 @@ class RecordQuery:
             returning=[self._database._table._columns_by_name["id"]],
         )
         deleted_records_ids = {r["id"] for r in deleted_rows}
-        session._tracer._records_changed(self._database, deleted_records_ids)  # mark for OS sync
+        session._records_changed(self._database, deleted_records_ids)  # mark for OS sync
         return len(deleted_rows)
 
 
@@ -611,8 +611,6 @@ class RecordList(NodeListBase[Record], RecordQuery):
             node._assign_id(self._parent.module.id)
         # 'create' node
         if _create:
-            if self._parent._session:
-                self._parent.session._tracer.node_create_preflight(node)
             if not self._parent.attached:
                 # detached record nodes are temporarily hoisted into inline tree :TempRecordTree
                 self._parent._local_root_tree.add(node)
@@ -623,7 +621,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
                 node._activate_self(self._parent._session)
         # 'create' node in session
         if _create and self._parent._session and self._parent.attached:
-            self._parent.session._tracer.node_create(node)
+            self._parent.session.create(node)
 
     def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Tach) -> None:
         nodes = flatten(nodes)
@@ -631,8 +629,6 @@ class RecordList(NodeListBase[Record], RecordQuery):
             self.append(record, _create=False, _trigger=_NC.Ignore)
         # 'create' nodes
         if _create:
-            if self._parent._session:
-                self._parent.session._tracer.node_create_preflight(*nodes)
             if not self._parent.attached:
                 self._parent._local_root_tree.add_many(nodes)  # :TempRecordTree
         # update affected nodes (manually trigger ChangeEffect)
@@ -644,12 +640,12 @@ class RecordList(NodeListBase[Record], RecordQuery):
                     n._activate_self(self._parent._session)
         # 'create' nodes in session
         if _create and self._parent._session and self._parent.attached:
-            self._parent.session._tracer.node_create(*nodes)
+            self._parent.session.create(*nodes)
 
     def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Tach) -> None:
         if _delete:
             if self._parent._session:
-                self._parent._session._tracer.node_delete(self, node)
+                self._parent._session.delete(self, node)
             if not self._parent.attached:
                 self._parent._local_root_tree.remove(node)
         node.parent = None
@@ -706,7 +702,7 @@ class HasDatabase(Node):
             self._table = map_database_to_pg_table(self)
 
     async def _get_pg_cursor(self) -> psycopg.AsyncCursor:
-        return await self.session.pg_cursor_to(module=self.module)
+        return await self.session.pg_cursor_to_local(module=self.module)
 
     @property
     def ephemeral(self) -> bool:

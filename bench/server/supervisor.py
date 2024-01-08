@@ -2,31 +2,32 @@ from typing import AsyncIterator
 
 import structlog
 
-from bench.language import Handle, User, Client
-from bench.language.auth import generate_salt, check_password, hash_password, generate_access_token
+from bench.language import Client, Handle, User
+from bench.language.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.proto import wiring
 from bench.proto.wire import (
-    GlobalSupervisorBase,
+    CommitEditsRequest,
+    CommitEditsResponse,
+    CreateBenchRequest,
+    CreateBenchResponse,
     CreateUserRequest,
     CreateUserResponse,
+    GlobalSupervisorBase,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
-    CreateBenchRequest,
-    CreateBenchResponse,
+    LogoutUserResponse,
+    PingWorkerSetRequest,
+    PingWorkerSetResponse,
     ReadNodesRequest,
     ReadNodesResponse,
+    RestartWorkerSetRequest,
     SearchNodesRequest,
     SearchNodesResponse,
-    CommitEditsRequest,
-    CommitEditsResponse,
     WatchEditsRequest,
     WatchEditsResponse,
-    RestartWorkerSetRequest,
-    PingWorkerSetResponse,
-    PingWorkerSetRequest,
-    LogoutUserResponse,
 )
+from bench.server.utils import global_session
 from bench.utils.monitoring import Monitored
 
 logger = structlog.get_logger(__name__)
@@ -68,9 +69,11 @@ class GlobalSupervisor(Monitored, GlobalSupervisorBase):
                 login_user_request.password, user.password_salt, user.password_hash
             ):
                 raise ValueError("invalid password")
+
             client = wiring.unpack_node(login_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.upsert(client)
+            await session.commit()
         return LoginUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def logout_user(self, logout_user_request: "LogoutUserRequest") -> "LogoutUserResponse":

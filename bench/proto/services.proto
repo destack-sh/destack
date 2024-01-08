@@ -23,15 +23,17 @@ message ClientOrigin {
   string client_nonce = 2;
 }
 
+// NOTE: we don't generate EditData yet because we don't have nodes as 'full' inline properties
+//  EditData is defined manually in our extra proto file.
+
 // Edit describes an edit to a node in a Bench.
 // (Manually defined here since Node properties inside structs aren't supported.)
 message EditData {
   EditKind kind = 1;
   string module_id = 2;
   SomeNodeData node = 3;
-  int64 revision = 4;
-  repeated string properties = 5;
-  ClientOrigin origin = 6;
+  repeated string properties = 4;
+  ClientOrigin origin = 5;
 }
 
 //
@@ -106,11 +108,15 @@ message SearchNodesResponse {
 
 message CommitEditsRequest {
   repeated EditData edits = 1;
-  // 'already applied' edits for workers passing along local edits
-  repeated EditData already_committed_edits = 2;
+  // 'bypassed' edits for workers passing along local edits
+  repeated EditData bypassed_edits = 2;
 }
 message CommitEditsResponse {
   repeated SomeNodeData changed_nodes = 1;
+}
+
+message PushEditsRequest {
+  repeated EditData bypassed_edits = 1;
 }
 
 message WatchEditsRequest {
@@ -236,6 +242,7 @@ message RunProxyStatementRequest {
   google.protobuf.Struct inputs = 2;
   int32 timeout_ms = 3;
   string run_id = 4;
+  string run_ck = 5;
 }
 
 message RunProxyStatementResponse {
@@ -256,7 +263,7 @@ service ModuleHost {
   rpc ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
   // Searches out-of-line nodes in the module.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
-  // Commits a set of edits to the module.
+  // Commits a set of edits to the module. Optionally forward locally bypassed edits.
   rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
   // Receive any relevant edits to this module.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
@@ -279,6 +286,10 @@ service ModuleHost {
   // Kills a run in the appropriate worker (same request/response as for WorkerNode).
   rpc KillRun(KillRunRequest) returns (KillRunResponse);
 
+  // Internal methods (for workers only).
+
+  // Pushes locally bypassed edits to the module subscribers.
+  rpc PushEdits(PushEditsRequest) returns (google.protobuf.Empty);
   // Runs a well-known internal statement in the host with our credentials.
   rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
   // Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.

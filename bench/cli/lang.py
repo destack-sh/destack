@@ -5,16 +5,15 @@ from subprocess import DEVNULL
 import typer
 from rich import print
 
-from bench.language.const import VERSION, NodeType, StructType
+from bench.cli.utils import _shell
+from bench.language.const import VERSION, NodeType
 from bench.language.module import (
     BENCH_TYPES,
     NODE_CLASS_BY_NODE_TYPE,
     NODE_TYPES,
-    STRUCT_CLASS_BY_STRUCT_TYPE,
     STRUCT_TYPES,
     Node,
 )
-from bench.cli.utils import _shell
 from bench.proto.core import Field, Message
 from bench.proto.engine import generate_proto_schema
 from bench.sql.engine import map_node_type_to_pg_table
@@ -22,7 +21,8 @@ from bench.utils.utils import format_python
 
 app = typer.Typer(short_help="language state and migrations")
 
-TARGET_PY_PATH = "bench/proto/wire"
+TARGET_PY_DIR = "bench/proto/wire"
+TARGET_PY_FILE = TARGET_PY_DIR + ".py"
 TARGET_TS_DIR = "frontend/src/proto/wire"
 GENERATED_PROTO_FILE = "bench/proto/bench.proto"
 EXTRA_PROTO_FILES = "bench/proto/services.proto"
@@ -52,22 +52,35 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     """Regenerate external artifacts from the proto schema."""
     # regenerate python & TS proto files
     Path(GENERATED_PROTO_FILE).write_text(schema_str)
+
     # python
     print("Generate python")
-    Path(TARGET_PY_PATH + ".py").unlink(missing_ok=True)
-    Path(TARGET_PY_PATH).mkdir(parents=True, exist_ok=True)
-    _shell(
-        f"protoc -I . --python_betterproto_out={TARGET_PY_PATH} {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
-    )
-    _shell(f"mv {TARGET_PY_PATH}/__init__.py {TARGET_PY_PATH}.py")
-    Path(TARGET_PY_PATH + ".py").write_text(
-        # append AnyNodeData/AnyStructData
-        Path(TARGET_PY_PATH + ".py").read_text()
-        + "\n\nfrom typing import Union\n"
-        + f"AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_TYPES])}]\n"
-        + f"AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_TYPES])}]"
-    )
-    _shell(f"pre-commit run black --files {TARGET_PY_PATH}.py", check=False, stdout=DEVNULL)
+    try:
+        # backup existing target
+        # (only needed for Python since we need the source to compile to regenerate to retry)
+        shutil.copy(TARGET_PY_FILE, TARGET_PY_FILE + ".bak")
+        Path(TARGET_PY_FILE).unlink(missing_ok=True)
+        Path(TARGET_PY_DIR).mkdir(parents=True, exist_ok=True)
+        _shell(
+            f"protoc -I . --python_betterproto_out={TARGET_PY_DIR} {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
+        )
+        _shell(f"mv {TARGET_PY_DIR}/__init__.py {TARGET_PY_FILE}")
+        Path(TARGET_PY_FILE).write_text(
+            # append AnyNodeData/AnyStructData
+            Path(TARGET_PY_FILE).read_text()
+            + "\n\nfrom typing import Union\n"
+            + f"AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_TYPES])}]\n"
+            + f"AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_TYPES])}]"
+        )
+        _shell(f"pre-commit run black --files {TARGET_PY_FILE}", check=False, stdout=DEVNULL)
+    except Exception as e:
+        # restore backup
+        Path(TARGET_PY_FILE).unlink(missing_ok=True)
+        shutil.copy(TARGET_PY_FILE + ".bak", TARGET_PY_FILE)
+        raise e
+    finally:
+        Path(TARGET_PY_FILE + ".bak").unlink(missing_ok=True)
+
     # TS
     print("Generate TS")
     shutil.rmtree(TARGET_TS_DIR, ignore_errors=True)

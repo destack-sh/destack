@@ -38,7 +38,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.language import Session, Statement, symbolx_lib
+    from bench.language import Session, Statement, Worker, symbolx_lib
 
 
 @node_component
@@ -122,8 +122,10 @@ class Run(ScopeNode, HasValue):
     root: Optional["Run"] = node_ancestor(
         31, NodeType.RUN, nearest=False, include_self=False, store=True, wire=True, index_in_pg=True
     )
-    worker_id: str = struct_internal(32, reflect=True, index_in_pg=True)
-    worker_process_id: Optional[str] = struct_internal(33, reflect=True)
+    worker: Optional["Worker"] = struct_internal(
+        32, index_in_pg=True, array=False, references=NodeType.WORKER
+    )
+    worker_process_id: Optional[UUID] = struct_internal(33, reflect=True)
     statement: Optional["Statement"] = struct_internal(
         34, references=NodeType.STATEMENT, array=False, index_in_pg=True
     )
@@ -164,10 +166,6 @@ class Run(ScopeNode, HasValue):
             self.status = RunStatus.ABORTED if self.started_at else RunStatus.CANCELLED
 
     @property
-    def _type_of_value(self):
-        return symbolx_lib.resolve(".reflect.RunMetadata")
-
-    @property
     def statement_ck(self) -> Optional[UUID]:
         return self.statement.ck if self.statement else None
 
@@ -187,13 +185,8 @@ class Run(ScopeNode, HasValue):
             yield from child.walk_descendants()
 
 
-_IGNORED_PACKAGE_PREFIXES = [
-    "bench.runtime",
-    "bench.bench",
-    "asgiref",
-    "concurrent",
-]
-_IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in _IGNORED_PACKAGE_PREFIXES]
+_IGNORED_PACKAGE_PREFIXES = ("bench.runtime", "bench.bench", "asgiref", "concurrent")
+_IGNORED_PACKAGE_PATHS = tuple(package.replace(".", "/") for package in _IGNORED_PACKAGE_PREFIXES)
 
 
 @struct(StructType.RUN_CODE_FRAME)

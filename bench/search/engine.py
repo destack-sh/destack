@@ -13,8 +13,6 @@ from bench import language as lang
 from bench.language import (
     C,
     ConditionalOp,
-    HasDatabase,
-    HasRun,
     Module,
     QueryEngine,
     SortMode,
@@ -24,6 +22,7 @@ from bench.language import (
     symbolx_lib,
 )
 from bench.language.const import RUNNABLE_STATEMENT_TYPES, BenchType, EditKind, TypeFlag
+from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     Expression,
@@ -41,6 +40,7 @@ from bench.language.module import (
     Property,
     Struct,
 )
+from bench.language.run import HasRun
 from bench.proto import wire, wiring
 from bench.proto.wire import EditData
 from bench.search import core as os
@@ -214,17 +214,12 @@ async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
             if f.type == os.FieldType.KNN_VECTOR:
                 f.index = False
 
-    # and 'static' value mappings (hard-coded)
-    for value_type in (symbolx_lib.resolve(".reflect.RunMetadata"),):
-        for field in value_type.resolved_fields:
-            value_mappings[field._typed_key] = _map_to_os_field_safe(field)
-
     # add dynamic user mappings
     for node in module._nodes:
         if not isinstance(node, lang.Statement):
             continue
         if node.self_errors:
-            continue  # ignore symbols with issues
+            continue  # ignore nodes with issues
         elif node.type == lang.StatementType.DATABASE:
             # all fields go into Record.value
             for field in node.resolved_fields:
