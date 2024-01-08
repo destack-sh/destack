@@ -57,15 +57,15 @@ enum BenchType {
   BENCH_TYPE_FIELD = 15;
   BENCH_TYPE_RECORD = 16;
   BENCH_TYPE_VIEW = 17;
-  BENCH_TYPE_BLOB = 19;
-  BENCH_TYPE_SECRET = 20;
-  BENCH_TYPE_ISSUE = 21;
-  BENCH_TYPE_WORKER_SET = 40;
-  BENCH_TYPE_WORKER = 41;
-  BENCH_TYPE_SESSION = 60;
-  BENCH_TYPE_RUN = 61;
-  BENCH_TYPE_HALT = 62;
-  BENCH_TYPE_SIGNAL = 63;
+  BENCH_TYPE_ISSUE = 19;
+  BENCH_TYPE_BLOB = 30;
+  BENCH_TYPE_SECRET = 31;
+  BENCH_TYPE_SESSION = 40;
+  BENCH_TYPE_RUN = 41;
+  BENCH_TYPE_HALT = 42;
+  BENCH_TYPE_SIGNAL = 43;
+  BENCH_TYPE_WORKER_SET = 60;
+  BENCH_TYPE_WORKER = 61;
   BENCH_TYPE_HANDLE = 100;
   BENCH_TYPE_USER = 101;
   BENCH_TYPE_ORGANIZATION = 102;
@@ -78,7 +78,7 @@ enum BenchType {
   BENCH_TYPE_LOG_ENTRY = 220;
   BENCH_TYPE_RUN_CODE_FRAME = 221;
   BENCH_TYPE_RUN_ERROR = 222;
-  BENCH_TYPE_INFERENCE = 223;
+  BENCH_TYPE_MINI_RUN = 223;
   BENCH_TYPE_WORKER_IMAGE = 230;
   BENCH_TYPE_DEPENDENCY = 231;
 }
@@ -220,15 +220,15 @@ enum NodeType {
   NODE_TYPE_FIELD = 15;
   NODE_TYPE_RECORD = 16;
   NODE_TYPE_VIEW = 17;
-  NODE_TYPE_BLOB = 19;
-  NODE_TYPE_SECRET = 20;
-  NODE_TYPE_ISSUE = 21;
-  NODE_TYPE_WORKER_SET = 40;
-  NODE_TYPE_WORKER = 41;
-  NODE_TYPE_SESSION = 60;
-  NODE_TYPE_RUN = 61;
-  NODE_TYPE_HALT = 62;
-  NODE_TYPE_SIGNAL = 63;
+  NODE_TYPE_ISSUE = 19;
+  NODE_TYPE_BLOB = 30;
+  NODE_TYPE_SECRET = 31;
+  NODE_TYPE_SESSION = 40;
+  NODE_TYPE_RUN = 41;
+  NODE_TYPE_HALT = 42;
+  NODE_TYPE_SIGNAL = 43;
+  NODE_TYPE_WORKER_SET = 60;
+  NODE_TYPE_WORKER = 61;
   NODE_TYPE_HANDLE = 100;
   NODE_TYPE_USER = 101;
   NODE_TYPE_ORGANIZATION = 102;
@@ -372,7 +372,7 @@ enum StructType {
   STRUCT_TYPE_LOG_ENTRY = 220;
   STRUCT_TYPE_RUN_CODE_FRAME = 221;
   STRUCT_TYPE_RUN_ERROR = 222;
-  STRUCT_TYPE_INFERENCE = 223;
+  STRUCT_TYPE_MINI_RUN = 223;
   STRUCT_TYPE_WORKER_IMAGE = 230;
   STRUCT_TYPE_DEPENDENCY = 231;
 }
@@ -517,16 +517,6 @@ message ExpressionData {
   SortMode mode = 35;
 }
 
-// // A model inference - inputs/outputs are raw.
-message InferenceData {
-  BenchType metatype = 1;
-  google.protobuf.Timestamp generated_at = 30;
-  string generated_in = 31;
-  float duration = 32;
-  google.protobuf.Struct inputs = 33;
-  google.protobuf.Struct outputs = 34;
-}
-
 // // An entry. In a log.
 message LogEntryData {
   BenchType metatype = 1;
@@ -540,6 +530,16 @@ message LogEntryData {
   string run_ck = 38;
   string message = 39;
   google.protobuf.Struct value = 40;
+}
+
+// // MiniRun()
+message MiniRunData {
+  BenchType metatype = 1;
+  google.protobuf.Timestamp generated_at = 30;
+  string generated_in = 31;
+  float duration = 32;
+  google.protobuf.Struct inputs = 33;
+  google.protobuf.Struct outputs = 34;
 }
 
 // // A policy regulating access to nodes within its scope.
@@ -1109,44 +1109,44 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    SignalData signal = 1;
-    FileData file = 2;
+    HandleData handle = 1;
+    BadgeData badge = 2;
     ModuleData module = 3;
-    RunData run = 4;
-    SessionData session = 5;
-    OrganizationData organization = 6;
-    RecordData record = 7;
-    TaggingData tagging = 8;
-    BlobData blob = 9;
-    StatementData statement = 10;
-    TriggerData trigger = 11;
-    WorkerData worker = 12;
-    IssueData issue = 13;
-    FieldData field = 14;
-    ViewData view = 15;
-    HaltData halt = 16;
-    BenchData bench = 17;
-    UserData user = 18;
-    NotificationData notification = 19;
-    BadgeData badge = 20;
-    WorkerSetData worker_set = 21;
-    ClientData client = 22;
-    HandleData handle = 23;
-    SecretData secret = 24;
+    TaggingData tagging = 4;
+    BenchData bench = 5;
+    RunData run = 6;
+    OrganizationData organization = 7;
+    WorkerSetData worker_set = 8;
+    SessionData session = 9;
+    FieldData field = 10;
+    ViewData view = 11;
+    NotificationData notification = 12;
+    StatementData statement = 13;
+    WorkerData worker = 14;
+    UserData user = 15;
+    SecretData secret = 16;
+    BlobData blob = 17;
+    HaltData halt = 18;
+    FileData file = 19;
+    SignalData signal = 20;
+    RecordData record = 21;
+    TriggerData trigger = 22;
+    ClientData client = 23;
+    IssueData issue = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    InferenceData inference = 1;
-    PolicyData policy = 2;
-    PolicyRuleData policy_rule = 3;
-    ExpressionData expression = 4;
-    LogEntryData log_entry = 5;
+    ExpressionData expression = 1;
+    RunErrorData run_error = 2;
+    MiniRunData mini_run = 3;
+    DependencyData dependency = 4;
+    PolicyData policy = 5;
     WorkerImageData worker_image = 6;
-    DependencyData dependency = 7;
-    RunErrorData run_error = 8;
-    RunCodeFrameData run_code_frame = 9;
+    RunCodeFrameData run_code_frame = 7;
+    LogEntryData log_entry = 8;
+    PolicyRuleData policy_rule = 9;
   };
 }
 

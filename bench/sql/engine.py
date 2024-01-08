@@ -89,7 +89,8 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
         ):
             assert len(prop.references) == 1, f"prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_bench_table_name(prop.references[0])
-            column.on_delete = CascadeAction.CASCADE
+            assert isinstance(prop.reference_on_delete, CascadeAction)
+            column.on_delete = prop.reference_on_delete
         columns.append(column)
         if prop.is_indexed_in_pg:
             index = Index(

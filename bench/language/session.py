@@ -426,7 +426,7 @@ class Session(ScopeNode):
             await self._host.notify_databases_changed(touched_databases_by_id.values())
 
     @_auto_async_to_sync
-    def rollback(self):
+    async def rollback(self):
         raise NotImplementedError  # unclear what this should do
 
     #

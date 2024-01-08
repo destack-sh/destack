@@ -97,7 +97,7 @@ class HasModel(HasFields, Node):
             cached_inference = await self.cache.get(cache_subkey)
             if cached_inference is not None:
                 try:
-                    inference = Inference.from_json_bytes(cached_inference)
+                    inference = MiniRun.from_json_bytes(cached_inference)
                     outputs = unpack_value(
                         inference.outputs, self, ignore_outer=True, is_output=True
                     )
@@ -186,7 +186,7 @@ class HasModel(HasFields, Node):
         duration = (now - started_at).total_seconds()
         if cache and self.should_cache:
             # result is assumed to be JSON serializable, will obviously error here if not
-            inference = Inference(
+            inference = MiniRun(
                 generated_at=now,
                 generated_in=run_id,
                 duration=duration,
@@ -199,7 +199,7 @@ class HasModel(HasFields, Node):
 
 
 # avoid circular import
-from .run import RunError, RunErrorKind  # noqa: E402
+from .run import MiniRun, RunError, RunErrorKind  # noqa: E402
 
 
 class ModelError(RunError):
@@ -218,17 +218,6 @@ class ModelError(RunError):
         )
         self.type = type
         self.path = path
-
-
-@struct(StructType.INFERENCE)
-class Inference(Struct):
-    """A model inference - inputs/outputs are raw."""
-
-    generated_at: datetime = struct_internal(30)
-    generated_in: UUID = struct_internal(31)
-    duration: float = struct_internal(32)
-    inputs: Any = struct_internal(33, column_type=ColumnType.JSON)
-    outputs: Any = struct_internal(34, column_type=ColumnType.JSON)
 
 
 class OpenAIChatCompletionModel(HasModel):
