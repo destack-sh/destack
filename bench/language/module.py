@@ -46,7 +46,7 @@ from bench.language.const import (
     parse_absolute_node_reference,
     parse_node_path,
 )
-from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase
+from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase, NodeTreeEditor
 from bench.language.validation import (
     PropertyValidationHandler,
     ValidationError,
@@ -310,6 +310,7 @@ PROPERTY_COLUMN_TYPE_BY_PY_TYPE: dict[type, ColumnType] = {
     int: ColumnType.BIGINT,
     float: ColumnType.FLOAT,
     str: ColumnType.STRING,
+    bytes: ColumnType.BYTES,
     datetime: ColumnType.DATETIME,
     UUID: ColumnType.UUID,
 }
@@ -331,11 +332,11 @@ class Property(_FieldExpressionBase):
     is_required: bool = False  # must be non-null
     is_internal: bool = False  # = not directly editable for user
     is_protected: bool = False  # = only editable by us/supervisor
-    is_runtime_only: bool = False
-    is_computed: bool = False
     is_reflected: bool = False  # eventually all properties should be reflected, for now only some
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
+    is_computed: bool = False
+    is_runtime_only: bool = False
     is_real: bool = UNSET  # exists on runtime instance?
     is_wired: bool = UNSET  # serialized onto wire?
     is_stored: bool = UNSET  # stored in DB?
@@ -356,7 +357,7 @@ class Property(_FieldExpressionBase):
     children_flags: NodeRelationType = NodeRelationType.Default
     custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
     custom_copy: Callable[[typing.Any], typing.Any] | None = None
-    ignore_conflicts_with: tuple[type["Node", ...], ...] | None = None
+    ignore_conflicts_with: tuple[type["Node"], ...] | None = None
 
     @functools.cached_property
     def _as_field(self) -> "Field":
@@ -612,6 +613,8 @@ class Property(_FieldExpressionBase):
         elif self.references is not None:
             # regular reference to node (via ck for in-module nodes, id otherwise)
             assert self.is_array is not UNSET, f"must set is_array on {self!r}"
+            # nocheckin: store reference as _id if reference is not in-module
+            #  (move contribute_properties to finalization step)
             self.reference_key = Property(
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_ck",
@@ -2917,114 +2920,6 @@ class Module(ScopeNode):
             module._apply_edits_to_source(change.interp_edits)
 
         return module
-
-
-# NOTE: we don't generate EditData yet because we don't have nodes as 'full' inline properties
-#  EditData is defined manually in our extra proto file.
-# @struct(StructType.EDIT)
-# class Edit:
-#     """
-#     An edit to a module/node.
-#     """
-#
-#     kind: EditKind = struct_internal(20)
-#     module: "Module" = struct_internal(21, references=NodeType.MODULE)
-#     node: "Node" = --> <???> <--
-#     revision: Optional[int] = struct_internal(23, default=None)
-#     properties: list[str] = struct_internal(24, default=None)
-
-
-EditableNode = Union[Node, "AnyNodeData"]
-
-
-class NodeTreeEditor:
-    """Create edits to a module node tree."""
-
-    def __init__(
-        self,
-        tree: "NodeTree",
-        bench_id: UUID,
-        module_id: UUID,
-        # default file and statement id
-        file_id: UUID = None,
-        statement_id: UUID = None,
-    ):
-        self.tree = tree
-        self.bench_id = bench_id
-        self.module_id = module_id
-        self.file_id = file_id
-        self.statement_id = statement_id
-        self.edits = []
-
-    def __str__(self):
-        return f"edit {len(self.edits)} {self.module_id}"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
-    def reset(self):
-        self.edits = []
-
-    def _make_edit(
-        self,
-        kind: EditKind,
-        node: EditableNode,
-        properties: list[str] = None,
-        scope: NodeType = None,
-    ) -> EditData:
-        from bench.proto.wiring import wrap_some_node
-
-        edit = EditData(
-            kind=kind,
-            module_id=self.module_id,
-            scope=scope,
-            properties=properties,
-            node=wrap_some_node(self._pack_node_flat_if_needed(node)),
-        )
-        self.edits.append(edit)
-        return edit
-
-    def _pack_node_flat_if_needed(self, node: Union[Node, EditableNode]) -> "AnyNodeData":
-        from bench.proto import wiring
-
-        if isinstance(node, Node):
-            return wiring.pack_node(node)
-        else:
-            return dataclasses.replace(node)  # shallow copy
-
-    def create_many(self, *nodes: EditableNode) -> list[EditData]:
-        return [self.create(node) for node in nodes]
-
-    def create(self, node: EditableNode) -> EditData:
-        return self._make_edit(EditKind.CREATE, node)
-
-    def update(self, node: EditableNode, properties: list[str] = None) -> EditData:
-        assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
-        return self._make_edit(EditKind.UPDATE, node, properties)
-
-    def move(self, node: EditableNode) -> EditData:
-        return self._make_edit(EditKind.MOVE, node)
-
-    def soft_delete_many(
-        self, *nodes: EditableNode, deleted_at: datetime | None = None
-    ) -> list[EditData]:
-        return [self.soft_delete(node, deleted_at) for node in nodes]
-
-    def soft_delete(self, node: EditableNode, deleted_at: datetime | None = None) -> EditData:
-        # sneakily convert soft delete into hard delete for interp types
-        if node.metatype in INTERP_NODE_TYPES:
-            return self.delete(node)
-        node = self._pack_node_flat_if_needed(node)
-        node.deleted_at = deleted_at or utcnow_with_tz()
-        return self._make_edit(EditKind.SOFT_DELETE, node)
-
-    def restore(self, node: EditableNode) -> EditData:
-        node = self._pack_node_flat_if_needed(node)
-        node.deleted_at = None
-        return self._make_edit(kind=EditKind.RESTORE, node=node)
-
-    def delete(self, node: EditableNode) -> EditData:
-        return self._make_edit(EditKind.DELETE, node)
 
 
 _BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}

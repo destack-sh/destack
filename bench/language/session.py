@@ -1,6 +1,5 @@
 import abc
 import asyncio
-import contextlib
 import sys
 import threading
 from collections import defaultdict, deque
@@ -45,12 +44,9 @@ from bench.language.module import (
     UNSET,
     Module,
     Node,
-    NodeList,
-    NRel,
     ScopeNode,
     Struct,
     node,
-    node_children,
     node_parent,
     struct,
     struct_internal,
@@ -67,7 +63,7 @@ from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Blob, HasDatabase, HasFields, Secret, Statement, Trigger
+    from bench.language import Blob, Statement, Trigger, Policy, Worker
     from bench.language.cache import Cache
 
 logger = structlog.get_logger(__name__)
@@ -144,19 +140,20 @@ class LogEntry(Struct):
 class Session(ScopeNode):
     """
     A managed context for running a Bench module (in a worker).
+    nocheckin: prepare Session for 'global'/detached sessions
+     (merge Session with SessionTracer, support 'external' edits, ...)
     """
 
     parent: Module = node_parent(4, NodeType.MODULE)
-    policies: SessionAccessLevel = struct_internal(30)
-    worker_id: str = struct_internal(31, reflect=True)
+    policies: list["Policy"] | None = struct_internal(30, default=None, struct_t=StructType.POLICY)
+    worker: "Worker" = struct_internal(31, array=False, references=NodeType.WORKER)
     worker_process_id: Optional[str] = struct_internal(32, reflect=True)
-    trigger_type: TriggerType = struct_internal(33, reflect=True)
+    trigger_type: Optional[TriggerType] = struct_internal(33, default=None, reflect=True)
     trigger_id: Optional[UUID] = struct_internal(34, default=None, reflect=True)
     opened_at: Optional[datetime] = struct_internal(35, default=None, reflect=True)
     closed_at: Optional[datetime] = struct_internal(36, default=None, reflect=True)
     inference_timeout: int = struct_internal(37, default=300)
     inference_retries: int = struct_internal(38, default=5)
-    runs: NodeList[Run] = node_children(NodeType.RUN, flags=NRel.Flat)
     _runtime: ModuleHost | None = struct_runtime(default=None)
     _root_run_id: UUID | None = struct_runtime(default=None)
     _root_run_value: dict | None = struct_runtime(default=None)
@@ -165,12 +162,10 @@ class Session(ScopeNode):
     _failed_commit: bool = struct_runtime(default=False)
 
     def _init_inner(self):
-        from bench.language.blob import Blobs
         from bench.language.cache import Cache
 
         self._session = self  # special case for session
         self._cache = Cache(self.module)
-        self._blobs = Blobs(self.module)
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._log = logger.bind(session=self)
         self._tracer = SessionTracer(
@@ -302,9 +297,9 @@ class Session(ScopeNode):
             return  # nothing to commit
 
         touched_databases_by_id = {**self._tracer._touched_databases_by_id}
-        host_edits, local_edits = self._tracer.eat_module_edits(include_host=True)
+        global_edits, local_edits = self._tracer.eat_module_edits(include_host=True)
         log = self._log.bind(
-            host_edits=host_edits,
+            global_edits=global_edits,
             local_edits_preview=local_edits[:16],
             local_edits_len=len(local_edits),
         )
@@ -313,8 +308,8 @@ class Session(ScopeNode):
         # commit
         try:
             # commit host edits
-            if host_edits:
-                await self._runtime.commit_edits(host_edits)
+            if global_edits:
+                await self._runtime.commit_edits(global_edits)
             # commit local edits
             if local_edits:
                 await write_local_edits_to_pg(
@@ -324,7 +319,7 @@ class Session(ScopeNode):
                     old_databases_by_id=touched_databases_by_id,
                 )
             await self._primary_pg_cursor.connection.commit()
-            self.module._apply_edits_to_source(host_edits)
+            self.module._apply_edits_to_source(global_edits)
             log.debug("session.commit.done")
         except Exception as e:
             # 'unwind' module state, mark session as broken
@@ -332,10 +327,10 @@ class Session(ScopeNode):
             self.module._reset_from_source()
             self._failed_commit = True
             raise RuntimeError(
-                f"failed to write edits ({len(host_edits)} host, {len(local_edits)} local): {e}"
+                f"failed to write edits ({len(global_edits)} host, {len(local_edits)} local): {e}"
             ) from e
 
-        # manually ensure locally changed records are synced & notified
+        # manually sync & notify local records
         if self._tracer._changed_record_ids_by_db_id:
             # TODO @Robustness: repair index in case of local PG/OS sync failures
             # sync local edits to index
@@ -524,7 +519,7 @@ class SessionTracer:
             self._local_edits.clear()
 
             # create host edits (if needed)
-            host_edits: list[EditData] | None = [] if include_host else None
+            global_edits: list[EditData] | None = [] if include_host else None
             if include_host:
                 for event in self._host_module_edits:
                     edit = EditData(
@@ -534,7 +529,7 @@ class SessionTracer:
                         module_id=module.id,
                         properties=event.properties,
                     )
-                    host_edits.append(edit)
+                    global_edits.append(edit)
                 self._host_module_edits.clear()
 
             # reset
@@ -549,7 +544,7 @@ class SessionTracer:
                     if ck not in local_seen_cks
                 }
 
-        return host_edits, local_edits
+        return global_edits, local_edits
 
     def _edit(
         self, kind: EditKind, node: Node, properties: list[str] = None, target: NodeType = None
@@ -835,42 +830,6 @@ class SessionTracer:
         if self._global_run_value:
             run.value.update(self._global_run_value)
         return run
-
-    @contextlib.contextmanager
-    def capture(self) -> "_CapturedRuns":
-        """Get all runs that are created within the context."""
-        start_ids = set(self.runs.keys())
-        capture = _CapturedRuns()
-        try:
-            yield
-        finally:
-            capture.runs = [run for run in self.runs.values() if run.id not in start_ids]
-
-    @contextlib.contextmanager
-    def value(self, **kwargs):
-        """Set custom value for all runs created within the context."""
-        old = _custom_value.get() or {}
-        _custom_value.set({**old, **kwargs})
-        try:
-            yield
-        finally:
-            _custom_value.set(old or None)
-
-    def start_capture(self) -> "_RunCapture":
-        """Start capturing runs."""
-        capture = _RunCapture(self)
-        capture.start()
-        return capture
-
-    DEFAULT_RUN_UPDATE_PROPERTIES = (
-        "status",
-        "started_at",
-        "terminated_at",
-        "inputs",
-        "outputs",
-        "value",
-        "error",
-    )
 
     async def _flush(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session data."""

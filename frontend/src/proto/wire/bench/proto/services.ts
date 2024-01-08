@@ -17,7 +17,6 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
-import { SessionAccessLevel } from "./bench";
 import { RunData } from "./bench";
 import { Struct } from "../../google/protobuf/struct";
 import { SecretData } from "./bench";
@@ -28,11 +27,51 @@ import { WorkerSetData } from "./bench";
 import { ExpressionData } from "./bench";
 import { BenchData } from "./bench";
 import { OrganizationData } from "./bench";
+import { ClientData } from "./bench";
 import { UserData } from "./bench";
-import { NodeType } from "./bench";
-import { ClientType } from "./bench";
 import { SomeNodeData } from "./bench";
 import { EditKind } from "./bench";
+import { NodeType } from "./bench";
+/**
+ * @generated from protobuf message NodePointer
+ */
+export interface NodePointer {
+    /**
+     * @generated from protobuf field: NodeType node_type = 1;
+     */
+    nodeType: NodeType;
+    /**
+     * @generated from protobuf oneof: node
+     */
+    node: {
+        oneofKind: "nodeCk";
+        /**
+         * @generated from protobuf field: string node_ck = 2;
+         */
+        nodeCk: string;
+    } | {
+        oneofKind: "nodeId";
+        /**
+         * @generated from protobuf field: string node_id = 3;
+         */
+        nodeId: string;
+    } | {
+        oneofKind: undefined;
+    };
+}
+/**
+ * @generated from protobuf message ClientOrigin
+ */
+export interface ClientOrigin {
+    /**
+     * @generated from protobuf field: string client_id = 1;
+     */
+    clientId: string;
+    /**
+     * @generated from protobuf field: string client_nonce = 2;
+     */
+    clientNonce: string;
+}
 /**
  * Edit describes an edit to a node in a Bench.
  * (Manually defined here since Node properties inside structs aren't supported.)
@@ -65,50 +104,6 @@ export interface EditData {
      */
     origin?: ClientOrigin;
 }
-/**
- * @generated from protobuf message ClientOrigin
- */
-export interface ClientOrigin {
-    /**
-     * @generated from protobuf field: ClientType client_type = 1;
-     */
-    clientType: ClientType;
-    /**
-     * @generated from protobuf field: string client_id = 2;
-     */
-    clientId: string;
-    /**
-     * @generated from protobuf field: string nonce = 3;
-     */
-    nonce: string;
-}
-/**
- * @generated from protobuf message NodePointer
- */
-export interface NodePointer {
-    /**
-     * @generated from protobuf field: NodeType node_type = 1;
-     */
-    nodeType: NodeType;
-    /**
-     * @generated from protobuf oneof: node
-     */
-    node: {
-        oneofKind: "nodeCk";
-        /**
-         * @generated from protobuf field: string node_ck = 2;
-         */
-        nodeCk: string;
-    } | {
-        oneofKind: "nodeId";
-        /**
-         * @generated from protobuf field: string node_id = 3;
-         */
-        nodeId: string;
-    } | {
-        oneofKind: undefined;
-    };
-}
 // 
 // Global supervisor
 // 
@@ -121,6 +116,14 @@ export interface CreateUserRequest {
      * @generated from protobuf field: UserData user = 1;
      */
     user?: UserData;
+    /**
+     * @generated from protobuf field: string password = 2;
+     */
+    password: string;
+    /**
+     * @generated from protobuf field: ClientData client = 3;
+     */
+    client?: ClientData;
 }
 /**
  * @generated from protobuf message CreateUserResponse
@@ -130,6 +133,10 @@ export interface CreateUserResponse {
      * @generated from protobuf field: UserData user = 1;
      */
     user?: UserData;
+    /**
+     * @generated from protobuf field: string access_token = 2;
+     */
+    accessToken: string;
 }
 /**
  * @generated from protobuf message LoginUserRequest
@@ -139,6 +146,14 @@ export interface LoginUserRequest {
      * @generated from protobuf field: UserData user = 1;
      */
     user?: UserData;
+    /**
+     * @generated from protobuf field: string password = 2;
+     */
+    password: string;
+    /**
+     * @generated from protobuf field: ClientData client = 3;
+     */
+    client?: ClientData;
 }
 /**
  * @generated from protobuf message LoginUserResponse
@@ -148,6 +163,10 @@ export interface LoginUserResponse {
      * @generated from protobuf field: UserData user = 1;
      */
     user?: UserData;
+    /**
+     * @generated from protobuf field: string access_token = 2;
+     */
+    accessToken: string;
 }
 /**
  * @generated from protobuf message LogoutUserRequest
@@ -291,6 +310,12 @@ export interface CommitEditsRequest {
      * @generated from protobuf field: repeated EditData edits = 1;
      */
     edits: EditData[];
+    /**
+     * 'already applied' edits for workers passing along local edits
+     *
+     * @generated from protobuf field: repeated EditData already_committed_edits = 2;
+     */
+    alreadyCommittedEdits: EditData[];
 }
 /**
  * @generated from protobuf message CommitEditsResponse
@@ -594,15 +619,6 @@ export interface RunProxyStatementResponse {
     error?: Struct;
 }
 /**
- * @generated from protobuf message PushLocalEditsRequest
- */
-export interface PushLocalEditsRequest {
-    /**
-     * @generated from protobuf field: repeated EditData edits = 1;
-     */
-    edits: EditData[];
-}
-/**
  * @generated from protobuf message PushWorkerLogsRequest
  */
 export interface PushWorkerLogsRequest {
@@ -633,13 +649,13 @@ export interface StartRunRequest {
      */
     block: boolean;
     /**
-     * @generated from protobuf field: bool keyed = 11;
+     * @generated from protobuf field: bool keyed_inputs = 11;
      */
-    keyed: boolean;
+    keyedInputs: boolean;
     /**
-     * @generated from protobuf field: bool keyed_return = 12;
+     * @generated from protobuf field: bool keyed_outputs = 12;
      */
-    keyedReturn: boolean;
+    keyedOutputs: boolean;
     /**
      * @generated from protobuf field: repeated string tags = 13;
      */
@@ -652,10 +668,6 @@ export interface StartRunRequest {
      * @generated from protobuf field: google.protobuf.Struct global_value = 15;
      */
     globalValue?: Struct;
-    /**
-     * @generated from protobuf field: SessionAccessLevel access_level = 16;
-     */
-    accessLevel: SessionAccessLevel;
 }
 /**
  * @generated from protobuf message StartRunResponse
@@ -725,6 +737,129 @@ export interface KillRunResponse {
      */
     run?: RunData;
 }
+// @generated message type with reflection information, may provide speed optimized methods
+class NodePointer$Type extends MessageType<NodePointer> {
+    constructor() {
+        super("NodePointer", [
+            { no: 1, name: "node_type", kind: "enum", T: () => ["NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "node_ck", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "node_id", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<NodePointer>): NodePointer {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodeType = 0;
+        message.node = { oneofKind: undefined };
+        if (value !== undefined)
+            reflectionMergePartial<NodePointer>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NodePointer): NodePointer {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* NodeType node_type */ 1:
+                    message.nodeType = reader.int32();
+                    break;
+                case /* string node_ck */ 2:
+                    message.node = {
+                        oneofKind: "nodeCk",
+                        nodeCk: reader.string()
+                    };
+                    break;
+                case /* string node_id */ 3:
+                    message.node = {
+                        oneofKind: "nodeId",
+                        nodeId: reader.string()
+                    };
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: NodePointer, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* NodeType node_type = 1; */
+        if (message.nodeType !== 0)
+            writer.tag(1, WireType.Varint).int32(message.nodeType);
+        /* string node_ck = 2; */
+        if (message.node.oneofKind === "nodeCk")
+            writer.tag(2, WireType.LengthDelimited).string(message.node.nodeCk);
+        /* string node_id = 3; */
+        if (message.node.oneofKind === "nodeId")
+            writer.tag(3, WireType.LengthDelimited).string(message.node.nodeId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message NodePointer
+ */
+export const NodePointer = new NodePointer$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class ClientOrigin$Type extends MessageType<ClientOrigin> {
+    constructor() {
+        super("ClientOrigin", [
+            { no: 1, name: "client_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "client_nonce", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<ClientOrigin>): ClientOrigin {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.clientId = "";
+        message.clientNonce = "";
+        if (value !== undefined)
+            reflectionMergePartial<ClientOrigin>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ClientOrigin): ClientOrigin {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string client_id */ 1:
+                    message.clientId = reader.string();
+                    break;
+                case /* string client_nonce */ 2:
+                    message.clientNonce = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: ClientOrigin, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string client_id = 1; */
+        if (message.clientId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.clientId);
+        /* string client_nonce = 2; */
+        if (message.clientNonce !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.clientNonce);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message ClientOrigin
+ */
+export const ClientOrigin = new ClientOrigin$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class EditData$Type extends MessageType<EditData> {
     constructor() {
@@ -811,145 +946,17 @@ class EditData$Type extends MessageType<EditData> {
  */
 export const EditData = new EditData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ClientOrigin$Type extends MessageType<ClientOrigin> {
-    constructor() {
-        super("ClientOrigin", [
-            { no: 1, name: "client_type", kind: "enum", T: () => ["ClientType", ClientType, "CLIENT_TYPE_"] },
-            { no: 2, name: "client_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "nonce", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<ClientOrigin>): ClientOrigin {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.clientType = 0;
-        message.clientId = "";
-        message.nonce = "";
-        if (value !== undefined)
-            reflectionMergePartial<ClientOrigin>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ClientOrigin): ClientOrigin {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* ClientType client_type */ 1:
-                    message.clientType = reader.int32();
-                    break;
-                case /* string client_id */ 2:
-                    message.clientId = reader.string();
-                    break;
-                case /* string nonce */ 3:
-                    message.nonce = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ClientOrigin, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* ClientType client_type = 1; */
-        if (message.clientType !== 0)
-            writer.tag(1, WireType.Varint).int32(message.clientType);
-        /* string client_id = 2; */
-        if (message.clientId !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.clientId);
-        /* string nonce = 3; */
-        if (message.nonce !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.nonce);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message ClientOrigin
- */
-export const ClientOrigin = new ClientOrigin$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class NodePointer$Type extends MessageType<NodePointer> {
-    constructor() {
-        super("NodePointer", [
-            { no: 1, name: "node_type", kind: "enum", T: () => ["NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "node_ck", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "node_id", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<NodePointer>): NodePointer {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.nodeType = 0;
-        message.node = { oneofKind: undefined };
-        if (value !== undefined)
-            reflectionMergePartial<NodePointer>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NodePointer): NodePointer {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* NodeType node_type */ 1:
-                    message.nodeType = reader.int32();
-                    break;
-                case /* string node_ck */ 2:
-                    message.node = {
-                        oneofKind: "nodeCk",
-                        nodeCk: reader.string()
-                    };
-                    break;
-                case /* string node_id */ 3:
-                    message.node = {
-                        oneofKind: "nodeId",
-                        nodeId: reader.string()
-                    };
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: NodePointer, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* NodeType node_type = 1; */
-        if (message.nodeType !== 0)
-            writer.tag(1, WireType.Varint).int32(message.nodeType);
-        /* string node_ck = 2; */
-        if (message.node.oneofKind === "nodeCk")
-            writer.tag(2, WireType.LengthDelimited).string(message.node.nodeCk);
-        /* string node_id = 3; */
-        if (message.node.oneofKind === "nodeId")
-            writer.tag(3, WireType.LengthDelimited).string(message.node.nodeId);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message NodePointer
- */
-export const NodePointer = new NodePointer$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class CreateUserRequest$Type extends MessageType<CreateUserRequest> {
     constructor() {
         super("CreateUserRequest", [
-            { no: 1, name: "user", kind: "message", T: () => UserData }
+            { no: 1, name: "user", kind: "message", T: () => UserData },
+            { no: 2, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "client", kind: "message", T: () => ClientData }
         ]);
     }
     create(value?: PartialMessage<CreateUserRequest>): CreateUserRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.password = "";
         if (value !== undefined)
             reflectionMergePartial<CreateUserRequest>(this, message, value);
         return message;
@@ -961,6 +968,12 @@ class CreateUserRequest$Type extends MessageType<CreateUserRequest> {
             switch (fieldNo) {
                 case /* UserData user */ 1:
                     message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                case /* string password */ 2:
+                    message.password = reader.string();
+                    break;
+                case /* ClientData client */ 3:
+                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -977,6 +990,12 @@ class CreateUserRequest$Type extends MessageType<CreateUserRequest> {
         /* UserData user = 1; */
         if (message.user)
             UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string password = 2; */
+        if (message.password !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.password);
+        /* ClientData client = 3; */
+        if (message.client)
+            ClientData.internalBinaryWrite(message.client, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -991,11 +1010,13 @@ export const CreateUserRequest = new CreateUserRequest$Type();
 class CreateUserResponse$Type extends MessageType<CreateUserResponse> {
     constructor() {
         super("CreateUserResponse", [
-            { no: 1, name: "user", kind: "message", T: () => UserData }
+            { no: 1, name: "user", kind: "message", T: () => UserData },
+            { no: 2, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<CreateUserResponse>): CreateUserResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.accessToken = "";
         if (value !== undefined)
             reflectionMergePartial<CreateUserResponse>(this, message, value);
         return message;
@@ -1007,6 +1028,9 @@ class CreateUserResponse$Type extends MessageType<CreateUserResponse> {
             switch (fieldNo) {
                 case /* UserData user */ 1:
                     message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                case /* string access_token */ 2:
+                    message.accessToken = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1023,6 +1047,9 @@ class CreateUserResponse$Type extends MessageType<CreateUserResponse> {
         /* UserData user = 1; */
         if (message.user)
             UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string access_token = 2; */
+        if (message.accessToken !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.accessToken);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1037,11 +1064,14 @@ export const CreateUserResponse = new CreateUserResponse$Type();
 class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
     constructor() {
         super("LoginUserRequest", [
-            { no: 1, name: "user", kind: "message", T: () => UserData }
+            { no: 1, name: "user", kind: "message", T: () => UserData },
+            { no: 2, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "client", kind: "message", T: () => ClientData }
         ]);
     }
     create(value?: PartialMessage<LoginUserRequest>): LoginUserRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.password = "";
         if (value !== undefined)
             reflectionMergePartial<LoginUserRequest>(this, message, value);
         return message;
@@ -1053,6 +1083,12 @@ class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
             switch (fieldNo) {
                 case /* UserData user */ 1:
                     message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                case /* string password */ 2:
+                    message.password = reader.string();
+                    break;
+                case /* ClientData client */ 3:
+                    message.client = ClientData.internalBinaryRead(reader, reader.uint32(), options, message.client);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1069,6 +1105,12 @@ class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
         /* UserData user = 1; */
         if (message.user)
             UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string password = 2; */
+        if (message.password !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.password);
+        /* ClientData client = 3; */
+        if (message.client)
+            ClientData.internalBinaryWrite(message.client, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1083,11 +1125,13 @@ export const LoginUserRequest = new LoginUserRequest$Type();
 class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
     constructor() {
         super("LoginUserResponse", [
-            { no: 1, name: "user", kind: "message", T: () => UserData }
+            { no: 1, name: "user", kind: "message", T: () => UserData },
+            { no: 2, name: "access_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<LoginUserResponse>): LoginUserResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.accessToken = "";
         if (value !== undefined)
             reflectionMergePartial<LoginUserResponse>(this, message, value);
         return message;
@@ -1099,6 +1143,9 @@ class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
             switch (fieldNo) {
                 case /* UserData user */ 1:
                     message.user = UserData.internalBinaryRead(reader, reader.uint32(), options, message.user);
+                    break;
+                case /* string access_token */ 2:
+                    message.accessToken = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1115,6 +1162,9 @@ class LoginUserResponse$Type extends MessageType<LoginUserResponse> {
         /* UserData user = 1; */
         if (message.user)
             UserData.internalBinaryWrite(message.user, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* string access_token = 2; */
+        if (message.accessToken !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.accessToken);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1680,12 +1730,14 @@ export const SearchNodesResponse = new SearchNodesResponse$Type();
 class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
     constructor() {
         super("CommitEditsRequest", [
-            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
+            { no: 2, name: "already_committed_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
     create(value?: PartialMessage<CommitEditsRequest>): CommitEditsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.edits = [];
+        message.alreadyCommittedEdits = [];
         if (value !== undefined)
             reflectionMergePartial<CommitEditsRequest>(this, message, value);
         return message;
@@ -1697,6 +1749,9 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
             switch (fieldNo) {
                 case /* repeated EditData edits */ 1:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated EditData already_committed_edits */ 2:
+                    message.alreadyCommittedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1713,6 +1768,9 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
         /* repeated EditData edits = 1; */
         for (let i = 0; i < message.edits.length; i++)
             EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated EditData already_committed_edits = 2; */
+        for (let i = 0; i < message.alreadyCommittedEdits.length; i++)
+            EditData.internalBinaryWrite(message.alreadyCommittedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3053,53 +3111,6 @@ class RunProxyStatementResponse$Type extends MessageType<RunProxyStatementRespon
  */
 export const RunProxyStatementResponse = new RunProxyStatementResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class PushLocalEditsRequest$Type extends MessageType<PushLocalEditsRequest> {
-    constructor() {
-        super("PushLocalEditsRequest", [
-            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
-        ]);
-    }
-    create(value?: PartialMessage<PushLocalEditsRequest>): PushLocalEditsRequest {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.edits = [];
-        if (value !== undefined)
-            reflectionMergePartial<PushLocalEditsRequest>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PushLocalEditsRequest): PushLocalEditsRequest {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* repeated EditData edits */ 1:
-                    message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PushLocalEditsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated EditData edits = 1; */
-        for (let i = 0; i < message.edits.length; i++)
-            EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message PushLocalEditsRequest
- */
-export const PushLocalEditsRequest = new PushLocalEditsRequest$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class PushWorkerLogsRequest$Type extends MessageType<PushWorkerLogsRequest> {
     constructor() {
         super("PushWorkerLogsRequest", [
@@ -3177,21 +3188,19 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
         super("StartRunRequest", [
             { no: 1, name: "run", kind: "message", T: () => RunData },
             { no: 10, name: "block", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 11, name: "keyed", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 12, name: "keyed_return", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 11, name: "keyed_inputs", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 12, name: "keyed_outputs", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 13, name: "tags", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
             { no: 14, name: "root_value", kind: "message", T: () => Struct },
-            { no: 15, name: "global_value", kind: "message", T: () => Struct },
-            { no: 16, name: "access_level", kind: "enum", T: () => ["SessionAccessLevel", SessionAccessLevel, "SESSION_ACCESS_LEVEL_"] }
+            { no: 15, name: "global_value", kind: "message", T: () => Struct }
         ]);
     }
     create(value?: PartialMessage<StartRunRequest>): StartRunRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.block = false;
-        message.keyed = false;
-        message.keyedReturn = false;
+        message.keyedInputs = false;
+        message.keyedOutputs = false;
         message.tags = [];
-        message.accessLevel = 0;
         if (value !== undefined)
             reflectionMergePartial<StartRunRequest>(this, message, value);
         return message;
@@ -3207,11 +3216,11 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
                 case /* bool block */ 10:
                     message.block = reader.bool();
                     break;
-                case /* bool keyed */ 11:
-                    message.keyed = reader.bool();
+                case /* bool keyed_inputs */ 11:
+                    message.keyedInputs = reader.bool();
                     break;
-                case /* bool keyed_return */ 12:
-                    message.keyedReturn = reader.bool();
+                case /* bool keyed_outputs */ 12:
+                    message.keyedOutputs = reader.bool();
                     break;
                 case /* repeated string tags */ 13:
                     message.tags.push(reader.string());
@@ -3221,9 +3230,6 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
                     break;
                 case /* google.protobuf.Struct global_value */ 15:
                     message.globalValue = Struct.internalBinaryRead(reader, reader.uint32(), options, message.globalValue);
-                    break;
-                case /* SessionAccessLevel access_level */ 16:
-                    message.accessLevel = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -3243,12 +3249,12 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
         /* bool block = 10; */
         if (message.block !== false)
             writer.tag(10, WireType.Varint).bool(message.block);
-        /* bool keyed = 11; */
-        if (message.keyed !== false)
-            writer.tag(11, WireType.Varint).bool(message.keyed);
-        /* bool keyed_return = 12; */
-        if (message.keyedReturn !== false)
-            writer.tag(12, WireType.Varint).bool(message.keyedReturn);
+        /* bool keyed_inputs = 11; */
+        if (message.keyedInputs !== false)
+            writer.tag(11, WireType.Varint).bool(message.keyedInputs);
+        /* bool keyed_outputs = 12; */
+        if (message.keyedOutputs !== false)
+            writer.tag(12, WireType.Varint).bool(message.keyedOutputs);
         /* repeated string tags = 13; */
         for (let i = 0; i < message.tags.length; i++)
             writer.tag(13, WireType.LengthDelimited).string(message.tags[i]);
@@ -3258,9 +3264,6 @@ class StartRunRequest$Type extends MessageType<StartRunRequest> {
         /* google.protobuf.Struct global_value = 15; */
         if (message.globalValue)
             Struct.internalBinaryWrite(message.globalValue, writer.tag(15, WireType.LengthDelimited).fork(), options).join();
-        /* SessionAccessLevel access_level = 16; */
-        if (message.accessLevel !== 0)
-            writer.tag(16, WireType.Varint).int32(message.accessLevel);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3458,7 +3461,6 @@ export const ModuleHost = new ServiceType("ModuleHost", [
     { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
     { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse },
     { name: "RunProxyStatement", options: {}, I: RunProxyStatementRequest, O: RunProxyStatementResponse },
-    { name: "PushLocalEdits", options: {}, I: PushLocalEditsRequest, O: Empty },
     { name: "PushWorkerLogs", options: {}, I: PushWorkerLogsRequest, O: Empty }
 ]);
 /**

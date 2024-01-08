@@ -1,5 +1,7 @@
 import abc
 from collections import defaultdict, deque
+import dataclasses
+from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Collection,
@@ -12,8 +14,8 @@ from typing import (
 )
 from uuid import UUID
 
-from bench.language.const import EditKind, NodeType, to_bench_metatype
-from bench.proto.wire import EditData
+from bench.language.const import EditKind, NodeType, to_bench_metatype, INTERP_NODE_TYPES
+from bench.proto.wire import EditData, AnyNodeData
 from bench.utils.func import to_uuid
 from bench.utils.utils import flatten
 
@@ -547,3 +549,111 @@ class DetachedNodeTree(NodeTreeBase[NT]):
                 return None
             node = node.parent
         return None
+
+
+# NOTE: we don't generate EditData yet because we don't have nodes as 'full' inline properties
+#  EditData is defined manually in our extra proto file.
+# @struct(StructType.EDIT)
+# class Edit:
+#     """
+#     An edit to a module/node.
+#     """
+#
+#     kind: EditKind = struct_internal(20)
+#     module: "Module" = struct_internal(21, references=NodeType.MODULE)
+#     node: "Node" = --> <???> <--
+#     revision: Optional[int] = struct_internal(23, default=None)
+#     properties: list[str] = struct_internal(24, default=None)
+
+
+EditableNode = Union["Node", AnyNodeData]
+
+
+class NodeTreeEditor:
+    """Create edits to a module node tree."""
+
+    def __init__(
+        self,
+        tree: "NodeTree",
+        bench_id: UUID,
+        module_id: UUID,
+        # default file and statement id
+        file_id: UUID = None,
+        statement_id: UUID = None,
+    ):
+        self.tree = tree
+        self.bench_id = bench_id
+        self.module_id = module_id
+        self.file_id = file_id
+        self.statement_id = statement_id
+        self.edits = []
+
+    def __str__(self):
+        return f"edit {len(self.edits)} {self.module_id}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}>"
+
+    def reset(self):
+        self.edits = []
+
+    def _make_edit(
+        self,
+        kind: EditKind,
+        node: EditableNode,
+        properties: list[str] = None,
+        scope: NodeType = None,
+    ) -> EditData:
+        from bench.proto.wiring import wrap_some_node
+
+        edit = EditData(
+            kind=kind,
+            module_id=self.module_id,
+            scope=scope,
+            properties=properties,
+            node=wrap_some_node(self._pack_node_flat_if_needed(node)),
+        )
+        self.edits.append(edit)
+        return edit
+
+    def _pack_node_flat_if_needed(self, node: Union["Node", EditableNode]) -> "AnyNodeData":
+        from bench.proto import wiring
+
+        if isinstance(node, Node):
+            return wiring.pack_node(node)
+        else:
+            return dataclasses.replace(node)  # shallow copy
+
+    def create_many(self, *nodes: EditableNode) -> list[EditData]:
+        return [self.create(node) for node in nodes]
+
+    def create(self, node: EditableNode) -> EditData:
+        return self._make_edit(EditKind.CREATE, node)
+
+    def update(self, node: EditableNode, properties: list[str] = None) -> EditData:
+        assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
+        return self._make_edit(EditKind.UPDATE, node, properties)
+
+    def move(self, node: EditableNode) -> EditData:
+        return self._make_edit(EditKind.MOVE, node)
+
+    def soft_delete_many(self, *nodes: EditableNode) -> list[EditData]:
+        return [self.soft_delete(node) for node in nodes]
+
+    def soft_delete(self, node: EditableNode) -> EditData:
+        # sneakily convert soft delete into hard delete for interp types
+        if node.metatype in INTERP_NODE_TYPES:
+            return self.delete(node)
+        return self._make_edit(EditKind.SOFT_DELETE, self._pack_node_flat_if_needed(node))
+
+    def restore(self, node: EditableNode) -> EditData:
+        return self._make_edit(EditKind.RESTORE, self._pack_node_flat_if_needed(node))
+
+    def archive(self, node: EditableNode) -> EditData:
+        return self._make_edit(EditKind.ARCHIVE, self._pack_node_flat_if_needed(node))
+
+    def unarchive(self, node: EditableNode) -> EditData:
+        return self._make_edit(EditKind.UNARCHIVE, self._pack_node_flat_if_needed(node))
+
+    def delete(self, node: EditableNode) -> EditData:
+        return self._make_edit(EditKind.DELETE, node)

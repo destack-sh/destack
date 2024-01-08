@@ -1,6 +1,6 @@
 import typer
 
-app = typer.Typer()
+app = typer.Typer(short_help="convenience shells")
 
 
 @app.command()

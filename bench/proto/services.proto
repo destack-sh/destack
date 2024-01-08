@@ -9,6 +9,20 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
+
+message NodePointer {
+  NodeType node_type = 1;
+  oneof node {
+    string node_ck = 2;
+    string node_id = 3;
+  }
+}
+
+message ClientOrigin {
+  string client_id = 1;
+  string client_nonce = 2;
+}
+
 // Edit describes an edit to a node in a Bench.
 // (Manually defined here since Node properties inside structs aren't supported.)
 message EditData {
@@ -20,36 +34,28 @@ message EditData {
   ClientOrigin origin = 6;
 }
 
-message ClientOrigin {
-  ClientType client_type = 1;
-  string client_id = 2;
-  string nonce = 3;
-}
-
-message NodePointer {
-  NodeType node_type = 1;
-  oneof node {
-    string node_ck = 2;
-    string node_id = 3;
-  }
-}
-
 //
 // Global supervisor
 //
 
 message CreateUserRequest {
   UserData user = 1;
+  string password = 2;
+  ClientData client = 3;
 }
 message CreateUserResponse {
   UserData user = 1;
+  string access_token = 2;
 }
 
 message LoginUserRequest {
   UserData user = 1;
+  string password = 2;
+  ClientData client = 3;
 }
 message LoginUserResponse {
   UserData user = 1;
+  string access_token = 2;
 }
 
 message LogoutUserRequest {
@@ -100,6 +106,8 @@ message SearchNodesResponse {
 
 message CommitEditsRequest {
   repeated EditData edits = 1;
+  // 'already applied' edits for workers passing along local edits
+  repeated EditData already_committed_edits = 2;
 }
 message CommitEditsResponse {
   repeated SomeNodeData changed_nodes = 1;
@@ -235,10 +243,6 @@ message RunProxyStatementResponse {
   google.protobuf.Struct error = 2;
 }
 
-message PushLocalEditsRequest {
-  repeated EditData edits = 1;
-}
-
 message PushWorkerLogsRequest {
   repeated LogEntryData logs = 1;
 }
@@ -277,8 +281,6 @@ service ModuleHost {
 
   // Runs a well-known internal statement in the host with our credentials.
   rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
-  // Push local edits from a worker.
-  rpc PushLocalEdits(PushLocalEditsRequest) returns (google.protobuf.Empty);
   // Pushes logs from a worker *that are already stored* to notify frontend users connected to this host.
   rpc PushWorkerLogs(PushWorkerLogsRequest) returns (google.protobuf.Empty);
 }
@@ -292,12 +294,11 @@ message RestartWorkerRequest {}
 message StartRunRequest {
   RunData run = 1;
   bool block = 10;
-  bool keyed = 11;
-  bool keyed_return = 12;
+  bool keyed_inputs = 11;
+  bool keyed_outputs = 12;
   repeated string tags = 13;
   google.protobuf.Struct root_value = 14;
   google.protobuf.Struct global_value = 15;
-  SessionAccessLevel access_level = 16;
 }
 message StartRunResponse {
   ErrorType error_type = 1;

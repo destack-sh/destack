@@ -206,7 +206,7 @@ def pack_node(node: Node) -> AnyNodeData:
     return pack_struct(node)
 
 
-def unpack_node(node_data: AnyNodeData, parent: Node, session: Session | None) -> Node:
+def unpack_node(node_data: AnyNodeData, parent: Node | None, session: Session | None) -> Node:
     node_cls = NODE_CLASS_BY_NODE_TYPE[NodeType(node_data.metatype.name)]
     node_kwargs = {}
     try:

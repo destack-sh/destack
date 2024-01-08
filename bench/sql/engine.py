@@ -1248,14 +1248,14 @@ async def delete_local_pg_database(pg_name: str, pg_username: str) -> None:
     log.info("pg.delete_db.done")
 
 
-async def write_host_edits_to_pg(
+async def write_global_edits_to_pg(
     cur: psycopg.AsyncCursor,
     module: Module,
     edits: list[EditData],
     *,
     return_nodes: bool = False,
 ) -> list["AnyNodeData"] | None:
-    raise NotImplementedError("nocheckin: write_host_edits_to_pg")
+    raise NotImplementedError("nocheckin: write_global_edits_to_pg")
 
 
 # nocheckin: read_nodes_from_pg

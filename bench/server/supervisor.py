@@ -2,6 +2,9 @@ from typing import AsyncIterator
 
 import structlog
 
+from bench.language import Handle, User, Client
+from bench.language.auth import generate_salt, check_password, hash_password, generate_access_token
+from bench.proto import wiring
 from bench.proto.wire import (
     GlobalSupervisorBase,
     CreateUserRequest,
@@ -42,10 +45,33 @@ class GlobalSupervisor(Monitored, GlobalSupervisorBase):
         return True
 
     async def create_user(self, create_user_request: "CreateUserRequest") -> "CreateUserResponse":
-        return await super().create_user(create_user_request)
+        async with global_session() as session:
+            user = wiring.unpack_node(create_user_request.user, parent=None, session=session)
+            user.password_salt = generate_salt()
+            user.password_hash = hash_password(create_user_request.password, user.password_salt)
+            user.handle = Handle(slug=user.username)
+            client = wiring.unpack_node(create_user_request.client, parent=user, session=session)
+            client.token = generate_access_token()
+            session.create(client)
+            await session.commit()
+        return CreateUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def login_user(self, login_user_request: "LoginUserRequest") -> "LoginUserResponse":
-        return await super().login_user(login_user_request)
+        async with global_session() as session:
+            if login_user_request.user.username:
+                user = await User.get(username=login_user_request.user.username)
+            elif login_user_request.user.email:
+                user = await User.get(email=login_user_request.user.email)
+            else:
+                raise ValueError("no username or email provided")
+            if not check_password(
+                login_user_request.password, user.password_salt, user.password_hash
+            ):
+                raise ValueError("invalid password")
+            client = wiring.unpack_node(login_user_request.client, parent=user, session=session)
+            client.token = generate_access_token()
+            session.upsert(client)
+        return LoginUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def logout_user(self, logout_user_request: "LogoutUserRequest") -> "LogoutUserResponse":
         return await super().logout_user(logout_user_request)
