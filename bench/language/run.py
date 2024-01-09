@@ -18,7 +18,7 @@ from bench.language.const import (
     StructType,
     TriggerType,
 )
-from bench.language.module import (
+from bench.language.node import (
     NS,
     Node,
     ScopeNode,
@@ -122,7 +122,7 @@ class Run(ScopeNode, HasValue):
     worker: Optional["Worker"] = struct_internal(
         32, index_in_pg=True, array=False, references=NodeType.WORKER
     )
-    worker_process_id: Optional[UUID] = struct_internal(33, reflect=True)
+    worker_process_id: Optional[UUID] = struct_internal(33)
     statement: Optional["Statement"] = struct_internal(
         34, references=NodeType.STATEMENT, array=False, index_in_pg=True
     )
@@ -131,7 +131,7 @@ class Run(ScopeNode, HasValue):
     started_at: Optional[datetime] = struct_internal(37, default=None)
     terminated_at: Optional[datetime] = struct_internal(38, default=None)
     trigger_type: Optional[TriggerType] = struct_internal(39, default=None)
-    trigger_id: Optional[UUID] = struct_internal(40, default=None, reflect=True)
+    trigger_id: Optional[UUID] = struct_internal(40, default=None)
     access_level: Optional["SessionAccessLevel"] = struct_internal(41, default=None)
     status: RunStatus = struct_internal(42, index_in_pg=True)
     inputs: Optional[dict[str, Any]] = struct_internal(

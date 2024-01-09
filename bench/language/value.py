@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Collection, Optional
 
-from bench.language.module import NS, UNSET, Node, node_component, struct_property
+from bench.language.node import NS, UNSET, Node, node_component, struct_property
 from bench.language.text import Text
 from bench.language.validation import ValidationHandler
 from bench.sql.core import ColumnType

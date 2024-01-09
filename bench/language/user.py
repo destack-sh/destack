@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from bench.language.const import NodeType, NotificationStatus, NotificationType
-from bench.language.module import Node, ScopeNode, node, node_parent, struct_internal
+from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal
 
 
 @node(NodeType.HANDLE, root=None, in_module=False, in_bench=False)
@@ -18,8 +18,8 @@ class User(ScopeNode):
 
     handle: Handle = struct_internal(30, array=False, references=NodeType.HANDLE)
     username: str = struct_internal(31, protect=True)  # already unique via slug
-    name: str = struct_internal(32, reflect=True)
-    email: str = struct_internal(33, defer=True, unique=True, protect=True, reflect=True)
+    name: str = struct_internal(32)
+    email: str = struct_internal(33, defer=True, unique=True, protect=True)
     password_salt: bytes = struct_internal(34, defer=True, encrypt=True, protect=True)
     password_hash: bytes = struct_internal(35, defer=True, encrypt=True, protect=True)
 

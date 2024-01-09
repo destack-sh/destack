@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from bench.language.builtin import _match_session_sync
 from bench.language.const import NodeType
-from bench.language.module import Bench, Node, node, node_parent, struct_internal, struct_property
+from bench.language.node import Bench, Node, node, node_parent, struct_internal, struct_property
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 

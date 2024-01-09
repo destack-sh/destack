@@ -24,7 +24,7 @@ from bench.language.expression import (
     FieldReference,
     QueryEngineIncapableError,
 )
-from bench.language.module import NODE_CLASS_BY_NODE_TYPE, UNSET, Node, get_node_id
+from bench.language.node import NODE_CLASS_BY_NODE_TYPE, UNSET, Node, get_node_id
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, EditData
 from bench.sql import schema

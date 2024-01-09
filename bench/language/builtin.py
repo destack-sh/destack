@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from uuid import uuid5
 
 from bench.language.const import UUID_NAMESPACE, VERSION
-from bench.language.module import Bench, Module
+from bench.language.node import Bench, Module
 from bench.utils.utils import DEBUG
 
 if TYPE_CHECKING:

@@ -6,7 +6,7 @@ import pytz
 from croniter import croniter
 
 from bench.language.const import NodeType, ScheduleType, TriggerType
-from bench.language.module import (
+from bench.language.node import (
     Node,
     NodeList,
     node,

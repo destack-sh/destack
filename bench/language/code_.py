@@ -21,7 +21,7 @@ from bench.language.builtin import symbolx_lib
 from bench.language.const import ConditionalOp, IssueType, NodePath, SortMode, SortOp, TypeFlag
 from bench.language.expression import C
 from bench.language.field import TypedDict
-from bench.language.module import LookupBy, Node, ScopeNode, node_component, struct_runtime
+from bench.language.node import LookupBy, Node, ScopeNode, node_component, struct_runtime
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 

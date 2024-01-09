@@ -25,6 +25,7 @@ from uuid import UUID, uuid4
 import structlog
 from cachetools import cached
 
+from bench.language.builtin import _match_session_sync
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     IN_MODULE_NODE_TYPES,
@@ -46,6 +47,7 @@ from bench.language.const import (
     TypeTag,
     parse_absolute_node_reference,
     parse_node_path,
+    QueryEngine,
 )
 from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase
 from bench.language.validation import (
@@ -148,7 +150,7 @@ FLATTENED_RELATIONS = (
 UNSET = object()
 
 
-def _require_expr_op(op: ExpressionOp):
+def _require_expression_op(op: ExpressionOp):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(self: "_FieldExpressionBase", *args, **kwargs):
@@ -192,34 +194,34 @@ class _FieldExpressionBase:
 
     # comparison
 
-    @_require_expr_op(ConditionalOp.EQUALS)
+    @_require_expression_op(ConditionalOp.EQUALS)
     def equals(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
         if value is None:
             return self.not_exists()
         return _to_conditional(ConditionalOp.EQUALS, self._as_field, value=value)
 
-    @_require_expr_op(ConditionalOp.NOT_EQUALS)
+    @_require_expression_op(ConditionalOp.NOT_EQUALS)
     def not_equal(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.NOT_EQUALS, self._as_field, value=value)
 
-    @_require_expr_op(ConditionalOp.GREATER_THAN)
+    @_require_expression_op(ConditionalOp.GREATER_THAN)
     def greater_than(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.GREATER_THAN, self._as_field, value=value)
 
-    @_require_expr_op(ConditionalOp.GREATER_THAN_OR_EQUALS)
+    @_require_expression_op(ConditionalOp.GREATER_THAN_OR_EQUALS)
     def greater_than_or_equals(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self._as_field, value=value)
 
-    @_require_expr_op(ConditionalOp.LESS_THAN)
+    @_require_expression_op(ConditionalOp.LESS_THAN)
     def less_than(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.LESS_THAN, self._as_field, value=value)
 
-    @_require_expr_op(ConditionalOp.LESS_THAN_OR_EQUALS)
+    @_require_expression_op(ConditionalOp.LESS_THAN_OR_EQUALS)
     def less_than_or_equals(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self._as_field, value=value)
@@ -241,55 +243,55 @@ class _FieldExpressionBase:
 
     # string comparison
 
-    @_require_expr_op(ConditionalOp.STARTS_WITH)
+    @_require_expression_op(ConditionalOp.STARTS_WITH)
     def starts_with(self, value: str) -> "Expression":
         return _to_conditional(ConditionalOp.STARTS_WITH, self._as_field, value=value)
 
-    @_require_expr_op(ConditionalOp.MATCHES)
+    @_require_expression_op(ConditionalOp.MATCHES)
     def matches(self, value: str) -> "Expression":
         return _to_conditional(ConditionalOp.MATCHES, self._as_field, value=value)
 
     # containment
 
-    @_require_expr_op(ConditionalOp.IN)
+    @_require_expression_op(ConditionalOp.IN)
     def in_(self, *values: list[Any]) -> "Expression":
         values = [self._coerce_value(value) for value in values]
         return _to_conditional(ConditionalOp.IN, self._as_field, value=values)
 
-    @_require_expr_op(ConditionalOp.NOT_IN)
+    @_require_expression_op(ConditionalOp.NOT_IN)
     def not_in(self, *values: list[Any]) -> "Expression":
         values = [self._coerce_value(value) for value in values]
         return _to_conditional(ConditionalOp.NOT_IN, self._as_field, value=values)
 
-    @_require_expr_op(ConditionalOp.CONTAINS)
+    @_require_expression_op(ConditionalOp.CONTAINS)
     def contains(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.CONTAINS, self._as_field, value=value)
 
-    @_require_expr_op(ConditionalOp.NOT_CONTAINS)
+    @_require_expression_op(ConditionalOp.NOT_CONTAINS)
     def not_contains(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
         return _to_conditional(ConditionalOp.NOT_CONTAINS, self._as_field, value=value)
 
     # existence
 
-    @_require_expr_op(ConditionalOp.EXISTS)
+    @_require_expression_op(ConditionalOp.EXISTS)
     def exists(self) -> "Expression":
         return _to_conditional(ConditionalOp.EXISTS, self._as_field)
 
-    @_require_expr_op(ConditionalOp.NOT_EXISTS)
+    @_require_expression_op(ConditionalOp.NOT_EXISTS)
     def not_exists(self) -> "Expression":
         return _to_conditional(ConditionalOp.NOT_EXISTS, self._as_field)
 
     # knn
 
-    @_require_expr_op(ConditionalOp.NEAR)
+    @_require_expression_op(ConditionalOp.NEAR)
     def near(self, value: list[float]) -> "Expression":
         return _to_conditional(ConditionalOp.NEAR, self._as_field, value=value)
 
     # sort
 
-    @_require_expr_op(SortOp.ASCENDING)
+    @_require_expression_op(SortOp.ASCENDING)
     def asc(self) -> "Expression":
         from bench.language.expression import S
 
@@ -297,7 +299,7 @@ class _FieldExpressionBase:
 
     ascending = asc
 
-    @_require_expr_op(SortOp.DESCENDING)
+    @_require_expression_op(SortOp.DESCENDING)
     def desc(self) -> "Expression":
         from bench.language.expression import S
 
@@ -333,7 +335,7 @@ class Property(_FieldExpressionBase):
     is_required: bool = False  # = must be non-null
     is_internal: bool = False  # = not directly editable for user
     is_protected: bool = False  # = only editable by us/supervisor
-    is_reflected: bool = False  # eventually all properties should be reflected, for now only some
+    is_reflected: bool = UNSET  # eventually all properties should be reflected, for now only some
     is_ancestor_nearest: bool | None = None  # for ancestor relations
     is_ancestor_self: bool | None = None  # for ancestor relations
     is_computed: bool = False
@@ -383,6 +385,8 @@ class Property(_FieldExpressionBase):
             tag, hint = TypeTag.STRING, TypeHint.DATETIME
         elif self.column_type == ColumnType.UUID:
             tag, hint = TypeTag.STRING, TypeHint.UUID
+        elif self.column_type == ColumnType.JSON:
+            tag, hint = TypeTag.JSON, None
         else:
             raise ValueError(f"unexpected column type in {self!r}: {self.column_type}")
         field = Field(
@@ -499,7 +503,8 @@ class Property(_FieldExpressionBase):
         return True
 
     def finalize_type(self) -> None:
-        """Analyzes the final type and configures storage options. Must run after complete setup."""
+        """Analyzes the final type and configures storage options. Must run after all class defs."""
+
         # store/wire property by default if not runtime (and not marked as _not_ store)
         if self.column_type is UNSET and (
             self.is_tree_relation or self.is_runtime_only or self.references
@@ -513,6 +518,11 @@ class Property(_FieldExpressionBase):
             self.is_wired = self.is_stored
         if self.is_runtime is UNSET:
             self.is_runtime = self.is_stored
+        if self.is_reflected is UNSET:
+            if not self.is_struct:
+                self.is_reflected = self.is_stored
+            else:
+                self.is_reflected = False  # can't deal with that yet
 
         # resolve py type
         if self.is_runtime_only or self.parents is not None or self.references is not None:
@@ -709,7 +719,7 @@ def struct_property(
     copy: Callable[[typing.Any], typing.Any] = None,
     validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
     require: bool = False,
-    reflect: bool = False,
+    reflect: bool = UNSET,
     unique: bool = False,
     encrypt: bool = False,
     array: bool = UNSET,
@@ -862,7 +872,7 @@ class NodeStatus(enum.IntEnum):
 NS = NodeStatus
 
 
-class ComponentMethod(enum.Enum):
+class _ComponentMethod(enum.Enum):
     init = "init"
     walk = "walk"
     clear = "clear"
@@ -895,17 +905,17 @@ class ComponentMethod(enum.Enum):
 
 
 # :NodeMethods
-_NODE_INNER_METHODS: list[str] = [m.inner for m in ComponentMethod]
+_NODE_INNER_METHODS: list[str] = [m.inner for m in _ComponentMethod]
 _FORBIDDEN_NODE_METHODS = (
-    [m.self for m in ComponentMethod]
-    + [m.rec for m in ComponentMethod]
+    [m.self for m in _ComponentMethod]
+    + [m.rec for m in _ComponentMethod]
     + ["__post_init__", "__del__"]
 )
 NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_STRUCT_TYPE: dict[StructType, type["Struct"]] = {}
 BENCH_CLASS_BY_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
-_COMPONENT_METHODS: dict[[ComponentMethod, type["Node"]], typing.Any] = {}
+_COMPONENT_METHODS: dict[[_ComponentMethod, type["Node"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
     "Node",
     "ScopeNode",
@@ -932,7 +942,7 @@ def _sort_components_in_call_order(
 
 @cached(cache={}, key=lambda components, method, concrete_key: f"{concrete_key}.{method.name}")
 def _get_component_methods(
-    components: list[type["Node"]], method: ComponentMethod, concrete_key: str
+    components: list[type["Node"]], method: _ComponentMethod, concrete_key: str
 ) -> list[typing.Any]:
     """Get the actually implemented methods in the given components in call order."""
     methods = []
@@ -1088,7 +1098,7 @@ def _process_struct_base_cls(
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
 
     # collect methods implemented in this class (specifically)
-    for meth_type in ComponentMethod:
+    for meth_type in _ComponentMethod:
         meth = getattr(cls, meth_type.inner, None)
         if meth is not None and not any(
             meth is getattr(base, meth_type.inner, None) for base in cls.__bases__
@@ -1791,7 +1801,7 @@ class NodeList(NodeListBase[NodeT]):
 
 
 def _make_self_method(
-    method: ComponentMethod,
+    method: _ComponentMethod,
     wraps,
     from_status: NodeStatus = None,
     to_status: NodeStatus = None,
@@ -1829,7 +1839,7 @@ def _make_self_method(
     return self_method
 
 
-def _make_inner_dunder_method(method: ComponentMethod):
+def _make_inner_dunder_method(method: _ComponentMethod):
     """Creates method that proxies a builtin dunder method to the first _method_inner"""
 
     def inner_method(self: "Node", *args, **kwargs):
@@ -1953,11 +1963,11 @@ class Struct(abc.ABC):
                     on_invalid(self, f"{prop.name}: invalid value", [prop.name])
 
     # struct has basic set of lifecycle methods (no index because no scope)
-    _init_self = _make_self_method(ComponentMethod.init, _init_inner)
-    _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
-    _interp_self = _make_self_method(ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
-    _visit_self = _make_self_method(ComponentMethod.visit, _visit_inner)
-    _validate_self = _make_self_method(ComponentMethod.validate, _validate_inner)
+    _init_self = _make_self_method(_ComponentMethod.init, _init_inner)
+    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
+    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
+    _visit_self = _make_self_method(_ComponentMethod.visit, _visit_inner)
+    _validate_self = _make_self_method(_ComponentMethod.validate, _validate_inner)
 
     def _walk_self(self) -> typing.Iterable["Struct"]:
         yield self
@@ -1970,7 +1980,7 @@ class Struct(abc.ABC):
                 yield from value._walk_self()
 
     @staticmethod
-    def _make_rec_method(method: ComponentMethod, wraps):
+    def _make_rec_method(method: _ComponentMethod, wraps):
         """Creates method that calls _method_self for all contained structs"""
 
         @functools.wraps(wraps)
@@ -1982,13 +1992,92 @@ class Struct(abc.ABC):
         rec_method.__name__ = method.rec
         return rec_method
 
-    _clear_rec = _make_rec_method(ComponentMethod.clear, _clear_self)
-    _interp_rec = _make_rec_method(ComponentMethod.interp, _interp_self)
-    _visit_rec = _make_rec_method(ComponentMethod.visit, _visit_self)
+    _clear_rec = _make_rec_method(_ComponentMethod.clear, _clear_self)
+    _interp_rec = _make_rec_method(_ComponentMethod.interp, _interp_self)
+    _visit_rec = _make_rec_method(_ComponentMethod.visit, _visit_self)
+
+
+FieldOrProperty = Union["Field", Property]
+
+
+class NodeQuery:
+    def __init__(
+        self,
+        node_type: NodeType,
+        filter: Optional["Expression"] = None,
+        sort: list["Expression"] | None = None,
+        include: list[FieldOrProperty] | None = None,
+        select: list[FieldOrProperty] | None = None,
+        distinct: list[FieldOrProperty] | None = None,
+        first: int | None = None,
+        skip: int | None = None,
+        engine: Optional[QueryEngine] = None,
+        cache: bool = True,
+    ):
+        self._node_type = node_type
+        self._filter = filter
+        self._sort = sort
+        self._include = include
+        self._select = select
+        self._distinct = distinct
+        self._first = first
+        self._skip = skip
+        self._engine = engine
+        self._cache = cache
+        self._cached_nodes: list[Node] | None = None
+        self._cached_cursors: list[str] | None = None
+
+    def __str__(self):
+        args_strs = []
+        for k in ("filter", "sort", "include", "select", "distinct", "first", "skip"):
+            v = getattr(self, f"_{k}", None)
+            if k == "query":
+                v = f"({v})" if v is not None else None
+            if v is not None:
+                args_strs.append(f"{k}={v}")
+        return f"{self._node_type} {', '.join(args_strs)}"
+
+    def __repr__(self):
+        return f"<NodeQuery {self}>"
+
+    def copy(self):
+        """Clones the query (the properties are immutable)."""
+        return NodeQuery(
+            node_type=self._node_type,
+            filter=self._filter,
+            sort=self._sort,
+            include=self._include,
+            select=self._select,
+            distinct=self._distinct,
+            first=self._first,
+            skip=self._skip,
+            engine=self._engine,
+            # cache is not copied on purpose as it shouldn't propagate
+        )
+
+
+class _NodeExpressionBase:
+    @staticmethod
+    def get(self, conditional: "Expression" = None, **kwargs) -> "Node":
+        raise NotImplementedError
+
+    @staticmethod
+    def filter(self, query: "Expression" = None, **kwargs) -> "NodeQuery":
+        raise NotImplementedError
+
+    @staticmethod
+    @_match_session_sync
+    async def count(self, query: Expression = None, **kwargs) -> int:
+        raise NotImplementedError
+
+    @staticmethod
+    @_match_session_sync
+    async def exists(self, query: Expression = None, **kwargs) -> bool:
+        raise NotImplementedError
 
 
 @node_component
-class Node(Struct):
+class Node(Struct, _NodeExpressionBase):
     """
     A node in a Bench module tree - basically struct + identity, so it can relate nodes.
     A node has a per-version unique id (id) and a constant identifier key (ck).
@@ -2024,9 +2113,9 @@ class Node(Struct):
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
 
     # 1-9: reserved for node identity
-    id: UUID = struct_internal(2, default=None, require=True, protect=True, reflect=True)
+    id: UUID = struct_internal(2, default=None, require=True, protect=True)
     # NOTE: ck/module/bench only exist if __is_in_module__/__is_in_bench__ :MagicNodeProps
-    ck: UUID = struct_internal(3, default=None, require=True, protect=True, reflect=True)
+    ck: UUID = struct_internal(3, default=None, require=True, protect=True)
     parent: Optional["Node"] = node_parent(4)
     module: Optional["Module"] = node_ancestor(
         5, NodeType.MODULE, store=True, wire=True, index_in_pg=True
@@ -2035,23 +2124,17 @@ class Node(Struct):
     # prototype/template: Optional["Node"] = node_template(7)
 
     # 10-29: reserved for node tracking
-    revision: int = struct_internal(10, default=0, require=True, protect=True, reflect=True)
-    created_at: datetime = struct_internal(
-        11, default=None, require=True, protect=True, reflect=True
-    )
-    updated_at: datetime = struct_internal(
-        12, default=None, require=True, protect=True, reflect=True
-    )
-    deleted_at: datetime = struct_internal(13, default=None, protect=True, reflect=True)
-    archived_at: datetime = struct_internal(14, default=None, protect=True, reflect=True)
-    last_edited_at: datetime = struct_internal(
-        15, default=None, require=True, protect=True, reflect=True
-    )
+    revision: int = struct_internal(10, default=0, require=True, protect=True)
+    created_at: datetime = struct_internal(11, default=None, require=True, protect=True)
+    updated_at: datetime = struct_internal(12, default=None, require=True, protect=True)
+    deleted_at: datetime = struct_internal(13, default=None, protect=True)
+    archived_at: datetime = struct_internal(14, default=None, protect=True)
+    last_edited_at: datetime = struct_internal(15, default=None, require=True, protect=True)
     # only scope nodes can have 'inner' changes
-    # last_changed_at: datetime = struct_internal(16, default=None, reflect=True)
-    # created_by: ... = struct_internal(17, default=None, reflect=True)
-    # last_edited_by: ... = struct_internal(18, default=None, reflect=True)
-    # last_changed_by: ... = struct_internal(19, default=None, reflect=True)
+    # last_changed_at: datetime = struct_internal(16, default=None)
+    # created_by: ... = struct_internal(17, default=None)
+    # last_edited_by: ... = struct_internal(18, default=None)
+    # last_changed_by: ... = struct_internal(19, default=None)
     # policies: ... = struct_internal(20, default=None, struct_t=StructType.POLICY)
 
     # 30+ for 'user' node/struct properties
@@ -2273,11 +2356,11 @@ class Node(Struct):
         """Called when this node is updated."""
         pass
 
-    _call_inner = _make_inner_dunder_method(ComponentMethod.call)
-    _iter_inner = _make_inner_dunder_method(ComponentMethod.iter)
-    _aiter_inner = _make_inner_dunder_method(ComponentMethod.aiter)
-    _len_inner = _make_inner_dunder_method(ComponentMethod.len)
-    _getitem_inner = _make_inner_dunder_method(ComponentMethod.getitem)
+    _call_inner = _make_inner_dunder_method(_ComponentMethod.call)
+    _iter_inner = _make_inner_dunder_method(_ComponentMethod.iter)
+    _aiter_inner = _make_inner_dunder_method(_ComponentMethod.aiter)
+    _len_inner = _make_inner_dunder_method(_ComponentMethod.len)
+    _getitem_inner = _make_inner_dunder_method(_ComponentMethod.getitem)
 
     __call__ = _call_inner
     __iter__ = _iter_inner
@@ -2306,7 +2389,7 @@ class Node(Struct):
 
         # run actual init methods
         for meth in _get_component_methods(
-            self._components, ComponentMethod.init, self._instance_cache_key
+            self._components, _ComponentMethod.init, self._instance_cache_key
         ):
             meth(self)
 
@@ -2327,18 +2410,18 @@ class Node(Struct):
             self._validate_self(self.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
     # node has extended set of lifecycle methods
-    _index_self = _make_self_method(ComponentMethod.index, _index_inner, NS.SOURCE, NS.INDEX)
-    _clear_self = _make_self_method(ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
-    _interp_self = _make_self_method(ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
+    _index_self = _make_self_method(_ComponentMethod.index, _index_inner, NS.SOURCE, NS.INDEX)
+    _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
+    _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
     _activate_self = _make_self_method(
-        ComponentMethod.activate, _activate_inner, NS.INTERP, NS.ACTIVE
+        _ComponentMethod.activate, _activate_inner, NS.INTERP, NS.ACTIVE
     )
     _deactivate_self = _make_self_method(
-        ComponentMethod.deactivate, _deactivate_inner, NS.ACTIVE, NS.INTERP
+        _ComponentMethod.deactivate, _deactivate_inner, NS.ACTIVE, NS.INTERP
     )
-    _attached_self = _make_self_method(ComponentMethod.attached, _attached_inner)
-    _detached_self = _make_self_method(ComponentMethod.detached, _detached_inner)
-    _updated_self = _make_self_method(ComponentMethod.updated, _updated_inner)
+    _attached_self = _make_self_method(_ComponentMethod.attached, _attached_inner)
+    _detached_self = _make_self_method(_ComponentMethod.detached, _detached_inner)
+    _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
 
     def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "Node":
         """
@@ -2397,7 +2480,7 @@ class Node(Struct):
 
 
 def _make_rec_method(
-    method: ComponentMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None
+    method: _ComponentMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None
 ):
     """Creates method that calls _method_self for self and all descendants"""
 
@@ -2426,7 +2509,7 @@ class ScopeNode(Node):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
     __has_scope__: ClassVar[bool] = True
-    last_changed_at: datetime = struct_internal(16, default=None, reflect=True)
+    last_changed_at: datetime = struct_internal(16, default=None)
     issues: NodeList["Issue"] = node_children(NodeType.ISSUE, NRel.Cumulative)
     _scopes_by_name: dict[str, "ScopeNode"] = struct_runtime(default_factory=dict)
     _names_by_ident: dict[str, str] = struct_runtime(default_factory=dict)
@@ -2450,26 +2533,26 @@ class ScopeNode(Node):
             _InterpChange._collect(self.parent, self.parent, [self], _NC.Full)._effect(_NC.Full)
 
     _clear_rec = _make_rec_method(
-        ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
+        _ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
     )
-    _index_rec = _make_rec_method(ComponentMethod.index, Node._index_self)
+    _index_rec = _make_rec_method(_ComponentMethod.index, Node._index_self)
     _interp_rec = _make_rec_method(
-        ComponentMethod.interp,
+        _ComponentMethod.interp,
         Node._interp_self,
         custom_kwargs=lambda n: dict(
             scope=n.scope, on_issue=n.scope._on_issue if n.scope else on_issue_raise
         ),
     )
-    _visit_rec = _make_rec_method(ComponentMethod.visit, Node._visit_self)
+    _visit_rec = _make_rec_method(_ComponentMethod.visit, Node._visit_self)
     _validate_rec = _make_rec_method(
-        ComponentMethod.validate,
+        _ComponentMethod.validate,
         Node._validate_self,
         custom_kwargs=lambda n: dict(
             properties=n.__tracked_properties__.keys(), on_invalid=on_invalid_raise
         ),
     )
-    _activate_rec = _make_rec_method(ComponentMethod.activate, Node._activate_self)
-    _deactivate_rec = _make_rec_method(ComponentMethod.deactivate, Node._deactivate_self)
+    _activate_rec = _make_rec_method(_ComponentMethod.activate, Node._activate_self)
+    _deactivate_rec = _make_rec_method(_ComponentMethod.deactivate, Node._deactivate_self)
 
     def _get_scope(self, name: str, by: Optional[LookupBy]) -> Union["ScopeNode", None]:
         if by is None and name in self._scopes_by_name or by == LookupBy.Name:

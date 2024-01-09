@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import IssueKind, IssueType, NodeType
-from bench.language.module import Node, node, node_parent, struct_property
+from bench.language.node import Node, node, node_parent, struct_property
 from bench.language.validation import enum_validator
 
 if TYPE_CHECKING:

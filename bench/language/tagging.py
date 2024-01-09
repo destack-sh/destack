@@ -4,7 +4,7 @@ from typing import Optional, Union
 
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodeType, StatementType
-from bench.language.module import (
+from bench.language.node import (
     Node,
     NodeList,
     NRel,

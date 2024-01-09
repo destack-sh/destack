@@ -7,7 +7,7 @@ import structlog
 from bench.language import Handle, User
 from bench.language.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.language.const import to_bench_metatype, NodeType
-from bench.language.module import NODE_CLASS_BY_NODE_TYPE
+from bench.language.node import NODE_CLASS_BY_NODE_TYPE
 from bench.proto import wiring
 from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (

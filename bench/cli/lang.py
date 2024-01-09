@@ -7,7 +7,7 @@ from rich import print
 
 from bench.cli.utils import _shell
 from bench.language.const import VERSION, NodeType
-from bench.language.module import (
+from bench.language.node import (
     BENCH_TYPES,
     NODE_CLASS_BY_NODE_TYPE,
     NODE_TYPES,

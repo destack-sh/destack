@@ -22,7 +22,7 @@ from bench.language.const import (
     new_dynamic_node_key,
 )
 from bench.language.issue import IssueHandler
-from bench.language.module import (
+from bench.language.node import (
     _NC,
     NS,
     UNSET,

@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import NodeReference, NodeType, TypedNodeReference
-from bench.language.module import (
+from bench.language.node import (
     UNSET,
     Node,
     ScopeNode,

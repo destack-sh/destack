@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from bench.language.const import NodeType, StructType, WorkerProfile, WorkerSetStatus
-from bench.language.module import (
+from bench.language.node import (
     Bench,
     Node,
     ScopeNode,

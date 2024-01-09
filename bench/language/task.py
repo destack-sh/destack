@@ -21,7 +21,7 @@ from bench.language.const import (
 )
 from bench.language.field import Field, TypedDict
 from bench.language.model import HasModel
-from bench.language.module import Node, ScopeNode, node_component, struct_runtime
+from bench.language.node import Node, ScopeNode, node_component, struct_runtime
 from bench.language.projection import Projection
 from bench.language.render import render
 from bench.language.session import Run

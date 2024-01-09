@@ -17,7 +17,7 @@ from bench.language.const import (
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
 from bench.language.model import HasModel
-from bench.language.module import (
+from bench.language.node import (
     Node,
     NodeList,
     NRel,

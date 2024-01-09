@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional
 
 from bench.language.const import NodeType
-from bench.language.module import Module, node, node_parent, struct_internal, struct_property
+from bench.language.node import Module, node, node_parent, struct_internal, struct_property
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 

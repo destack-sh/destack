@@ -17,7 +17,7 @@ from bench.language.const import (
     TypeStorageFormat,
     TypeTag,
 )
-from bench.language.module import Node, Struct, struct, struct_property
+from bench.language.node import Node, Struct, struct, struct_property
 from bench.sql.core import ColumnType
 from bench.utils.utils import to_camel_case
 
@@ -224,7 +224,7 @@ CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
 
 
 def coerce_conditional(
-    statement: "HasFields",
+    node: Union[Node, type[Node], "HasFields"],
     expr: Optional[Expression],
     kwargs: Optional[dict[str, Any]] = None,
     return_none_if_empty: bool = False,
@@ -246,13 +246,13 @@ def coerce_conditional(
             field_key, op = arg.split("__", 1)
         else:
             field_key, op = arg, ConditionalOp.EQUALS
-        field = statement.resolved_fields.get(field_key)
-        if not field:  # try reflected property
-            field = statement.__properties__.get(field_key)
-            if field:
-                field = field._as_field
+        field = None
+        if field_key in node.__properties__:
+            field = node.__properties__[field_key]._as_field
+        elif isinstance(node, Node) and HasFields in node._components:
+            field = node.resolved_fields.get(field_key)
         if not field:
-            raise TypeError(f"{statement!r} has no field {field_key}")
+            raise TypeError(f"{node!r} has no field {field_key}")
         _check_field_supports(field, op)
         clauses.append(Expression(op=op, field=field, value=value))
     if not clauses:
@@ -264,7 +264,7 @@ def coerce_conditional(
 
 
 def coerce_sort(
-    statement: "HasFields",
+    node: Union[Node, type[Node], "HasFields"],
     sort: list[Expression | str] | Expression | str | None,
     args: str | None = None,
 ) -> Optional[list[Expression]]:
@@ -288,16 +288,19 @@ def coerce_sort(
     coerced = []
     for item in sort:
         if isinstance(item, str):
-            op = SortOp.DESCENDING if item.startswith("-") else SortOp.ASCENDING
-            if op == SortOp.DESCENDING:
-                item = item[1:]
-            field = statement.resolved_fields.get(item)
-            if not field:  # try reflected property
-                field = statement.__properties__.get(item)
-                if field:
-                    field = field._as_field
+            if item.startswith("-"):
+                op = SortOp.DESCENDING
+                field_key = item[1:]
+            else:
+                op = SortOp.ASCENDING
+                field_key = item
+            field = None
+            if field_key in node.__properties__:
+                field = node.__properties__[field_key]._as_field
+            elif isinstance(node, Node) and HasFields in node._components:
+                field = node.resolved_fields.get(field_key)
             if not field:
-                raise TypeError(f"{statement!r} has no field {item!r}")
+                raise TypeError(f"{node!r} has no field {item!r}")
             item = S(op, field=field)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")

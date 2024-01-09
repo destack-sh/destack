@@ -10,7 +10,7 @@ import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
 from bench.language.const import BenchType, NodeType, StructType
-from bench.language.module import (
+from bench.language.node import (
     BENCH_CLASS_BY_TYPE,
     METATYPE_PROPERTY,
     NODE_CLASS_BY_NODE_TYPE,

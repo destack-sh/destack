@@ -30,7 +30,7 @@ from bench.language.field import (
     TypeError,
     Vector,
 )
-from bench.language.module import NS, Node, ScopeNode
+from bench.language.node import NS, Node, ScopeNode
 from bench.language.session import Session
 from bench.language.statement import Statement
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
