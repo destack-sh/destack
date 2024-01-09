@@ -18,7 +18,7 @@ from bench.language.const import (
 )
 from bench.language.expression import C, Expression, ExpressionOps, coerce_conditional, coerce_sort
 from bench.language.issue import IssueHandler
-from bench.language.module import (
+from bench.language.node import (
     _NC,
     NS,
     Node,
@@ -222,7 +222,7 @@ class RecordQuery:
         self, pg_cursor: psycopg.AsyncCursor | None, count: bool = False, after: str = None
     ) -> _RecordFetchResult:
         """Actually fetches the raw record results from some engine."""
-        from bench.search.engine import os_search
+        from bench.os.engine import os_search
         from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_records
 
         where = self._combined_filter
@@ -463,7 +463,6 @@ class RecordQuery:
             raise ValueError(f"no values given to update {self!r}")
 
         session = self._database.session
-        session.check_access(SessionAccessLevel.Update)
         if session._local_edits:
             await session.flush_local()
 
@@ -497,7 +496,6 @@ class RecordQuery:
         self._require_engine(QueryEngine.POSTGRES)
         assert not self._engine, "cannot delete with forced query engine"
         session = self._database.session
-        session.check_access(SessionAccessLevel.Delete)
         if session._local_edits:
             await session.flush_local()
         where = Expression.and_if_set(
@@ -673,9 +671,6 @@ class RecordList(NodeListBase[Record], RecordQuery):
 
     def __aiter__(self):
         return RecordQuery.__aiter__(self)
-
-    def __getitem__(self, item: slice):
-        return RecordQuery.__getitem__(self, item)
 
 
 @node_component

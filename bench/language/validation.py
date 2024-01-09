@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import cachetools
 
 if TYPE_CHECKING:
-    from bench.language.module import Node, Property
+    from bench.language.node import Node, Property
 
 
 class ValidationError(ValueError):

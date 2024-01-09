@@ -2,7 +2,7 @@ from typing import Optional
 from uuid import UUID
 
 from bench.language.builtin import _match_session_sync
-from bench.language.module import Module
+from bench.language.node import Module
 from bench.utils.cache import redis
 
 Key = str | bytes

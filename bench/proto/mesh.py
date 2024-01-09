@@ -3,10 +3,9 @@ import contextvars
 import functools
 from typing import Collection, TYPE_CHECKING, Mapping, final, Callable
 
-import betterproto
+from grpclib import GRPCError, Status as GRPCStatus
 from grpclib._typing import IServable
 import grpclib.server
-from multidict import MultiDict
 import structlog
 
 from bench.proto.wire import RpcMetadata
@@ -77,7 +76,7 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
                 await func(stream)
                 duration = asyncio.get_running_loop().time() - start
                 logger.info(f"{rpc_name}.done", service=self, method=method, duration=duration)
-            except grpclib.exceptions.GRPCError as e:
+            except GRPCError as e:
                 duration = asyncio.get_running_loop().time() - start
                 logger.error(
                     f"{rpc_name}.error", service=self, method=method, duration=duration, error=e
@@ -93,7 +92,7 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
                     duration=duration,
                     error=e,
                 )
-                raise grpclib.exceptions.GRPCError(grpclib.const.Status.INTERNAL, str(e)) from e
+                raise GRPCError(GRPCStatus.INTERNAL, str(e)) from e
 
         return grpclib.const.Handler(wrapped_method, cardinality, request_type, reply_type)
 

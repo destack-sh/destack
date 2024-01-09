@@ -13,7 +13,7 @@ import structlog
 
 from bench.language.builtin import _match_session_sync, active_session
 from bench.language.const import BlobStatus, NodeType
-from bench.language.module import (
+from bench.language.node import (
     Bench,
     Node,
     node,

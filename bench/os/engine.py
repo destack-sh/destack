@@ -39,7 +39,7 @@ from bench.language.expression import (
     S,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
-from bench.language.module import (
+from bench.language.node import (
     BENCH_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_STRUCT_TYPE,
     Node,
@@ -49,9 +49,9 @@ from bench.language.module import (
 from bench.language.run import HasRun
 from bench.proto import wire, wiring
 from bench.proto.wire import EditData
-from bench.search import core as os
-from bench.search.client import get_os_errors, os_client, os_client_sync
-from bench.search.core import SubfieldType
+from bench.os import core as os
+from bench.os.client import get_os_errors, os_client, os_client_sync
+from bench.os.core import SubfieldType
 from bench.sql.core import ColumnType
 
 logger = structlog.get_logger(__name__)

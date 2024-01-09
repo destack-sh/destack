@@ -15,7 +15,7 @@ import structlog
 from bench.language.cache import Cache
 from bench.language.const import StructType
 from bench.language.field import Field, HasFields, TypedDict, TypeTag
-from bench.language.module import (
+from bench.language.node import (
     Node,
     ScopeNode,
     Struct,

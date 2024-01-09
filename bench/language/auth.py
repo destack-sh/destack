@@ -11,7 +11,7 @@ from bench.language.const import (
     PolicyEffect,
     StructType,
 )
-from bench.language.module import Bench, Node, Struct, node, node_parent, struct, struct_internal
+from bench.language.node import Bench, Node, Struct, node, node_parent, struct, struct_internal
 
 if TYPE_CHECKING:
     from bench.language import Expression, Field, User

@@ -37,7 +37,7 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
-from bench.language.module import (
+from bench.language.node import (
     _NC,
     UNSET,
     Module,
@@ -54,7 +54,7 @@ from bench.language.module import (
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
 from bench.proto.wire import EditData, LogEntryData
-from bench.search.client import get_os_errors, os_client
+from bench.os.client import get_os_errors, os_client
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
@@ -152,11 +152,11 @@ class Session(ScopeNode):
     parent: Module = node_parent(4, NodeType.MODULE)
     policies: list["Policy"] | None = struct_internal(30, default=None, struct_t=StructType.POLICY)
     worker: Optional["Worker"] = struct_internal(31, array=False, references=NodeType.WORKER)
-    worker_process_id: Optional[str] = struct_internal(32, default=None, reflect=True)
-    trigger_type: Optional[TriggerType] = struct_internal(33, default=None, reflect=True)
-    trigger_id: Optional[UUID] = struct_internal(34, default=None, reflect=True)
-    opened_at: Optional[datetime] = struct_internal(35, default=None, reflect=True)
-    closed_at: Optional[datetime] = struct_internal(36, default=None, reflect=True)
+    worker_process_id: Optional[str] = struct_internal(32, default=None)
+    trigger_type: Optional[TriggerType] = struct_internal(33, default=None)
+    trigger_id: Optional[UUID] = struct_internal(34, default=None)
+    opened_at: Optional[datetime] = struct_internal(35, default=None)
+    closed_at: Optional[datetime] = struct_internal(36, default=None)
 
     _host: ModuleHost | None = struct_runtime(default=None)
     _root_run_ck: UUID | None = struct_runtime(default=None)
@@ -338,7 +338,7 @@ class Session(ScopeNode):
     async def flush_logs(self) -> None:
         """Flushes session logs. This is non-transactional, so it's separate from flush_session."""
         from bench.proto import wiring
-        from bench.search.engine import pack_struct
+        from bench.os.engine import pack_struct
 
         with self._tracing_lock:
             logs = self._pending_logs
@@ -361,7 +361,7 @@ class Session(ScopeNode):
     @_match_session_sync
     async def commit(self):
         """Commits module edits and syncs committed local edits to OS."""
-        from bench.search.engine import sync_pg_databases_to_os
+        from bench.os.engine import sync_pg_databases_to_os
         from bench.sql.engine import write_local_edits_to_pg
 
         assert not self._failed_commit, f"session {self!r} is broken after failed commit"

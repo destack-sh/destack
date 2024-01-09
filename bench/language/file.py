@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional, Union
 
 from bench.language.const import NodeType, StructType
-from bench.language.module import (
+from bench.language.node import (
     Module,
     NodeList,
     NRel,

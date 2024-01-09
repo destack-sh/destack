@@ -775,7 +775,7 @@ class FieldData(betterproto.Message):
     typing.Any | None = <factory>, hint: bench.language.const.TypeHint | None =
     None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference:
     Optional[ForwardRef('Statement')] = None, _reflected: bool = False,
-    reference_ck: uuid.UUID = None, _status: bench.language.module.NodeStatus =
+    reference_ck: uuid.UUID = None, _status: bench.language.node.NodeStatus =
     None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0,
     created_at: datetime.datetime = None, updated_at: datetime.datetime = None,
     deleted_at: datetime.datetime = None, archived_at: datetime.datetime =
@@ -874,8 +874,8 @@ class IssueData(betterproto.Message):
     type: bench.language.const.IssueType = <factory>, kind:
     bench.language.const.IssueKind = None, message: str = None, path:
     Optional[str] = None, properties: list[str] = None, _status:
-    bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
-    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
+    bench.language.node.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
+    = None, revision: int = 0, created_at: datetime.datetime = None,
     updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
     archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
     None, _session: Optional[ForwardRef('Session')] = None, _track:
@@ -1220,8 +1220,8 @@ class ViewData(betterproto.Message):
     order_key: str | None = None, node_type: bench.language.const.NodeType =
     <factory>, query: Optional[bench.language.expression.Expression] = None,
     sort: Optional[list[bench.language.expression.Expression]] = None, _status:
-    bench.language.module.NodeStatus = None, id: uuid.UUID = None, ck:
-    uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
+    bench.language.node.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
+    = None, revision: int = 0, created_at: datetime.datetime = None,
     updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
     archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
     None, _session: Optional[ForwardRef('Session')] = None, _track:
@@ -1255,7 +1255,7 @@ class WorkerData(betterproto.Message):
     // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>,
     profile: bench.language.const.WorkerProfile = <factory>, image:
     Optional[ForwardRef('WorkerImage')] = <factory>, access_token:
-    Optional[str] = None, _status: bench.language.module.NodeStatus = None, id:
+    Optional[str] = None, _status: bench.language.node.NodeStatus = None, id:
     uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None,
     updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None,
     archived_at: datetime.datetime = None, last_edited_at: datetime.datetime =
@@ -1308,43 +1308,43 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    badge: "BadgeData" = betterproto.message_field(1, group="node")
-    halt: "HaltData" = betterproto.message_field(2, group="node")
-    signal: "SignalData" = betterproto.message_field(3, group="node")
-    statement: "StatementData" = betterproto.message_field(4, group="node")
-    user: "UserData" = betterproto.message_field(5, group="node")
-    field: "FieldData" = betterproto.message_field(6, group="node")
-    run: "RunData" = betterproto.message_field(7, group="node")
-    client: "ClientData" = betterproto.message_field(8, group="node")
-    worker: "WorkerData" = betterproto.message_field(9, group="node")
-    notification: "NotificationData" = betterproto.message_field(10, group="node")
-    trigger: "TriggerData" = betterproto.message_field(11, group="node")
-    handle: "HandleData" = betterproto.message_field(12, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(13, group="node")
-    blob: "BlobData" = betterproto.message_field(14, group="node")
-    session: "SessionData" = betterproto.message_field(15, group="node")
-    record: "RecordData" = betterproto.message_field(16, group="node")
-    view: "ViewData" = betterproto.message_field(17, group="node")
-    issue: "IssueData" = betterproto.message_field(18, group="node")
-    organization: "OrganizationData" = betterproto.message_field(19, group="node")
-    secret: "SecretData" = betterproto.message_field(20, group="node")
-    module: "ModuleData" = betterproto.message_field(21, group="node")
-    file: "FileData" = betterproto.message_field(22, group="node")
-    bench: "BenchData" = betterproto.message_field(23, group="node")
-    tagging: "TaggingData" = betterproto.message_field(24, group="node")
+    halt: "HaltData" = betterproto.message_field(1, group="node")
+    client: "ClientData" = betterproto.message_field(2, group="node")
+    session: "SessionData" = betterproto.message_field(3, group="node")
+    notification: "NotificationData" = betterproto.message_field(4, group="node")
+    module: "ModuleData" = betterproto.message_field(5, group="node")
+    badge: "BadgeData" = betterproto.message_field(6, group="node")
+    issue: "IssueData" = betterproto.message_field(7, group="node")
+    view: "ViewData" = betterproto.message_field(8, group="node")
+    statement: "StatementData" = betterproto.message_field(9, group="node")
+    trigger: "TriggerData" = betterproto.message_field(10, group="node")
+    file: "FileData" = betterproto.message_field(11, group="node")
+    bench: "BenchData" = betterproto.message_field(12, group="node")
+    worker: "WorkerData" = betterproto.message_field(13, group="node")
+    tagging: "TaggingData" = betterproto.message_field(14, group="node")
+    secret: "SecretData" = betterproto.message_field(15, group="node")
+    field: "FieldData" = betterproto.message_field(16, group="node")
+    organization: "OrganizationData" = betterproto.message_field(17, group="node")
+    record: "RecordData" = betterproto.message_field(18, group="node")
+    run: "RunData" = betterproto.message_field(19, group="node")
+    signal: "SignalData" = betterproto.message_field(20, group="node")
+    blob: "BlobData" = betterproto.message_field(21, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(22, group="node")
+    user: "UserData" = betterproto.message_field(23, group="node")
+    handle: "HandleData" = betterproto.message_field(24, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
-    policy: "PolicyData" = betterproto.message_field(1, group="struct")
-    run_error: "RunErrorData" = betterproto.message_field(2, group="struct")
-    expression: "ExpressionData" = betterproto.message_field(3, group="struct")
-    mini_run: "MiniRunData" = betterproto.message_field(4, group="struct")
-    log_entry: "LogEntryData" = betterproto.message_field(5, group="struct")
-    policy_rule: "PolicyRuleData" = betterproto.message_field(6, group="struct")
-    run_code_frame: "RunCodeFrameData" = betterproto.message_field(7, group="struct")
-    worker_image: "WorkerImageData" = betterproto.message_field(8, group="struct")
-    dependency: "DependencyData" = betterproto.message_field(9, group="struct")
+    policy_rule: "PolicyRuleData" = betterproto.message_field(1, group="struct")
+    dependency: "DependencyData" = betterproto.message_field(2, group="struct")
+    mini_run: "MiniRunData" = betterproto.message_field(3, group="struct")
+    worker_image: "WorkerImageData" = betterproto.message_field(4, group="struct")
+    policy: "PolicyData" = betterproto.message_field(5, group="struct")
+    expression: "ExpressionData" = betterproto.message_field(6, group="struct")
+    run_error: "RunErrorData" = betterproto.message_field(7, group="struct")
+    log_entry: "LogEntryData" = betterproto.message_field(8, group="struct")
+    run_code_frame: "RunCodeFrameData" = betterproto.message_field(9, group="struct")
 
 
 @dataclass(eq=False, repr=False)
@@ -1401,6 +1401,9 @@ class EditData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ReadNodesOptions(betterproto.Message):
+    ancestor_types: List["NodeType"] = betterproto.enum_field(1)
+    """Load all ancestors of these nodes."""
+
     descendant_types: List["NodeType"] = betterproto.enum_field(2)
     """Load all descendants of these types."""
 
@@ -2793,39 +2796,39 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union
 
 AnyNodeData = Union[
-    BadgeData,
     HaltData,
-    SignalData,
-    StatementData,
-    UserData,
-    FieldData,
-    RunData,
     ClientData,
-    WorkerData,
-    NotificationData,
-    TriggerData,
-    HandleData,
-    WorkerSetData,
-    BlobData,
     SessionData,
-    RecordData,
-    ViewData,
-    IssueData,
-    OrganizationData,
-    SecretData,
+    NotificationData,
     ModuleData,
+    BadgeData,
+    IssueData,
+    ViewData,
+    StatementData,
+    TriggerData,
     FileData,
     BenchData,
+    WorkerData,
     TaggingData,
+    SecretData,
+    FieldData,
+    OrganizationData,
+    RecordData,
+    RunData,
+    SignalData,
+    BlobData,
+    WorkerSetData,
+    UserData,
+    HandleData,
 ]
 AnyStructData = Union[
-    PolicyData,
-    RunErrorData,
-    ExpressionData,
-    MiniRunData,
-    LogEntryData,
     PolicyRuleData,
-    RunCodeFrameData,
-    WorkerImageData,
     DependencyData,
+    MiniRunData,
+    WorkerImageData,
+    PolicyData,
+    ExpressionData,
+    RunErrorData,
+    LogEntryData,
+    RunCodeFrameData,
 ]

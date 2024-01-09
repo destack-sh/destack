@@ -11,7 +11,7 @@ import grpclib.server
 import structlog
 
 from bench.language.const import IN_MODULE_NODE_TYPES, NodeType
-from bench.language.module import Bench, Module
+from bench.language.node import Bench, Module
 from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (
     ModuleHostBase,

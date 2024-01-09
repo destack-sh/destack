@@ -130,8 +130,9 @@ INTERP_NODE_TYPES = {NodeType.ISSUE}
 
 
 class ReadKind(ProtoStrEnum):
-    READ = "READ", 1
-    LIST = "LIST", 2
+    READ = "READ", 1  # any read action
+    LIST = "LIST", 2  # list, search, filter, etc.
+    AGGREGATE = "AGGREGATE", 3  # count, sum, group, min, etc.
 
 
 class EditKind(ProtoStrEnum):

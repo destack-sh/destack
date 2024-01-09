@@ -158,6 +158,12 @@ export interface EditData {
  */
 export interface ReadNodesOptions {
     /**
+     * Load all ancestors of these nodes.
+     *
+     * @generated from protobuf field: repeated symbolx.bench.NodeType ancestor_types = 1;
+     */
+    ancestorTypes: NodeType[];
+    /**
      * Load all descendants of these types.
      *
      * @generated from protobuf field: repeated symbolx.bench.NodeType descendant_types = 2;
@@ -1234,6 +1240,7 @@ export const EditData = new EditData$Type();
 class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
     constructor() {
         super("symbolx.bench.ReadNodesOptions", [
+            { no: 1, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 3, name: "include_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 4, name: "include_soft_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -1243,6 +1250,7 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
     }
     create(value?: PartialMessage<ReadNodesOptions>): ReadNodesOptions {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.ancestorTypes = [];
         message.descendantTypes = [];
         message.includeActive = false;
         message.includeSoftDeleted = false;
@@ -1257,6 +1265,13 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
+                case /* repeated symbolx.bench.NodeType ancestor_types */ 1:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.ancestorTypes.push(reader.int32());
+                    else
+                        message.ancestorTypes.push(reader.int32());
+                    break;
                 case /* repeated symbolx.bench.NodeType descendant_types */ 2:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
@@ -1288,6 +1303,13 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
         return message;
     }
     internalBinaryWrite(message: ReadNodesOptions, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.NodeType ancestor_types = 1; */
+        if (message.ancestorTypes.length) {
+            writer.tag(1, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.ancestorTypes.length; i++)
+                writer.int32(message.ancestorTypes[i]);
+            writer.join();
+        }
         /* repeated symbolx.bench.NodeType descendant_types = 2; */
         if (message.descendantTypes.length) {
             writer.tag(2, WireType.LengthDelimited).fork();

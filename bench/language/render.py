@@ -5,7 +5,7 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import INTERP_NODE_TYPES, NodeType
-from bench.language.module import UNSET, Node, NRel
+from bench.language.node import UNSET, Node, NRel
 from bench.language.text import Text, render_text_simple
 from bench.utils.utils import format_python, omit_empty
 

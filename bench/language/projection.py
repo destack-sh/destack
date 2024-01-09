@@ -3,7 +3,7 @@ from uuid import UUID
 
 from bench.language.const import NodeType, SortOp
 from bench.language.expression import S
-from bench.language.module import Node, ScopeNode
+from bench.language.node import Node, ScopeNode
 
 if TYPE_CHECKING:
     from bench.language.statement import IsTyped
