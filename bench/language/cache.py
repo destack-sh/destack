@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from bench.language.builtin import _auto_async_to_sync
+from bench.language.builtin import _match_session_sync
 from bench.language.module import Module
 from bench.utils.cache import redis
 
@@ -47,16 +47,16 @@ class Cache:
     def __repr__(self):
         return f"<CacheAsync {self}>"
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def get(self, key: Key) -> Optional[Value]:
         return await redis.get(f"{self.scope_key}.{key}")
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def get_many(self, keys: list[Key]) -> dict[Key, Value]:
         values = await redis.mget([f"{self.scope_key}.{key}" for key in keys])
         return {key: value for key, value in zip(keys, values) if value is not None}
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def set(self, key: Key, value: Value, expire: int = None):
         value_size = get_value_size(value)
         pipe = redis.pipeline()
@@ -64,7 +64,7 @@ class Cache:
         pipe.incrby(self.usage_key, value_size)
         await pipe.execute()
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def set_many(self, values: dict[Key, Value], expire: int = None):
         total_size = sum(get_value_size(value) for value in values.values())
         pipe = redis.pipeline()
@@ -73,7 +73,7 @@ class Cache:
         pipe.incrby(self.usage_key, total_size)
         await pipe.execute()
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def delete(self, key: Key) -> Value:
         value = await redis.get(f"{self.scope_key}.{key}")
         if value is None:

@@ -3,13 +3,13 @@ from uuid import UUID
 
 import structlog
 
+from bench.proto.mesh import MonitoredServiceBase
 from bench.proto.wire import WorkerBase, RestartWorkerRequest
-from bench.utils.monitoring import Monitored
 
 logger = structlog.get_logger(__name__)
 
 
-class Worker(Monitored, WorkerBase):
+class Worker(WorkerBase, MonitoredServiceBase):
     """
     Manages the lifecycle of the worker node's worker processes in a main sidecar process.
     During local development, this may also launch the worker node in the same process.
@@ -35,8 +35,14 @@ class Worker(Monitored, WorkerBase):
     def __repr__(self):
         return f"<WorkerHost {self}>"
 
-    async def run(self):
-        raise NotImplementedError("nocheckin: worker.run")
+    async def start_quick(self):
+        raise NotImplementedError("nocheckin: worker.start_quick")
+
+    def close(self):
+        pass
+
+    async def wait_closed(self):
+        pass
 
     async def restart_worker(
         self, restart_worker_request: "RestartWorkerRequest"

@@ -32,7 +32,7 @@ def active_session() -> "Session":
     return session
 
 
-def _auto_async_to_sync(func=None):
+def _match_session_sync(func=None):
     """Automatically convert async functions to sync if not called in async context."""
 
     def decorate(func):
@@ -42,7 +42,7 @@ def _auto_async_to_sync(func=None):
 
         @functools.wraps(func)
         def wrapped(*args, **kwargs):
-            # are we in an aysnc context?
+            # are we in an async context?
             session = _active_session.get()
             try:
                 asyncio.get_running_loop()

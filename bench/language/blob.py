@@ -10,7 +10,7 @@ import aiohttp
 import requests
 import structlog
 
-from bench.language.builtin import _auto_async_to_sync, active_session
+from bench.language.builtin import _match_session_sync, active_session
 from bench.language.const import BlobStatus, NodeType
 from bench.language.module import (
     Bench,
@@ -69,7 +69,7 @@ class Blob(Node):
                 f"{self} is too big ({self.content_length} > {BLOB_MAX_SIZE} bytes)",
             )
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def download(self) -> bytes:
         """Read the object from the remote storage."""
         get_url = await self.get_url()
@@ -85,23 +85,23 @@ class Blob(Node):
                 self._cached_bytes = content
                 return content
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def get_url(self):
         if self.status != BlobStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
         return await self.session._host.download_blob(self)
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def text(self) -> str:
         content = self._cached_bytes or await self.download()
         return content.decode()
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def lines(self) -> list[str]:
         content = self._cached_bytes or await self.download()
         return content.decode().splitlines()
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def io(self) -> typing.BinaryIO:
         """Get a file-like object for the blob."""
         return io.BytesIO(await self.download())
@@ -148,14 +148,14 @@ class Blob(Node):
         self._set_untracked("id", self.ck)
 
     @staticmethod
-    @_auto_async_to_sync
+    @_match_session_sync
     async def from_url(url: str, name: str = None, timeout: int = None) -> "Blob":
         """Upload a file to blob storage."""
         response = requests.get(url, timeout=timeout)
         return await Blob.from_requests(response, name=name)
 
     @staticmethod
-    @_auto_async_to_sync
+    @_match_session_sync
     async def from_requests(response: requests.Response, name: str = None) -> "Blob":
         """Upload a file to blob storage."""
         session = active_session()
@@ -172,7 +172,7 @@ class Blob(Node):
         return obj
 
     @staticmethod
-    @_auto_async_to_sync
+    @_match_session_sync
     async def from_file(
         file: typing.BinaryIO, name: str = None, content_type: str = None
     ) -> "Blob":
@@ -182,7 +182,7 @@ class Blob(Node):
         return await Blob.from_content(name or file.name, content_type, content)
 
     @staticmethod
-    @_auto_async_to_sync
+    @_match_session_sync
     async def from_content(
         name: str, content_type: str, content: bytes | typing.BinaryIO
     ) -> "Blob":
@@ -203,7 +203,7 @@ class Blob(Node):
         return obj
 
     @staticmethod
-    @_auto_async_to_sync
+    @_match_session_sync
     async def from_text(name: str, content: str) -> "Blob":
         """Upload a file to blob storage."""
         # append .txt if no extension

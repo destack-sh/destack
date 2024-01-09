@@ -24,13 +24,14 @@ app = typer.Typer(short_help="language state and migrations")
 TARGET_PY_DIR = "bench/proto/wire"
 TARGET_PY_FILE = TARGET_PY_DIR + ".py"
 TARGET_TS_DIR = "frontend/src/proto/wire"
-GENERATED_PROTO_FILE = "bench/proto/bench.proto"
+GENERATED_PROTO_FILE = "bench/proto/lang.proto"
 EXTRA_PROTO_FILES = "bench/proto/services.proto"
 
 
 def _generate_proto_schema() -> str:
     """Generate the .proto schema (as a string) describing the current Bench types."""
     proto = generate_proto_schema(
+        name="symbolx.bench",
         bench_types=[*BENCH_TYPES, Node],
         aliases={Node: "BaseNode"},
         unions={"SomeNode": ("node", NODE_TYPES), "SomeStruct": ("struct", STRUCT_TYPES)},
@@ -64,7 +65,7 @@ def _regen_proto_artifacts(schema_str: str) -> None:
         _shell(
             f"protoc -I . --python_betterproto_out={TARGET_PY_DIR} {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
         )
-        _shell(f"mv {TARGET_PY_DIR}/__init__.py {TARGET_PY_FILE}")
+        _shell(f"mv {TARGET_PY_DIR}/symbolx/bench/__init__.py {TARGET_PY_FILE}")
         Path(TARGET_PY_FILE).write_text(
             # append AnyNodeData/AnyStructData
             Path(TARGET_PY_FILE).read_text()
@@ -72,6 +73,7 @@ def _regen_proto_artifacts(schema_str: str) -> None:
             + f"AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_TYPES])}]\n"
             + f"AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_TYPES])}]"
         )
+        shutil.rmtree(TARGET_PY_DIR, ignore_errors=True)
         _shell(f"pre-commit run black --files {TARGET_PY_FILE}", check=False, stdout=DEVNULL)
     except Exception as e:
         # restore backup

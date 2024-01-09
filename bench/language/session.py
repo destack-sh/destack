@@ -25,7 +25,7 @@ import asgiref.sync
 import psycopg
 import structlog
 
-from bench.language.builtin import _active_session, _auto_async_to_sync
+from bench.language.builtin import _active_session, _match_session_sync
 from bench.language.const import (
     NTL,
     EditKind,
@@ -86,11 +86,6 @@ class ModuleHost(abc.ABC):
         raise NotImplementedError
 
     async def run_proxy_statement(self, statement: "Statement", inputs: dict) -> dict:
-        raise NotImplementedError
-
-    async def run_proxy_inference(
-        self, statement: "Statement", inputs: dict, timeout: float
-    ) -> dict:
         raise NotImplementedError
 
 
@@ -154,13 +149,10 @@ class Session(ScopeNode):
     A managed context for running a Bench module (in a worker).
     """
 
-    # nocheckin: prepare Session for 'global'/detached sessions
-    #   (merge Session with SessionTracer, support 'external' edits, ...)
-
     parent: Module = node_parent(4, NodeType.MODULE)
     policies: list["Policy"] | None = struct_internal(30, default=None, struct_t=StructType.POLICY)
     worker: Optional["Worker"] = struct_internal(31, array=False, references=NodeType.WORKER)
-    worker_process_id: Optional[str] = struct_internal(32, reflect=True)
+    worker_process_id: Optional[str] = struct_internal(32, default=None, reflect=True)
     trigger_type: Optional[TriggerType] = struct_internal(33, default=None, reflect=True)
     trigger_id: Optional[UUID] = struct_internal(34, default=None, reflect=True)
     opened_at: Optional[datetime] = struct_internal(35, default=None, reflect=True)
@@ -284,7 +276,7 @@ class Session(ScopeNode):
 
         self._log.debug("session.open.done")
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def close(self):
         """Closes the session *without committing*. Prevent further runs & (tracked) edits."""
         if self.closed_at is not None:
@@ -322,7 +314,7 @@ class Session(ScopeNode):
             or len(self._changed_record_ids_by_db_id) > 0
         )
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def flush_local(self):
         """Flushes local Postgres edits."""
         from bench.sql.engine import update_pg_schema, write_local_edits_to_pg
@@ -335,14 +327,14 @@ class Session(ScopeNode):
         edits = self._eat_edits(local=True)
         await write_local_edits_to_pg(self.pg_cursor, self.module, edits.local_edits)
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def flush_session(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session edits."""
 
         edits = self._eat_edits(session=True, kill_pending_runs=kill_pending_runs)
         await self.session._host.push_edits(edits.session_edits)
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def flush_logs(self) -> None:
         """Flushes session logs. This is non-transactional, so it's separate from flush_session."""
         from bench.proto import wiring
@@ -366,7 +358,7 @@ class Session(ScopeNode):
         await self._host.push_logs(logs)
         self._log.debug("session.write_logs.done", logs=len(logs))
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def commit(self):
         """Commits module edits and syncs committed local edits to OS."""
         from bench.search.engine import sync_pg_databases_to_os
@@ -425,7 +417,7 @@ class Session(ScopeNode):
             # publish local edits
             await self._host.notify_databases_changed(touched_databases_by_id.values())
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def rollback(self):
         raise NotImplementedError  # unclear what this should do
 
@@ -437,41 +429,81 @@ class Session(ScopeNode):
         """Creates a new node. Errors if the node already exists."""
         self._edit(EditKind.CREATE, node=node)
 
+    def create_many(self, *nodes: Node):
+        for node in nodes:
+            self._edit(EditKind.CREATE, node=node)
+
     def upsert(self, node: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
         self._edit(EditKind.UPSERT, node=node)
+
+    def upsert_many(self, *nodes: Node):
+        for node in nodes:
+            self._edit(EditKind.UPSERT, node=node)
 
     def update(self, node: Node, properties: list[str]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
         if node.ck not in self._created_nodes_ck:
             self._edit(EditKind.UPDATE, node=node, properties=properties)
 
+    def update_many(self, *nodes: Node, properties: list[str]):
+        for node in nodes:
+            if node.ck not in self._created_nodes_ck:
+                self._edit(EditKind.UPDATE, node=node, properties=properties)
+
     def move(self, node: Node, properties: list[str] = None):
         """Moves and updates an existing node. Can update any properties."""
         self._edit(EditKind.MOVE, node=node, properties=properties)
+
+    def move_many(self, *nodes: Node, properties: list[str] = None):
+        for node in nodes:
+            self._edit(EditKind.MOVE, node=node, properties=properties)
 
     def soft_delete(self, node: Node):
         """Deletes a node with the option to recover it for a limited time."""
         self._check_not_active(node)
         self._edit(EditKind.SOFT_DELETE, node=node)
 
+    def soft_delete_many(self, *nodes: Node):
+        for node in nodes:
+            self._check_not_active(node)
+            self._edit(EditKind.SOFT_DELETE, node=node)
+
     def restore(self, node: Node):
         """Restore a soft deleted node."""
         self._edit(EditKind.RESTORE, node=node)
+
+    def restore_many(self, *nodes: Node):
+        for node in nodes:
+            self._edit(EditKind.RESTORE, node=node)
 
     def archive(self, node: Node):
         """Marks a node as archived, so it will be hidden by default."""
         self._check_not_active(node)
         self._edit(EditKind.ARCHIVE, node=node)
 
+    def archive_many(self, *nodes: Node):
+        for node in nodes:
+            self._check_not_active(node)
+            self._edit(EditKind.ARCHIVE, node=node)
+
     def unarchive(self, node: Node):
         """Re-activate a node from the archive in its original place."""
         self._edit(EditKind.UNARCHIVE, node=node)
+
+    def unarchive_many(self, *nodes: Node):
+        for node in nodes:
+            self._edit(EditKind.UNARCHIVE, node=node)
 
     def delete(self, node: Node):
         """Irreversibly deletes a node."""
         self._check_not_active(node)
         self._edit(EditKind.DELETE, node=node)
+
+    def delete_many(self, *nodes: Node):
+        for node in nodes:
+            self._check_not_active(node)
+            self._edit(EditKind.DELETE, node=node)
 
     def _check_not_active(self, node: Node):
         """Checks if the node or any of its ancestors are active."""

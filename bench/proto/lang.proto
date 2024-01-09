@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package symbolx.bench;
+
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
 
@@ -1105,48 +1107,49 @@ message WorkerSetData {
   int64 ready_replicas = 37;
   google.protobuf.Timestamp last_active_at = 38;
   google.protobuf.Timestamp last_bumped_at = 39;
+  string access_token = 40;
 }
 
 message SomeNodeData {
   oneof node {
-    TaggingData tagging = 1;
-    BenchData bench = 2;
-    FieldData field = 3;
-    RunData run = 4;
-    FileData file = 5;
-    BlobData blob = 6;
-    StatementData statement = 7;
-    ViewData view = 8;
-    HaltData halt = 9;
-    IssueData issue = 10;
-    TriggerData trigger = 11;
-    SecretData secret = 12;
-    WorkerSetData worker_set = 13;
-    SignalData signal = 14;
-    UserData user = 15;
-    SessionData session = 16;
-    ClientData client = 17;
-    NotificationData notification = 18;
-    HandleData handle = 19;
-    RecordData record = 20;
-    WorkerData worker = 21;
-    BadgeData badge = 22;
-    OrganizationData organization = 23;
-    ModuleData module = 24;
+    BenchData bench = 1;
+    ClientData client = 2;
+    OrganizationData organization = 3;
+    ViewData view = 4;
+    TriggerData trigger = 5;
+    BadgeData badge = 6;
+    SignalData signal = 7;
+    FileData file = 8;
+    NotificationData notification = 9;
+    StatementData statement = 10;
+    RunData run = 11;
+    RecordData record = 12;
+    TaggingData tagging = 13;
+    SecretData secret = 14;
+    IssueData issue = 15;
+    ModuleData module = 16;
+    SessionData session = 17;
+    HandleData handle = 18;
+    HaltData halt = 19;
+    FieldData field = 20;
+    UserData user = 21;
+    BlobData blob = 22;
+    WorkerSetData worker_set = 23;
+    WorkerData worker = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    PolicyRuleData policy_rule = 1;
-    RunErrorData run_error = 2;
-    RunCodeFrameData run_code_frame = 3;
-    MiniRunData mini_run = 4;
-    WorkerImageData worker_image = 5;
-    DependencyData dependency = 6;
-    PolicyData policy = 7;
-    LogEntryData log_entry = 8;
-    ExpressionData expression = 9;
+    MiniRunData mini_run = 1;
+    PolicyData policy = 2;
+    RunErrorData run_error = 3;
+    LogEntryData log_entry = 4;
+    ExpressionData expression = 5;
+    PolicyRuleData policy_rule = 6;
+    RunCodeFrameData run_code_frame = 7;
+    DependencyData dependency = 8;
+    WorkerImageData worker_image = 9;
   };
 }
 

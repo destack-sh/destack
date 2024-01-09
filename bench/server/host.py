@@ -4,7 +4,8 @@ from uuid import UUID
 import grpclib
 import structlog
 
-from bench.proto.discovery import ExtendedServiceBase
+from bench.language.module import Bench, Module
+from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (
     ModuleHostBase,
     ReadNodesRequest,
@@ -20,10 +21,10 @@ from bench.proto.wire import (
     PasteNodesResponse,
     SnapshotModuleRequest,
     SnapshotModuleResponse,
-    UploadBlobRequest,
-    UploadBlobResponse,
-    DownloadBlobRequest,
-    DownloadBlobResponse,
+    UploadBlobsRequest,
+    UploadBlobsResponse,
+    DownloadBlobsRequest,
+    DownloadBlobsResponse,
     SearchLogsRequest,
     SearchLogsResponse,
     WatchLogsRequest,
@@ -37,28 +38,37 @@ from bench.proto.wire import (
     RunProxyStatementResponse,
     PushEditsResponse,
 )
+from bench.server.utils import global_session
 from bench.utils.monitoring import Monitored
 
 logger = structlog.get_logger(__name__)
 
 
-class ModuleHostMultiplexer(ExtendedServiceBase, ModuleHostBase):
+class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
     """
-    Multiplexes requests per module to the appropriate ModuleHost using gRPC metadata.
-    'bench-id' and 'module-id' are required. Hosts are loaded for all active modules on startup,
-    and new ones 'ping' the multiplexer to add themselves.
+    Multiplexes requests per module to a ModuleHost using gRPC metadata ('bench-id' and 'module-id').
+    Hosts are loaded for all active modules; new ones 'ping' the multiplexer to add themselves.
     """
 
     def __init__(self):
         self._hosts_by_module_id: dict[UUID, ModuleHost] = {}
 
+    def __str__(self):
+        return "0"
+
+    def __repr__(self):
+        return f"<ModuleHostMultiplexer {self}>"
+
     async def start_quick(self) -> None:
-        raise NotImplementedError("nocheckin: ModuleHostMultiplexer.start_quick")
+        async with global_session():
+            # benches = await Bench.tolist()
+            pass
+        # nocheckin: ModuleHostMultiplexer.start_quick
 
     # nocheckin: "proxy" ModuleHost / start and connect relevant Bench module hosts
 
 
-class ModuleHost(Monitored, ModuleHostBase):
+class ModuleHost(ModuleHostBase, Monitored):
     """
     Host for an (active) Bench module. Manages basically everything that's not actually running it.
     Frontend and worker connects to this to do anything with the module.
@@ -67,6 +77,8 @@ class ModuleHost(Monitored, ModuleHostBase):
     def __init__(self, bench_id: UUID, module_id: UUID):
         self.bench_id = bench_id
         self.module_id = module_id
+        self.bench: Bench | None = None
+        self.module: Module | None = None
 
     async def start_quick(self) -> None:
         raise NotImplementedError("nocheckin: ModuleHost.start_quick")
@@ -88,15 +100,15 @@ class ModuleHost(Monitored, ModuleHostBase):
     ) -> "CommitEditsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def push_edits(self, push_edits_request: "PushEditsRequest") -> "PushEditsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def watch_edits(
         self, watch_edits_request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def snapshot(
@@ -108,12 +120,14 @@ class ModuleHost(Monitored, ModuleHostBase):
     # Blobs
     #
 
-    async def upload_blob(self, upload_blob_request: "UploadBlobRequest") -> "UploadBlobResponse":
+    async def upload_blobs(
+        self, upload_blobs_request: "UploadBlobsRequest"
+    ) -> "UploadBlobsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def download_blob(
-        self, download_blob_request: "DownloadBlobRequest"
-    ) -> "DownloadBlobResponse":
+    async def download_blobs(
+        self, download_blobs_request: "DownloadBlobsRequest"
+    ) -> "DownloadBlobsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     #

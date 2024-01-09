@@ -537,6 +537,8 @@ uvicorn==0.23.2
     #   -r requirements.in
 virtualenv==20.24.4
     # via pre-commit
+watchdog==3.0.0
+    # via -r requirements-dev.in
 websocket-client==1.6.2
     # via
     #   -c requirements.txt
