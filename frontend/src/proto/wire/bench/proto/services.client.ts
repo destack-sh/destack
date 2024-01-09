@@ -55,8 +55,8 @@ import type { LogoutUserRequest } from "./services";
 import type { LoginUserResponse } from "./services";
 import type { LoginUserRequest } from "./services";
 import { stackIntercept } from "@protobuf-ts/runtime-rpc";
-import type { CreateUserResponse } from "./services";
-import type { CreateUserRequest } from "./services";
+import type { SignupUserResponse } from "./services";
+import type { SignupUserRequest } from "./services";
 import type { UnaryCall } from "@protobuf-ts/runtime-rpc";
 import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
 /**
@@ -70,9 +70,9 @@ export interface IGlobalSupervisorClient {
     /**
      * Create user account.
      *
-     * @generated from protobuf rpc: CreateUser(symbolx.bench.CreateUserRequest) returns (symbolx.bench.CreateUserResponse);
+     * @generated from protobuf rpc: SignupUser(symbolx.bench.SignupUserRequest) returns (symbolx.bench.SignupUserResponse);
      */
-    createUser(input: CreateUserRequest, options?: RpcOptions): UnaryCall<CreateUserRequest, CreateUserResponse>;
+    signupUser(input: SignupUserRequest, options?: RpcOptions): UnaryCall<SignupUserRequest, SignupUserResponse>;
     /**
      * Login user account.
      *
@@ -144,11 +144,11 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
     /**
      * Create user account.
      *
-     * @generated from protobuf rpc: CreateUser(symbolx.bench.CreateUserRequest) returns (symbolx.bench.CreateUserResponse);
+     * @generated from protobuf rpc: SignupUser(symbolx.bench.SignupUserRequest) returns (symbolx.bench.SignupUserResponse);
      */
-    createUser(input: CreateUserRequest, options?: RpcOptions): UnaryCall<CreateUserRequest, CreateUserResponse> {
+    signupUser(input: SignupUserRequest, options?: RpcOptions): UnaryCall<SignupUserRequest, SignupUserResponse> {
         const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CreateUserRequest, CreateUserResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<SignupUserRequest, SignupUserResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * Login user account.
