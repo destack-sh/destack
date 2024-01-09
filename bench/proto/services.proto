@@ -149,6 +149,17 @@ message SearchNodesResponse {
   int64 edit_marker = 4;
 }
 
+message AggregateNodesRequest {
+  ExpressionData aggregation = 1;
+  ExpressionData filter = 2;
+  repeated ExpressionData sort = 3;
+  int32 limit = 4;
+  string after = 5;
+}
+message AggregateNodesResponse {
+  AggregationData aggregation = 1;
+}
+
 message CommitEditsRequest {
   repeated EditData edits = 1;
   // 'bypassed' edits for workers passing along local edits
@@ -202,6 +213,8 @@ service GlobalSupervisor {
   rpc ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
   // Search global nodes.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  // Aggregate global nodes.
+  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
   // Commits edits to global nodes.
   rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
   // Subscribes to relevant global edits.
@@ -308,10 +321,12 @@ service ModuleHost {
   // Module IO
   //
 
-  // Reads the entire module tree.
+  // Reads local or global nodes.
   rpc ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
-  // Searches out-of-line nodes in the module.
+  // Searches nodes using filters.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  // Aggregate nodes into statistics.
+  rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
   // Paste specific inline nodes (and only those nodes) from this or another module.
   rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
   // Commits a set of edits to the module. Optionally forward locally bypassed edits.

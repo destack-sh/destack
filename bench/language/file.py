@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from bench.language import Policy, Statement
 
 
-@node(NodeType.FILE, passthrough=(("statements", _Passthrough.Full),))
+@node(NodeType.FILE, passthrough=(("statements", _Passthrough.Scope),))
 class File(ScopeNode, HasTags):
     """
     Files are how a Bench organizes statements. Files can also be folders to other files.

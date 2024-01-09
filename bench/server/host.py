@@ -45,6 +45,8 @@ from bench.proto.wire import (
     RunProxyStatementResponse,
     PushEditsResponse,
     ReadNodesOptions,
+    AggregateNodesRequest,
+    AggregateNodesResponse,
 )
 from bench.server.utils import global_session, validate_bench_data_many, get_s3_client
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
@@ -71,7 +73,7 @@ class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
 
     async def start_quick(self) -> None:
         async with global_session():
-            benches = await Bench.tolist()
+            benches: list[Bench] = await Bench.tolist()
             await asyncio.gather(self._start_host(bench.id, bench.head_id) for bench in benches)
 
     def close(self) -> None:
@@ -149,6 +151,11 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
         self, search_nodes_request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    async def aggregate_nodes(
+        self, aggregate_nodes_request: "AggregateNodesRequest"
+    ) -> "AggregateNodesResponse":
+        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def commit_edits(
         self, commit_edits_request: "CommitEditsRequest"

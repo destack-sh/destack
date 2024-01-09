@@ -44,6 +44,8 @@ import type { WatchEditsRequest } from "./services";
 import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
 import type { CommitEditsResponse } from "./services";
 import type { CommitEditsRequest } from "./services";
+import type { AggregateNodesResponse } from "./services";
+import type { AggregateNodesRequest } from "./services";
 import type { SearchNodesResponse } from "./services";
 import type { SearchNodesRequest } from "./services";
 import type { ReadNodesResponse } from "./services";
@@ -103,6 +105,12 @@ export interface IGlobalSupervisorClient {
      * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
      */
     searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
+    /**
+     * Aggregate global nodes.
+     *
+     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
+     */
+    aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
      * Commits edits to global nodes.
      *
@@ -196,12 +204,21 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
+     * Aggregate global nodes.
+     *
+     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
+     */
+    aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse> {
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
+        return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
      * Commits edits to global nodes.
      *
      * @generated from protobuf rpc: CommitEdits(symbolx.bench.CommitEditsRequest) returns (symbolx.bench.CommitEditsResponse);
      */
     commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
+        const method = this.methods[7], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -210,7 +227,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
-        const method = this.methods[7], opt = this._transport.mergeOptions(options);
+        const method = this.methods[8], opt = this._transport.mergeOptions(options);
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
@@ -219,7 +236,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: RestartWorkerSet(symbolx.bench.RestartWorkerSetRequest) returns (symbolx.bench.PingWorkerSetResponse);
      */
     restartWorkerSet(input: RestartWorkerSetRequest, options?: RpcOptions): UnaryCall<RestartWorkerSetRequest, PingWorkerSetResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        const method = this.methods[9], opt = this._transport.mergeOptions(options);
         return stackIntercept<RestartWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -228,7 +245,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
      * @generated from protobuf rpc: PingWorkerSet(symbolx.bench.PingWorkerSetRequest) returns (symbolx.bench.PingWorkerSetResponse);
      */
     pingWorkerSet(input: PingWorkerSetRequest, options?: RpcOptions): UnaryCall<PingWorkerSetRequest, PingWorkerSetResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
+        const method = this.methods[10], opt = this._transport.mergeOptions(options);
         return stackIntercept<PingWorkerSetRequest, PingWorkerSetResponse>("unary", this._transport, method, opt, input);
     }
 }
@@ -257,6 +274,12 @@ export interface IModuleHostClient {
      * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
      */
     searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
+    /**
+     * Aggregate module nodes.
+     *
+     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
+     */
+    aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
      * Paste specific inline nodes (and only those nodes) from this or another module.
      *
@@ -385,12 +408,21 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
+     * Aggregate module nodes.
+     *
+     * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
+     */
+    aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse> {
+        const method = this.methods[2], opt = this._transport.mergeOptions(options);
+        return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
      * Paste specific inline nodes (and only those nodes) from this or another module.
      *
      * @generated from protobuf rpc: PasteNodes(symbolx.bench.PasteNodesRequest) returns (symbolx.bench.PasteNodesResponse);
      */
     pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse> {
-        const method = this.methods[2], opt = this._transport.mergeOptions(options);
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
         return stackIntercept<PasteNodesRequest, PasteNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -399,7 +431,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: CommitEdits(symbolx.bench.CommitEditsRequest) returns (symbolx.bench.CommitEditsResponse);
      */
     commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -408,7 +440,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: PushEdits(symbolx.bench.PushEditsRequest) returns (symbolx.bench.PushEditsResponse);
      */
     pushEdits(input: PushEditsRequest, options?: RpcOptions): UnaryCall<PushEditsRequest, PushEditsResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        const method = this.methods[5], opt = this._transport.mergeOptions(options);
         return stackIntercept<PushEditsRequest, PushEditsResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -417,7 +449,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
-        const method = this.methods[5], opt = this._transport.mergeOptions(options);
+        const method = this.methods[6], opt = this._transport.mergeOptions(options);
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
@@ -426,7 +458,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: Snapshot(symbolx.bench.SnapshotModuleRequest) returns (symbolx.bench.SnapshotModuleResponse);
      */
     snapshot(input: SnapshotModuleRequest, options?: RpcOptions): UnaryCall<SnapshotModuleRequest, SnapshotModuleResponse> {
-        const method = this.methods[6], opt = this._transport.mergeOptions(options);
+        const method = this.methods[7], opt = this._transport.mergeOptions(options);
         return stackIntercept<SnapshotModuleRequest, SnapshotModuleResponse>("unary", this._transport, method, opt, input);
     }
     // 
@@ -439,7 +471,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: UploadBlobs(symbolx.bench.UploadBlobsRequest) returns (symbolx.bench.UploadBlobsResponse);
      */
     uploadBlobs(input: UploadBlobsRequest, options?: RpcOptions): UnaryCall<UploadBlobsRequest, UploadBlobsResponse> {
-        const method = this.methods[7], opt = this._transport.mergeOptions(options);
+        const method = this.methods[8], opt = this._transport.mergeOptions(options);
         return stackIntercept<UploadBlobsRequest, UploadBlobsResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -448,7 +480,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: DownloadBlobs(symbolx.bench.DownloadBlobsRequest) returns (symbolx.bench.DownloadBlobsResponse);
      */
     downloadBlobs(input: DownloadBlobsRequest, options?: RpcOptions): UnaryCall<DownloadBlobsRequest, DownloadBlobsResponse> {
-        const method = this.methods[8], opt = this._transport.mergeOptions(options);
+        const method = this.methods[9], opt = this._transport.mergeOptions(options);
         return stackIntercept<DownloadBlobsRequest, DownloadBlobsResponse>("unary", this._transport, method, opt, input);
     }
     // 
@@ -461,7 +493,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: SearchLogs(symbolx.bench.SearchLogsRequest) returns (symbolx.bench.SearchLogsResponse);
      */
     searchLogs(input: SearchLogsRequest, options?: RpcOptions): UnaryCall<SearchLogsRequest, SearchLogsResponse> {
-        const method = this.methods[9], opt = this._transport.mergeOptions(options);
+        const method = this.methods[10], opt = this._transport.mergeOptions(options);
         return stackIntercept<SearchLogsRequest, SearchLogsResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -470,7 +502,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: WatchLogs(symbolx.bench.WatchLogsRequest) returns (stream symbolx.bench.WatchLogsResponse);
      */
     watchLogs(input: WatchLogsRequest, options?: RpcOptions): ServerStreamingCall<WatchLogsRequest, WatchLogsResponse> {
-        const method = this.methods[10], opt = this._transport.mergeOptions(options);
+        const method = this.methods[11], opt = this._transport.mergeOptions(options);
         return stackIntercept<WatchLogsRequest, WatchLogsResponse>("serverStreaming", this._transport, method, opt, input);
     }
     /**
@@ -479,7 +511,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: PushWorkerLogs(symbolx.bench.PushWorkerLogsRequest) returns (google.protobuf.Empty);
      */
     pushWorkerLogs(input: PushWorkerLogsRequest, options?: RpcOptions): UnaryCall<PushWorkerLogsRequest, Empty> {
-        const method = this.methods[11], opt = this._transport.mergeOptions(options);
+        const method = this.methods[12], opt = this._transport.mergeOptions(options);
         return stackIntercept<PushWorkerLogsRequest, Empty>("unary", this._transport, method, opt, input);
     }
     // 
@@ -492,7 +524,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: StartRun(symbolx.bench.StartRunRequest) returns (symbolx.bench.StartRunResponse);
      */
     startRun(input: StartRunRequest, options?: RpcOptions): UnaryCall<StartRunRequest, StartRunResponse> {
-        const method = this.methods[12], opt = this._transport.mergeOptions(options);
+        const method = this.methods[13], opt = this._transport.mergeOptions(options);
         return stackIntercept<StartRunRequest, StartRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -501,7 +533,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: KillRun(symbolx.bench.KillRunRequest) returns (symbolx.bench.KillRunResponse);
      */
     killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse> {
-        const method = this.methods[13], opt = this._transport.mergeOptions(options);
+        const method = this.methods[14], opt = this._transport.mergeOptions(options);
         return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
@@ -510,7 +542,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
      * @generated from protobuf rpc: RunProxyStatement(symbolx.bench.RunProxyStatementRequest) returns (symbolx.bench.RunProxyStatementResponse);
      */
     runProxyStatement(input: RunProxyStatementRequest, options?: RpcOptions): UnaryCall<RunProxyStatementRequest, RunProxyStatementResponse> {
-        const method = this.methods[14], opt = this._transport.mergeOptions(options);
+        const method = this.methods[15], opt = this._transport.mergeOptions(options);
         return stackIntercept<RunProxyStatementRequest, RunProxyStatementResponse>("unary", this._transport, method, opt, input);
     }
 }
