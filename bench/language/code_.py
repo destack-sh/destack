@@ -293,7 +293,7 @@ class HasCode(Node):
             inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer=True)
             try:
                 logger.debug("code.proxy", code=self, inputs=inputs_raw)
-                outputs = await self.session._host.run_proxy_statement(self, inputs_raw)
+                outputs = await self.session.host.run_proxy_statement(self, inputs_raw)
                 outputs = unpack_value(outputs, self, is_output=True)
                 return TypedDict(outputs, self, is_output=True)
             except BaseException as e:

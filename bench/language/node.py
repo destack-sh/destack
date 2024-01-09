@@ -58,7 +58,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, SomeNodeData, AnyNodeData
+from bench.proto.wire import EditData, SomeNodeData, AnyNodeData, ModuleHostStub
 from bench.sql.core import CascadeAction, ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -1531,22 +1531,6 @@ class NodeQuery(typing.Generic[NodeT]):
             # cache is not copied on purpose as it shouldn't propagate
         )
 
-    async def _fetch(self) -> list[NodeT]:
-        from bench.language.builtin import active_session
-        from bench.proto import wiring
-
-        session = active_session()
-        fetched = await self._do_fetch()
-        nodes: list[NodeT] = []
-        for node_data in fetched:
-            node = wiring.unpack_node(node_data, parent=None, session=session)
-            node._activate_self(session)
-            nodes.append(node)
-        return nodes
-
-    async def _do_fetch(self) -> list[AnyNodeData]:
-        raise NotImplementedError("nocheckin: NodeQuery._do_fetch")
-
     async def __aiter__(self):
         if self._cached_nodes is None:
             return iter(await self._fetch())
@@ -1645,15 +1629,64 @@ class NodeQuery(typing.Generic[NodeT]):
         else:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
+    async def _fetch(self) -> list[NodeT]:
+        from bench.language.builtin import active_session
+        from bench.proto import wiring
+
+        session = active_session()
+        fetched = await self._do_fetch(session.host)
+        nodes: list[NodeT] = []
+        for node_data in fetched:
+            node = wiring.unpack_node(node_data, parent=None, session=session)
+            node._activate_self(session)
+            nodes.append(node)
+        return nodes
+
+    async def _do_fetch(self, host: ModuleHostStub) -> list[AnyNodeData]:
+        from bench.proto import wiring, wire
+
+        request = wire.SearchNodesRequest(
+            node_type=wiring.pack_enum(NodeType, self._node_type),
+            filter=wiring.pack_struct_maybe(self._filter),
+            sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
+            limit=self._first,
+        )
+        response = await host.search_nodes(request)
+        return [wiring.unwrap_some_node(n) for n in response.nodes]
+
     @_auto_async_to_sync
     async def count(self, filter: "Expression" = None, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
-        raise NotImplementedError
+        from bench.language.expression import coerce_conditional
+        from bench.language.builtin import active_session
+        from bench.proto import wiring, wire
+
+        filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
+        request = wire.AggregateNodesRequest(
+            node_type=wiring.pack_enum(NodeType, self._node_type),
+            filter=wiring.pack_struct_maybe(filter),
+            sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
+            limit=self._first,
+            aggregation=wire.ExpressionData(op=wire.ExpressionOp.COUNT),
+        )
+        aggregation_data = await active_session()._host.aggregate_nodes(request)
+        return int(aggregation_data.aggregation.scalar)
 
     @_auto_async_to_sync
     async def exists(self, filter: "Expression" = None, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
-        raise NotImplementedError
+        from bench.language.expression import coerce_conditional
+        from bench.language.builtin import active_session
+        from bench.proto import wiring, wire
+
+        filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
+        request = wire.AggregateNodesRequest(
+            node_type=wiring.pack_enum(NodeType, self._node_type),
+            filter=wiring.pack_struct_maybe(filter),
+            aggregation=wire.ExpressionData(op=wire.ExpressionOp.EXISTS),
+        )
+        aggregation_data = await active_session()._host.aggregate_nodes(request)
+        return aggregation_data.aggregation.exists
 
 
 class _NodeExpressionBase:

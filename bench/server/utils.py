@@ -69,14 +69,21 @@ async def check_authenticated(metadata: RpcMetadata) -> Client | Worker:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "wrong access token")
         return worker
     else:
-        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "unexpected client kind")
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "unexpected client kind")
 
 
 async def check_authenticated_client(metadata: RpcMetadata) -> Client:
     client = await check_authenticated(metadata)
     if not isinstance(client, Client):
-        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "expected user client")
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "expected user client")
     return client
+
+
+async def check_authenticated_worker(metadata: RpcMetadata) -> Worker:
+    worker = await check_authenticated(metadata)
+    if not isinstance(worker, Worker):
+        raise GRPCError(GRPCStatus.UNAUTHENTICATED, "expected worker client")
+    return worker
 
 
 @asynccontextmanager

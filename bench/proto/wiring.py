@@ -187,6 +187,12 @@ def pack_struct(struct: Struct) -> AnyStructData:
         raise ValueError(f"could not pack {struct.metatype.name}: {struct!r}") from e
 
 
+def pack_struct_maybe(struct: Struct | None) -> AnyStructData | None:
+    if struct is None:
+        return None
+    return pack_struct(struct)
+
+
 def unpack_struct(struct_data: AnyStructData) -> Struct:
     """Unpack a struct and any contained structs."""
     struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[StructType(struct_data.metatype.name)]
@@ -202,8 +208,20 @@ def unpack_struct(struct_data: AnyStructData) -> Struct:
         raise ValueError(f"could not unpack {struct_data.metatype.name}: {struct_data!r}") from e
 
 
+def unpack_struct_maybe(struct_data: AnyStructData | None) -> Struct | None:
+    if struct_data is None:
+        return None
+    return unpack_struct(struct_data)
+
+
 def pack_node(node: Node) -> AnyNodeData:
     return pack_struct(node)
+
+
+def pack_node_maybe(node: Node | None) -> AnyNodeData | None:
+    if node is None:
+        return None
+    return pack_node(node)
 
 
 def unpack_node(node_data: AnyNodeData, parent: Node | None, session: Session | None) -> Node:

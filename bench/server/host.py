@@ -48,7 +48,12 @@ from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
 )
-from bench.server.utils import global_session, validate_bench_data_many, get_s3_client
+from bench.server.utils import (
+    global_session,
+    validate_bench_data_many,
+    get_s3_client,
+    check_authenticated_worker,
+)
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 from bench.utils.func import to_uuid
 
@@ -163,6 +168,7 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def push_edits(self, push_edits_request: "PushEditsRequest") -> "PushEditsResponse":
+        _ = await check_authenticated_worker(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
@@ -238,6 +244,7 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
     async def push_worker_logs(
         self, push_worker_logs_request: "PushWorkerLogsRequest"
     ) -> "PushWorkerLogsRequest":
+        _ = await check_authenticated_worker(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
@@ -253,4 +260,5 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
     async def run_proxy_statement(
         self, run_proxy_statement_request: "RunProxyStatementRequest"
     ) -> "RunProxyStatementResponse":
+        _ = await check_authenticated_worker(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

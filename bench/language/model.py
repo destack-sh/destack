@@ -122,7 +122,7 @@ class HasModel(HasFields, Node):
             self.session._run_enter(self, is_async=True, inputs=inputs)
             timeout = timeout if timeout is not None else self.session.inference_timeout
             try:
-                outputs = await self.session._host.run_proxy_inference(self, inputs_raw, timeout)
+                outputs = await self.session.host.run_proxy_inference(self, inputs_raw, timeout)
                 outputs = unpack_value(outputs, self, is_output=True)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
                 outputs = TypedDict(outputs, self, is_output=True)

@@ -67,7 +67,7 @@ message ReadNodesOptions {
   // Load all descendants of these types.
   repeated NodeType descendant_types = 2;
   // Any regular nodes (not deleted, not archived).
-  bool include_active = 3;
+  bool exclude_active = 3;
   // Any soft-deleted nodes.
   bool include_soft_deleted = 4;
   // Any archived nodes.
@@ -150,11 +150,13 @@ message SearchNodesResponse {
 }
 
 message AggregateNodesRequest {
-  ExpressionData aggregation = 1;
-  ExpressionData filter = 2;
-  repeated ExpressionData sort = 3;
-  int32 limit = 4;
-  string after = 5;
+  NodeType node_type = 1;
+  NodePointer parent = 2;
+  ExpressionData filter = 3;
+  repeated ExpressionData sort = 4;
+  int32 limit = 5;
+  string after = 6;
+  ExpressionData aggregation = 7;
 }
 message AggregateNodesResponse {
   AggregationData aggregation = 1;
