@@ -43,7 +43,7 @@ class ProtoSchema(ProtoThing):
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
-        source = 'syntax = "proto3";\n\n'
+        source = f'syntax = "proto3";\n\npackage {self.name};\n\n'
         for import_ in self.imports:
             source += f'import "{import_}";\n'
         source += "\n"

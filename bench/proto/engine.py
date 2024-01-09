@@ -126,6 +126,7 @@ def bench_t_to_proto_t(
 
 
 def generate_proto_schema(
+    name: str,
     bench_types: Collection[type[Union["Node", "Struct", enum.Enum]]],
     aliases: dict[type[Union["Node", "Struct", enum.Enum]], str],
     unions: dict[str, tuple[str, Collection[type[Union["Node", "Struct", enum.Enum]]]]],
@@ -176,4 +177,4 @@ def generate_proto_schema(
             if isinstance(proto_type, Message):
                 proto_type.name += message_postfix
 
-    return ProtoSchema.from_types("bench", proto_types)
+    return ProtoSchema.from_types(name, proto_types)

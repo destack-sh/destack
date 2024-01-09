@@ -8,7 +8,7 @@ import psycopg
 import structlog
 from psycopg import sql
 
-from bench.language.builtin import _auto_async_to_sync
+from bench.language.builtin import _match_session_sync
 from bench.language.const import (
     ConditionalOp,
     NodeType,
@@ -318,7 +318,7 @@ class RecordQuery:
             return iter(await self._fetch())
         return iter(self._cached_records)
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def tolist(self) -> list[Record]:
         if self._cached_records is None:
             return await self._fetch()
@@ -340,7 +340,7 @@ class RecordQuery:
         copy._engine = engine
         return copy
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def get(self, query: Expression = None, **kwargs) -> Record:
         """Returns the unique result matching the query (errors otherwise)."""
         query = coerce_conditional(self._database, query, kwargs)
@@ -411,7 +411,7 @@ class RecordQuery:
         else:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def count(self, query: Expression = None, *, _no_flush: bool = False, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_count
@@ -428,7 +428,7 @@ class RecordQuery:
             cur=await self._database._get_pg_cursor(), table=self._database._table, where=where
         )
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def exists(self, query: Expression = None, *, _no_flush: bool = False, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_exists
@@ -452,7 +452,7 @@ class RecordQuery:
             cur=await self._database._get_pg_cursor(), table=self._database._table, where=where
         )
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def update(self, **value) -> int:
         """Updates all results with the given values."""
         from bench.language.packer import check_type, pack_value
@@ -489,7 +489,7 @@ class RecordQuery:
         session._records_changed(self._database, updated_records_ids)  # mark for OS sync
         return len(updated_rows)
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def delete(self) -> int:
         """Deletes all results."""
         from bench.sql.engine import compile_pg_conditional, pg_delete
@@ -650,7 +650,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
                 self._parent._local_root_tree.remove(node)
         node.parent = None
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def clear(self, _delete: bool = True, _trigger: _NC = _NC.Tach) -> None:
         if _delete:
             await RecordQuery.filter(self).delete()

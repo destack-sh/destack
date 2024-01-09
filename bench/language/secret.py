@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional
 
-from bench.language.builtin import _auto_async_to_sync
+from bench.language.builtin import _match_session_sync
 from bench.language.const import NodeType
 from bench.language.module import Bench, Node, node, node_parent, struct_internal, struct_property
 from bench.language.value import HasValue
@@ -33,7 +33,7 @@ class Secret(HasValue):
     def __repr__(self):
         return f"<Secret {self}>"
 
-    @_auto_async_to_sync
+    @_match_session_sync
     async def reveal(self) -> Any:
         if self.value is not None:
             return self.value

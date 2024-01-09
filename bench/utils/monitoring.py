@@ -3,7 +3,11 @@ import asyncio
 import os
 import sys
 
+import structlog
 import uvicorn
+
+
+logger = structlog.get_logger(__name__)
 
 
 class Monitored(abc.ABC):
@@ -76,14 +80,16 @@ async def restart_on_file_changes(on_restart: callable = None):
             if event.is_directory:
                 return
             if event.src_path.endswith(".py"):
-                print(f"{event.src_path} changed, reloading...")
+                logger.info("watcher.reload", path=event.src_path)
                 if on_restart:
                     on_restart()
                 os.execv(sys.executable, [sys.executable] + sys.argv)
 
+    dir = "."
     observer = Observer()
-    observer.schedule(Handler(), ".", recursive=True)
+    observer.schedule(Handler(), dir, recursive=True)
     observer.start()
+    logger.info("watcher.listen", dir=dir)
 
     try:
         while True:

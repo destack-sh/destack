@@ -4,7 +4,9 @@ All the services and any additional stuff not auto-generated in bench.proto.
 
 syntax = "proto3";
 
-import "bench/proto/bench.proto";
+package symbolx.bench;
+
+import "bench/proto/lang.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/struct.proto";
@@ -18,9 +20,25 @@ message NodePointer {
   }
 }
 
+enum ClientKind {
+  CLIENT_KIND_UNSPECIFIED = 0;
+  CLIENT_KIND_USER = 1;
+  CLIENT_KIND_WORKER = 2;
+}
+
 message ClientOrigin {
-  string client_id = 1;
-  string client_nonce = 2;
+  ClientKind kind = 1;
+  string id = 2;
+  string nonce = 3;
+}
+
+message RpcMetadata {
+  ClientKind client_kind = 1;
+  string client_id = 2;
+  string client_nonce = 3;
+  string access_token = 4;
+  string bench_id = 5;
+  string module_id = 6;
 }
 
 // NOTE: we don't generate EditData yet because we don't have nodes as 'full' inline properties
@@ -177,28 +195,6 @@ message GetLogsResponse {
   repeated LogEntryData logs = 1;
 }
 
-message UploadBlobRequest {
-  BlobData blob = 1;
-}
-message UploadBlobResponse {
-  string post_url = 1;
-  google.protobuf.Timestamp expires_at = 2;
-}
-
-message DownloadBlobRequest {
-  BlobData blob = 1;
-}
-message DownloadBlobResponse {
-  string get_url = 1;
-  google.protobuf.Timestamp expires_at = 2;
-}
-
-message RevealSecretRequest {
-  SecretData secret = 1;
-}
-message RevealSecretResponse {
-  SecretData secret = 1;
-}
 
 message PasteNodesRequest {
   string source_module_id = 1;
@@ -221,11 +217,23 @@ message SnapshotModuleResponse {
   string snapshot_project_version_id = 1;
 }
 
-message PushWorkerLogsRequest {
-  repeated LogEntryData logs = 1;
+
+message UploadBlobsRequest {
+  repeated BlobData blobs = 1;
 }
-message PushWorkerLogsResponse {
+message UploadBlobsResponse {
+  repeated string post_urls = 1;
+  google.protobuf.Timestamp expires_at = 2;
 }
+
+message DownloadBlobsRequest {
+  repeated BlobData blobs = 1;
+}
+message DownloadBlobsResponse {
+  repeated string get_urls = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
 
 message SearchLogsRequest {
   ExpressionData filter = 1;
@@ -243,6 +251,12 @@ message WatchLogsRequest {
 }
 message WatchLogsResponse {
   repeated LogEntryData logs = 1;
+}
+
+message PushWorkerLogsRequest {
+  repeated LogEntryData logs = 1;
+}
+message PushWorkerLogsResponse {
 }
 
 message RunProxyStatementRequest {
@@ -272,14 +286,14 @@ service ModuleHost {
   rpc ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
   // Searches out-of-line nodes in the module.
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
+  // Paste specific inline nodes (and only those nodes) from this or another module.
+  rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
   // Commits a set of edits to the module. Optionally forward locally bypassed edits.
   rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
   // Pushes locally bypassed edits to the module subscribers.
   rpc PushEdits(PushEditsRequest) returns (PushEditsResponse);
   // Receive any relevant edits to this module.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
-  // Paste specific inline nodes (and only those nodes) from this or another module.
-  rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
   // Create a full snapshot of this Bench module (copy to a new Bench module as specified).
   rpc Snapshot(SnapshotModuleRequest) returns (SnapshotModuleResponse);
 
@@ -288,9 +302,9 @@ service ModuleHost {
   //
 
   // Get a signed URL to upload a blob.
-  rpc UploadBlob(UploadBlobRequest) returns (UploadBlobResponse);
+  rpc UploadBlobs(UploadBlobsRequest) returns (UploadBlobsResponse);
   // Get a signed URL to download a blob.
-  rpc DownloadBlob(DownloadBlobRequest) returns (DownloadBlobResponse);
+  rpc DownloadBlobs(DownloadBlobsRequest) returns (DownloadBlobsResponse);
 
   //
   // Logs
