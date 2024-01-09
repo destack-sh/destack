@@ -46,6 +46,8 @@ FieldReference = UUID | str  # str as an alias for fields that we don't have ref
 
 @struct(StructType.EXPRESSION)
 class Expression(Struct):
+    """An expression (conditional, aggregation, sort, etc)."""
+
     op: ExpressionOp = struct_property(30, require=True)
     field: Optional["Field"] = struct_property(31, array=False, references=NodeType.FIELD)
     field_key: Optional[str] = struct_property(32, default=None)
@@ -221,6 +223,26 @@ CONDITIONAL_OP_BY_DJANGO_STR: dict[str, ConditionalOp] = {
     "in": ConditionalOp.IN,
     "nin": ConditionalOp.NOT_IN,
 }
+
+
+@struct(StructType.AGGREGATION)
+class Aggregation(Struct):
+    """The result of an aggregation expression."""
+
+    op: AggregationOp = struct_property(30, require=True)
+    exists: bool = struct_property(31, default=False)
+    scalar: float = struct_property(32, default=None)
+    buckets: list["AggregationBucket"] | None = struct_property(
+        33, default=None, array=True, struct_t=StructType.AGGREGATION_BUCKET
+    )
+
+
+@struct(StructType.AGGREGATION_BUCKET)
+class AggregationBucket(Struct):
+    """One bucket of an aggregation histogram."""
+
+    key: Any = struct_property(30, require=True, column_type=ColumnType.JSON)
+    count: int = struct_property(31, require=True)
 
 
 def coerce_conditional(

@@ -3,7 +3,7 @@ import asyncio
 from grpclib.utils import graceful_exit
 import typer
 
-from bench.cli.utils import _async_to_sync
+from bench.cli.utils import _async_to_sync_blocking
 from bench.proto.mesh import BenchServer
 from bench.runtime.node import Worker
 from bench.server.host import ModuleHostMultiplexer
@@ -15,7 +15,7 @@ app = typer.Typer(short_help="run the services")
 
 
 @app.command()
-@_async_to_sync
+@_async_to_sync_blocking
 async def server(host: str, port: int, watch: bool = False):
     """
     Run the supervisor.
@@ -30,7 +30,7 @@ async def server(host: str, port: int, watch: bool = False):
 
 
 @app.command()
-@_async_to_sync
+@_async_to_sync_blocking
 async def worker(host: str, port: int, watch: bool = False):
     """
     Run the worker.

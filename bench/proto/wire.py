@@ -29,6 +29,7 @@ class ActionKind(betterproto.Enum):
     UNSPECIFIED = 0
     READ = 1
     LIST = 2
+    AGGREGATE = 3
     CREATE = 10
     UPSERT = 11
     UPDATE = 12
@@ -47,13 +48,14 @@ class ActionKind(betterproto.Enum):
 
 class AggregationOp(betterproto.Enum):
     UNSPECIFIED = 0
-    COUNT = 1
-    SUM = 2
-    AVERAGE = 3
-    MIN = 4
-    MAX = 5
-    MEDIAN = 6
-    HISTOGRAM = 7
+    EXISTS = 1
+    COUNT = 2
+    SUM = 3
+    AVERAGE = 4
+    MIN = 5
+    MAX = 6
+    MEDIAN = 7
+    HISTOGRAM = 8
 
 
 class BadgeType(betterproto.Enum):
@@ -97,6 +99,8 @@ class BenchType(betterproto.Enum):
     POLICY = 200
     POLICY_RULE = 201
     EXPRESSION = 210
+    AGGREGATION = 211
+    AGGREGATION_BUCKET = 212
     LOG_ENTRY = 220
     RUN_CODE_FRAME = 221
     RUN_ERROR = 222
@@ -176,16 +180,16 @@ class ExpressionOp(betterproto.Enum):
     NOT_CONTAINS = 15
     IN = 16
     NOT_IN = 17
-    EXISTS = 18
+    EXISTS = 1
     NOT_EXISTS = 19
     NEAR = 20
-    COUNT = 1
-    SUM = 2
-    AVERAGE = 3
-    MIN = 4
-    MAX = 5
-    MEDIAN = 6
-    HISTOGRAM = 7
+    COUNT = 2
+    SUM = 3
+    AVERAGE = 4
+    MIN = 5
+    MAX = 6
+    MEDIAN = 7
+    HISTOGRAM = 8
     ASCENDING = 1
     DESCENDING = 2
 
@@ -299,6 +303,7 @@ class ReadKind(betterproto.Enum):
     UNSPECIFIED = 0
     READ = 1
     LIST = 2
+    AGGREGATE = 3
 
 
 class RunErrorKind(betterproto.Enum):
@@ -393,6 +398,8 @@ class StructType(betterproto.Enum):
     POLICY = 200
     POLICY_RULE = 201
     EXPRESSION = 210
+    AGGREGATION = 211
+    AGGREGATION_BUCKET = 212
     LOG_ENTRY = 220
     RUN_CODE_FRAME = 221
     RUN_ERROR = 222
@@ -548,6 +555,26 @@ class StartRunResponseErrorType(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
+class AggregationData(betterproto.Message):
+    """// The result of an aggregation expression."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    op: "AggregationOp" = betterproto.enum_field(30)
+    exists: bool = betterproto.bool_field(31)
+    scalar: float = betterproto.float_field(32)
+    buckets: List["AggregationBucketData"] = betterproto.message_field(33)
+
+
+@dataclass(eq=False, repr=False)
+class AggregationBucketData(betterproto.Message):
+    """// One bucket of an aggregation histogram."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    key: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(30)
+    count: int = betterproto.int64_field(31)
+
+
+@dataclass(eq=False, repr=False)
 class DependencyData(betterproto.Message):
     """// Dependency()"""
 
@@ -558,7 +585,7 @@ class DependencyData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class ExpressionData(betterproto.Message):
-    """// Expression()"""
+    """// An expression (conditional, aggregation, sort, etc)."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     op: "ExpressionOp" = betterproto.enum_field(30)
@@ -1308,43 +1335,45 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    halt: "HaltData" = betterproto.message_field(1, group="node")
-    client: "ClientData" = betterproto.message_field(2, group="node")
-    session: "SessionData" = betterproto.message_field(3, group="node")
-    notification: "NotificationData" = betterproto.message_field(4, group="node")
-    module: "ModuleData" = betterproto.message_field(5, group="node")
-    badge: "BadgeData" = betterproto.message_field(6, group="node")
-    issue: "IssueData" = betterproto.message_field(7, group="node")
-    view: "ViewData" = betterproto.message_field(8, group="node")
-    statement: "StatementData" = betterproto.message_field(9, group="node")
-    trigger: "TriggerData" = betterproto.message_field(10, group="node")
-    file: "FileData" = betterproto.message_field(11, group="node")
-    bench: "BenchData" = betterproto.message_field(12, group="node")
-    worker: "WorkerData" = betterproto.message_field(13, group="node")
-    tagging: "TaggingData" = betterproto.message_field(14, group="node")
-    secret: "SecretData" = betterproto.message_field(15, group="node")
+    trigger: "TriggerData" = betterproto.message_field(1, group="node")
+    issue: "IssueData" = betterproto.message_field(2, group="node")
+    blob: "BlobData" = betterproto.message_field(3, group="node")
+    record: "RecordData" = betterproto.message_field(4, group="node")
+    client: "ClientData" = betterproto.message_field(5, group="node")
+    halt: "HaltData" = betterproto.message_field(6, group="node")
+    secret: "SecretData" = betterproto.message_field(7, group="node")
+    notification: "NotificationData" = betterproto.message_field(8, group="node")
+    tagging: "TaggingData" = betterproto.message_field(9, group="node")
+    file: "FileData" = betterproto.message_field(10, group="node")
+    session: "SessionData" = betterproto.message_field(11, group="node")
+    signal: "SignalData" = betterproto.message_field(12, group="node")
+    statement: "StatementData" = betterproto.message_field(13, group="node")
+    badge: "BadgeData" = betterproto.message_field(14, group="node")
+    user: "UserData" = betterproto.message_field(15, group="node")
     field: "FieldData" = betterproto.message_field(16, group="node")
-    organization: "OrganizationData" = betterproto.message_field(17, group="node")
-    record: "RecordData" = betterproto.message_field(18, group="node")
-    run: "RunData" = betterproto.message_field(19, group="node")
-    signal: "SignalData" = betterproto.message_field(20, group="node")
-    blob: "BlobData" = betterproto.message_field(21, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(22, group="node")
-    user: "UserData" = betterproto.message_field(23, group="node")
-    handle: "HandleData" = betterproto.message_field(24, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(17, group="node")
+    view: "ViewData" = betterproto.message_field(18, group="node")
+    handle: "HandleData" = betterproto.message_field(19, group="node")
+    worker: "WorkerData" = betterproto.message_field(20, group="node")
+    run: "RunData" = betterproto.message_field(21, group="node")
+    module: "ModuleData" = betterproto.message_field(22, group="node")
+    organization: "OrganizationData" = betterproto.message_field(23, group="node")
+    bench: "BenchData" = betterproto.message_field(24, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
-    policy_rule: "PolicyRuleData" = betterproto.message_field(1, group="struct")
-    dependency: "DependencyData" = betterproto.message_field(2, group="struct")
-    mini_run: "MiniRunData" = betterproto.message_field(3, group="struct")
-    worker_image: "WorkerImageData" = betterproto.message_field(4, group="struct")
-    policy: "PolicyData" = betterproto.message_field(5, group="struct")
+    aggregation_bucket: "AggregationBucketData" = betterproto.message_field(1, group="struct")
+    policy: "PolicyData" = betterproto.message_field(2, group="struct")
+    aggregation: "AggregationData" = betterproto.message_field(3, group="struct")
+    run_error: "RunErrorData" = betterproto.message_field(4, group="struct")
+    dependency: "DependencyData" = betterproto.message_field(5, group="struct")
     expression: "ExpressionData" = betterproto.message_field(6, group="struct")
-    run_error: "RunErrorData" = betterproto.message_field(7, group="struct")
+    mini_run: "MiniRunData" = betterproto.message_field(7, group="struct")
     log_entry: "LogEntryData" = betterproto.message_field(8, group="struct")
-    run_code_frame: "RunCodeFrameData" = betterproto.message_field(9, group="struct")
+    policy_rule: "PolicyRuleData" = betterproto.message_field(9, group="struct")
+    worker_image: "WorkerImageData" = betterproto.message_field(10, group="struct")
+    run_code_frame: "RunCodeFrameData" = betterproto.message_field(11, group="struct")
 
 
 @dataclass(eq=False, repr=False)
@@ -1508,6 +1537,20 @@ class SearchNodesResponse(betterproto.Message):
     cursors: List[str] = betterproto.string_field(2)
     start_cursor: str = betterproto.string_field(3)
     edit_marker: int = betterproto.int64_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class AggregateNodesRequest(betterproto.Message):
+    aggregation: "ExpressionData" = betterproto.message_field(1)
+    filter: "ExpressionData" = betterproto.message_field(2)
+    sort: List["ExpressionData"] = betterproto.message_field(3)
+    limit: int = betterproto.int32_field(4)
+    after: str = betterproto.string_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class AggregateNodesResponse(betterproto.Message):
+    aggregation: "AggregationData" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -1821,6 +1864,23 @@ class GlobalSupervisorStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
+    async def aggregate_nodes(
+        self,
+        aggregate_nodes_request: "AggregateNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "AggregateNodesResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.GlobalSupervisor/AggregateNodes",
+            aggregate_nodes_request,
+            AggregateNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
     async def commit_edits(
         self,
         commit_edits_request: "CommitEditsRequest",
@@ -1921,6 +1981,23 @@ class ModuleHostStub(betterproto.ServiceStub):
             "/symbolx.bench.ModuleHost/SearchNodes",
             search_nodes_request,
             SearchNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def aggregate_nodes(
+        self,
+        aggregate_nodes_request: "AggregateNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "AggregateNodesResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.ModuleHost/AggregateNodes",
+            aggregate_nodes_request,
+            AggregateNodesResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2262,6 +2339,11 @@ class GlobalSupervisorBase(ServiceBase):
     ) -> "SearchNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
+    async def aggregate_nodes(
+        self, aggregate_nodes_request: "AggregateNodesRequest"
+    ) -> "AggregateNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
     async def commit_edits(
         self, commit_edits_request: "CommitEditsRequest"
     ) -> "CommitEditsResponse":
@@ -2323,6 +2405,14 @@ class GlobalSupervisorBase(ServiceBase):
     ) -> None:
         request = await stream.recv_message()
         response = await self.search_nodes(request)
+        await stream.send_message(response)
+
+    async def __rpc_aggregate_nodes(
+        self,
+        stream: "grpclib.server.Stream[AggregateNodesRequest, AggregateNodesResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.aggregate_nodes(request)
         await stream.send_message(response)
 
     async def __rpc_commit_edits(
@@ -2396,6 +2486,12 @@ class GlobalSupervisorBase(ServiceBase):
                 SearchNodesRequest,
                 SearchNodesResponse,
             ),
+            "/symbolx.bench.GlobalSupervisor/AggregateNodes": grpclib.const.Handler(
+                self.__rpc_aggregate_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                AggregateNodesRequest,
+                AggregateNodesResponse,
+            ),
             "/symbolx.bench.GlobalSupervisor/CommitEdits": grpclib.const.Handler(
                 self.__rpc_commit_edits,
                 grpclib.const.Cardinality.UNARY_UNARY,
@@ -2430,6 +2526,11 @@ class ModuleHostBase(ServiceBase):
     async def search_nodes(
         self, search_nodes_request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def aggregate_nodes(
+        self, aggregate_nodes_request: "AggregateNodesRequest"
+    ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
@@ -2501,6 +2602,14 @@ class ModuleHostBase(ServiceBase):
     ) -> None:
         request = await stream.recv_message()
         response = await self.search_nodes(request)
+        await stream.send_message(response)
+
+    async def __rpc_aggregate_nodes(
+        self,
+        stream: "grpclib.server.Stream[AggregateNodesRequest, AggregateNodesResponse]",
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.aggregate_nodes(request)
         await stream.send_message(response)
 
     async def __rpc_paste_nodes(
@@ -2617,6 +2726,12 @@ class ModuleHostBase(ServiceBase):
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchNodesRequest,
                 SearchNodesResponse,
+            ),
+            "/symbolx.bench.ModuleHost/AggregateNodes": grpclib.const.Handler(
+                self.__rpc_aggregate_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                AggregateNodesRequest,
+                AggregateNodesResponse,
             ),
             "/symbolx.bench.ModuleHost/PasteNodes": grpclib.const.Handler(
                 self.__rpc_paste_nodes,
@@ -2796,39 +2911,41 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union
 
 AnyNodeData = Union[
-    HaltData,
-    ClientData,
-    SessionData,
-    NotificationData,
-    ModuleData,
-    BadgeData,
-    IssueData,
-    ViewData,
-    StatementData,
     TriggerData,
-    FileData,
-    BenchData,
-    WorkerData,
-    TaggingData,
-    SecretData,
-    FieldData,
-    OrganizationData,
-    RecordData,
-    RunData,
-    SignalData,
+    IssueData,
     BlobData,
-    WorkerSetData,
+    RecordData,
+    ClientData,
+    HaltData,
+    SecretData,
+    NotificationData,
+    TaggingData,
+    FileData,
+    SessionData,
+    SignalData,
+    StatementData,
+    BadgeData,
     UserData,
+    FieldData,
+    WorkerSetData,
+    ViewData,
     HandleData,
+    WorkerData,
+    RunData,
+    ModuleData,
+    OrganizationData,
+    BenchData,
 ]
 AnyStructData = Union[
-    PolicyRuleData,
-    DependencyData,
-    MiniRunData,
-    WorkerImageData,
+    AggregationBucketData,
     PolicyData,
-    ExpressionData,
+    AggregationData,
     RunErrorData,
+    DependencyData,
+    ExpressionData,
+    MiniRunData,
     LogEntryData,
+    PolicyRuleData,
+    WorkerImageData,
     RunCodeFrameData,
 ]

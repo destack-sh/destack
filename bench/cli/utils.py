@@ -2,10 +2,8 @@ import asyncio
 import functools
 import subprocess
 
-from asgiref.sync import async_to_sync
 
-
-def _async_to_sync(func=None):
+def _async_to_sync_blocking(func=None):
     """Automatically convert async functions to sync if not called in async context."""
 
     def decorate(func):

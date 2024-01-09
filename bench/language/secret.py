@@ -1,11 +1,11 @@
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional
 
-from bench.language.builtin import _match_session_sync
 from bench.language.const import NodeType
 from bench.language.node import Bench, Node, node, node_parent, struct_internal, struct_property
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
+from bench.utils.func import _auto_async_to_sync
 
 if TYPE_CHECKING:
     from bench.language import Statement
@@ -33,7 +33,7 @@ class Secret(HasValue):
     def __repr__(self):
         return f"<Secret {self}>"
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def reveal(self) -> Any:
         if self.value is not None:
             return self.value

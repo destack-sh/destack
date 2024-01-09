@@ -4,11 +4,12 @@ from copy import deepcopy
 from typing import Optional
 from uuid import UUID
 
+from asgiref.sync import async_to_sync
 import psycopg
 import structlog
 from psycopg import sql
 
-from bench.language.builtin import _match_session_sync
+from bench.utils.func import _auto_async_to_sync
 from bench.language.const import (
     ConditionalOp,
     NodeType,
@@ -318,7 +319,7 @@ class RecordQuery:
             return iter(await self._fetch())
         return iter(self._cached_records)
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def tolist(self) -> list[Record]:
         if self._cached_records is None:
             return await self._fetch()
@@ -326,7 +327,7 @@ class RecordQuery:
 
     def __iter__(self):
         if self._cached_records is None:
-            return iter(self._database.session.async_to_sync(self._fetch)())
+            return iter(async_to_sync(self._fetch)())
         return iter(self._cached_records)
 
     def __len__(self):
@@ -340,21 +341,21 @@ class RecordQuery:
         copy._engine = engine
         return copy
 
-    @_match_session_sync
-    async def get(self, query: Expression = None, **kwargs) -> Record:
+    @_auto_async_to_sync
+    async def get(self, filter: Expression = None, **kwargs) -> Record:
         """Returns the unique result matching the query (errors otherwise)."""
-        query = coerce_conditional(self._database, query, kwargs)
-        results = await self.filter(query).tolist()
+        filter = coerce_conditional(self._database, filter, kwargs)
+        results = await self.filter(filter).tolist()
         if len(results) == 1:
             return results[0]
         else:
             raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results}")
 
-    def filter(self, query: Expression = None, **kwargs) -> "RecordQuery":
+    def filter(self, filter: Expression = None, **kwargs) -> "RecordQuery":
         """Adds a filter clause to the query."""
-        query = coerce_conditional(self._database, query, kwargs)
+        filter = coerce_conditional(self._database, filter, kwargs)
         copy = self.copy()
-        copy._filter = query & self._filter if self._filter is not None else query
+        copy._filter = filter & self._filter if self._filter is not None else filter
         return copy
 
     def sort(
@@ -400,7 +401,7 @@ class RecordQuery:
                 return self.first(item.stop)
         elif isinstance(item, int):
             if self._cached_records is None:
-                records = self._database.session.async_to_sync(self._fetch)()
+                records = async_to_sync(self._fetch)()
             else:
                 records = self._cached_records
             if item < 0:
@@ -411,48 +412,48 @@ class RecordQuery:
         else:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
-    @_match_session_sync
-    async def count(self, query: Expression = None, *, _no_flush: bool = False, **kwargs) -> int:
+    @_auto_async_to_sync
+    async def count(self, filter: Expression = None, *, _no_flush: bool = False, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_count
 
         self._require_engine(QueryEngine.POSTGRES)
         assert not self._first and not self._skip and not self._sort, "cannot count with limits"
-        query = coerce_conditional(self._database, query, kwargs)
+        filter = coerce_conditional(self._database, filter, kwargs)
 
         if not _no_flush and self._database.session._local_edits:
             await self._database.session.flush_local()
 
-        where = compile_pg_conditional(self._database, query & self._combined_filter)
+        where = compile_pg_conditional(self._database, filter & self._combined_filter)
         return await pg_count(
             cur=await self._database._get_pg_cursor(), table=self._database._table, where=where
         )
 
-    @_match_session_sync
-    async def exists(self, query: Expression = None, *, _no_flush: bool = False, **kwargs) -> bool:
+    @_auto_async_to_sync
+    async def exists(self, filter: Expression = None, *, _no_flush: bool = False, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_exists
 
-        query = coerce_conditional(self._database, query, kwargs, return_none_if_empty=True)
+        filter = coerce_conditional(self._database, filter, kwargs, return_none_if_empty=True)
 
         self._require_engine(QueryEngine.POSTGRES)
         assert not self._first and not self._skip and not self._sort, "cannot exists with limits"
-        if query is None and self._cached_records is not None:
+        if filter is None and self._cached_records is not None:
             return bool(self._cached_records)
 
         if self._database.session._local_edits:
             await self._database.session.flush_local()
 
-        if query is None:
-            query = self._combined_filter
+        if filter is None:
+            filter = self._combined_filter
         else:
-            query = query & self._combined_filter
-        where = compile_pg_conditional(self._database, query)
+            filter = filter & self._combined_filter
+        where = compile_pg_conditional(self._database, filter)
         return await pg_exists(
             cur=await self._database._get_pg_cursor(), table=self._database._table, where=where
         )
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def update(self, **value) -> int:
         """Updates all results with the given values."""
         from bench.language.packer import check_type, pack_value
@@ -488,7 +489,7 @@ class RecordQuery:
         session._records_changed(self._database, updated_records_ids)  # mark for OS sync
         return len(updated_rows)
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def delete(self) -> int:
         """Deletes all results."""
         from bench.sql.engine import compile_pg_conditional, pg_delete
@@ -648,7 +649,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
                 self._parent._local_root_tree.remove(node)
         node.parent = None
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def clear(self, _delete: bool = True, _trigger: _NC = _NC.Tach) -> None:
         if _delete:
             await RecordQuery.filter(self).delete()

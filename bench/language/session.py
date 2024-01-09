@@ -1,4 +1,3 @@
-import abc
 import asyncio
 import sys
 import threading
@@ -10,10 +9,8 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
     Callable,
     Collection,
-    Coroutine,
     NamedTuple,
     Optional,
     Union,
@@ -21,11 +18,10 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-import asgiref.sync
 import psycopg
 import structlog
 
-from bench.language.builtin import _active_session, _match_session_sync
+from bench.language.builtin import _active_session
 from bench.language.const import (
     NTL,
     EditKind,
@@ -53,47 +49,25 @@ from bench.language.node import (
 )
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
-from bench.proto.wire import EditData, LogEntryData
+from bench.proto.wire import EditData, ModuleHostStub
 from bench.os.client import get_os_errors, os_client
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.func import _auto_async_to_sync
 from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Blob, Policy, Statement, Trigger, Worker
+    from bench.language import Policy, Statement, Trigger, Worker
     from bench.language.cache import Cache
 
 logger = structlog.get_logger(__name__)
 
 
-class ModuleHost(abc.ABC):
-    """
-    Central Bench runtime server for synchronizing modules and sessions.
-    """
-
-    async def commit_edits(self, edits: Collection["EditData"]) -> None:
-        raise NotImplementedError
-
-    async def push_logs(self, logs: Collection["LogEntryData"]) -> None:
-        raise NotImplementedError
-
-    async def download_blob(self, blob: "Blob") -> str:
-        raise NotImplementedError
-
-    async def upload_blob(self, blob: "Blob") -> tuple["Blob", Optional[str]]:
-        raise NotImplementedError
-
-    async def run_proxy_statement(self, statement: "Statement", inputs: dict) -> dict:
-        raise NotImplementedError
-
-
 @struct(StructType.LOG_ENTRY, index_in_os=True)
 class LogEntry(Struct):
-    """
-    An entry. In a log.
-    """
+    """An entry. In a log."""
 
     id: UUID = struct_internal(2, default_factory=uuid4)
     module: Module = struct_internal(5, array=False, references=NodeType.MODULE)
@@ -158,7 +132,7 @@ class Session(ScopeNode):
     opened_at: Optional[datetime] = struct_internal(35, default=None)
     closed_at: Optional[datetime] = struct_internal(36, default=None)
 
-    _host: ModuleHost | None = struct_runtime(default=None)
+    _host: ModuleHostStub | None = struct_runtime(default=None)
     _root_run_ck: UUID | None = struct_runtime(default=None)
     _root_run_value: dict | None = struct_runtime(default=None)
     _init_run_value: dict | None = struct_runtime(default=None)
@@ -276,7 +250,7 @@ class Session(ScopeNode):
 
         self._log.debug("session.open.done")
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def close(self):
         """Closes the session *without committing*. Prevent further runs & (tracked) edits."""
         if self.closed_at is not None:
@@ -314,7 +288,7 @@ class Session(ScopeNode):
             or len(self._changed_record_ids_by_db_id) > 0
         )
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def flush_local(self):
         """Flushes local Postgres edits."""
         from bench.sql.engine import update_pg_schema, write_local_edits_to_pg
@@ -327,14 +301,14 @@ class Session(ScopeNode):
         edits = self._eat_edits(local=True)
         await write_local_edits_to_pg(self.pg_cursor, self.module, edits.local_edits)
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def flush_session(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session edits."""
 
         edits = self._eat_edits(session=True, kill_pending_runs=kill_pending_runs)
         await self.session._host.push_edits(edits.session_edits)
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def flush_logs(self) -> None:
         """Flushes session logs. This is non-transactional, so it's separate from flush_session."""
         from bench.proto import wiring
@@ -358,7 +332,7 @@ class Session(ScopeNode):
         await self._host.push_logs(logs)
         self._log.debug("session.write_logs.done", logs=len(logs))
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def commit(self):
         """Commits module edits and syncs committed local edits to OS."""
         from bench.os.engine import sync_pg_databases_to_os
@@ -417,7 +391,7 @@ class Session(ScopeNode):
             # publish local edits
             await self._host.notify_databases_changed(touched_databases_by_id.values())
 
-    @_match_session_sync
+    @_auto_async_to_sync
     async def rollback(self):
         raise NotImplementedError  # unclear what this should do
 
@@ -640,12 +614,6 @@ class Session(ScopeNode):
         if self._stacktrace:
             return self._stacktrace[-1]
         return None
-
-    def sync_to_async(self, fn: Callable) -> Callable[..., Awaitable]:
-        return asgiref.sync.sync_to_async(fn, thread_sensitive=False, executor=_executor)
-
-    def async_to_sync(self, fn: Awaitable | Callable | Coroutine) -> Callable:
-        return asgiref.sync.async_to_sync(fn)
 
     def _track_run(self, run: Run):
         # replace if already exists by id (runs are updated)

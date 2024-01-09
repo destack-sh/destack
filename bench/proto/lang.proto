@@ -9,6 +9,7 @@ enum ActionKind {
   ACTION_KIND_UNSPECIFIED = 0;
   ACTION_KIND_READ = 1;
   ACTION_KIND_LIST = 2;
+  ACTION_KIND_AGGREGATE = 3;
   ACTION_KIND_CREATE = 10;
   ACTION_KIND_UPSERT = 11;
   ACTION_KIND_UPDATE = 12;
@@ -27,13 +28,14 @@ enum ActionKind {
 
 enum AggregationOp {
   AGGREGATION_OP_UNSPECIFIED = 0;
-  AGGREGATION_OP_COUNT = 1;
-  AGGREGATION_OP_SUM = 2;
-  AGGREGATION_OP_AVERAGE = 3;
-  AGGREGATION_OP_MIN = 4;
-  AGGREGATION_OP_MAX = 5;
-  AGGREGATION_OP_MEDIAN = 6;
-  AGGREGATION_OP_HISTOGRAM = 7;
+  AGGREGATION_OP_EXISTS = 1;
+  AGGREGATION_OP_COUNT = 2;
+  AGGREGATION_OP_SUM = 3;
+  AGGREGATION_OP_AVERAGE = 4;
+  AGGREGATION_OP_MIN = 5;
+  AGGREGATION_OP_MAX = 6;
+  AGGREGATION_OP_MEDIAN = 7;
+  AGGREGATION_OP_HISTOGRAM = 8;
 }
 
 enum BadgeType {
@@ -77,6 +79,8 @@ enum BenchType {
   BENCH_TYPE_POLICY = 200;
   BENCH_TYPE_POLICY_RULE = 201;
   BENCH_TYPE_EXPRESSION = 210;
+  BENCH_TYPE_AGGREGATION = 211;
+  BENCH_TYPE_AGGREGATION_BUCKET = 212;
   BENCH_TYPE_LOG_ENTRY = 220;
   BENCH_TYPE_RUN_CODE_FRAME = 221;
   BENCH_TYPE_RUN_ERROR = 222;
@@ -157,16 +161,16 @@ enum ExpressionOp {
   EXPRESSION_OP_NOT_CONTAINS = 15;
   EXPRESSION_OP_IN = 16;
   EXPRESSION_OP_NOT_IN = 17;
-  EXPRESSION_OP_EXISTS = 18;
+  EXPRESSION_OP_EXISTS = 1;
   EXPRESSION_OP_NOT_EXISTS = 19;
   EXPRESSION_OP_NEAR = 20;
-  EXPRESSION_OP_COUNT = 1;
-  EXPRESSION_OP_SUM = 2;
-  EXPRESSION_OP_AVERAGE = 3;
-  EXPRESSION_OP_MIN = 4;
-  EXPRESSION_OP_MAX = 5;
-  EXPRESSION_OP_MEDIAN = 6;
-  EXPRESSION_OP_HISTOGRAM = 7;
+  EXPRESSION_OP_COUNT = 2;
+  EXPRESSION_OP_SUM = 3;
+  EXPRESSION_OP_AVERAGE = 4;
+  EXPRESSION_OP_MIN = 5;
+  EXPRESSION_OP_MAX = 6;
+  EXPRESSION_OP_MEDIAN = 7;
+  EXPRESSION_OP_HISTOGRAM = 8;
   EXPRESSION_OP_ASCENDING = 1;
   EXPRESSION_OP_DESCENDING = 2;
 }
@@ -277,6 +281,7 @@ enum ReadKind {
   READ_KIND_UNSPECIFIED = 0;
   READ_KIND_READ = 1;
   READ_KIND_LIST = 2;
+  READ_KIND_AGGREGATE = 3;
 }
 
 enum RunErrorKind {
@@ -371,6 +376,8 @@ enum StructType {
   STRUCT_TYPE_POLICY = 200;
   STRUCT_TYPE_POLICY_RULE = 201;
   STRUCT_TYPE_EXPRESSION = 210;
+  STRUCT_TYPE_AGGREGATION = 211;
+  STRUCT_TYPE_AGGREGATION_BUCKET = 212;
   STRUCT_TYPE_LOG_ENTRY = 220;
   STRUCT_TYPE_RUN_CODE_FRAME = 221;
   STRUCT_TYPE_RUN_ERROR = 222;
@@ -501,6 +508,22 @@ enum WorkerSetStatus {
   WORKER_SET_STATUS_UNKNOWN = 7;
 }
 
+// // The result of an aggregation expression.
+message AggregationData {
+  BenchType metatype = 1;
+  AggregationOp op = 30;
+  bool exists = 31;
+  float scalar = 32;
+  repeated AggregationBucketData buckets = 33;
+}
+
+// // One bucket of an aggregation histogram.
+message AggregationBucketData {
+  BenchType metatype = 1;
+  google.protobuf.Struct key = 30;
+  int64 count = 31;
+}
+
 // // Dependency()
 message DependencyData {
   BenchType metatype = 1;
@@ -508,7 +531,7 @@ message DependencyData {
   string version = 31;
 }
 
-// // Expression()
+// // An expression (conditional, aggregation, sort, etc).
 message ExpressionData {
   BenchType metatype = 1;
   ExpressionOp op = 30;
@@ -1112,44 +1135,46 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    HaltData halt = 1;
-    ClientData client = 2;
-    SessionData session = 3;
-    NotificationData notification = 4;
-    ModuleData module = 5;
-    BadgeData badge = 6;
-    IssueData issue = 7;
-    ViewData view = 8;
-    StatementData statement = 9;
-    TriggerData trigger = 10;
-    FileData file = 11;
-    BenchData bench = 12;
-    WorkerData worker = 13;
-    TaggingData tagging = 14;
-    SecretData secret = 15;
+    TriggerData trigger = 1;
+    IssueData issue = 2;
+    BlobData blob = 3;
+    RecordData record = 4;
+    ClientData client = 5;
+    HaltData halt = 6;
+    SecretData secret = 7;
+    NotificationData notification = 8;
+    TaggingData tagging = 9;
+    FileData file = 10;
+    SessionData session = 11;
+    SignalData signal = 12;
+    StatementData statement = 13;
+    BadgeData badge = 14;
+    UserData user = 15;
     FieldData field = 16;
-    OrganizationData organization = 17;
-    RecordData record = 18;
-    RunData run = 19;
-    SignalData signal = 20;
-    BlobData blob = 21;
-    WorkerSetData worker_set = 22;
-    UserData user = 23;
-    HandleData handle = 24;
+    WorkerSetData worker_set = 17;
+    ViewData view = 18;
+    HandleData handle = 19;
+    WorkerData worker = 20;
+    RunData run = 21;
+    ModuleData module = 22;
+    OrganizationData organization = 23;
+    BenchData bench = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    PolicyRuleData policy_rule = 1;
-    DependencyData dependency = 2;
-    MiniRunData mini_run = 3;
-    WorkerImageData worker_image = 4;
-    PolicyData policy = 5;
+    AggregationBucketData aggregation_bucket = 1;
+    PolicyData policy = 2;
+    AggregationData aggregation = 3;
+    RunErrorData run_error = 4;
+    DependencyData dependency = 5;
     ExpressionData expression = 6;
-    RunErrorData run_error = 7;
+    MiniRunData mini_run = 7;
     LogEntryData log_entry = 8;
-    RunCodeFrameData run_code_frame = 9;
+    PolicyRuleData policy_rule = 9;
+    WorkerImageData worker_image = 10;
+    RunCodeFrameData run_code_frame = 11;
   };
 }
 

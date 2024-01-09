@@ -1,10 +1,11 @@
 import asyncio
 import contextvars
 import functools
-import os
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid5
+
+from asgiref.sync import async_to_sync
 
 from bench.language.const import UUID_NAMESPACE, VERSION
 from bench.language.node import Bench, Module
@@ -30,36 +31,6 @@ def active_session() -> "Session":
     session = _active_session.get()
     assert session is not None, "no active session"
     return session
-
-
-def _match_session_sync(func=None):
-    """Automatically convert async functions to sync if not called in async context."""
-
-    def decorate(func):
-        # check that the func is async
-        if not asyncio.iscoroutinefunction(func):
-            raise TypeError(f"{func} is not a coroutine function")
-
-        @functools.wraps(func)
-        def wrapped(*args, **kwargs):
-            # are we in an async context?
-            session = _active_session.get()
-            try:
-                asyncio.get_running_loop()
-                is_in_loop = True
-            except RuntimeError:
-                is_in_loop = False
-            if is_in_loop:
-                return func(*args, **kwargs)
-            else:
-                return session.async_to_sync(func)(*args, **kwargs)
-
-        return wrapped
-
-    if func is None:
-        return decorate
-    else:
-        return decorate(func)
 
 
 def _should_validate() -> bool:

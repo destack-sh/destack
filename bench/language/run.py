@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
+from asgiref.sync import async_to_sync, sync_to_async
 import msgpack
 
 from bench.language.const import (
@@ -71,9 +72,9 @@ class HasRun(Node):
         inner_call = self._call_inner_async if self._is_async else self._call_inner_sync
 
         if is_outer_async and not self._is_async:
-            inner_call = self.session.sync_to_async(inner_call)
+            inner_call = sync_to_async(inner_call)
         elif not is_outer_async and self._is_async:
-            inner_call = self.session.async_to_sync(inner_call)
+            inner_call = async_to_sync(inner_call)
 
         return inner_call(*args, **kwargs)
 

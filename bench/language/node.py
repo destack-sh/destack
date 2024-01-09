@@ -22,10 +22,11 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
+from asgiref.sync import async_to_sync
 import structlog
 from cachetools import cached
 
-from bench.language.builtin import _match_session_sync
+from bench.utils.func import _auto_async_to_sync
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     IN_MODULE_NODE_TYPES,
@@ -57,7 +58,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, SomeNodeData
+from bench.proto.wire import EditData, SomeNodeData, AnyNodeData
 from bench.sql.core import CascadeAction, ColumnType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -1468,6 +1469,215 @@ class _InterpChange:
                     _node._activate_self(self.prev_session)
 
 
+FieldOrProperty = Union["Field", "Property"]
+
+
+class NodeQuery(typing.Generic[NodeT]):
+    def __init__(
+        self,
+        node_type: NodeType,
+        filter: Optional["Expression"] = None,
+        sort: list["Expression"] | None = None,
+        include: list[FieldOrProperty] | None = None,
+        select: list[FieldOrProperty] | None = None,
+        distinct: list[FieldOrProperty] | None = None,
+        first: int | None = None,
+        skip: int | None = None,
+        engine: Optional[QueryEngine] = None,
+        cache: bool = True,
+    ):
+        self._node_type = node_type
+        self._filter = filter
+        self._sort = sort
+        self._include = include
+        self._select = select
+        self._distinct = distinct
+        self._first = first
+        self._skip = skip
+        self._engine = engine
+        self._cache = cache
+        self._cached_nodes: list[NodeT] | None = None
+        self._cached_cursors: list[str] | None = None
+
+    def __str__(self):
+        args_strs = []
+        for k in ("filter", "sort", "include", "select", "distinct", "first", "skip"):
+            v = getattr(self, f"_{k}", None)
+            if k == "query":
+                v = f"({v})" if v is not None else None
+            if v is not None:
+                args_strs.append(f"{k}={v}")
+        return f"{self._node_type} {', '.join(args_strs)}"
+
+    def __repr__(self):
+        return f"<NodeQuery {self}>"
+
+    @property
+    def _node_cls(self) -> type["Node"]:
+        return NODE_CLASS_BY_NODE_TYPE[self._node_type]
+
+    def copy(self):
+        """Clones the query (the properties are immutable)."""
+        return NodeQuery(
+            node_type=self._node_type,
+            filter=self._filter,
+            sort=self._sort,
+            include=self._include,
+            select=self._select,
+            distinct=self._distinct,
+            first=self._first,
+            skip=self._skip,
+            engine=self._engine,
+            # cache is not copied on purpose as it shouldn't propagate
+        )
+
+    async def _fetch(self) -> list[NodeT]:
+        from bench.language.builtin import active_session
+        from bench.proto import wiring
+
+        session = active_session()
+        fetched = await self._do_fetch()
+        nodes: list[NodeT] = []
+        for node_data in fetched:
+            node = wiring.unpack_node(node_data, parent=None, session=session)
+            node._activate_self(session)
+            nodes.append(node)
+        return nodes
+
+    async def _do_fetch(self) -> list[AnyNodeData]:
+        raise NotImplementedError("nocheckin: NodeQuery._do_fetch")
+
+    async def __aiter__(self):
+        if self._cached_nodes is None:
+            return iter(await self._fetch())
+        return iter(self._cached_nodes)
+
+    @_auto_async_to_sync
+    async def tolist(self) -> list[NodeT]:
+        if self._cached_nodes is None:
+            return await self._fetch()
+        return self._cached_nodes
+
+    def __iter__(self):
+        if self._cached_nodes is None:
+            return iter(async_to_sync(self._fetch)())
+        return iter(self._cached_nodes)
+
+    def __len__(self):
+        if self._cached_nodes is not None:
+            return len(self._cached_nodes)
+        return self.count()
+
+    @_auto_async_to_sync
+    async def get(self, filter: "Expression" = None, **kwargs) -> NodeT:
+        """Returns the unique result matching the query (errors otherwise)."""
+        from bench.language.expression import coerce_conditional
+
+        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        results = await self.filter(filter).tolist()
+        if len(results) == 1:
+            return results[0]
+        else:
+            raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results}")
+
+    def filter(self, filter: "Expression" = None, **kwargs) -> "NodeQuery[NodeT]":
+        """Adds a filter clause to the query."""
+        from bench.language.expression import coerce_conditional
+
+        filter = coerce_conditional(self._node_cls, filter, kwargs)
+        copy = self.copy()
+        copy._filter = filter & self._filter if self._filter is not None else filter
+        return copy
+
+    def sort(
+        self, sort: Union[list[Union["Expression", str]], str, "Expression"] = None, *args: str
+    ) -> "NodeQuery[NodeT]":
+        """Sorts the query results by the given sort criteria."""
+        from bench.language.expression import coerce_sort
+
+        copy = self.copy()
+        sort = coerce_sort(self._node_cls, sort, args)
+        copy._sort = sort
+        return copy
+
+    def select(self, *fields: "Field") -> "NodeQuery[NodeT]":
+        """Selects only the given fields in the results."""
+        raise NotImplementedError("not yet supported")
+
+    def include(self, *fields: "Field") -> "NodeQuery[NodeT]":
+        """Includes the given related fields in the results."""
+        raise NotImplementedError("not yet supported")
+
+    def distinct(self, *fields: "Field") -> "NodeQuery[NodeT]":
+        """Returns results with distinct values in the given fields."""
+        raise NotImplementedError("not yet supported")
+
+    def first(self, count: int) -> "NodeQuery[NodeT]":
+        """Returns the first N results."""
+        copy = self.copy()
+        copy._first = count
+        return copy
+
+    def skip(self, count: int) -> "NodeQuery[NodeT]":
+        """Skips the first N results."""
+        copy = self.copy()
+        copy._skip = count
+        return copy
+
+    def __getitem__(self, item: slice | int) -> typing.Union["NodeQuery[NodeT]", NodeT]:
+        if isinstance(item, slice):
+            if item.stop is None:
+                return self.skip(item.start or 0)
+            elif item.start is not None:
+                return self.skip(item.start).first(item.stop - item.start)
+            else:
+                return self.first(item.stop)
+        elif isinstance(item, int):
+            if self._cached_nodes is None:
+                records = async_to_sync(self._fetch)()
+            else:
+                records = self._cached_nodes
+            if item < 0:
+                item += len(records)
+            if item >= len(records):
+                raise IndexError(f"index {item} out of range for {self!r} (got {len(self)})")
+            return records[item]
+        else:
+            raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
+
+    @_auto_async_to_sync
+    async def count(self, filter: "Expression" = None, **kwargs) -> int:
+        """Returns the number of results. May refine the query."""
+        raise NotImplementedError
+
+    @_auto_async_to_sync
+    async def exists(self, filter: "Expression" = None, **kwargs) -> bool:
+        """Whether any results exist. May refine the query."""
+        raise NotImplementedError
+
+
+class _NodeExpressionBase:
+    @classmethod
+    async def tolist(cls: type["Node"]) -> list[NodeT]:
+        return await NodeQuery(node_type=cls.metatype).tolist()
+
+    @classmethod
+    def get(cls: type["Node"], conditional: "Expression" = None, **kwargs) -> "NodeT":
+        return NodeQuery(node_type=cls.metatype).get(conditional, **kwargs)
+
+    @classmethod
+    def filter(cls: type["Node"], filter: "Expression" = None, **kwargs) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).filter(filter, **kwargs)
+
+    @classmethod
+    async def count(cls: type["Node"], filter: "Expression" = None, **kwargs) -> int:
+        return NodeQuery(node_type=cls.metatype).count(filter, **kwargs)
+
+    @classmethod
+    async def exists(cls: type["Node"], filter: "Expression" = None, **kwargs) -> bool:
+        return NodeQuery(node_type=cls.metatype).exists(filter, **kwargs)
+
+
 class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
     """
     Base node list for custom implementation (right now just for database).
@@ -1995,85 +2205,6 @@ class Struct(abc.ABC):
     _clear_rec = _make_rec_method(_ComponentMethod.clear, _clear_self)
     _interp_rec = _make_rec_method(_ComponentMethod.interp, _interp_self)
     _visit_rec = _make_rec_method(_ComponentMethod.visit, _visit_self)
-
-
-FieldOrProperty = Union["Field", Property]
-
-
-class NodeQuery:
-    def __init__(
-        self,
-        node_type: NodeType,
-        filter: Optional["Expression"] = None,
-        sort: list["Expression"] | None = None,
-        include: list[FieldOrProperty] | None = None,
-        select: list[FieldOrProperty] | None = None,
-        distinct: list[FieldOrProperty] | None = None,
-        first: int | None = None,
-        skip: int | None = None,
-        engine: Optional[QueryEngine] = None,
-        cache: bool = True,
-    ):
-        self._node_type = node_type
-        self._filter = filter
-        self._sort = sort
-        self._include = include
-        self._select = select
-        self._distinct = distinct
-        self._first = first
-        self._skip = skip
-        self._engine = engine
-        self._cache = cache
-        self._cached_nodes: list[Node] | None = None
-        self._cached_cursors: list[str] | None = None
-
-    def __str__(self):
-        args_strs = []
-        for k in ("filter", "sort", "include", "select", "distinct", "first", "skip"):
-            v = getattr(self, f"_{k}", None)
-            if k == "query":
-                v = f"({v})" if v is not None else None
-            if v is not None:
-                args_strs.append(f"{k}={v}")
-        return f"{self._node_type} {', '.join(args_strs)}"
-
-    def __repr__(self):
-        return f"<NodeQuery {self}>"
-
-    def copy(self):
-        """Clones the query (the properties are immutable)."""
-        return NodeQuery(
-            node_type=self._node_type,
-            filter=self._filter,
-            sort=self._sort,
-            include=self._include,
-            select=self._select,
-            distinct=self._distinct,
-            first=self._first,
-            skip=self._skip,
-            engine=self._engine,
-            # cache is not copied on purpose as it shouldn't propagate
-        )
-
-
-class _NodeExpressionBase:
-    @staticmethod
-    def get(self, conditional: "Expression" = None, **kwargs) -> "Node":
-        raise NotImplementedError
-
-    @staticmethod
-    def filter(self, query: "Expression" = None, **kwargs) -> "NodeQuery":
-        raise NotImplementedError
-
-    @staticmethod
-    @_match_session_sync
-    async def count(self, query: Expression = None, **kwargs) -> int:
-        raise NotImplementedError
-
-    @staticmethod
-    @_match_session_sync
-    async def exists(self, query: Expression = None, **kwargs) -> bool:
-        raise NotImplementedError
 
 
 @node_component
@@ -2771,7 +2902,7 @@ class ModuleChange:
         return ModuleChange([], [], [], [], [])
 
 
-@node(NodeType.MODULE, passthrough=(("files", _Passthrough.Full),))
+@node(NodeType.MODULE)
 class Module(ScopeNode):
     """A module is a semi-isolated version of a Bench, containing the actual files and so on."""
 

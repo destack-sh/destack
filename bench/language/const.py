@@ -90,6 +90,8 @@ class StructType(ProtoStrEnum):
     POLICY = "POLICY", 200
     POLICY_RULE = "POLICY_RULE", 201
     EXPRESSION = "EXPRESSION", 210
+    AGGREGATION = "AGGREGATION", 211
+    AGGREGATION_BUCKET = "AGGREGATION_BUCKET", 212
     LOG_ENTRY = "LOG_ENTRY", 220
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
     RUN_ERROR = "RUN_ERROR", 222
@@ -581,15 +583,14 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 
 
 class AggregationOp(ProtoStrEnum):
-    # Single value
-    COUNT = "COUNT", 1
-    SUM = "SUM", 2
-    AVERAGE = "AVERAGE", 3
-    MIN = "MIN", 4
-    MAX = "MAX", 5
-    MEDIAN = "MEDIAN", 6
-    # Bucket value
-    HISTOGRAM = "HISTOGRAM", 7
+    EXISTS = "EXISTS", 1
+    COUNT = "COUNT", 2
+    SUM = "SUM", 3
+    AVERAGE = "AVERAGE", 4
+    MIN = "MIN", 5
+    MAX = "MAX", 6
+    MEDIAN = "MEDIAN", 7
+    HISTOGRAM = "HISTOGRAM", 8
 
 
 class SortOp(ProtoStrEnum):

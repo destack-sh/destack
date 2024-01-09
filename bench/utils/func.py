@@ -13,6 +13,7 @@ from itertools import filterfalse, tee
 from typing import Any, Collection, Coroutine, Iterable, Mapping, TypeVar
 from uuid import UUID
 
+from asgiref.sync import async_to_sync
 import structlog
 from cachetools import cached
 
@@ -144,6 +145,32 @@ async def wait_then(delay: float, coro_or_func: Coroutine | callable, *args, **k
         await coro_or_func(*args, **kwargs)
     else:
         coro_or_func(*args, **kwargs)
+
+
+def _auto_async_to_sync(func: typing.Callable[..., T]) -> typing.Callable[..., T]:
+    """Automatically convert async functions to sync if not called in async context."""
+
+    def decorate(func):
+        # check that the func is async
+        if not asyncio.iscoroutinefunction(func):
+            raise TypeError(f"{func} is not a coroutine function")
+
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            # are we in an async context?
+            try:
+                asyncio.get_running_loop()
+                is_in_loop = True
+            except RuntimeError:
+                is_in_loop = False
+            if is_in_loop:
+                return func(*args, **kwargs)
+            else:
+                return async_to_sync(func)(*args, **kwargs)
+
+        return wrapped
+
+    return decorate(func)
 
 
 def call_later(delay: float, coro_or_func: Coroutine | callable, *args, **kwargs) -> None:

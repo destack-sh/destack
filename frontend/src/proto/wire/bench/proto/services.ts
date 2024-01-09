@@ -24,6 +24,7 @@ import { Timestamp } from "../../google/protobuf/timestamp";
 import { BlobData } from "./lang";
 import { LogEntryData } from "./lang";
 import { WorkerSetData } from "./lang";
+import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
 import { BenchData } from "./lang";
 import { OrganizationData } from "./lang";
@@ -407,6 +408,40 @@ export interface SearchNodesResponse {
      * @generated from protobuf field: int64 edit_marker = 4;
      */
     editMarker: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.AggregateNodesRequest
+ */
+export interface AggregateNodesRequest {
+    /**
+     * @generated from protobuf field: symbolx.bench.ExpressionData aggregation = 1;
+     */
+    aggregation?: ExpressionData;
+    /**
+     * @generated from protobuf field: symbolx.bench.ExpressionData filter = 2;
+     */
+    filter?: ExpressionData;
+    /**
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 3;
+     */
+    sort: ExpressionData[];
+    /**
+     * @generated from protobuf field: int32 limit = 4;
+     */
+    limit: number;
+    /**
+     * @generated from protobuf field: string after = 5;
+     */
+    after: string;
+}
+/**
+ * @generated from protobuf message symbolx.bench.AggregateNodesResponse
+ */
+export interface AggregateNodesResponse {
+    /**
+     * @generated from protobuf field: symbolx.bench.AggregationData aggregation = 1;
+     */
+    aggregation?: AggregationData;
 }
 /**
  * @generated from protobuf message symbolx.bench.CommitEditsRequest
@@ -2107,6 +2142,129 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
  * @generated MessageType for protobuf message symbolx.bench.SearchNodesResponse
  */
 export const SearchNodesResponse = new SearchNodesResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
+    constructor() {
+        super("symbolx.bench.AggregateNodesRequest", [
+            { no: 1, name: "aggregation", kind: "message", T: () => ExpressionData },
+            { no: 2, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 3, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 4, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 5, name: "after", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<AggregateNodesRequest>): AggregateNodesRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.sort = [];
+        message.limit = 0;
+        message.after = "";
+        if (value !== undefined)
+            reflectionMergePartial<AggregateNodesRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AggregateNodesRequest): AggregateNodesRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.ExpressionData aggregation */ 1:
+                    message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                    break;
+                case /* symbolx.bench.ExpressionData filter */ 2:
+                    message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
+                    break;
+                case /* repeated symbolx.bench.ExpressionData sort */ 3:
+                    message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* int32 limit */ 4:
+                    message.limit = reader.int32();
+                    break;
+                case /* string after */ 5:
+                    message.after = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: AggregateNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.ExpressionData aggregation = 1; */
+        if (message.aggregation)
+            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ExpressionData filter = 2; */
+        if (message.filter)
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 3; */
+        for (let i = 0; i < message.sort.length; i++)
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* int32 limit = 4; */
+        if (message.limit !== 0)
+            writer.tag(4, WireType.Varint).int32(message.limit);
+        /* string after = 5; */
+        if (message.after !== "")
+            writer.tag(5, WireType.LengthDelimited).string(message.after);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.AggregateNodesRequest
+ */
+export const AggregateNodesRequest = new AggregateNodesRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class AggregateNodesResponse$Type extends MessageType<AggregateNodesResponse> {
+    constructor() {
+        super("symbolx.bench.AggregateNodesResponse", [
+            { no: 1, name: "aggregation", kind: "message", T: () => AggregationData }
+        ]);
+    }
+    create(value?: PartialMessage<AggregateNodesResponse>): AggregateNodesResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<AggregateNodesResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: AggregateNodesResponse): AggregateNodesResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbolx.bench.AggregationData aggregation */ 1:
+                    message.aggregation = AggregationData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: AggregateNodesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.AggregationData aggregation = 1; */
+        if (message.aggregation)
+            AggregationData.internalBinaryWrite(message.aggregation, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbolx.bench.AggregateNodesResponse
+ */
+export const AggregateNodesResponse = new AggregateNodesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
     constructor() {
@@ -3897,6 +4055,7 @@ export const GlobalSupervisor = new ServiceType("symbolx.bench.GlobalSupervisor"
     { name: "CreateBench", options: {}, I: CreateBenchRequest, O: CreateBenchResponse },
     { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
+    { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
     { name: "RestartWorkerSet", options: {}, I: RestartWorkerSetRequest, O: PingWorkerSetResponse },
@@ -3908,6 +4067,7 @@ export const GlobalSupervisor = new ServiceType("symbolx.bench.GlobalSupervisor"
 export const ModuleHost = new ServiceType("symbolx.bench.ModuleHost", [
     { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
+    { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
     { name: "PasteNodes", options: {}, I: PasteNodesRequest, O: PasteNodesResponse },
     { name: "CommitEdits", options: {}, I: CommitEditsRequest, O: CommitEditsResponse },
     { name: "PushEdits", options: {}, I: PushEditsRequest, O: PushEditsResponse },

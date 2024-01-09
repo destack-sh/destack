@@ -31,6 +31,7 @@ class Worker(WorkerBase, MonitoredServiceBase):
         bench_id: UUID | None,
         module_id: UUID | None,
     ):
+        super().__init__()
         self.worker_set_id = worker_set_id
         self.worker_id = worker_id
         self.bench_id = bench_id

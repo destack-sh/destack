@@ -31,6 +31,8 @@ from bench.proto.wire import (
     SearchNodesResponse,
     WatchEditsRequest,
     WatchEditsResponse,
+    AggregateNodesRequest,
+    AggregateNodesResponse,
 )
 from bench.server.utils import global_session, validate_bench_data_many, check_authenticated_client
 
@@ -111,6 +113,11 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
     async def search_nodes(
         self, search_nodes_request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
+        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    async def aggregate_nodes(
+        self, aggregate_nodes_request: "AggregateNodesRequest"
+    ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def commit_edits(
