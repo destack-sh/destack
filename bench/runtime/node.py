@@ -2,9 +2,18 @@ from subprocess import Popen
 from uuid import UUID
 
 import structlog
+from grpclib import GRPCError, Status as GRPCStatus
 
 from bench.proto.mesh import MonitoredServiceBase
-from bench.proto.wire import WorkerBase, RestartWorkerRequest
+from bench.proto.wire import (
+    WorkerBase,
+    RestartWorkerRequest,
+    RestartWorkerResponse,
+    StartRunRequest,
+    StartRunResponse,
+    KillRunRequest,
+    KillRunResponse,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -47,10 +56,10 @@ class Worker(WorkerBase, MonitoredServiceBase):
     async def restart_worker(
         self, restart_worker_request: "RestartWorkerRequest"
     ) -> "RestartWorkerResponse":
-        return await super().restart_worker(restart_worker_request)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
-        return await super().start_run(start_run_request)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
-        return await super().kill_run(kill_run_request)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)

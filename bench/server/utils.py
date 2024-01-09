@@ -1,11 +1,82 @@
 from contextlib import asynccontextmanager
+from typing import Optional
+from uuid import UUID
 
+import betterproto
+import boto3
+from botocore.config import Config
+from grpclib import GRPCError, Status as GRPCStatus
+from multidict import MultiDict
 import structlog
 
+from bench.language import Worker, Client
 from bench.language.builtin import _active_session
 from bench.language.session import Session
+from bench.proto.wire import AnyStructData, AnyNodeData, RpcMetadata, ClientKind
+from bench.utils.func import to_uuid, uuid_to_str
+from bench.utils.utils import get_from_env
 
 logger = structlog.get_logger(__name__)
+
+
+def encode_metadata(metadata: RpcMetadata) -> dict:
+    """Encodes RPC call metadata for gRPC/HTTP headers."""
+    packed = metadata.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=False)
+    return {k.replace("_", "-"): str(v) for k, v in packed.items()}
+
+
+def parse_metadata(metadata: MultiDict) -> RpcMetadata:
+    """Parses RPC call metadata from gRPC/HTTP headers."""
+    packed = {k.replace("-", "_"): v for k, v in metadata.items()}
+    return RpcMetadata.from_dict(packed)
+
+
+def validate_bench_data(
+    data: AnyNodeData | AnyStructData,
+    in_bench: UUID | str | None = None,
+    in_module: UUID | str | None = None,
+) -> None:
+    """Check that the data structs have all the required fields. Raises gRPC errors."""
+    in_bench = uuid_to_str(in_bench)
+    in_module = uuid_to_str(in_module)
+    if in_bench is not None and hasattr(data, "bench_id") and data.bench_id != in_bench:
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT, f"wrong bench_id: {data.bench_id} != {in_bench}"
+        )
+    if in_module is not None and hasattr(data, "module_id") and data.module_id != in_module:
+        raise GRPCError(
+            GRPCStatus.INVALID_ARGUMENT, f"wrong module_id: {data.module_id} != {in_module}"
+        )
+    raise NotImplementedError("nocheckin: check_data")
+
+
+def validate_bench_data_many(
+    *data: AnyNodeData | AnyStructData, in_bench: UUID | None = None, in_module: UUID | None = None
+) -> None:
+    for d in data:
+        validate_bench_data(d, in_bench=in_bench, in_module=in_module)
+
+
+async def check_authenticated(metadata: RpcMetadata) -> Client | Worker:
+    if metadata.client_kind == ClientKind.USER:
+        client = await Client.get(id=to_uuid(metadata.client_id))
+        if client.access_token != metadata.access_token:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "wrong access token")
+        return client
+    elif metadata.client_kind == ClientKind.WORKER:
+        worker = await Worker.get(id=to_uuid(metadata.client_id))
+        if worker.access_token != metadata.access_token:
+            raise GRPCError(GRPCStatus.UNAUTHENTICATED, "wrong access token")
+        return worker
+    else:
+        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "unexpected client kind")
+
+
+async def check_authenticated_client(metadata: RpcMetadata) -> Client:
+    client = await check_authenticated(metadata)
+    if not isinstance(client, Client):
+        raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "expected user client")
+    return client
 
 
 @asynccontextmanager
@@ -22,3 +93,17 @@ async def global_session(commit: bool = False) -> "Session":
             logger.warning("session.discard", session=session)
     finally:
         _active_session.set(None)
+
+
+_s3_client: Optional["boto3.client"] = None
+
+
+def get_s3_client() -> "boto3.client":
+    global _s3_client
+    if _s3_client is None:
+        _s3_client = boto3.client(
+            "s3",
+            endpoint_url=get_from_env("AWS_ENDPOINT_URL"),
+            config=Config(s3={"addressing_style": "path"}, region_name=get_from_env("AWS_REGION")),
+        )
+    return _s3_client

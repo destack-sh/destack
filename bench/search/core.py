@@ -3,11 +3,6 @@ import typing
 from dataclasses import dataclass
 from typing import Any
 
-from bench.language.const import NodeType
-
-# different from LOCAL_NODE_TYPES (which is the source of truth, this is just OS indexing)
-LOCAL_OS_NODE_TYPES = (NodeType.SESSION, NodeType.RUN, NodeType.RECORD)
-
 
 class FieldType(enum.StrEnum):
     """

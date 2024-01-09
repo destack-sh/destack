@@ -33,9 +33,6 @@ class WorkerSet(ScopeNode):
     ready_replicas: int = struct_internal(37, protect=True)
     last_active_at: datetime = struct_internal(38, protect=True, default_factory=utcnow_with_tz)
     last_bumped_at: datetime = struct_internal(39, protect=True, default_factory=utcnow_with_tz)
-    access_token: Optional[str] = struct_internal(
-        40, default=None, protect=True, encrypt=True, defer=True
-    )
 
     workers: list["Worker"] = node_children(NodeType.WORKER)
 
@@ -46,6 +43,9 @@ class Worker(Node):
     external_id: str = struct_internal(30, unique=True, protect=True)
     profile: WorkerProfile = struct_internal(31)
     image: Optional["WorkerImage"] = struct_internal(32, struct_t=StructType.WORKER_IMAGE)
+    access_token: Optional[str] = struct_internal(
+        33, default=None, protect=True, encrypt=True, defer=True
+    )
 
 
 @struct(StructType.WORKER_IMAGE)

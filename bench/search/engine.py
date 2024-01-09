@@ -21,7 +21,13 @@ from bench.language import (
     TypeTag,
     symbolx_lib,
 )
-from bench.language.const import RUNNABLE_STATEMENT_TYPES, BenchType, EditKind, TypeFlag
+from bench.language.const import (
+    RUNNABLE_STATEMENT_TYPES,
+    BenchType,
+    EditKind,
+    TypeFlag,
+    to_bench_metatype,
+)
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -45,7 +51,7 @@ from bench.proto import wire, wiring
 from bench.proto.wire import EditData
 from bench.search import core as os
 from bench.search.client import get_os_errors, os_client, os_client_sync
-from bench.search.core import LOCAL_OS_NODE_TYPES, SubfieldType
+from bench.search.core import SubfieldType
 from bench.sql.core import ColumnType
 
 logger = structlog.get_logger(__name__)
@@ -959,11 +965,10 @@ async def write_edits_to_os(
         ops.clear()
 
     for edit in edits:
-        index = (
-            module.os_name if edit.type.node_type in LOCAL_OS_NODE_TYPES else os.GLOBAL_INDEX_NAME
-        )
         metatype = wiring.unpack_enum(BenchType, edit.node.metatype)
-        if not BENCH_CLASS_BY_TYPE[metatype].__is_indexed_in_os__:
+        node_cls = BENCH_CLASS_BY_TYPE[metatype]
+        index = module.os_name if node_cls.__is_local__ else os.GLOBAL_INDEX_NAME
+        if not node_cls.__is_indexed_in_os__:
             continue  # ignore
         elif edit.type.kind in (
             EditKind.CREATE,
@@ -973,7 +978,7 @@ async def write_edits_to_os(
             EditKind.RESTORE,
         ):
             ops.append({"index": {"_index": index, "_id": str(edit.node.id)}})
-            ops.append(pack_struct(edit.node))
+            ops.append(pack_struct(wiring.unwrap_some_node(edit.node)))
         elif edit.type.kind == EditKind.DELETE:
             ops.append({"delete": {"_index": index, "_id": str(edit.node.id)}})
         else:

@@ -1,10 +1,13 @@
 from typing import AsyncIterator
 
 import grpclib
+from grpclib import GRPCError, Status as GRPCStatus
 import structlog
 
 from bench.language import Handle, User
 from bench.language.auth import check_password, generate_access_token, generate_salt, hash_password
+from bench.language.const import to_bench_metatype, NodeType
+from bench.language.module import NODE_CLASS_BY_NODE_TYPE
 from bench.proto import wiring
 from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (
@@ -12,8 +15,8 @@ from bench.proto.wire import (
     CommitEditsResponse,
     CreateBenchRequest,
     CreateBenchResponse,
-    CreateUserRequest,
-    CreateUserResponse,
+    SignupUserRequest,
+    SignupUserResponse,
     GlobalSupervisorBase,
     LoginUserRequest,
     LoginUserResponse,
@@ -28,9 +31,8 @@ from bench.proto.wire import (
     SearchNodesResponse,
     WatchEditsRequest,
     WatchEditsResponse,
-    RpcMetadata,
 )
-from bench.server.utils import global_session
+from bench.server.utils import global_session, validate_bench_data_many, check_authenticated_client
 
 logger = structlog.get_logger(__name__)
 
@@ -54,7 +56,8 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
     async def wait_closed(self) -> None:
         pass
 
-    async def create_user(self, create_user_request: "CreateUserRequest") -> "CreateUserResponse":
+    async def create_user(self, create_user_request: "SignupUserRequest") -> "SignupUserResponse":
+        validate_bench_data_many(create_user_request.user, create_user_request.client)
         async with global_session(commit=True) as session:
             user = wiring.unpack_node(create_user_request.user, parent=None, session=session)
             user.password_salt = generate_salt()
@@ -63,20 +66,22 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
             client = wiring.unpack_node(create_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.create_many(user, user.handle, client)
-        return CreateUserResponse(user=wiring.pack_node(user), access_token=client.token)
+        return SignupUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def login_user(self, login_user_request: "LoginUserRequest") -> "LoginUserResponse":
         async with global_session(commit=True) as session:
-            if login_user_request.user.username:
-                user = await User.get(username=login_user_request.user.username)
-            elif login_user_request.user.email:
-                user = await User.get(email=login_user_request.user.email)
+            if login_user_request.id:
+                user = await User.get(id=login_user_request.id)
+            elif login_user_request.username:
+                user = await User.get(username=login_user_request.username)
+            elif login_user_request.email:
+                user = await User.get(email=login_user_request.email)
             else:
-                raise ValueError("no username or email provided")
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
             if not check_password(
                 login_user_request.password, user.password_salt, user.password_hash
             ):
-                raise ValueError("invalid password")
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid password")
 
             client = wiring.unpack_node(login_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
@@ -84,37 +89,46 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
         return LoginUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def logout_user(self, logout_user_request: "LogoutUserRequest") -> "LogoutUserResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        async with global_session(commit=True):
+            client = await check_authenticated_client(self.metadata)
+            client.access_token = None
+        return LogoutUserResponse()
 
     async def create_bench(
         self, create_bench_request: "CreateBenchRequest"
     ) -> "CreateBenchResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        for root in read_nodes_request.roots:
+            node_type = to_bench_metatype(root.type)
+            node_cls = NODE_CLASS_BY_NODE_TYPE[node_type]
+            if node_cls.__is_in_module__:
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid root node type")
+
+        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def search_nodes(
         self, search_nodes_request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def commit_edits(
         self, commit_edits_request: "CommitEditsRequest"
     ) -> "CommitEditsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(
         self, watch_edits_request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def restart_worker_set(
         self, restart_worker_set_request: "RestartWorkerSetRequest"
     ) -> "PingWorkerSetResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def ping_worker_set(
         self, ping_worker_set_request: "PingWorkerSetRequest"
     ) -> "PingWorkerSetResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)

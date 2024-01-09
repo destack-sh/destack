@@ -1,9 +1,16 @@
-from typing import AsyncIterator
+import asyncio
+from datetime import timedelta, datetime
+import functools
+from typing import AsyncIterator, Callable
+import urllib
 from uuid import UUID
 
+from grpclib import GRPCError, Status as GRPCStatus
 import grpclib
+import grpclib.server
 import structlog
 
+from bench.language.const import IN_MODULE_NODE_TYPES, NodeType
 from bench.language.module import Bench, Module
 from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (
@@ -37,9 +44,11 @@ from bench.proto.wire import (
     RunProxyStatementRequest,
     RunProxyStatementResponse,
     PushEditsResponse,
+    ReadNodesOptions,
 )
-from bench.server.utils import global_session
-from bench.utils.monitoring import Monitored
+from bench.server.utils import global_session, validate_bench_data_many, get_s3_client
+from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
+from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
 
@@ -51,7 +60,8 @@ class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
     """
 
     def __init__(self):
-        self._hosts_by_module_id: dict[UUID, ModuleHost] = {}
+        super().__init__()
+        self._hosts_by_module_id: dict[UUID, "ModuleHost"] = {}
 
     def __str__(self):
         return "0"
@@ -61,26 +71,71 @@ class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
 
     async def start_quick(self) -> None:
         async with global_session():
-            # benches = await Bench.tolist()
-            pass
-        # nocheckin: ModuleHostMultiplexer.start_quick
+            benches = await Bench.tolist()
+            await asyncio.gather(self._start_host(bench.id, bench.head_id) for bench in benches)
 
-    # nocheckin: "proxy" ModuleHost / start and connect relevant Bench module hosts
+    def close(self) -> None:
+        for host in self._hosts_by_module_id.values():
+            host.close()
+
+    async def wait_closed(self) -> None:
+        await asyncio.gather(*[host.wait_closed() for host in self._hosts_by_module_id.values()])
+
+    async def _start_host(self, bench_id: UUID, module_id: UUID) -> "ModuleHost":
+        host = ModuleHost(bench_id, module_id)
+        await host.start_quick()
+        return host
+
+    def _wrap_rpc_func(
+        self, func: Callable, method_name: str, handler: grpclib.const.Handler
+    ) -> Callable:
+        @functools.wraps(func)
+        async def proxied_method(stream: grpclib.server.Stream) -> None:
+            bench_id = to_uuid(self.metadata.bench_id)
+            module_id = to_uuid(self.metadata.module_id)
+
+            # get module host
+            host = self._hosts_by_module_id.get(module_id)
+            if host is None:
+                host = await self._start_host(bench_id, module_id)
+                self._hosts_by_module_id[module_id] = host
+
+            # forward to host
+            host._stream.set(stream)
+            host._metadata.set(self.metadata)
+            await getattr(host, method_name)(stream)
+
+        return proxied_method
 
 
-class ModuleHost(ModuleHostBase, Monitored):
+class ModuleHost(BenchServiceBase, ModuleHostBase):
     """
     Host for an (active) Bench module. Manages basically everything that's not actually running it.
     Frontend and worker connects to this to do anything with the module.
     """
 
     def __init__(self, bench_id: UUID, module_id: UUID):
+        super().__init__()
         self.bench_id = bench_id
         self.module_id = module_id
         self.bench: Bench | None = None
         self.module: Module | None = None
 
+    def __str__(self):
+        return f"{self.module or self.module_id}"
+
+    def __repr__(self):
+        return f"<ModuleHost {self}>"
+
     async def start_quick(self) -> None:
+        bench: Bench = await read_node(
+            root_type=NodeType.BENCH, root_id=self.bench_id, descendant_types=(NodeType.BADGE,)
+        )
+        module: Module = await read_node(
+            root_type=NodeType.MODULE,
+            root_id=self.module_id,
+            descendant_types=IN_MODULE_NODE_TYPES,
+        )
         raise NotImplementedError("nocheckin: ModuleHost.start_quick")
 
     #
@@ -88,33 +143,33 @@ class ModuleHost(ModuleHostBase, Monitored):
     #
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def search_nodes(
         self, search_nodes_request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def commit_edits(
         self, commit_edits_request: "CommitEditsRequest"
     ) -> "CommitEditsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def push_edits(self, push_edits_request: "PushEditsRequest") -> "PushEditsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_edits(
         self, watch_edits_request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def snapshot(
         self, snapshot_module_request: "SnapshotModuleRequest"
     ) -> "SnapshotModuleResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Blobs
@@ -123,41 +178,72 @@ class ModuleHost(ModuleHostBase, Monitored):
     async def upload_blobs(
         self, upload_blobs_request: "UploadBlobsRequest"
     ) -> "UploadBlobsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        validate_bench_data_many(*upload_blobs_request.blobs, in_bench=self.bench_id)
+        expires_in = 60 * 60  # 1 hour
+        presigned_urls: list[str] = []
+        for blob in upload_blobs_request.blobs:
+            presigned = get_s3_client().generate_presigned_post(
+                Bucket=GLOBAL_PROJECT_BUCKET_NAME,
+                Key=f"{blob.id}/{blob.name}",
+                ExpiresIn=expires_in,  # 1 hour
+                Fields={},
+            )
+            if "url" not in presigned:
+                raise RuntimeError(f"failed to generate presigned post for {self}: {presigned}")
+            # encode the url as a string (with parameters)
+            encoded_params = urllib.parse.urlencode(presigned["fields"])
+            encoded_url = f"{presigned['url']}?{encoded_params}"
+            presigned_urls.append(encoded_url)
+        expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        return UploadBlobsResponse(post_urls=presigned_urls, expires_at=expires_at)
 
     async def download_blobs(
         self, download_blobs_request: "DownloadBlobsRequest"
     ) -> "DownloadBlobsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        validate_bench_data_many(*download_blobs_request.blobs, in_bench=self.bench_id)
+        expires_in = 60 * 60  # 1 hour
+        presigned_urls: list[str] = []
+        for blob in download_blobs_request.blobs:
+            get_url = get_s3_client().generate_presigned_url(
+                ClientMethod="get_object",
+                Params={
+                    "Bucket": GLOBAL_PROJECT_BUCKET_NAME,
+                    "Key": f"{blob.id}/{blob.name}",
+                },
+                ExpiresIn=expires_in,
+            )
+            presigned_urls.append(get_url)
+        expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        return DownloadBlobsResponse(get_urls=presigned_urls, expires_at=expires_at)
 
     #
     # Logs
     #
 
     async def search_logs(self, search_logs_request: "SearchLogsRequest") -> "SearchLogsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def watch_logs(
         self, watch_logs_request: "WatchLogsRequest"
     ) -> AsyncIterator["WatchLogsResponse"]:
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def push_worker_logs(
         self, push_worker_logs_request: "PushWorkerLogsRequest"
     ) -> "PushWorkerLogsRequest":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
     # Runs
     #
 
     async def start_run(self, start_run_request: "StartRunRequest") -> "StartRunResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def run_proxy_statement(
         self, run_proxy_statement_request: "RunProxyStatementRequest"
     ) -> "RunProxyStatementResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)

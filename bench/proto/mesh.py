@@ -1,31 +1,31 @@
 import asyncio
 import contextvars
 import functools
-from typing import Collection, TYPE_CHECKING, Mapping
+from typing import Collection, TYPE_CHECKING, Mapping, final, Callable
 
+import betterproto
 from grpclib._typing import IServable
 import grpclib.server
 from multidict import MultiDict
 import structlog
 
 from bench.proto.wire import RpcMetadata
+from bench.server.utils import parse_metadata
 from bench.utils.monitoring import Monitored
+from bench.utils.utils import to_snake_case
 
 logger = structlog.get_logger(__name__)
 
 
-def parse_metadata(metadata: MultiDict) -> RpcMetadata:
-    raise NotImplementedError("nocheckin: parse_metadata")
-
-
 class BenchServiceBase(IServable if TYPE_CHECKING else object):
-    """gRPC service with some extra stuff for custom loops, auth, metadata, ..."""
+    """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
     def __init__(self):
         self._stream: contextvars.ContextVar[grpclib.server.Stream] = contextvars.ContextVar(
             "stream"
         )
         self._metadata: contextvars.ContextVar[RpcMetadata] = contextvars.ContextVar("metadata")
+        self._log = structlog.get_logger(self.__class__.__name__)
 
     @property
     def stream(self) -> grpclib.server.Stream:
@@ -50,16 +50,52 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
     def __mapping__(self) -> Mapping[str, grpclib.const.Handler]:
         patched_mapping = {}
         for method, handler in super().__mapping__().items():
-            func, cardinality, request_type, reply_type = handler
-
-            @functools.wraps(func)
-            async def wrapped_method(stream: grpclib.server.Stream) -> None:
-                self._stream.set(stream)
-                self._metadata.set(parse_metadata(stream.metadata))
-                await func(stream)
-
-            patched_mapping[method] = (wrapped_method, cardinality, request_type, reply_type)
+            patched_mapping[method] = self._wrap_rpc(method, handler)
         return patched_mapping
+
+    def _wrap_rpc_func(
+        self, func: Callable, method_name: str, handler: grpclib.const.Handler
+    ) -> Callable:
+        return func
+
+    @final
+    def _wrap_rpc(self, method: str, handler: grpclib.const.Handler) -> grpclib.const.Handler:
+        func, cardinality, request_type, reply_type = handler
+        service_slug = to_snake_case(self.__class__.__name__)
+        method_slug = to_snake_case(method.split("/")[-1])
+        rpc_name = f"{service_slug}.{method_slug}"
+        func = self._wrap_rpc_func(func, method_slug, handler)
+
+        @functools.wraps(func)
+        async def wrapped_method(stream: grpclib.server.Stream) -> None:
+            start = asyncio.get_running_loop().time()
+            try:
+                self._stream.set(stream)
+                metadata = parse_metadata(stream.metadata)
+                self._metadata.set(metadata)
+                logger.info(rpc_name, service=self, method=method, metadata=metadata)
+                await func(stream)
+                duration = asyncio.get_running_loop().time() - start
+                logger.info(f"{rpc_name}.done", service=self, method=method, duration=duration)
+            except grpclib.exceptions.GRPCError as e:
+                duration = asyncio.get_running_loop().time() - start
+                logger.error(
+                    f"{rpc_name}.error", service=self, method=method, duration=duration, error=e
+                )
+                raise  # pass through
+            except Exception as e:
+                # any remaining errors are internal server errors
+                duration = asyncio.get_running_loop().time() - start
+                logger.exception(
+                    f"{rpc_name}.internal_error",
+                    service=self,
+                    method=method,
+                    duration=duration,
+                    error=e,
+                )
+                raise grpclib.exceptions.GRPCError(grpclib.const.Status.INTERNAL, str(e)) from e
+
+        return grpclib.const.Handler(wrapped_method, cardinality, request_type, reply_type)
 
 
 class MonitoredServiceBase(BenchServiceBase, Monitored):

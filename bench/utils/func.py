@@ -50,6 +50,17 @@ def to_uuid(id: str | UUID | None) -> UUID | None:
         raise TypeError(f"unexpected id type: {id!r}")
 
 
+def uuid_to_str(id: UUID | str | None) -> str | None:
+    if not id:
+        return None  # ignore empty strings
+    elif isinstance(id, str):
+        return id
+    elif isinstance(id, UUID):
+        return str(id)
+    else:
+        raise TypeError(f"unexpected id type: {id!r}")
+
+
 def get_first(obj: dict, keys: Iterable[str]):
     """Gets the first non-None value out of a dict given a list of keys"""
     for key in keys:

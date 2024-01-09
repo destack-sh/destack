@@ -169,8 +169,10 @@ google-auth-oauthlib==1.0.0
     # via -r requirements-worker.in
 google-search-results==2.4.2
     # via -r requirements-worker.in
-googleapis-common-protos==1.60.0
-    # via google-api-core
+googleapis-common-protos==1.62.0
+    # via
+    #   -r requirements-worker.in
+    #   google-api-core
 googlemaps==4.6.0
     # via -r requirements-worker.in
 gprofiler-official==1.0.0

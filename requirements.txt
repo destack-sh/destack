@@ -102,6 +102,8 @@ fsspec==2023.12.0
     # via huggingface-hub
 google-auth==2.22.0
     # via kubernetes
+googleapis-common-protos==1.62.0
+    # via -r requirements.in
 grpclib==0.4.5
     # via betterproto
 gunicorn==21.2.0
@@ -177,7 +179,9 @@ pillow==9.4.0
 posthog==3.0.2
     # via -r requirements.in
 protobuf==4.24.3
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   googleapis-common-protos
 psycopg[binary,pool]==3.1.12
     # via -r requirements.in
 psycopg-binary==3.1.12
