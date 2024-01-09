@@ -263,19 +263,19 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
  */
 export interface IModuleHostClient {
     /**
-     * Reads the entire module tree.
+     * Reads local or global nodes.
      *
      * @generated from protobuf rpc: ReadNodes(symbolx.bench.ReadNodesRequest) returns (symbolx.bench.ReadNodesResponse);
      */
     readNodes(input: ReadNodesRequest, options?: RpcOptions): UnaryCall<ReadNodesRequest, ReadNodesResponse>;
     /**
-     * Searches out-of-line nodes in the module.
+     * Searches nodes using filters.
      *
      * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
      */
     searchNodes(input: SearchNodesRequest, options?: RpcOptions): UnaryCall<SearchNodesRequest, SearchNodesResponse>;
     /**
-     * Aggregate module nodes.
+     * Aggregate nodes into statistics.
      *
      * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
      */
@@ -390,7 +390,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * Reads the entire module tree.
+     * Reads local or global nodes.
      *
      * @generated from protobuf rpc: ReadNodes(symbolx.bench.ReadNodesRequest) returns (symbolx.bench.ReadNodesResponse);
      */
@@ -399,7 +399,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<ReadNodesRequest, ReadNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Searches out-of-line nodes in the module.
+     * Searches nodes using filters.
      *
      * @generated from protobuf rpc: SearchNodes(symbolx.bench.SearchNodesRequest) returns (symbolx.bench.SearchNodesResponse);
      */
@@ -408,7 +408,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<SearchNodesRequest, SearchNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Aggregate module nodes.
+     * Aggregate nodes into statistics.
      *
      * @generated from protobuf rpc: AggregateNodes(symbolx.bench.AggregateNodesRequest) returns (symbolx.bench.AggregateNodesResponse);
      */

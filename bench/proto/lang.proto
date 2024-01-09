@@ -1135,46 +1135,46 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    TriggerData trigger = 1;
-    IssueData issue = 2;
-    BlobData blob = 3;
-    RecordData record = 4;
+    BlobData blob = 1;
+    HandleData handle = 2;
+    BadgeData badge = 3;
+    TaggingData tagging = 4;
     ClientData client = 5;
-    HaltData halt = 6;
+    ViewData view = 6;
     SecretData secret = 7;
     NotificationData notification = 8;
-    TaggingData tagging = 9;
-    FileData file = 10;
-    SessionData session = 11;
-    SignalData signal = 12;
-    StatementData statement = 13;
-    BadgeData badge = 14;
-    UserData user = 15;
+    UserData user = 9;
+    SessionData session = 10;
+    RecordData record = 11;
+    TriggerData trigger = 12;
+    RunData run = 13;
+    ModuleData module = 14;
+    IssueData issue = 15;
     FieldData field = 16;
-    WorkerSetData worker_set = 17;
-    ViewData view = 18;
-    HandleData handle = 19;
-    WorkerData worker = 20;
-    RunData run = 21;
-    ModuleData module = 22;
+    StatementData statement = 17;
+    BenchData bench = 18;
+    WorkerSetData worker_set = 19;
+    SignalData signal = 20;
+    WorkerData worker = 21;
+    HaltData halt = 22;
     OrganizationData organization = 23;
-    BenchData bench = 24;
+    FileData file = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    AggregationBucketData aggregation_bucket = 1;
-    PolicyData policy = 2;
-    AggregationData aggregation = 3;
+    PolicyRuleData policy_rule = 1;
+    ExpressionData expression = 2;
+    AggregationBucketData aggregation_bucket = 3;
     RunErrorData run_error = 4;
-    DependencyData dependency = 5;
-    ExpressionData expression = 6;
-    MiniRunData mini_run = 7;
-    LogEntryData log_entry = 8;
-    PolicyRuleData policy_rule = 9;
-    WorkerImageData worker_image = 10;
-    RunCodeFrameData run_code_frame = 11;
+    AggregationData aggregation = 5;
+    MiniRunData mini_run = 6;
+    DependencyData dependency = 7;
+    RunCodeFrameData run_code_frame = 8;
+    PolicyData policy = 9;
+    LogEntryData log_entry = 10;
+    WorkerImageData worker_image = 11;
   };
 }
 

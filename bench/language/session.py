@@ -184,6 +184,11 @@ class Session(ScopeNode):
         return f"<Session {self}>"
 
     @property
+    def host(self) -> ModuleHostStub:
+        assert self._host is not None, f"host not available in {self!r}"
+        return self._host
+
+    @property
     def path(self):
         if self.parent is not None:
             return f"{self.parent.path}.{self.id}"
@@ -306,7 +311,7 @@ class Session(ScopeNode):
         """Flushes session edits."""
 
         edits = self._eat_edits(session=True, kill_pending_runs=kill_pending_runs)
-        await self.session._host.push_edits(edits.session_edits)
+        await self.session.host.push_edits(edits.session_edits)
 
     @_auto_async_to_sync
     async def flush_logs(self) -> None:

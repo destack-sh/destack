@@ -173,9 +173,9 @@ export interface ReadNodesOptions {
     /**
      * Any regular nodes (not deleted, not archived).
      *
-     * @generated from protobuf field: bool include_active = 3;
+     * @generated from protobuf field: bool exclude_active = 3;
      */
-    includeActive: boolean;
+    excludeActive: boolean;
     /**
      * Any soft-deleted nodes.
      *
@@ -414,25 +414,33 @@ export interface SearchNodesResponse {
  */
 export interface AggregateNodesRequest {
     /**
-     * @generated from protobuf field: symbolx.bench.ExpressionData aggregation = 1;
+     * @generated from protobuf field: symbolx.bench.NodeType node_type = 1;
      */
-    aggregation?: ExpressionData;
+    nodeType: NodeType;
     /**
-     * @generated from protobuf field: symbolx.bench.ExpressionData filter = 2;
+     * @generated from protobuf field: symbolx.bench.NodePointer parent = 2;
+     */
+    parent?: NodePointer;
+    /**
+     * @generated from protobuf field: symbolx.bench.ExpressionData filter = 3;
      */
     filter?: ExpressionData;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 3;
+     * @generated from protobuf field: repeated symbolx.bench.ExpressionData sort = 4;
      */
     sort: ExpressionData[];
     /**
-     * @generated from protobuf field: int32 limit = 4;
+     * @generated from protobuf field: int32 limit = 5;
      */
     limit: number;
     /**
-     * @generated from protobuf field: string after = 5;
+     * @generated from protobuf field: string after = 6;
      */
     after: string;
+    /**
+     * @generated from protobuf field: symbolx.bench.ExpressionData aggregation = 7;
+     */
+    aggregation?: ExpressionData;
 }
 /**
  * @generated from protobuf message symbolx.bench.AggregateNodesResponse
@@ -1277,7 +1285,7 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
         super("symbolx.bench.ReadNodesOptions", [
             { no: 1, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 3, name: "include_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 3, name: "exclude_active", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 4, name: "include_soft_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 5, name: "include_archived", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 6, name: "include_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyPointer }
@@ -1287,7 +1295,7 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.ancestorTypes = [];
         message.descendantTypes = [];
-        message.includeActive = false;
+        message.excludeActive = false;
         message.includeSoftDeleted = false;
         message.includeArchived = false;
         message.includeProperties = [];
@@ -1314,8 +1322,8 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
                     else
                         message.descendantTypes.push(reader.int32());
                     break;
-                case /* bool include_active */ 3:
-                    message.includeActive = reader.bool();
+                case /* bool exclude_active */ 3:
+                    message.excludeActive = reader.bool();
                     break;
                 case /* bool include_soft_deleted */ 4:
                     message.includeSoftDeleted = reader.bool();
@@ -1352,9 +1360,9 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
                 writer.int32(message.descendantTypes[i]);
             writer.join();
         }
-        /* bool include_active = 3; */
-        if (message.includeActive !== false)
-            writer.tag(3, WireType.Varint).bool(message.includeActive);
+        /* bool exclude_active = 3; */
+        if (message.excludeActive !== false)
+            writer.tag(3, WireType.Varint).bool(message.excludeActive);
         /* bool include_soft_deleted = 4; */
         if (message.includeSoftDeleted !== false)
             writer.tag(4, WireType.Varint).bool(message.includeSoftDeleted);
@@ -2146,15 +2154,18 @@ export const SearchNodesResponse = new SearchNodesResponse$Type();
 class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
     constructor() {
         super("symbolx.bench.AggregateNodesRequest", [
-            { no: 1, name: "aggregation", kind: "message", T: () => ExpressionData },
-            { no: 2, name: "filter", kind: "message", T: () => ExpressionData },
-            { no: 3, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
-            { no: 4, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 5, name: "after", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 1, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
+            { no: 2, name: "parent", kind: "message", T: () => NodePointer },
+            { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
+            { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
+            { no: 5, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 6, name: "after", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 7, name: "aggregation", kind: "message", T: () => ExpressionData }
         ]);
     }
     create(value?: PartialMessage<AggregateNodesRequest>): AggregateNodesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
+        message.nodeType = 0;
         message.sort = [];
         message.limit = 0;
         message.after = "";
@@ -2167,20 +2178,26 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* symbolx.bench.ExpressionData aggregation */ 1:
-                    message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
+                case /* symbolx.bench.NodeType node_type */ 1:
+                    message.nodeType = reader.int32();
                     break;
-                case /* symbolx.bench.ExpressionData filter */ 2:
+                case /* symbolx.bench.NodePointer parent */ 2:
+                    message.parent = NodePointer.internalBinaryRead(reader, reader.uint32(), options, message.parent);
+                    break;
+                case /* symbolx.bench.ExpressionData filter */ 3:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
                     break;
-                case /* repeated symbolx.bench.ExpressionData sort */ 3:
+                case /* repeated symbolx.bench.ExpressionData sort */ 4:
                     message.sort.push(ExpressionData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* int32 limit */ 4:
+                case /* int32 limit */ 5:
                     message.limit = reader.int32();
                     break;
-                case /* string after */ 5:
+                case /* string after */ 6:
                     message.after = reader.string();
+                    break;
+                case /* symbolx.bench.ExpressionData aggregation */ 7:
+                    message.aggregation = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.aggregation);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2194,21 +2211,27 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         return message;
     }
     internalBinaryWrite(message: AggregateNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ExpressionData aggregation = 1; */
-        if (message.aggregation)
-            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* symbolx.bench.ExpressionData filter = 2; */
+        /* symbolx.bench.NodeType node_type = 1; */
+        if (message.nodeType !== 0)
+            writer.tag(1, WireType.Varint).int32(message.nodeType);
+        /* symbolx.bench.NodePointer parent = 2; */
+        if (message.parent)
+            NodePointer.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.ExpressionData filter = 3; */
         if (message.filter)
-            ExpressionData.internalBinaryWrite(message.filter, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.ExpressionData sort = 3; */
+            ExpressionData.internalBinaryWrite(message.filter, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.ExpressionData sort = 4; */
         for (let i = 0; i < message.sort.length; i++)
-            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* int32 limit = 4; */
+            ExpressionData.internalBinaryWrite(message.sort[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+        /* int32 limit = 5; */
         if (message.limit !== 0)
-            writer.tag(4, WireType.Varint).int32(message.limit);
-        /* string after = 5; */
+            writer.tag(5, WireType.Varint).int32(message.limit);
+        /* string after = 6; */
         if (message.after !== "")
-            writer.tag(5, WireType.LengthDelimited).string(message.after);
+            writer.tag(6, WireType.LengthDelimited).string(message.after);
+        /* symbolx.bench.ExpressionData aggregation = 7; */
+        if (message.aggregation)
+            ExpressionData.internalBinaryWrite(message.aggregation, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

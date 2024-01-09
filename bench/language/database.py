@@ -219,59 +219,6 @@ class RecordQuery:
         self._cached_records = None
         self._cached_cursors = None
 
-    async def _do_fetch(
-        self, pg_cursor: psycopg.AsyncCursor | None, count: bool = False, after: str = None
-    ) -> _RecordFetchResult:
-        """Actually fetches the raw record results from some engine."""
-        from bench.os.engine import os_search
-        from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_records
-
-        where = self._combined_filter
-        first = self._first or LOCAL_RECORD_CACHE_LIMIT
-        target_engine = self._engine or self._recommended_engine or QueryEngine.POSTGRES
-
-        logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
-        if target_engine == QueryEngine.OPENSEARCH:
-            os_results = await os_search(
-                os_name=self._database.module.os_name,
-                metatype=NodeType.RECORD,
-                filter=where,
-                limit=first,
-                skip=self._skip,
-                after=after,
-                count=count,
-                sort=self._sort,
-            )
-            return _RecordFetchResult(
-                os_results.as_records(),
-                os_results.cursors,
-                os_results.start_cursor,
-                os_results.total,
-                target_engine,
-            )
-        elif target_engine == QueryEngine.POSTGRES:
-            assert pg_cursor is not None, f"missing pg_cursor for {self!r}"
-            records, cursors, start_cursor = await pg_select_records(
-                cur=pg_cursor,
-                database=self._database,
-                where=where,
-                sort=self._sort,
-                after=after,
-                first=first,
-                skip=self._skip,
-            )
-            if count:
-                count = await pg_count(
-                    cur=pg_cursor,
-                    table=self._database._table,
-                    where=compile_pg_conditional(self._database, where),
-                )
-            else:
-                count = None
-            return _RecordFetchResult(records, cursors, start_cursor, count, target_engine)
-        else:
-            raise ValueError(f"unexpected query engine {target_engine}")
-
     @property
     def _required_engine(self) -> Optional[QueryEngine]:
         """The engine required to execute this query."""
@@ -294,25 +241,6 @@ class RecordQuery:
             raise ValueError(f"cannot use {engine} with {self!r}")
         if self._engine and self._engine != engine:
             raise ValueError(f"cannot force {engine} with {self!r}")
-
-    async def _fetch(self, *, _no_flush: bool = False) -> list[Record]:
-        """Fetches the result set for this query."""
-        from bench.proto import wiring
-
-        session = self._database.session
-        if not _no_flush and session._local_edits:
-            await session.flush_local()  # first flush any local edits
-        fetched = await self._do_fetch(pg_cursor=await self._database._get_pg_cursor())
-        records: list[Record] = []
-        for record_data in fetched.records:
-            record: Record = wiring.unpack_node(record_data, self._database, session)
-            record._activate_self(session)
-            records.append(record)
-
-        if self._cache:
-            self._cached_records = records
-        logger.debug("record.query.done", query=self, results=len(records))
-        return records
 
     async def __aiter__(self):
         if self._cached_records is None:
@@ -411,6 +339,78 @@ class RecordQuery:
             return records[item]
         else:
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
+
+    async def _fetch(self, *, _no_flush: bool = False) -> list[Record]:
+        """Fetches the result set for this query."""
+        from bench.proto import wiring
+
+        session = self._database.session
+        if not _no_flush and session._local_edits:
+            await session.flush_local()  # first flush any local edits
+        fetched = await self._do_fetch(pg_cursor=await self._database._get_pg_cursor())
+        records: list[Record] = []
+        for record_data in fetched.records:
+            record: Record = wiring.unpack_node(record_data, self._database, session)
+            record._activate_self(session)
+            records.append(record)
+
+        if self._cache:
+            self._cached_records = records
+        logger.debug("record.query.done", query=self, results=len(records))
+        return records
+
+    async def _do_fetch(
+        self, pg_cursor: psycopg.AsyncCursor | None, count: bool = False, after: str = None
+    ) -> _RecordFetchResult:
+        """Actually fetches the raw record results from some engine."""
+        from bench.os.engine import os_search
+        from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_records
+
+        where = self._combined_filter
+        first = self._first or LOCAL_RECORD_CACHE_LIMIT
+        target_engine = self._engine or self._recommended_engine or QueryEngine.POSTGRES
+
+        logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
+        if target_engine == QueryEngine.OPENSEARCH:
+            os_results = await os_search(
+                os_name=self._database.module.os_name,
+                metatype=NodeType.RECORD,
+                filter=where,
+                limit=first,
+                skip=self._skip,
+                after=after,
+                count=count,
+                sort=self._sort,
+            )
+            return _RecordFetchResult(
+                os_results.as_records(),
+                os_results.cursors,
+                os_results.start_cursor,
+                os_results.total,
+                target_engine,
+            )
+        elif target_engine == QueryEngine.POSTGRES:
+            assert pg_cursor is not None, f"missing pg_cursor for {self!r}"
+            records, cursors, start_cursor = await pg_select_records(
+                cur=pg_cursor,
+                database=self._database,
+                where=where,
+                sort=self._sort,
+                after=after,
+                first=first,
+                skip=self._skip,
+            )
+            if count:
+                count = await pg_count(
+                    cur=pg_cursor,
+                    table=self._database._table,
+                    where=compile_pg_conditional(self._database, where),
+                )
+            else:
+                count = None
+            return _RecordFetchResult(records, cursors, start_cursor, count, target_engine)
+        else:
+            raise ValueError(f"unexpected query engine {target_engine}")
 
     @_auto_async_to_sync
     async def count(self, filter: Expression = None, *, _no_flush: bool = False, **kwargs) -> int:
