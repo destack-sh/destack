@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import os
+from pathlib import Path
 import sys
 
 import structlog
@@ -85,11 +86,11 @@ async def restart_on_file_changes(on_restart: callable = None):
                     on_restart()
                 os.execv(sys.executable, [sys.executable] + sys.argv)
 
-    dir = "."
+    cwd = str(Path(".").absolute())
     observer = Observer()
-    observer.schedule(Handler(), dir, recursive=True)
+    observer.schedule(Handler(), cwd, recursive=True)
     observer.start()
-    logger.info("watcher.listen", dir=dir)
+    logger.info("watcher.listen", cwd=cwd)
 
     try:
         while True:

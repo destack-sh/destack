@@ -4,6 +4,7 @@ import dotenv
 import typer
 from rich.console import Console
 
+from bench.utils.logging import configure_logging
 from bench.utils.utils import get_from_env
 
 # :Dotenv
@@ -15,11 +16,11 @@ else:
 for dot_env_file in DOT_ENV_FILES:
     dotenv.load_dotenv(dot_env_file, verbose=True, override=True)
 
+# nocheckin: logging freezes on startup?
+configure_logging(apply_logging=False, apply_structlog=True)
 
+# add all 'app' instances into CLI (from ./bench/management/*.py)
 cli = typer.Typer()
-
-
-# add all 'app' instances from ./bench/management/*.py
 for path in Path.glob(Path(__file__).parent / "bench" / "cli", "*.py"):
     if path.stem in ("__init__", "os", "local"):
         continue

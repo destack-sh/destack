@@ -1,6 +1,5 @@
 import asyncio
 
-from grpclib.reflection.service import ServerReflection
 from grpclib.utils import graceful_exit
 import typer
 
@@ -22,11 +21,9 @@ async def server(host: str, port: int, watch: bool = False):
     Run the supervisor.
     """
     services = [GlobalSupervisor(), ModuleHostMultiplexer()]
-    if DEBUG or LOCAL:
-        services = ServerReflection.extend(services)
-        if watch:
-            asyncio.create_task(restart_on_file_changes())
     server = BenchServer(services)
+    if (DEBUG or LOCAL) and watch:
+        asyncio.create_task(restart_on_file_changes())
     with graceful_exit([server]):
         await server.start(host=host, port=port)
         await server.wait_closed()
@@ -45,11 +42,10 @@ async def worker(host: str, port: int, watch: bool = False):
         module_id=get_from_env("MODULE_ID", default=None),
     )
     services = [worker]
-    if DEBUG or LOCAL:
-        services = ServerReflection.extend(services)
-        if watch:
-            asyncio.create_task(restart_on_file_changes())
     server = BenchServer(services)
+
+    if (DEBUG or LOCAL) and watch:
+        asyncio.create_task(restart_on_file_changes())
     with graceful_exit([server]):
         await server.start(host=host, port=port)
         await server.wait_closed()

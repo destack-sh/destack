@@ -48,6 +48,10 @@ class Client(Node):
         34, default=None, protect=True, defer=True, unique=True
     )
 
+    @property
+    def user(self) -> User:
+        return self.parent
+
 
 @node(NodeType.NOTIFICATION, root=NodeType.USER, in_bench=False, in_module=False)
 class Notification(Node):

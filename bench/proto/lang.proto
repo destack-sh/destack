@@ -1068,7 +1068,7 @@ message ViewData {
   repeated ExpressionData sort = 34;
 }
 
-// // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
+// // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, access_token: Optional[str] = None, _status: bench.language.module.NodeStatus = None, id: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
 message WorkerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1083,6 +1083,7 @@ message WorkerData {
   string external_id = 30;
   WorkerProfile profile = 31;
   WorkerImageData image = 32;
+  string access_token = 33;
 }
 
 // // Set of workers to run a Bench's modules.
@@ -1107,49 +1108,48 @@ message WorkerSetData {
   int64 ready_replicas = 37;
   google.protobuf.Timestamp last_active_at = 38;
   google.protobuf.Timestamp last_bumped_at = 39;
-  string access_token = 40;
 }
 
 message SomeNodeData {
   oneof node {
-    BenchData bench = 1;
-    ClientData client = 2;
-    OrganizationData organization = 3;
-    ViewData view = 4;
-    TriggerData trigger = 5;
-    BadgeData badge = 6;
-    SignalData signal = 7;
-    FileData file = 8;
-    NotificationData notification = 9;
-    StatementData statement = 10;
-    RunData run = 11;
-    RecordData record = 12;
-    TaggingData tagging = 13;
-    SecretData secret = 14;
-    IssueData issue = 15;
-    ModuleData module = 16;
-    SessionData session = 17;
-    HandleData handle = 18;
-    HaltData halt = 19;
-    FieldData field = 20;
-    UserData user = 21;
-    BlobData blob = 22;
-    WorkerSetData worker_set = 23;
-    WorkerData worker = 24;
+    BadgeData badge = 1;
+    HaltData halt = 2;
+    SignalData signal = 3;
+    StatementData statement = 4;
+    UserData user = 5;
+    FieldData field = 6;
+    RunData run = 7;
+    ClientData client = 8;
+    WorkerData worker = 9;
+    NotificationData notification = 10;
+    TriggerData trigger = 11;
+    HandleData handle = 12;
+    WorkerSetData worker_set = 13;
+    BlobData blob = 14;
+    SessionData session = 15;
+    RecordData record = 16;
+    ViewData view = 17;
+    IssueData issue = 18;
+    OrganizationData organization = 19;
+    SecretData secret = 20;
+    ModuleData module = 21;
+    FileData file = 22;
+    BenchData bench = 23;
+    TaggingData tagging = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    MiniRunData mini_run = 1;
-    PolicyData policy = 2;
-    RunErrorData run_error = 3;
-    LogEntryData log_entry = 4;
-    ExpressionData expression = 5;
+    PolicyData policy = 1;
+    RunErrorData run_error = 2;
+    ExpressionData expression = 3;
+    MiniRunData mini_run = 4;
+    LogEntryData log_entry = 5;
     PolicyRuleData policy_rule = 6;
     RunCodeFrameData run_code_frame = 7;
-    DependencyData dependency = 8;
-    WorkerImageData worker_image = 9;
+    WorkerImageData worker_image = 8;
+    DependencyData dependency = 9;
   };
 }
 
