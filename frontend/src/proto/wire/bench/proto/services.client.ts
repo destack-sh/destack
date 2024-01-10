@@ -29,10 +29,10 @@ import type { UploadBlobsResponse } from "./services";
 import type { UploadBlobsRequest } from "./services";
 import type { SnapshotModuleResponse } from "./services";
 import type { SnapshotModuleRequest } from "./services";
-import type { PushEditsResponse } from "./services";
-import type { PushEditsRequest } from "./services";
 import type { PasteNodesResponse } from "./services";
 import type { PasteNodesRequest } from "./services";
+import type { PushEditsResponse } from "./services";
+import type { PushEditsRequest } from "./services";
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { GlobalSupervisor } from "./services";
@@ -66,6 +66,10 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  * Will probably shard this later.
  * Frontend connects to this directly.
  *
+ *
+ * User
+ *
+ *
  * @generated from protobuf service symbolx.bench.GlobalSupervisor
  */
 export interface IGlobalSupervisorClient {
@@ -93,6 +97,10 @@ export interface IGlobalSupervisorClient {
      * @generated from protobuf rpc: CreateBench(symbolx.bench.CreateBenchRequest) returns (symbolx.bench.CreateBenchResponse);
      */
     createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
+    // 
+    // General Bench IO (should match ModuleHost)
+    // 
+
     /**
      * Get global nodes.
      *
@@ -123,6 +131,10 @@ export interface IGlobalSupervisorClient {
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
+    // 
+    // Worker stuff
+    // 
+
     /**
      * Force restart the worker set for a Bench.
      *
@@ -140,6 +152,10 @@ export interface IGlobalSupervisorClient {
  * Global supervisor: the 'control plane' for global stuff like Benches, Users, Workers, etc..
  * Will probably shard this later.
  * Frontend connects to this directly.
+ *
+ *
+ * User
+ *
  *
  * @generated from protobuf service symbolx.bench.GlobalSupervisor
  */
@@ -185,6 +201,10 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         const method = this.methods[3], opt = this._transport.mergeOptions(options);
         return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
     }
+    // 
+    // General Bench IO (should match ModuleHost)
+    // 
+
     /**
      * Get global nodes.
      *
@@ -230,6 +250,10 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         const method = this.methods[8], opt = this._transport.mergeOptions(options);
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
     }
+    // 
+    // Worker stuff
+    // 
+
     /**
      * Force restart the worker set for a Bench.
      *
@@ -256,7 +280,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
  * Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
  *
  *
- * Module IO
+ * General Bench IO (should match GlobalSupervisor)
  *
  *
  * @generated from protobuf service symbolx.bench.ModuleHost
@@ -281,17 +305,21 @@ export interface IModuleHostClient {
      */
     aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
-     * Paste specific inline nodes (and only those nodes) from this or another module.
-     *
-     * @generated from protobuf rpc: PasteNodes(symbolx.bench.PasteNodesRequest) returns (symbolx.bench.PasteNodesResponse);
-     */
-    pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse>;
-    /**
      * Commits a set of edits to the module. Optionally forward locally bypassed edits.
      *
      * @generated from protobuf rpc: CommitEdits(symbolx.bench.CommitEditsRequest) returns (symbolx.bench.CommitEditsResponse);
      */
     commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse>;
+    /**
+     * Receive any relevant edits to this module.
+     *
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
+    // 
+    // Special Module IO
+    // 
+
     /**
      * Pushes locally bypassed edits to the module subscribers.
      *
@@ -299,11 +327,11 @@ export interface IModuleHostClient {
      */
     pushEdits(input: PushEditsRequest, options?: RpcOptions): UnaryCall<PushEditsRequest, PushEditsResponse>;
     /**
-     * Receive any relevant edits to this module.
+     * Paste specific inline nodes (and only those nodes) from this or another module.
      *
-     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     * @generated from protobuf rpc: PasteNodes(symbolx.bench.PasteNodesRequest) returns (symbolx.bench.PasteNodesResponse);
      */
-    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
+    pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse>;
     /**
      * Create a full snapshot of this Bench module (copy to a new Bench module as specified).
      *
@@ -378,7 +406,7 @@ export interface IModuleHostClient {
  * Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
  *
  *
- * Module IO
+ * General Bench IO (should match GlobalSupervisor)
  *
  *
  * @generated from protobuf service symbolx.bench.ModuleHost
@@ -417,23 +445,27 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Paste specific inline nodes (and only those nodes) from this or another module.
-     *
-     * @generated from protobuf rpc: PasteNodes(symbolx.bench.PasteNodesRequest) returns (symbolx.bench.PasteNodesResponse);
-     */
-    pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse> {
-        const method = this.methods[3], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PasteNodesRequest, PasteNodesResponse>("unary", this._transport, method, opt, input);
-    }
-    /**
      * Commits a set of edits to the module. Optionally forward locally bypassed edits.
      *
      * @generated from protobuf rpc: CommitEdits(symbolx.bench.CommitEditsRequest) returns (symbolx.bench.CommitEditsResponse);
      */
     commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse> {
-        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
         return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
     }
+    /**
+     * Receive any relevant edits to this module.
+     *
+     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     */
+    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
+    }
+    // 
+    // Special Module IO
+    // 
+
     /**
      * Pushes locally bypassed edits to the module subscribers.
      *
@@ -444,13 +476,13 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<PushEditsRequest, PushEditsResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Receive any relevant edits to this module.
+     * Paste specific inline nodes (and only those nodes) from this or another module.
      *
-     * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
+     * @generated from protobuf rpc: PasteNodes(symbolx.bench.PasteNodesRequest) returns (symbolx.bench.PasteNodesResponse);
      */
-    watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse> {
+    pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse> {
         const method = this.methods[6], opt = this._transport.mergeOptions(options);
-        return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
+        return stackIntercept<PasteNodesRequest, PasteNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * Create a full snapshot of this Bench module (copy to a new Bench module as specified).

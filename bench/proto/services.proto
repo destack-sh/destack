@@ -130,7 +130,6 @@ message ReadNodesRequest {
 }
 message ReadNodesResponse {
   repeated SomeNodeData nodes = 1;
-  int64 edit_marker = 2;
 }
 
 message SearchNodesRequest {
@@ -146,7 +145,6 @@ message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
   repeated string cursors = 2;
   string start_cursor = 3;
-  int64 edit_marker = 4;
 }
 
 message AggregateNodesRequest {
@@ -179,7 +177,6 @@ message PushEditsResponse {
 
 message WatchEditsRequest {
   repeated NodeType node_types = 1;
-  int64 after_edit_marker = 2;
 }
 message WatchEditsResponse {
   repeated EditData edits = 1;
@@ -203,6 +200,10 @@ message PingWorkerSetResponse {
 // Will probably shard this later.
 // Frontend connects to this directly.
 service GlobalSupervisor {
+  //
+  // User
+  //
+
   // Create user account.
   rpc SignupUser(SignupUserRequest) returns (SignupUserResponse);
   // Login user account.
@@ -211,6 +212,11 @@ service GlobalSupervisor {
   rpc LogoutUser(LogoutUserRequest) returns (LogoutUserResponse);
   // Create a Bench.
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
+
+  //
+  // General Bench IO for global nodes (should match ModuleHost)  :BenchIO
+  //
+
   // Get global nodes.
   rpc ReadNodes(ReadNodesRequest) returns (ReadNodesResponse);
   // Search global nodes.
@@ -221,6 +227,11 @@ service GlobalSupervisor {
   rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
   // Subscribes to relevant global edits.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+
+  //
+  // Worker stuff
+  //
+
   // Force restart the worker set for a Bench.
   rpc RestartWorkerSet(RestartWorkerSetRequest) returns (PingWorkerSetResponse);
   // Ensure the worker set for a Bench is running.
@@ -320,7 +331,7 @@ message RunProxyStatementResponse {
 // Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
 service ModuleHost {
   //
-  // Module IO
+  // General Bench IO for this module and global nodes (should match GlobalSupervisor) :BenchIO
   //
 
   // Reads local or global nodes.
@@ -329,14 +340,19 @@ service ModuleHost {
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   // Aggregate nodes into statistics.
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  // Paste specific inline nodes (and only those nodes) from this or another module.
-  rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
   // Commits a set of edits to the module. Optionally forward locally bypassed edits.
   rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
-  // Pushes locally bypassed edits to the module subscribers.
-  rpc PushEdits(PushEditsRequest) returns (PushEditsResponse);
   // Receive any relevant edits to this module.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
+
+  //
+  // Special Module IO
+  //
+
+  // Pushes locally bypassed edits to the module subscribers.
+  rpc PushEdits(PushEditsRequest) returns (PushEditsResponse);
+  // Paste specific inline nodes (and only those nodes) from this or another module.
+  rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
   // Create a full snapshot of this Bench module (copy to a new Bench module as specified).
   rpc Snapshot(SnapshotModuleRequest) returns (SnapshotModuleResponse);
 

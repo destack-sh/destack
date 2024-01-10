@@ -140,6 +140,7 @@ class Session(ScopeNode):
     _log: structlog.BoundLogger = struct_runtime(default=None)
     _failed_commit: bool = struct_runtime(default=False)
     _dangling_nodes_by_ck: dict[UUID, Node] = struct_runtime(default_factory=dict)
+    _global_pg_cursor: psycopg.AsyncCursor | None = struct_runtime(default=None)
     _local_pg_cursor: psycopg.AsyncCursor | None = struct_runtime(default=None)
     _other_local_pg_cursors: dict[str, psycopg.AsyncCursor] = struct_runtime(default_factory=dict)
     _tracing_lock: threading.Lock = struct_runtime(default_factory=threading.Lock)
@@ -148,7 +149,8 @@ class Session(ScopeNode):
         default_factory=lambda: deque(maxlen=LOG_CACHE_SIZE)
     )
     _pending_logs: list[LogEntry] = struct_runtime(default_factory=list)
-    _pending_runs: dict[UUID, Run] = struct_runtime(default_factory=dict)
+    _runs_by_id: dict[UUID, Run] = struct_runtime(default_factory=dict)
+    _pending_runs_by_id: dict[UUID, Run] = struct_runtime(default_factory=dict)
     _flush_session_loop: asyncio.Task | None = struct_runtime(default=None)
     _stdout_collector: Optional["LogCollector"] = struct_runtime(default=None)
     _stderr_collector: Optional["LogCollector"] = struct_runtime(default=None)
@@ -171,7 +173,7 @@ class Session(ScopeNode):
         elif self.opened_at:
             status = "open"
         else:
-            status = "not opened"
+            status = "pending"
         return (
             f"{self.module.name if self.module else '<detached>'} ({status}, "
             f"{len(self._local_edits)} local edits, "
@@ -203,15 +205,18 @@ class Session(ScopeNode):
         return tuple(n for n in self.dangling if isinstance(n, type_))
 
     @property
-    def pg_cursor(self) -> psycopg.AsyncCursor:
-        assert (
-            self._local_pg_cursor is not None
-        ), "pg_cursor is only available during session execution"
+    def global_pg_cursor(self) -> psycopg.AsyncCursor:
+        assert self._global_pg_cursor is not None, "global_pg_cursor is unavailable"
+        return self._global_pg_cursor
+
+    @property
+    def local_pg_cursor(self) -> psycopg.AsyncCursor:
+        assert self._local_pg_cursor is not None, "local_pg_cursor is unavailable"
         return self._local_pg_cursor
 
     async def pg_cursor_to_local(self, module: Module) -> psycopg.AsyncCursor:
         if module == self.module:
-            return self.pg_cursor
+            return self.local_pg_cursor
         if module.pg_name not in self._other_local_pg_cursors:
             logger.debug("session.open_foreign_pg", module=module)
             pg_pool = get_pg_connection_pool(module.pg_name)
@@ -264,7 +269,7 @@ class Session(ScopeNode):
 
         # close postgres connections
         if self._local_pg_cursor:
-            await self.pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
+            await self.local_pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
             pg_pool = get_pg_connection_pool(self.module.pg_name)
             await pg_pool.putconn(self._local_pg_cursor.connection)
             self._local_pg_cursor = None
@@ -304,7 +309,7 @@ class Session(ScopeNode):
             self._schema_changed = False
 
         edits = self._eat_edits(local=True)
-        await write_local_edits_to_pg(self.pg_cursor, self.module, edits.local_edits)
+        await write_local_edits_to_pg(self.local_pg_cursor, self.module, edits.local_edits)
 
     @_auto_async_to_sync
     async def flush_session(self, force: bool = False, kill_pending_runs: bool = False) -> None:
@@ -362,7 +367,7 @@ class Session(ScopeNode):
                 await self._host.commit_edits(edits.global_edits)
             if edits.local_edits or edits.session_edits:
                 await write_local_edits_to_pg(
-                    cur=self.pg_cursor,
+                    cur=self.local_pg_cursor,
                     module=self.module,
                     edits=[*(edits.local_edits or ()), *(edits.session_edits or ())],
                     old_databases_by_id=touched_databases_by_id,
@@ -389,7 +394,7 @@ class Session(ScopeNode):
                 (self._touched_databases_by_id[db_id], record_ids)
                 for db_id, record_ids in self._changed_record_ids_by_db_id.items()
             ]
-            await sync_pg_databases_to_os(self.module, self.pg_cursor, changed_records)
+            await sync_pg_databases_to_os(self.module, self.local_pg_cursor, changed_records)
             self._changed_record_ids_by_db_id.clear()
             self._touched_databases_by_id.clear()
 
@@ -498,6 +503,7 @@ class Session(ScopeNode):
 
     def _edit(self, kind: EditKind, node: Node, properties: list[str] = None):
         """Register a non-session edit event to a node (local or global)."""
+        assert self.closed_at is None, f"cannot {kind.name} {node!r} in closed session {self!r}"
         if not node._track & NTL.FULL:
             return
         if node.metatype == NodeType.FIELD:
@@ -587,8 +593,8 @@ class Session(ScopeNode):
                 }
 
             if session:
-                runs = list(self._pending_runs.values())
-                self._pending_runs.clear()
+                runs = list(self._pending_runs_by_id.values())
+                self._pending_runs_by_id.clear()
                 if kill_pending_runs:
                     # abort any remaining active runs
                     for run in chain(runs, self._runs_by_id.values()):
@@ -623,7 +629,7 @@ class Session(ScopeNode):
     def _track_run(self, run: Run):
         # replace if already exists by id (runs are updated)
         self._runs_by_id[run.id] = run
-        self._pending_runs[run.id] = run
+        self._pending_runs_by_id[run.id] = run
 
     def _track_log(self, log: LogEntry):
         self._pending_logs.append(log)

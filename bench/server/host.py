@@ -12,6 +12,8 @@ import structlog
 
 from bench.language.const import IN_MODULE_NODE_TYPES, NodeType
 from bench.language.node import Bench, Module
+from bench.language.tree import NodeTree
+from bench.proto import wire
 from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (
     ModuleHostBase,
@@ -44,17 +46,19 @@ from bench.proto.wire import (
     RunProxyStatementRequest,
     RunProxyStatementResponse,
     PushEditsResponse,
-    ReadNodesOptions,
     AggregateNodesRequest,
     AggregateNodesResponse,
+    AnyNodeData,
 )
 from bench.server.utils import (
-    global_session,
     validate_bench_data_many,
     get_s3_client,
     check_authenticated_worker,
+    check_authenticated,
 )
+from bench.server.session import detached_session
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
+from bench.sql.engine import read_node_tree_from_pg
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -71,13 +75,13 @@ class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
         self._hosts_by_module_id: dict[UUID, "ModuleHost"] = {}
 
     def __str__(self):
-        return "0"
+        return "0"  # 'shard'
 
     def __repr__(self):
         return f"<ModuleHostMultiplexer {self}>"
 
     async def start_quick(self) -> None:
-        async with global_session():
+        async with detached_session():
             benches: list[Bench] = await Bench.tolist()
             await asyncio.gather(self._start_host(bench.id, bench.head_id) for bench in benches)
 
@@ -134,32 +138,53 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
     def __repr__(self):
         return f"<ModuleHost {self}>"
 
+    @property
+    def module_source(self) -> NodeTree[AnyNodeData]:
+        return self.module._source
+
     async def start_quick(self) -> None:
-        bench: Bench = await read_node(
-            root_type=NodeType.BENCH, root_id=self.bench_id, descendant_types=(NodeType.BADGE,)
-        )
-        module: Module = await read_node(
-            root_type=NodeType.MODULE,
-            root_id=self.module_id,
-            descendant_types=IN_MODULE_NODE_TYPES,
-        )
-        raise NotImplementedError("nocheckin: ModuleHost.start_quick")
+        async with detached_session() as session:
+            self.bench: Bench = await read_node_tree_from_pg(
+                session=session,
+                root_type=NodeType.BENCH,
+                root_id=self.bench_id,
+                descendant_types=(NodeType.BADGE,),
+            )
+            self.module: Module = await read_node_tree_from_pg(
+                session=session,
+                root_type=NodeType.MODULE,
+                root_id=self.module_id,
+                descendant_types=IN_MODULE_NODE_TYPES,
+            )
 
     #
-    # Module IO
+    # General Bench IO for this module and global nodes :BenchIO
     #
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
+        if read_nodes_request.node_type == wire.NodeType.RECORD:
+            # forward to record query (stored custom)
+            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        async with detached_session(read_only=True):
+            client = await check_authenticated(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def search_nodes(
         self, search_nodes_request: "SearchNodesRequest"
     ) -> "SearchNodesResponse":
+        if search_nodes_request.node_type == wire.NodeType.RECORD:
+            # forward to record query (stored custom)
+            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+        else:
+            pass
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def aggregate_nodes(
         self, aggregate_nodes_request: "AggregateNodesRequest"
     ) -> "AggregateNodesResponse":
+        if aggregate_nodes_request.node_type == wire.NodeType.RECORD:
+            # forward to record query (stored custom)
+            raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def commit_edits(
@@ -167,16 +192,20 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
     ) -> "CommitEditsResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
+    async def watch_edits(
+        self, watch_edits_request: "WatchEditsRequest"
+    ) -> AsyncIterator["WatchEditsResponse"]:
+        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    #
+    # Module-specific stuff
+    #
+
     async def push_edits(self, push_edits_request: "PushEditsRequest") -> "PushEditsResponse":
         _ = await check_authenticated_worker(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
-        raise GRPCError(GRPCStatus.UNIMPLEMENTED)
-
-    async def watch_edits(
-        self, watch_edits_request: "WatchEditsRequest"
-    ) -> AsyncIterator["WatchEditsResponse"]:
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def snapshot(

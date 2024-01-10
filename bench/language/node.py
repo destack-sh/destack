@@ -2908,7 +2908,7 @@ class Bench(ScopeNode):
 
 
 @dataclass
-class ModuleChange:
+class NodeChange:
     source_edits: list[EditData]  # incoming external edits
     interp_edits: list[EditData]  # resulting interp state change
     added: list[Node]
@@ -2931,8 +2931,8 @@ class ModuleChange:
         return chain(self.added, self.updated, self.removed)
 
     @staticmethod
-    def empty() -> "ModuleChange":
-        return ModuleChange([], [], [], [], [])
+    def empty() -> "NodeChange":
+        return NodeChange([], [], [], [], [])
 
 
 @node(NodeType.MODULE)
@@ -2973,6 +2973,10 @@ class Module(ScopeNode):
     @property
     def name(self):
         return self.parent.name
+
+    @property
+    def is_active(self):
+        return not self.is_snapshot
 
     @property
     def pg_name(self) -> str:
@@ -3075,9 +3079,7 @@ class Module(ScopeNode):
         for builtin in self.builtins:
             self._add_node_to_scope(builtin)
 
-    def _apply_edits(
-        self, edits: list[EditData], old_source: NodeTree | None = None
-    ) -> ModuleChange:
+    def _apply_edits(self, edits: list[EditData], old_source: NodeTree | None = None) -> NodeChange:
         """
         Applies the given external edits to the module.
         TODO @Performance @UX: :HotReload patch edits directly?
@@ -3085,7 +3087,7 @@ class Module(ScopeNode):
         assert self._source is not None, f"cannot apply edits to {self!r} without source"
 
         if not edits:
-            return ModuleChange.empty()
+            return NodeChange.empty()
 
         # update source
         old_source = old_source if old_source is not None else self._source.copy()
@@ -3137,7 +3139,7 @@ class Module(ScopeNode):
         self,
         source_edits: list[EditData],
         old_source: NodeTree,
-    ) -> ModuleChange:
+    ) -> NodeChange:
         """Computes the change between the old and new module state."""
         new_nodes: dict[UUID, Node] = self.module._tree.nodes_by_ck
         added = []
@@ -3169,7 +3171,7 @@ class Module(ScopeNode):
             if node.metatype in INTERP_NODE_TYPES:
                 new_editor.create(node)
 
-        return ModuleChange(
+        return NodeChange(
             source_edits=source_edits,
             interp_edits=new_editor.edits + old_editor.edits,
             added=added,

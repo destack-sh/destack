@@ -1,11 +1,14 @@
 import asyncio
 import contextvars
 import functools
-from typing import Collection, TYPE_CHECKING, Mapping, final, Callable
+from typing import Collection, TYPE_CHECKING, Mapping, final, Callable, TypeVar, cast
 
+from betterproto import ServiceStub
+from betterproto.grpc.grpclib_server import ServiceBase
 from grpclib import GRPCError, Status as GRPCStatus
 from grpclib._typing import IServable
 import grpclib.server
+from more_itertools import first
 import structlog
 
 from bench.proto.wire import RpcMetadata
@@ -14,6 +17,8 @@ from bench.utils.monitoring import Monitored
 from bench.utils.utils import to_snake_case
 
 logger = structlog.get_logger(__name__)
+
+ServiceStubT = TypeVar("ServiceStubT", bound=ServiceStub)
 
 
 class BenchServiceBase(IServable if TYPE_CHECKING else object):
@@ -28,10 +33,12 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
 
     @property
     def stream(self) -> grpclib.server.Stream:
+        """The current gRPC request stream."""
         return self._stream.get()
 
     @property
-    def metadata(self):
+    def metadata(self) -> RpcMetadata:
+        """The metadata of the current gRPC call."""
         return self._metadata.get()
 
     async def start_quick(self) -> None:
@@ -95,6 +102,41 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
                 raise GRPCError(GRPCStatus.INTERNAL, str(e)) from e
 
         return grpclib.const.Handler(wrapped_method, cardinality, request_type, reply_type)
+
+    def to_loopback_stub(self) -> "ServiceStubT":
+        """Create a stub that calls this service directly."""
+
+        proxied_service: BenchServiceBase = self
+        proxied_base_type = first(
+            cls for cls in type(proxied_service).__mro__ if issubclass(cls, ServiceBase)
+        )
+
+        # make a new class that inherits from the stub class
+        class _LoopbackStub:
+            def __str__(self):
+                return f"local loop to {proxied_service}"
+
+            def __repr__(self):
+                return f"<{proxied_service.__name__}Loopback {self}>"
+
+        # implement the 'stub' methods with a loopback call ...
+        def _loopback_stub_method(method_name: str):
+            method = getattr(type(proxied_service), method_name)
+
+            @functools.wraps(method)
+            async def loopback_method(self, *args, **kwargs):
+                return await getattr(proxied_service, method_name)(*args, **kwargs)
+
+            return loopback_method
+
+        # ... for every regular method in the proxied service
+        for method_name in dir(proxied_base_type):
+            if not method_name.startswith("_") and callable(
+                getattr(proxied_base_type, method_name)
+            ):
+                setattr(_LoopbackStub, method_name, _loopback_stub_method(method_name))
+
+        return cast(ServiceStubT, _LoopbackStub())
 
 
 class MonitoredServiceBase(BenchServiceBase, Monitored):

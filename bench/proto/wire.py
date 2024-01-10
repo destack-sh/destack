@@ -1335,45 +1335,45 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    blob: "BlobData" = betterproto.message_field(1, group="node")
-    handle: "HandleData" = betterproto.message_field(2, group="node")
-    badge: "BadgeData" = betterproto.message_field(3, group="node")
-    tagging: "TaggingData" = betterproto.message_field(4, group="node")
-    client: "ClientData" = betterproto.message_field(5, group="node")
-    view: "ViewData" = betterproto.message_field(6, group="node")
-    secret: "SecretData" = betterproto.message_field(7, group="node")
-    notification: "NotificationData" = betterproto.message_field(8, group="node")
-    user: "UserData" = betterproto.message_field(9, group="node")
-    session: "SessionData" = betterproto.message_field(10, group="node")
-    record: "RecordData" = betterproto.message_field(11, group="node")
-    trigger: "TriggerData" = betterproto.message_field(12, group="node")
-    run: "RunData" = betterproto.message_field(13, group="node")
-    module: "ModuleData" = betterproto.message_field(14, group="node")
-    issue: "IssueData" = betterproto.message_field(15, group="node")
-    field: "FieldData" = betterproto.message_field(16, group="node")
-    statement: "StatementData" = betterproto.message_field(17, group="node")
-    bench: "BenchData" = betterproto.message_field(18, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(19, group="node")
-    signal: "SignalData" = betterproto.message_field(20, group="node")
-    worker: "WorkerData" = betterproto.message_field(21, group="node")
-    halt: "HaltData" = betterproto.message_field(22, group="node")
-    organization: "OrganizationData" = betterproto.message_field(23, group="node")
-    file: "FileData" = betterproto.message_field(24, group="node")
+    badge: "BadgeData" = betterproto.message_field(1, group="node")
+    worker: "WorkerData" = betterproto.message_field(2, group="node")
+    handle: "HandleData" = betterproto.message_field(3, group="node")
+    trigger: "TriggerData" = betterproto.message_field(4, group="node")
+    halt: "HaltData" = betterproto.message_field(5, group="node")
+    session: "SessionData" = betterproto.message_field(6, group="node")
+    view: "ViewData" = betterproto.message_field(7, group="node")
+    user: "UserData" = betterproto.message_field(8, group="node")
+    file: "FileData" = betterproto.message_field(9, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(10, group="node")
+    signal: "SignalData" = betterproto.message_field(11, group="node")
+    tagging: "TaggingData" = betterproto.message_field(12, group="node")
+    notification: "NotificationData" = betterproto.message_field(13, group="node")
+    client: "ClientData" = betterproto.message_field(14, group="node")
+    organization: "OrganizationData" = betterproto.message_field(15, group="node")
+    statement: "StatementData" = betterproto.message_field(16, group="node")
+    module: "ModuleData" = betterproto.message_field(17, group="node")
+    record: "RecordData" = betterproto.message_field(18, group="node")
+    run: "RunData" = betterproto.message_field(19, group="node")
+    field: "FieldData" = betterproto.message_field(20, group="node")
+    secret: "SecretData" = betterproto.message_field(21, group="node")
+    bench: "BenchData" = betterproto.message_field(22, group="node")
+    blob: "BlobData" = betterproto.message_field(23, group="node")
+    issue: "IssueData" = betterproto.message_field(24, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
-    policy_rule: "PolicyRuleData" = betterproto.message_field(1, group="struct")
-    expression: "ExpressionData" = betterproto.message_field(2, group="struct")
-    aggregation_bucket: "AggregationBucketData" = betterproto.message_field(3, group="struct")
-    run_error: "RunErrorData" = betterproto.message_field(4, group="struct")
-    aggregation: "AggregationData" = betterproto.message_field(5, group="struct")
-    mini_run: "MiniRunData" = betterproto.message_field(6, group="struct")
-    dependency: "DependencyData" = betterproto.message_field(7, group="struct")
-    run_code_frame: "RunCodeFrameData" = betterproto.message_field(8, group="struct")
-    policy: "PolicyData" = betterproto.message_field(9, group="struct")
+    run_error: "RunErrorData" = betterproto.message_field(1, group="struct")
+    mini_run: "MiniRunData" = betterproto.message_field(2, group="struct")
+    aggregation: "AggregationData" = betterproto.message_field(3, group="struct")
+    worker_image: "WorkerImageData" = betterproto.message_field(4, group="struct")
+    run_code_frame: "RunCodeFrameData" = betterproto.message_field(5, group="struct")
+    dependency: "DependencyData" = betterproto.message_field(6, group="struct")
+    policy: "PolicyData" = betterproto.message_field(7, group="struct")
+    expression: "ExpressionData" = betterproto.message_field(8, group="struct")
+    aggregation_bucket: "AggregationBucketData" = betterproto.message_field(9, group="struct")
     log_entry: "LogEntryData" = betterproto.message_field(10, group="struct")
-    worker_image: "WorkerImageData" = betterproto.message_field(11, group="struct")
+    policy_rule: "PolicyRuleData" = betterproto.message_field(11, group="struct")
 
 
 @dataclass(eq=False, repr=False)
@@ -2005,23 +2005,6 @@ class ModuleHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def paste_nodes(
-        self,
-        paste_nodes_request: "PasteNodesRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "PasteNodesResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/PasteNodes",
-            paste_nodes_request,
-            PasteNodesResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
     async def commit_edits(
         self,
         commit_edits_request: "CommitEditsRequest",
@@ -2034,23 +2017,6 @@ class ModuleHostStub(betterproto.ServiceStub):
             "/symbolx.bench.ModuleHost/CommitEdits",
             commit_edits_request,
             CommitEditsResponse,
-            timeout=timeout,
-            deadline=deadline,
-            metadata=metadata,
-        )
-
-    async def push_edits(
-        self,
-        push_edits_request: "PushEditsRequest",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional["MetadataLike"] = None
-    ) -> "PushEditsResponse":
-        return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/PushEdits",
-            push_edits_request,
-            PushEditsResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2073,6 +2039,40 @@ class ModuleHostStub(betterproto.ServiceStub):
             metadata=metadata,
         ):
             yield response
+
+    async def push_edits(
+        self,
+        push_edits_request: "PushEditsRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "PushEditsResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.ModuleHost/PushEdits",
+            push_edits_request,
+            PushEditsResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
+
+    async def paste_nodes(
+        self,
+        paste_nodes_request: "PasteNodesRequest",
+        *,
+        timeout: Optional[float] = None,
+        deadline: Optional["Deadline"] = None,
+        metadata: Optional["MetadataLike"] = None
+    ) -> "PasteNodesResponse":
+        return await self._unary_unary(
+            "/symbolx.bench.ModuleHost/PasteNodes",
+            paste_nodes_request,
+            PasteNodesResponse,
+            timeout=timeout,
+            deadline=deadline,
+            metadata=metadata,
+        )
 
     async def snapshot(
         self,
@@ -2535,15 +2535,9 @@ class ModuleHostBase(ServiceBase):
     ) -> "AggregateNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
     async def commit_edits(
         self, commit_edits_request: "CommitEditsRequest"
     ) -> "CommitEditsResponse":
-        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
-
-    async def push_edits(self, push_edits_request: "PushEditsRequest") -> "PushEditsResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def watch_edits(
@@ -2551,6 +2545,12 @@ class ModuleHostBase(ServiceBase):
     ) -> AsyncIterator["WatchEditsResponse"]:
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
         yield WatchEditsResponse()
+
+    async def push_edits(self, push_edits_request: "PushEditsRequest") -> "PushEditsResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
+
+    async def paste_nodes(self, paste_nodes_request: "PasteNodesRequest") -> "PasteNodesResponse":
+        raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def snapshot(
         self, snapshot_module_request: "SnapshotModuleRequest"
@@ -2614,25 +2614,11 @@ class ModuleHostBase(ServiceBase):
         response = await self.aggregate_nodes(request)
         await stream.send_message(response)
 
-    async def __rpc_paste_nodes(
-        self, stream: "grpclib.server.Stream[PasteNodesRequest, PasteNodesResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.paste_nodes(request)
-        await stream.send_message(response)
-
     async def __rpc_commit_edits(
         self, stream: "grpclib.server.Stream[CommitEditsRequest, CommitEditsResponse]"
     ) -> None:
         request = await stream.recv_message()
         response = await self.commit_edits(request)
-        await stream.send_message(response)
-
-    async def __rpc_push_edits(
-        self, stream: "grpclib.server.Stream[PushEditsRequest, PushEditsResponse]"
-    ) -> None:
-        request = await stream.recv_message()
-        response = await self.push_edits(request)
         await stream.send_message(response)
 
     async def __rpc_watch_edits(
@@ -2644,6 +2630,20 @@ class ModuleHostBase(ServiceBase):
             stream,
             request,
         )
+
+    async def __rpc_push_edits(
+        self, stream: "grpclib.server.Stream[PushEditsRequest, PushEditsResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.push_edits(request)
+        await stream.send_message(response)
+
+    async def __rpc_paste_nodes(
+        self, stream: "grpclib.server.Stream[PasteNodesRequest, PasteNodesResponse]"
+    ) -> None:
+        request = await stream.recv_message()
+        response = await self.paste_nodes(request)
+        await stream.send_message(response)
 
     async def __rpc_snapshot(
         self,
@@ -2735,17 +2735,17 @@ class ModuleHostBase(ServiceBase):
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
-            "/symbolx.bench.ModuleHost/PasteNodes": grpclib.const.Handler(
-                self.__rpc_paste_nodes,
-                grpclib.const.Cardinality.UNARY_UNARY,
-                PasteNodesRequest,
-                PasteNodesResponse,
-            ),
             "/symbolx.bench.ModuleHost/CommitEdits": grpclib.const.Handler(
                 self.__rpc_commit_edits,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CommitEditsRequest,
                 CommitEditsResponse,
+            ),
+            "/symbolx.bench.ModuleHost/WatchEdits": grpclib.const.Handler(
+                self.__rpc_watch_edits,
+                grpclib.const.Cardinality.UNARY_STREAM,
+                WatchEditsRequest,
+                WatchEditsResponse,
             ),
             "/symbolx.bench.ModuleHost/PushEdits": grpclib.const.Handler(
                 self.__rpc_push_edits,
@@ -2753,11 +2753,11 @@ class ModuleHostBase(ServiceBase):
                 PushEditsRequest,
                 PushEditsResponse,
             ),
-            "/symbolx.bench.ModuleHost/WatchEdits": grpclib.const.Handler(
-                self.__rpc_watch_edits,
-                grpclib.const.Cardinality.UNARY_STREAM,
-                WatchEditsRequest,
-                WatchEditsResponse,
+            "/symbolx.bench.ModuleHost/PasteNodes": grpclib.const.Handler(
+                self.__rpc_paste_nodes,
+                grpclib.const.Cardinality.UNARY_UNARY,
+                PasteNodesRequest,
+                PasteNodesResponse,
             ),
             "/symbolx.bench.ModuleHost/Snapshot": grpclib.const.Handler(
                 self.__rpc_snapshot,
@@ -2913,41 +2913,41 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union
 
 AnyNodeData = Union[
-    BlobData,
-    HandleData,
     BadgeData,
-    TaggingData,
-    ClientData,
-    ViewData,
-    SecretData,
-    NotificationData,
-    UserData,
-    SessionData,
-    RecordData,
+    WorkerData,
+    HandleData,
     TriggerData,
-    RunData,
-    ModuleData,
-    IssueData,
-    FieldData,
-    StatementData,
-    BenchData,
+    HaltData,
+    SessionData,
+    ViewData,
+    UserData,
+    FileData,
     WorkerSetData,
     SignalData,
-    WorkerData,
-    HaltData,
+    TaggingData,
+    NotificationData,
+    ClientData,
     OrganizationData,
-    FileData,
+    StatementData,
+    ModuleData,
+    RecordData,
+    RunData,
+    FieldData,
+    SecretData,
+    BenchData,
+    BlobData,
+    IssueData,
 ]
 AnyStructData = Union[
-    PolicyRuleData,
+    RunErrorData,
+    MiniRunData,
+    AggregationData,
+    WorkerImageData,
+    RunCodeFrameData,
+    DependencyData,
+    PolicyData,
     ExpressionData,
     AggregationBucketData,
-    RunErrorData,
-    AggregationData,
-    MiniRunData,
-    DependencyData,
-    RunCodeFrameData,
-    PolicyData,
     LogEntryData,
-    WorkerImageData,
+    PolicyRuleData,
 ]

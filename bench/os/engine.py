@@ -657,7 +657,7 @@ async def sync_pg_databases_to_os(
         PostgresConditionalOp,
         SqlComparison,
         pg_select,
-        pg_unpack_record_row,
+        pg_unpack_record_data_row,
     )
 
     log = logger.bind(module=module, databases=[r[0] for r in record_ids_by_db])
@@ -676,7 +676,7 @@ async def sync_pg_databases_to_os(
         if record_ids is None:
             # update entire table if record_ids is None
             records_data = await pg_select(cur=pg_cursor, table=database._table)
-            records_data = [pg_unpack_record_row(database, row) for row in records_data]
+            records_data = [pg_unpack_record_data_row(database, row) for row in records_data]
             # delete table by query
             await os_client.delete_by_query(
                 index=os_name, body={"query": {"term": {"statement_key": database.key}}}
@@ -694,7 +694,7 @@ async def sync_pg_databases_to_os(
                 where=where,
                 params={"updated_ids": list(record_ids)},
             )
-            records_data = [pg_unpack_record_row(database, row) for row in records_data]
+            records_data = [pg_unpack_record_data_row(database, row) for row in records_data]
             records_by_id = {r.id: r for r in records_data}
             missing_ids = record_ids - records_by_id.keys()
             # delete missing ids
