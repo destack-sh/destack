@@ -3,13 +3,14 @@ from uuid import UUID
 
 import betterproto
 import boto3
-from botocore.config import Config
-from grpclib import GRPCError, Status as GRPCStatus
-from multidict import MultiDict
 import structlog
+from botocore.config import Config
+from grpclib import GRPCError
+from grpclib import Status as GRPCStatus
+from multidict import MultiDict
 
-from bench.language import Worker, Client
-from bench.proto.wire import AnyStructData, AnyNodeData, RpcMetadata, ClientKind
+from bench.language import Client, Worker
+from bench.proto.wire import AnyNodeData, AnyStructData, ClientKind, RpcMetadata
 from bench.utils.func import to_uuid, uuid_to_str
 from bench.utils.utils import get_from_env
 

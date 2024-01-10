@@ -225,7 +225,7 @@ class RecordQuery:
         if self._filter is not None:
             ops = self._filter._collect_ops()
             if ConditionalOp.NEAR in ops:
-                return QueryEngine.OPENSEARCH
+                return QueryEngine.LOCAL_OPENSEARCH
         return None
 
     @property
@@ -233,8 +233,8 @@ class RecordQuery:
         if self._filter is not None:
             ops = self._filter._collect_ops()
             if ops & ExpressionOps.COND_SCORED:
-                return QueryEngine.OPENSEARCH
-        return QueryEngine.POSTGRES
+                return QueryEngine.LOCAL_OPENSEARCH
+        return QueryEngine.LOCAL_POSTGRES
 
     def _require_engine(self, engine: QueryEngine) -> None:
         if self._required_engine and self._required_engine != engine:
@@ -364,14 +364,14 @@ class RecordQuery:
     ) -> _RecordFetchResult:
         """Actually fetches the raw record results from some engine."""
         from bench.os.engine import os_search
-        from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_records
+        from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_records_data
 
         where = self._combined_filter
         first = self._first or LOCAL_RECORD_CACHE_LIMIT
-        target_engine = self._engine or self._recommended_engine or QueryEngine.POSTGRES
+        target_engine = self._engine or self._recommended_engine or QueryEngine.LOCAL_POSTGRES
 
         logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
-        if target_engine == QueryEngine.OPENSEARCH:
+        if target_engine == QueryEngine.LOCAL_OPENSEARCH:
             os_results = await os_search(
                 os_name=self._database.module.os_name,
                 metatype=NodeType.RECORD,
@@ -389,9 +389,9 @@ class RecordQuery:
                 os_results.total,
                 target_engine,
             )
-        elif target_engine == QueryEngine.POSTGRES:
+        elif target_engine == QueryEngine.LOCAL_POSTGRES:
             assert pg_cursor is not None, f"missing pg_cursor for {self!r}"
-            records, cursors, start_cursor = await pg_select_records(
+            records, cursors, start_cursor = await pg_select_records_data(
                 cur=pg_cursor,
                 database=self._database,
                 where=where,
@@ -417,7 +417,7 @@ class RecordQuery:
         """Returns the number of results. May refine the query."""
         from bench.sql.engine import compile_pg_conditional, pg_count
 
-        self._require_engine(QueryEngine.POSTGRES)
+        self._require_engine(QueryEngine.LOCAL_POSTGRES)
         assert not self._first and not self._skip and not self._sort, "cannot count with limits"
         filter = coerce_conditional(self._database, filter, kwargs)
 
@@ -436,7 +436,7 @@ class RecordQuery:
 
         filter = coerce_conditional(self._database, filter, kwargs, return_none_if_empty=True)
 
-        self._require_engine(QueryEngine.POSTGRES)
+        self._require_engine(QueryEngine.LOCAL_POSTGRES)
         assert not self._first and not self._skip and not self._sort, "cannot exists with limits"
         if filter is None and self._cached_records is not None:
             return bool(self._cached_records)
@@ -459,7 +459,7 @@ class RecordQuery:
         from bench.language.packer import check_type, pack_value
         from bench.sql.engine import compile_pg_conditional, pg_update_static, pg_wrap_record_value
 
-        self._require_engine(QueryEngine.POSTGRES)
+        self._require_engine(QueryEngine.LOCAL_POSTGRES)
         if not value:
             raise ValueError(f"no values given to update {self!r}")
 
@@ -494,7 +494,7 @@ class RecordQuery:
         """Deletes all results."""
         from bench.sql.engine import compile_pg_conditional, pg_delete
 
-        self._require_engine(QueryEngine.POSTGRES)
+        self._require_engine(QueryEngine.LOCAL_POSTGRES)
         assert not self._engine, "cannot delete with forced query engine"
         session = self._database.session
         if session._local_edits:

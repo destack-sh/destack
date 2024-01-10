@@ -353,7 +353,7 @@ def compile_os_conditional(ctx: CompilationContext, cond: Expression) -> dict[st
         return {"exists": {"field": key}}
     elif cond.op == ConditionalOp.NOT_EXISTS:
         return {"bool": {"must_not": {"exists": {"field": key}}}}
-    raise QueryEngineIncapableError(QueryEngine.OPENSEARCH, cond, "unsupported conditional")
+    raise QueryEngineIncapableError(QueryEngine.LOCAL_OPENSEARCH, cond, "unsupported conditional")
 
 
 OS_SORT_ORDER_BY_BENCH = {
@@ -464,7 +464,7 @@ def compile_os_search(
 def _wrap_os_error(
     e: Exception, expr: lang.Expression | list[lang.Expression]
 ) -> QueryEngineError | Exception:
-    return QueryEngineError(QueryEngine.OPENSEARCH, expr, str(e))
+    return QueryEngineError(QueryEngine.LOCAL_OPENSEARCH, expr, str(e))
 
 
 async def os_search(
@@ -993,7 +993,7 @@ async def sync_databases_to_os(module: Module, databases: list[HasDatabase]) -> 
     Obviously not scalable yet because it just selects everything in one go (no streaming).
     TODO @Robustness: race condition in syncing database because OS has no transactions?
     """
-    from bench.sql.engine import async_pg_cursor, pg_select_records
+    from bench.sql.engine import async_pg_cursor, pg_select_records_data
 
     log = logger.bind(module=module, databases=databases)
 
@@ -1003,7 +1003,7 @@ async def sync_databases_to_os(module: Module, databases: list[HasDatabase]) -> 
             where = C(ConditionalOp.EQUALS, field_key="statement_key", value=database.key) & ~C(
                 ConditionalOp.EXISTS, field_key="deleted_at"
             )
-            records_data, _, _ = await pg_select_records(cur, database, where=where)
+            records_data, _, _ = await pg_select_records_data(cur, database, where=where)
             all_records.extend(records_data)
 
     log.debug("os.write_edits.flush", records=len(all_records))

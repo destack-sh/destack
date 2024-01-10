@@ -180,7 +180,8 @@ class ExpressionOps:  # :ExpressionOps
     COND_STRING = {ConditionalOp.STARTS_WITH, ConditionalOp.MATCHES}
     COND_SCORED = {ConditionalOp.NEAR, *COND_STRING}
     # Aggregations
-    AGG_SINGLE = {
+    AGG_BOOLEAN = {AggregationOp.EXISTS}
+    AGG_SCALAR = {
         AggregationOp.COUNT,
         AggregationOp.SUM,
         AggregationOp.AVERAGE,
@@ -205,7 +206,7 @@ EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionOp]] = {
         *ExpressionOps.COND_COMPARISON,
         *ExpressionOps.COND_STRING,
     },
-    ExpressionKind.AGGREGATION: {*ExpressionOps.AGG_SINGLE, *ExpressionOps.AGG_BUCKET},
+    ExpressionKind.AGGREGATION: {*ExpressionOps.AGG_SCALAR, *ExpressionOps.AGG_BUCKET},
     ExpressionKind.SORT: {*ExpressionOps.SORT},
 }
 EXPRESSION_KIND_BY_OP: dict[ExpressionOp, ExpressionKind] = {

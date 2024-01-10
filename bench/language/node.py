@@ -22,11 +22,10 @@ from typing import (
 )
 from uuid import UUID, uuid4
 
-from asgiref.sync import async_to_sync
 import structlog
+from asgiref.sync import async_to_sync
 from cachetools import cached
 
-from bench.utils.func import _auto_async_to_sync
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     IN_MODULE_NODE_TYPES,
@@ -41,6 +40,7 @@ from bench.language.const import (
     NodePath,
     NodeTrackingLevel,
     NodeType,
+    QueryEngine,
     SortOp,
     StatementType,
     StructType,
@@ -48,7 +48,6 @@ from bench.language.const import (
     TypeTag,
     parse_absolute_node_reference,
     parse_node_path,
-    QueryEngine,
 )
 from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase
 from bench.language.validation import (
@@ -58,11 +57,18 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, SomeNodeData, AnyNodeData, ModuleHostStub
-from bench.sql.core import CascadeAction, ColumnType
+from bench.proto.wire import EditData, SomeNodeData
+from bench.sql.core import CascadeAction, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
-from bench.utils.func import did_you_mean_str, get_subclasses, nextn, strip_py_type, try_tuple
+from bench.utils.func import (
+    _auto_async_to_sync,
+    did_you_mean_str,
+    get_subclasses,
+    nextn,
+    strip_py_type,
+    try_tuple,
+)
 from bench.utils.utils import (
     DEBUG,
     LOCAL,
@@ -1470,6 +1476,16 @@ class _InterpChange:
 
 
 FieldOrProperty = Union["Field", "Property"]
+_NodeFetchResult = typing.NamedTuple(
+    "_NodeFetchResult",
+    [
+        ("nodes", list["AnyNodeData"]),
+        ("cursors", list[str]),
+        ("start_cursor", str | None),
+        ("total", int),
+        ("engine", QueryEngine),
+    ],
+)
 
 
 class NodeQuery(typing.Generic[NodeT]):
@@ -1530,6 +1546,27 @@ class NodeQuery(typing.Generic[NodeT]):
             engine=self._engine,
             # cache is not copied on purpose as it shouldn't propagate
         )
+
+    def _invalidate(self):
+        self._cached_records = None
+        self._cached_cursors = None
+
+    def _get_target_engine(self, *with_ops: "ExpressionOp") -> QueryEngine:
+        from bench.language.expression import ExpressionOps
+
+        node_cls = self._node_cls
+        if node_cls.__is_local__:
+            ops = self._filter._collect_ops() if self._filter else ()
+            if with_ops:
+                ops |= set(with_ops)
+            if node_cls.__is_indexed_in_os__ and (
+                ops & ExpressionOps.AGG_SCALAR or ops & ExpressionOps.AGG_BUCKET
+            ):
+                return QueryEngine.LOCAL_OPENSEARCH
+            else:
+                return QueryEngine.LOCAL_POSTGRES
+        else:
+            return QueryEngine.GLOBAL_POSTGRES
 
     async def __aiter__(self):
         if self._cached_nodes is None:
@@ -1634,59 +1671,130 @@ class NodeQuery(typing.Generic[NodeT]):
         from bench.proto import wiring
 
         session = active_session()
-        fetched = await self._do_fetch(session.host)
+        fetched = await self._do_fetch(session)
         nodes: list[NodeT] = []
-        for node_data in fetched:
+        for node_data in fetched.nodes:
             node = wiring.unpack_node(node_data, parent=None, session=session)
             node._activate_self(session)
             nodes.append(node)
+
+        if self._cache:
+            self._cached_nodes = nodes
+            self._cached_cursors = fetched.cursors
         return nodes
 
-    async def _do_fetch(self, host: ModuleHostStub) -> list[AnyNodeData]:
-        from bench.proto import wiring, wire
+    async def _do_fetch(
+        self, session: "Session", count: bool = False, after: str = None
+    ) -> _NodeFetchResult:
+        from bench.proto import wire, wiring
+        from bench.sql.engine import pg_select_nodes_data, pg_count, compile_pg_conditional
 
-        request = wire.SearchNodesRequest(
-            node_type=wiring.pack_enum(NodeType, self._node_type),
-            filter=wiring.pack_struct_maybe(self._filter),
-            sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
-            limit=self._first,
-        )
-        response = await host.search_nodes(request)
-        return [wiring.unwrap_some_node(n) for n in response.nodes]
+        engine = self._get_target_engine()
+        if engine == QueryEngine.LOCAL_POSTGRES or (
+            engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
+        ):
+            cur = session._global_pg_cursor or session._local_pg_cursor
+            fetched = await pg_select_nodes_data(
+                cur=cur,
+                node_type=self._node_type,
+                where=self._filter,
+                sort=self._sort,
+                first=self._first,
+                skip=self._skip,
+                after=after,
+            )
+            if count:
+                count = await pg_count(
+                    cur=cur,
+                    table=self._node_cls.__table__,
+                    where=compile_pg_conditional(self._node_cls, self._filter),
+                )
+            else:
+                count = None
+            return _NodeFetchResult(
+                nodes=fetched.nodes,
+                cursors=fetched.cursors,
+                start_cursor=fetched.start_cursor,
+                total=count,
+                engine=engine,
+            )
+        elif engine == QueryEngine.GLOBAL_POSTGRES:  # request from host
+            assert not count, "count not supported in host query"
+            request = wire.SearchNodesRequest(
+                node_type=wiring.pack_enum(NodeType, self._node_type),
+                filter=wiring.pack_struct_maybe(self._filter),
+                sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
+                limit=self._first,
+                after=after,
+            )
+            response = await session.host.search_nodes(request)
+            return [wiring.unwrap_some_node(n) for n in response.nodes]
+        else:
+            raise ValueError(f"unexpected query engine {engine}")
 
     @_auto_async_to_sync
     async def count(self, filter: "Expression" = None, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
-        from bench.language.expression import coerce_conditional
         from bench.language.builtin import active_session
-        from bench.proto import wiring, wire
+        from bench.language.expression import coerce_conditional
+        from bench.proto import wire, wiring
+        from bench.sql.engine import pg_count, compile_pg_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
-        request = wire.AggregateNodesRequest(
-            node_type=wiring.pack_enum(NodeType, self._node_type),
-            filter=wiring.pack_struct_maybe(filter),
-            sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
-            limit=self._first,
-            aggregation=wire.ExpressionData(op=wire.ExpressionOp.COUNT),
-        )
-        aggregation_data = await active_session()._host.aggregate_nodes(request)
-        return int(aggregation_data.aggregation.scalar)
+        engine = self._get_target_engine()
+        session = active_session()
+        if engine == QueryEngine.LOCAL_POSTGRES or (
+            engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
+        ):
+            cur = session._global_pg_cursor or session._local_pg_cursor
+            return await pg_count(
+                cur=cur,
+                table=self._node_cls.__table__,
+                where=compile_pg_conditional(self._node_cls, filter),
+            )
+        elif engine == QueryEngine.GLOBAL_POSTGRES:  # request from host
+            request = wire.AggregateNodesRequest(
+                node_type=wiring.pack_enum(NodeType, self._node_type),
+                filter=wiring.pack_struct_maybe(filter),
+                sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
+                limit=self._first,
+                aggregation=wire.ExpressionData(op=wire.ExpressionOp.COUNT),
+            )
+            aggregation_data = await active_session()._host.aggregate_nodes(request)
+            return int(aggregation_data.aggregation.scalar)
+        else:
+            raise ValueError(f"unexpected query engine {engine}")
 
     @_auto_async_to_sync
     async def exists(self, filter: "Expression" = None, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
-        from bench.language.expression import coerce_conditional
         from bench.language.builtin import active_session
-        from bench.proto import wiring, wire
+        from bench.language.expression import coerce_conditional
+        from bench.proto import wire, wiring
+        from bench.sql.engine import pg_exists, compile_pg_conditional
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
-        request = wire.AggregateNodesRequest(
-            node_type=wiring.pack_enum(NodeType, self._node_type),
-            filter=wiring.pack_struct_maybe(filter),
-            aggregation=wire.ExpressionData(op=wire.ExpressionOp.EXISTS),
-        )
-        aggregation_data = await active_session()._host.aggregate_nodes(request)
-        return aggregation_data.aggregation.exists
+        engine = self._get_target_engine()
+        session = active_session()
+        if engine == QueryEngine.LOCAL_POSTGRES or (
+            engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
+        ):
+            cur = session._global_pg_cursor or session._local_pg_cursor
+            return await pg_exists(
+                cur=cur,
+                table=self._node_cls.__table__,
+                where=compile_pg_conditional(self._node_cls, filter),
+            )
+        elif engine == QueryEngine.GLOBAL_POSTGRES:  # request remotely
+            request = wire.AggregateNodesRequest(
+                node_type=wiring.pack_enum(NodeType, self._node_type),
+                filter=wiring.pack_struct_maybe(filter),
+                aggregation=wire.ExpressionData(op=wire.ExpressionOp.EXISTS),
+            )
+            aggregation_data = await active_session()._host.aggregate_nodes(request)
+            return aggregation_data.aggregation.exists
+        else:
+            raise ValueError(f"unexpected query engine {engine}")
 
 
 class _NodeExpressionBase:
@@ -2272,6 +2380,7 @@ class Node(Struct, _NodeExpressionBase):
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __root__: ClassVar[NodeType | None] = UNSET
     __is_stored__: ClassVar[bool] = False  # stored in PG (runtime or local)
+    __table__: ClassVar["Table"] = UNSET  # if stored regularly, set after finalization
     __is_stored_custom__: ClassVar[bool] = False  # custom PG storage logic (for records)
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
@@ -3230,8 +3339,9 @@ def _complete_bench_setup():
     NODE_TYPES = frozenset(NODE_CLASS_BY_NODE_TYPE.values())
     STRUCT_TYPES = frozenset(STRUCT_CLASS_BY_STRUCT_TYPE.values())
 
-    # misc finalization on properties
+    # finalize classes
     for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
+        # misc finalization on properties
         is_node = issubclass(cls, Node)
         for name, prop in cls.__properties__.items():
             prop: Property
@@ -3267,6 +3377,15 @@ def _complete_bench_setup():
         cls.__stored_properties__ = frozendict(
             {p.name: p for p in cls.__properties__.values() if p.is_stored is True}
         )
+
+    # set tables
+    from bench.sql.engine import TABLE_BY_NODE_TYPE
+
+    for node_cls in NODE_CLASS_BY_NODE_TYPE.values():
+        if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
+            node_cls.__table__ = TABLE_BY_NODE_TYPE[node_cls.metatype]
+        else:
+            node_cls.__table__ = None
 
     # determine node ancestry (is in module/bench)
     #  (to check if it was set consistently - we need to set this manually in @node

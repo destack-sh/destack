@@ -1,14 +1,15 @@
 import asyncio
-from datetime import timedelta, datetime
 import functools
-from typing import AsyncIterator, Callable
 import urllib
+from datetime import datetime, timedelta
+from typing import AsyncIterator, Callable
 from uuid import UUID
 
-from grpclib import GRPCError, Status as GRPCStatus
 import grpclib
 import grpclib.server
 import structlog
+from grpclib import GRPCError
+from grpclib import Status as GRPCStatus
 
 from bench.language.const import IN_MODULE_NODE_TYPES, NodeType
 from bench.language.node import Bench, Module
@@ -16,47 +17,47 @@ from bench.language.tree import NodeTree
 from bench.proto import wire
 from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (
-    ModuleHostBase,
-    ReadNodesRequest,
-    ReadNodesResponse,
-    SearchNodesRequest,
-    SearchNodesResponse,
-    CommitEditsRequest,
-    CommitEditsResponse,
-    PushEditsRequest,
-    WatchEditsRequest,
-    WatchEditsResponse,
-    PasteNodesRequest,
-    PasteNodesResponse,
-    SnapshotModuleRequest,
-    SnapshotModuleResponse,
-    UploadBlobsRequest,
-    UploadBlobsResponse,
-    DownloadBlobsRequest,
-    DownloadBlobsResponse,
-    SearchLogsRequest,
-    SearchLogsResponse,
-    WatchLogsRequest,
-    WatchLogsResponse,
-    PushWorkerLogsRequest,
-    StartRunRequest,
-    StartRunResponse,
-    KillRunRequest,
-    KillRunResponse,
-    RunProxyStatementRequest,
-    RunProxyStatementResponse,
-    PushEditsResponse,
     AggregateNodesRequest,
     AggregateNodesResponse,
     AnyNodeData,
-)
-from bench.server.utils import (
-    validate_bench_data_many,
-    get_s3_client,
-    check_authenticated_worker,
-    check_authenticated,
+    CommitEditsRequest,
+    CommitEditsResponse,
+    DownloadBlobsRequest,
+    DownloadBlobsResponse,
+    KillRunRequest,
+    KillRunResponse,
+    ModuleHostBase,
+    PasteNodesRequest,
+    PasteNodesResponse,
+    PushEditsRequest,
+    PushEditsResponse,
+    PushWorkerLogsRequest,
+    ReadNodesRequest,
+    ReadNodesResponse,
+    RunProxyStatementRequest,
+    RunProxyStatementResponse,
+    SearchLogsRequest,
+    SearchLogsResponse,
+    SearchNodesRequest,
+    SearchNodesResponse,
+    SnapshotModuleRequest,
+    SnapshotModuleResponse,
+    StartRunRequest,
+    StartRunResponse,
+    UploadBlobsRequest,
+    UploadBlobsResponse,
+    WatchEditsRequest,
+    WatchEditsResponse,
+    WatchLogsRequest,
+    WatchLogsResponse,
 )
 from bench.server.session import detached_session
+from bench.server.utils import (
+    check_authenticated,
+    check_authenticated_worker,
+    get_s3_client,
+    validate_bench_data_many,
+)
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 from bench.sql.engine import read_node_tree_from_pg
 from bench.utils.func import to_uuid
