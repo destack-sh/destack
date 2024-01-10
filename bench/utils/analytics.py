@@ -44,4 +44,4 @@ def init_sentry():
             "profiles_sample_rate": 1.0,
         },
     )
-    logger.info("initialized_sentry", environment=environment, dsn=dsn[:12] + "..." + dsn[-4:])
+    logger.debug("initialized_sentry", environment=environment, dsn=dsn[:12] + "..." + dsn[-4:])

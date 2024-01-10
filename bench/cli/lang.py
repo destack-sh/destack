@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 from subprocess import DEVNULL
 
+import structlog
 import typer
 from rich import print
 
@@ -19,6 +20,7 @@ from bench.proto.engine import generate_proto_schema
 from bench.sql.engine import map_node_type_to_pg_table
 from bench.utils.utils import format_python
 
+logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="language state and migrations")
 
 TARGET_PY_DIR = "bench/proto/wire"
@@ -55,7 +57,7 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     Path(GENERATED_PROTO_FILE).write_text(schema_str)
 
     # python
-    print("Generate python")
+    logger.info("proto.regen.py")
     try:
         # backup existing target
         # (only needed for Python since we need the source to compile to regenerate to retry)
@@ -82,9 +84,10 @@ def _regen_proto_artifacts(schema_str: str) -> None:
         raise e
     finally:
         Path(TARGET_PY_FILE + ".bak").unlink(missing_ok=True)
+    logger.info("proto.regen.py.done")
 
     # TS
-    print("Generate TS")
+    logger.info("proto.regen.ts")
     shutil.rmtree(TARGET_TS_DIR, ignore_errors=True)
     Path(TARGET_TS_DIR).mkdir(parents=True, exist_ok=True)
     _shell(
@@ -93,6 +96,7 @@ def _regen_proto_artifacts(schema_str: str) -> None:
     # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
     for path in Path(TARGET_TS_DIR).glob("**/*.ts"):
         path.write_text("/* eslint-disable */\n" + path.read_text())
+    logger.info("proto.regen.ts.done")
 
 
 @app.command()
@@ -127,13 +131,17 @@ def _generate_pg_schema():
 
 
 @app.command()
-def sql():
+def sql(regen: bool = False):
     source = _generate_pg_schema()
-    print(source)
+
+    if not regen:
+        print(source)
+    else:
+        Path("bench/sql/schema.py").write_text(source)
 
 
 @app.command()
-def makemigration():
+def makemigrations():
     raise NotImplementedError()
 
 

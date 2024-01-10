@@ -301,6 +301,5 @@ TEST: bool = (
     or "pytest" in sys.argv[0]
     or get_from_env("TEST", False, type_cast=str_to_bool)
 )
-LOCAL = os.environ.get("LOCAL_ENV", "local") == "local"
-IS_WORKER = "worker" in sys.argv[0]
+LOCAL_ENV = os.environ.get("LOCAL_ENV", "local") == "local"
 SOME_TYPE_CHECKING = TYPE_CHECKING or "mypy" in sys.argv[0] or TEST

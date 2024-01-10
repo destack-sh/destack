@@ -36,7 +36,7 @@ from bench.language.node import (
     struct_runtime,
 )
 from bench.language.value import HasValue
-from bench.sql.core import EPHEMERAL_RECORD_TABLE, ColumnType, Table
+from bench.sql.core import RECORD_EPHEMERAL_TABLE, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import flatten
@@ -624,7 +624,7 @@ class HasDatabase(Node):
         from bench.sql.engine import map_database_to_pg_table
 
         if self.ephemeral:
-            self._table = EPHEMERAL_RECORD_TABLE
+            self._table = RECORD_EPHEMERAL_TABLE
         else:
             self._table = map_database_to_pg_table(self)
 

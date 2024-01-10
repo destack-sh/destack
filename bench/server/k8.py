@@ -20,7 +20,7 @@ from bench.settings.k8 import (
     KUBERNETES_WORKER_IMAGE,
     KUBERNETES_WORKER_NAMESPACE,
 )
-from bench.utils.utils import DEBUG, LOCAL, get_from_env
+from bench.utils.utils import DEBUG, LOCAL_ENV, get_from_env
 
 logger = structlog.get_logger(__name__)
 
@@ -48,7 +48,7 @@ async def init():
             settings.KUBERNETES_KUBECONFIG_PATH, settings.KUBERNETES_KUBECONFIG_CTX
         )
         K8_AVAILABLE = True
-    elif not LOCAL:
+    elif not LOCAL_ENV:
         sync_config.load_incluster_config()
         K8_AVAILABLE = True
 

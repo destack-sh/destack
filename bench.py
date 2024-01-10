@@ -16,8 +16,7 @@ else:
 for dot_env_file in DOT_ENV_FILES:
     dotenv.load_dotenv(dot_env_file, verbose=True, override=True)
 
-# nocheckin: logging freezes on startup?
-configure_logging(apply_logging=False, apply_structlog=True)
+configure_logging(apply_logging=True, apply_structlog=True)
 
 # add all 'app' instances into CLI (from ./bench/management/*.py)
 cli = typer.Typer()

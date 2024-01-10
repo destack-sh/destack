@@ -1,16 +1,19 @@
 from pathlib import Path
 
+import structlog
 import typer
 
 app = typer.Typer(short_help="dev only")
 
 worker = typer.Typer()
+logger = structlog.get_logger(__name__)
 
 
 @worker.command(name="imitate")
 async def imitate_worker(bench: str):
     """'Imitate' the env vars of a worker for a Bench in .env.worker"""
     bench = await get_bench(bench)
+    logger.info("worker.imitate", bench=bench)
     env_vars = {
         "WORKER_SET_ID": str(bench.worker_set.id),
         "WORKER_ID": "local",
@@ -24,13 +27,18 @@ async def imitate_worker(bench: str):
         "LOCAL_OS_PASSWORD": bench.os_password,
     }
     Path(".env.worker").write_text("\n".join(f"{k}={v}" for k, v in env_vars.items()))
-    typer.echo(f"patched .env.worker for {bench}")
+    logger.info(
+        "worker.imitate.done",
+        bench=bench,
+        **{k: v for k, v in env_vars.items() if "PASSWORD" not in k},
+    )
 
 
 @worker.command(name="clear")
 def clear_worker():
+    logger.info("worker.clear")
     Path(".env.worker").write_text("")
-    typer.echo("cleared .env.worker")
+    logger.info("worker.clear.done")
 
 
 app.add_typer(worker, name="worker")

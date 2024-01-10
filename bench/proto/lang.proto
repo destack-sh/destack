@@ -921,8 +921,8 @@ message RunData {
   string root_id = 31;
   string worker_ck = 32;
   string worker_process_id = 33;
-  string statement_ck = 34;
-  string statement_path = 35;
+  string node_ck = 34;
+  string node_path = 35;
   google.protobuf.Timestamp scheduled_at = 36;
   google.protobuf.Timestamp started_at = 37;
   google.protobuf.Timestamp terminated_at = 38;
@@ -1151,46 +1151,46 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    StatementData statement = 1;
-    ClientData client = 2;
+    WorkerData worker = 1;
+    FileData file = 2;
     RecordData record = 3;
-    TriggerData trigger = 4;
-    ModuleData module = 5;
-    NotificationData notification = 6;
-    BenchData bench = 7;
-    IssueData issue = 8;
-    BlobData blob = 9;
-    SessionData session = 10;
-    WorkerSetData worker_set = 11;
-    RunData run = 12;
-    TaggingData tagging = 13;
-    ViewData view = 14;
-    FileData file = 15;
-    SecretData secret = 16;
+    BadgeData badge = 4;
+    NotificationData notification = 5;
+    SessionData session = 6;
+    SignalData signal = 7;
+    UserData user = 8;
+    ClientData client = 9;
+    ModuleData module = 10;
+    IssueData issue = 11;
+    BenchData bench = 12;
+    StatementData statement = 13;
+    HandleData handle = 14;
+    RunData run = 15;
+    TriggerData trigger = 16;
     FieldData field = 17;
-    HandleData handle = 18;
-    BadgeData badge = 19;
+    ViewData view = 18;
+    BlobData blob = 19;
     OrganizationData organization = 20;
-    SignalData signal = 21;
-    WorkerData worker = 22;
-    UserData user = 23;
+    SecretData secret = 21;
+    WorkerSetData worker_set = 22;
+    TaggingData tagging = 23;
     HaltData halt = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    ExpressionData expression = 1;
+    DependencyData dependency = 1;
     PolicyRuleData policy_rule = 2;
-    AggregationBucketData aggregation_bucket = 3;
-    MiniRunData mini_run = 4;
-    DependencyData dependency = 5;
+    ExpressionData expression = 3;
+    PolicyData policy = 4;
+    AggregationBucketData aggregation_bucket = 5;
     AggregationData aggregation = 6;
     RunErrorData run_error = 7;
-    LogEntryData log_entry = 8;
-    WorkerImageData worker_image = 9;
+    MiniRunData mini_run = 8;
+    LogEntryData log_entry = 9;
     RunCodeFrameData run_code_frame = 10;
-    PolicyData policy = 11;
+    WorkerImageData worker_image = 11;
   };
 }
 

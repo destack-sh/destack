@@ -31,32 +31,26 @@ from bench.proto.wire import AnyNodeData, EditData
 from bench.sql import schema
 from bench.sql.client import UNIVERSAL_RO_PASSWORD, UNIVERSAL_RO_USERNAME, async_pg_cursor
 from bench.sql.core import (
-    BASE_RECORD_TABLE,
-    CONSTRUCT_TABLE,
-    INTERNAL_TABLES,
+    RECORD_BASE_TABLE,
     CascadeAction,
     Column,
     ColumnType,
     Constraint,
     ConstraintType,
-    Construct,
-    ConstructInfo,
-    ConstructKind,
     Index,
     IndexType,
     SqlPrimitive,
     Table,
-    TableConstruct,
 )
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.utils import DEBUG, LOCAL, to_all_caps
+from bench.utils.utils import DEBUG, LOCAL_ENV, to_all_caps
 
 logger = structlog.get_logger(__name__)
 
 
 def get_record_table_name(statement_ck: UUID) -> str:
     """First 16 hex digits without dashes."""
-    return f"record_{str(statement_ck).replace('-', '')}"
+    return f"bench_record_{str(statement_ck).replace('-', '')}"
 
 
 def get_bench_table_name(node_type: NodeType) -> str:
@@ -201,47 +195,27 @@ def map_database_to_pg_table(statement: lang.Statement) -> Table:
     return Table(
         source=str(statement.ck),
         name=get_record_table_name(statement.ck),
-        columns=(*(c.clone() for c in BASE_RECORD_TABLE.columns), *columns),
-        indexes=(*(i.clone() for i in BASE_RECORD_TABLE.indexes), *indexes),
-        constraints=(*(c.clone() for c in BASE_RECORD_TABLE.constraints), *constraints),
+        columns=(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
+        indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
+        constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints), *constraints),
     )
 
 
-async def update_pg_schema(pg_name: str, module: Module) -> None:
-    """Updates Postgres tables (i.e. schema) for a module's databases."""
+async def update_dynamic_local_pg_schema(pg_name: str, module: Module) -> None:
+    """Updates the dynamic local record Postgres tables for a module's databases."""
     log = logger.bind(pg_name=pg_name, module=module)
     databases: list[lang.Statement] = [
-        s
+        cast(lang.Statement, s)
         for s in module._nodes
         if s.metatype == NodeType.STATEMENT and HasDatabase in s._components and not s.ephemeral
     ]
-    tables = (*INTERNAL_TABLES, *(s._table for s in databases if s._table))
+    tables: list[Table] = [d._table for d in databases]
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))
 
     try:
         async with async_pg_cursor(pg_name, autocommit=False) as cur:
-            # get missing constructs (diff existing and current)
-            try:
-                existing_constructs = await pg_get_stored_constructs(cur)
-            except SqlUndefinedConstruct:
-                # TODO @Robustness @Architecture: figure out some simple Migration system
-                # does not exist yet, will be created below
-                await cur.connection.rollback()
-                existing_constructs = {}
-            current_constructs: dict[UUID, Construct] = {c.id: c for t in tables for c in t.walk()}
-            missing_constructs = {
-                id: c for id, c in current_constructs.items() if id not in existing_constructs
-            }
-            if missing_constructs:
-                log.info("pg.update_schema.create", missing=len(missing_constructs))
-                # create missing constructs
-                await pg_create_constructs(cur, missing_constructs)
-                # and remember the state
-                new_constructs = {**existing_constructs}
-                new_constructs.update(missing_constructs)  # retain all old constructs (for now)
-                await pg_replace_stored_constructs(cur, new_constructs)
-            else:
-                log.info("pg.update_schema.skip")
+            # introspect and update schema
+            raise NotImplementedError("nocheckin: update_dynamic_local_pg_schema")
     except Exception as e:
         log.exception("pg.update_schema.failed", e=e)
         raise RuntimeError(f"failed to update {pg_name} schema: {e}") from e
@@ -324,7 +298,7 @@ class SqlError(Exception):
     pass
 
 
-class SqlUndefinedConstruct(SqlError):
+class SqlUndefinedObject(SqlError):
     pass
 
 
@@ -494,7 +468,7 @@ def _wrap_pg_error(
     resource: Table | str, query: sql.Composed, e: psycopg.errors.Error
 ) -> Exception:
     if isinstance(e, (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn)):
-        wrapped_t = SqlUndefinedConstruct
+        wrapped_t = SqlUndefinedObject
     else:
         wrapped_t = SqlError
     e_str = str(e)
@@ -544,7 +518,7 @@ async def pg_select(
 ) -> list[dict[str, any]]:
     """Selects from the given table."""
     columns = columns or table.columns
-    statement = pg_select_statement(
+    statement = pg_select_sql(
         table=table,
         columns=columns,
         joins=joins,
@@ -558,7 +532,7 @@ async def pg_select(
     return await cur.fetchall()
 
 
-def pg_select_statement(
+def pg_select_sql(
     table: Table,
     columns: list[Column],
     joins: list[SqlJoin] | None = None,
@@ -745,67 +719,6 @@ async def pg_delete(
 async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
     """Truncates the given table."""
     await cur.execute(sql.SQL("TRUNCATE TABLE {}").format(sql.Identifier(table.name)))
-
-
-#
-# Constructs
-#
-
-
-async def pg_get_stored_constructs(cur: psycopg.AsyncCursor) -> dict[UUID, ConstructInfo]:
-    """Gets the current constructs in the given database (through the CONSTRUCT_TABLE)."""
-    rows = await pg_select(cur, CONSTRUCT_TABLE)
-    construct_infos = [
-        ConstructInfo(
-            id=row["id"],
-            kind=ConstructKind(row["kind"]),
-            table_name=row["table_name"],
-            name=row["name"],
-            hash=row["hash"],
-        )
-        for row in rows
-    ]
-    return {c.id: c for c in construct_infos}
-
-
-async def pg_replace_stored_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
-    """Replaces the STORED constructs in construct table (data only, no definitions)."""
-    await pg_truncate(cur, CONSTRUCT_TABLE)
-    rows = [
-        {
-            "id": construct.id,
-            "kind": construct.kind.value,
-            "table_name": construct.table.name if isinstance(construct, TableConstruct) else None,
-            "name": construct.name,
-            "hash": construct.hash,
-            "source": str(construct.source) if construct.source is not None else None,
-        }
-        for construct in constructs.values()
-    ]
-    await pg_insert(cur, CONSTRUCT_TABLE, rows)
-
-
-async def pg_create_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, Construct]):
-    """Creates the given constructs in the given database (not an upsert!)."""
-    for construct in constructs.values():
-        # TODO @Performance: batch pg construct creation where possible
-        if isinstance(construct, Table):
-            statement = sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(construct.name))
-        elif isinstance(construct, Column):
-            statement = sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
-                sql.Identifier(construct.table.name), sql.SQL(construct.sql())
-            )
-        elif isinstance(construct, Index):
-            statement = sql.SQL("CREATE INDEX {}").format(sql.SQL(construct.sql()))
-        elif isinstance(construct, Constraint):
-            statement = sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
-                sql.Identifier(construct.table.name),
-                sql.SQL(construct.sql()),
-            )
-        else:
-            raise RuntimeError(f"unexpected construct: {construct}")
-        logger.debug("pg.create_construct", construct=construct, query=sql_to_str(cur, statement))
-        await _do_execute(cur, "schema", statement)
 
 
 #
@@ -1252,7 +1165,7 @@ async def duplicate_records_in_pg(
         return None
 
 
-if DEBUG or LOCAL:
+if DEBUG or LOCAL_ENV:
     # pretty print sql statements in dev mode
     def sql_to_str(c: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
         import sqlparse
