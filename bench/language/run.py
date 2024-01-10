@@ -15,7 +15,6 @@ from bench.language.const import (
     NodeType,
     RunErrorKind,
     RunStatus,
-    SessionAccessLevel,
     StructType,
     TriggerType,
 )
@@ -133,7 +132,6 @@ class Run(ScopeNode, HasValue):
     terminated_at: Optional[datetime] = struct_internal(38, default=None)
     trigger_type: Optional[TriggerType] = struct_internal(39, default=None)
     trigger_id: Optional[UUID] = struct_internal(40, default=None)
-    access_level: Optional["SessionAccessLevel"] = struct_internal(41, default=None)
     status: RunStatus = struct_internal(42, index_in_pg=True)
     inputs: Optional[dict[str, Any]] = struct_internal(
         43, default=None, column_type=ColumnType.JSON

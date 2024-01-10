@@ -3,27 +3,28 @@ import dataclasses
 import enum
 import functools
 import inspect
-import typing
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
-from logging import Logger
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
     Collection,
-    Iterator,
     Optional,
     Union,
+    ForwardRef,
+    dataclass_transform,
+    TypeVar,
+    Iterable,
+    cast,
 )
 from uuid import UUID, uuid4
 
 import structlog
-from asgiref.sync import async_to_sync
 from cachetools import cached
 
 from bench.language.const import (
@@ -32,22 +33,33 @@ from bench.language.const import (
     INTERP_NODE_TYPES,
     UUID_NAMESPACE,
     BenchType,
-    ConditionalOp,
-    ExpressionOp,
     IssueKind,
     IssueType,
     ModuleReference,
     NodePath,
     NodeTrackingLevel,
     NodeType,
-    QueryEngine,
-    SortOp,
     StatementType,
     StructType,
     TypeHint,
     TypeTag,
     parse_absolute_node_reference,
     parse_node_path,
+    UNSET,
+    NodeRelationType,
+    NRel,
+    LookupBy,
+    NodeStatus,
+    NS,
+)
+from bench.language.link import (
+    NodeListBase,
+    NodeList,
+    _NodeExpressionBase,
+    _FieldExpressionBase,
+    on_issue_raise,
+    _NC,
+    _InterpChange,
 )
 from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase
 from bench.language.validation import (
@@ -60,28 +72,11 @@ from bench.proto.core import ProtoStrEnum
 from bench.proto.wire import EditData, SomeNodeData
 from bench.sql.core import CascadeAction, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
-from bench.utils.func import (
-    _auto_async_to_sync,
-    did_you_mean_str,
-    get_subclasses,
-    nextn,
-    strip_py_type,
-    try_tuple,
-)
-from bench.utils.utils import (
-    DEBUG,
-    LOCAL,
-    IdentifierType,
-    flatten,
-    frozendict,
-    required_field,
-    to_pyidentifier,
-)
+from bench.utils.func import did_you_mean_str, get_subclasses, strip_py_type, try_tuple
+from bench.utils.utils import LOCAL, IdentifierType, frozendict, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language import (
-        Expression,
         Field,
         File,
         Issue,
@@ -98,221 +93,9 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-def on_issue_raise(
-    subject: "Node",
-    type: IssueType,
-    message: Optional[str] = None,
-    path: Optional[str] = None,
-    **kwargs,
-):
-    from bench.language.issue import Issue
-
-    raise Issue.from_subject(subject=subject, type=type, message=message, path=path).to_error()
-
-
-def new_node_identity(module_id: UUID) -> tuple[UUID, UUID]:
-    ck = uuid4()
-    id = get_node_id(module_id, ck)
-    return id, ck
-
-
-def new_detached_node_identity() -> tuple[UUID, UUID]:
-    ck = uuid4()
-    return ck, ck
-
-
 def get_node_id(module_id: UUID, ck: UUID):
     """Derive the version-specific node id from its constant key"""
     return uuid.uuid5(module_id, str(ck))
-
-
-class LookupBy(enum.StrEnum):
-    Name = "name"
-    PyIdent = "py_ident"
-
-
-class NodeRelationType(enum.IntFlag):
-    """Parent relation between node and descendants."""
-
-    Default = 0  # default inline relation
-    Remote = 2**0  # not inline: Statement->Record, ...
-    Shared = 2**1  # across versions: Statement->Comment, Statement[versioned=False]->Record, ...
-    Flat = 2**2  # flattened inner hierarchy: Module->File, File->Statement, ...
-    Cumulative = 2**3  # sum of descendants: Module->Issue, File->Issue, ...
-    Named = 2**4  # indexed by name: Module->File, File->Statement, ...
-    Scoped = 2**5  # scoped by name: Module->File, File->Statement, ...
-    Keyed = 2**6  # indexed by key: File->Tagging, Statement->Tagging, ...
-    Ordered = 2**7  # ordered: File->Statement, Statement->Field, ...
-
-
-NRel = NodeRelationType
-
-FLATTENED_RELATIONS = (
-    (NodeType.MODULE, NodeType.FILE),
-    (NodeType.FILE, NodeType.STATEMENT),
-    (NodeType.STATEMENT, NodeType.FIELD),
-    (NodeType.SESSION, NodeType.RUN),
-)
-
-UNSET = object()
-
-
-def _require_expression_op(op: ExpressionOp):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(self: "_FieldExpressionBase", *args, **kwargs):
-            from bench.language.expression import _check_field_supports
-
-            _check_field_supports(self._as_field, op)
-            return func(self, *args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-def _to_conditional(op: ConditionalOp, field: "Field", value: Any = None):
-    from bench.language.expression import C
-
-    return C(op, field=field, value=value)
-
-
-class _FieldExpressionBase:
-    """
-    Base for field-like expressions on a field-like class.
-    We define this here to use it for Property and Field.
-    """
-
-    @property
-    def _as_field(self) -> "Field":
-        from bench.language.field import Field
-
-        assert isinstance(self, Field), f"{self!r} is not a Field"
-        return self
-
-        # basic support checks
-
-    def _coerce_value(self: "Field", value: Any) -> Any:
-        from bench.language.field import Field
-
-        if self._as_field._effective_tag == TypeTag.ENUM and not isinstance(value, Field):
-            value = self.resolved_fields.get(value)
-        return value
-
-    # comparison
-
-    @_require_expression_op(ConditionalOp.EQUALS)
-    def equals(self, value: Any) -> "Expression":
-        value = self._coerce_value(value)
-        if value is None:
-            return self.not_exists()
-        return _to_conditional(ConditionalOp.EQUALS, self._as_field, value=value)
-
-    @_require_expression_op(ConditionalOp.NOT_EQUALS)
-    def not_equal(self, value: Any) -> "Expression":
-        value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.NOT_EQUALS, self._as_field, value=value)
-
-    @_require_expression_op(ConditionalOp.GREATER_THAN)
-    def greater_than(self, value: Any) -> "Expression":
-        value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.GREATER_THAN, self._as_field, value=value)
-
-    @_require_expression_op(ConditionalOp.GREATER_THAN_OR_EQUALS)
-    def greater_than_or_equals(self, value: Any) -> "Expression":
-        value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self._as_field, value=value)
-
-    @_require_expression_op(ConditionalOp.LESS_THAN)
-    def less_than(self, value: Any) -> "Expression":
-        value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.LESS_THAN, self._as_field, value=value)
-
-    @_require_expression_op(ConditionalOp.LESS_THAN_OR_EQUALS)
-    def less_than_or_equals(self, value: Any) -> "Expression":
-        value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self._as_field, value=value)
-
-    def __eq__(self, other):
-        if isinstance(self, Node) and isinstance(other, Node):
-            return Node.__eq__(self._as_field, other)  # imitate Field equality
-        return self.equals(other)
-
-    def __ne__(self, other):
-        if isinstance(self, Node) and isinstance(other, Node):
-            return Node.__ne__(self._as_field, other)
-        return self.not_equal(other)
-
-    __gt__ = greater_than
-    __ge__ = greater_than_or_equals
-    __lt__ = less_than
-    __le__ = less_than_or_equals
-
-    # string comparison
-
-    @_require_expression_op(ConditionalOp.STARTS_WITH)
-    def starts_with(self, value: str) -> "Expression":
-        return _to_conditional(ConditionalOp.STARTS_WITH, self._as_field, value=value)
-
-    @_require_expression_op(ConditionalOp.MATCHES)
-    def matches(self, value: str) -> "Expression":
-        return _to_conditional(ConditionalOp.MATCHES, self._as_field, value=value)
-
-    # containment
-
-    @_require_expression_op(ConditionalOp.IN)
-    def in_(self, *values: list[Any]) -> "Expression":
-        values = [self._coerce_value(value) for value in values]
-        return _to_conditional(ConditionalOp.IN, self._as_field, value=values)
-
-    @_require_expression_op(ConditionalOp.NOT_IN)
-    def not_in(self, *values: list[Any]) -> "Expression":
-        values = [self._coerce_value(value) for value in values]
-        return _to_conditional(ConditionalOp.NOT_IN, self._as_field, value=values)
-
-    @_require_expression_op(ConditionalOp.CONTAINS)
-    def contains(self, value: Any) -> "Expression":
-        value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.CONTAINS, self._as_field, value=value)
-
-    @_require_expression_op(ConditionalOp.NOT_CONTAINS)
-    def not_contains(self, value: Any) -> "Expression":
-        value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.NOT_CONTAINS, self._as_field, value=value)
-
-    # existence
-
-    @_require_expression_op(ConditionalOp.EXISTS)
-    def exists(self) -> "Expression":
-        return _to_conditional(ConditionalOp.EXISTS, self._as_field)
-
-    @_require_expression_op(ConditionalOp.NOT_EXISTS)
-    def not_exists(self) -> "Expression":
-        return _to_conditional(ConditionalOp.NOT_EXISTS, self._as_field)
-
-    # knn
-
-    @_require_expression_op(ConditionalOp.NEAR)
-    def near(self, value: list[float]) -> "Expression":
-        return _to_conditional(ConditionalOp.NEAR, self._as_field, value=value)
-
-    # sort
-
-    @_require_expression_op(SortOp.ASCENDING)
-    def asc(self) -> "Expression":
-        from bench.language.expression import S
-
-        return S(SortOp.ASCENDING, field=self._as_field)
-
-    ascending = asc
-
-    @_require_expression_op(SortOp.DESCENDING)
-    def desc(self) -> "Expression":
-        from bench.language.expression import S
-
-        return S(SortOp.DESCENDING, field=self._as_field)
-
-    descending = desc
 
 
 PROPERTY_COLUMN_TYPE_BY_PY_TYPE: dict[type, ColumnType] = {
@@ -334,8 +117,8 @@ class Property(_FieldExpressionBase):
     name: str | None = None  # name from LHS of assignment
     description: str | None = None  # description from docstring
     component: type["Node"] | None = None  # source component class
-    py_type_raw: typing.Any = None  # type annotation on LHS of assignment
-    py_type_stripped: typing.Any = UNSET  # stripped type annotation
+    py_type_raw: Any = None  # type annotation on LHS of assignment
+    py_type_stripped: Any = UNSET  # stripped type annotation
     # config
     alias: str | None = None  # for node list relations
     is_array: bool = UNSET
@@ -362,13 +145,13 @@ class Property(_FieldExpressionBase):
     parents: tuple[NodeType, ...] | None = None
     ancestor: NodeType | None = None
     column_type: ColumnType | None = UNSET
-    default: typing.Any = UNSET
-    default_factory: Callable[[], typing.Any] | None = None
+    default: Any = UNSET
+    default_factory: Callable[[], Any] | None = None
     list_type: type["NodeListBase"] | None = None
     child_node_type: NodeType | None = None
     children_flags: NodeRelationType = NodeRelationType.Default
-    custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
-    custom_copy: Callable[[typing.Any], typing.Any] | None = None
+    custom_validate: Callable[[Any, "PropertyValidationHandler"], bool | None] | None = None
+    custom_copy: Callable[[Any], Any] | None = None
     ignore_conflicts_with: tuple[type["Node"], ...] | None = None
 
     @functools.cached_property
@@ -538,7 +321,7 @@ class Property(_FieldExpressionBase):
         else:
             py_type, info = strip_py_type(self.py_type_raw)
             # resolve manually if needed
-            if isinstance(py_type, (str, typing.ForwardRef)):
+            if isinstance(py_type, (str, ForwardRef)):
                 py_type = py_type.__forward_arg__ if not isinstance(py_type, str) else py_type
                 if py_type not in _BENCH_TYPES_BY_NAME:
                     raise ValueError(f"cannot resolve type for {self!r}: {py_type!r}")
@@ -689,7 +472,7 @@ class Property(_FieldExpressionBase):
 
         return tuple()
 
-    def new(self) -> typing.Any:
+    def new(self) -> Any:
         if self.default is not UNSET:
             return self.default
         elif self.default_factory is not None:
@@ -697,7 +480,7 @@ class Property(_FieldExpressionBase):
         else:
             raise ValueError(f"no default for {self!r}")
 
-    def copy(self, value: typing.Any) -> typing.Any:
+    def copy(self, value: Any) -> Any:
         if self.is_tree_relation:
             raise ValueError(f"cannot copy relation {self!r}")
         elif self.references:
@@ -710,7 +493,7 @@ class Property(_FieldExpressionBase):
         else:
             raise ValueError(f"cannot copy {self!r}")
 
-    def validate(self, value: typing.Any, on_issue: "PropertyValidationHandler") -> bool | None:
+    def validate(self, value: Any, on_issue: "PropertyValidationHandler") -> bool | None:
         if self.custom_validate is not None:
             return self.custom_validate(value, on_issue)
         else:
@@ -721,10 +504,10 @@ def struct_property(
     id: int,
     *,
     description: str = None,
-    default: typing.Any = UNSET,
-    default_factory: Callable[[], typing.Any] = None,
-    copy: Callable[[typing.Any], typing.Any] = None,
-    validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
+    default: Any = UNSET,
+    default_factory: Callable[[], Any] = None,
+    copy: Callable[[Any], Any] = None,
+    validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
     require: bool = False,
     reflect: bool = UNSET,
     unique: bool = False,
@@ -759,9 +542,9 @@ def struct_internal(
     id: int,
     *,
     description: str = None,
-    default: typing.Any = UNSET,
-    default_factory: Callable[[], typing.Any] = None,
-    copy: Callable[[typing.Any], typing.Any] = None,
+    default: Any = UNSET,
+    default_factory: Callable[[], Any] = None,
+    copy: Callable[[Any], Any] = None,
     require: bool = False,
     reflect: bool = False,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
@@ -802,9 +585,9 @@ def struct_internal(
 
 def struct_runtime(
     *,
-    default: typing.Any = UNSET,
-    default_factory: Callable[[], typing.Any] = None,
-    copy: Callable[[typing.Any], typing.Any] = None,
+    default: Any = UNSET,
+    default_factory: Callable[[], Any] = None,
+    copy: Callable[[Any], Any] = None,
 ) -> object:
     """Internal runtime-only struct/node property (not persisted)."""
     return Property(
@@ -869,16 +652,6 @@ def node_children(
     )
 
 
-class NodeStatus(enum.IntEnum):
-    SOURCE = 0
-    INDEX = 1
-    INTERP = 2
-    ACTIVE = 3
-
-
-NS = NodeStatus
-
-
 class _ComponentMethod(enum.Enum):
     init = "init"
     walk = "walk"
@@ -922,7 +695,7 @@ NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_STRUCT_TYPE: dict[StructType, type["Struct"]] = {}
 BENCH_CLASS_BY_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
-_COMPONENT_METHODS: dict[[_ComponentMethod, type["Node"]], typing.Any] = {}
+_COMPONENT_METHODS: dict[[_ComponentMethod, type["Node"]], Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
     "Node",
     "ScopeNode",
@@ -950,7 +723,7 @@ def _sort_components_in_call_order(
 @cached(cache={}, key=lambda components, method, concrete_key: f"{concrete_key}.{method.name}")
 def _get_component_methods(
     components: list[type["Node"]], method: _ComponentMethod, concrete_key: str
-) -> list[typing.Any]:
+) -> list[Any]:
     """Get the actually implemented methods in the given components in call order."""
     methods = []
     for component in _sort_components_in_call_order(components):
@@ -1133,9 +906,9 @@ def _process_struct_base_cls(
     return cls, properties_by_name
 
 
-@typing.dataclass_transform()
+@dataclass_transform()
 def struct_component(
-    cls: Optional[typing.Type] = None,
+    cls: Optional[type] = None,
     struct_type: StructType = None,
     reserved: set[str | int] = None,
     is_final: bool = False,
@@ -1175,9 +948,9 @@ def struct(
     return decorate
 
 
-@typing.dataclass_transform()
+@dataclass_transform()
 def node_component(
-    cls: Optional[typing.Type] = None,
+    cls: Optional[type] = None,
     node_type: NodeType = None,
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
@@ -1280,7 +1053,7 @@ def node(
     return decorate
 
 
-NodeT = typing.TypeVar("NodeT", bound="Node")
+NodeT = TypeVar("NodeT", bound="Node")
 
 
 def _node_ck_from_id_prop(prop: Property) -> property:
@@ -1341,814 +1114,6 @@ def _node_ancestor_id_prop(prop: Property) -> property:
         raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
 
     return property(get, set)
-
-
-def _sort_nested_ordered_list(root_ck: UUID, nodes: list[NodeT]) -> list[NodeT]:
-    """
-    Sort a list of ordered, hierarchical nodes.
-    Each node is ordered within its 'parent' (by 'order_key'). Start at the root.
-    """
-    ordered = []
-
-    nodes_by_parent_ck: dict[UUID, list[NodeT]] = defaultdict(list)
-    for node in nodes:
-        nodes_by_parent_ck[node.parent.ck].append(node)
-
-    def _walk_dfs(parent_ck: UUID):
-        children = nodes_by_parent_ck.get(parent_ck, None)
-        if children:
-            children.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
-            for child in children:
-                ordered.append(child)
-                _walk_dfs(child.ck)
-
-    _walk_dfs(root_ck)
-
-    if len(ordered) != len(nodes):
-        missing_nodes = [n for n in nodes if n not in ordered]
-        assert not missing_nodes, f"missing {len(missing_nodes)} nodes {missing_nodes} in {ordered}"
-    return ordered
-
-
-class _NodeChange(enum.IntFlag):
-    """The kind of reactive change effect to trigger in a node."""
-
-    Ignore = 0
-    UpdateLists = 2**0
-    Detach = 2**1
-    Attach = 2**2
-    Tach = Detach | Attach
-    Full = UpdateLists | Detach | Attach
-
-
-_NC = _NodeChange
-
-
-@dataclass
-class _InterpChange:
-    """
-    The effect of a change in nodes.
-    TODO @Performance: optimize change effects (batch, lazy/mark dirty?, reduce impact radius)
-    """
-
-    prev_session: Optional["Session"]
-    prev_status: Optional[NS]
-    level: _NC
-    affected_node_types: set[NodeType] | None
-    ancestors: list["Node"] | None
-    affected: list["Node"] | None
-
-    @staticmethod
-    def _collect(
-        from_parent: Optional["Node"],
-        to_parent: Optional["Node"],
-        changed: list["Node"],
-        level: _NC,
-    ) -> "_InterpChange":
-        """Collects nodes affected by a change in the given children."""
-        assert changed, f"cannot create update on {to_parent!r} without changed nodes"
-        assert from_parent or to_parent, f"cannot create update on {changed!r} without parent"
-
-        # collect ancestors to update their affected node lists
-        affected_node_types = set([n.metatype for n in changed])
-        ancestors = []
-        if level >= _NC.UpdateLists:
-            parent = from_parent
-            while parent is not None:
-                ancestors.append(parent)
-                parent = parent.parent
-            parent = to_parent
-            while parent is not None:
-                ancestors.append(parent)
-                parent = parent.parent
-
-        # collect nodes to reinterp following attach/detach
-        if level & (_NC.Detach | _NC.Attach):
-            affected_nodes: list[Node] | None = ancestors[:]
-            for child in changed:
-                affected_nodes.append(child)
-                if isinstance(child, ScopeNode):
-                    affected_nodes.extend(
-                        child._local_root_tree.get_descendants(
-                            child.ck, recursive=True, include_self=False
-                        )
-                    )
-            # filter out interp types
-            affected_nodes = [n for n in affected_nodes if n.metatype not in INTERP_NODE_TYPES]
-        else:
-            affected_nodes = None
-
-        return _InterpChange(
-            prev_session=to_parent._session if to_parent else None,
-            prev_status=to_parent._status if to_parent else None,
-            affected_node_types=affected_node_types,
-            ancestors=ancestors,
-            affected=affected_nodes,
-            level=level,
-        )
-
-    def _effect(self, level: _NC | None = None) -> None:
-        """Applies the effect of a trigger to update the affected nodes."""
-        if level & _NC.UpdateLists:
-            for ancestor in self.ancestors:
-                for prop in ancestor.__list_properties__.values():
-                    if prop.child_node_type in self.affected_node_types:
-                        getattr(ancestor, prop.name)._update(ancestor)
-
-        if level & _NC.Detach:
-            for _node in self.affected:
-                if _node._session and _node._status == NS.ACTIVE:
-                    _node._deactivate_self()
-                    _node._detached_self()
-            for _node in self.affected:
-                _node._clear_self(_node.scope)
-
-        if level & _NC.Attach:
-            for _node in self.affected:
-                _node._index_self()
-            for _node in self.affected:
-                _node._interp_self(
-                    _node.scope, on_issue=_node.scope._on_issue if _node.scope else on_issue_raise
-                )
-                if self.prev_session and self.prev_status == NS.ACTIVE:
-                    _node._attached_self()
-                    _node._activate_self(self.prev_session)
-
-
-FieldOrProperty = Union["Field", "Property"]
-_NodeFetchResult = typing.NamedTuple(
-    "_NodeFetchResult",
-    [
-        ("nodes", list["AnyNodeData"]),
-        ("cursors", list[str]),
-        ("start_cursor", str | None),
-        ("total", int),
-        ("engine", QueryEngine),
-    ],
-)
-
-
-class NodeQuery(typing.Generic[NodeT]):
-    def __init__(
-        self,
-        node_type: NodeType,
-        filter: Optional["Expression"] = None,
-        sort: list["Expression"] | None = None,
-        include: list[FieldOrProperty] | None = None,
-        select: list[FieldOrProperty] | None = None,
-        distinct: list[FieldOrProperty] | None = None,
-        first: int | None = None,
-        skip: int | None = None,
-        engine: Optional[QueryEngine] = None,
-        cache: bool = True,
-    ):
-        self._node_type = node_type
-        self._filter = filter
-        self._sort = sort
-        self._include = include
-        self._select = select
-        self._distinct = distinct
-        self._first = first
-        self._skip = skip
-        self._engine = engine
-        self._cache = cache
-        self._cached_nodes: list[NodeT] | None = None
-        self._cached_cursors: list[str] | None = None
-
-    def __str__(self):
-        args_strs = []
-        for k in ("filter", "sort", "include", "select", "distinct", "first", "skip"):
-            v = getattr(self, f"_{k}", None)
-            if k == "query":
-                v = f"({v})" if v is not None else None
-            if v is not None:
-                args_strs.append(f"{k}={v}")
-        return f"{self._node_type} {', '.join(args_strs)}"
-
-    def __repr__(self):
-        return f"<NodeQuery {self}>"
-
-    @property
-    def _node_cls(self) -> type["Node"]:
-        return NODE_CLASS_BY_NODE_TYPE[self._node_type]
-
-    def copy(self):
-        """Clones the query (the properties are immutable)."""
-        return NodeQuery(
-            node_type=self._node_type,
-            filter=self._filter,
-            sort=self._sort,
-            include=self._include,
-            select=self._select,
-            distinct=self._distinct,
-            first=self._first,
-            skip=self._skip,
-            engine=self._engine,
-            # cache is not copied on purpose as it shouldn't propagate
-        )
-
-    def _invalidate(self):
-        self._cached_records = None
-        self._cached_cursors = None
-
-    def _get_target_engine(self, *with_ops: "ExpressionOp") -> QueryEngine:
-        from bench.language.expression import ExpressionOps
-
-        node_cls = self._node_cls
-        if node_cls.__is_local__:
-            ops = self._filter._collect_ops() if self._filter else ()
-            if with_ops:
-                ops |= set(with_ops)
-            if node_cls.__is_indexed_in_os__ and (
-                ops & ExpressionOps.AGG_SCALAR or ops & ExpressionOps.AGG_BUCKET
-            ):
-                return QueryEngine.LOCAL_OPENSEARCH
-            else:
-                return QueryEngine.LOCAL_POSTGRES
-        else:
-            return QueryEngine.GLOBAL_POSTGRES
-
-    async def __aiter__(self):
-        if self._cached_nodes is None:
-            return iter(await self._fetch())
-        return iter(self._cached_nodes)
-
-    @_auto_async_to_sync
-    async def tolist(self) -> list[NodeT]:
-        if self._cached_nodes is None:
-            return await self._fetch()
-        return self._cached_nodes
-
-    def __iter__(self):
-        if self._cached_nodes is None:
-            return iter(async_to_sync(self._fetch)())
-        return iter(self._cached_nodes)
-
-    def __len__(self):
-        if self._cached_nodes is not None:
-            return len(self._cached_nodes)
-        return self.count()
-
-    @_auto_async_to_sync
-    async def get(self, filter: "Expression" = None, **kwargs) -> NodeT:
-        """Returns the unique result matching the query (errors otherwise)."""
-        from bench.language.expression import coerce_conditional
-
-        filter = coerce_conditional(self._node_cls, filter, kwargs)
-        results = await self.filter(filter).tolist()
-        if len(results) == 1:
-            return results[0]
-        else:
-            raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results}")
-
-    def filter(self, filter: "Expression" = None, **kwargs) -> "NodeQuery[NodeT]":
-        """Adds a filter clause to the query."""
-        from bench.language.expression import coerce_conditional
-
-        filter = coerce_conditional(self._node_cls, filter, kwargs)
-        copy = self.copy()
-        copy._filter = filter & self._filter if self._filter is not None else filter
-        return copy
-
-    def sort(
-        self, sort: Union[list[Union["Expression", str]], str, "Expression"] = None, *args: str
-    ) -> "NodeQuery[NodeT]":
-        """Sorts the query results by the given sort criteria."""
-        from bench.language.expression import coerce_sort
-
-        copy = self.copy()
-        sort = coerce_sort(self._node_cls, sort, args)
-        copy._sort = sort
-        return copy
-
-    def select(self, *fields: "Field") -> "NodeQuery[NodeT]":
-        """Selects only the given fields in the results."""
-        raise NotImplementedError("not yet supported")
-
-    def include(self, *fields: "Field") -> "NodeQuery[NodeT]":
-        """Includes the given related fields in the results."""
-        raise NotImplementedError("not yet supported")
-
-    def distinct(self, *fields: "Field") -> "NodeQuery[NodeT]":
-        """Returns results with distinct values in the given fields."""
-        raise NotImplementedError("not yet supported")
-
-    def first(self, count: int) -> "NodeQuery[NodeT]":
-        """Returns the first N results."""
-        copy = self.copy()
-        copy._first = count
-        return copy
-
-    def skip(self, count: int) -> "NodeQuery[NodeT]":
-        """Skips the first N results."""
-        copy = self.copy()
-        copy._skip = count
-        return copy
-
-    def __getitem__(self, item: slice | int) -> typing.Union["NodeQuery[NodeT]", NodeT]:
-        if isinstance(item, slice):
-            if item.stop is None:
-                return self.skip(item.start or 0)
-            elif item.start is not None:
-                return self.skip(item.start).first(item.stop - item.start)
-            else:
-                return self.first(item.stop)
-        elif isinstance(item, int):
-            if self._cached_nodes is None:
-                records = async_to_sync(self._fetch)()
-            else:
-                records = self._cached_nodes
-            if item < 0:
-                item += len(records)
-            if item >= len(records):
-                raise IndexError(f"index {item} out of range for {self!r} (got {len(self)})")
-            return records[item]
-        else:
-            raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
-
-    async def _fetch(self) -> list[NodeT]:
-        from bench.language.builtin import active_session
-        from bench.proto import wiring
-
-        session = active_session()
-        fetched = await self._do_fetch(session)
-        nodes: list[NodeT] = []
-        for node_data in fetched.nodes:
-            node = wiring.unpack_node(node_data, parent=None, session=session)
-            node._activate_self(session)
-            nodes.append(node)
-
-        if self._cache:
-            self._cached_nodes = nodes
-            self._cached_cursors = fetched.cursors
-        return nodes
-
-    async def _do_fetch(
-        self, session: "Session", count: bool = False, after: str = None
-    ) -> _NodeFetchResult:
-        from bench.proto import wire, wiring
-        from bench.sql.engine import pg_select_nodes_data, pg_count, compile_pg_conditional
-
-        engine = self._get_target_engine()
-        if engine == QueryEngine.LOCAL_POSTGRES or (
-            engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
-        ):
-            cur = session._global_pg_cursor or session._local_pg_cursor
-            fetched = await pg_select_nodes_data(
-                cur=cur,
-                node_type=self._node_type,
-                where=self._filter,
-                sort=self._sort,
-                first=self._first,
-                skip=self._skip,
-                after=after,
-            )
-            if count:
-                count = await pg_count(
-                    cur=cur,
-                    table=self._node_cls.__table__,
-                    where=compile_pg_conditional(self._node_cls, self._filter),
-                )
-            else:
-                count = None
-            return _NodeFetchResult(
-                nodes=fetched.nodes,
-                cursors=fetched.cursors,
-                start_cursor=fetched.start_cursor,
-                total=count,
-                engine=engine,
-            )
-        elif engine == QueryEngine.GLOBAL_POSTGRES:  # request from host
-            assert not count, "count not supported in host query"
-            request = wire.SearchNodesRequest(
-                node_type=wiring.pack_enum(NodeType, self._node_type),
-                filter=wiring.pack_struct_maybe(self._filter),
-                sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
-                limit=self._first,
-                after=after,
-            )
-            response = await session.host.search_nodes(request)
-            return [wiring.unwrap_some_node(n) for n in response.nodes]
-        else:
-            raise ValueError(f"unexpected query engine {engine}")
-
-    @_auto_async_to_sync
-    async def count(self, filter: "Expression" = None, **kwargs) -> int:
-        """Returns the number of results. May refine the query."""
-        from bench.language.builtin import active_session
-        from bench.language.expression import coerce_conditional
-        from bench.proto import wire, wiring
-        from bench.sql.engine import pg_count, compile_pg_conditional
-
-        filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
-        engine = self._get_target_engine()
-        session = active_session()
-        if engine == QueryEngine.LOCAL_POSTGRES or (
-            engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
-        ):
-            cur = session._global_pg_cursor or session._local_pg_cursor
-            return await pg_count(
-                cur=cur,
-                table=self._node_cls.__table__,
-                where=compile_pg_conditional(self._node_cls, filter),
-            )
-        elif engine == QueryEngine.GLOBAL_POSTGRES:  # request from host
-            request = wire.AggregateNodesRequest(
-                node_type=wiring.pack_enum(NodeType, self._node_type),
-                filter=wiring.pack_struct_maybe(filter),
-                sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
-                limit=self._first,
-                aggregation=wire.ExpressionData(op=wire.ExpressionOp.COUNT),
-            )
-            aggregation_data = await active_session()._host.aggregate_nodes(request)
-            return int(aggregation_data.aggregation.scalar)
-        else:
-            raise ValueError(f"unexpected query engine {engine}")
-
-    @_auto_async_to_sync
-    async def exists(self, filter: "Expression" = None, **kwargs) -> bool:
-        """Whether any results exist. May refine the query."""
-        from bench.language.builtin import active_session
-        from bench.language.expression import coerce_conditional
-        from bench.proto import wire, wiring
-        from bench.sql.engine import pg_exists, compile_pg_conditional
-
-        filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
-        engine = self._get_target_engine()
-        session = active_session()
-        if engine == QueryEngine.LOCAL_POSTGRES or (
-            engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
-        ):
-            cur = session._global_pg_cursor or session._local_pg_cursor
-            return await pg_exists(
-                cur=cur,
-                table=self._node_cls.__table__,
-                where=compile_pg_conditional(self._node_cls, filter),
-            )
-        elif engine == QueryEngine.GLOBAL_POSTGRES:  # request remotely
-            request = wire.AggregateNodesRequest(
-                node_type=wiring.pack_enum(NodeType, self._node_type),
-                filter=wiring.pack_struct_maybe(filter),
-                aggregation=wire.ExpressionData(op=wire.ExpressionOp.EXISTS),
-            )
-            aggregation_data = await active_session()._host.aggregate_nodes(request)
-            return aggregation_data.aggregation.exists
-        else:
-            raise ValueError(f"unexpected query engine {engine}")
-
-
-class _NodeExpressionBase:
-    @classmethod
-    async def tolist(cls: type["Node"]) -> list[NodeT]:
-        return await NodeQuery(node_type=cls.metatype).tolist()
-
-    @classmethod
-    def get(cls: type["Node"], conditional: "Expression" = None, **kwargs) -> "NodeT":
-        return NodeQuery(node_type=cls.metatype).get(conditional, **kwargs)
-
-    @classmethod
-    def filter(cls: type["Node"], filter: "Expression" = None, **kwargs) -> "NodeQuery":
-        return NodeQuery(node_type=cls.metatype).filter(filter, **kwargs)
-
-    @classmethod
-    async def count(cls: type["Node"], filter: "Expression" = None, **kwargs) -> int:
-        return NodeQuery(node_type=cls.metatype).count(filter, **kwargs)
-
-    @classmethod
-    async def exists(cls: type["Node"], filter: "Expression" = None, **kwargs) -> bool:
-        return NodeQuery(node_type=cls.metatype).exists(filter, **kwargs)
-
-
-class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
-    """
-    Base node list for custom implementation (right now just for database).
-    """
-
-    def __init__(self, parent: "ScopeNode", property: Property):
-        self._parent = parent
-        self._property = property
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self._parent.path}->{self._property.name}: {self}>"
-
-    def _update(self, scope: "ScopeNode"):
-        """Recomputes the list from the given scope."""
-        raise NotImplementedError
-
-    def create(self, *args, _append: bool = True, **kwargs) -> NodeT:
-        """Creates a new node in the list."""
-        if len(args) == 1 and isinstance(args[0], Node):
-            raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
-        node_cls = NODE_CLASS_BY_NODE_TYPE[self._property.child_node_type]
-        # set new node status to source to prevent activation before it's appended
-        if hasattr(node_cls, "new"):
-            node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NS.SOURCE)
-        else:
-            node = node_cls(*args, **kwargs, _status=NS.SOURCE)
-        if _append:
-            self.append(node)
-        return node
-
-    def create_many(self, *nodes: Collection[typing.Any | dict]) -> list[NodeT]:
-        """Creates a new node in the list."""
-        created = []
-        for n in flatten(nodes):
-            if isinstance(n, dict):
-                node = self.create(**n, _append=False)
-            elif isinstance(n, tuple):
-                node = self.create(*n, _append=False)
-            else:
-                node = self.create(n, _append=False)
-            created.append(node)
-        self.extend(*created)
-        return created
-
-    def append(self, node: NodeT, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
-        """
-        Attaches a child node to a parent through a list. This is for users adding nodes.
-        A node may be 'append'-ed to a list at most once,
-         but may exist in multiple lists (through _init_from collection).
-        """
-        raise NotImplementedError
-
-    def extend(
-        self,
-        *nodes: Collection[NodeT],
-        _create: bool = True,
-        _trigger: _NC = _NC.Full,
-    ):
-        """Attaches a list of child nodes to a parent. See append."""
-        raise NotImplementedError
-
-    def remove(self, node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
-        """Removes a child node from a parent. See append for reverse."""
-        raise NotImplementedError
-
-    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full):
-        """Removes all child nodes from a parent. See append for reverse."""
-        raise NotImplementedError
-
-    def set(self, nodes: Collection[NodeT], _trigger: _NC = _NC.Full):
-        """Replaces all child nodes of a parent."""
-        self.clear(_trigger=_NC.Ignore)
-        self.extend(*nodes, _trigger=_trigger)
-
-    def get(self, some_id: str) -> Optional[NodeT]:
-        """Gets a node by some id (as determined by the logic of the list)."""
-        raise NotImplementedError
-
-    def index(self, node: NodeT) -> int:
-        """Gets the index of a node in the list."""
-        raise NotImplementedError
-
-
-class NodeList(NodeListBase[NodeT]):
-    """
-    A list of node descendants for a parent's property.
-    This is the primary way of adding, removing and accessing inline node relations.
-    """
-
-    def __init__(self, parent: "ScopeNode", property: Property):
-        super().__init__(parent, property)
-        self._child_node_type: NodeType = property.child_node_type
-        self._flags = property.children_flags
-        self._nodes: list[NodeT] = []
-
-    if DEBUG:
-        # for debugger inspection
-        nodes = property(lambda self: self._nodes)
-
-    def __str__(self):
-        return str(self._nodes)
-
-    def _scope(self) -> dict[str, "Node"]:
-        """Gets the visible scope for error reporting"""
-        if self._flags & NRel.Named:
-            return {n.py_ident: n for n in self._nodes}
-        return {}
-
-    def _ok_bounds(
-        self, after: NodeT = None, before: NodeT = None
-    ) -> tuple[Optional[str], Optional[str]]:
-        """Gets the order key bounds after the given (default to last)."""
-        assert self._flags & NRel.Ordered, f"cannot get order key for {self!r}"
-        if after is not None:
-            next_ok = nextn(
-                n.order_key
-                for n in self._nodes
-                if n.order_key > after.order_key and n.parent == after.parent
-            )
-            return after.order_key, next_ok
-        elif before is not None:
-            last_ok = nextn(
-                n.order_key
-                for n in reversed(self._nodes)
-                if n.order_key < before.order_key and n.parent == before.parent
-            )
-            return last_ok, before.order_key
-        else:
-            last_ok = nextn(
-                (n.order_key for n in reversed(self._nodes) if n.parent == self._parent)
-            )
-            return last_ok, None
-
-    def _update(self, scope: "ScopeNode"):
-        # _children is effectively a computed property which is replaced wholesale,
-        # we don't do diff updates to keep it simple with all the relation types.
-        if self._flags & NRel.Cumulative:
-            # all matching children of parent's descendants
-            #  e.g. Module->Issue, File->Issue, ... -> all issues
-            self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_node_type, recursive=True, prefilter=False
-            )
-            assert not self._flags & NRel.Ordered, f"cannot order cumulative {self}"
-        elif self._flags & NRel.Flat:
-            # all matching descendants of matching children of parent
-            #  e.g. Module->File, File->File, ... -> all files
-            self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_node_type, recursive=True, prefilter=True
-            )
-            if self._flags & NRel.Ordered:
-                self._nodes = _sort_nested_ordered_list(self._parent.ck, self._nodes)
-        else:
-            # only matching children of parent
-            self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_node_type, recursive=False
-            )
-            if self._flags & NRel.Ordered:
-                self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
-
-    def append(
-        self,
-        _node: NodeT,
-        _create: bool = True,
-        after: NodeT = None,
-        before: NodeT = None,
-        _trigger: _NC = _NC.Full,
-    ) -> list[NodeT]:
-        assert isinstance(_node, Node), f"cannot append {_node!r} to {self!r}"
-        if _node.parent is not None:
-            raise ValueError(f"cannot attach {_node!r} to {self!r}: attached to {_node.parent!r}")
-
-        # assign ids if newly attached to the module (ids are derived from ck + module)
-        if not _node.attached and self._parent.attached:
-            module_id = self._parent.module.id
-            for n in _node._walk_rec():
-                if n.id is None:
-                    n._assign_id(module_id)
-        change = _InterpChange._collect(None, self._parent, [_node], _trigger)
-        # update parent after updating ids (the above walks tree, which is changed here)
-        _node.parent = self._parent
-        # validate node now that it has a parent (while in session)
-        if self._parent._session is not None:
-            _node._validate_self(_node.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
-
-        # index node into parent scope
-        if isinstance(_node, ScopeNode) and _node._local_tree is not None:
-            # subsume if previously detached (ignores out of line nodes)
-            added = _node._local_tree.get_descendants(_node.ck, recursive=True, include_self=True)
-            _node._local_tree.update(_node)  # parent changed
-            self._parent._import_scope_tree(_node)
-            _node._local_tree = None
-        else:  # or just add
-            added = [_node]
-            self._parent._local_root_tree.add(_node)
-
-        # register node scope
-        if (
-            self._flags & NRel.Scoped
-            and _node.name
-            and (not self._flags & NRel.Flat or _node.parent == self._parent)
-        ):
-            self._parent._add_node_to_scope(_node)
-
-        # assign order key to ordered nodes
-        if self._flags & NRel.Ordered and _node.order_key is None:
-            _node.order_key = generate_key_between(*self._ok_bounds(after, before))
-        # update affected nodes
-        if _trigger:
-            # and update every affected node (to list/interp as needed)
-            change._effect(_trigger)
-            assert _node in self._nodes, f"node {_node!r} not in {self!r}"
-
-        # 'create' node in session if it's attached
-        if _create and self._parent._session and self._parent.attached:
-            self._parent._session.create(*added)
-        # temporarily hoisted records may no longer be in tree, so return our added nodes
-        return added
-
-    def extend(
-        self,
-        *nodes: NodeT,
-        _create: bool = True,
-        after: NodeT = None,
-        before: NodeT = None,
-        _trigger: _NC = _NC.Full,
-    ):
-        nodes = flatten(*nodes)
-        if not nodes:
-            return
-
-        # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
-        if self._flags & NRel.Ordered:
-            oks = generate_n_keys_between(*self._ok_bounds(after, before), n=len(nodes))
-            for node, ok in zip(nodes, oks):
-                node.order_key = ok
-
-        # as in append but batched: append, trigger, create
-        #  (can we merge them somehow to simplify)?
-        change = _InterpChange._collect(None, self._parent, nodes, _trigger)
-        change._effect(_trigger & ~_NC.Attach)
-        added = []
-        for node in nodes:
-            added.extend(self.append(node, _create=False, _trigger=_NC.Ignore))
-        change._effect(_trigger & ~_NC.Detach)
-        if _trigger & _NC.UpdateLists:
-            assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
-        if _create and self._parent._session and self._parent.attached:
-            self._parent._session.create(*added)
-
-    def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
-        change = _InterpChange._collect(self._parent, None, [_node], _trigger)
-        if _delete and self._parent._session:
-            self._parent.session.delete(_node)
-        self._parent._local_root_tree.remove(_node)
-        _node.parent = None
-        change._effect(_trigger)
-        if _trigger & _NC.UpdateLists:
-            assert _node not in self._nodes, f"node {_node!r} still in {self!r}"
-
-    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full):
-        if not self._nodes:
-            return
-        change = _InterpChange._collect(self._parent, None, self._nodes, _trigger)
-        removed = list(self._nodes)
-        for _node in removed:
-            self.remove(_node, _delete=_delete, _trigger=_NC.Ignore)
-        change._effect(_trigger)
-        if _trigger & _NC.UpdateLists:
-            assert not self._nodes, f"{self!r} is not empty"
-
-    def get(self, some_id: str) -> Optional[NodeT]:
-        if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
-            raise ValueError(f"cannot get {some_id!r} from {self!r}")
-        for child in self._nodes:
-            if (self._flags & NRel.Keyed and child.key == some_id) or (
-                self._flags & NRel.Named and (child.name == some_id or child.py_ident == some_id)
-            ):
-                return child
-        return None
-
-    def index(self, node: NodeT) -> int:
-        return self._nodes.index(node)
-
-    def __bool__(self):
-        return bool(self._nodes)
-
-    def __contains__(self, obj: object) -> bool:
-        # special case to unwrap key (e.g. for tagging/tag objects)
-        if self._flags & NRel.Keyed and hasattr(obj, "key"):
-            obj = obj.key
-        if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
-            return self.get(obj) is not None
-        elif isinstance(obj, Node):
-            if obj.metatype != self._property.child_node_type:
-                raise TypeError(f"{self!r} cannot contain {obj!r}")
-            return obj in self._nodes
-        else:
-            return False
-
-    def __getitem__(self, item: int | slice | str) -> NodeT | list[NodeT]:
-        if isinstance(item, int):
-            return self._nodes[item]
-        elif isinstance(item, slice):
-            return self._nodes[item]
-        elif isinstance(item, str):
-            return self.get(item)
-        else:
-            raise TypeError(f"invalid index for {self!r}: {item} ({type(item)})")
-
-    def __getattr__(self, item):
-        if item.startswith("_"):
-            return super().__getattr__(item)
-        node = self.get(item)
-        if node is None:
-            raise AttributeError(f"no node '{item}' in {self!r}")
-        return node
-
-    def __iter__(self) -> Iterator[NodeT]:
-        yield from self._nodes
-
-    def __len__(self) -> int:
-        return len(self._nodes)
-
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, NodeList):
-            return self._nodes == other._nodes
-        elif isinstance(other, list):
-            return self._nodes == other
-        else:
-            return False
 
 
 def _make_self_method(
@@ -2320,7 +1285,7 @@ class Struct(abc.ABC):
     _visit_self = _make_self_method(_ComponentMethod.visit, _visit_inner)
     _validate_self = _make_self_method(_ComponentMethod.validate, _validate_inner)
 
-    def _walk_self(self) -> typing.Iterable["Struct"]:
+    def _walk_self(self) -> Iterable["Struct"]:
         yield self
         for prop in self.__struct_properties__.values():
             value = getattr(self, prop.name)
@@ -2584,7 +1549,7 @@ class Node(Struct, _NodeExpressionBase):
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
 
-    def _walk_structs(self) -> typing.Iterable["Struct"]:
+    def _walk_structs(self) -> Iterable["Struct"]:
         for prop in self.__struct_properties__.values():
             value = getattr(self, prop.name)
             if value is not None:
@@ -2648,7 +1613,7 @@ class Node(Struct, _NodeExpressionBase):
 
     def _init_self(self):
         # init lists
-        existing_lists: dict[str, typing.Any] | None = None
+        existing_lists: dict[str, Any] | None = None
         for name, prop in self.__list_properties__.items():
             existing = getattr(self, name, None)
             node_list = prop.list_type(self, prop)
@@ -2746,10 +1711,6 @@ class Node(Struct, _NodeExpressionBase):
     @session.setter
     def session(self, session: Optional["Session"]):
         self._session = session
-
-    @property
-    def logger(self) -> Logger:
-        return self.session._log
 
 
 def _make_rec_method(
@@ -2902,7 +1863,7 @@ class ScopeNode(Node):
         self,
         path: Union["NodePath", UUID, str],
         by: Optional[LookupBy] = None,
-        node_t: NodeType | StatementType | typing.Type[NodeT] | None = None,
+        node_t: NodeType | StatementType | type[NodeT] | None = None,
     ) -> NodeT | None:
         """
         Lookup the symbol either by path or id. If path is a string, it can be
@@ -2934,7 +1895,7 @@ class ScopeNode(Node):
         self,
         path: Union["NodePath", UUID, str],
         by: Optional[LookupBy] = None,
-        node_t: typing.Type[NodeT] | None = None,
+        node_t: type[NodeT] | None = None,
     ) -> NodeT:
         result = self.lookup(path, by=by, node_t=node_t)
         if result is None:
@@ -3036,7 +1997,7 @@ class NodeChange:
         return any(nt in self.touched_types for nt in node_types)
 
     @property
-    def touched(self) -> typing.Iterable[Node]:
+    def touched(self) -> Iterable[Node]:
         return chain(self.added, self.updated, self.removed)
 
     @staticmethod
@@ -3097,7 +2058,7 @@ class Module(ScopeNode):
 
     @property
     def _tree(self) -> NodeTree:
-        return self._local_tree
+        return cast(NodeTree, self._local_tree)  # module always has a local tree
 
     @property
     def _nodes(self) -> Collection[Node]:
@@ -3131,7 +2092,7 @@ class Module(ScopeNode):
         self,
         path: Union["NodePath", UUID, str],
         by: Optional[LookupBy] = None,
-        node_t: NodeType | typing.Type[NodeT] | None = None,
+        node_t: NodeType | type[NodeT] | None = None,
     ) -> NodeT | None:
         if path in self._lookup_cache:
             return self._lookup_cache[path]
@@ -3295,7 +2256,7 @@ class Module(ScopeNode):
 
         source = [wiring.unwrap_some_node(s) for s in source]
         source = NodeTree(source)
-        module = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
+        module: Module = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
         assert isinstance(module, Module), f"unexpected module: {module!r}"
         module._source = source
         old_source = module._source.copy()

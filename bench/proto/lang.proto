@@ -209,6 +209,32 @@ enum IssueType {
   ISSUE_TYPE_TASK_IS_STATIC = 13;
 }
 
+enum LookupBy {
+  LOOKUP_BY_UNSPECIFIED = 0;
+  LOOKUP_BY_Name = 1;
+  LOOKUP_BY_PyIdent = 2;
+}
+
+// // Parent relation between node and descendants.
+enum NodeRelationType {
+  NODE_RELATION_TYPE_Default = 0;
+  NODE_RELATION_TYPE_Remote = 1;
+  NODE_RELATION_TYPE_Shared = 2;
+  NODE_RELATION_TYPE_Flat = 4;
+  NODE_RELATION_TYPE_Cumulative = 8;
+  NODE_RELATION_TYPE_Named = 16;
+  NODE_RELATION_TYPE_Scoped = 32;
+  NODE_RELATION_TYPE_Keyed = 64;
+  NODE_RELATION_TYPE_Ordered = 128;
+}
+
+enum NodeStatus {
+  NODE_STATUS_SOURCE = 0;
+  NODE_STATUS_INDEX = 1;
+  NODE_STATUS_INTERP = 2;
+  NODE_STATUS_ACTIVE = 3;
+}
+
 enum NodeTrackingLevel {
   NODE_TRACKING_LEVEL_NONE = 0;
   NODE_TRACKING_LEVEL_ANONYMOUS = 1;
@@ -272,9 +298,10 @@ enum ProtoStrEnum {
 enum QueryEngine {
   QUERY_ENGINE_UNSPECIFIED = 0;
   QUERY_ENGINE_MEMORY = 1;
-  QUERY_ENGINE_GLOBAL = 2;
-  QUERY_ENGINE_OPENSEARCH = 3;
-  QUERY_ENGINE_POSTGRES = 4;
+  QUERY_ENGINE_GLOBAL_POSTGRES = 2;
+  QUERY_ENGINE_GLOBAL_OPENSEARCH = 3;
+  QUERY_ENGINE_LOCAL_POSTGRES = 4;
+  QUERY_ENGINE_LOCAL_OPENSEARCH = 5;
 }
 
 enum ReadKind {
@@ -319,16 +346,6 @@ enum ScheduleType {
   SCHEDULE_TYPE_UNSPECIFIED = 0;
   SCHEDULE_TYPE_INTERVAL = 1;
   SCHEDULE_TYPE_CRON = 2;
-}
-
-enum SessionAccessLevel {
-  option allow_alias = true;
-  SESSION_ACCESS_LEVEL_Zero = 0;
-  SESSION_ACCESS_LEVEL_Read = 1;
-  SESSION_ACCESS_LEVEL_Create = 2;
-  SESSION_ACCESS_LEVEL_Update = 3;
-  SESSION_ACCESS_LEVEL_Delete = 4;
-  SESSION_ACCESS_LEVEL_Full = 4;
 }
 
 enum SessionStatus {
@@ -706,7 +723,7 @@ message ClientData {
   string access_token = 34;
 }
 
-// // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = <factory>, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected: bool = False, reference_ck: uuid.UUID = None, _status: bench.language.node.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _text_parsed: Optional[ForwardRef('Text')] = None)
+// // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = <factory>, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected: bool = False, reference_ck: uuid.UUID = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _text_parsed: Optional[ForwardRef('Text')] = None)
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
@@ -781,7 +798,7 @@ message HandleData {
   string slug = 30;
 }
 
-// // Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[str] = None, properties: list[str] = None, _status: bench.language.node.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
+// // Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[str] = None, properties: list[str] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
 message IssueData {
   BenchType metatype = 1;
   string id = 2;
@@ -911,7 +928,6 @@ message RunData {
   google.protobuf.Timestamp terminated_at = 38;
   TriggerType trigger_type = 39;
   string trigger_id = 40;
-  int64 access_level = 41;
   RunStatus status = 42;
   google.protobuf.Struct inputs = 43;
   google.protobuf.Struct outputs = 44;
@@ -1069,7 +1085,7 @@ message UserData {
   bytes password_hash = 35;
 }
 
-// // View(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, policies: Optional[list['Policy']] = None, name: str | None = None, order_key: str | None = None, node_type: bench.language.const.NodeType = <factory>, query: Optional[bench.language.expression.Expression] = None, sort: Optional[list[bench.language.expression.Expression]] = None, _status: bench.language.node.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
+// // View(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, policies: Optional[list['Policy']] = None, name: str | None = None, order_key: str | None = None, node_type: bench.language.const.NodeType = <factory>, query: Optional[bench.language.expression.Expression] = None, sort: Optional[list[bench.language.expression.Expression]] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
 message ViewData {
   BenchType metatype = 1;
   string id = 2;
@@ -1091,7 +1107,7 @@ message ViewData {
   repeated ExpressionData sort = 34;
 }
 
-// // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, access_token: Optional[str] = None, _status: bench.language.node.NodeStatus = None, id: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
+// // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, access_token: Optional[str] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
 message WorkerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1135,46 +1151,46 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    BadgeData badge = 1;
-    WorkerData worker = 2;
-    HandleData handle = 3;
+    StatementData statement = 1;
+    ClientData client = 2;
+    RecordData record = 3;
     TriggerData trigger = 4;
-    HaltData halt = 5;
-    SessionData session = 6;
-    ViewData view = 7;
-    UserData user = 8;
-    FileData file = 9;
-    WorkerSetData worker_set = 10;
-    SignalData signal = 11;
-    TaggingData tagging = 12;
-    NotificationData notification = 13;
-    ClientData client = 14;
-    OrganizationData organization = 15;
-    StatementData statement = 16;
-    ModuleData module = 17;
-    RecordData record = 18;
-    RunData run = 19;
-    FieldData field = 20;
-    SecretData secret = 21;
-    BenchData bench = 22;
-    BlobData blob = 23;
-    IssueData issue = 24;
+    ModuleData module = 5;
+    NotificationData notification = 6;
+    BenchData bench = 7;
+    IssueData issue = 8;
+    BlobData blob = 9;
+    SessionData session = 10;
+    WorkerSetData worker_set = 11;
+    RunData run = 12;
+    TaggingData tagging = 13;
+    ViewData view = 14;
+    FileData file = 15;
+    SecretData secret = 16;
+    FieldData field = 17;
+    HandleData handle = 18;
+    BadgeData badge = 19;
+    OrganizationData organization = 20;
+    SignalData signal = 21;
+    WorkerData worker = 22;
+    UserData user = 23;
+    HaltData halt = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    RunErrorData run_error = 1;
-    MiniRunData mini_run = 2;
-    AggregationData aggregation = 3;
-    WorkerImageData worker_image = 4;
-    RunCodeFrameData run_code_frame = 5;
-    DependencyData dependency = 6;
-    PolicyData policy = 7;
-    ExpressionData expression = 8;
-    AggregationBucketData aggregation_bucket = 9;
-    LogEntryData log_entry = 10;
-    PolicyRuleData policy_rule = 11;
+    ExpressionData expression = 1;
+    PolicyRuleData policy_rule = 2;
+    AggregationBucketData aggregation_bucket = 3;
+    MiniRunData mini_run = 4;
+    DependencyData dependency = 5;
+    AggregationData aggregation = 6;
+    RunErrorData run_error = 7;
+    LogEntryData log_entry = 8;
+    WorkerImageData worker_image = 9;
+    RunCodeFrameData run_code_frame = 10;
+    PolicyData policy = 11;
   };
 }
 

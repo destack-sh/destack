@@ -350,10 +350,6 @@ export interface ReadNodesResponse {
      * @generated from protobuf field: repeated symbolx.bench.SomeNodeData nodes = 1;
      */
     nodes: SomeNodeData[];
-    /**
-     * @generated from protobuf field: int64 edit_marker = 2;
-     */
-    editMarker: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.SearchNodesRequest
@@ -404,10 +400,6 @@ export interface SearchNodesResponse {
      * @generated from protobuf field: string start_cursor = 3;
      */
     startCursor: string;
-    /**
-     * @generated from protobuf field: int64 edit_marker = 4;
-     */
-    editMarker: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.AggregateNodesRequest
@@ -497,10 +489,6 @@ export interface WatchEditsRequest {
      * @generated from protobuf field: repeated symbolx.bench.NodeType node_types = 1;
      */
     nodeTypes: NodeType[];
-    /**
-     * @generated from protobuf field: int64 after_edit_marker = 2;
-     */
-    afterEditMarker: string;
 }
 /**
  * @generated from protobuf message symbolx.bench.WatchEditsResponse
@@ -1936,14 +1924,12 @@ export const ReadNodesRequest = new ReadNodesRequest$Type();
 class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
     constructor() {
         super("symbolx.bench.ReadNodesResponse", [
-            { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
-            { no: 2, name: "edit_marker", kind: "scalar", T: 3 /*ScalarType.INT64*/ }
+            { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData }
         ]);
     }
     create(value?: PartialMessage<ReadNodesResponse>): ReadNodesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodes = [];
-        message.editMarker = "0";
         if (value !== undefined)
             reflectionMergePartial<ReadNodesResponse>(this, message, value);
         return message;
@@ -1955,9 +1941,6 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
             switch (fieldNo) {
                 case /* repeated symbolx.bench.SomeNodeData nodes */ 1:
                     message.nodes.push(SomeNodeData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* int64 edit_marker */ 2:
-                    message.editMarker = reader.int64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1974,9 +1957,6 @@ class ReadNodesResponse$Type extends MessageType<ReadNodesResponse> {
         /* repeated symbolx.bench.SomeNodeData nodes = 1; */
         for (let i = 0; i < message.nodes.length; i++)
             SomeNodeData.internalBinaryWrite(message.nodes[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* int64 edit_marker = 2; */
-        if (message.editMarker !== "0")
-            writer.tag(2, WireType.Varint).int64(message.editMarker);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2085,8 +2065,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         super("symbolx.bench.SearchNodesResponse", [
             { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
             { no: 2, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "edit_marker", kind: "scalar", T: 3 /*ScalarType.INT64*/ }
+            { no: 3, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
@@ -2094,7 +2073,6 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         message.nodes = [];
         message.cursors = [];
         message.startCursor = "";
-        message.editMarker = "0";
         if (value !== undefined)
             reflectionMergePartial<SearchNodesResponse>(this, message, value);
         return message;
@@ -2112,9 +2090,6 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
                     break;
                 case /* string start_cursor */ 3:
                     message.startCursor = reader.string();
-                    break;
-                case /* int64 edit_marker */ 4:
-                    message.editMarker = reader.int64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2137,9 +2112,6 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         /* string start_cursor = 3; */
         if (message.startCursor !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.startCursor);
-        /* int64 edit_marker = 4; */
-        if (message.editMarker !== "0")
-            writer.tag(4, WireType.Varint).int64(message.editMarker);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2466,14 +2438,12 @@ export const PushEditsResponse = new PushEditsResponse$Type();
 class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
     constructor() {
         super("symbolx.bench.WatchEditsRequest", [
-            { no: 1, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "after_edit_marker", kind: "scalar", T: 3 /*ScalarType.INT64*/ }
+            { no: 1, name: "node_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] }
         ]);
     }
     create(value?: PartialMessage<WatchEditsRequest>): WatchEditsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.nodeTypes = [];
-        message.afterEditMarker = "0";
         if (value !== undefined)
             reflectionMergePartial<WatchEditsRequest>(this, message, value);
         return message;
@@ -2489,9 +2459,6 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
                             message.nodeTypes.push(reader.int32());
                     else
                         message.nodeTypes.push(reader.int32());
-                    break;
-                case /* int64 after_edit_marker */ 2:
-                    message.afterEditMarker = reader.int64().toString();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2512,9 +2479,6 @@ class WatchEditsRequest$Type extends MessageType<WatchEditsRequest> {
                 writer.int32(message.nodeTypes[i]);
             writer.join();
         }
-        /* int64 after_edit_marker = 2; */
-        if (message.afterEditMarker !== "0")
-            writer.tag(2, WireType.Varint).int64(message.afterEditMarker);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

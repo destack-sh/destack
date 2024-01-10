@@ -1,6 +1,5 @@
 import dataclasses
 import typing
-import uuid
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Collection, Optional, Union
@@ -22,8 +21,8 @@ from bench.language.const import (
     new_dynamic_node_key,
 )
 from bench.language.issue import IssueHandler
+from bench.language.link import _NodeChange
 from bench.language.node import (
-    _NC,
     NS,
     UNSET,
     Node,
@@ -31,13 +30,10 @@ from bench.language.node import (
     NRel,
     ScopeNode,
     _FieldExpressionBase,
-    _NodeChange,
-    get_node_id,
     node,
     node_children,
     node_component,
     node_parent,
-    on_issue_raise,
     struct_internal,
     struct_property,
     struct_runtime,

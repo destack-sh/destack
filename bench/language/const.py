@@ -244,14 +244,37 @@ class NodeTrackingLevel(enum.IntEnum):
 NTL = NodeTrackingLevel
 
 
-class SessionAccessLevel(enum.IntEnum):  # SessionAccessLevel
-    Zero = 0
-    Read = 1
-    Create = 2
-    Update = 3
-    Delete = 4
-    Full = Delete
+class LookupBy(ProtoStrEnum):
+    Name = "Name", 1
+    PyIdent = "PyIdent", 2
 
+
+class NodeRelationType(enum.IntEnum):
+    """Parent relation between node and descendants."""
+
+    Default = 0  # default inline relation
+    Remote = 2**0  # not inline: Statement->Record, ...
+    Shared = 2**1  # across versions: Statement->Comment, Statement[versioned=False]->Record, ...
+    Flat = 2**2  # flattened inner hierarchy: Module->File, File->Statement, ...
+    Cumulative = 2**3  # sum of descendants: Module->Issue, File->Issue, ...
+    Named = 2**4  # indexed by name: Module->File, File->Statement, ...
+    Scoped = 2**5  # scoped by name: Module->File, File->Statement, ...
+    Keyed = 2**6  # indexed by key: File->Tagging, Statement->Tagging, ...
+    Ordered = 2**7  # ordered: File->Statement, Statement->Field, ...
+
+
+NRel = NodeRelationType
+
+
+class NodeStatus(enum.IntEnum):
+    SOURCE = 0
+    INDEX = 1
+    INTERP = 2
+    ACTIVE = 3
+
+
+NS = NodeStatus
+UNSET = object()
 
 ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
