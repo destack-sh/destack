@@ -145,18 +145,6 @@ class Session(ScopeNode):
     _other_local_pg_cursors: dict[str, psycopg.AsyncCursor] = struct_runtime(default_factory=dict)
     _tracing_lock: threading.Lock = struct_runtime(default_factory=threading.Lock)
 
-    _cached_logs: deque[LogEntry] = struct_runtime(
-        default_factory=lambda: deque(maxlen=LOG_CACHE_SIZE)
-    )
-    _pending_logs: list[LogEntry] = struct_runtime(default_factory=list)
-    _runs_by_id: dict[UUID, Run] = struct_runtime(default_factory=dict)
-    _pending_runs_by_id: dict[UUID, Run] = struct_runtime(default_factory=dict)
-    _flush_session_loop: asyncio.Task | None = struct_runtime(default=None)
-    _stdout_collector: Optional["LogCollector"] = struct_runtime(default=None)
-    _stderr_collector: Optional["LogCollector"] = struct_runtime(default=None)
-    _stacktrace: list[Run] = struct_runtime(default_factory=list)
-    _active_nodes_by_ck: dict[UUID, Node] = struct_runtime(default_factory=dict)
-
     _created_nodes_ck: set[UUID] = struct_runtime(default_factory=set)
     _updated_nodes_event_by_ck: dict[UUID, int] = struct_runtime(default_factory=dict)
     _local_edits: list[_Edit] = struct_runtime(default_factory=list)
@@ -166,6 +154,16 @@ class Session(ScopeNode):
     )
     _touched_databases_by_id: dict[UUID, "Statement"] = struct_runtime(default_factory=dict)
     _schema_changed: bool = struct_runtime(default=False)
+
+    _cached_logs: deque[LogEntry] | None = struct_runtime(default=None)
+    _pending_logs: list[LogEntry] | None = struct_runtime(default=None)
+    _runs_by_id: dict[UUID, Run] | None = struct_runtime(default=None)
+    _pending_runs_by_id: dict[UUID, Run] | None = struct_runtime(default=None)
+    _flush_session_loop: asyncio.Task | None = struct_runtime(default=None)
+    _stdout_collector: Optional["LogCollector"] = struct_runtime(default=None)
+    _stderr_collector: Optional["LogCollector"] = struct_runtime(default=None)
+    _stacktrace: list[Run] | None = struct_runtime(default_factory=list)
+    _active_nodes_by_ck: dict[UUID, Node] | None = struct_runtime(default=None)
 
     def __str__(self):
         if self.closed_at:
@@ -178,7 +176,7 @@ class Session(ScopeNode):
             f"{self.module.name if self.module else '<detached>'} ({status}, "
             f"{len(self._local_edits)} local edits, "
             f"{len(self._global_edits)} global edits, "
-            f"{len(self._runs_by_id)} runs, "
+            f"{len(self._runs_by_id) if self._runs_by_id is not None else 0} runs"
             f")"
         )
 
@@ -246,6 +244,13 @@ class Session(ScopeNode):
 
         # prepare session
         self.opened_at = utcnow_with_tz()
+        self._cached_logs = deque(maxlen=LOG_CACHE_SIZE)
+        self._pending_logs = []
+        self._runs_by_id = {}
+        self._pending_runs_by_id = {}
+        self._active_nodes_by_ck = {}
+        self._stacktrace = []
+        self._active_nodes_by_ck = {}
         self._cache = Cache(self.module)
         self._log = logger.bind(session=self)
         self._stdout_collector = LogCollector(self._track_log, "stdout", self)
@@ -254,9 +259,10 @@ class Session(ScopeNode):
         self._stderr_collector.start()
 
         # prepare local postgres
-        pg_pool = get_pg_connection_pool(self.module.pg_name)
-        pg_connection = await pg_pool.getconn(timeout=2)
-        self._local_pg_cursor = pg_connection.cursor()
+        if self._local_pg_cursor is None:
+            pg_pool = get_pg_connection_pool(self.module.pg_name)
+            pg_connection = await pg_pool.getconn(timeout=2)
+            self._local_pg_cursor = pg_connection.cursor()
 
         self._log.debug("session.open.done")
 

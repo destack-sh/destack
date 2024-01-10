@@ -2,22 +2,23 @@ import contextvars
 from typing import AsyncIterator
 
 import grpclib
-from grpclib import GRPCError, Status as GRPCStatus
 import structlog
+from grpclib import GRPCError
+from grpclib import Status as GRPCStatus
 
 from bench.language import Handle, User
 from bench.language.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.language.const import to_bench_metatype
 from bench.language.node import NODE_CLASS_BY_NODE_TYPE
-from bench.proto import wiring, wire
+from bench.proto import wire, wiring
 from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (
+    AggregateNodesRequest,
+    AggregateNodesResponse,
     CommitEditsRequest,
     CommitEditsResponse,
     CreateBenchRequest,
     CreateBenchResponse,
-    SignupUserRequest,
-    SignupUserResponse,
     GlobalSupervisorBase,
     LoginUserRequest,
     LoginUserResponse,
@@ -30,13 +31,13 @@ from bench.proto.wire import (
     RestartWorkerSetRequest,
     SearchNodesRequest,
     SearchNodesResponse,
+    SignupUserRequest,
+    SignupUserResponse,
     WatchEditsRequest,
     WatchEditsResponse,
-    AggregateNodesRequest,
-    AggregateNodesResponse,
 )
-from bench.server.utils import validate_bench_data_many, check_authenticated_client
 from bench.server.session import detached_session
+from bench.server.utils import check_authenticated_client, validate_bench_data_many
 
 logger = structlog.get_logger(__name__)
 

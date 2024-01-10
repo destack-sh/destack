@@ -600,9 +600,10 @@ class SortOp(ProtoStrEnum):
 
 class QueryEngine(ProtoStrEnum):
     MEMORY = "MEMORY", 1
-    GLOBAL = "GLOBAL", 2
-    OPENSEARCH = "OS", 3
-    POSTGRES = "PG", 4
+    GLOBAL_POSTGRES = "GLOBAL_PG", 2
+    GLOBAL_OPENSEARCH = "GLOBAL_OS", 3
+    LOCAL_POSTGRES = "LOCAL_PG", 4
+    LOCAL_OPENSEARCH = "LOCAL_OS", 5
 
 
 class SortMode(ProtoStrEnum):

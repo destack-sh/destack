@@ -29,7 +29,7 @@ from bench.language.tree import NodeTree
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData
 from bench.sql import schema
-from bench.sql.client import GLOBAL_RO_PASSWORD, GLOBAL_RO_USERNAME, async_pg_cursor
+from bench.sql.client import UNIVERSAL_RO_PASSWORD, UNIVERSAL_RO_USERNAME, async_pg_cursor
 from bench.sql.core import (
     BASE_RECORD_TABLE,
     CONSTRUCT_TABLE,
@@ -346,11 +346,15 @@ def sql_node_to_sql(node: SqlNode) -> sql.Composable:
         return sql.Literal(node)
 
 
-def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReference) -> SqlNode:
+def _compile_field_ref(
+    node: typing.Union[type[Node], "HasDatabase"], field: lang.Field | FieldReference
+) -> SqlNode:
+    if isinstance(field, lang.Property):
+        field = field._as_field
     if isinstance(field, lang.Field):
         if field._reflected:
             return sql.Identifier(field.py_ident)
-        elif database.ephemeral:
+        elif isinstance(node, Node) and node.ephemeral:
             return SqlJsonPath(sql.Identifier("value"), [field._typed_key])
         else:
             return sql.Identifier(get_field_column_name(field))
@@ -361,7 +365,7 @@ def _compile_field_ref(database: "HasDatabase", field: lang.Field | FieldReferen
 
 
 def compile_pg_conditional(
-    database: "HasDatabase",
+    node: typing.Union[type[Node], "HasDatabase"],
     cond: lang.Expression | None,
 ) -> SqlNode:
     if cond.op == ConditionalOp.TRUE:
@@ -369,12 +373,12 @@ def compile_pg_conditional(
     elif cond.op == ConditionalOp.FALSE:
         return sql.SQL("FALSE")
     elif cond.op in ExpressionOps.COND_LOGICAL and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
-        clauses = [compile_pg_conditional(database, c) for c in cond.clauses]
+        clauses = [compile_pg_conditional(node, c) for c in cond.clauses]
         return SqlCompound(op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], operands=clauses)
     elif (
         cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
     ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
-        left = _compile_field_ref(database, cond.field or cond.field_key)
+        left = _compile_field_ref(node, cond.field or cond.field_key)
         if isinstance(cond.field, Field):  # add explicit cast to LHS if possible
             pg_type = CAST_TYPE_BY_STORAGE_FORMAT[cond.field._storage_format]
             left = sql.SQL("({})::{}").format(sql_node_to_sql(left), sql.SQL(pg_type))
@@ -398,10 +402,10 @@ def compile_pg_conditional(
         return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
     elif cond.op in ExpressionOps.COND_EXISTENCE:
         return SqlUnary(
-            left=_compile_field_ref(database, cond.field or cond.field_key),
+            left=_compile_field_ref(node, cond.field or cond.field_key),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
-    raise QueryEngineIncapableError(QueryEngine.POSTGRES, cond, "unsupported conditional")
+    raise QueryEngineIncapableError(QueryEngine.LOCAL_POSTGRES, cond, "unsupported conditional")
 
 
 def compile_pg_sort(
@@ -822,9 +826,52 @@ def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
     raise NotImplementedError("nocheckin: pg_pack_node_data_row")
 
 
-def pg_unpack_node_data_row(row: dict[str, any]) -> AnyNodeData:
+def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNodeData:
     """Unpacks a node's data from a row from the respective table."""
     raise NotImplementedError("nocheckin: pg_unpack_node_data_row")
+
+
+PgSelectNodesDataResult = typing.NamedTuple(
+    "PgSelectNodesDataResult",
+    [("nodes", list[wire.AnyNodeData]), ("cursors", list[str]), ("start_cursor", str | None)],
+)
+
+
+async def pg_select_nodes_data(
+    cur: psycopg.AsyncCursor,
+    node_type: NodeType,
+    *,
+    where: lang.Expression | None = None,
+    sort: list[lang.Expression] | None = None,
+    first: int | None = None,
+    skip: int | None = None,
+    after: str | None = None,
+) -> PgSelectNodesDataResult:
+    node_cls = NODE_CLASS_BY_NODE_TYPE[node_type]
+    if after:
+        skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
+    where = compile_pg_conditional(node_cls, where) if where is not None else None
+    sort = compile_pg_sorts(node_cls, sort) if sort is not None else None
+    rows = await pg_select(
+        cur=cur, table=node_cls.__table__, where=where, order_by=sort, first=first, skip=skip
+    )
+    records_data = [pg_unpack_node_data_row(node_cls, row) for row in rows]
+    cursors = [encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(records_data))]
+    assert len(records_data) == len(cursors), f"unexpected cursors: {cursors} for {records_data}"
+    return PgSelectNodesDataResult(records_data, cursors, after)
+
+
+def search_nodes_in_pg(
+    session: Session,
+    node_type: NodeType,
+) -> list[NodeT]:
+    raise NotImplementedError("nocheckin: search_nodes_in_pg")
+
+
+async def search_nodes_data_in_pg(
+    cur: psycopg.AsyncCursor,
+):
+    raise NotImplementedError("nocheckin: search_nodes_data_in_pg")
 
 
 async def read_node_tree_from_pg(
@@ -1117,13 +1164,13 @@ def pg_unpack_record_data_row(database: "HasDatabase", row: RowOut) -> wire.Reco
     )
 
 
-PgSelectRecordsResult = typing.NamedTuple(
+PgSelectRecordsDataResult = typing.NamedTuple(
     "PgSelectRecordsResult",
     [("records", list[wire.RecordData]), ("cursors", list[str]), ("start_cursor", str | None)],
 )
 
 
-async def pg_select_records(
+async def pg_select_records_data(
     cur: psycopg.AsyncCursor,
     database: "HasDatabase",
     *,
@@ -1132,7 +1179,7 @@ async def pg_select_records(
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
-) -> PgSelectRecordsResult:
+) -> PgSelectRecordsDataResult:
     """Executes a select query on the given database."""
     if after:
         skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
@@ -1144,7 +1191,7 @@ async def pg_select_records(
     records_data = [pg_unpack_record_data_row(database, row) for row in rows]
     cursors = [encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(records_data))]
     assert len(records_data) == len(cursors), f"unexpected cursors: {cursors} for {records_data}"
-    return PgSelectRecordsResult(records_data, cursors, after)
+    return PgSelectRecordsDataResult(records_data, cursors, after)
 
 
 @cachetools.cached({})
@@ -1274,28 +1321,28 @@ async def create_local_pg_database(
         )
 
         # if public, add global read only user (if not exists)
-        await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (GLOBAL_RO_USERNAME,))
+        await cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (UNIVERSAL_RO_USERNAME,))
         exists = bool(await cur.fetchone())
         if is_public:
             if not exists:
                 log.info("pg.create_db.create_global_ro.create")
                 await cur.execute(
                     sql.SQL("CREATE USER {} WITH PASSWORD {}").format(
-                        sql.Identifier(GLOBAL_RO_USERNAME), sql.Literal(GLOBAL_RO_PASSWORD)
+                        sql.Identifier(UNIVERSAL_RO_USERNAME), sql.Literal(UNIVERSAL_RO_PASSWORD)
                     ),
                 )
             # grant read only
             log.info("pg.create_db.create_global_ro.grant")
             await cur.execute(
                 sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA public TO {}").format(
-                    sql.Identifier(GLOBAL_RO_USERNAME),
+                    sql.Identifier(UNIVERSAL_RO_USERNAME),
                 )
             )
         elif exists:
             log.info("pg.create_db.create_global_ro.remove")
             await cur.execute(
                 sql.SQL("REVOKE ALL ON SCHEMA PUBLIC FROM {}").format(
-                    sql.Identifier(GLOBAL_RO_USERNAME)
+                    sql.Identifier(UNIVERSAL_RO_USERNAME)
                 )
             )
 
