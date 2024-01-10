@@ -258,6 +258,10 @@ const AWS_BACKEND_VARS = [
 // general backend env vars
 const PUBLIC_BACKEND_VARS = [
   {
+    name: "JSON_LOGS",
+    value: "1",
+  },
+  {
     name: "ENVIRONMENT",
     value: config.require("env"),
   },

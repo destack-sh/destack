@@ -307,11 +307,11 @@ class Session(ScopeNode):
     @_auto_async_to_sync
     async def flush_local(self):
         """Flushes local Postgres edits."""
-        from bench.sql.engine import update_pg_schema, write_local_edits_to_pg
+        from bench.sql.engine import update_dynamic_local_pg_schema, write_local_edits_to_pg
 
         # if the schema changed, also flush PG schema
         if self._schema_changed:
-            await update_pg_schema(self.module.pg_name, self.module)
+            await update_dynamic_local_pg_schema(self.module.pg_name, self.module)
             self._schema_changed = False
 
         edits = self._eat_edits(local=True)
@@ -653,9 +653,9 @@ class Session(ScopeNode):
         """Maintains the stacktrace ancestors cache (using the current traced stacktrace)."""
         self._active_nodes_by_ck.clear()
         for run in self._stacktrace:
-            parent = run.statement
+            parent = run.node
             while parent is not None and parent.ck not in self._active_nodes_by_ck:
-                self._active_nodes_by_ck[parent.ck] = run.statement
+                self._active_nodes_by_ck[parent.ck] = run.node
                 parent = parent.parent
 
     def _run_enter(self, statement: "Statement", inputs):
@@ -699,7 +699,7 @@ class Session(ScopeNode):
 
         with self._tracing_lock:
             run = self._pop_stacktrace()
-            assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
+            assert run.node == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
             run.terminated_at = utcnow_with_tz()
             run.outputs = _pack_and_truncate_value(
                 outputs, statement, is_output=True, none_if_invalid=True
@@ -713,7 +713,7 @@ class Session(ScopeNode):
         assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
         with self._tracing_lock:
             run = self._pop_stacktrace()
-            assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
+            assert run.node == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
             run.terminated_at = utcnow_with_tz()
             run.error = RunError.from_exception(exception, statement)
             if isinstance(exception, asyncio.CancelledError):
@@ -865,7 +865,7 @@ class LogCollector:
     def _track(self, message: str) -> None:
         active_run = _get_active_run()
         if active_run:
-            statement = active_run.statement
+            statement = active_run.node
             run = active_run
         else:
             statement = None

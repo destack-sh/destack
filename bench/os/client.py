@@ -1,6 +1,6 @@
 from opensearchpy import AsyncOpenSearch, OpenSearch
 
-from bench.utils.utils import LOCAL, get_from_env
+from bench.utils.utils import LOCAL_ENV, get_from_env
 
 OS_HOST = get_from_env("LOCAL_OS_HOST", alt="GLOBAL_OS_HOST")
 OS_NAME = get_from_env("LOCAL_OS_NAME", optional=True)
@@ -12,7 +12,7 @@ os_client_sync = OpenSearch(
     hosts=[{"host": OS_HOST, "port": OS_PORT}],
     http_auth=(OS_USERNAME, OS_PASSWORD),
     http_compress=True,
-    verify_certs=not LOCAL,
+    verify_certs=not LOCAL_ENV,
     ssl_show_warn=False,
     use_ssl=True,
 )
@@ -20,7 +20,7 @@ os_client = AsyncOpenSearch(
     hosts=[{"host": OS_HOST, "port": OS_PORT}],
     http_auth=(OS_USERNAME, OS_PASSWORD),
     http_compress=True,
-    verify_certs=not LOCAL,
+    verify_certs=not LOCAL_ENV,
     ssl_show_warn=False,
     use_ssl=True,
 )

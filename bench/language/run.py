@@ -123,10 +123,10 @@ class Run(ScopeNode, HasValue):
         32, index_in_pg=True, array=False, references=NodeType.WORKER
     )
     worker_process_id: Optional[UUID] = struct_internal(33)
-    statement: Optional["Statement"] = struct_internal(
+    node: Optional["Statement"] = struct_internal(
         34, references=NodeType.STATEMENT, array=False, index_in_pg=True
     )
-    statement_path: Optional[str] = struct_internal(35, default=None)
+    node_path: Optional[str] = struct_internal(35, default=None)
     scheduled_at: Optional[datetime] = struct_internal(36, default=None)
     started_at: Optional[datetime] = struct_internal(37, default=None)
     terminated_at: Optional[datetime] = struct_internal(38, default=None)
@@ -151,7 +151,7 @@ class Run(ScopeNode, HasValue):
 
     def __str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
-        return f"{self.statement} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
+        return f"{self.node} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
 
     def __repr__(self):
         return f"<Run {self}>"
@@ -163,7 +163,7 @@ class Run(ScopeNode, HasValue):
 
     @property
     def statement_ck(self) -> Optional[UUID]:
-        return self.statement.ck if self.statement else None
+        return self.node.ck if self.node else None
 
     @property
     def active(self) -> bool:

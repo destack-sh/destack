@@ -4,7 +4,7 @@ import os
 
 import structlog
 
-from bench.utils.utils import DEBUG, TEST
+from bench.utils.utils import DEBUG, TEST, get_from_env
 
 LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "DEBUG")
 NOISY_LOG_LEVEL = os.getenv("NOISY_LOG_LEVEL", "INFO")
@@ -41,7 +41,7 @@ HANDLERS = {
     },
 }
 
-if DEBUG and not TEST:
+if not get_from_env("JSON_LOGS", default=False, type_cast=bool):
     logged_handlers = ["plain_console"]
 else:
     logged_handlers = ["json_console"]

@@ -2,12 +2,14 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+import structlog
 import typer
 from rich import print
 
 from bench.language.const import VERSION
 
 app = typer.Typer(short_help="manage versioning")
+logger = structlog.get_logger(__name__)
 
 
 @app.command()
@@ -24,7 +26,7 @@ def bump(revision: int = typer.Argument(None)):
         revision = current_version_revision + 1 if current_version_date == today else 0
 
     new_version = today.strftime("%Y.%m.%d") + "." + str(revision)
-    print(f"New version: {new_version}")
+    logger.info("version.bump", current_version=current_version, new_version=new_version)
 
     # write version to 'const', 'version' and 'package.json'
     Path("bench/language/const.py").write_text(

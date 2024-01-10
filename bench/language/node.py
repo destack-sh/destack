@@ -73,7 +73,7 @@ from bench.proto.wire import EditData, SomeNodeData
 from bench.sql.core import CascadeAction, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import did_you_mean_str, get_subclasses, strip_py_type, try_tuple
-from bench.utils.utils import LOCAL, IdentifierType, frozendict, required_field, to_pyidentifier
+from bench.utils.utils import LOCAL_ENV, IdentifierType, frozendict, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -1263,7 +1263,7 @@ class Struct(abc.ABC):
         # since this is the root module, we also validate the properties directly
         from bench.language.builtin import _should_validate
 
-        if LOCAL and not _should_validate():
+        if LOCAL_ENV and not _should_validate():
             return  # escape hatch for testing
         for name in properties:
             prop = self.__properties__.get(name)
