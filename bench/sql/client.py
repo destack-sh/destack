@@ -47,7 +47,7 @@ def get_pg_connection_pool(pg_name: str) -> AsyncConnectionPool:
 async def async_pg_connection(
     pg_name: str, autocommit: bool = False
 ) -> psycopg.AsyncConnection[dict[str, Any]]:
-    """Gets a psycopg (3) connection to the given database"""
+    """Gets a psycopg cursor to the given database"""
     pool = get_pg_connection_pool(pg_name)
     async with pool.connection() as conn:
         if conn.autocommit != autocommit:
@@ -59,7 +59,7 @@ async def async_pg_connection(
 async def async_pg_cursor(
     pg_name: str, autocommit: bool = False
 ) -> psycopg.AsyncCursor[dict[str, Any]]:
-    """Gets a psycopg (3) connection to the given database"""
+    """Gets a psycopg cursor to the given database"""
     async with async_pg_connection(pg_name, autocommit=autocommit) as conn:
         async with conn.cursor() as cur:
             yield cur

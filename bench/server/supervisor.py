@@ -1,3 +1,4 @@
+import contextvars
 from typing import AsyncIterator
 
 import grpclib
@@ -6,9 +7,9 @@ import structlog
 
 from bench.language import Handle, User
 from bench.language.auth import check_password, generate_access_token, generate_salt, hash_password
-from bench.language.const import to_bench_metatype, NodeType
+from bench.language.const import to_bench_metatype
 from bench.language.node import NODE_CLASS_BY_NODE_TYPE
-from bench.proto import wiring
+from bench.proto import wiring, wire
 from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (
     CommitEditsRequest,
@@ -34,7 +35,8 @@ from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
 )
-from bench.server.utils import global_session, validate_bench_data_many, check_authenticated_client
+from bench.server.utils import validate_bench_data_many, check_authenticated_client
+from bench.server.session import detached_session
 
 logger = structlog.get_logger(__name__)
 
@@ -43,8 +45,11 @@ WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
 class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
+    def __init__(self):
+        super().__init__()
+
     def __str__(self):
-        return "0"
+        return "0"  # 'shard'
 
     def __repr__(self):
         return f"<GlobalSupervisor {self}>"
@@ -58,20 +63,24 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
     async def wait_closed(self) -> None:
         pass
 
-    async def create_user(self, create_user_request: "SignupUserRequest") -> "SignupUserResponse":
-        validate_bench_data_many(create_user_request.user, create_user_request.client)
-        async with global_session(commit=True) as session:
-            user = wiring.unpack_node(create_user_request.user, parent=None, session=session)
+    #
+    # Users
+    #
+
+    async def signup_user(self, signup_user_request: "SignupUserRequest") -> "SignupUserResponse":
+        validate_bench_data_many(signup_user_request.user, signup_user_request.client)
+        async with detached_session(commit=True) as session:
+            user = wiring.unpack_node(signup_user_request.user, parent=None, session=session)
             user.password_salt = generate_salt()
-            user.password_hash = hash_password(create_user_request.password, user.password_salt)
+            user.password_hash = hash_password(signup_user_request.password, user.password_salt)
             user.handle = Handle(slug=user.username)
-            client = wiring.unpack_node(create_user_request.client, parent=user, session=session)
+            client = wiring.unpack_node(signup_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.create_many(user, user.handle, client)
         return SignupUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def login_user(self, login_user_request: "LoginUserRequest") -> "LoginUserResponse":
-        async with global_session(commit=True) as session:
+        async with detached_session(commit=True) as session:
             if login_user_request.id:
                 user = await User.get(id=login_user_request.id)
             elif login_user_request.username:
@@ -91,7 +100,7 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
         return LoginUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def logout_user(self, logout_user_request: "LogoutUserRequest") -> "LogoutUserResponse":
-        async with global_session(commit=True):
+        async with detached_session(commit=True):
             client = await check_authenticated_client(self.metadata)
             client.access_token = None
         return LogoutUserResponse()
@@ -100,6 +109,10 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
         self, create_bench_request: "CreateBenchRequest"
     ) -> "CreateBenchResponse":
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    #
+    # General Bench IO (for global nodes only) :BenchIO
+    #
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         for root in read_nodes_request.roots:
@@ -129,6 +142,10 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
         self, watch_edits_request: "WatchEditsRequest"
     ) -> AsyncIterator["WatchEditsResponse"]:
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
+
+    #
+    # Worker stuff
+    #
 
     async def restart_worker_set(
         self, restart_worker_set_request: "RestartWorkerSetRequest"

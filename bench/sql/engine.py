@@ -15,8 +15,8 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 import bench.language as lang
-from bench.language import ConditionalOp, Field, Module, QueryEngine
-from bench.language.const import EditKind, NodeType, TypeFlag, TypeStorageFormat
+from bench.language import ConditionalOp, Field, Module, QueryEngine, Session
+from bench.language.const import EditKind, NodeType, TypeFlag, TypeStorageFormat, to_bench_metatype
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -25,7 +25,8 @@ from bench.language.expression import (
     QueryEngineIncapableError,
 )
 from bench.language.node import NODE_CLASS_BY_NODE_TYPE, UNSET, Node, get_node_id
-from bench.proto import wire
+from bench.language.tree import NodeTree
+from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData
 from bench.sql import schema
 from bench.sql.client import GLOBAL_RO_PASSWORD, GLOBAL_RO_USERNAME, async_pg_cursor
@@ -743,7 +744,7 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 
 
 #
-# Migrations
+# Constructs
 #
 
 
@@ -804,13 +805,200 @@ async def pg_create_constructs(cur: psycopg.AsyncCursor, constructs: dict[UUID, 
 
 
 #
+# Nodes API
+# Higher level methods use Session and return Nodes, but handle respective PG cursors.
+# Lower level methods use data constructs and expect appropriate PG cursors.
+#
+
+NodeT = typing.TypeVar("NodeT", bound=Node)
+
+
+def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
+    """Packs a node's data into a row for the respective table."""
+    row: dict[str, any] = {}
+    node_cls = NODE_CLASS_BY_NODE_TYPE[to_bench_metatype(node.metatype)]
+    for prop in node_cls.__stored_properties__.values():
+        value = getattr(node, prop.name)
+    raise NotImplementedError("nocheckin: pg_pack_node_data_row")
+
+
+def pg_unpack_node_data_row(row: dict[str, any]) -> AnyNodeData:
+    """Unpacks a node's data from a row from the respective table."""
+    raise NotImplementedError("nocheckin: pg_unpack_node_data_row")
+
+
+async def read_node_tree_from_pg(
+    session: Session,
+    root_type: NodeType,
+    root_id: UUID,
+    descendant_types: tuple[NodeType] | None = None,
+) -> NodeT | None:
+    """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the root node."""
+    root_cls = NODE_CLASS_BY_NODE_TYPE[root_type]
+    cur = session.local_pg_cursor if root_cls.__is_local__ else session.global_pg_cursor
+    nodes_data = await read_node_tree_data_from_pg(
+        cur=cur,
+        root_type=root_type,
+        root_id=root_id,
+        descendant_types=descendant_types,
+    )
+    source_tree = NodeTree(nodes_data)
+    root = wiring.unpack_node_inline(source_tree, parent=None, session=session, my_root=root_id)
+    return root
+
+
+async def read_node_tree_data_from_pg(
+    cur: psycopg.AsyncCursor,
+    root_type: NodeType,
+    root_id: UUID,
+    descendant_types: tuple[NodeType] | None = None,
+) -> list["AnyNodeData"] | None:
+    """Reads 'regular' nodes from the given PG database. Returns an unordered list of all nodes."""
+    raise NotImplementedError("nocheckin: read_node_data_from_pg")
+
+
+async def write_regular_edits_to_pg(
+    cur: psycopg.AsyncCursor,
+    module: Module,
+    edits: list[EditData],
+    *,
+    return_nodes: bool = False,
+) -> list["AnyNodeData"] | None:
+    raise NotImplementedError("nocheckin: write_regular_edits_to_pg")
+
+
+async def write_local_edits_to_pg(
+    cur: psycopg.AsyncCursor,
+    module: Module,
+    edits: list[EditData],
+    *,
+    return_nodes: bool = False,
+    old_databases_by_id: dict[UUID, "HasDatabase"] | None = None,
+) -> list["AnyNodeData"] | None:
+    """
+    Writes *local* edits to the database. Returns the updated nodes (i.e. records).
+    Pass in databases for statements that are no longer in the module (i.e. deleted record parent).
+    TODO @Performance: use psycopg3 pipelining to batch local edits
+     see https://www.psycopg.org/psycopg3/docs/advanced/pipeline.html
+    """
+    if not edits:
+        return []
+
+    async def _write_record_edit_batch(
+        edit_kind: EditKind, database_id: UUID, batch: list[EditData]
+    ) -> list["AnyNodeData"] | None:
+        database = module.lookup(database_id) or old_databases_by_id[database_id]
+        table = database._table
+        materialized_value_columns = tuple(c for c in table.columns if c.name.startswith("value_"))
+        if edit_kind == EditKind.CREATE:
+            records = cast(list[wire.RecordData], [edit.node for edit in batch])
+            rows = [pg_pack_record_data_row(database, record) for record in records]
+            _ = await pg_insert(cur=cur, table=table, rows=rows)
+            return records
+        elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
+            # not strictly correct (should be union of all in batch)
+            properties = batch[0].properties
+            # expand value properties for materialized tables
+            if not database.ephemeral and "value" in properties:
+                properties = (
+                    *(p for p in properties if p != "value"),
+                    *(c.name for c in materialized_value_columns),
+                )
+            records = cast(list[wire.RecordData], [edit.node for edit in batch])
+            now = utcnow_with_tz()
+            row_values = []
+            for record in records:
+                # keep only properties touched in the edit
+                row = {"id": record.id}
+                for field in database.resolved_fields:  # all 'value' fields are considered changed
+                    column_name = get_field_column_name(field)
+                    value = record.value.get(field._typed_key)
+                    row[column_name] = pg_wrap_record_field_value(database, record, field, value)
+                row_values.append(row)
+            # and update cru info :LocalRecordCru
+            fixed_values = {
+                "revision": sql.SQL("revision + 1"),
+                "updated_at": now,
+                "last_edited_at": now,
+            }
+            rows = await pg_update_list(
+                cur=cur,
+                table=table,
+                static_values=fixed_values,
+                dynamic_columns=[table._columns_by_name[k] for k in properties],
+                dynamic_values=row_values,
+                returning=table.columns if return_nodes else None,
+            )
+            return (
+                [pg_unpack_record_data_row(database, row) for row in rows] if return_nodes else []
+            )
+        elif edit_kind in (EditKind.SOFT_DELETE, EditKind.RESTORE):
+            records_ids = [edit.node.id for edit in batch]
+            now = utcnow_with_tz()
+            if edit_kind == EditKind.SOFT_DELETE:
+                row = {"deleted_at": now}
+            else:
+                row = {"deleted_at": None}
+            where = SqlComparison(
+                sql.Identifier("id"),
+                PostgresConditionalOp.EQ,
+                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
+            )
+            rows = await pg_update_static(
+                cur=cur,
+                table=table,
+                where=where,
+                static_value=row,
+                returning=table.columns if return_nodes else None,
+            )
+            return (
+                [pg_unpack_record_data_row(database, row) for row in rows] if return_nodes else []
+            )
+        elif edit_kind == EditKind.DELETE:
+            records_ids = [edit.node.id for edit in batch]
+            where = SqlComparison(
+                sql.Identifier("id"),
+                PostgresConditionalOp.EQ,
+                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
+            )
+            await pg_delete(cur=cur, table=table, where=where)
+            return []
+        else:
+            raise RuntimeError(f"unexpected edit kind: {edit_kind} for {batch}")
+
+    # batch operations by edit kind and database
+    current_op: tuple[EditKind, UUID] = edits[0].kind, edits[0].node.parent_id
+    current_batch: list[EditData] = []
+    changed_nodes: list[AnyNodeData] = []
+    for edit in edits:
+        op = (edit.kind, edit.node.parent_id)
+        if current_op != op:
+            # new op, flush current batch
+            edit_kind, database_id = current_op
+            batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
+            changed_nodes.extend(batch_nodes)
+            # start new batch
+            current_op = op
+            current_batch = [edit]
+        else:
+            current_batch.append(edit)
+
+    # flush last batch
+    edit_kind, database_id = current_op
+    batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
+    changed_nodes.extend(batch_nodes)
+    return changed_nodes if return_nodes else None
+
+
+#
 # Record API
 #
+
 MAX_RECORD_TOTAL_VALUE_SIZE = 128 * 1024  # 128 KiB
 MAX_RECORD_FIELD_VALUE_SIZE = 32 * 1024  # 32 KiB
 
 
-def pg_pack_record_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
+def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
     """Packs a record into a row for Postgres (flattened for ephemeral)."""
     # check size
     # TODO @Performance: measure record value size more efficiently (than msgpack, also see below)
@@ -907,7 +1095,7 @@ def pg_wrap_record_value(database: "HasDatabase", value: dict) -> dict:
     return value
 
 
-def pg_unpack_record_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
+def pg_unpack_record_data_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
     if database.ephemeral:
         value = row["value"]
     else:
@@ -953,7 +1141,7 @@ async def pg_select_records(
     rows = await pg_select(
         cur=cur, table=database._table, where=where, order_by=sort, first=first, skip=skip
     )
-    records_data = [pg_unpack_record_row(database, row) for row in rows]
+    records_data = [pg_unpack_record_data_row(database, row) for row in rows]
     cursors = [encode_pg_cursor(i) for i in range(skip or 0, (skip or 0) + len(records_data))]
     assert len(records_data) == len(cursors), f"unexpected cursors: {cursors} for {records_data}"
     return PgSelectRecordsResult(records_data, cursors, after)
@@ -969,126 +1157,6 @@ def encode_pg_cursor(i: int, exclusive: bool = True) -> str:
 @cachetools.cached({})
 def decode_pg_cursor(s: str) -> int:
     return struct.unpack("q", base64.b64decode(s))[0]
-
-
-async def write_local_edits_to_pg(
-    cur: psycopg.AsyncCursor,
-    module: Module,
-    edits: list[EditData],
-    *,
-    return_nodes: bool = False,
-    old_databases_by_id: dict[UUID, "HasDatabase"] | None = None,
-) -> list["AnyNodeData"] | None:
-    """
-    Writes *local* edits to the database. Returns the updated nodes (i.e. records).
-    Pass in databases for statements that are no longer in the module (i.e. deleted record parent).
-    TODO @Performance: use psycopg3 pipelining to batch local edits
-     see https://www.psycopg.org/psycopg3/docs/advanced/pipeline.html
-    """
-    if not edits:
-        return []
-
-    async def _write_record_edit_batch(
-        edit_kind: EditKind, database_id: UUID, batch: list[EditData]
-    ) -> list["AnyNodeData"] | None:
-        database = module.lookup(database_id) or old_databases_by_id[database_id]
-        table = database._table
-        materialized_value_columns = tuple(c for c in table.columns if c.name.startswith("value_"))
-        if edit_kind == EditKind.CREATE:
-            records = cast(list[wire.RecordData], [edit.node for edit in batch])
-            rows = [pg_pack_record_row(database, record) for record in records]
-            _ = await pg_insert(cur=cur, table=table, rows=rows)
-            return records
-        elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
-            properties = batch[
-                0
-            ].properties  # not strictly correct (should be union of all in batch)
-            # expand value properties for materialized tables
-            if not database.ephemeral and "value" in properties:
-                properties = (
-                    *(p for p in properties if p != "value"),
-                    *(c.name for c in materialized_value_columns),
-                )
-            records = cast(list[wire.RecordData], [edit.node for edit in batch])
-            now = utcnow_with_tz()
-            row_values = []
-            for record in records:
-                # keep only properties touched in the edit
-                row = {"id": record.id}
-                for field in database.resolved_fields:  # all 'value' fields are considered changed
-                    column_name = get_field_column_name(field)
-                    value = record.value.get(field._typed_key)
-                    row[column_name] = pg_wrap_record_field_value(database, record, field, value)
-                row_values.append(row)
-            # and update cru info :LocalRecordCru
-            fixed_values = {
-                "revision": sql.SQL("revision + 1"),
-                "updated_at": now,
-                "last_edited_at": now,
-            }
-            rows = await pg_update_list(
-                cur=cur,
-                table=table,
-                static_values=fixed_values,
-                dynamic_columns=[table._columns_by_name[k] for k in properties],
-                dynamic_values=row_values,
-                returning=table.columns if return_nodes else None,
-            )
-            return [pg_unpack_record_row(database, row) for row in rows] if return_nodes else []
-        elif edit_kind in (EditKind.SOFT_DELETE, EditKind.RESTORE):
-            records_ids = [edit.node.id for edit in batch]
-            now = utcnow_with_tz()
-            if edit_kind == EditKind.SOFT_DELETE:
-                row = {"deleted_at": now}
-            else:
-                row = {"deleted_at": None}
-            where = SqlComparison(
-                sql.Identifier("id"),
-                PostgresConditionalOp.EQ,
-                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
-            )
-            rows = await pg_update_static(
-                cur=cur,
-                table=table,
-                where=where,
-                static_value=row,
-                returning=table.columns if return_nodes else None,
-            )
-            return [pg_unpack_record_row(database, row) for row in rows] if return_nodes else []
-        elif edit_kind == EditKind.DELETE:
-            records_ids = [edit.node.id for edit in batch]
-            where = SqlComparison(
-                sql.Identifier("id"),
-                PostgresConditionalOp.EQ,
-                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
-            )
-            await pg_delete(cur=cur, table=table, where=where)
-            return []
-        else:
-            raise RuntimeError(f"unexpected edit kind: {edit_kind} for {batch}")
-
-    # batch operations by edit kind and database
-    current_op: tuple[EditKind, UUID] = edits[0].kind, edits[0].node.parent_id
-    current_batch: list[EditData] = []
-    changed_nodes: list[AnyNodeData] = []
-    for edit in edits:
-        op = (edit.kind, edit.node.parent_id)
-        if current_op != op:
-            # new op, flush current batch
-            edit_kind, database_id = current_op
-            batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
-            changed_nodes.extend(batch_nodes)
-            # start new batch
-            current_op = op
-            current_batch = [edit]
-        else:
-            current_batch.append(edit)
-
-    # flush last batch
-    edit_kind, database_id = current_op
-    batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
-    changed_nodes.extend(batch_nodes)
-    return changed_nodes if return_nodes else None
 
 
 async def duplicate_records_in_pg(
@@ -1132,7 +1200,7 @@ async def duplicate_records_in_pg(
     log.debug("pg.duplicate_records.done", rows=len(record_rows))
 
     if return_nodes:
-        return [pg_unpack_record_row(target_database, row) for row in record_rows]
+        return [pg_unpack_record_data_row(target_database, row) for row in record_rows]
     else:
         return None
 
@@ -1247,16 +1315,3 @@ async def delete_local_pg_database(pg_name: str, pg_username: str) -> None:
         await cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(pg_name)))
 
     log.info("pg.delete_db.done")
-
-
-async def write_global_edits_to_pg(
-    cur: psycopg.AsyncCursor,
-    module: Module,
-    edits: list[EditData],
-    *,
-    return_nodes: bool = False,
-) -> list["AnyNodeData"] | None:
-    raise NotImplementedError("nocheckin: write_global_edits_to_pg")
-
-
-# nocheckin: read_nodes_from_pg

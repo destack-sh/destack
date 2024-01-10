@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 from typing import Optional
 from uuid import UUID
 
@@ -10,8 +9,6 @@ from multidict import MultiDict
 import structlog
 
 from bench.language import Worker, Client
-from bench.language.builtin import _active_session
-from bench.language.session import Session
 from bench.proto.wire import AnyStructData, AnyNodeData, RpcMetadata, ClientKind
 from bench.utils.func import to_uuid, uuid_to_str
 from bench.utils.utils import get_from_env
@@ -84,22 +81,6 @@ async def check_authenticated_worker(metadata: RpcMetadata) -> Worker:
     if not isinstance(worker, Worker):
         raise GRPCError(GRPCStatus.UNAUTHENTICATED, "expected worker client")
     return worker
-
-
-@asynccontextmanager
-async def global_session(commit: bool = False) -> "Session":
-    """Get a global session."""
-    assert _active_session.get() is None, f"already in active session {_active_session.get()}"
-    session = Session(parent=None)
-    _active_session.set(session)
-    try:
-        yield session
-        if commit:
-            await session.commit()
-        elif session.has_regular_edits:
-            logger.warning("session.discard", session=session)
-    finally:
-        _active_session.set(None)
 
 
 _s3_client: Optional["boto3.client"] = None
