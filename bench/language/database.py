@@ -14,7 +14,6 @@ from bench.language.const import (
     ConditionalOp,
     NodeType,
     QueryEngine,
-    SessionAccessLevel,
     new_dynamic_node_key,
 )
 from bench.language.expression import C, Expression, ExpressionOps, coerce_conditional, coerce_sort
@@ -140,6 +139,7 @@ _RecordFetchResult = typing.NamedTuple(
 
 
 class RecordQuery:
+    # TODO @Cleanup: merge RecordQuery into NodeQuery
     def __init__(
         self,
         database: "HasDatabase",
@@ -519,75 +519,6 @@ class RelationType(enum.StrEnum):
     OneToMany = "OneToMany"
     ManyToMany = "ManyToMany"
     ManyToOne = "ManyToOne"
-
-
-class RecordRelation:
-    """
-    A related (sub-)value in a record.
-    """
-
-    def __init__(
-        self, parent: "Record", field: "Field", type: RelationType, reverse_field: "Field" = None
-    ):
-        self._parent = parent
-        self._field = field
-        self._type = type
-        self._reverse_field: Optional["Field"] = reverse_field
-        self._loaded = False
-
-    def clear(self) -> None:
-        raise NotImplementedError
-
-
-class RecordRelationToOne(RecordRelation):
-    """
-    The one side of a one-to-one or many-to-one relation.
-    """
-
-    def __init__(
-        self, parent: "Record", field: "Field", type: RelationType, reverse_field: "Field" = None
-    ):
-        super().__init__(parent, field, type, reverse_field)
-        self.value: Optional[Record] = None
-
-    def set(self, record: Optional["Record"]) -> None:
-        raise NotImplementedError
-
-
-class RecordRelationToMany(RecordRelation):
-    """
-    The many side of a one-to-many or many-to-many relation.
-    """
-
-    def __init__(
-        self, parent: "Record", field: "Field", type: RelationType, reverse_field: "Field" = None
-    ):
-        super().__init__(parent, field, type, reverse_field)
-        self.value: list[Record] = []
-
-    def filter(self, query: Expression) -> "RecordQuery":
-        raise NotImplementedError
-
-    def create(self, **kwargs) -> "Record":
-        raise NotImplementedError
-
-    def append(self, record: "Record") -> None:
-        raise NotImplementedError
-
-    def extend(self, *records: "Record") -> None:
-        raise NotImplementedError
-
-    def remove(self, record: "Record") -> None:
-        raise NotImplementedError
-
-    def count(self) -> int:
-        raise NotImplementedError
-
-    def set(self, records: list["Record"]) -> None:
-        raise NotImplementedError
-
-    def __len__(self) -> int:
-        return self.count()
 
 
 class RecordList(NodeListBase[Record], RecordQuery):
