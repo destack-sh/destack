@@ -850,7 +850,7 @@ def _process_struct_base_cls(
             del properties_by_name[name]
             del properties_by_name[prop.reference_key.name]  # remove contributed reference key too
         elif prop.name == "ck" and is_node and not is_in_module:
-            # remove node ck (is computed from id if outside module) :MagicNodeProps
+            # remove node ck (is == id if outside a module) :MagicNodeProps
             attr = _node_ck_from_id_prop(prop)
             del properties_by_name[name]
         elif not is_final:
@@ -919,7 +919,7 @@ def struct_component(
     """
 
     def decorate(cls):
-        cls, properties = _process_struct_base_cls(cls=cls, reserved=reserved)
+        cls, properties = _process_struct_base_cls(cls=cls, reserved=reserved, is_final=is_final)
 
         # register struct
         if struct_type:

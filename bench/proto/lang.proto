@@ -50,6 +50,13 @@ enum BenchRegion {
   BENCH_REGION_US_WEST = 10;
 }
 
+enum BenchStatus {
+  BENCH_STATUS_UNSPECIFIED = 0;
+  BENCH_STATUS_RESERVED = 1;
+  BENCH_STATUS_PREPARING = 2;
+  BENCH_STATUS_AVAILABLE = 3;
+}
+
 enum BenchType {
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
@@ -541,7 +548,7 @@ message AggregationBucketData {
   int64 count = 31;
 }
 
-// // Dependency()
+// // Dependency(name: str = <factory>, version: str = <factory>, _status: bench.language.const.NodeStatus = None)
 message DependencyData {
   BenchType metatype = 1;
   string name = 30;
@@ -574,7 +581,7 @@ message LogEntryData {
   google.protobuf.Struct value = 40;
 }
 
-// // MiniRun()
+// // MiniRun(generated_at: datetime.datetime = <factory>, generated_in: uuid.UUID = <factory>, duration: float = <factory>, inputs: Any = <factory>, outputs: Any = <factory>, _status: bench.language.const.NodeStatus = None)
 message MiniRunData {
   BenchType metatype = 1;
   google.protobuf.Timestamp generated_at = 30;
@@ -605,7 +612,7 @@ message PolicyRuleData {
   ExpressionData condition = 60;
 }
 
-// // RunCodeFrame()
+// // RunCodeFrame(filename: str = <factory>, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, _status: bench.language.const.NodeStatus = None)
 message RunCodeFrameData {
   BenchType metatype = 1;
   string filename = 30;
@@ -615,7 +622,7 @@ message RunCodeFrameData {
   string line = 34;
 }
 
-// // RunError()
+// // RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, statement: Optional[ForwardRef('Statement')] = None, traceback: list[bench.language.run.RunCodeFrame] = <factory>, statement_ck: uuid.UUID = None, _status: bench.language.const.NodeStatus = None)
 message RunErrorData {
   BenchType metatype = 1;
   RunErrorKind kind = 30;
@@ -625,7 +632,7 @@ message RunErrorData {
   repeated RunCodeFrameData traceback = 34;
 }
 
-// // WorkerImage()
+// // WorkerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, dependencies: list['Dependency'] = <factory>, _status: bench.language.const.NodeStatus = None)
 message WorkerImageData {
   BenchType metatype = 1;
   string language = 30;
@@ -676,6 +683,7 @@ message BenchData {
   string description = 32;
   string organization_ck = 33;
   string user_ck = 34;
+  BenchStatus status = 35;
   string head_ck = 40;
   string pg_name = 41;
   string pg_username = 42;
@@ -1107,7 +1115,7 @@ message ViewData {
   repeated ExpressionData sort = 34;
 }
 
-// // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, access_token: Optional[str] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
+// // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: datetime.datetime = None, archived_at: datetime.datetime = None, last_edited_at: datetime.datetime = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False)
 message WorkerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1122,7 +1130,8 @@ message WorkerData {
   string external_id = 30;
   WorkerProfile profile = 31;
   WorkerImageData image = 32;
-  string access_token = 33;
+  string version = 33;
+  string access_token = 34;
 }
 
 // // Set of workers to run a Bench's modules.
@@ -1151,46 +1160,46 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    IssueData issue = 1;
-    FieldData field = 2;
-    TaggingData tagging = 3;
-    ModuleData module = 4;
-    SecretData secret = 5;
-    TriggerData trigger = 6;
-    ViewData view = 7;
-    OrganizationData organization = 8;
-    BadgeData badge = 9;
-    WorkerSetData worker_set = 10;
+    SecretData secret = 1;
+    BenchData bench = 2;
+    NotificationData notification = 3;
+    SignalData signal = 4;
+    ViewData view = 5;
+    RunData run = 6;
+    OrganizationData organization = 7;
+    BlobData blob = 8;
+    HaltData halt = 9;
+    UserData user = 10;
     FileData file = 11;
-    HaltData halt = 12;
-    RunData run = 13;
-    UserData user = 14;
-    BlobData blob = 15;
-    SessionData session = 16;
-    HandleData handle = 17;
-    RecordData record = 18;
-    WorkerData worker = 19;
-    StatementData statement = 20;
-    NotificationData notification = 21;
-    BenchData bench = 22;
-    ClientData client = 23;
-    SignalData signal = 24;
+    SessionData session = 12;
+    WorkerSetData worker_set = 13;
+    RecordData record = 14;
+    StatementData statement = 15;
+    ClientData client = 16;
+    IssueData issue = 17;
+    ModuleData module = 18;
+    FieldData field = 19;
+    TaggingData tagging = 20;
+    WorkerData worker = 21;
+    HandleData handle = 22;
+    BadgeData badge = 23;
+    TriggerData trigger = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    LogEntryData log_entry = 1;
-    PolicyRuleData policy_rule = 2;
-    WorkerImageData worker_image = 3;
-    MiniRunData mini_run = 4;
-    RunErrorData run_error = 5;
-    RunCodeFrameData run_code_frame = 6;
-    AggregationBucketData aggregation_bucket = 7;
+    PolicyData policy = 1;
+    ExpressionData expression = 2;
+    DependencyData dependency = 3;
+    RunErrorData run_error = 4;
+    AggregationBucketData aggregation_bucket = 5;
+    WorkerImageData worker_image = 6;
+    RunCodeFrameData run_code_frame = 7;
     AggregationData aggregation = 8;
-    PolicyData policy = 9;
-    ExpressionData expression = 10;
-    DependencyData dependency = 11;
+    MiniRunData mini_run = 9;
+    PolicyRuleData policy_rule = 10;
+    LogEntryData log_entry = 11;
   };
 }
 
