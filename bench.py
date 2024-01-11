@@ -19,7 +19,7 @@ for dot_env_file in DOT_ENV_FILES:
 configure_logging(apply_logging=True, apply_structlog=True)
 
 # add all 'app' instances into CLI (from ./bench/management/*.py)
-cli = typer.Typer()
+cli = typer.Typer(pretty_exceptions_enable=False)
 for path in Path.glob(Path(__file__).parent / "bench" / "cli", "*.py"):
     if path.stem in ("__init__", "os", "local"):
         continue

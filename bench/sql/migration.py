@@ -1,13 +1,17 @@
+import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
+import enum
 import os
 from pathlib import Path
 import re
 from typing import Any, Optional, Callable, Awaitable
 
+from more_itertools import first
 import psycopg
 from psycopg import sql
+import structlog
 
 from bench.sql.core import (
     Object,
@@ -21,11 +25,14 @@ from bench.sql.core import (
     ConstraintType,
     IndexType,
     CascadeAction,
+    POSTGRES_TYPE_BY_UDT,
 )
-from bench.sql.engine import SqlUndefinedObject, pg_select
+from bench.sql.engine import SqlUndefinedObject, pg_select, pg_select_raw
 
 MIGRATIONS_PATH = "bench/sql/migrations"
 MIGRATIONS_TEMPLATE_PATH = "bench/sql/migrations/0000_template.py"
+
+logger = structlog.get_logger(__name__)
 
 
 #
@@ -139,7 +146,23 @@ def load_migration_from_path(migration: Migration) -> MigrationFile:
 #
 
 
-async def introspect_tables_from_pg(cur: psycopg.AsyncCursor) -> list[Table]:
+async def introspect_tables_from_pg(
+    cur: psycopg.AsyncCursor,
+    *,
+    include_columns: bool,
+    include_constraints: bool,
+    include_indexes: bool,
+    table_prefix: str = "bench_",
+) -> list[Table]:
+    start = asyncio.get_running_loop().time()
+    logger.info(
+        "introspect",
+        cur=cur,
+        include_columns=include_columns,
+        include_constraints=include_constraints,
+        include_indexes=include_indexes,
+    )
+
     # tables
     tables_query = """
     SELECT
@@ -148,137 +171,188 @@ async def introspect_tables_from_pg(cur: psycopg.AsyncCursor) -> list[Table]:
         information_schema.tables
     WHERE
         table_schema = 'public'
-        AND table_name LIKE 'bench_%';
+        AND table_name LIKE {};
     """
-    tables_rows = await cur.execute(tables_query)
-    tables_names: tuple[str] = tuple(str(row["table_name"]) for row in tables_rows)
+    tables_query = sql.SQL(tables_query).format(sql.Literal(table_prefix + "%"))
+    tables_rows = await pg_select_raw(cur, tables_query)
+    tables_names: list[str] = [str(row["table_name"]) for row in tables_rows]
 
     # columns
-    columns_query = """
-    SELECT 
-        col.table_name, 
-        col.column_name, 
-        col.data_type, 
-        col.is_nullable, 
-        col.column_default,
-        tc.constraint_type,
-        kcu.column_name AS foreign_column_name,
-        ccu.table_name AS foreign_table_name
-    FROM 
-        information_schema.columns col
-    LEFT JOIN 
-        information_schema.key_column_usage kcu 
-        ON col.column_name = kcu.column_name AND col.table_name = kcu.table_name
-    LEFT JOIN 
-        information_schema.table_constraints tc 
-        ON kcu.constraint_name = tc.constraint_name AND kcu.table_schema = tc.table_schema AND kcu.table_name = tc.table_name
-    LEFT JOIN 
-        information_schema.constraint_column_usage ccu 
-        ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
-    WHERE 
-        col.table_schema = 'public' AND col.table_name IN %s;
-    """
-    columns_rows = await cur.execute(columns_query, (tables_names,))
-    columns_by_table: dict[str, list[Column]] = defaultdict(list)
-    for row in columns_rows:
-        column = Column(
-            name=row["column_name"],
-            type=COLUMN_TYPE_BY_POSTGRES_TYPE[PostgresColumnType(str(row["data_type"]))],
-            is_primary_key=row["constraint_type"] == "PRIMARY KEY",
-            is_foreign_key_to=row["foreign_table_name"]
-            if row["constraint_type"] == "FOREIGN KEY"
-            else None,
-            on_delete=CascadeAction(row["delete_rule"]) if row["delete_rule"] else None,
-            is_unique=row["constraint_type"] == "UNIQUE",
-            is_nullable=row["is_nullable"] == "YES",
-            # nocheckin: handle Column.encrypted
-            default=row["column_default"],
-        )
-        columns_by_table[row["table_name"]].append(column)
+    if include_columns:
+        # TODO @Performance: improve introspect tables performance
+        #  (maybe the big joins in this query are the bottleneck)
+        columns_query = """
+SELECT 
+   col.table_name, 
+   col.column_name, 
+   col.data_type, 
+   col.udt_name,
+   col.is_nullable, 
+   col.column_default,
+   string_agg(tc.constraint_type, ',') AS constraint_types,
+   string_agg(tc.constraint_name, ',') AS constraint_names,
+   string_agg(ccu.table_name, ',') AS foreign_table_names,
+   string_agg(rc.delete_rule, ',') AS delete_rules
+FROM 
+   information_schema.columns col
+LEFT JOIN 
+   information_schema.key_column_usage kcu 
+   ON col.column_name = kcu.column_name AND col.table_name = kcu.table_name
+LEFT JOIN 
+   information_schema.table_constraints tc 
+   ON kcu.constraint_name = tc.constraint_name AND kcu.table_schema = tc.table_schema AND kcu.table_name = tc.table_name
+LEFT JOIN 
+   information_schema.constraint_column_usage ccu 
+   ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+LEFT JOIN 
+   information_schema.referential_constraints rc 
+   ON tc.constraint_name = rc.constraint_name AND tc.table_schema = rc.constraint_schema
+WHERE 
+   col.table_schema = 'public' AND col.table_name = ANY({})
+-- deduplicate rows (may have multiple constraints)
+GROUP BY 
+    col.table_name, col.column_name, col.data_type, col.udt_name, col.is_nullable, col.column_default;
+               """
+        columns_query = sql.SQL(columns_query).format(sql.Literal(tables_names))
+        columns_rows = await pg_select_raw(cur, columns_query)
+        columns_by_table: dict[str, list[Column]] = defaultdict(list)
+        for row in columns_rows:
+            udt_name = row["udt_name"]
+            if udt_name.startswith("_"):
+                udt_name = udt_name[1:]
+                is_array = True
+            else:
+                is_array = False
+            postgres_type = POSTGRES_TYPE_BY_UDT[udt_name]
+            if postgres_type == PostgresColumnType.TEXT:
+                postgres_type = PostgresColumnType.CHARACTER_VARYING  # we don't do TEXT
+            column_type = COLUMN_TYPE_BY_POSTGRES_TYPE[postgres_type]
+            is_foreign_key_to = (
+                row["foreign_table_names"]
+                if "FOREIGN KEY" in (row["constraint_types"] or "")
+                else None
+            )
+            cascade_action = CascadeAction(row["delete_rules"]) if row.get("delete_rules") else None
+            if cascade_action == CascadeAction.NO_ACTION:
+                cascade_action = None
+            column = Column(
+                name=row["column_name"],
+                type=column_type,
+                is_primary_key="PRIMARY KEY" in (row["constraint_types"] or ""),
+                is_foreign_key_to=is_foreign_key_to,
+                on_delete=cascade_action,
+                is_unique="UNIQUE" in (row["constraint_types"] or ""),
+                is_nullable=row["is_nullable"] == "YES",
+                is_array=is_array,
+                # nocheckin: recover Column.encrypted
+                default=row["column_default"],
+            )
+            columns_by_table[row["table_name"]].append(column)
+    else:
+        columns_by_table = {}
 
     # constraints
-    constraints_query = """
-    SELECT 
-        tc.table_name,
-        tc.constraint_type,
-        kcu.column_name,
-        ccu.table_name AS foreign_table_name,
-        ccu.column_name AS foreign_column_name,
-        rc.update_rule,
-        rc.delete_rule,
-        chk.check_clause AS condition
-    FROM 
-        information_schema.table_constraints AS tc
-    LEFT JOIN 
-        information_schema.key_column_usage AS kcu 
-        ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-    LEFT JOIN 
-        information_schema.constraint_column_usage AS ccu 
-        ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
-    LEFT JOIN 
-        information_schema.referential_constraints AS rc 
-        ON tc.constraint_name = rc.constraint_name AND tc.table_schema = rc.constraint_schema
-    LEFT JOIN 
-        information_schema.check_constraints AS chk 
-        ON tc.constraint_name = chk.constraint_name AND tc.table_schema = chk.constraint_schema
-    WHERE 
-        tc.table_schema = 'public' 
-        AND tc.table_name IN %s
-        AND tc.constraint_type NOT IN ('PRIMARY KEY', 'FOREIGN KEY');
-    """
-    constraints_rows = await cur.execute(constraints_query, (tables_names,))
-    constraints_by_table: dict[str, list[Constraint]] = defaultdict(list)
-    for row in constraints_rows:
-        constraint = Constraint(
-            inner_name=row["constraint_name"],
-            type=ConstraintType(row["constraint_type"]),
-            columns=[row["column_name"]] if row.get("column_name") else None,
-            condition=row.get("condition"),
-        )
-        if constraint.type == ConstraintType.UNIQUE and len(constraint.columns) == 1:
-            continue  # skip scalar unique constraints, already handled by columns
-        constraints_by_table[row["table_name"]].append(constraint)
+    if include_constraints:
+        constraints_query = """
+SELECT 
+    tc.table_name,
+    tc.constraint_name,
+    tc.constraint_type,
+    string_agg(kcu.column_name, ', ') AS column_names,
+    chk.check_clause AS condition
+FROM 
+    information_schema.table_constraints AS tc
+LEFT JOIN 
+    information_schema.key_column_usage AS kcu 
+    ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+LEFT JOIN 
+    information_schema.check_constraints AS chk 
+    ON tc.constraint_name = chk.constraint_name AND tc.table_schema = chk.constraint_schema
+WHERE 
+    tc.table_schema = 'public' 
+    AND tc.table_name = ANY({})
+    AND tc.constraint_type IS NOT NULL
+    AND tc.constraint_type NOT IN ('PRIMARY KEY', 'FOREIGN KEY')
+    AND (chk.check_clause IS NULL OR chk.check_clause NOT LIKE '% IS NOT NULL')
+GROUP BY 
+    tc.table_name, tc.constraint_name, tc.constraint_type, chk.check_clause;
+        """
+        constraints_query = sql.SQL(constraints_query).format(sql.Literal(tables_names))
+        constraints_rows = await pg_select_raw(cur, constraints_query)
+        constraints_by_table: dict[str, list[Constraint]] = defaultdict(list)
+        for row in constraints_rows:
+            columns = row["column_names"].split(", ") if row["column_names"] else []
+            constraint = Constraint(
+                inner_name=row["constraint_name"],
+                type=ConstraintType(row["constraint_type"]),
+                columns=columns,
+                condition=(row.get("condition")),
+            )
+            if constraint.type == ConstraintType.UNIQUE and len(constraint.columns) == 1:
+                continue  # skip simple unique constraints, already handled by columns
+            constraints_by_table[row["table_name"]].append(constraint)
+    else:
+        constraints_by_table = {}
 
     # indexes
-    indexes_by_table: dict[str, list[Index]] = defaultdict(list)
-    indexes_query = """
-        SELECT 
-            idx.tablename AS table_name,
-            idx.indexname AS index_name,
-            idx.indexdef AS index_definition
-        FROM 
-            pg_indexes idx
-        WHERE 
-            idx.schemaname = 'public' AND idx.tablename IN %s;
-        """
-    indexes_rows = await cur.execute(indexes_query, (tables_names,))
-    for row in indexes_rows:
-        definition = row["index_definition"]
-        columns_str = definition.split("(")[1].split(")")[0]
-        columns = [col.strip() for col in columns_str.split(",")]
-        index_type = IndexType(definition.split(" ")[0])
-        if "WHERE" in definition:
-            condition = definition.split("WHERE")[1].strip()
-        else:
-            condition = None
-        index = Index(
-            inner_name=row["index_name"],
-            type=index_type,
-            columns=columns,
-            condition=condition,
-        )
-        indexes_by_table[row["table_name"]].append(index)
+    if include_indexes:
+        indexes_by_table: dict[str, list[Index]] = defaultdict(list)
+        indexes_query = """\
+SELECT 
+    idx.tablename AS table_name,
+    idx.indexname AS index_name,
+    idx.indexdef AS index_definition
+FROM 
+    pg_indexes idx
+WHERE 
+    idx.schemaname = 'public' AND idx.tablename = ANY({});
+            """
+        indexes_query = sql.SQL(indexes_query).format(sql.Literal(tables_names))
+        indexes_rows = await pg_select_raw(cur, indexes_query)
+        for row in indexes_rows:
+            definition = row["index_definition"]
+            columns_str = definition.split("(")[1].split(")")[0]
+            columns = [col.strip() for col in columns_str.split(",")]
+            # definition like 'CREATE INDEX index_name ON table_name USING index_type (columns) [WHERE condition]'
+            index_type = re.search(r"USING (\w+)", definition).group(1)
+            condition = (
+                re.search(r"WHERE (.+)", definition).group(1) if "WHERE" in definition else None
+            )
+            index = Index(
+                inner_name=row["index_name"],
+                type=IndexType(index_type.upper()),
+                columns=columns,
+                condition=condition,
+            )
+            # ignore simple primary/foreign key index
+            if (
+                index.type == IndexType.BTREE
+                and len(index.columns) == 1
+                and (index.columns[0].endswith("_id") or index.columns[0] == "id")
+            ):
+                column = first(
+                    c for c in columns_by_table[row["table_name"]] if c.name == index.columns[0]
+                )
+                if column.is_primary_key or column.is_foreign_key_to:
+                    continue
+
+            indexes_by_table[row["table_name"]].append(index)
+    else:
+        indexes_by_table = {}
 
     # assemble the tables
     tables: list[Table] = []
     for table_name in tables_names:
         table = Table(
             name=table_name,
-            columns=tuple(columns_by_table[table_name]),
+            columns=tuple(columns_by_table.get(table_name, [])),
             indexes=indexes_by_table.get(table_name, []),
             constraints=constraints_by_table.get(table_name, []),
         )
         tables.append(table)
+
+    duration = asyncio.get_running_loop().time() - start
+    logger.info("introspect.done", cur=cur, duration=duration, tables=tables)
 
     return tables
 
@@ -288,39 +362,141 @@ async def introspect_tables_from_pg(cur: psycopg.AsyncCursor) -> list[Table]:
 #
 
 
-def create_object_flat_sql(object: Object) -> sql.Composable:
+class MigrationOpType(enum.Enum):
+    CREATE = "CREATE"
+    RENAME = "RENAME"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+
+
+@dataclass
+class MigrationOp:
+    type: MigrationOpType
+    new_object: Optional[Object]
+    old_object: Optional[Object]
+
+    def __str__(self) -> str:
+        return f"{self.type.value} {self.old_object} -> {self.new_object}"
+
+    def __repr__(self) -> str:
+        return f"<MigrationOp {self}>"
+
+    def sql(self) -> sql.Composable | str:
+        """Gets the SQL to apply this migration operation."""
+        if self.type == MigrationOpType.CREATE:
+            return create_object_flat_sql(self.new_object)
+        elif self.type == MigrationOpType.RENAME:
+            return rename_object_sql(self.old_object, self.new_object)
+        elif self.type == MigrationOpType.UPDATE:
+            raise NotImplementedError()
+        elif self.type == MigrationOpType.DELETE:
+            return delete_object_sql(self.old_object)
+        else:
+            raise RuntimeError(f"unexpected migration operation type: {self.type}")
+
+
+def generate_migration_ops(
+    old_tables: list[Table], new_tables: list[Table], *, use_source_as_id: bool = True
+) -> list[MigrationOp]:
+    """Generates the migration operations to go from the old tables to the new tables."""
+
+    def _to_id(obj: Object) -> str:
+        return obj._source or obj.name if use_source_as_id else obj.name
+
+    ops: list[MigrationOp] = []
+    old_objects: dict[str, Object] = {
+        _to_id(obj): obj for table in old_tables for obj in table.walk()
+    }
+    new_objects: dict[str, Object] = {
+        _to_id(obj): obj for table in new_tables for obj in table.walk()
+    }
+
+    # diff objects
+    for new_id, new_object in new_objects.items():
+        old_object = old_objects.get(new_id)
+        if old_object is None:
+            ops.append(MigrationOp(MigrationOpType.CREATE, new_object, None))
+        elif new_object.name != old_object.name:
+            ops.append(MigrationOp(MigrationOpType.RENAME, new_object, old_object))
+        elif old_object != new_object:
+            ops.append(MigrationOp(MigrationOpType.UPDATE, new_object, old_object))
+    for old_id, old_object in old_objects.items():
+        new_object = new_objects.get(old_id)
+        if new_object is None:
+            ops.append(MigrationOp(MigrationOpType.DELETE, None, old_object))
+
+    return ops
+
+
+def create_object_flat_sql(new_object: Object) -> sql.Composable:
     """Gets the SQL to create the given object (without any nested objects)."""
-    if isinstance(object, Table):
-        return sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(object.name))
-    elif isinstance(object, Column):
+    if isinstance(new_object, Table):
+        return sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(new_object.name))
+    elif isinstance(new_object, Column):
         return sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
-            sql.Identifier(object.table.name), sql.SQL(object.sql())
+            sql.Identifier(new_object.table.name), sql.SQL(new_object.sql())
         )
-    elif isinstance(object, Index):
-        return sql.SQL("CREATE INDEX {}").format(sql.SQL(object.sql()))
-    elif isinstance(object, Constraint):
+    elif isinstance(new_object, Index):
+        return sql.SQL("CREATE INDEX {}").format(sql.SQL(new_object.sql()))
+    elif isinstance(new_object, Constraint):
         return sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
-            sql.Identifier(object.table.name),
-            sql.SQL(object.sql()),
+            sql.Identifier(new_object.table.name),
+            sql.SQL(new_object.sql()),
         )
     else:
-        raise RuntimeError(f"unexpected object: {object}")
+        raise RuntimeError(f"unexpected object: {new_object}")
 
 
-def delete_object_sql(object: Object) -> sql.Composable:
+def rename_object_sql(old_object: Object, new_object: Object) -> sql.Composable:
+    """Gets the SQL to rename the given object."""
+    if isinstance(old_object, Table):
+        return sql.SQL("ALTER TABLE {} RENAME TO {}").format(
+            sql.Identifier(old_object.name),
+            sql.Identifier(new_object.name),
+        )
+    elif isinstance(old_object, Column):
+        return sql.SQL("ALTER TABLE {} RENAME COLUMN {} TO {}").format(
+            sql.Identifier(old_object.table.name),
+            sql.Identifier(old_object.name),
+            sql.Identifier(new_object.name),
+        )
+    elif isinstance(old_object, Index):
+        return sql.SQL("ALTER INDEX {} RENAME TO {}").format(
+            sql.Identifier(old_object.name),
+            sql.Identifier(new_object.name),
+        )
+    elif isinstance(old_object, Constraint):
+        return sql.SQL("ALTER TABLE {} RENAME CONSTRAINT {} TO {}").format(
+            sql.Identifier(old_object.table.name),
+            sql.Identifier(old_object.name),
+            sql.Identifier(new_object.name),
+        )
+    else:
+        raise RuntimeError(f"unexpected object: {old_object}")
+
+
+def update_object_sql(old_object: Object, new_object: Object) -> sql.Composable:
+    """Gets the SQL to alter the options on the given object (except names)."""
+    if isinstance(old_object, Column):
+        raise NotImplementedError
+    else:
+        raise RuntimeError(f"unexpected object: {old_object}")
+
+
+def delete_object_sql(old_object: Object) -> sql.Composable:
     """Gets the SQL to delete the given object (necessarily includes nested objects)."""
-    if isinstance(object, Table):
-        return sql.SQL("DROP TABLE {}").format(sql.Identifier(object.name))
-    elif isinstance(object, Column):
+    if isinstance(old_object, Table):
+        return sql.SQL("DROP TABLE {}").format(sql.Identifier(old_object.name))
+    elif isinstance(old_object, Column):
         return sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
-            sql.Identifier(object.table.name), sql.Identifier(object.name)
+            sql.Identifier(old_object.table.name), sql.Identifier(old_object.name)
         )
-    elif isinstance(object, Index):
-        return sql.SQL("DROP INDEX {}").format(sql.Identifier(object.name))
-    elif isinstance(object, Constraint):
+    elif isinstance(old_object, Index):
+        return sql.SQL("DROP INDEX {}").format(sql.Identifier(old_object.name))
+    elif isinstance(old_object, Constraint):
         return sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
-            sql.Identifier(object.table.name),
-            sql.Identifier(object.name),
+            sql.Identifier(old_object.table.name),
+            sql.Identifier(old_object.name),
         )
     else:
-        raise RuntimeError(f"unexpected object: {object}")
+        raise RuntimeError(f"unexpected object: {old_object}")
