@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import re
 from textwrap import indent
-from typing import Any, Optional, Callable, Awaitable
+from typing import Any, Optional, Callable, Awaitable, Collection
 
 from more_itertools import first
 import psycopg
@@ -28,8 +28,9 @@ from bench.sql.core import (
     CascadeAction,
     POSTGRES_TYPE_BY_UDT,
     TableObject,
+    ObjectKind,
 )
-from bench.sql.engine import SqlUndefinedObject, pg_select, pg_select_raw, sql_to_str
+from bench.sql.engine import SqlUndefinedObject, pg_select, pg_select_raw, pg_upsert
 from bench.utils.utils import format_python
 
 MIGRATIONS_PATH = "bench/sql/migrations"
@@ -53,6 +54,14 @@ class Migration:
     path: Optional[str] = None  # not stored
     file: Optional["MigrationFile"] = None  # not stored
 
+    def __str__(self) -> str:
+        return (
+            f"{self.id} {self.version} (has_global={self.has_global}, has_local={self.has_local})"
+        )
+
+    def __repr__(self) -> str:
+        return f"<Migration {self}>"
+
 
 MigratorFunc = Callable[[psycopg.AsyncConnection], Awaitable[None]]
 
@@ -61,10 +70,6 @@ MigratorFunc = Callable[[psycopg.AsyncConnection], Awaitable[None]]
 class MigrationFile:
     path: str
     module: Any
-    upgrade_global: MigratorFunc
-    downgrade_global: MigratorFunc
-    upgrade_local: MigratorFunc
-    downgrade_local: MigratorFunc
 
 
 def pack_migration_row(migration: Migration) -> dict[str, Any]:
@@ -87,35 +92,42 @@ def unpack_migration_row(row: dict[str, Any]) -> Migration:
     )
 
 
-async def read_migrations_from_pg(cur: psycopg.AsyncCursor, min_id: int = None) -> list[Migration]:
+async def _read_migrations_from_pg(
+    cur: psycopg.AsyncCursor, *, applied_only: bool = False
+) -> list[Migration]:
     """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
     try:
-        if min_id is not None:
-            where = sql.SQL("WHERE id >= {}").format(sql.Literal(min_id))
-        else:
-            where = None
-        migrations_rows = await pg_select(cur, MIGRATION_TABLE, where=where)
+        where = "applied_at IS NOT NULL" if applied_only else None
+        migrations_rows = await pg_select(cur, MIGRATION_TABLE, where=where, order_by="id ASC")
         migrations = [unpack_migration_row(row) for row in migrations_rows]
         return migrations
     except SqlUndefinedObject:
         return []
 
 
+async def _write_migrations_to_pg(cur: psycopg.AsyncCursor, migrations: list[Migration]):
+    """Upserts the given migrations into the table. Errors if the table doesn't exist."""
+    migrations_rows = [pack_migration_row(m) for m in migrations]
+    await pg_upsert(cur, MIGRATION_TABLE, migrations_rows)
+
+
 def read_migrations_from_fs() -> list[Migration]:
-    """Reads the migrations from local filesystem. Actually loads each migration file."""
+    """Reads the available migrations from local filesystem. Actually loads each migration file."""
     migrations: list[Migration] = []
     for migration_path in sorted(os.listdir(MIGRATIONS_PATH)):
-        if not migration_path.endswith(".py"):
+        if migration_path in ("0000_template.py", "__init__.py") or not migration_path.endswith(
+            ".py"
+        ):
             continue
 
         # parse the file
-        migration_source = Path(migration_path).read_text()
+        migration_code = Path(MIGRATIONS_PATH + "/" + migration_path).read_text()
         migration_metadata: dict[str, str] = {
-            match[0]: match[1] for match in re.findall(r"([A-Z_]+) = \"(.*)\"", migration_source)
+            match[0]: match[1] for match in re.findall(r"([A-Z_]+) = (.*)", migration_code)
         }
         migration = Migration(
             id=int(migration_metadata["ID"]),
-            version=migration_metadata["VERSION"],
+            version=migration_metadata["VERSION"][1:-1],
             has_global=migration_metadata["HAS_GLOBAL"] == "True",
             has_local=migration_metadata["HAS_LOCAL"] == "True",
             applied_at=None,
@@ -125,18 +137,317 @@ def read_migrations_from_fs() -> list[Migration]:
     return migrations
 
 
-def load_migration_from_path(migration: Migration) -> MigrationFile:
+def _load_migration_from_path(migration: Migration) -> MigrationFile:
     assert migration.path is not None, "migration path not set"
     migration_module = __import__(migration.path)
-    file = MigrationFile(
-        path=migration.path,
-        module=migration_module,
-        upgrade_global=migration_module.upgrade_global,
-        downgrade_global=migration_module.downgrade_global,
-        upgrade_local=migration_module.upgrade_local,
-        downgrade_local=migration_module.downgrade_local,
-    )
+    file = MigrationFile(path=migration.path, module=migration_module)
     return file
+
+
+async def migrate_to(
+    cur: psycopg.AsyncCursor,
+    target_migration: Migration,
+    all_migrations: list[Migration],
+    *,
+    is_global: bool,
+) -> list[Migration]:
+    """
+    Applies missing migrations (up or down) to reach the target migration.
+    Also updates the migrations table.
+    """
+
+    is_upgrade = target_migration.id > max(m.id for m in all_migrations)
+    log = logger.bind(target_migration=target_migration, is_upgrade=is_upgrade, is_global=is_global)
+    logger.info("migration.apply_missing")
+    stored_migrations = await _read_migrations_from_pg(cur)
+    applied_migrations = [m for m in stored_migrations if m.applied_at is not None]
+    current_migration = max(applied_migrations, key=lambda m: m.id) if applied_migrations else None
+    current_migration_id = current_migration.id if current_migration else -1
+
+    # get the migrations to apply
+    migrations_to_apply = []
+    for migration in all_migrations:
+        if is_global and not migration.has_global or not is_global and not migration.has_local:
+            continue
+        if (is_upgrade and current_migration_id < migration.id <= target_migration.id) or (
+            not is_upgrade and current_migration_id >= migration.id > target_migration.id
+        ):
+            migrations_to_apply.append(migration)
+
+    # apply the migrations
+    if not migrations_to_apply:
+        log.info("migration.apply_missing.noop")
+    else:
+        log.info("migration.apply_missing.start", migrations_to_apply=migrations_to_apply)
+        await _do_migrate(cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global)
+
+    # update the migration table (applied + missing)
+    await _write_migrations_to_pg(cur, all_migrations)
+
+    return migrations_to_apply
+
+
+async def _do_migrate(
+    cur: psycopg.AsyncCursor,
+    migrations: Collection[Migration],
+    *,
+    is_upgrade: bool,
+    is_global: bool,
+):
+    """Applies the given migrations in the given order."""
+
+    now = datetime.utcnow()
+    for migration in migrations:
+        func_name = f"{is_upgrade and 'upgrade' or 'downgrade'}_{is_global and 'global' or 'local'}"
+        migration_file = _load_migration_from_path(migration)
+        func = getattr(migration_file.module, func_name)
+        logger.info("migration.apply", migration=migration, func=func, func_name=func_name)
+        try:
+            await func(cur)
+        except Exception as e:
+            logger.error(
+                "migration.apply.error",
+                migration=migration,
+                func=func,
+                func_name=func_name,
+                error=e,
+            )
+            raise
+        if is_upgrade:
+            migration.applied_at = now
+        else:
+            migration.applied_at = None
+        logger.info("migration.apply.done", migration=migration, func=func, func_name=func_name)
+
+
+#
+# Generating migrations
+#
+
+
+class MigrationOpKind(enum.Enum):
+    CREATE = "CREATE"
+    RENAME = "RENAME"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+
+
+@dataclass
+class MigrationOp:
+    kind: MigrationOpKind
+    new_object: Optional[TableObject]
+    old_object: Optional[TableObject]
+    diff_flat: Optional[dict[str, Any]] = None
+
+    def __str__(self) -> str:
+        op_str = f"{self.kind.value} {self.object_kind.name}"
+        if self.kind == MigrationOpKind.CREATE:
+            return f"{op_str} {self.new_object.qualified_name}"
+        elif self.kind == MigrationOpKind.RENAME:
+            return f"{op_str} {self.old_object.qualified_name} -> {self.new_object.qualified_name}"
+        elif self.kind == MigrationOpKind.UPDATE:
+            diff_keys = sorted(self.diff_flat.keys())
+            diff_str = ", ".join(f"{k}={self.diff_flat[k]!r}" for k in diff_keys)
+            return f"{op_str} {self.new_object.qualified_name} ({diff_str})"
+        elif self.kind == MigrationOpKind.DELETE:
+            return f"{op_str} {self.old_object.qualified_name}"
+
+    def __repr__(self) -> str:
+        return f"<MigrationOp {self}>"
+
+    @property
+    def object_kind(self) -> ObjectKind:
+        if self.new_object is not None:
+            return self.new_object.kind
+        else:
+            return self.old_object.kind
+
+    @property
+    def table(self) -> "Table":
+        return self.new_object.table if self.new_object else self.old_object.table
+
+    def invert(self) -> "MigrationOp":
+        """Returns the inverse of this operation."""
+        if self.kind == MigrationOpKind.CREATE:
+            return MigrationOp(MigrationOpKind.DELETE, None, self.new_object)
+        elif self.kind == MigrationOpKind.RENAME:
+            return MigrationOp(MigrationOpKind.RENAME, self.old_object, self.new_object)
+        elif self.kind == MigrationOpKind.UPDATE:
+            return MigrationOp(MigrationOpKind.UPDATE, self.old_object, self.new_object)
+        elif self.kind == MigrationOpKind.DELETE:
+            return MigrationOp(MigrationOpKind.CREATE, self.old_object, None)
+        raise RuntimeError(f"unexpected migration op type: {self.kind}")
+
+
+def generate_migration_ops(
+    old_tables: list[Table], new_tables: list[Table], *, use_source_as_id: bool = True
+) -> list[MigrationOp]:
+    """Generates the migration operations to go from the old tables to the new tables."""
+
+    def _to_id(obj: Object) -> str:
+        return obj._source or obj.name if use_source_as_id else obj.name
+
+    ops: list[MigrationOp] = []
+    old_objects: list[TableObject] = [obj for table in old_tables for obj in table.walk()]
+    old_objects_by_id: dict[str, TableObject] = {_to_id(obj): obj for obj in old_objects}
+    new_objects: list[TableObject] = [obj for table in new_tables for obj in table.walk()]
+    new_objects_by_id: dict[str, TableObject] = {_to_id(obj): obj for obj in new_objects}
+
+    # diff objects
+    for new_object in new_objects:
+        new_id = _to_id(new_object)
+        old_object = old_objects_by_id.get(new_id)
+        if old_object is None:
+            ops.append(MigrationOp(MigrationOpKind.CREATE, new_object, None))
+        elif new_object.name != old_object.name:
+            ops.append(MigrationOp(MigrationOpKind.RENAME, new_object, old_object))
+        elif old_object.hash_flat() != new_object.hash_flat():
+            ops.append(
+                MigrationOp(
+                    MigrationOpKind.UPDATE, new_object, old_object, new_object.diff_flat(old_object)
+                )
+            )
+    deleted_tables: set[str] = set()
+    for old_object in old_objects:
+        old_id = _to_id(old_object)
+        new_object = new_objects_by_id.get(old_id)
+        if new_object is None:
+            if old_object.kind == ObjectKind.TABLE:
+                deleted_tables.add(old_id)
+            elif _to_id(old_object.table) in deleted_tables:
+                continue  # skip, parent deleted
+            ops.append(MigrationOp(MigrationOpKind.DELETE, None, old_object))
+
+    return ops
+
+
+def generate_migration_code(
+    migration: Migration,
+    *,
+    cur: psycopg.AsyncCursor,
+    global_ops: list[MigrationOp],
+    local_ops: list[MigrationOp],
+    exclude_inverse: bool = False,
+) -> str:
+    """Generates the Python migration file."""
+    migration_code = Path(MIGRATIONS_TEMPLATE_PATH).read_text()
+
+    # impute header/metadata
+    today = datetime.today().date().strftime("%Y.%m.%d")
+    metadata_substitutions: dict[str, str] = {
+        "# <Header>": f"# This file was automatically generated by Bench on {today}. Edit as needed.",
+        '"<ID>"': str(migration.id),
+        '"<VERSION>"': f'"{migration.version}"',
+        '"<HAS_GLOBAL>"': "True" if migration.has_global else "False",
+        '"<HAS_LOCAL>"': "True" if migration.has_local else "False",
+    }
+    for key, value in metadata_substitutions.items():
+        migration_code = migration_code.replace(key, value)
+
+    # impute upgrade/downgrade functions
+    global_ops_inverse = [op.invert() for op in global_ops[::-1]] if not exclude_inverse else None
+    local_ops_inverse = [op.invert() for op in local_ops[::-1]] if not exclude_inverse else None
+    for method_name, ops in [
+        ("upgrade_global", global_ops),
+        ("downgrade_global", global_ops_inverse),
+        ("upgrade_local", local_ops),
+        ("downgrade_local", local_ops_inverse),
+    ]:
+        lines: list[str] = []
+        if ops is not None:  # migration is implemented
+            prev_table: Optional[Table] = None
+            for op in ops:
+                sql = render_migration_op(op).as_string(cur).strip()
+                if "\n" in sql:
+                    sql = f'"""\n{sql}\n"""'
+                else:
+                    sql = f"'{sql}'"
+                if prev_table is None or prev_table is not op.table:
+                    lines.append(f"\n# {op.table.name}")
+                    prev_table = op.table
+                lines.append(f"await cur.execute({sql})")
+        else:  # migration skipped, raise if called
+            lines.append("raise NotImplementedError()")
+        method_body = "\n".join(lines)
+        method_placeholder = f"    pass  # <{method_name}>"
+        assert method_placeholder in migration_code, f"method placeholder not found: {method_name}"
+        migration_code = migration_code.replace(method_placeholder, indent(method_body, "    "))
+
+    migration_code = format_python(migration_code)
+    return migration_code
+
+
+def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = False):
+    """Writes the Python migration file."""
+    migration_path = (
+        f"{MIGRATIONS_PATH}/{migration.id:04d}_{migration.version.replace('.', '_')}.py"
+    )
+    if not overwrite and os.path.exists(migration_path):
+        raise RuntimeError(f"migration file already exists: {migration_path} (for {migration!r})")
+    Path(migration_path).write_text(code)
+    return migration_path
+
+
+def render_migration_op(op: MigrationOp) -> sql.Composable:
+    """Renders the given operation into a SQL operation. If not possible, returns a placeholder."""
+    if op.kind == MigrationOpKind.CREATE:
+        if isinstance(op.new_object, Table):
+            return sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(op.new_object.name))
+        elif isinstance(op.new_object, Column):
+            return sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
+                sql.Identifier(op.new_object.table.name), sql.SQL(op.new_object.sql())
+            )
+        elif isinstance(op.new_object, Index):
+            return sql.SQL("CREATE INDEX {}").format(sql.SQL(op.new_object.sql()))
+        elif isinstance(op.new_object, Constraint):
+            return sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
+                sql.Identifier(op.new_object.table.name),
+                sql.SQL(op.new_object.sql()),
+            )
+
+    elif op.kind == MigrationOpKind.RENAME:
+        if isinstance(op.old_object, Table):
+            return sql.SQL("ALTER TABLE {} RENAME TO {}").format(
+                sql.Identifier(op.old_object.name),
+                sql.Identifier(op.new_object.name),
+            )
+        elif isinstance(op.old_object, Column):
+            return sql.SQL("ALTER TABLE {} RENAME COLUMN {} TO {}").format(
+                sql.Identifier(op.old_object.table.name),
+                sql.Identifier(op.old_object.name),
+                sql.Identifier(op.new_object.name),
+            )
+        elif isinstance(op.old_object, Index):
+            return sql.SQL("ALTER INDEX {} RENAME TO {}").format(
+                sql.Identifier(op.old_object.name),
+                sql.Identifier(op.new_object.name),
+            )
+        elif isinstance(op.old_object, Constraint):
+            return sql.SQL("ALTER TABLE {} RENAME CONSTRAINT {} TO {}").format(
+                sql.Identifier(op.old_object.table.name),
+                sql.Identifier(op.old_object.name),
+                sql.Identifier(op.new_object.name),
+            )
+
+    elif op.kind == MigrationOpKind.UPDATE:
+        raise NotImplementedError("nocheckin: render_migration_op UPDATE")
+
+    elif op.kind == MigrationOpKind.DELETE:
+        if isinstance(op.old_object, Table):
+            return sql.SQL("DROP TABLE {}").format(sql.Identifier(op.old_object.name))
+        elif isinstance(op.old_object, Column):
+            return sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
+                sql.Identifier(op.old_object.table.name), sql.Identifier(op.old_object.name)
+            )
+        elif isinstance(op.old_object, Index):
+            return sql.SQL("DROP INDEX {}").format(sql.Identifier(op.old_object.name))
+        elif isinstance(op.old_object, Constraint):
+            return sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
+                sql.Identifier(op.old_object.table.name),
+                sql.Identifier(op.old_object.name),
+            )
+
+    raise RuntimeError(f"unexpected migration op: {op!r}")
 
 
 #
@@ -147,9 +458,9 @@ def load_migration_from_path(migration: Migration) -> MigrationFile:
 async def introspect_tables_from_pg(
     cur: psycopg.AsyncCursor,
     *,
-    include_columns: bool,
-    include_constraints: bool,
-    include_indexes: bool,
+    include_columns: bool = True,
+    include_constraints: bool = True,
+    include_indexes: bool = True,
     table_prefix: str = "bench_",
 ) -> list[Table]:
     start = asyncio.get_running_loop().time()
@@ -353,180 +664,3 @@ WHERE
     logger.info("introspect.done", cur=cur, duration=duration, tables=tables)
 
     return tables
-
-
-#
-# Generating migrations
-#
-
-
-class MigrationOpKind(enum.Enum):
-    CREATE = "CREATE"
-    RENAME = "RENAME"
-    UPDATE = "UPDATE"
-    DELETE = "DELETE"
-
-
-@dataclass
-class MigrationOp:
-    kind: MigrationOpKind
-    new_object: Optional[TableObject]
-    old_object: Optional[TableObject]
-
-    def __str__(self) -> str:
-        return f"{self.kind.value} {self.old_object} -> {self.new_object}"
-
-    def __repr__(self) -> str:
-        return f"<MigrationOp {self}>"
-
-    @property
-    def table(self) -> "Table":
-        return self.new_object.table if self.new_object else self.old_object.table
-
-    def invert(self) -> "MigrationOp":
-        """Returns the inverse of this operation."""
-        if self.kind == MigrationOpKind.CREATE:
-            return MigrationOp(MigrationOpKind.DELETE, None, self.new_object)
-        elif self.kind == MigrationOpKind.RENAME:
-            return MigrationOp(MigrationOpKind.RENAME, self.old_object, self.new_object)
-        elif self.kind == MigrationOpKind.UPDATE:
-            return MigrationOp(MigrationOpKind.UPDATE, self.old_object, self.new_object)
-        elif self.kind == MigrationOpKind.DELETE:
-            return MigrationOp(MigrationOpKind.CREATE, self.old_object, None)
-        raise RuntimeError(f"unexpected migration op type: {self.kind}")
-
-
-def generate_migration_ops(
-    old_tables: list[Table], new_tables: list[Table], *, use_source_as_id: bool = True
-) -> list[MigrationOp]:
-    """Generates the migration operations to go from the old tables to the new tables."""
-
-    def _to_id(obj: Object) -> str:
-        return obj._source or obj.name if use_source_as_id else obj.name
-
-    ops: list[MigrationOp] = []
-    old_objects: dict[str, TableObject] = {
-        _to_id(obj): obj for table in old_tables for obj in table.walk()
-    }
-    new_objects: dict[str, TableObject] = {
-        _to_id(obj): obj for table in new_tables for obj in table.walk()
-    }
-
-    # diff objects
-    for new_id, new_object in new_objects.items():
-        old_object = old_objects.get(new_id)
-        if old_object is None:
-            ops.append(MigrationOp(MigrationOpKind.CREATE, new_object, None))
-        elif new_object.name != old_object.name:
-            ops.append(MigrationOp(MigrationOpKind.RENAME, new_object, old_object))
-        elif old_object.hash_flat() != new_object.hash_flat():
-            ops.append(MigrationOp(MigrationOpKind.UPDATE, new_object, old_object))
-    for old_id, old_object in old_objects.items():
-        new_object = new_objects.get(old_id)
-        if new_object is None:
-            ops.append(MigrationOp(MigrationOpKind.DELETE, None, old_object))
-
-    return ops
-
-
-def generate_migration_file(
-    *, id: int, version: str, global_ops: list[MigrationOp], local_ops: list[MigrationOp]
-) -> str:
-    """Generates the Python migration file."""
-    migration_code = Path(MIGRATIONS_TEMPLATE_PATH).read_text()
-
-    # impute header/metadata
-    today = datetime.today().date().strftime("%Y.%m.%d")
-    metadata_substitutions: dict[str, str] = {
-        "# <Header>": f"# This file was automatically generated by Bench on {today}. Edit as needed.",
-        '"<ID>"': str(id),
-        '"<VERSION>"': f'"{version}"',
-        '"<HAS_GLOBAL>"': "True" if global_ops else "False",
-        '"<HAS_LOCAL>"': "True" if local_ops else "False",
-    }
-    for key, value in metadata_substitutions.items():
-        migration_code = migration_code.replace(key, value)
-
-    # impute upgrade/downgrade functions
-    global_ops_inverse = [op.invert() for op in global_ops[::-1]]
-    local_ops_inverse = [op.invert() for op in local_ops[::-1]]
-    for method_name, ops in [
-        ("upgrade_global", global_ops),
-        ("downgrade_global", global_ops_inverse),
-        ("upgrade_local", local_ops),
-        ("downgrade_local", local_ops_inverse),
-    ]:
-        lines: list[str] = []
-        for op in ops:
-            sql = sql_to_str(render_migration_op(op))
-            lines.append(f'# {op}\nawait cur.execute("{sql}")')
-        method_body = "\n\n".join(lines)
-        migration_code = migration_code.replace(
-            f"pass # <{method_name}>", indent(method_body, "    ")
-        )
-
-    migration_code = format_python(migration_code)
-    return migration_code
-
-
-def render_migration_op(op: MigrationOp) -> sql.Composable:
-    """Renders the given operation into a SQL operation. If not possible, returns a placeholder."""
-    if op.kind == MigrationOpKind.CREATE:
-        if isinstance(op.new_object, Table):
-            return sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(op.new_object.name))
-        elif isinstance(op.new_object, Column):
-            return sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
-                sql.Identifier(op.new_object.table.name), sql.SQL(op.new_object.sql())
-            )
-        elif isinstance(op.new_object, Index):
-            return sql.SQL("CREATE INDEX {}").format(sql.SQL(op.new_object.sql()))
-        elif isinstance(op.new_object, Constraint):
-            return sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
-                sql.Identifier(op.new_object.table.name),
-                sql.SQL(op.new_object.sql()),
-            )
-
-    elif op.kind == MigrationOpKind.RENAME:
-        if isinstance(op.old_object, Table):
-            return sql.SQL("ALTER TABLE {} RENAME TO {}").format(
-                sql.Identifier(op.old_object.name),
-                sql.Identifier(op.new_object.name),
-            )
-        elif isinstance(op.old_object, Column):
-            return sql.SQL("ALTER TABLE {} RENAME COLUMN {} TO {}").format(
-                sql.Identifier(op.old_object.table.name),
-                sql.Identifier(op.old_object.name),
-                sql.Identifier(op.new_object.name),
-            )
-        elif isinstance(op.old_object, Index):
-            return sql.SQL("ALTER INDEX {} RENAME TO {}").format(
-                sql.Identifier(op.old_object.name),
-                sql.Identifier(op.new_object.name),
-            )
-        elif isinstance(op.old_object, Constraint):
-            return sql.SQL("ALTER TABLE {} RENAME CONSTRAINT {} TO {}").format(
-                sql.Identifier(op.old_object.table.name),
-                sql.Identifier(op.old_object.name),
-                sql.Identifier(op.new_object.name),
-            )
-
-    elif op.kind == MigrationOpKind.UPDATE:
-        diff = op.new_object.diff_flat(op.old_object)
-        raise NotImplementedError("nocheckin: render_migration_op UPDATE")
-
-    elif op.kind == MigrationOpKind.DELETE:
-        if isinstance(op.old_object, Table):
-            return sql.SQL("DROP TABLE {}").format(sql.Identifier(op.old_object.name))
-        elif isinstance(op.old_object, Column):
-            return sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
-                sql.Identifier(op.old_object.table.name), sql.Identifier(op.old_object.name)
-            )
-        elif isinstance(op.old_object, Index):
-            return sql.SQL("DROP INDEX {}").format(sql.Identifier(op.old_object.name))
-        elif isinstance(op.old_object, Constraint):
-            return sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
-                sql.Identifier(op.old_object.table.name),
-                sql.Identifier(op.old_object.name),
-            )
-
-    raise RuntimeError(f"unexpected migration op: {op!r}")

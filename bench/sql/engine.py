@@ -479,7 +479,7 @@ def _wrap_pg_error(
     return wrapped_t(message)
 
 
-async def _do_execute(
+async def _pg_do_execute(
     cur: psycopg.AsyncCursor,
     resource: Table | str,
     query: sql.Composed,
@@ -491,7 +491,7 @@ async def _do_execute(
         raise _wrap_pg_error(resource, query, e) from e
 
 
-async def _do_execute_many(
+async def _pg_do_execute_many(
     cur: psycopg.AsyncCursor,
     resource: Table | str,
     query: sql.Composed,
@@ -534,7 +534,7 @@ async def pg_select(
         skip=skip,
     )
     logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement, params)
+    await _pg_do_execute(cur, table, statement, params)
     return await cur.fetchall()
 
 
@@ -577,7 +577,7 @@ async def pg_count(
     if where:
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement)
+    await _pg_do_execute(cur, table, statement)
     return (await cur.fetchone())["count"]
 
 
@@ -598,7 +598,7 @@ async def pg_exists(
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     statement += sql.SQL(")")
     logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement)
+    await _pg_do_execute(cur, table, statement)
     return (await cur.fetchone())["exists"]
 
 
@@ -621,7 +621,44 @@ async def pg_insert(
         )
     logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
     values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
-    await _do_execute_many(cur, table, statement, values, returning=bool(returning))
+    await _pg_do_execute_many(cur, table, statement, values, returning=bool(returning))
+    if returning:
+        return await cur.fetchall()
+
+
+async def pg_upsert(
+    cur: psycopg.AsyncCursor,
+    table: Table,
+    rows: list[RowIn],
+    *,
+    conflict_columns: list[Column] | None = None,
+    update_columns: list[Column] | None = None,
+    returning: Collection[Column] | None = None,
+) -> list[RowOut] | None:
+    """Upserts into the given table."""
+    if conflict_columns is None:
+        conflict_columns = [table._primary_key]
+    if update_columns is None:
+        update_columns = [c for c in table.columns if c not in conflict_columns]
+    statement = sql.SQL(
+        "INSERT INTO {table} ({fields}) VALUES ({values}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
+    ).format(
+        table=sql.Identifier(table.name),
+        fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
+        values=sql.SQL(", ".join(["%s"] * len(table.columns))),
+        conflict=sql.SQL(", ").join(sql.Identifier(c.name) for c in conflict_columns),
+        updates=sql.SQL(", ").join(
+            sql.SQL("{} = EXCLUDED.{}").format(sql.Identifier(c.name), sql.Identifier(c.name))
+            for c in update_columns
+        ),
+    )
+    if returning:
+        statement += sql.SQL(" RETURNING {}").format(
+            sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
+        )
+    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
+    values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
+    await _pg_do_execute_many(cur, table, statement, values, returning=bool(returning))
     if returning:
         return await cur.fetchall()
 
@@ -649,7 +686,7 @@ async def pg_update_static(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
     logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement)
+    await _pg_do_execute(cur, table, statement)
     if returning:
         return await cur.fetchall()
 
@@ -693,7 +730,7 @@ async def pg_update_list(
         (*(value.get(c.name) for c in dynamic_columns), value.get(table._primary_key.name))
         for value in dynamic_values
     ]
-    await _do_execute_many(cur, table, statement, dynamic_values, returning=bool(returning))
+    await _pg_do_execute_many(cur, table, statement, dynamic_values, returning=bool(returning))
     if returning:
         return await cur.fetchall()
 
@@ -717,7 +754,7 @@ async def pg_delete(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
     logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, statement))
-    await _do_execute(cur, table, statement)
+    await _pg_do_execute(cur, table, statement)
     if returning:
         return await cur.fetchall()
 
@@ -1173,16 +1210,16 @@ async def duplicate_records_in_pg(
 
 if DEBUG or LOCAL_ENV:
     # pretty print sql statements in dev mode
-    def sql_to_str(c: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
+    def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
         import sqlparse
 
-        s_str = s.as_string(c)
+        s_str = s.as_string(cur)
         return "\n" + sqlparse.format(s_str, reindent=True, keyword_case="upper") + "\n"
 
 else:
 
-    def sql_to_str(c: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
-        return s.as_string(c)
+    def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
+        return s.as_string(cur)
 
 
 USER_PRIVILEGES = "SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES"

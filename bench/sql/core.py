@@ -42,7 +42,7 @@ class ObjectKind(enum.StrEnum):
 
 @dataclass
 class Object:
-    DATA_FIELDS: ClassVar[tuple[str, ...]]
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]]
     kind: ClassVar[ObjectKind]
 
     if TYPE_CHECKING:
@@ -100,14 +100,14 @@ class Object:
 
     def hash_flat(self) -> int:
         """Get a stable hash of this object's data attributes, ignoring nested objects."""
-        return stable_hash(getattr(self, field_name) for field_name in self.DATA_FIELDS)
+        return stable_hash(getattr(self, field_name) for field_name in self.FLAT_DATA_FIELDS)
 
     def diff_flat(self, other: "TableObject") -> dict[str, Any]:
         """Get a diff of this object's data attributes, ignoring nested objects."""
         assert type(self) == type(other), f"cannot diff {self!r} with {other!r}"
         return {
             field_name: getattr(self, field_name)
-            for field_name in self.DATA_FIELDS
+            for field_name in self.FLAT_DATA_FIELDS
             if getattr(self, field_name) != getattr(other, field_name)
         }
 
@@ -122,6 +122,13 @@ class TableObject(Object):
     @property
     def table_name(self) -> str:
         return self.table.name
+
+    @property
+    def qualified_name(self) -> str:
+        if self.kind == ObjectKind.TABLE or self.kind == ObjectKind.INDEX:
+            return self.name
+        else:
+            return f"{self.table_name}.{self.name}"
 
     @property
     def _table(self) -> Union["Table", None]:
@@ -173,7 +180,7 @@ class Column(TableObject):
     A SQL column definition.
     """
 
-    DATA_FIELDS: ClassVar[tuple[str, ...]] = (
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = (
         "name",
         "type",
         "is_array",
@@ -257,7 +264,7 @@ class Constraint(TableObject):
     A SQL constraint.
     """
 
-    DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
     kind: ClassVar[ObjectKind] = ObjectKind.CONSTRAINT
 
     inner_name: str
@@ -307,7 +314,7 @@ class Index(TableObject):
     A SQL index.
     """
 
-    DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
     kind: ClassVar[ObjectKind] = ObjectKind.INDEX
 
     inner_name: str
@@ -349,6 +356,7 @@ class Table(TableObject):
     A SQL table.
     """
 
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("name",)
     kind: ClassVar[ObjectKind] = ObjectKind.TABLE
 
     name: str
@@ -397,7 +405,7 @@ class Table(TableObject):
     def _table(self) -> "Table":
         return self
 
-    def walk(self) -> tuple[Object, ...]:
+    def walk(self) -> tuple[TableObject, ...]:
         return self, *self.columns, *self.constraints, *self.indexes
 
     def columns_include(self, other: "Table") -> bool:
@@ -481,6 +489,7 @@ POSTGRES_TYPE_BY_COLUMN_TYPE: dict[ColumnType, PostgresColumnType] = {
     ColumnType.BINARY: PostgresColumnType.BYTEA,
     ColumnType.VECTOR: PostgresColumnType.BYTEA,
     ColumnType.UUID: PostgresColumnType.UUID,
+    ColumnType.BYTES: PostgresColumnType.BYTEA,
 }
 COLUMN_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_COLUMN_TYPE.items()}
 
@@ -544,4 +553,5 @@ RECORD_EPHEMERAL_TABLE = Table(
     indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes),),
 )
 
-DEFAULT_TABLES: tuple[Table, ...] = (MIGRATION_TABLE, RECORD_EPHEMERAL_TABLE)
+DEFAULT_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
+DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (RECORD_EPHEMERAL_TABLE,)

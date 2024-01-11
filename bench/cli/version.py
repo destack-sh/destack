@@ -13,7 +13,7 @@ logger = structlog.get_logger(__name__)
 
 
 @app.command()
-def bump(revision: int = typer.Argument(None)):
+def bump(revision: int = typer.Option(None)):
     """
     Bump the CalVer to the current date. Increment revision if the date is the same.
     Format is YYYY.MM.DD.R

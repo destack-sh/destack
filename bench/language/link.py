@@ -896,7 +896,7 @@ class NodeQuery(Generic[NodeT]):
             engine == QueryEngine.GLOBAL_POSTGRES and session._global_pg_cursor
         ):
             cur = session._global_pg_cursor or session._local_pg_cursor
-            fetched = await pg_select_nodes_data(
+            nodes_data = await pg_select_nodes_data(
                 cur=cur,
                 node_type=self._node_type,
                 where=self._filter,
@@ -914,9 +914,9 @@ class NodeQuery(Generic[NodeT]):
             else:
                 count = None
             return _NodeFetchResult(
-                nodes=fetched.nodes,
-                cursors=fetched.cursors,
-                start_cursor=fetched.start_cursor,
+                nodes=nodes_data.nodes,
+                cursors=nodes_data.cursors,
+                start_cursor=nodes_data.start_cursor,
                 total=count,
                 engine=engine,
             )
@@ -930,7 +930,8 @@ class NodeQuery(Generic[NodeT]):
                 after=after,
             )
             response = await session.host.search_nodes(request)
-            return [wiring.unwrap_some_node(n) for n in response.nodes]
+            # return [wiring.unwrap_some_node(n) for n in response.nodes]
+            raise NotImplementedError("nocheckin: NodeQuery._do_fetch GLOBAL_POSTGRES")
         else:
             raise ValueError(f"unexpected query engine {engine}")
 
