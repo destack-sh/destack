@@ -2,6 +2,10 @@ import asyncio
 import functools
 import subprocess
 
+import structlog
+
+logger = structlog.get_logger(__name__)
+
 
 def _async_to_sync_blocking(func=None):
     """Automatically convert async functions to sync if not called in async context."""
@@ -33,5 +37,5 @@ def _async_to_sync_blocking(func=None):
 
 
 def _shell(cmd: str, check=True, **kwargs):
-    print(f"shell: {cmd}")
+    logger.debug("shell", cmd=cmd, check=check, **kwargs)
     subprocess.run(cmd, shell=True, check=check, **kwargs)

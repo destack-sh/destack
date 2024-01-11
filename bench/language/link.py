@@ -801,7 +801,7 @@ class NodeQuery(Generic[NodeT]):
         if len(results) == 1:
             return results[0]
         else:
-            raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results}")
+            raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results!r}")
 
     def filter(self, filter: "Expression" = None, **kwargs) -> "NodeQuery[NodeT]":
         """Adds a filter clause to the query."""
@@ -823,15 +823,15 @@ class NodeQuery(Generic[NodeT]):
         copy._sort = sort
         return copy
 
-    def select(self, *fields: "Field") -> "NodeQuery[NodeT]":
+    def select(self, *fields: FieldOrProperty) -> "NodeQuery[NodeT]":
         """Selects only the given fields in the results."""
         raise NotImplementedError("not yet supported")
 
-    def include(self, *fields: "Field") -> "NodeQuery[NodeT]":
+    def include(self, *fields: FieldOrProperty) -> "NodeQuery[NodeT]":
         """Includes the given related fields in the results."""
         raise NotImplementedError("not yet supported")
 
-    def distinct(self, *fields: "Field") -> "NodeQuery[NodeT]":
+    def distinct(self, *fields: FieldOrProperty) -> "NodeQuery[NodeT]":
         """Returns results with distinct values in the given fields."""
         raise NotImplementedError("not yet supported")
 
@@ -1011,6 +1011,26 @@ class _NodeExpressionBase:
     @classmethod
     def filter(cls: type["Node"], filter: "Expression" = None, **kwargs) -> "NodeQuery":
         return NodeQuery(node_type=cls.metatype).filter(filter, **kwargs)
+
+    @classmethod
+    def sort(cls: type["Node"], sort: "Expression" = None, *args: str) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).sort(sort, *args)
+
+    @classmethod
+    def select(cls: type["Node"], *fields: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).select(*fields)
+
+    @classmethod
+    def include(cls: type["Node"], *fields: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).include(*fields)
+
+    @classmethod
+    def distinct(cls: type["Node"], *fields: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).distinct(*fields)
+
+    @classmethod
+    def first(cls: type["Node"], count: int) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).first(count)
 
     @classmethod
     async def count(cls: type["Node"], filter: "Expression" = None, **kwargs) -> int:

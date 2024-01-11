@@ -20,7 +20,7 @@ logger = structlog.get_logger(__name__)
 async def pg(bench: str = None):
     """Open a psql shell to either the global or a Bench-local database."""
     if bench is not None:
-        async with detached_session(readonly=True):
+        async with detached_session(read_only=True):
             bench: Bench = await Bench.get(slug=bench)
         connection_str = f"postgresql://{bench.pg_username}:{bench.pg_password}@{LOCAL_PG_HOST}:{LOCAL_PG_PORT}/{bench.pg_name}"
     else:
@@ -43,7 +43,7 @@ async def pg(bench: str = None):
 async def session(bench: str = None):
     """Open a Session shell."""
     if bench is not None:
-        async with detached_session(readonly=True):
+        async with detached_session(read_only=True):
             bench: Bench = await Bench.get(slug=bench)
     logger.info("shell.session", bench=bench)
     raise NotImplementedError("nocheckin: shell.session")

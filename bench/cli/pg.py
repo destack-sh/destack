@@ -1,3 +1,5 @@
+import time
+
 import structlog
 import typer
 
@@ -17,6 +19,8 @@ app = typer.Typer(short_help="pg management")
 @_async_to_sync_blocking
 async def introspect(bench: str = None):
     """Introspect the current schema of the Postgres instance."""
+    logger.info("pg.introspect", bench=bench)
+    start = time.perf_counter()
     if bench is not None:
         async with detached_session(read_only=True):
             bench = Bench.get(slug=bench)
@@ -41,3 +45,5 @@ async def introspect(bench: str = None):
     source = "\n\n".join(chunks)
     source = format_python(source)
     print(source)
+
+    logger.info("pg.introspect.done", duration=time.perf_counter() - start)

@@ -56,7 +56,7 @@ def get_pg_connection_pool(local_pg_name: str | None) -> AsyncConnectionPool:
 
 @asynccontextmanager
 async def async_pg_connection(
-    local_pg_name: str | None, autocommit: bool = False
+    local_pg_name: str | None = None, autocommit: bool = False
 ) -> psycopg.AsyncConnection[dict[str, Any]]:
     """Gets a psycopg cursor to the given database"""
     pool = get_pg_connection_pool(local_pg_name)
@@ -68,7 +68,7 @@ async def async_pg_connection(
 
 @asynccontextmanager
 async def async_pg_cursor(
-    local_pg_name: str | None, autocommit: bool = False
+    local_pg_name: str | None = None, autocommit: bool = False
 ) -> psycopg.AsyncCursor[dict[str, Any]]:
     """Gets a psycopg cursor to the given database"""
     async with async_pg_connection(local_pg_name, autocommit=autocommit) as conn:

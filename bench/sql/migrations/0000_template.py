@@ -1,34 +1,33 @@
+# <Header>
 import psycopg
 
-# <Metadata>
 ID = "<ID>"
-COMMIT = "<COMMIT>"
 VERSION = "<VERSION>"
 HAS_GLOBAL = "<HAS_GLOBAL>"
 HAS_LOCAL = "<HAS_LOCAL>"
-# </Metadata>
+
 
 #
-# Global DB for core Bench nodes (n=1)
+# Global DB for core Bench nodes (runs once)
 #
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
-    pass
+    pass  # <upgrade_global>
 
 
 async def downgrade_global(cur: psycopg.AsyncCursor):
-    pass
+    pass  # <downgrade_global>
 
 
 #
-# Local DB for Bench-local nodes (records, runs, signals, etc.) (n=|Benches|)
+# Local DB for Bench-local nodes (records, runs, signals, etc.) (runs for every Bench)
 #
 
 
 async def upgrade_local(cur: psycopg.AsyncCursor):
-    pass
+    pass  # <upgrade_local>
 
 
 async def downgrade_local(cur: psycopg.AsyncCursor):
-    pass
+    pass  # <downgrade_local>

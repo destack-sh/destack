@@ -5,13 +5,11 @@ from dataclasses import dataclass, field, is_dataclass, replace
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Union
-from uuid import UUID, uuid5
+from uuid import UUID
 
 # TODO @Performance: check out asyncpg instead of psycopg (up to 5x faster)
 #  see https://github.com/MagicStack/asyncpg
 from more_itertools import first
-
-from bench.language.const import UUID_NAMESPACE
 
 
 def stable_hash(*args) -> int:
@@ -44,6 +42,7 @@ class ObjectKind(enum.StrEnum):
 
 @dataclass
 class Object:
+    DATA_FIELDS: ClassVar[tuple[str, ...]]
     kind: ClassVar[ObjectKind]
 
     if TYPE_CHECKING:
@@ -99,17 +98,18 @@ class Object:
     def walk(self) -> tuple["Object", ...]:
         return (self,)
 
-    @property
-    def hash(self) -> int:
-        return hash(self)
+    def hash_flat(self) -> int:
+        """Get a stable hash of this object's data attributes, ignoring nested objects."""
+        return stable_hash(getattr(self, field_name) for field_name in self.DATA_FIELDS)
 
-    def __hash__(self):
-        """Computes a stable hash of this object and any child objects."""
-        raise NotImplementedError
-
-    @property
-    def id(self):
-        return uuid5(UUID_NAMESPACE, f"{self.kind.value}:{self.name}")
+    def diff_flat(self, other: "TableObject") -> dict[str, Any]:
+        """Get a diff of this object's data attributes, ignoring nested objects."""
+        assert type(self) == type(other), f"cannot diff {self!r} with {other!r}"
+        return {
+            field_name: getattr(self, field_name)
+            for field_name in self.DATA_FIELDS
+            if getattr(self, field_name) != getattr(other, field_name)
+        }
 
 
 @dataclass
@@ -126,10 +126,6 @@ class TableObject(Object):
     @property
     def _table(self) -> Union["Table", None]:
         raise NotImplementedError
-
-    @property
-    def id(self) -> UUID:
-        return uuid5(UUID_NAMESPACE, f"{self.kind.value}:{self._table.name}.{self.name}")
 
     def clone(self) -> "TableObject":
         """Deep copy this table object without the table reference."""
@@ -177,6 +173,19 @@ class Column(TableObject):
     A SQL column definition.
     """
 
+    DATA_FIELDS: ClassVar[tuple[str, ...]] = (
+        "name",
+        "type",
+        "is_array",
+        "is_primary_key",
+        "is_foreign_key_to",
+        "on_delete",
+        "is_unique",
+        "is_nullable",
+        "is_encrypted",
+        "length",
+        "default",
+    )
     kind: ClassVar[ObjectKind] = ObjectKind.COLUMN
 
     name: str
@@ -204,18 +213,6 @@ class Column(TableObject):
 
     def __repr__(self):
         return f"<Column {self}>"
-
-    def __hash__(self):
-        return stable_hash(
-            self.kind,
-            self.name,
-            self.type,
-            self.is_array,
-            self.is_primary_key,
-            self.is_unique,
-            self.is_nullable,
-            self.default,
-        )
 
     def __eq__(self, other):
         return hash(self) == hash(other)
@@ -260,6 +257,7 @@ class Constraint(TableObject):
     A SQL constraint.
     """
 
+    DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
     kind: ClassVar[ObjectKind] = ObjectKind.CONSTRAINT
 
     inner_name: str
@@ -275,9 +273,6 @@ class Constraint(TableObject):
 
     def __repr__(self):
         return f"<Constraint {self}>"
-
-    def __hash__(self):
-        return stable_hash(self.kind, self.name, self.type, self.columns, self.condition)
 
     def __eq__(self, other):
         return hash(self) == hash(other)
@@ -312,6 +307,7 @@ class Index(TableObject):
     A SQL index.
     """
 
+    DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
     kind: ClassVar[ObjectKind] = ObjectKind.INDEX
 
     inner_name: str
@@ -327,9 +323,6 @@ class Index(TableObject):
 
     def __repr__(self):
         return f"<Index {self}>"
-
-    def __hash__(self):
-        return stable_hash(self.kind, self.name, self.type, self.columns, self.condition)
 
     def __eq__(self, other):
         return hash(self) == hash(other)
@@ -351,7 +344,7 @@ class Index(TableObject):
 
 
 @dataclass
-class Table(Object):
+class Table(TableObject):
     """
     A SQL table.
     """
@@ -395,6 +388,14 @@ class Table(Object):
 
     def __eq__(self, other):
         return hash(self) == hash(other)
+
+    @property
+    def table(self) -> "Table":
+        return self
+
+    @property
+    def _table(self) -> "Table":
+        return self
 
     def walk(self) -> tuple[Object, ...]:
         return self, *self.columns, *self.constraints, *self.indexes
@@ -485,19 +486,17 @@ COLUMN_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_COLUMN_TYPE.it
 
 #
 # Default tables
-# Migrations to these are NOT auto-generated.
 #
 
 
 MIGRATION_TABLE = Table(  # see bench/sql/migration.py
     "bench_migration",
     columns=(
-        Column("id", ColumnType.INT, is_primary_key=True),
-        Column("commit", ColumnType.STRING, length=32),
-        Column("version", ColumnType.STRING, length=64),
-        Column("has_global", ColumnType.BOOLEAN),
-        Column("has_local", ColumnType.BOOLEAN),
-        Column("applied_at", ColumnType.DATETIME, is_nullable=True),
+        Column("id", ColumnType.INT, is_primary_key=True, _source=2),
+        Column("version", ColumnType.STRING, length=64, is_unique=True, _source=30),
+        Column("has_global", ColumnType.BOOLEAN, _source=31),
+        Column("has_local", ColumnType.BOOLEAN, _source=32),
+        Column("applied_at", ColumnType.DATETIME, is_nullable=True, _source=33),
     ),
 )
 
@@ -512,6 +511,7 @@ RECORD_BASE_TABLE = Table(
         Column("created_at", ColumnType.DATETIME, default="now()", _source=11),
         Column("updated_at", ColumnType.DATETIME, default="now()", _source=12),
         Column("deleted_at", ColumnType.DATETIME, is_nullable=True, _source=13),
+        Column("archived_at", ColumnType.DATETIME, is_nullable=True, _source=14),
         Column("created_by_id", ColumnType.UUID, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, default="now()", _source=16),
         Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
@@ -524,8 +524,11 @@ RECORD_BASE_TABLE = Table(
         ),
     ),
     indexes=(
-        # for fetching all records of a 'database'
+        # for fetching all records of a database
         Index("statement_key_deleted_at", IndexType.BTREE, columns=["statement_key", "deleted_at"]),
+        Index(
+            "statement_key_archive_at", IndexType.BTREE, columns=["statement_key", "archived_at"]
+        ),
     ),
 )
 # 'hufflepuff' table for ephemeral 'tables' without real tables
@@ -535,8 +538,10 @@ RECORD_EPHEMERAL_TABLE = Table(
         *(c.clone() for c in RECORD_BASE_TABLE.columns),
         Column("statement_ck", ColumnType.UUID, _source=21),
         Column("statement_id", ColumnType.UUID, _source=22),
-        Column("value", ColumnType.JSON, is_nullable=True, _source=23),
+        Column("value", ColumnType.JSON, is_nullable=True, _source=30),
     ),
     constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),
     indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes),),
 )
+
+DEFAULT_TABLES: tuple[Table, ...] = (MIGRATION_TABLE, RECORD_EPHEMERAL_TABLE)

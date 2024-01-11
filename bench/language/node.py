@@ -51,6 +51,7 @@ from bench.language.const import (
     LookupBy,
     NodeStatus,
     NS,
+    BenchStatus,
 )
 from bench.language.link import (
     NodeListBase,
@@ -309,7 +310,7 @@ class Property(_FieldExpressionBase):
         if self.is_runtime is UNSET:
             self.is_runtime = self.is_stored
         if self.is_reflected is UNSET:
-            if not self.is_struct:
+            if not self.is_struct and not self.is_encrypted:
                 self.is_reflected = self.is_stored
             else:
                 self.is_reflected = False  # can't deal with that yet
@@ -546,7 +547,7 @@ def struct_internal(
     default_factory: Callable[[], Any] = None,
     copy: Callable[[Any], Any] = None,
     require: bool = False,
-    reflect: bool = False,
+    reflect: bool = UNSET,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
     struct_t: StructType = None,
@@ -1941,15 +1942,16 @@ class Bench(ScopeNode):
     policies: Optional[list["Policy"]] = struct_internal(
         20, default_factory=list, struct_t=StructType.POLICY
     )
-    name: str = struct_internal(30)
-    slug: str = struct_internal(31, protect=True)
-    description: str = struct_internal(32, default=None)
+    name: str = struct_property(30)
+    slug: str = struct_internal(31, protect=True, unique=True)
+    description: str = struct_property(32, default=None)
     organization: Optional["Organization"] = struct_internal(
         33, protect=True, array=False, references=NodeType.ORGANIZATION
     )
     user: Optional["User"] = struct_internal(
         34, protect=True, array=False, references=NodeType.USER
     )
+    status: BenchStatus = struct_internal(35, protect=True)
 
     # *per* environment stuff (will be moved into Environment or such later)
     head = struct_internal(40, protect=True, array=False, references=NodeType.MODULE)
@@ -2309,10 +2311,13 @@ def _complete_bench_setup():
             # determine final storage type
             prop.finalize_type()
 
-            # set reflected properties
-            if prop.is_reflected:
+            # set properties (that exist at runtime) on class
+            if prop.is_runtime:
                 setattr(cls, name, prop)
-                prop._as_field  # noqa ensure the reflected field works (and cache it)
+
+            # ensure the reflected field works (and cache it)
+            if prop.is_reflected:
+                prop._as_field  # noqa
 
             # check deferred/encrypted properties
             if prop.is_deferred and not prop.is_stored:

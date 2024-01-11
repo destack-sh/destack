@@ -1151,46 +1151,46 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    WorkerData worker = 1;
-    FileData file = 2;
-    RecordData record = 3;
-    BadgeData badge = 4;
-    NotificationData notification = 5;
-    SessionData session = 6;
-    SignalData signal = 7;
-    UserData user = 8;
-    ClientData client = 9;
-    ModuleData module = 10;
-    IssueData issue = 11;
-    BenchData bench = 12;
-    StatementData statement = 13;
-    HandleData handle = 14;
-    RunData run = 15;
-    TriggerData trigger = 16;
-    FieldData field = 17;
-    ViewData view = 18;
-    BlobData blob = 19;
-    OrganizationData organization = 20;
-    SecretData secret = 21;
-    WorkerSetData worker_set = 22;
-    TaggingData tagging = 23;
-    HaltData halt = 24;
+    IssueData issue = 1;
+    FieldData field = 2;
+    TaggingData tagging = 3;
+    ModuleData module = 4;
+    SecretData secret = 5;
+    TriggerData trigger = 6;
+    ViewData view = 7;
+    OrganizationData organization = 8;
+    BadgeData badge = 9;
+    WorkerSetData worker_set = 10;
+    FileData file = 11;
+    HaltData halt = 12;
+    RunData run = 13;
+    UserData user = 14;
+    BlobData blob = 15;
+    SessionData session = 16;
+    HandleData handle = 17;
+    RecordData record = 18;
+    WorkerData worker = 19;
+    StatementData statement = 20;
+    NotificationData notification = 21;
+    BenchData bench = 22;
+    ClientData client = 23;
+    SignalData signal = 24;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    DependencyData dependency = 1;
+    LogEntryData log_entry = 1;
     PolicyRuleData policy_rule = 2;
-    ExpressionData expression = 3;
-    PolicyData policy = 4;
-    AggregationBucketData aggregation_bucket = 5;
-    AggregationData aggregation = 6;
-    RunErrorData run_error = 7;
-    MiniRunData mini_run = 8;
-    LogEntryData log_entry = 9;
-    RunCodeFrameData run_code_frame = 10;
-    WorkerImageData worker_image = 11;
+    WorkerImageData worker_image = 3;
+    MiniRunData mini_run = 4;
+    RunErrorData run_error = 5;
+    RunCodeFrameData run_code_frame = 6;
+    AggregationBucketData aggregation_bucket = 7;
+    AggregationData aggregation = 8;
+    PolicyData policy = 9;
+    ExpressionData expression = 10;
+    DependencyData dependency = 11;
   };
 }
 

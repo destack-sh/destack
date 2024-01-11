@@ -11,10 +11,6 @@ project_root = Path(settings.BASE_DIR)
 os.environ["VERSION"] = Path(project_root / "version").read_text().strip()
 
 
-def is_migrating():
-    return "makemigrations" in sys.argv or "migrate" in sys.argv
-
-
 class BenchConfig(AppConfig):
     name = "bench"
     verbose_name = "Bench"
