@@ -76,7 +76,7 @@ class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
         self._hosts_by_module_id: dict[UUID, "ModuleHost"] = {}
 
     def __str__(self):
-        return "0"  # 'shard'
+        return "shard=all"
 
     def __repr__(self):
         return f"<ModuleHostMultiplexer {self}>"

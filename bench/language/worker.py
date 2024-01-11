@@ -43,8 +43,9 @@ class Worker(Node):
     external_id: str = struct_internal(30, unique=True, protect=True)
     profile: WorkerProfile = struct_internal(31)
     image: Optional["WorkerImage"] = struct_internal(32, struct_t=StructType.WORKER_IMAGE)
+    version: Optional[str] = struct_internal(33, index_in_pg=True)
     access_token: Optional[str] = struct_internal(
-        33, default=None, protect=True, encrypt=True, defer=True
+        34, default=None, protect=True, encrypt=True, defer=True
     )
 
 

@@ -277,7 +277,7 @@ class RecordQuery:
         if len(results) == 1:
             return results[0]
         else:
-            raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results}")
+            raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results!r}")
 
     def filter(self, filter: Expression = None, **kwargs) -> "RecordQuery":
         """Adds a filter clause to the query."""

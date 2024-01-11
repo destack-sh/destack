@@ -19,6 +19,11 @@ UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
 VERSION = "2024.01.10.4"
 
 
+#
+# Metatypes
+#
+
+
 class NodeType(ProtoStrEnum):
     # root
     BENCH = "BENCH", 1
@@ -131,6 +136,11 @@ BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
 INTERP_NODE_TYPES = {NodeType.ISSUE}
 
 
+#
+# Edits
+#
+
+
 class ReadKind(ProtoStrEnum):
     READ = "READ", 1  # any read action
     LIST = "LIST", 2  # list, search, filter, etc.
@@ -164,6 +174,17 @@ else:
         "ActionKind",
         {ak.name: (ak.name, ak.id) for ak in chain(ReadKind, EditKind, RunKind)},
     )
+
+
+#
+# Other stuff
+#
+
+
+class BenchStatus(ProtoStrEnum):
+    RESERVED = "RESERVED", 1
+    PREPARING = "PREPARING", 2
+    AVAILABLE = "AVAILABLE", 3
 
 
 class BadgeType(ProtoStrEnum):

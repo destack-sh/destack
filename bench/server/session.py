@@ -11,9 +11,9 @@ logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def detached_session(commit: bool = False, readonly: bool = False) -> "Session":
+async def detached_session(commit: bool = False, read_only: bool = False) -> "Session":
     """Get a global session."""
-    assert not readonly or not commit, "readonly and commit are mutually exclusive"
+    assert not read_only or not commit, "read_only and commit are mutually exclusive"
     assert _active_session.get() is None, f"already in active session {_active_session.get()}"
 
     async with async_pg_cursor(local_pg_name=None) as global_pg_cursor:
@@ -24,8 +24,8 @@ async def detached_session(commit: bool = False, readonly: bool = False) -> "Ses
             if commit:
                 await session.commit()
             elif session.has_regular_edits:
-                if readonly:
-                    raise RuntimeError(f"readonly session {session!r} has edits")
+                if read_only:
+                    raise RuntimeError(f"read_only session {session!r} has edits")
                 logger.warning("session.discard", session=session)
         finally:
             session.closed_at = datetime.utcnow()  # pretend close to prevent further use

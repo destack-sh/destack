@@ -6,6 +6,7 @@ import enum
 import os
 from pathlib import Path
 import re
+from textwrap import indent
 from typing import Any, Optional, Callable, Awaitable
 
 from more_itertools import first
@@ -26,8 +27,10 @@ from bench.sql.core import (
     IndexType,
     CascadeAction,
     POSTGRES_TYPE_BY_UDT,
+    TableObject,
 )
-from bench.sql.engine import SqlUndefinedObject, pg_select, pg_select_raw
+from bench.sql.engine import SqlUndefinedObject, pg_select, pg_select_raw, sql_to_str
+from bench.utils.utils import format_python
 
 MIGRATIONS_PATH = "bench/sql/migrations"
 MIGRATIONS_TEMPLATE_PATH = "bench/sql/migrations/0000_template.py"
@@ -43,7 +46,6 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class Migration:
     id: int
-    commit: str
     version: str
     has_global: bool
     has_local: bool
@@ -68,7 +70,6 @@ class MigrationFile:
 def pack_migration_row(migration: Migration) -> dict[str, Any]:
     return {
         "id": migration.id,
-        "commit": migration.commit,
         "version": migration.version,
         "has_global": migration.has_global,
         "has_local": migration.has_local,
@@ -79,7 +80,6 @@ def pack_migration_row(migration: Migration) -> dict[str, Any]:
 def unpack_migration_row(row: dict[str, Any]) -> Migration:
     return Migration(
         id=row["id"],
-        commit=row["commit"],
         version=row["version"],
         has_global=row["has_global"],
         has_local=row["has_local"],
@@ -110,13 +110,11 @@ def read_migrations_from_fs() -> list[Migration]:
 
         # parse the file
         migration_source = Path(migration_path).read_text()
-        migration_metadata_str = migration_source.split("# <Metadata>")[1].split("# </Metadata>")[0]
         migration_metadata: dict[str, str] = {
-            match[0]: match[1] for match in re.findall(r"(\w+) = \"(.*)\"", migration_metadata_str)
+            match[0]: match[1] for match in re.findall(r"([A-Z_]+) = \"(.*)\"", migration_source)
         }
         migration = Migration(
             id=int(migration_metadata["ID"]),
-            commit=migration_metadata["COMMIT"],
             version=migration_metadata["VERSION"],
             has_global=migration_metadata["HAS_GLOBAL"] == "True",
             has_local=migration_metadata["HAS_LOCAL"] == "True",
@@ -362,7 +360,7 @@ WHERE
 #
 
 
-class MigrationOpType(enum.Enum):
+class MigrationOpKind(enum.Enum):
     CREATE = "CREATE"
     RENAME = "RENAME"
     UPDATE = "UPDATE"
@@ -371,28 +369,31 @@ class MigrationOpType(enum.Enum):
 
 @dataclass
 class MigrationOp:
-    type: MigrationOpType
-    new_object: Optional[Object]
-    old_object: Optional[Object]
+    kind: MigrationOpKind
+    new_object: Optional[TableObject]
+    old_object: Optional[TableObject]
 
     def __str__(self) -> str:
-        return f"{self.type.value} {self.old_object} -> {self.new_object}"
+        return f"{self.kind.value} {self.old_object} -> {self.new_object}"
 
     def __repr__(self) -> str:
         return f"<MigrationOp {self}>"
 
-    def sql(self) -> sql.Composable | str:
-        """Gets the SQL to apply this migration operation."""
-        if self.type == MigrationOpType.CREATE:
-            return create_object_flat_sql(self.new_object)
-        elif self.type == MigrationOpType.RENAME:
-            return rename_object_sql(self.old_object, self.new_object)
-        elif self.type == MigrationOpType.UPDATE:
-            raise NotImplementedError()
-        elif self.type == MigrationOpType.DELETE:
-            return delete_object_sql(self.old_object)
-        else:
-            raise RuntimeError(f"unexpected migration operation type: {self.type}")
+    @property
+    def table(self) -> "Table":
+        return self.new_object.table if self.new_object else self.old_object.table
+
+    def invert(self) -> "MigrationOp":
+        """Returns the inverse of this operation."""
+        if self.kind == MigrationOpKind.CREATE:
+            return MigrationOp(MigrationOpKind.DELETE, None, self.new_object)
+        elif self.kind == MigrationOpKind.RENAME:
+            return MigrationOp(MigrationOpKind.RENAME, self.old_object, self.new_object)
+        elif self.kind == MigrationOpKind.UPDATE:
+            return MigrationOp(MigrationOpKind.UPDATE, self.old_object, self.new_object)
+        elif self.kind == MigrationOpKind.DELETE:
+            return MigrationOp(MigrationOpKind.CREATE, self.old_object, None)
+        raise RuntimeError(f"unexpected migration op type: {self.kind}")
 
 
 def generate_migration_ops(
@@ -404,10 +405,10 @@ def generate_migration_ops(
         return obj._source or obj.name if use_source_as_id else obj.name
 
     ops: list[MigrationOp] = []
-    old_objects: dict[str, Object] = {
+    old_objects: dict[str, TableObject] = {
         _to_id(obj): obj for table in old_tables for obj in table.walk()
     }
-    new_objects: dict[str, Object] = {
+    new_objects: dict[str, TableObject] = {
         _to_id(obj): obj for table in new_tables for obj in table.walk()
     }
 
@@ -415,88 +416,117 @@ def generate_migration_ops(
     for new_id, new_object in new_objects.items():
         old_object = old_objects.get(new_id)
         if old_object is None:
-            ops.append(MigrationOp(MigrationOpType.CREATE, new_object, None))
+            ops.append(MigrationOp(MigrationOpKind.CREATE, new_object, None))
         elif new_object.name != old_object.name:
-            ops.append(MigrationOp(MigrationOpType.RENAME, new_object, old_object))
-        elif old_object != new_object:
-            ops.append(MigrationOp(MigrationOpType.UPDATE, new_object, old_object))
+            ops.append(MigrationOp(MigrationOpKind.RENAME, new_object, old_object))
+        elif old_object.hash_flat() != new_object.hash_flat():
+            ops.append(MigrationOp(MigrationOpKind.UPDATE, new_object, old_object))
     for old_id, old_object in old_objects.items():
         new_object = new_objects.get(old_id)
         if new_object is None:
-            ops.append(MigrationOp(MigrationOpType.DELETE, None, old_object))
+            ops.append(MigrationOp(MigrationOpKind.DELETE, None, old_object))
 
     return ops
 
 
-def create_object_flat_sql(new_object: Object) -> sql.Composable:
-    """Gets the SQL to create the given object (without any nested objects)."""
-    if isinstance(new_object, Table):
-        return sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(new_object.name))
-    elif isinstance(new_object, Column):
-        return sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
-            sql.Identifier(new_object.table.name), sql.SQL(new_object.sql())
+def generate_migration_file(
+    *, id: int, version: str, global_ops: list[MigrationOp], local_ops: list[MigrationOp]
+) -> str:
+    """Generates the Python migration file."""
+    migration_code = Path(MIGRATIONS_TEMPLATE_PATH).read_text()
+
+    # impute header/metadata
+    today = datetime.today().date().strftime("%Y.%m.%d")
+    metadata_substitutions: dict[str, str] = {
+        "# <Header>": f"# This file was automatically generated by Bench on {today}. Edit as needed.",
+        '"<ID>"': str(id),
+        '"<VERSION>"': f'"{version}"',
+        '"<HAS_GLOBAL>"': "True" if global_ops else "False",
+        '"<HAS_LOCAL>"': "True" if local_ops else "False",
+    }
+    for key, value in metadata_substitutions.items():
+        migration_code = migration_code.replace(key, value)
+
+    # impute upgrade/downgrade functions
+    global_ops_inverse = [op.invert() for op in global_ops[::-1]]
+    local_ops_inverse = [op.invert() for op in local_ops[::-1]]
+    for method_name, ops in [
+        ("upgrade_global", global_ops),
+        ("downgrade_global", global_ops_inverse),
+        ("upgrade_local", local_ops),
+        ("downgrade_local", local_ops_inverse),
+    ]:
+        lines: list[str] = []
+        for op in ops:
+            sql = sql_to_str(render_migration_op(op))
+            lines.append(f'# {op}\nawait cur.execute("{sql}")')
+        method_body = "\n\n".join(lines)
+        migration_code = migration_code.replace(
+            f"pass # <{method_name}>", indent(method_body, "    ")
         )
-    elif isinstance(new_object, Index):
-        return sql.SQL("CREATE INDEX {}").format(sql.SQL(new_object.sql()))
-    elif isinstance(new_object, Constraint):
-        return sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
-            sql.Identifier(new_object.table.name),
-            sql.SQL(new_object.sql()),
-        )
-    else:
-        raise RuntimeError(f"unexpected object: {new_object}")
+
+    migration_code = format_python(migration_code)
+    return migration_code
 
 
-def rename_object_sql(old_object: Object, new_object: Object) -> sql.Composable:
-    """Gets the SQL to rename the given object."""
-    if isinstance(old_object, Table):
-        return sql.SQL("ALTER TABLE {} RENAME TO {}").format(
-            sql.Identifier(old_object.name),
-            sql.Identifier(new_object.name),
-        )
-    elif isinstance(old_object, Column):
-        return sql.SQL("ALTER TABLE {} RENAME COLUMN {} TO {}").format(
-            sql.Identifier(old_object.table.name),
-            sql.Identifier(old_object.name),
-            sql.Identifier(new_object.name),
-        )
-    elif isinstance(old_object, Index):
-        return sql.SQL("ALTER INDEX {} RENAME TO {}").format(
-            sql.Identifier(old_object.name),
-            sql.Identifier(new_object.name),
-        )
-    elif isinstance(old_object, Constraint):
-        return sql.SQL("ALTER TABLE {} RENAME CONSTRAINT {} TO {}").format(
-            sql.Identifier(old_object.table.name),
-            sql.Identifier(old_object.name),
-            sql.Identifier(new_object.name),
-        )
-    else:
-        raise RuntimeError(f"unexpected object: {old_object}")
+def render_migration_op(op: MigrationOp) -> sql.Composable:
+    """Renders the given operation into a SQL operation. If not possible, returns a placeholder."""
+    if op.kind == MigrationOpKind.CREATE:
+        if isinstance(op.new_object, Table):
+            return sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(op.new_object.name))
+        elif isinstance(op.new_object, Column):
+            return sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
+                sql.Identifier(op.new_object.table.name), sql.SQL(op.new_object.sql())
+            )
+        elif isinstance(op.new_object, Index):
+            return sql.SQL("CREATE INDEX {}").format(sql.SQL(op.new_object.sql()))
+        elif isinstance(op.new_object, Constraint):
+            return sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
+                sql.Identifier(op.new_object.table.name),
+                sql.SQL(op.new_object.sql()),
+            )
 
+    elif op.kind == MigrationOpKind.RENAME:
+        if isinstance(op.old_object, Table):
+            return sql.SQL("ALTER TABLE {} RENAME TO {}").format(
+                sql.Identifier(op.old_object.name),
+                sql.Identifier(op.new_object.name),
+            )
+        elif isinstance(op.old_object, Column):
+            return sql.SQL("ALTER TABLE {} RENAME COLUMN {} TO {}").format(
+                sql.Identifier(op.old_object.table.name),
+                sql.Identifier(op.old_object.name),
+                sql.Identifier(op.new_object.name),
+            )
+        elif isinstance(op.old_object, Index):
+            return sql.SQL("ALTER INDEX {} RENAME TO {}").format(
+                sql.Identifier(op.old_object.name),
+                sql.Identifier(op.new_object.name),
+            )
+        elif isinstance(op.old_object, Constraint):
+            return sql.SQL("ALTER TABLE {} RENAME CONSTRAINT {} TO {}").format(
+                sql.Identifier(op.old_object.table.name),
+                sql.Identifier(op.old_object.name),
+                sql.Identifier(op.new_object.name),
+            )
 
-def update_object_sql(old_object: Object, new_object: Object) -> sql.Composable:
-    """Gets the SQL to alter the options on the given object (except names)."""
-    if isinstance(old_object, Column):
-        raise NotImplementedError
-    else:
-        raise RuntimeError(f"unexpected object: {old_object}")
+    elif op.kind == MigrationOpKind.UPDATE:
+        diff = op.new_object.diff_flat(op.old_object)
+        raise NotImplementedError("nocheckin: render_migration_op UPDATE")
 
+    elif op.kind == MigrationOpKind.DELETE:
+        if isinstance(op.old_object, Table):
+            return sql.SQL("DROP TABLE {}").format(sql.Identifier(op.old_object.name))
+        elif isinstance(op.old_object, Column):
+            return sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
+                sql.Identifier(op.old_object.table.name), sql.Identifier(op.old_object.name)
+            )
+        elif isinstance(op.old_object, Index):
+            return sql.SQL("DROP INDEX {}").format(sql.Identifier(op.old_object.name))
+        elif isinstance(op.old_object, Constraint):
+            return sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
+                sql.Identifier(op.old_object.table.name),
+                sql.Identifier(op.old_object.name),
+            )
 
-def delete_object_sql(old_object: Object) -> sql.Composable:
-    """Gets the SQL to delete the given object (necessarily includes nested objects)."""
-    if isinstance(old_object, Table):
-        return sql.SQL("DROP TABLE {}").format(sql.Identifier(old_object.name))
-    elif isinstance(old_object, Column):
-        return sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
-            sql.Identifier(old_object.table.name), sql.Identifier(old_object.name)
-        )
-    elif isinstance(old_object, Index):
-        return sql.SQL("DROP INDEX {}").format(sql.Identifier(old_object.name))
-    elif isinstance(old_object, Constraint):
-        return sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
-            sql.Identifier(old_object.table.name),
-            sql.Identifier(old_object.name),
-        )
-    else:
-        raise RuntimeError(f"unexpected object: {old_object}")
+    raise RuntimeError(f"unexpected migration op: {op!r}")
