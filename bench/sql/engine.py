@@ -70,7 +70,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
         if not prop.is_stored:
             continue
         column = Column(
-            source=prop.id,
+            _source=prop.id,
             name=prop.name,
             type=prop.column_type,
             is_array=prop.is_array,
@@ -91,7 +91,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             index = Index(
                 f"bench_idx_{prop.name}",
                 type=IndexType.BTREE,
-                source=prop.id,
+                _source=prop.id,
                 columns=[column.name],
             )
             indexes.append(index)
@@ -99,7 +99,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             constraint = Constraint(
                 f"bench_unique_{prop.name}",
                 type=ConstraintType.UNIQUE,
-                source=prop.id,
+                _source=prop.id,
                 columns=[column.name],
             )
             constraints.append(constraint)
@@ -112,13 +112,13 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
                 index = Index(
                     f"bench_idx_module_{prop_name}",
                     type=IndexType.BTREE,
-                    source=prop.id,
+                    _source=prop.id,
                     columns=["bench_module_id", f"bench_{prop_name}"],
                 )
                 indexes.append(index)
 
     table = Table(
-        source=node.metatype.id,
+        _source=node.metatype.id,
         name=get_bench_table_name(node.metatype),
         columns=tuple(columns),
         constraints=tuple(constraints),
@@ -178,7 +178,7 @@ def map_field_to_pg_column(field: lang.Field) -> Column:
         field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
     ) and column_type != ColumnType.JSON
     return Column(
-        source=str(field.ck),
+        _source=str(field.ck),
         name=get_field_column_name(field),
         type=column_type,
         is_array=is_array,
@@ -193,7 +193,7 @@ def map_database_to_pg_table(statement: lang.Statement) -> Table:
     constraints = []
 
     return Table(
-        source=str(statement.ck),
+        _source=str(statement.ck),
         name=get_record_table_name(statement.ck),
         columns=(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
         indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
@@ -502,6 +502,12 @@ async def _do_execute_many(
         await cur.executemany(query, params, returning=returning)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(resource, query, e) from e
+
+
+async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composable) -> list[dict[str, any]]:
+    logger.debug("pg.select_raw", query=sql_to_str(cur, query))
+    await cur.execute(query)
+    return await cur.fetchall()
 
 
 async def pg_select(
@@ -1136,7 +1142,7 @@ async def duplicate_records_in_pg(
     if source_database.ephemeral or target_database.ephemeral:
         raise ValueError(f"cannot duplicate ephemeral: {source_database!r}->{target_database!r}")
     if not target_table.columns_include(source_table):
-        raise ValueError(f"target {target_table!r} is not superset of source {source_table!r}")
+        raise ValueError(f"target {target_table!r} is not a superset of source {source_table!r}")
     target_module_id = target_database.module.id
 
     # TODO @Performance: duplicate records within same database directly in postgres

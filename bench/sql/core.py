@@ -48,7 +48,7 @@ class Object:
 
     if TYPE_CHECKING:
         name: str  # defined in subclasses as either property or field
-        source: int | str | None  # 'source' of this object (if mapped)
+        _source: int | str | None  # 'source' of this object (if mapped)
 
     def sql(self) -> str:
         """Turns this object into a SQL statement."""
@@ -181,7 +181,6 @@ class Column(TableObject):
 
     name: str
     type: ColumnType
-    source: str | int | None = None
     is_array: bool = False
     is_primary_key: bool = False
     is_foreign_key_to: str | None = None
@@ -191,6 +190,7 @@ class Column(TableObject):
     is_encrypted: bool = False  # nocheckin: handle Column.is_encrypted
     length: int | None = None
     default: str | None = None
+    _source: str | int | None = None
     _table: Union["Table", None] = None
 
     def __str__(self):
@@ -266,7 +266,7 @@ class Constraint(TableObject):
     type: ConstraintType
     columns: list[str] | None = None
     condition: str | None = None
-    source: str | int | None = None
+    _source: str | int | None = None
     _table: Union["Table", None] = None
 
     def __str__(self):
@@ -318,7 +318,7 @@ class Index(TableObject):
     type: IndexType
     columns: list[str]
     condition: str | None = None
-    source: str | int | None = None
+    _source: str | int | None = None
     _table: Union["Table", None] = None
 
     def __str__(self):
@@ -362,7 +362,7 @@ class Table(Object):
     columns: tuple[Column, ...]
     constraints: tuple[Constraint, ...] = ()
     indexes: tuple[Index, ...] = ()
-    source: str | int | None = None
+    _source: str | int | None = None
     _columns_by_name: dict[str, Column] = field(init=False)
     _primary_key: Column | None = field(init=False)
 
@@ -451,8 +451,25 @@ class PostgresColumnType(enum.StrEnum):
     XML = "xml"
 
 
-POSTGRES_TYPE_BY_COLUMN_TYPE = {
-    ColumnType.STRING: PostgresColumnType.TEXT,
+# internal postgres "udt"s (user-defined types) that we use
+POSTGRES_TYPE_BY_UDT: dict[str, PostgresColumnType] = {
+    "uuid": PostgresColumnType.UUID,
+    "varchar": PostgresColumnType.CHARACTER_VARYING,
+    "bool": PostgresColumnType.BOOLEAN,
+    "int4": PostgresColumnType.INTEGER,
+    "int8": PostgresColumnType.BIGINT,
+    "float4": PostgresColumnType.REAL,
+    "float8": PostgresColumnType.DOUBLE_PRECISION,
+    "timestamptz": PostgresColumnType.TIMESTAMP,
+    "jsonb": PostgresColumnType.JSONB,
+    "bytea": PostgresColumnType.BYTEA,
+    "text": PostgresColumnType.TEXT,
+    "numeric": PostgresColumnType.NUMERIC,
+}
+
+# our column types
+POSTGRES_TYPE_BY_COLUMN_TYPE: dict[ColumnType, PostgresColumnType] = {
+    ColumnType.STRING: PostgresColumnType.CHARACTER_VARYING,
     ColumnType.BOOLEAN: PostgresColumnType.BOOLEAN,
     ColumnType.INT: PostgresColumnType.INTEGER,
     ColumnType.BIGINT: PostgresColumnType.BIGINT,
@@ -489,16 +506,16 @@ RECORD_BASE_TABLE = Table(
     "bench_record_base",
     columns=(
         # ids should match with Node/RecordData property ids for clarity
-        Column("id", ColumnType.UUID, is_primary_key=True, source=2),
-        Column("ck", ColumnType.UUID, source=3),
-        Column("revision", ColumnType.BIGINT, default="0", source=10),
-        Column("created_at", ColumnType.DATETIME, default="now()", source=11),
-        Column("updated_at", ColumnType.DATETIME, default="now()", source=12),
-        Column("deleted_at", ColumnType.DATETIME, is_nullable=True, source=13),
+        Column("id", ColumnType.UUID, is_primary_key=True, _source=2),
+        Column("ck", ColumnType.UUID, _source=3),
+        Column("revision", ColumnType.BIGINT, default="0", _source=10),
+        Column("created_at", ColumnType.DATETIME, default="now()", _source=11),
+        Column("updated_at", ColumnType.DATETIME, default="now()", _source=12),
+        Column("deleted_at", ColumnType.DATETIME, is_nullable=True, _source=13),
         Column("created_by_id", ColumnType.UUID, is_nullable=True),
-        Column("last_edited_at", ColumnType.DATETIME, default="now()", source=16),
+        Column("last_edited_at", ColumnType.DATETIME, default="now()", _source=16),
         Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
-        Column("statement_key", ColumnType.STRING, length=16, source=20),
+        Column("statement_key", ColumnType.STRING, length=16, _source=20),
     ),
     constraints=(
         # ck + statement_key must be unique
@@ -516,9 +533,9 @@ RECORD_EPHEMERAL_TABLE = Table(
     "bench_record_ephemeral",
     columns=(
         *(c.clone() for c in RECORD_BASE_TABLE.columns),
-        Column("statement_ck", ColumnType.UUID, source=21),
-        Column("statement_id", ColumnType.UUID, source=22),
-        Column("value", ColumnType.JSON, is_nullable=True, source=23),
+        Column("statement_ck", ColumnType.UUID, _source=21),
+        Column("statement_id", ColumnType.UUID, _source=22),
+        Column("value", ColumnType.JSON, is_nullable=True, _source=23),
     ),
     constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),
     indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes),),

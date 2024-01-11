@@ -17,7 +17,7 @@ logger = structlog.get_logger(__name__)
 
 @app.command()
 @_async_to_sync_blocking
-async def psql(bench: str = None):
+async def pg(bench: str = None):
     """Open a psql shell to either the global or a Bench-local database."""
     if bench is not None:
         async with detached_session(readonly=True):
