@@ -37,7 +37,7 @@ class PolicyRule(Struct):
     # subject
     subject_authenticated: bool = struct_internal(30, default=False)
     subject_users: Optional[list["User"]] = struct_internal(
-        31, array=True, references=NodeType.USER
+        31, require=False, array=True, references=NodeType.USER
     )
     # subject_groups, subject_roles, ...
     # verb
@@ -45,8 +45,12 @@ class PolicyRule(Struct):
     verb: Optional[list[ActionKind]] = struct_internal(41)
     # object
     object_types: Optional[list[BenchType]] = struct_internal(50, default=None)
-    object_nodes: list[Node] | None = struct_internal(51, array=True, references=tuple(NodeType))
-    object_fields: list["Field"] | None = struct_internal(52, array=True, references=NodeType.FIELD)
+    object_nodes: list[Node] | None = struct_internal(
+        51, require=False, array=True, references=tuple(NodeType)
+    )
+    object_fields: list["Field"] | None = struct_internal(
+        52, require=False, array=True, references=NodeType.FIELD
+    )
     # [condition]
     condition: Optional["Expression"] = struct_internal(
         60, default=None, struct_t=StructType.EXPRESSION

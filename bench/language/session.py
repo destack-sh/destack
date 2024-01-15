@@ -70,17 +70,17 @@ class LogEntry(Struct):
     """An entry. In a log."""
 
     id: UUID = struct_internal(2, default_factory=uuid4)
-    module: Module = struct_internal(5, array=False, references=NodeType.MODULE)
-    bench: Module = struct_internal(6, array=False, references=NodeType.BENCH)
+    module: Module = struct_internal(5, require=True, array=False, references=NodeType.MODULE)
+    bench: Module = struct_internal(6, require=True, array=False, references=NodeType.BENCH)
     created_at: datetime = struct_internal(32, default_factory=utcnow_with_tz)
     stream: str = struct_internal(33)
-    session: "Session" = struct_internal(34, array=False, references=NodeType.SESSION)
+    session: "Session" = struct_internal(34, require=False, array=True, references=NodeType.SESSION)
     level: Optional[str] = struct_internal(35, default=None)
     logger: Optional[str] = struct_internal(36, default=None)
     statement: Optional["Statement"] = struct_internal(
-        37, array=False, references=NodeType.STATEMENT
+        37, require=False, array=False, references=NodeType.STATEMENT
     )
-    run: Optional["Run"] = struct_internal(38, array=False, references=NodeType.RUN)
+    run: Optional["Run"] = struct_internal(38, require=False, array=False, references=NodeType.RUN)
     message: Optional[str] = struct_internal(39, default=None)
     value: dict[str, Any] | None = struct_internal(
         40,
@@ -125,7 +125,9 @@ class Session(ScopeNode):
 
     parent: Module = node_parent(4, NodeType.MODULE)
     policies: list["Policy"] | None = struct_internal(30, default=None, struct_t=StructType.POLICY)
-    worker: Optional["Worker"] = struct_internal(31, array=False, references=NodeType.WORKER)
+    worker: Optional["Worker"] = struct_internal(
+        31, require=False, array=False, references=NodeType.WORKER
+    )
     worker_process_id: Optional[str] = struct_internal(32, default=None)
     trigger_type: Optional[TriggerType] = struct_internal(33, default=None)
     trigger_id: Optional[UUID] = struct_internal(34, default=None)

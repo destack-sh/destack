@@ -1,7 +1,7 @@
 import dataclasses
 import enum
 import hashlib
-from dataclasses import dataclass, field, is_dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Union
@@ -19,13 +19,13 @@ def stable_hash(*args) -> int:
     hasher = hashlib.sha256()
 
     def update_hash(value):
-        if is_dataclass(value):
-            hasher.update(str(value.__hash__()).encode())
-        elif isinstance(value, list):
+        if isinstance(value, list):
             for item in value:
                 update_hash(item)
-        else:
+        elif isinstance(value, (str, int, enum.Enum, type(None))):
             hasher.update(str(value).encode())
+        else:
+            raise ValueError(f"cannot hash {value!r}")
 
     for arg in args:
         update_hash(arg)
@@ -100,7 +100,7 @@ class Object:
 
     def hash_flat(self) -> int:
         """Get a stable hash of this object's data attributes, ignoring nested objects."""
-        return stable_hash(getattr(self, field_name) for field_name in self.FLAT_DATA_FIELDS)
+        return stable_hash(*(getattr(self, field_name) for field_name in self.FLAT_DATA_FIELDS))
 
     def diff_flat(self, other: "TableObject") -> dict[str, Any]:
         """Get a diff of this object's data attributes, ignoring nested objects."""
@@ -110,6 +110,15 @@ class Object:
             for field_name in self.FLAT_DATA_FIELDS
             if getattr(self, field_name) != getattr(other, field_name)
         }
+
+    def diff_keys(self, other: "TableObject") -> tuple[str, ...]:
+        """Get the keys (field names) where this object differs from another."""
+        assert type(self) == type(other), f"cannot diff {self!r} with {other!r}"
+        return tuple(
+            field_name
+            for field_name in self.FLAT_DATA_FIELDS
+            if getattr(self, field_name) != getattr(other, field_name)
+        )
 
 
 @dataclass
@@ -221,9 +230,6 @@ class Column(TableObject):
     def __repr__(self):
         return f"<Column {self}>"
 
-    def __eq__(self, other):
-        return hash(self) == hash(other)
-
     def sql(self) -> str:
         if self.type == ColumnType.STRING and self.length is not None:
             pg_type = f"VARCHAR({self.length})"
@@ -269,7 +275,7 @@ class Constraint(TableObject):
 
     inner_name: str
     type: ConstraintType
-    columns: list[str] | None = None
+    columns: tuple[str, ...] | None = None
     condition: str | None = None
     _source: str | int | None = None
     _table: Union["Table", None] = None
@@ -280,9 +286,6 @@ class Constraint(TableObject):
 
     def __repr__(self):
         return f"<Constraint {self}>"
-
-    def __eq__(self, other):
-        return hash(self) == hash(other)
 
     @property
     def name(self):
@@ -319,7 +322,7 @@ class Index(TableObject):
 
     inner_name: str
     type: IndexType
-    columns: list[str]
+    columns: tuple[str, ...]
     condition: str | None = None
     _source: str | int | None = None
     _table: Union["Table", None] = None
@@ -330,9 +333,6 @@ class Index(TableObject):
 
     def __repr__(self):
         return f"<Index {self}>"
-
-    def __eq__(self, other):
-        return hash(self) == hash(other)
 
     @property
     def name(self):
@@ -393,9 +393,6 @@ class Table(TableObject):
 
     def __hash__(self):
         return stable_hash(self.kind, self.name, self.columns, self.constraints, self.indexes)
-
-    def __eq__(self, other):
-        return hash(self) == hash(other)
 
     @property
     def table(self) -> "Table":
@@ -529,14 +526,14 @@ RECORD_BASE_TABLE = Table(
     constraints=(
         # ck + statement_key must be unique
         Constraint(
-            "unique_ck_statement_key", ConstraintType.UNIQUE, columns=["ck", "statement_key"]
+            "unique_ck_statement_key", ConstraintType.UNIQUE, columns=("ck", "statement_key")
         ),
     ),
     indexes=(
         # for fetching all records of a database
-        Index("statement_key_deleted_at", IndexType.BTREE, columns=["statement_key", "deleted_at"]),
+        Index("statement_key_deleted_at", IndexType.BTREE, columns=("statement_key", "deleted_at")),
         Index(
-            "statement_key_archive_at", IndexType.BTREE, columns=["statement_key", "archived_at"]
+            "statement_key_archive_at", IndexType.BTREE, columns=("statement_key", "archived_at")
         ),
     ),
 )

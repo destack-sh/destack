@@ -53,6 +53,7 @@ class NodeType(ProtoStrEnum):
     RUN = "RUN", 51
     HALT = "HALT", 52
     SIGNAL = "SIGNAL", 53
+    # CURSOR = "CURSOR", 54 # into signal
 
     # worker
     WORKER_SET = "WORKER_SET", 60

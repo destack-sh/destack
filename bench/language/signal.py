@@ -7,7 +7,7 @@ from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 
 if TYPE_CHECKING:
-    from bench.language import Run, Statement
+    from bench.language import Statement
 
 
 @node(NodeType.SIGNAL, local=True, index_in_os=True)
@@ -16,12 +16,12 @@ class Signal(HasValue):
 
     parent: Module = node_parent(4, NodeType.MODULE)
     type: Optional["Statement"] = struct_internal(
-        30, array=False, references=NodeType.STATEMENT, index_in_pg=True
+        30, require=False, array=False, references=NodeType.STATEMENT, index_in_pg=True
     )
     value: Any | None = struct_property(
         31, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
     )
-    source_run: Optional["Run"] = struct_internal(32, array=False, references=NodeType.RUN)
-    source_statement: Optional["Statement"] = struct_internal(
-        33, array=False, references=NodeType.STATEMENT
-    )
+    # source_run: Optional["Run"] = struct_internal(32, require=False, array=False, references=NodeType.RUN)
+    # source_statement: Optional["Statement"] = struct_internal(
+    #     33, require=False, array=False, references=NodeType.STATEMENT
+    # )

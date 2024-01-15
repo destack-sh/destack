@@ -114,17 +114,24 @@ class Run(ScopeNode, HasValue):
 
     parent: Union["Session", "Run"] = node_parent(4, NodeType.SESSION, NodeType.RUN)
     session: "Session" = node_ancestor(
-        30, NodeType.SESSION, store=True, wire=True, index_in_pg=True
+        30, NodeType.SESSION, require=True, store=True, wire=True, index_in_pg=True
     )
     root: Optional["Run"] = node_ancestor(
-        31, NodeType.RUN, nearest=False, include_self=False, store=True, wire=True, index_in_pg=True
+        31,
+        NodeType.RUN,
+        require=False,
+        nearest=False,
+        include_self=False,
+        store=True,
+        wire=True,
+        index_in_pg=True,
     )
     worker: Optional["Worker"] = struct_internal(
-        32, index_in_pg=True, array=False, references=NodeType.WORKER
+        32, index_in_pg=True, require=False, array=False, references=NodeType.WORKER
     )
     worker_process_id: Optional[UUID] = struct_internal(33)
     node: Optional["Statement"] = struct_internal(
-        34, references=NodeType.STATEMENT, array=False, index_in_pg=True
+        34, references=NodeType.STATEMENT, require=False, array=False, index_in_pg=True
     )
     node_path: Optional[str] = struct_internal(35, default=None)
     scheduled_at: Optional[datetime] = struct_internal(36, default=None)
@@ -253,7 +260,7 @@ class RunError(Struct, Exception):
     type: str = struct_internal(31)
     message: Optional[str] = struct_internal(32, default=None)
     statement: Optional["Statement"] = struct_internal(
-        33, array=False, references=NodeType.STATEMENT
+        33, require=False, array=False, references=NodeType.STATEMENT
     )
     traceback: list[RunCodeFrame] = struct_internal(
         34, default_factory=list, struct_t=StructType.RUN_CODE_FRAME
@@ -283,5 +290,5 @@ class Halt(Node):
     """A resumable interruption in the execution (Run) of a statement."""
 
     parent: "Run" = node_parent(4, NodeType.RUN)
-    session: "Session" = node_ancestor(30, NodeType.SESSION, store=True)
+    session: "Session" = node_ancestor(30, NodeType.SESSION, require=True, store=True)
     # (placeholder)
