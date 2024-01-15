@@ -28,7 +28,6 @@ from bench.sql.core import (
     POSTGRES_TYPE_BY_UDT,
     TableObject,
     ObjectKind,
-    ColumnType,
 )
 from bench.sql.engine import SqlUndefinedObject, pg_select, pg_select_raw, pg_upsert
 from bench.utils.utils import format_python
@@ -302,6 +301,13 @@ def generate_migration_ops(
         new_id = _to_id(new_object)
         old_object = old_objects_by_id.get(new_id)
         if old_object is None:
+            # create columns only if parent table isn't new
+            if (
+                new_object.kind == ObjectKind.COLUMN
+                and _to_id(new_object.table) in new_objects_by_id
+                and _to_id(new_object.table) not in old_objects_by_id
+            ):
+                continue
             ops.append(MigrationOp(MigrationOpKind.CREATE, new_object, None))
         elif new_object.name != old_object.name:
             ops.append(MigrationOp(MigrationOpKind.RENAME, new_object, old_object))
@@ -319,7 +325,7 @@ def generate_migration_ops(
             if old_object.kind == ObjectKind.TABLE:
                 deleted_tables.add(old_id)
             elif _to_id(old_object.table) in deleted_tables:
-                continue  # skip, parent deleted
+                continue  # skip, table deleted
             ops.append(MigrationOp(MigrationOpKind.DELETE, None, old_object))
 
     return ops
@@ -357,28 +363,80 @@ def generate_migration_code(
         ("upgrade_local", local_ops),
         ("downgrade_local", local_ops_inverse),
     ]:
-        lines: list[str] = []
-        if ops is not None:  # migration is implemented
-            prev_table: Optional[Table] = None
-            for op in ops:
-                sql = _render_migration_op(op).as_string(cur).strip()
-                if "\n" in sql:
-                    sql = f'"""\n{sql}\n"""'
-                else:
-                    sql = f"'{sql}'"
-                if prev_table is None or prev_table is not op.table:
-                    lines.append(f"\n# {op.table.name}")
-                    prev_table = op.table
-                lines.append(f"await cur.execute({sql})")
-        else:  # migration skipped, raise if called
-            lines.append("raise NotImplementedError()")
-        method_body = "\n".join(lines)
+        method_body = _render_migration_body(cur, ops)
         method_placeholder = f"    pass  # <{method_name}>"
         assert method_placeholder in migration_code, f"method placeholder not found: {method_name}"
         migration_code = migration_code.replace(method_placeholder, indent(method_body, "    "))
 
     migration_code = format_python(migration_code)
     return migration_code
+
+
+def _render_migration_body(cur: psycopg.AsyncCursor, ops: list[MigrationOp] | None) -> str:
+    """Renders migration operations into an executable method body."""
+
+    if ops is None:
+        return "raise NotImplementedError()"
+
+    lines: list[str] = []
+    current_table: Optional[Table] = None
+    current_statements: list[str] = []
+
+    def _emit_alter(table: Table, statements: list[str]) -> None:
+        alter_content = ",\n    ".join(statements)
+        lines.append(f'"""\n    ALTER TABLE {table.name}    \n    {alter_content}\n"""')
+
+    def _emit(table: Table, statements: list[str]) -> None:
+        # batch successive ALTER TABLE statements, otherwise leave them as-is
+        lines.append(f"\n# {table.name}")
+        current_alter_statements: list[str] = []
+        for i, stmt in enumerate(statements):
+            if stmt.startswith(f"'ALTER TABLE {table.name}"):
+                current_alter_statements.append(
+                    stmt[1:-1].replace(f"ALTER TABLE {table.name} ", "")
+                )
+            elif stmt.startswith(f'"""\nALTER TABLE {table.name}'):
+                current_alter_statements.append(
+                    stmt[4:-4].replace(f"ALTER TABLE {table.name} ", "")
+                )
+            else:
+                if current_alter_statements:
+                    _emit_alter(table, current_alter_statements)
+                    current_alter_statements = []
+                lines.append(stmt)
+
+        if current_alter_statements:
+            _emit_alter(table, current_alter_statements)
+
+    for op in ops:
+        # render statements
+        stmt = _render_migration_op(op)
+        if stmt is None:
+            continue
+        if isinstance(stmt, sql.Composed):
+            stmt = stmt.as_string(cur).strip()
+        else:
+            stmt = str(stmt).strip()
+        if "\n" in stmt:
+            stmt = f'"""\n{stmt}\n"""'
+        else:
+            if "'" in stmt:
+                stmt = stmt.replace("'", "\\'")
+            stmt = f"'{stmt}'"
+
+        if op.table != current_table:
+            if current_statements:
+                _emit(current_table, current_statements)
+            current_table = op.table
+            current_statements = []
+        current_statements.append(stmt)
+
+    if current_table and current_statements:
+        _emit(current_table, current_statements)
+
+    lines = [f"await cur.execute({line})" if "#" not in line else line for line in lines]
+    method_body = "\n".join(lines)
+    return method_body
 
 
 def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = False):
@@ -392,157 +450,100 @@ def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = Fa
     return migration_path
 
 
-def _render_migration_op(op: MigrationOp) -> Optional[sql.Composable]:
+def _render_migration_op(op: MigrationOp) -> Optional[sql.Composable | str]:
     """
-    Renders the given operation into a SQL operation. If not possible, returns a placeholder.
-    This is generally flat, except when creating tables, where we also create columns & constraints.
+    Renders the given operation into a SQL operation.
+    Generally 'flat' (does not include nested objects) except for table create.
     """
     if op.kind == MigrationOpKind.CREATE:
         if isinstance(op.new_object, Table):
-            return sql.SQL("CREATE TABLE {} ()").format(sql.Identifier(op.new_object.name))
+            table_contents = ",\n".join(f"    {col.sql()}" for col in op.new_object.columns)
+            return f"CREATE TABLE {op.new_object.name} (\n{table_contents}\n)"
         elif isinstance(op.new_object, Column):
-            return sql.SQL("ALTER TABLE {} ADD COLUMN {}").format(
-                sql.Identifier(op.new_object.table.name), sql.SQL(op.new_object.sql())
-            )
+            return f"ALTER TABLE {op.new_object.table.name} ADD COLUMN {op.new_object.name} {op.new_object.type_sql()}"
         elif isinstance(op.new_object, Index):
-            return sql.SQL("CREATE INDEX {}").format(sql.SQL(op.new_object.sql()))
+            return f"CREATE INDEX {op.new_object.sql()}"
         elif isinstance(op.new_object, Constraint):
-            return sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
-                sql.Identifier(op.new_object.table.name),
-                sql.SQL(op.new_object.sql()),
-            )
+            return f"ALTER TABLE {op.new_object.table.name} ADD CONSTRAINT {op.new_object.sql()}"
 
     elif op.kind == MigrationOpKind.RENAME:
         if isinstance(op.old_object, Table):
-            return sql.SQL("ALTER TABLE {} RENAME TO {}").format(
-                sql.Identifier(op.old_object.name),
-                sql.Identifier(op.new_object.name),
-            )
+            return f"ALTER TABLE {op.old_object.name} RENAME TO {op.new_object.name}"
         elif isinstance(op.old_object, Column):
-            return sql.SQL("ALTER TABLE {} RENAME COLUMN {} TO {}").format(
-                sql.Identifier(op.old_object.table.name),
-                sql.Identifier(op.old_object.name),
-                sql.Identifier(op.new_object.name),
-            )
+            return f"ALTER TABLE {op.old_object.table.name} RENAME COLUMN {op.old_object.name} TO {op.new_object.name}"
         elif isinstance(op.old_object, Index):
-            return sql.SQL("ALTER INDEX {} RENAME TO {}").format(
-                sql.Identifier(op.old_object.name),
-                sql.Identifier(op.new_object.name),
-            )
+            return f"ALTER INDEX {op.old_object.name} RENAME TO {op.new_object.name}"
         elif isinstance(op.old_object, Constraint):
-            return sql.SQL("ALTER TABLE {} RENAME CONSTRAINT {} TO {}").format(
-                sql.Identifier(op.old_object.table.name),
-                sql.Identifier(op.old_object.name),
-                sql.Identifier(op.new_object.name),
-            )
+            return f"ALTER TABLE {op.old_object.table.name} RENAME CONSTRAINT {op.old_object.name} TO {op.new_object.name}"
 
     elif op.kind == MigrationOpKind.UPDATE:
         if isinstance(op.old_object, Table):
             # there are no table properties we can update (outside name, which is handled by rename)
             raise NotImplementedError(f"cannot render {op!r}")
         elif isinstance(op.old_object, Column):
-            updates: list[sql.Composable] = []
+            assert isinstance(op.new_object, Column), f"expected a column: {op.new_object!r}"
+            updates: list[str] = []
             if "is_unique" in op.diff_keys:
                 pass  # noop, already handled by generated index
             if "is_encrypted" in op.diff_keys:
-                assert op.old_object.type == ColumnType.BYTES, f"expected bytes column: {op!r}"
                 pass  # noop, handled in read/write logic
             if any(k in op.diff_keys for k in ("type", "is_array", "length")):
                 # change type
                 updates.append(
-                    sql.SQL("ALTER TABLE {} ALTER COLUMN {} TYPE {}").format(
-                        sql.Identifier(op.old_object.table.name),
-                        sql.Identifier(op.old_object.name),
-                        sql.SQL(op.new_object.sql()),
-                    )
+                    f" ALTER COLUMN {op.old_object.name}" f" TYPE {op.new_object.type_sql()}"
                 )
             if "default" in op.diff_keys:
                 # change default
                 updates.append(
-                    sql.SQL("ALTER TABLE {} ALTER COLUMN {} SET DEFAULT {}").format(
-                        sql.Identifier(op.old_object.table.name),
-                        sql.Identifier(op.old_object.name),
-                        sql.SQL(op.new_object.sql()),
-                    )
+                    f" ALTER COLUMN {op.old_object.name}" f" SET DEFAULT {op.new_object.default}"
                 )
             if "is_foreign_key_to" in op.diff_keys or "on_delete" in op.diff_keys:
                 # drop and recreate foreign key constraint
                 if op.old_object.is_foreign_key_to:
-                    drop_fk_sql = sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
-                        sql.Identifier(op.old_object.table.name),
-                        sql.SQL(
-                            "(SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = {} AND constraint_type = 'FOREIGN KEY' AND column_name = {})"
-                        ).format(
-                            sql.Literal(op.old_object.table.name),
-                            sql.Literal(op.old_object.name),
-                        ),
+                    updates.append(
+                        f" DROP CONSTRAINT"
+                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'FOREIGN KEY' AND column_name = '{op.old_object.name})'"
                     )
-                    updates.append(drop_fk_sql)
-                assert isinstance(op.new_object, Column), f"expected a column: {op.new_object!r}"
                 if op.new_object.is_foreign_key_to:
-                    add_fk_sql = sql.SQL(
-                        "ALTER TABLE {} ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES {}({}) ON DELETE {}"
-                    ).format(
-                        sql.Identifier(op.new_object.table.name),
-                        sql.Identifier(
-                            "fk_" + op.new_object.name + "_" + op.new_object.is_foreign_key_to
-                        ),
-                        sql.Identifier(op.new_object.name),
-                        sql.Identifier(op.new_object.is_foreign_key_to),
-                        sql.Identifier("id"),  # all tables have an id column
-                        sql.SQL(op.new_object.on_delete.value),
+                    updates.append(
+                        f" ADD CONSTRAINT {op.new_object.name}"
+                        f" FOREIGN KEY ({op.new_object.name})"
+                        f" REFERENCES {op.new_object.is_foreign_key_to}(id) ON DELETE {op.new_object.on_delete.value}"
                     )
-                    updates.append(add_fk_sql)
             if "is_primary_key" in op.diff_keys:
                 if op.old_object.is_primary_key:  # drop it
                     updates.append(
-                        sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
-                            sql.Identifier(op.old_object.table.name),
-                            sql.SQL(
-                                "(SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = {} AND constraint_type = 'PRIMARY KEY')"
-                            ).format(sql.Literal(op.old_object.table.name)),
-                        )
+                        f" DROP CONSTRAINT"
+                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'PRIMARY KEY' AND column_name = '{op.old_object.name}')"
                     )
                 else:  # create it
                     updates.append(
-                        sql.SQL("ALTER TABLE {} ADD CONSTRAINT {} PRIMARY KEY ({})").format(
-                            sql.Identifier(op.new_object.table.name),
-                            sql.Identifier("pk_" + op.new_object.table.name),
-                            sql.Identifier(op.new_object.name),
-                        )
+                        f" ADD CONSTRAINT {op.new_object.name}"
+                        f" PRIMARY KEY ({op.new_object.name})"
                     )
-            return sql.Composed(updates)
+            if not updates:
+                return None
+            return f"ALTER TABLE {op.old_object.table.name}" + ",\n".join(updates)
         elif isinstance(op.old_object, Index):
             # drop and recreate
-            drop = sql.SQL("DROP INDEX {}").format(sql.Identifier(op.old_object.name))
-            create = sql.SQL("CREATE INDEX {}").format(sql.SQL(op.new_object.sql()))
-            return sql.Composed([drop, create])
+            drop = f"DROP INDEX {op.old_object.name}"
+            create = f"CREATE INDEX {op.new_object.sql()}"
+            return "\n".join([drop, create])
         elif isinstance(op.old_object, Constraint):
             # drop and recreate
-            drop = sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
-                sql.Identifier(op.old_object.table.name),
-                sql.Identifier(op.old_object.name),
-            )
-            create = sql.SQL("ALTER TABLE {} ADD CONSTRAINT {}").format(
-                sql.Identifier(op.new_object.table.name),
-                sql.SQL(op.new_object.sql()),
-            )
-            return sql.Composed([drop, create])
+            drop = f"ALTER TABLE {op.old_object.table.name} DROP CONSTRAINT {op.old_object.name}"
+            create = f"ALTER TABLE {op.new_object.table.name} ADD CONSTRAINT {op.new_object.sql()}"
+            return "\n".join([drop, create])
 
     elif op.kind == MigrationOpKind.DELETE:
         if isinstance(op.old_object, Table):
-            return sql.SQL("DROP TABLE {}").format(sql.Identifier(op.old_object.name))
+            return f"DROP TABLE {op.old_object.name}"
         elif isinstance(op.old_object, Column):
-            return sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
-                sql.Identifier(op.old_object.table.name), sql.Identifier(op.old_object.name)
-            )
+            return f"ALTER TABLE {op.old_object.table.name} DROP COLUMN {op.old_object.name}"
         elif isinstance(op.old_object, Index):
-            return sql.SQL("DROP INDEX {}").format(sql.Identifier(op.old_object.name))
+            return f"DROP INDEX IF EXISTS {op.old_object.name}"
         elif isinstance(op.old_object, Constraint):
-            return sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
-                sql.Identifier(op.old_object.table.name),
-                sql.Identifier(op.old_object.name),
-            )
+            return f"ALTER TABLE {op.old_object.table.name} DROP CONSTRAINT IF EXISTS {op.old_object.name}"
 
     raise RuntimeError(f"unexpected migration op: {op!r}")
 

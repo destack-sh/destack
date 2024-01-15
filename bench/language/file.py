@@ -32,7 +32,7 @@ class File(ScopeNode, HasTags):
         20, default_factory=list, struct_t=StructType.POLICY
     )
     name: Optional[str] = struct_property(30, validate=validate_name)
-    order_key: Optional[str] = struct_internal(31, default=None, unique=True)
+    order_key: Optional[str] = struct_internal(31, default=None)
 
     children: NodeList[Union["File", "Statement"]] = node_children(
         NodeType.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
