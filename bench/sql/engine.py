@@ -82,7 +82,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             and prop.name.endswith("_id")
             and node.__is_local__ == NODE_CLASS_BY_NODE_TYPE[prop.references[0]].__is_local__
         ):
-            assert len(prop.references) == 1, f"prop {prop!r} has multiple references"
+            assert len(prop.references) == 1, f"stored prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_bench_table_name(prop.references[0])
             assert isinstance(prop.reference_on_delete, CascadeAction)
             column.on_delete = prop.reference_on_delete

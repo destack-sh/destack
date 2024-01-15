@@ -14,13 +14,13 @@ from typing import (
     Callable,
     ClassVar,
     Collection,
-    Optional,
-    Union,
     ForwardRef,
-    dataclass_transform,
-    TypeVar,
     Iterable,
+    Optional,
+    TypeVar,
+    Union,
     cast,
+    dataclass_transform,
 )
 from uuid import UUID, uuid4
 
@@ -31,36 +31,39 @@ from bench.language.const import (
     IN_BENCH_NODE_TYPES,
     IN_MODULE_NODE_TYPES,
     INTERP_NODE_TYPES,
+    NODE_TYPES,
+    NS,
+    STRUCT_TYPES,
+    UNSET,
     UUID_NAMESPACE,
+    BenchStatus,
     BenchType,
     IssueKind,
     IssueType,
+    LookupBy,
     ModuleReference,
     NodePath,
+    NodeRelationType,
+    NodeSource,
+    NodeStatus,
     NodeTrackingLevel,
     NodeType,
+    NRel,
     StatementType,
     StructType,
     TypeHint,
     TypeTag,
     parse_absolute_node_reference,
     parse_node_path,
-    UNSET,
-    NodeRelationType,
-    NRel,
-    LookupBy,
-    NodeStatus,
-    NS,
-    BenchStatus,
 )
 from bench.language.link import (
-    NodeListBase,
-    NodeList,
-    _NodeExpressionBase,
-    _FieldExpressionBase,
-    on_issue_raise,
     _NC,
+    NodeList,
+    NodeListBase,
+    _FieldExpressionBase,
     _InterpChange,
+    _NodeExpressionBase,
+    on_issue_raise,
 )
 from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase
 from bench.language.validation import (
@@ -70,7 +73,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, SomeNodeData
+from bench.proto.wire import AbsoluteNodePointer, EditData, SomeNodeData
 from bench.sql.core import CascadeAction, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import did_you_mean_str, get_subclasses, strip_py_type, try_tuple
@@ -140,7 +143,7 @@ class Property(_FieldExpressionBase):
     is_encrypted: bool = False  # encrypt at rest (only node properties)
     struct_type: StructType | None = None  # for struct properties
     references: tuple[NodeType, ...] | None = None  # for reference relations
-    reference_key: Optional["Property"] = None  # for reference relations
+    reference_ptr: Optional["Property"] = None  # for reference relations
     reference_source: Optional["Property"] = None  # for reference relations (reverse)
     reference_on_delete: CascadeAction | None = UNSET
     parents: tuple[NodeType, ...] | None = None
@@ -283,7 +286,7 @@ class Property(_FieldExpressionBase):
                 "id",
                 "component",
                 "ignore_conflicts_with",
-                "reference_key",
+                "reference_ptr",
                 "reference_source",
                 "py_type_raw",
                 "py_type_stripped",
@@ -324,9 +327,9 @@ class Property(_FieldExpressionBase):
             # resolve manually if needed
             if isinstance(py_type, (str, ForwardRef)):
                 py_type = py_type.__forward_arg__ if not isinstance(py_type, str) else py_type
-                if py_type not in _BENCH_TYPES_BY_NAME:
+                if py_type not in _BENCH_CLASSES_BY_NAME:
                     raise ValueError(f"cannot resolve type for {self!r}: {py_type!r}")
-                py_type = _BENCH_TYPES_BY_NAME[py_type]
+                py_type = _BENCH_CLASSES_BY_NAME[py_type]
             self.py_type_stripped = py_type
             # update info from annotation
             if self.is_array is UNSET:
@@ -351,18 +354,21 @@ class Property(_FieldExpressionBase):
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
                 self.column_type = column_type
 
-    def contribute_properties(self) -> tuple["Property"]:
+    def _contribute(self) -> tuple["Property"]:
         """Contribute any extra properties required by this property."""
+        # TODO @Cleanup: Property._contribute mostly duplicates the ref->ptr logic x3
 
         if self.parents is not None:
             # special reference to parent (via id, resolved before instantiating)
-            # in wire we unify into parent_id, for store split per parent_<type>_id for integrity
-            wired_id_prop = Property(
+            #  for wire we unify into parent as an absolute pointer
+            #  for store split per parent_<type>_id for integrity
+            wired_ptr_prop = Property(
                 id=self.id,  # re-use id, self is not stored
-                name=self.name + "_id",
+                name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw=UUID,
+                py_type_raw=AbsoluteNodePointer,
                 default=None,
+                parents=self.parents,
                 reference_source=self,
                 is_required=self.is_required,
                 is_internal=True,
@@ -370,15 +376,16 @@ class Property(_FieldExpressionBase):
                 is_wired=True,
                 is_stored=False,
                 is_array=False,
-                column_type=ColumnType.UUID,
+                column_type=None,
             )
-            parent_id_props: list[Property] = []
+            flattened_stored_props: list[Property] = []
             for parent_node_type in self.parents:
                 parent_id_prop = Property(
                     id=self.id,
                     name=self.name + f"_{parent_node_type.name.lower()}_id",
                     component=self.component,
                     py_type_raw=UUID,
+                    parents=(parent_node_type,),
                     references=(parent_node_type,),
                     reference_source=self,
                     reference_on_delete=CascadeAction.CASCADE,
@@ -391,17 +398,17 @@ class Property(_FieldExpressionBase):
                     is_indexed_in_pg=self.is_indexed_in_pg,
                     column_type=ColumnType.UUID,
                 )
-                parent_id_props.append(parent_id_prop)
-            self.reference_key = wired_id_prop
-            return (wired_id_prop, *parent_id_props)
+                flattened_stored_props.append(parent_id_prop)
+            self.reference_ptr = wired_ptr_prop
+            return (wired_ptr_prop, *flattened_stored_props)
         elif self.ancestor is not None:
             assert self.is_stored is not UNSET, f"must set is_stored on {self!r}"
             assert self.is_wired is not UNSET, f"must set is_wired on {self!r}"
-            ancestor_id_prop = Property(
+            wired_ptr_prop = Property(
                 id=self.id,
-                name=self.name + "_id",
+                name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw=UUID,
+                py_type_raw=AbsoluteNodePointer,
                 references=(self.ancestor,),
                 reference_source=self,
                 reference_on_delete=CascadeAction.CASCADE,
@@ -409,26 +416,45 @@ class Property(_FieldExpressionBase):
                 is_internal=True,
                 is_computed=True,
                 is_wired=self.is_wired,
-                is_stored=self.is_stored,
+                is_stored=False,
                 is_array=False,
                 is_indexed_in_pg=self.is_indexed_in_pg,
-                column_type=ColumnType.UUID,
+                column_type=None,
             )
-            self.reference_key = ancestor_id_prop
-            if self.is_stored or self.is_wired:
+            self.reference_ptr = wired_ptr_prop
+            if self.is_stored:
                 self.is_stored = False  # the key is stored instead
-                if self.is_wired is True:
-                    self.is_wired = False  # the key is wired instead
-                return (ancestor_id_prop,)
+                ancestor_id_prop = Property(
+                    id=self.id,
+                    name=self.name + "_id",
+                    component=self.component,
+                    py_type_raw=UUID,
+                    references=(self.ancestor,),
+                    reference_source=self,
+                    reference_on_delete=CascadeAction.CASCADE,
+                    is_required=self.is_required,
+                    is_internal=True,
+                    is_runtime=False,
+                    is_wired=False,
+                    is_stored=True,
+                    is_array=False,
+                    is_indexed_in_pg=self.is_indexed_in_pg,
+                    column_type=ColumnType.UUID,
+                )
+            else:
+                ancestor_id_prop = None
+            if self.is_wired is True:
+                self.is_wired = False  # the key is wired instead
+            return (wired_ptr_prop, ancestor_id_prop) if ancestor_id_prop else (wired_ptr_prop,)
         elif self.references is not None:
             # regular reference to node (via ck for in-module nodes, id otherwise)
             assert self.is_array is not UNSET, f"must set is_array on {self!r}"
-            #  (move contribute_properties to finalization step)
-            self.reference_key = Property(
+            # like with parent id, we wire this as a pointer and store per reference type for integrity
+            wired_ptr_prop = Property(
                 id=self.id,
-                name=self.name + "_ck",  # we merge id/ck into 'ck' for wire/runtime
+                name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw=UUID,
+                py_type_raw=AbsoluteNodePointer,
                 references=self.references,
                 reference_source=self,
                 is_required=self.is_required,
@@ -438,19 +464,17 @@ class Property(_FieldExpressionBase):
                 is_stored=False,
                 is_array=self.is_array,
                 is_indexed_in_pg=self.is_indexed_in_pg,
-                column_type=ColumnType.UUID,
+                column_type=None,
             )
-            reference_props = []
+            self.reference_ptr = wired_ptr_prop
+            flattened_stored_props = []
             for ref_type in self.references:
                 store_as_id = ref_type not in IN_MODULE_NODE_TYPES
                 prop_postfix = "id" if store_as_id else "ck"
-                if self.name == ref_type.name.lower():
+                if self.name == ref_type.name.lower():  # reduce clutter if type is unambiguous
                     prop_name = f"{self.name}_{prop_postfix}"
                 else:
                     prop_name = f"{self.name}_{ref_type.name.lower()}_{prop_postfix}"
-                if prop_name == self.reference_key.name:
-                    self.reference_key.is_stored = True
-                    continue  # no need for a special store-only property
                 reference_prop = Property(
                     id=self.id,
                     name=prop_name,
@@ -459,7 +483,7 @@ class Property(_FieldExpressionBase):
                     references=(ref_type,),
                     reference_source=self,
                     reference_on_delete=CascadeAction.SET_NULL,
-                    is_required=self.is_required,
+                    is_required=False,
                     is_internal=True,
                     is_runtime=False,
                     is_wired=False,
@@ -468,8 +492,8 @@ class Property(_FieldExpressionBase):
                     is_indexed_in_pg=self.is_indexed_in_pg,
                     column_type=ColumnType.UUID,
                 )
-                reference_props.append(reference_prop)
-            return (self.reference_key, *reference_props)
+                flattened_stored_props.append(reference_prop)
+            return (self.reference_ptr, *flattened_stored_props)
 
         return tuple()
 
@@ -807,7 +831,7 @@ def _process_struct_base_cls(
         prop.py_type_raw = cls.__annotations__.get(name, None)
         properties_by_name[name] = prop
         # collect any extra contributed properties
-        for p in prop.contribute_properties():
+        for p in prop._contribute():
             if p.name in properties_by_name:
                 raise ValueError(
                     f"property conflict '{p.name}': {p!r}, {properties_by_name[prop.name]!r}"
@@ -827,7 +851,7 @@ def _process_struct_base_cls(
         for name, prop in component.__own_properties__.items():
             existing = properties_by_name.get(name, None)
             # override parent & id with more specific values
-            if existing is None or name == "parent" or existing.id is UNSET:
+            if existing is None or name.startswith("parent") or existing.id is UNSET:
                 if prop.is_static or component not in dynamic_components:
                     properties_by_name[name] = prop
             elif not prop.equals_type(existing):
@@ -844,11 +868,13 @@ def _process_struct_base_cls(
     # create class (map to dataclass)
     for name, prop in list(properties_by_name.items()):
         # map property to class attribute or dataclass field
-        if not is_in_bench and prop.name == "bench" or not is_in_module and prop.name == "module":
+        if ((not is_in_bench or cls.__name__ == "Bench") and prop.name == "bench") or (
+            (not is_in_module or cls.__name__ == "Module") and prop.name == "module"
+        ):
             # remove 'bench'/'module' ancestor property if not actually a descendant :MagicNodeProps
             attr = None
             del properties_by_name[name]
-            del properties_by_name[prop.reference_key.name]  # remove contributed reference key too
+            del properties_by_name[prop.reference_ptr.name]  # remove contributed reference key too
         elif prop.name == "ck" and is_node and not is_in_module:
             # remove node ck (is == id if outside a module) :MagicNodeProps
             attr = _node_ck_from_id_prop(prop)
@@ -892,7 +918,7 @@ def _process_struct_base_cls(
     cls.__properties__ = frozendict(properties_by_name)
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
-        if prop.id is not None and prop.is_wired and not prop.reference_key:
+        if prop.id is not None and prop.is_wired and not prop.reference_ptr:
             existing = properties_by_id.get(prop.id, None)
             if existing is not None:
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
@@ -1227,7 +1253,7 @@ class Struct(abc.ABC):
         for prop in self.__reference_properties__.values():
             ref = getattr(self, prop.name)
             if isinstance(ref, Node):
-                self.__dict__[prop.reference_key.name] = ref.ck
+                self.__dict__[prop.reference_ptr.name] = ref.ck
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         # clear node references :NodeReferences
@@ -1245,7 +1271,7 @@ class Struct(abc.ABC):
         for prop in self.__reference_properties__.values():
             if getattr(self, prop.name, None) is not None:
                 continue  # already resolved
-            ref_key_value = getattr(self, prop.reference_key.name)
+            ref_key_value = getattr(self, prop.reference_ptr.name)
             if ref_key_value is not None:
                 resolved = scope.resolve(ref_key_value)
                 if resolved is None:
@@ -1342,25 +1368,29 @@ class Node(Struct, _NodeExpressionBase):
     __parent_property__: ClassVar[Property] = None
 
     __has_scope__: ClassVar[bool] = False  # can have node children
+    __root__: ClassVar[NodeType | None] = UNSET
     __is_in_module__: ClassVar[bool] = UNSET  # part of a Module
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
-    __root__: ClassVar[NodeType | None] = UNSET
     __is_stored__: ClassVar[bool] = False  # stored in PG (runtime or local)
-    __table__: ClassVar["Table"] = UNSET  # if stored regularly, set after finalization
     __is_stored_custom__: ClassVar[bool] = False  # custom PG storage logic (for records)
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
+    __table__: ClassVar["Table"] = UNSET  # if stored regularly, set after finalization
 
     # 1-9: reserved for node identity
     id: UUID = struct_internal(2, default=None, require=True, protect=True)
-    # NOTE: ck/module/bench only exist if __is_in_module__/__is_in_bench__ :MagicNodeProps
+    # NOTE: ck/module/branch/bench only exist if __is_in_module__/__is_in_bench__ :MagicNodeProps
     ck: UUID = struct_internal(3, default=None, require=True, protect=True)
     parent: Optional["Node"] = node_parent(4)
+    # prototype/template: Optional["Node"] = node_template(5)
     module: Optional["Module"] = node_ancestor(
-        5, NodeType.MODULE, store=True, wire=True, index_in_pg=True
+        6, NodeType.MODULE, store=True, wire=True, index_in_pg=True
     )
-    bench: Optional["Bench"] = node_ancestor(6, NodeType.BENCH, store=False, wire=True)
-    # prototype/template: Optional["Node"] = node_template(7)
+    # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, store=True, wire=True)
+    bench: Optional["Bench"] = node_ancestor(8, NodeType.BENCH, store=False, wire=True)
+    source: NodeSource = struct_internal(
+        9, default=NodeSource.PERSISTED, store=False, require=True, protect=True
+    )
 
     # 10-29: reserved for node tracking
     revision: int = struct_internal(10, default=0, require=True, protect=True)
@@ -1374,7 +1404,7 @@ class Node(Struct, _NodeExpressionBase):
     # created_by: ... = struct_internal(17, default=None)
     # last_edited_by: ... = struct_internal(18, default=None)
     # last_changed_by: ... = struct_internal(19, default=None)
-    # policies: ... = struct_internal(20, default=None, struct_t=StructType.POLICY)
+    # policies: ... = struct_internal(21, default=None, struct_t=StructType.POLICY)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
@@ -1427,7 +1457,7 @@ class Node(Struct, _NodeExpressionBase):
 
     @property
     def _instance_cache_key(self) -> str:
-        """Identifier for dynamic components"""
+        """Identity for dynamic components"""
         return type(self).__name__
 
     @property
@@ -1452,9 +1482,9 @@ class Node(Struct, _NodeExpressionBase):
         return self._local_root._local_tree
 
     def _assign_id(self, module_id: UUID):
-        assert module_id, f"cannot assign id to {self} without a module id"
-        assert self.id is None, f"cannot assign id to {self} twice"
-        assert self.ck is not None, f"cannot assign id to {self} without ck"
+        assert module_id, f"cannot assign id to {self!r} without a module id"
+        assert self.id is None, f"cannot assign id to {self!r} twice"
+        assert self.ck is not None, f"cannot assign id to {self!r} without ck"
         self.id = get_node_id(module_id, self.ck)
 
     def __eq__(self, other):
@@ -1482,12 +1512,12 @@ class Node(Struct, _NodeExpressionBase):
                 except ValidationError as e:  # reset on error
                     self.__dict__[key] = prev
                     raise e
-                if prop.reference_key:  # update reference key  :NodeReferences
-                    reference_key_value = value.ck if value is not None else None
-                    self.__dict__[prop.reference_key.name] = reference_key_value
+                if prop.reference_ptr:  # update reference key  :NodeReferences
+                    reference_ptr_value = value.ck if value is not None else None
+                    self.__dict__[prop.reference_ptr.name] = reference_ptr_value
                     if self.attached:
                         self._session.update(self, [key])
-                        self._updated_self((prop.reference_key.name,))
+                        self._updated_self((prop.reference_ptr.name,))
                 elif self.attached:
                     self._session.update(self, [key])
                     self._updated_self((key,))
@@ -1932,6 +1962,24 @@ class ScopeNode(Node):
         return [i for i in self.errors or [] if i.parent == self]
 
 
+# all sub-module node types (inside a module)
+LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
+    nt for nt in NODE_TYPES if NodeType.MODULE.id < nt.id < NodeType.BLOB.id and nt != NodeType.LINK
+)
+LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.MODULE, NodeType.FILE, NodeType.STATEMENT)
+
+
+@node(NodeType.LINK)
+class Link(Node):
+    """A link node refers to another node in some tree. The referenced subtree is inlined during interp."""
+
+    parent: ScopeNode = node_parent(4, *LINK_PARENT_NODE_TYPES)
+    reference: Optional[Node] = struct_property(
+        30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
+    )
+    # reference_type: NodeType # (computed)
+
+
 @node(NodeType.BENCH, in_module=False)
 class Bench(ScopeNode):
     """
@@ -2275,32 +2323,32 @@ class Module(ScopeNode):
         return module
 
 
-_BENCH_TYPES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
-BENCH_TYPES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
-NODE_TYPES: frozenset[type[Node]] = frozenset()
-STRUCT_TYPES: frozenset[type[Struct]] = frozenset()
+_BENCH_CLASSES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
+BENCH_CLASSES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
+NODE_CLASSES: frozenset[type[Node]] = frozenset()
+STRUCT_CLASSES: frozenset[type[Struct]] = frozenset()
 
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    global BENCH_TYPES
-    global NODE_TYPES
-    global STRUCT_TYPES
+    global BENCH_CLASSES
+    global NODE_CLASSES
+    global STRUCT_CLASSES
     from bench.language import const
 
     # populate known types
     for bench_t in chain(NODE_CLASS_BY_NODE_TYPE.values(), STRUCT_CLASS_BY_STRUCT_TYPE.values()):
-        _BENCH_TYPES_BY_NAME[bench_t.__name__] = bench_t
+        _BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
     for maybe_bench_t in const.__dict__.values():
         if isinstance(maybe_bench_t, type) and issubclass(maybe_bench_t, enum.Enum):
-            _BENCH_TYPES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
-    BENCH_TYPES = frozenset(_BENCH_TYPES_BY_NAME.values())
-    for node_t in NodeType:
+            _BENCH_CLASSES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
+    BENCH_CLASSES = frozenset(_BENCH_CLASSES_BY_NAME.values())
+    for node_t in NODE_TYPES:
         BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_NODE_TYPE[node_t]
-    for struct_t in StructType:
+    for struct_t in STRUCT_TYPES:
         BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_STRUCT_TYPE[struct_t]
-    NODE_TYPES = frozenset(NODE_CLASS_BY_NODE_TYPE.values())
-    STRUCT_TYPES = frozenset(STRUCT_CLASS_BY_STRUCT_TYPE.values())
+    NODE_CLASSES = frozenset(NODE_CLASS_BY_NODE_TYPE.values())
+    STRUCT_CLASSES = frozenset(STRUCT_CLASS_BY_STRUCT_TYPE.values())
 
     # finalize classes
     for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
@@ -2349,7 +2397,7 @@ def _complete_bench_setup():
 
     for node_cls in NODE_CLASS_BY_NODE_TYPE.values():
         if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
-            node_cls.__table__ = TABLE_BY_NODE_TYPE[node_cls.metatype]
+            node_cls.__table__ = TABLE_BY_NODE_TYPE.get(node_cls.metatype)
         else:
             node_cls.__table__ = None
 
@@ -2379,8 +2427,8 @@ def _complete_bench_setup():
             )
     in_bench_types = [t.metatype for t in NODE_CLASS_BY_NODE_TYPE.values() if t.__is_in_bench__]
     in_module_types = [t.metatype for t in NODE_CLASS_BY_NODE_TYPE.values() if t.__is_in_module__]
-    assert set(IN_BENCH_NODE_TYPES) == set(in_bench_types), f"IN_BENCH_NODE_TYPES inconsistent"
-    assert set(IN_MODULE_NODE_TYPES) == set(in_module_types), f"IN_MODULE_NODE_TYPES inconsistent"
+    assert set(IN_BENCH_NODE_TYPES) == set(in_bench_types), "IN_BENCH_NODE_TYPES inconsistent"
+    assert set(IN_MODULE_NODE_TYPES) == set(in_module_types), "IN_MODULE_NODE_TYPES inconsistent"
 
     # check that all enum types are valid proto-able enums
     for struct_t in chain(STRUCT_CLASS_BY_STRUCT_TYPE.values(), NODE_CLASS_BY_NODE_TYPE.values()):

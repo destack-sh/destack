@@ -10,10 +10,10 @@ import { Empty } from "../../google/protobuf/empty";
 import { ServiceType } from "@protobuf-ts/runtime-rpc";
 import type { BinaryWriteOptions } from "@protobuf-ts/runtime";
 import type { IBinaryWriter } from "@protobuf-ts/runtime";
-import { WireType } from "@protobuf-ts/runtime";
 import type { BinaryReadOptions } from "@protobuf-ts/runtime";
 import type { IBinaryReader } from "@protobuf-ts/runtime";
 import { UnknownFieldHandler } from "@protobuf-ts/runtime";
+import { WireType } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
@@ -22,138 +22,20 @@ import { WorkerData } from "./lang";
 import { Struct } from "../../google/protobuf/struct";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import { BlobData } from "./lang";
+import { AbsoluteNodePointer } from "./lang";
 import { LogEntryData } from "./lang";
 import { WorkerSetData } from "./lang";
+import { EditData } from "./common";
 import { AggregationData } from "./lang";
 import { ExpressionData } from "./lang";
+import { SomeNodePointer } from "./lang";
+import { SomeNodeData } from "./lang";
 import { BenchData } from "./lang";
 import { OrganizationData } from "./lang";
 import { ClientData } from "./lang";
 import { UserData } from "./lang";
-import { SomeNodeData } from "./lang";
-import { EditKind } from "./lang";
-import { BenchType } from "./lang";
+import { PropertyPointer } from "./common";
 import { NodeType } from "./lang";
-// 
-// Common
-// 
-
-/**
- * @generated from protobuf message symbolx.bench.NodePointer
- */
-export interface NodePointer {
-    /**
-     * @generated from protobuf field: symbolx.bench.NodeType type = 1;
-     */
-    type: NodeType;
-    /**
-     * @generated from protobuf oneof: node
-     */
-    node: {
-        oneofKind: "ck";
-        /**
-         * @generated from protobuf field: string ck = 2;
-         */
-        ck: string;
-    } | {
-        oneofKind: "id";
-        /**
-         * @generated from protobuf field: string id = 3;
-         */
-        id: string;
-    } | {
-        oneofKind: undefined;
-    };
-}
-/**
- * @generated from protobuf message symbolx.bench.PropertyPointer
- */
-export interface PropertyPointer {
-    /**
-     * @generated from protobuf field: symbolx.bench.BenchType bench_type = 1;
-     */
-    benchType: BenchType;
-    /**
-     * @generated from protobuf field: int32 property_id = 2;
-     */
-    propertyId: number;
-}
-/**
- * @generated from protobuf message symbolx.bench.ClientOrigin
- */
-export interface ClientOrigin {
-    /**
-     * @generated from protobuf field: symbolx.bench.ClientKind kind = 1;
-     */
-    kind: ClientKind;
-    /**
-     * @generated from protobuf field: string id = 2;
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: string nonce = 3;
-     */
-    nonce: string;
-}
-/**
- * Core metadata for all RPC requests (headers).
- *
- * @generated from protobuf message symbolx.bench.RpcMetadata
- */
-export interface RpcMetadata {
-    /**
-     * @generated from protobuf field: symbolx.bench.ClientKind client_kind = 1;
-     */
-    clientKind: ClientKind;
-    /**
-     * @generated from protobuf field: string client_id = 2;
-     */
-    clientId: string;
-    /**
-     * @generated from protobuf field: string client_nonce = 3;
-     */
-    clientNonce: string;
-    /**
-     * @generated from protobuf field: string client_token = 4;
-     */
-    clientToken: string;
-    /**
-     * @generated from protobuf field: string bench_id = 5;
-     */
-    benchId: string;
-    /**
-     * @generated from protobuf field: string module_id = 6;
-     */
-    moduleId: string;
-}
-/**
- * Edit describes an edit to a node in a Bench.
- * (Manually defined here since Node properties inside structs aren't supported.)
- *
- * @generated from protobuf message symbolx.bench.EditData
- */
-export interface EditData {
-    /**
-     * @generated from protobuf field: symbolx.bench.EditKind kind = 1;
-     */
-    kind: EditKind;
-    /**
-     * @generated from protobuf field: string module_id = 2;
-     */
-    moduleId: string;
-    /**
-     * @generated from protobuf field: symbolx.bench.SomeNodeData node = 3;
-     */
-    node?: SomeNodeData;
-    /**
-     * @generated from protobuf field: repeated int32 properties = 4;
-     */
-    properties: number[];
-    /**
-     * @generated from protobuf field: symbolx.bench.ClientOrigin origin = 5;
-     */
-    origin?: ClientOrigin;
-}
 /**
  * @generated from protobuf message symbolx.bench.ReadNodesOptions
  */
@@ -334,9 +216,9 @@ export interface CreateBenchResponse {
  */
 export interface ReadNodesRequest {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodePointer roots = 1;
+     * @generated from protobuf field: repeated symbolx.bench.SomeNodePointer roots = 1;
      */
-    roots: NodePointer[];
+    roots: SomeNodePointer[];
     /**
      * @generated from protobuf field: symbolx.bench.ReadNodesOptions options = 2;
      */
@@ -360,9 +242,9 @@ export interface SearchNodesRequest {
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: symbolx.bench.NodePointer parent = 2;
+     * @generated from protobuf field: symbolx.bench.SomeNodePointer parent = 2;
      */
-    parent?: NodePointer;
+    parent?: SomeNodePointer;
     /**
      * @generated from protobuf field: symbolx.bench.ExpressionData filter = 3;
      */
@@ -410,9 +292,9 @@ export interface AggregateNodesRequest {
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: symbolx.bench.NodePointer parent = 2;
+     * @generated from protobuf field: symbolx.bench.SomeNodePointer parent = 2;
      */
-    parent?: NodePointer;
+    parent?: SomeNodePointer;
     /**
      * @generated from protobuf field: symbolx.bench.ExpressionData filter = 3;
      */
@@ -562,9 +444,9 @@ export interface PasteNodesRequest {
      */
     sourceModuleId: string;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodePointer source_nodes = 2;
+     * @generated from protobuf field: repeated symbolx.bench.AbsoluteNodePointer source_nodes = 2;
      */
-    sourceNodes: NodePointer[];
+    sourceNodes: AbsoluteNodePointer[];
     /**
      * @generated from protobuf field: map<string, string> target_ids = 3;
      */
@@ -892,381 +774,6 @@ export interface KillRunResponse {
      */
     run?: RunData;
 }
-/**
- * @generated from protobuf enum symbolx.bench.ClientKind
- */
-export enum ClientKind {
-    /**
-     * @generated from protobuf enum value: CLIENT_KIND_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CLIENT_KIND_USER = 1;
-     */
-    USER = 1,
-    /**
-     * @generated from protobuf enum value: CLIENT_KIND_WORKER = 2;
-     */
-    WORKER = 2
-}
-// @generated message type with reflection information, may provide speed optimized methods
-class NodePointer$Type extends MessageType<NodePointer> {
-    constructor() {
-        super("symbolx.bench.NodePointer", [
-            { no: 1, name: "type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "ck", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "id", kind: "scalar", oneof: "node", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<NodePointer>): NodePointer {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.type = 0;
-        message.node = { oneofKind: undefined };
-        if (value !== undefined)
-            reflectionMergePartial<NodePointer>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: NodePointer): NodePointer {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.NodeType type */ 1:
-                    message.type = reader.int32();
-                    break;
-                case /* string ck */ 2:
-                    message.node = {
-                        oneofKind: "ck",
-                        ck: reader.string()
-                    };
-                    break;
-                case /* string id */ 3:
-                    message.node = {
-                        oneofKind: "id",
-                        id: reader.string()
-                    };
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: NodePointer, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.NodeType type = 1; */
-        if (message.type !== 0)
-            writer.tag(1, WireType.Varint).int32(message.type);
-        /* string ck = 2; */
-        if (message.node.oneofKind === "ck")
-            writer.tag(2, WireType.LengthDelimited).string(message.node.ck);
-        /* string id = 3; */
-        if (message.node.oneofKind === "id")
-            writer.tag(3, WireType.LengthDelimited).string(message.node.id);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.NodePointer
- */
-export const NodePointer = new NodePointer$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class PropertyPointer$Type extends MessageType<PropertyPointer> {
-    constructor() {
-        super("symbolx.bench.PropertyPointer", [
-            { no: 1, name: "bench_type", kind: "enum", T: () => ["symbolx.bench.BenchType", BenchType, "BENCH_TYPE_"] },
-            { no: 2, name: "property_id", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
-        ]);
-    }
-    create(value?: PartialMessage<PropertyPointer>): PropertyPointer {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.benchType = 0;
-        message.propertyId = 0;
-        if (value !== undefined)
-            reflectionMergePartial<PropertyPointer>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: PropertyPointer): PropertyPointer {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.BenchType bench_type */ 1:
-                    message.benchType = reader.int32();
-                    break;
-                case /* int32 property_id */ 2:
-                    message.propertyId = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: PropertyPointer, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.BenchType bench_type = 1; */
-        if (message.benchType !== 0)
-            writer.tag(1, WireType.Varint).int32(message.benchType);
-        /* int32 property_id = 2; */
-        if (message.propertyId !== 0)
-            writer.tag(2, WireType.Varint).int32(message.propertyId);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.PropertyPointer
- */
-export const PropertyPointer = new PropertyPointer$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ClientOrigin$Type extends MessageType<ClientOrigin> {
-    constructor() {
-        super("symbolx.bench.ClientOrigin", [
-            { no: 1, name: "kind", kind: "enum", T: () => ["symbolx.bench.ClientKind", ClientKind, "CLIENT_KIND_"] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "nonce", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<ClientOrigin>): ClientOrigin {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.kind = 0;
-        message.id = "";
-        message.nonce = "";
-        if (value !== undefined)
-            reflectionMergePartial<ClientOrigin>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ClientOrigin): ClientOrigin {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ClientKind kind */ 1:
-                    message.kind = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* string nonce */ 3:
-                    message.nonce = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ClientOrigin, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ClientKind kind = 1; */
-        if (message.kind !== 0)
-            writer.tag(1, WireType.Varint).int32(message.kind);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* string nonce = 3; */
-        if (message.nonce !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.nonce);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.ClientOrigin
- */
-export const ClientOrigin = new ClientOrigin$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RpcMetadata$Type extends MessageType<RpcMetadata> {
-    constructor() {
-        super("symbolx.bench.RpcMetadata", [
-            { no: 1, name: "client_kind", kind: "enum", T: () => ["symbolx.bench.ClientKind", ClientKind, "CLIENT_KIND_"] },
-            { no: 2, name: "client_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "client_nonce", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 4, name: "client_token", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "bench_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 6, name: "module_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
-        ]);
-    }
-    create(value?: PartialMessage<RpcMetadata>): RpcMetadata {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.clientKind = 0;
-        message.clientId = "";
-        message.clientNonce = "";
-        message.clientToken = "";
-        message.benchId = "";
-        message.moduleId = "";
-        if (value !== undefined)
-            reflectionMergePartial<RpcMetadata>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RpcMetadata): RpcMetadata {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.ClientKind client_kind */ 1:
-                    message.clientKind = reader.int32();
-                    break;
-                case /* string client_id */ 2:
-                    message.clientId = reader.string();
-                    break;
-                case /* string client_nonce */ 3:
-                    message.clientNonce = reader.string();
-                    break;
-                case /* string client_token */ 4:
-                    message.clientToken = reader.string();
-                    break;
-                case /* string bench_id */ 5:
-                    message.benchId = reader.string();
-                    break;
-                case /* string module_id */ 6:
-                    message.moduleId = reader.string();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RpcMetadata, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.ClientKind client_kind = 1; */
-        if (message.clientKind !== 0)
-            writer.tag(1, WireType.Varint).int32(message.clientKind);
-        /* string client_id = 2; */
-        if (message.clientId !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.clientId);
-        /* string client_nonce = 3; */
-        if (message.clientNonce !== "")
-            writer.tag(3, WireType.LengthDelimited).string(message.clientNonce);
-        /* string client_token = 4; */
-        if (message.clientToken !== "")
-            writer.tag(4, WireType.LengthDelimited).string(message.clientToken);
-        /* string bench_id = 5; */
-        if (message.benchId !== "")
-            writer.tag(5, WireType.LengthDelimited).string(message.benchId);
-        /* string module_id = 6; */
-        if (message.moduleId !== "")
-            writer.tag(6, WireType.LengthDelimited).string(message.moduleId);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.RpcMetadata
- */
-export const RpcMetadata = new RpcMetadata$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class EditData$Type extends MessageType<EditData> {
-    constructor() {
-        super("symbolx.bench.EditData", [
-            { no: 1, name: "kind", kind: "enum", T: () => ["symbolx.bench.EditKind", EditKind, "EDIT_KIND_"] },
-            { no: 2, name: "module_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "node", kind: "message", T: () => SomeNodeData },
-            { no: 4, name: "properties", kind: "scalar", repeat: 1 /*RepeatType.PACKED*/, T: 5 /*ScalarType.INT32*/ },
-            { no: 5, name: "origin", kind: "message", T: () => ClientOrigin }
-        ]);
-    }
-    create(value?: PartialMessage<EditData>): EditData {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.kind = 0;
-        message.moduleId = "";
-        message.properties = [];
-        if (value !== undefined)
-            reflectionMergePartial<EditData>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: EditData): EditData {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbolx.bench.EditKind kind */ 1:
-                    message.kind = reader.int32();
-                    break;
-                case /* string module_id */ 2:
-                    message.moduleId = reader.string();
-                    break;
-                case /* symbolx.bench.SomeNodeData node */ 3:
-                    message.node = SomeNodeData.internalBinaryRead(reader, reader.uint32(), options, message.node);
-                    break;
-                case /* repeated int32 properties */ 4:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.properties.push(reader.int32());
-                    else
-                        message.properties.push(reader.int32());
-                    break;
-                case /* symbolx.bench.ClientOrigin origin */ 5:
-                    message.origin = ClientOrigin.internalBinaryRead(reader, reader.uint32(), options, message.origin);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: EditData, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbolx.bench.EditKind kind = 1; */
-        if (message.kind !== 0)
-            writer.tag(1, WireType.Varint).int32(message.kind);
-        /* string module_id = 2; */
-        if (message.moduleId !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.moduleId);
-        /* symbolx.bench.SomeNodeData node = 3; */
-        if (message.node)
-            SomeNodeData.internalBinaryWrite(message.node, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* repeated int32 properties = 4; */
-        if (message.properties.length) {
-            writer.tag(4, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.properties.length; i++)
-                writer.int32(message.properties[i]);
-            writer.join();
-        }
-        /* symbolx.bench.ClientOrigin origin = 5; */
-        if (message.origin)
-            ClientOrigin.internalBinaryWrite(message.origin, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbolx.bench.EditData
- */
-export const EditData = new EditData$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
     constructor() {
@@ -1870,7 +1377,7 @@ export const CreateBenchResponse = new CreateBenchResponse$Type();
 class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
     constructor() {
         super("symbolx.bench.ReadNodesRequest", [
-            { no: 1, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodePointer },
+            { no: 1, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodePointer },
             { no: 2, name: "options", kind: "message", T: () => ReadNodesOptions }
         ]);
     }
@@ -1886,8 +1393,8 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.NodePointer roots */ 1:
-                    message.roots.push(NodePointer.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.SomeNodePointer roots */ 1:
+                    message.roots.push(SomeNodePointer.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.ReadNodesOptions options */ 2:
                     message.options = ReadNodesOptions.internalBinaryRead(reader, reader.uint32(), options, message.options);
@@ -1904,9 +1411,9 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
         return message;
     }
     internalBinaryWrite(message: ReadNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.NodePointer roots = 1; */
+        /* repeated symbolx.bench.SomeNodePointer roots = 1; */
         for (let i = 0; i < message.roots.length; i++)
-            NodePointer.internalBinaryWrite(message.roots[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            SomeNodePointer.internalBinaryWrite(message.roots[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ReadNodesOptions options = 2; */
         if (message.options)
             ReadNodesOptions.internalBinaryWrite(message.options, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
@@ -1972,7 +1479,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
     constructor() {
         super("symbolx.bench.SearchNodesRequest", [
             { no: 1, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "parent", kind: "message", T: () => NodePointer },
+            { no: 2, name: "parent", kind: "message", T: () => SomeNodePointer },
             { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 5, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
@@ -1998,8 +1505,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* symbolx.bench.NodeType node_type */ 1:
                     message.nodeType = reader.int32();
                     break;
-                case /* symbolx.bench.NodePointer parent */ 2:
-                    message.parent = NodePointer.internalBinaryRead(reader, reader.uint32(), options, message.parent);
+                case /* symbolx.bench.SomeNodePointer parent */ 2:
+                    message.parent = SomeNodePointer.internalBinaryRead(reader, reader.uint32(), options, message.parent);
                     break;
                 case /* symbolx.bench.ExpressionData filter */ 3:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -2031,9 +1538,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* symbolx.bench.NodeType node_type = 1; */
         if (message.nodeType !== 0)
             writer.tag(1, WireType.Varint).int32(message.nodeType);
-        /* symbolx.bench.NodePointer parent = 2; */
+        /* symbolx.bench.SomeNodePointer parent = 2; */
         if (message.parent)
-            NodePointer.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            SomeNodePointer.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ExpressionData filter = 3; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
@@ -2127,7 +1634,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
     constructor() {
         super("symbolx.bench.AggregateNodesRequest", [
             { no: 1, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "parent", kind: "message", T: () => NodePointer },
+            { no: 2, name: "parent", kind: "message", T: () => SomeNodePointer },
             { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 5, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
@@ -2153,8 +1660,8 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* symbolx.bench.NodeType node_type */ 1:
                     message.nodeType = reader.int32();
                     break;
-                case /* symbolx.bench.NodePointer parent */ 2:
-                    message.parent = NodePointer.internalBinaryRead(reader, reader.uint32(), options, message.parent);
+                case /* symbolx.bench.SomeNodePointer parent */ 2:
+                    message.parent = SomeNodePointer.internalBinaryRead(reader, reader.uint32(), options, message.parent);
                     break;
                 case /* symbolx.bench.ExpressionData filter */ 3:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -2186,9 +1693,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         /* symbolx.bench.NodeType node_type = 1; */
         if (message.nodeType !== 0)
             writer.tag(1, WireType.Varint).int32(message.nodeType);
-        /* symbolx.bench.NodePointer parent = 2; */
+        /* symbolx.bench.SomeNodePointer parent = 2; */
         if (message.parent)
-            NodePointer.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            SomeNodePointer.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ExpressionData filter = 3; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
@@ -2801,7 +2308,7 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
     constructor() {
         super("symbolx.bench.PasteNodesRequest", [
             { no: 1, name: "source_module_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "source_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodePointer },
+            { no: 2, name: "source_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => AbsoluteNodePointer },
             { no: 3, name: "target_ids", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
             { no: 4, name: "target_cks", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
             { no: 5, name: "target_parent_ids", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
@@ -2828,8 +2335,8 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
                 case /* string source_module_id */ 1:
                     message.sourceModuleId = reader.string();
                     break;
-                case /* repeated symbolx.bench.NodePointer source_nodes */ 2:
-                    message.sourceNodes.push(NodePointer.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.AbsoluteNodePointer source_nodes */ 2:
+                    message.sourceNodes.push(AbsoluteNodePointer.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* map<string, string> target_ids */ 3:
                     this.binaryReadMap3(message.targetIds, reader, options);
@@ -2922,9 +2429,9 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
         /* string source_module_id = 1; */
         if (message.sourceModuleId !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.sourceModuleId);
-        /* repeated symbolx.bench.NodePointer source_nodes = 2; */
+        /* repeated symbolx.bench.AbsoluteNodePointer source_nodes = 2; */
         for (let i = 0; i < message.sourceNodes.length; i++)
-            NodePointer.internalBinaryWrite(message.sourceNodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            AbsoluteNodePointer.internalBinaryWrite(message.sourceNodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* map<string, string> target_ids = 3; */
         for (let k of globalThis.Object.keys(message.targetIds))
             writer.tag(3, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetIds[k]).join();

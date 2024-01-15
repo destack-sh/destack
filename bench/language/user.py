@@ -22,6 +22,7 @@ class User(ScopeNode):
     email: str = struct_internal(33, defer=True, unique=True, protect=True)
     password_salt: bytes = struct_internal(34, defer=True, encrypt=True, protect=True)
     password_hash: bytes = struct_internal(35, defer=True, encrypt=True, protect=True)
+    last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, protect=True)
 
     @property
     def path(self):
