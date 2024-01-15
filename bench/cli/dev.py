@@ -3,6 +3,9 @@ from pathlib import Path
 import structlog
 import typer
 
+from bench.language import Bench
+from bench.server.session import detached_session
+
 app = typer.Typer(short_help="dev only")
 
 worker = typer.Typer()
@@ -12,7 +15,8 @@ logger = structlog.get_logger(__name__)
 @worker.command(name="imitate")
 async def imitate_worker(bench: str):
     """'Imitate' the env vars of a worker for a Bench in .env.worker"""
-    bench = await get_bench(bench)
+    async with detached_session(read_only=True):
+        bench: Bench = await Bench.get(slug=bench)
     logger.info("worker.imitate", bench=bench)
     env_vars = {
         "WORKER_SET_ID": str(bench.worker_set.id),
