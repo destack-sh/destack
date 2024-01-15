@@ -25,7 +25,7 @@ LOCAL_PG_PASSWORD = get_from_env("LOCAL_PG_PASSWORD", alt="USER_PG_PASSWORD")
 
 
 @functools.cache
-def _get_connection_str(local_pg_name: str | None) -> str:
+def _get_pg_connection_str(local_pg_name: str | None) -> str:
     if local_pg_name is None:
         # global database
         return f"postgresql://{GLOBAL_PG_USERNAME}:{GLOBAL_PG_PASSWORD}@{GLOBAL_PG_HOST}:{GLOBAL_PG_PORT}/{GLOBAL_PG_NAME}"
@@ -43,7 +43,7 @@ _connection_pools: dict[str, AsyncConnectionPool] = {}
 def get_pg_connection_pool(local_pg_name: str | None) -> AsyncConnectionPool:
     if local_pg_name not in _connection_pools:
         _connection_pools[local_pg_name] = AsyncConnectionPool(
-            _get_connection_str(local_pg_name),
+            _get_pg_connection_str(local_pg_name),
             min_size=1,
             max_size=4,
             max_idle=60 * 60,

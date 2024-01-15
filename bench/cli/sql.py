@@ -1,7 +1,8 @@
-import shutil
+import re
+import signal
+import subprocess
 import time
 from pathlib import Path
-from subprocess import DEVNULL
 from typing import Optional
 
 import structlog
@@ -9,140 +10,30 @@ import typer
 from more_itertools import first
 from rich import print
 
-from bench.cli.utils import _async_to_sync_blocking, _shell
 from bench.language.const import VERSION, NodeType
 from bench.language.node import (
-    BENCH_CLASSES,
     NODE_CLASS_BY_NODE_TYPE,
-    NODE_CLASSES,
-    STRUCT_CLASSES,
-    Bench,
-    Node,
 )
-from bench.proto.core import Field, Message
-from bench.proto.engine import generate_proto_schema
-from bench.server.session import detached_session
-from bench.sql.client import async_pg_cursor
 from bench.sql.core import DEFAULT_GLOBAL_TABLES, DEFAULT_LOCAL_TABLES
-from bench.sql.engine import map_node_type_to_pg_table
 from bench.sql.migration import (
     Migration,
     add_migration_to_fs,
     generate_migration_code,
     generate_migration_ops,
-    introspect_tables_from_pg,
     migrate_to,
     read_migrations_from_fs,
 )
-from bench.utils.utils import DEBUG, format_python
+from bench.utils.utils import DEBUG
+from bench.cli.utils import _async_to_sync_blocking
+from bench.language.node import Bench
+from bench.server.session import detached_session
+from bench.sql.client import async_pg_cursor, _get_pg_connection_str, LOCAL_PG_HOST, LOCAL_PG_PORT
+from bench.sql.engine import map_node_type_to_pg_table
+from bench.sql.migration import introspect_tables_from_pg
+from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)
-app = typer.Typer(short_help="language state and migrations")
-
-TARGET_PY_DIR = "bench/proto/wire"
-TARGET_PY_FILE = TARGET_PY_DIR + ".py"
-TARGET_TS_DIR = "frontend/src/proto/wire"
-GENERATED_PROTO_FILE = "bench/proto/lang.proto"
-EXTRA_PROTO_FILES = "bench/proto/services.proto"
-
-
-def _generate_proto_schema() -> str:
-    """Generate the .proto schema (as a string) describing the current Bench types."""
-    proto = generate_proto_schema(
-        name="symbolx.bench",
-        bench_classes=[*BENCH_CLASSES, Node],
-        aliases={Node: "BaseNode"},
-        unions={"SomeNode": ("node", NODE_CLASSES), "SomeStruct": ("struct", STRUCT_CLASSES)},
-        extras=[
-            Message(
-                name="ModuleTreeData",
-                fields=[
-                    Field(id=1, name="module", type="ModuleData"),
-                    Field(id=2, name="nodes", type="SomeNodeData", repeated=True),
-                ],
-            ),
-            Message(
-                name="SomeNodePointer",
-                fields=[
-                    Field(id=1, name="metatype", type="NodeType"),
-                    Field(id=2, name="id", type="string"),
-                    Field(id=3, name="ck", type="string"),
-                ],
-            ),
-            Message(
-                name="AbsoluteNodePointer",
-                fields=[
-                    Field(id=1, name="metatype", type="NodeType"),
-                    Field(id=2, name="id", type="string"),
-                ],
-            ),
-        ],
-        message_postfix="Data",
-    )
-    return proto.to_proto_source()
-
-
-def _regen_proto_artifacts(schema_str: str) -> None:
-    """Regenerate external artifacts from the proto schema."""
-    # regenerate python & TS proto files
-    Path(GENERATED_PROTO_FILE).write_text(schema_str)
-
-    # python
-    logger.info("proto.regen.py")
-    try:
-        # backup existing target
-        # (only needed for Python since we need the source to compile to regenerate to retry)
-        shutil.copy(TARGET_PY_FILE, TARGET_PY_FILE + ".bak")
-        Path(TARGET_PY_FILE).unlink(missing_ok=True)
-        Path(TARGET_PY_DIR).mkdir(parents=True, exist_ok=True)
-        _shell(
-            f"protoc -I . --python_betterproto_out={TARGET_PY_DIR} {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
-        )
-        _shell(f"mv {TARGET_PY_DIR}/symbolx/bench/__init__.py {TARGET_PY_FILE}")
-        Path(TARGET_PY_FILE).write_text(
-            Path(TARGET_PY_FILE).read_text()
-            # append AnyNodeData/AnyStructData
-            + "\n\nfrom typing import Union # noqa\n"
-            + f"AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]\n"
-            + f"AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]"
-            # append VERSION
-            + f"\n\nVERSION = '{VERSION}'"
-        )
-        shutil.rmtree(TARGET_PY_DIR, ignore_errors=True)
-        _shell(f"pre-commit run black --files {TARGET_PY_FILE}", check=False, stdout=DEVNULL)
-    except Exception as e:
-        # restore backup
-        Path(TARGET_PY_FILE).unlink(missing_ok=True)
-        shutil.copy(TARGET_PY_FILE + ".bak", TARGET_PY_FILE)
-        raise e
-    finally:
-        Path(TARGET_PY_FILE + ".bak").unlink(missing_ok=True)
-    logger.info("proto.regen.py.done")
-
-    # TS
-    logger.info("proto.regen.ts")
-    shutil.rmtree(TARGET_TS_DIR, ignore_errors=True)
-    Path(TARGET_TS_DIR).mkdir(parents=True, exist_ok=True)
-    _shell(
-        f"npx protoc --ts_out {TARGET_TS_DIR} --ts_opt long_type_string --proto_path . {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
-    )
-    # prepend every TS file in $TARGET_TS_DIR with /* eslint-disable */
-    for path in Path(TARGET_TS_DIR).glob("**/*.ts"):
-        path.write_text("/* eslint-disable */\n" + path.read_text())
-    logger.info("proto.regen.ts.done")
-
-
-@app.command()
-def proto(regen: bool = False):
-    logger.info("proto.generate")
-    start = time.time()
-    schema_str = _generate_proto_schema()
-
-    if not regen:
-        print(schema_str)
-    else:
-        _regen_proto_artifacts(schema_str)
-    logger.info("proto.generate.done", duration=time.time() - start)
+app = typer.Typer(short_help="pg management")
 
 
 def _generate_pg_schema():
@@ -167,15 +58,11 @@ def _generate_pg_schema():
 
 
 @app.command()
-def sql(regen: bool = False):
+def regen():
     logger.info("sql.generate")
     start = time.time()
     source = _generate_pg_schema()
-
-    if not regen:
-        print(source)
-    else:
-        Path("bench/sql/schema.py").write_text(source)
+    Path("bench/sql/schema.py").write_text(source)
     logger.info("sql.generate.done", duration=time.time() - start)
 
 
@@ -187,6 +74,7 @@ async def makemigrations(
         default=None, help="the bench to use as local reference (bypass lookup via bench)"
     ),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
+    dry_run: bool = typer.Option(default=False, help="only print, don't store"),
 ):
     logger.info("makemigrations", bench=bench, local_pg_name=local_pg_name)
     start = time.time()
@@ -243,7 +131,10 @@ async def makemigrations(
         local_ops=local_migration_ops,
         exclude_inverse=no_downgrade,
     )
-    add_migration_to_fs(migration=new_migration, code=migration_code)
+    if not dry_run:
+        add_migration_to_fs(migration=new_migration, code=migration_code)
+    else:
+        print(migration_code)
 
     logger.info("makemigrations.done", duration=time.time() - start)
 
@@ -257,6 +148,7 @@ async def migrate(
     bench: Optional[str] = typer.Option(
         default=None, help="the local bench to migrate, global otherwise"
     ),
+    dry_run: bool = typer.Option(default=False, help="only print, don't commit"),
 ):
     logger.info("migrate")
     start = time.time()
@@ -289,6 +181,10 @@ async def migrate(
             target_migration=target_migration,
             is_global=bench is None,
         )
+        if not dry_run:
+            await cur.connection.commit()
+        else:
+            await cur.connection.rollback()
 
     logger.info("migrate.done", duration=time.time() - start)
 
@@ -305,3 +201,60 @@ if DEBUG:
         async with detached_session(read_only=True):
             for bench in await Bench.all():
                 await migrate_to(target=to, bench=bench.slug)
+
+
+@app.command()
+@_async_to_sync_blocking
+async def introspect(bench: str = None):
+    """Introspect the current schema of the Postgres instance."""
+    logger.info("pg.introspect", bench=bench)
+    start = time.perf_counter()
+    if bench is not None:
+        async with detached_session(read_only=True):
+            bench = Bench.get(slug=bench)
+            local_pg_name = bench.pg_name
+    else:
+        local_pg_name = None
+
+    # introspect
+    async with async_pg_cursor(local_pg_name=local_pg_name) as cur:
+        tables = await introspect_tables_from_pg(
+            cur, include_columns=True, include_indexes=True, include_constraints=True
+        )
+
+    # generate schema
+    chunks: list[str] = []
+    for table in tables:
+        const_name = f"{table.name}_TABLE".upper()
+        if const_name.startswith("BENCH_"):
+            const_name = const_name[6:]
+        table_def = f"{const_name} = {table.source_repr()}"
+        chunks.append(table_def)
+    source = "\n\n".join(chunks)
+    source = format_python(source)
+    print(source)
+
+    logger.info("pg.introspect.done", duration=time.perf_counter() - start)
+
+
+@app.command()
+@_async_to_sync_blocking
+async def shell(bench: str = None):
+    """Open a psql shell to either the global or a Bench-local database."""
+    if bench is not None:
+        async with detached_session(read_only=True):
+            bench: Bench = await Bench.get(slug=bench)
+        connection_str = f"postgresql://{bench.pg_username}:{bench.pg_password}@{LOCAL_PG_HOST}:{LOCAL_PG_PORT}/{bench.pg_name}"
+    else:
+        connection_str = _get_pg_connection_str(local_pg_name=None)
+
+    logger.info(
+        "shell.psql", bench=bench, connection_str=re.sub(r":[^@]+@", ":*****@", connection_str)
+    )
+    sigint_handler = signal.getsignal(signal.SIGINT)
+    try:
+        # allow SIGINT to pass to psql to abort queries
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        subprocess.run(["psql", connection_str], check=True)
+    finally:
+        signal.signal(signal.SIGINT, sigint_handler)
