@@ -2,6 +2,8 @@ import enum
 from itertools import chain
 from typing import TYPE_CHECKING, Collection, Union
 
+from bench.language.const import NodeType
+from bench.language.node import NODE_CLASS_BY_NODE_TYPE
 from bench.proto.core import (
     Enum,
     EnumValue,
@@ -48,6 +50,17 @@ def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThin
     elif prop.column_type in PROTO_FIELD_TYPE_BY_COLUMN_TYPE:
         field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.column_type]
         return Field(id=prop.id, name=prop.name, type=field_type, repeated=prop.is_array)
+    elif prop.parents is not None or prop.references is not None:
+        is_absolute = prop.parents is not None or not any(
+            NODE_CLASS_BY_NODE_TYPE[n].__is_in_module__ and n != NodeType.MODULE
+            for n in prop.references
+        )
+        return Field(
+            id=prop.id,
+            name=prop.name,
+            type="AbsoluteNodePointer" if is_absolute else "SomeNodePointer",
+            repeated=prop.is_array,
+        )
     else:
         raise TypeError(f"cannot map {prop.column_type} to proto type: {prop!r}")
 
@@ -127,7 +140,7 @@ def bench_t_to_proto_t(
 
 def generate_proto_schema(
     name: str,
-    bench_types: Collection[type[Union["Node", "Struct", enum.Enum]]],
+    bench_classes: Collection[type[Union["Node", "Struct", enum.Enum]]],
     aliases: dict[type[Union["Node", "Struct", enum.Enum]], str],
     unions: dict[str, tuple[str, Collection[type[Union["Node", "Struct", enum.Enum]]]]],
     extras: list[Enum | Message],
@@ -136,15 +149,15 @@ def generate_proto_schema(
     from bench.language import Node, Struct
 
     proto_types_cache: dict[type[_BenchType], ProtoThing] = {}
-    for thing in bench_types:
+    for thing in bench_classes:
         _ = bench_t_to_proto_t(thing, proto_types_cache, alias=aliases.get(thing))
 
     # collect proto types
-    collected_enums: list[type[enum.Enum]] = [t for t in bench_types if issubclass(t, enum.Enum)]
+    collected_enums: list[type[enum.Enum]] = [t for t in bench_classes if issubclass(t, enum.Enum)]
     collected_structs: list[type["Struct"]] = [
-        t for t in bench_types if issubclass(t, Struct) and not issubclass(t, Node)
+        t for t in bench_classes if issubclass(t, Struct) and not issubclass(t, Node)
     ]
-    collected_nodes: list[type["Node"]] = [t for t in bench_types if issubclass(t, Node)]
+    collected_nodes: list[type["Node"]] = [t for t in bench_classes if issubclass(t, Node)]
     collected_enums.sort(key=lambda t: t.__name__)
     collected_structs.sort(key=lambda t: t.__name__)
     collected_nodes.sort(key=lambda t: t.__name__)
@@ -174,7 +187,7 @@ def generate_proto_schema(
 
     if message_postfix:  # apply postfix to messages
         for proto_type in proto_types:
-            if isinstance(proto_type, Message):
+            if isinstance(proto_type, Message) and proto_type not in extras:
                 proto_type.name += message_postfix
 
     return ProtoSchema.from_types(name, proto_types)

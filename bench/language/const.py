@@ -28,7 +28,7 @@ class NodeType(ProtoStrEnum):
     # root
     BENCH = "BENCH", 1
     # ENVIRONMENT = "ENVIRONMENT", 2
-    # CONTEXT = "CONTEXT", 3
+    # PLACE = "PLACE", 3
     # BRANCH = "BRANCH", 4
 
     # module/source
@@ -42,14 +42,17 @@ class NodeType(ProtoStrEnum):
     VIEW = "VIEW", 17
     # TILE = "TILE", 18
     ISSUE = "ISSUE", 19
-    BLOB = "BLOB", 30
-    SECRET = "SECRET", 31
+    LINK = "LINK", 20
+
+    # bench-level
+    BLOB = "BLOB", 40
+    SECRET = "SECRET", 41
 
     # session (all local)
-    SESSION = "SESSION", 40
-    RUN = "RUN", 41
-    HALT = "HALT", 42
-    SIGNAL = "SIGNAL", 43
+    SESSION = "SESSION", 50
+    RUN = "RUN", 51
+    HALT = "HALT", 52
+    SIGNAL = "SIGNAL", 53
 
     # worker
     WORKER_SET = "WORKER_SET", 60
@@ -134,6 +137,12 @@ BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
     _type: to_pyidentifier(_type, IdentifierType.TYPE) for _type in chain(NodeType, StructType)
 }
 INTERP_NODE_TYPES = {NodeType.ISSUE}
+
+
+class NodeSource(ProtoStrEnum):
+    PERSISTED = "PERSISTED", 1
+    INTERP = "INTERP", 2
+    LOCAL = "LOCAL", 3
 
 
 #

@@ -1,23 +1,23 @@
 import shutil
+import time
 from pathlib import Path
 from subprocess import DEVNULL
-import time
 from typing import Optional
 
-from more_itertools import first
 import structlog
 import typer
+from more_itertools import first
 from rich import print
 
-from bench.cli.utils import _shell, _async_to_sync_blocking
+from bench.cli.utils import _async_to_sync_blocking, _shell
 from bench.language.const import VERSION, NodeType
 from bench.language.node import (
-    BENCH_TYPES,
+    BENCH_CLASSES,
     NODE_CLASS_BY_NODE_TYPE,
-    NODE_TYPES,
-    STRUCT_TYPES,
-    Node,
+    NODE_CLASSES,
+    STRUCT_CLASSES,
     Bench,
+    Node,
 )
 from bench.proto.core import Field, Message
 from bench.proto.engine import generate_proto_schema
@@ -25,15 +25,15 @@ from bench.server.session import detached_session
 from bench.sql.client import async_pg_cursor
 from bench.sql.engine import map_node_type_to_pg_table
 from bench.sql.migration import (
-    introspect_tables_from_pg,
-    generate_migration_ops,
-    read_migrations_from_fs,
-    migrate_to,
     Migration,
     add_migration_to_fs,
     generate_migration_code,
+    generate_migration_ops,
+    introspect_tables_from_pg,
+    migrate_to,
+    read_migrations_from_fs,
 )
-from bench.utils.utils import format_python, DEBUG
+from bench.utils.utils import DEBUG, format_python
 
 logger = structlog.get_logger(__name__)
 app = typer.Typer(short_help="language state and migrations")
@@ -49,17 +49,32 @@ def _generate_proto_schema() -> str:
     """Generate the .proto schema (as a string) describing the current Bench types."""
     proto = generate_proto_schema(
         name="symbolx.bench",
-        bench_types=[*BENCH_TYPES, Node],
+        bench_classes=[*BENCH_CLASSES, Node],
         aliases={Node: "BaseNode"},
-        unions={"SomeNode": ("node", NODE_TYPES), "SomeStruct": ("struct", STRUCT_TYPES)},
+        unions={"SomeNode": ("node", NODE_CLASSES), "SomeStruct": ("struct", STRUCT_CLASSES)},
         extras=[
             Message(
-                name="ModuleTree",
+                name="ModuleTreeData",
                 fields=[
                     Field(id=1, name="module", type="ModuleData"),
                     Field(id=2, name="nodes", type="SomeNodeData", repeated=True),
                 ],
-            )
+            ),
+            Message(
+                name="SomeNodePointer",
+                fields=[
+                    Field(id=1, name="metatype", type="NodeType"),
+                    Field(id=2, name="id", type="string"),
+                    Field(id=3, name="ck", type="string"),
+                ],
+            ),
+            Message(
+                name="AbsoluteNodePointer",
+                fields=[
+                    Field(id=1, name="metatype", type="NodeType"),
+                    Field(id=2, name="id", type="string"),
+                ],
+            ),
         ],
         message_postfix="Data",
     )
@@ -86,9 +101,9 @@ def _regen_proto_artifacts(schema_str: str) -> None:
         Path(TARGET_PY_FILE).write_text(
             Path(TARGET_PY_FILE).read_text()
             # append AnyNodeData/AnyStructData
-            + "\n\nfrom typing import Union\n"
-            + f"AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_TYPES])}]\n"
-            + f"AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_TYPES])}]"
+            + "\n\nfrom typing import Union # noqa\n"
+            + f"AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]\n"
+            + f"AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]"
             # append VERSION
             + f"\n\nVERSION = '{VERSION}'"
         )

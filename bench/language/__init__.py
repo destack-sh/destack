@@ -22,7 +22,16 @@ from .expression import A, C, E, Expression, S
 from .field import Field, Type, TypeStorageFormat
 from .file import File
 from .issue import Issue
-from .node import Module, Node, Property, ScopeNode, Struct, _complete_bench_setup
+from .node import (
+    Bench,
+    Link,
+    Module,
+    Node,
+    Property,
+    ScopeNode,
+    Struct,
+    _complete_bench_setup,
+)
 from .projection import NodeVisitor
 from .render import render
 from .run import Halt, Run, RunError
@@ -41,6 +50,7 @@ __all__ = [
     "A",
     "ActionKind",
     "Badge",
+    "Bench",
     "Blob",
     "C",
     "Client",
@@ -54,6 +64,7 @@ __all__ = [
     "Handle",
     "Issue",
     "IssueType",
+    "Link",
     "LogEntry",
     "Module",
     "Node",

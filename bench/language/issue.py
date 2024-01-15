@@ -66,7 +66,7 @@ class Issue(Node):
     kind: IssueKind = struct_property(31, default=None, validate=enum_validator(IssueKind))
     message: str = struct_property(32, default=None)
     path: Optional[str] = struct_property(34, default=None)
-    properties: list[str] = struct_property(35, default=None)
+    properties: list[int] = struct_property(35, default=None)
 
     def _init_inner(self):
         # make message

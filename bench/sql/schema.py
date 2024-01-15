@@ -17,6 +17,13 @@ BENCH_TABLE = Table(
     "bench_bench",
     (
         Column("id", ColumnType.UUID),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("revision", ColumnType.BIGINT),
         Column("created_at", ColumnType.DATETIME),
         Column("updated_at", ColumnType.DATETIME),
@@ -52,6 +59,7 @@ BENCH_TABLE = Table(
         Column("os_password", ColumnType.STRING, is_nullable=True, is_encrypted=True),
     ),
     constraints=(Constraint("bench_unique_slug", ConstraintType.UNIQUE, columns=["slug"]),),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )
 
 MODULE_TABLE = Table(
@@ -444,7 +452,68 @@ ISSUE_TABLE = Table(
         Column("kind", ColumnType.STRING, is_nullable=True),
         Column("message", ColumnType.STRING, is_nullable=True),
         Column("path", ColumnType.STRING, is_nullable=True),
-        Column("properties", ColumnType.STRING, is_array=True, is_nullable=True),
+        Column("properties", ColumnType.BIGINT, is_array=True, is_nullable=True),
+    ),
+    indexes=(
+        Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),
+        Index(
+            "bench_idx_module_deleted_at", IndexType.BTREE, ["bench_module_id", "bench_deleted_at"]
+        ),
+        Index(
+            "bench_idx_module_archived_at",
+            IndexType.BTREE,
+            ["bench_module_id", "bench_archived_at"],
+        ),
+    ),
+)
+
+LINK_TABLE = Table(
+    "bench_link",
+    (
+        Column("id", ColumnType.UUID),
+        Column("ck", ColumnType.UUID),
+        Column(
+            "parent_module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_file_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_file",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "parent_statement_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_statement",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column("revision", ColumnType.BIGINT),
+        Column("created_at", ColumnType.DATETIME),
+        Column("updated_at", ColumnType.DATETIME),
+        Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, is_nullable=True),
+        Column("last_edited_at", ColumnType.DATETIME),
+        Column("reference_file_ck", ColumnType.UUID, is_nullable=True),
+        Column("reference_statement_ck", ColumnType.UUID, is_nullable=True),
+        Column("reference_trigger_ck", ColumnType.UUID, is_nullable=True),
+        Column("reference_tagging_ck", ColumnType.UUID, is_nullable=True),
+        Column("reference_field_ck", ColumnType.UUID, is_nullable=True),
+        Column("reference_record_ck", ColumnType.UUID, is_nullable=True),
+        Column("reference_view_ck", ColumnType.UUID, is_nullable=True),
+        Column("reference_issue_ck", ColumnType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),
@@ -470,6 +539,13 @@ BLOB_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("revision", ColumnType.BIGINT),
         Column("created_at", ColumnType.DATETIME),
         Column("updated_at", ColumnType.DATETIME),
@@ -482,6 +558,7 @@ BLOB_TABLE = Table(
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("status", ColumnType.STRING, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )
 
 SECRET_TABLE = Table(
@@ -495,6 +572,13 @@ SECRET_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("revision", ColumnType.BIGINT),
         Column("created_at", ColumnType.DATETIME),
         Column("updated_at", ColumnType.DATETIME),
@@ -505,6 +589,7 @@ SECRET_TABLE = Table(
         Column("value", ColumnType.JSON, is_nullable=True, is_encrypted=True),
         Column("sha512", ColumnType.STRING, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )
 
 SESSION_TABLE = Table(
@@ -699,6 +784,13 @@ WORKER_SET_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("revision", ColumnType.BIGINT),
         Column("created_at", ColumnType.DATETIME),
         Column("updated_at", ColumnType.DATETIME),
@@ -716,6 +808,7 @@ WORKER_SET_TABLE = Table(
         Column("last_active_at", ColumnType.DATETIME, is_nullable=True),
         Column("last_bumped_at", ColumnType.DATETIME, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )
 
 WORKER_TABLE = Table(
@@ -726,6 +819,13 @@ WORKER_TABLE = Table(
             "parent_worker_set_id",
             ColumnType.UUID,
             is_foreign_key_to="bench_workerset",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
@@ -744,13 +844,23 @@ WORKER_TABLE = Table(
     constraints=(
         Constraint("bench_unique_external_id", ConstraintType.UNIQUE, columns=["external_id"]),
     ),
-    indexes=(Index("bench_idx_version", IndexType.BTREE, ["version"]),),
+    indexes=(
+        Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),
+        Index("bench_idx_version", IndexType.BTREE, ["version"]),
+    ),
 )
 
 HANDLE_TABLE = Table(
     "bench_handle",
     (
         Column("id", ColumnType.UUID),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("revision", ColumnType.BIGINT),
         Column("created_at", ColumnType.DATETIME),
         Column("updated_at", ColumnType.DATETIME),
@@ -760,12 +870,20 @@ HANDLE_TABLE = Table(
         Column("slug", ColumnType.STRING, is_nullable=True),
     ),
     constraints=(Constraint("bench_unique_slug", ConstraintType.UNIQUE, columns=["slug"]),),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )
 
 USER_TABLE = Table(
     "bench_user",
     (
         Column("id", ColumnType.UUID),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("revision", ColumnType.BIGINT),
         Column("created_at", ColumnType.DATETIME),
         Column("updated_at", ColumnType.DATETIME),
@@ -785,14 +903,23 @@ USER_TABLE = Table(
         Column("email", ColumnType.STRING, is_nullable=True),
         Column("password_salt", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
         Column("password_hash", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
+        Column("last_logged_in_at", ColumnType.DATETIME, is_nullable=True),
     ),
     constraints=(Constraint("bench_unique_email", ConstraintType.UNIQUE, columns=["email"]),),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )
 
 ORGANIZATION_TABLE = Table(
     "bench_organization",
     (
         Column("id", ColumnType.UUID),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
         Column("revision", ColumnType.BIGINT),
         Column("created_at", ColumnType.DATETIME),
         Column("updated_at", ColumnType.DATETIME),
@@ -808,6 +935,7 @@ ORGANIZATION_TABLE = Table(
             is_nullable=True,
         ),
     ),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )
 
 CLIENT_TABLE = Table(
@@ -818,6 +946,13 @@ CLIENT_TABLE = Table(
             "parent_user_id",
             ColumnType.UUID,
             is_foreign_key_to="bench_user",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
@@ -836,6 +971,7 @@ CLIENT_TABLE = Table(
     constraints=(
         Constraint("bench_unique_access_token", ConstraintType.UNIQUE, columns=["access_token"]),
     ),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )
 
 NOTIFICATION_TABLE = Table(
@@ -846,6 +982,13 @@ NOTIFICATION_TABLE = Table(
             "parent_user_id",
             ColumnType.UUID,
             is_foreign_key_to="bench_user",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
@@ -860,6 +1003,7 @@ NOTIFICATION_TABLE = Table(
         Column("expires_at", ColumnType.DATETIME, is_nullable=True),
         Column("read_at", ColumnType.DATETIME, is_nullable=True),
     ),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )
 
 BADGE_TABLE = Table(
@@ -870,6 +1014,13 @@ BADGE_TABLE = Table(
             "parent_bench_id",
             ColumnType.UUID,
             is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
+            "module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
             on_delete=CascadeAction.CASCADE,
             is_nullable=True,
         ),
@@ -892,4 +1043,5 @@ BADGE_TABLE = Table(
     constraints=(
         Constraint("bench_unique_link_token", ConstraintType.UNIQUE, columns=["link_token"]),
     ),
+    indexes=(Index("bench_idx_module_id", IndexType.BTREE, ["module_id"]),),
 )

@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package symbolx.bench;
+
+import "bench/proto/lang.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+message PropertyPointer {
+  BenchType bench_type = 1;
+  int32 property_id = 2;
+}
+
+enum ClientKind {
+  CLIENT_KIND_UNSPECIFIED = 0;
+  CLIENT_KIND_USER = 1;
+  CLIENT_KIND_WORKER = 2;
+}
+
+message ClientOrigin {
+  ClientKind kind = 1;
+  string id = 2;
+  string nonce = 3;
+}
+
+// Core metadata for all RPC requests (headers).
+message RpcMetadata {
+  ClientKind client_kind = 1;
+  string client_id = 2;
+  string client_nonce = 3;
+  string client_token = 4;
+  string bench_id = 5;
+  string module_id = 6;
+}
+
+
+// Edit describes an edit to a node in a Bench.
+// (Manually defined here since Node properties inside structs aren't supported.)
+message EditData {
+  EditKind kind = 1;
+  string module_id = 2;
+  SomeNodeData node = 3;
+  repeated int32 properties = 4;
+  ClientOrigin origin = 5;
+}
