@@ -484,7 +484,7 @@ class Property(_FieldExpressionBase):
             self.reference_wired_ptr = wired_ptr_prop
             stored_ptr_props = []
             for ref_type in self.references:
-                store_as_id = ref_type not in IN_MODULE_NODE_TYPES
+                store_as_id = ref_type not in IN_MODULE_NODE_TYPES or ref_type == NodeType.MODULE
                 prop_postfix = "id" if store_as_id else "ck"
                 if self.name == ref_type.name.lower():  # reduce clutter if type is unambiguous
                     prop_name = f"{self.name}_{prop_postfix}"

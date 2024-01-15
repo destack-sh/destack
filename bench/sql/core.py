@@ -230,20 +230,23 @@ class Column(TableObject):
     def __repr__(self):
         return f"<Column {self}>"
 
-    def sql(self) -> str:
+    def type_sql(self) -> str:
         if self.type == ColumnType.STRING and self.length is not None:
             pg_type = f"VARCHAR({self.length})"
         else:
             pg_type = POSTGRES_TYPE_BY_COLUMN_TYPE[self.type]
         if self.is_array:
             pg_type += "[]"
-        parts = [self.name, pg_type]
+        if not self.is_nullable:
+            pg_type += " NOT NULL"
+        return pg_type
+
+    def sql(self) -> str:
+        parts = [self.name, self.type_sql()]
         if self.is_primary_key:
             parts.append("PRIMARY KEY")
         if self.is_unique:
             parts.append("UNIQUE")
-        if not self.is_nullable:
-            parts.append("NOT NULL")
         if self.default is not None:
             parts.append(f"DEFAULT {self.default}")
         if self.is_foreign_key_to is not None:
@@ -552,3 +555,4 @@ RECORD_EPHEMERAL_TABLE = Table(
 
 DEFAULT_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
 DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (RECORD_EPHEMERAL_TABLE,)
+DEFAULT_GLOBAL_TABLES: tuple[Table, ...] = ()

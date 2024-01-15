@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from bench.language.const import NodeType, NotificationStatus, NotificationType
-from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal
+from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
 
 
 @node(NodeType.HANDLE, root=None, in_module=False, in_bench=False)
@@ -17,7 +17,8 @@ class User(ScopeNode):
     """A (global) Bench user."""
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
-    username: str = struct_internal(31, protect=True)  # already unique via slug
+    # nocheckin: rename User.username->slug
+    username: str = struct_internal(31, protect=True, unique=True)
     name: str = struct_internal(32)
     email: str = struct_internal(33, defer=True, unique=True, protect=True)
     password_salt: bytes = struct_internal(34, defer=True, encrypt=True, protect=True)
@@ -34,6 +35,8 @@ class Organization(ScopeNode):
     """A (global) Bench organization."""
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
+    name: str = struct_internal(31)
+    description: Optional[str] = struct_property(32)
 
 
 @node(NodeType.CLIENT, root=NodeType.USER, in_bench=False, in_module=False)

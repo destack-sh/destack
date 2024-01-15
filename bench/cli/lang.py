@@ -23,6 +23,7 @@ from bench.proto.core import Field, Message
 from bench.proto.engine import generate_proto_schema
 from bench.server.session import detached_session
 from bench.sql.client import async_pg_cursor
+from bench.sql.core import DEFAULT_GLOBAL_TABLES, DEFAULT_LOCAL_TABLES
 from bench.sql.engine import map_node_type_to_pg_table
 from bench.sql.migration import (
     Migration,
@@ -200,16 +201,18 @@ async def makemigrations(
         old_global_tables = await introspect_tables_from_pg(cur)
     async with async_pg_cursor(local_pg_name=local_pg_name) as cur:
         old_local_tables = await introspect_tables_from_pg(cur)
-    new_global_tables = [
+    node_global_tables = [
         node.__table__
         for node in NODE_CLASS_BY_NODE_TYPE.values()
         if not node.__is_local__ and node.__table__ is not None
     ]
-    new_local_tables = [
+    new_global_tables = [*DEFAULT_GLOBAL_TABLES, *node_global_tables]
+    node_local_tables = [
         node.__table__
         for node in NODE_CLASS_BY_NODE_TYPE.values()
         if node.__is_local__ and node.__table__ is not None
     ]
+    new_local_tables = [*DEFAULT_LOCAL_TABLES, *node_local_tables]
 
     # generate migration
     global_migration_ops = generate_migration_ops(old_global_tables, new_global_tables)

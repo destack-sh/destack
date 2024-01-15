@@ -92,9 +92,21 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             column.on_delete = prop.reference_on_delete
         columns.append(column)
         if prop.is_indexed_in_pg:
-            indexes.append(map_property_to_btree_index(column, prop))
+            index = Index(
+                f"bench_idx_{prop.name}",
+                type=IndexType.BTREE,
+                columns=(column.name,),
+                _source=prop.id,
+            )
+            indexes.append(index)
         if prop.is_unique:
-            constraints.append(map_property_to_unique_constraint(column, prop))
+            constraint = Constraint(
+                f"bench_unique_{prop.name}",
+                type=ConstraintType.UNIQUE,
+                columns=(column.name,),
+                _source=prop.id,
+            )
+            constraints.append(constraint)
 
     # one of the parent_<type>_id columns must be non-null
     parent_columns: tuple[str, ...] = tuple(c.name for c in columns if c.name.startswith("parent_"))
@@ -136,26 +148,6 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
         indexes=tuple(indexes),
     )
     return table
-
-
-def map_property_to_unique_constraint(column, prop):
-    constraint = Constraint(
-        f"bench_unique_{prop.name}",
-        type=ConstraintType.UNIQUE,
-        columns=(column.name,),
-        _source=prop.id,
-    )
-    return constraint
-
-
-def map_property_to_btree_index(column, prop):
-    index = Index(
-        f"bench_idx_{prop.name}",
-        type=IndexType.BTREE,
-        columns=(column.name,),
-        _source=prop.id,
-    )
-    return index
 
 
 TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {

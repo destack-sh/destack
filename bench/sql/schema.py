@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.10.4"
+VERSION = "2024.01.15.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -43,7 +43,13 @@ BENCH_TABLE = Table(
             is_nullable=True,
         ),
         Column("status", ColumnType.STRING),
-        Column("head_module_ck", ColumnType.UUID, is_nullable=True),
+        Column(
+            "head_module_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_module",
+            on_delete=CascadeAction.SET_NULL,
+            is_nullable=True,
+        ),
         Column("pg_name", ColumnType.STRING, is_nullable=True),
         Column("pg_username", ColumnType.STRING, is_nullable=True),
         Column("pg_password", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
@@ -133,10 +139,9 @@ FILE_TABLE = Table(
         Column("last_changed_at", ColumnType.DATETIME, is_nullable=True),
         Column("policies", ColumnType.BYTES, is_array=True, is_nullable=True),
         Column("name", ColumnType.STRING, is_nullable=True),
-        Column("order_key", ColumnType.STRING, is_unique=True, is_nullable=True),
+        Column("order_key", ColumnType.STRING, is_nullable=True),
     ),
     constraints=(
-        Constraint("bench_unique_order_key", ConstraintType.UNIQUE, columns=("order_key",)),
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
@@ -958,14 +963,17 @@ USER_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
-        Column("username", ColumnType.STRING),
+        Column("username", ColumnType.STRING, is_unique=True),
         Column("name", ColumnType.STRING),
         Column("email", ColumnType.STRING, is_unique=True),
         Column("password_salt", ColumnType.BYTES, is_encrypted=True),
         Column("password_hash", ColumnType.BYTES, is_encrypted=True),
         Column("last_logged_in_at", ColumnType.DATETIME, is_nullable=True),
     ),
-    constraints=(Constraint("bench_unique_email", ConstraintType.UNIQUE, columns=("email",)),),
+    constraints=(
+        Constraint("bench_unique_username", ConstraintType.UNIQUE, columns=("username",)),
+        Constraint("bench_unique_email", ConstraintType.UNIQUE, columns=("email",)),
+    ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("bench_deleted_at",)),
         Index("bench_idx_archived_at", IndexType.BTREE, ("bench_archived_at",)),
@@ -990,6 +998,8 @@ ORGANIZATION_TABLE = Table(
             on_delete=CascadeAction.SET_NULL,
             is_nullable=True,
         ),
+        Column("name", ColumnType.STRING),
+        Column("description", ColumnType.STRING, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_deleted_at", IndexType.BTREE, ("bench_deleted_at",)),

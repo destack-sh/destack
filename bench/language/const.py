@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.10.4"
+VERSION = "2024.01.15.0"
 
 
 #
@@ -53,7 +53,6 @@ class NodeType(ProtoStrEnum):
     RUN = "RUN", 51
     HALT = "HALT", 52
     SIGNAL = "SIGNAL", 53
-    # CURSOR = "CURSOR", 54 # into signal
 
     # worker
     WORKER_SET = "WORKER_SET", 60
@@ -105,6 +104,7 @@ class StructType(ProtoStrEnum):
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
     RUN_ERROR = "RUN_ERROR", 222
     MINI_RUN = "MINI_RUN", 223
+    # CURSOR = "CURSOR", 224
     WORKER_IMAGE = "WORKER_IMAGE", 230
     DEPENDENCY = "DEPENDENCY", 231
 
