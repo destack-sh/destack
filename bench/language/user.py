@@ -16,7 +16,7 @@ class Handle(Node):
 class User(ScopeNode):
     """A (global) Bench user."""
 
-    handle: Handle = struct_internal(30, array=False, references=NodeType.HANDLE)
+    handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
     username: str = struct_internal(31, protect=True)  # already unique via slug
     name: str = struct_internal(32)
     email: str = struct_internal(33, defer=True, unique=True, protect=True)
@@ -33,7 +33,7 @@ class User(ScopeNode):
 class Organization(ScopeNode):
     """A (global) Bench organization."""
 
-    handle: Handle = struct_internal(30, array=False, references=NodeType.HANDLE)
+    handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
 
 
 @node(NodeType.CLIENT, root=NodeType.USER, in_bench=False, in_module=False)

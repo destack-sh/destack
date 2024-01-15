@@ -185,7 +185,7 @@ async def makemigrations(
     local_pg_name: Optional[str] = typer.Option(
         default=None, help="the bench to use as local reference (bypass lookup via bench)"
     ),
-    exclude_inverse: bool = typer.Option(default=False, help="exclude downgrade operations"),
+    no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
 ):
     logger.info("makemigrations", bench=bench, local_pg_name=local_pg_name)
     start = time.time()
@@ -238,7 +238,7 @@ async def makemigrations(
         cur=cur,
         global_ops=global_migration_ops,
         local_ops=local_migration_ops,
-        exclude_inverse=exclude_inverse,
+        exclude_inverse=no_downgrade,
     )
     add_migration_to_fs(migration=new_migration, code=migration_code)
 

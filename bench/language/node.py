@@ -143,7 +143,8 @@ class Property(_FieldExpressionBase):
     is_encrypted: bool = False  # encrypt at rest (only node properties)
     struct_type: StructType | None = None  # for struct properties
     references: tuple[NodeType, ...] | None = None  # for reference relations
-    reference_ptr: Optional["Property"] = None  # for reference relations
+    reference_wired_ptr: Optional["Property"] = None  # wired reference for references
+    reference_stored_ptrs: tuple["Property", ...] | None = None  # stored reference for references
     reference_source: Optional["Property"] = None  # for reference relations (reverse)
     reference_on_delete: CascadeAction | None = UNSET
     parents: tuple[NodeType, ...] | None = None
@@ -268,6 +269,13 @@ class Property(_FieldExpressionBase):
         return bool(self.references)
 
     @property
+    def reference_keys(self) -> Iterable["Property"]:
+        if self.reference_wired_ptr is not None:
+            yield self.reference_wired_ptr
+        if self.reference_stored_ptrs:
+            yield from self.reference_stored_ptrs
+
+    @property
     def is_static(self):
         return not self.is_runtime_only
 
@@ -286,7 +294,8 @@ class Property(_FieldExpressionBase):
                 "id",
                 "component",
                 "ignore_conflicts_with",
-                "reference_ptr",
+                "reference_wired_ptr",
+                "reference_stored_ptrs",
                 "reference_source",
                 "py_type_raw",
                 "py_type_stripped",
@@ -334,6 +343,8 @@ class Property(_FieldExpressionBase):
             # update info from annotation
             if self.is_array is UNSET:
                 self.is_array = info.is_array
+            if self.is_required is UNSET:
+                self.is_required = not info.is_optional
 
         # determine storage type
         if self.column_type is UNSET and (self.is_stored or self.is_wired):
@@ -354,9 +365,9 @@ class Property(_FieldExpressionBase):
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
                 self.column_type = column_type
 
-    def _contribute(self) -> tuple["Property"]:
+    def _contribute(self) -> tuple["Property", ...]:
         """Contribute any extra properties required by this property."""
-        # TODO @Cleanup: Property._contribute mostly duplicates the ref->ptr logic x3
+        # TODO @Cleanup: Property._contribute mostly duplicates the ref->ptr logic
 
         if self.parents is not None:
             # special reference to parent (via id, resolved before instantiating)
@@ -370,7 +381,7 @@ class Property(_FieldExpressionBase):
                 default=None,
                 parents=self.parents,
                 reference_source=self,
-                is_required=self.is_required,
+                is_required=False,
                 is_internal=True,
                 is_computed=True,
                 is_wired=True,
@@ -378,7 +389,7 @@ class Property(_FieldExpressionBase):
                 is_array=False,
                 column_type=None,
             )
-            flattened_stored_props: list[Property] = []
+            stored_ptr_props: list[Property] = []
             for parent_node_type in self.parents:
                 parent_id_prop = Property(
                     id=self.id,
@@ -389,7 +400,7 @@ class Property(_FieldExpressionBase):
                     references=(parent_node_type,),
                     reference_source=self,
                     reference_on_delete=CascadeAction.CASCADE,
-                    is_required=self.is_required,
+                    is_required=False,
                     is_internal=True,
                     is_runtime=False,
                     is_wired=False,
@@ -398,9 +409,10 @@ class Property(_FieldExpressionBase):
                     is_indexed_in_pg=self.is_indexed_in_pg,
                     column_type=ColumnType.UUID,
                 )
-                flattened_stored_props.append(parent_id_prop)
-            self.reference_ptr = wired_ptr_prop
-            return (wired_ptr_prop, *flattened_stored_props)
+                stored_ptr_props.append(parent_id_prop)
+            self.reference_wired_ptr = wired_ptr_prop
+            self.reference_stored_ptrs = tuple(stored_ptr_props)
+            return wired_ptr_prop, *stored_ptr_props
         elif self.ancestor is not None:
             assert self.is_stored is not UNSET, f"must set is_stored on {self!r}"
             assert self.is_wired is not UNSET, f"must set is_wired on {self!r}"
@@ -412,7 +424,7 @@ class Property(_FieldExpressionBase):
                 references=(self.ancestor,),
                 reference_source=self,
                 reference_on_delete=CascadeAction.CASCADE,
-                is_required=self.is_required,
+                is_required=False,
                 is_internal=True,
                 is_computed=True,
                 is_wired=self.is_wired,
@@ -421,8 +433,9 @@ class Property(_FieldExpressionBase):
                 is_indexed_in_pg=self.is_indexed_in_pg,
                 column_type=None,
             )
-            self.reference_ptr = wired_ptr_prop
+            self.reference_wired_ptr = wired_ptr_prop
             if self.is_stored:
+                assert self.is_required is not UNSET, f"must set is_required on {self!r}"
                 self.is_stored = False  # the key is stored instead
                 ancestor_id_prop = Property(
                     id=self.id,
@@ -441,6 +454,7 @@ class Property(_FieldExpressionBase):
                     is_indexed_in_pg=self.is_indexed_in_pg,
                     column_type=ColumnType.UUID,
                 )
+                self.reference_stored_ptrs = (ancestor_id_prop,)
             else:
                 ancestor_id_prop = None
             if self.is_wired is True:
@@ -448,6 +462,7 @@ class Property(_FieldExpressionBase):
             return (wired_ptr_prop, ancestor_id_prop) if ancestor_id_prop else (wired_ptr_prop,)
         elif self.references is not None:
             # regular reference to node (via ck for in-module nodes, id otherwise)
+            assert self.is_required is not UNSET, f"must set is_required on {self!r}"
             assert self.is_array is not UNSET, f"must set is_array on {self!r}"
             # like with parent id, we wire this as a pointer and store per reference type for integrity
             wired_ptr_prop = Property(
@@ -466,8 +481,8 @@ class Property(_FieldExpressionBase):
                 is_indexed_in_pg=self.is_indexed_in_pg,
                 column_type=None,
             )
-            self.reference_ptr = wired_ptr_prop
-            flattened_stored_props = []
+            self.reference_wired_ptr = wired_ptr_prop
+            stored_ptr_props = []
             for ref_type in self.references:
                 store_as_id = ref_type not in IN_MODULE_NODE_TYPES
                 prop_postfix = "id" if store_as_id else "ck"
@@ -492,8 +507,9 @@ class Property(_FieldExpressionBase):
                     is_indexed_in_pg=self.is_indexed_in_pg,
                     column_type=ColumnType.UUID,
                 )
-                flattened_stored_props.append(reference_prop)
-            return (self.reference_ptr, *flattened_stored_props)
+                stored_ptr_props.append(reference_prop)
+            self.reference_stored_ptrs = tuple(stored_ptr_props)
+            return self.reference_wired_ptr, *stored_ptr_props
 
         return tuple()
 
@@ -533,7 +549,7 @@ def struct_property(
     default_factory: Callable[[], Any] = None,
     copy: Callable[[Any], Any] = None,
     validate: Callable[[Any, "PropertyValidationHandler"], bool | None] = None,
-    require: bool = False,
+    require: bool = UNSET,
     reflect: bool = UNSET,
     unique: bool = False,
     encrypt: bool = False,
@@ -570,7 +586,7 @@ def struct_internal(
     default: Any = UNSET,
     default_factory: Callable[[], Any] = None,
     copy: Callable[[Any], Any] = None,
-    require: bool = False,
+    require: bool = UNSET,
     reflect: bool = UNSET,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
@@ -640,6 +656,7 @@ def node_ancestor(
     include_self: bool = True,
     store: bool = False,
     wire: bool = False,
+    require: bool = UNSET,
     index_in_pg: bool = False,
 ):
     """Computed nearest or farthest ancestor of the given type."""
@@ -654,6 +671,7 @@ def node_ancestor(
         is_ancestor_self=include_self,
         is_stored=store,
         is_wired=wire,
+        is_required=require,
         is_indexed_in_pg=index_in_pg,
     )
 
@@ -874,7 +892,9 @@ def _process_struct_base_cls(
             # remove 'bench'/'module' ancestor property if not actually a descendant :MagicNodeProps
             attr = None
             del properties_by_name[name]
-            del properties_by_name[prop.reference_ptr.name]  # remove contributed reference key too
+            # remove contributed reference keys too
+            for key in prop.reference_keys:
+                del properties_by_name[key.name]
         elif prop.name == "ck" and is_node and not is_in_module:
             # remove node ck (is == id if outside a module) :MagicNodeProps
             attr = _node_ck_from_id_prop(prop)
@@ -918,7 +938,7 @@ def _process_struct_base_cls(
     cls.__properties__ = frozendict(properties_by_name)
     properties_by_id: dict[int, Property] = {}
     for prop in properties_by_name.values():
-        if prop.id is not None and prop.is_wired and not prop.reference_ptr:
+        if prop.id is not None and prop.is_wired and not prop.reference_wired_ptr:
             existing = properties_by_id.get(prop.id, None)
             if existing is not None:
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
@@ -1253,7 +1273,7 @@ class Struct(abc.ABC):
         for prop in self.__reference_properties__.values():
             ref = getattr(self, prop.name)
             if isinstance(ref, Node):
-                self.__dict__[prop.reference_ptr.name] = ref.ck
+                self.__dict__[prop.reference_wired_ptr.name] = ref.ck
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         # clear node references :NodeReferences
@@ -1271,7 +1291,7 @@ class Struct(abc.ABC):
         for prop in self.__reference_properties__.values():
             if getattr(self, prop.name, None) is not None:
                 continue  # already resolved
-            ref_key_value = getattr(self, prop.reference_ptr.name)
+            ref_key_value = getattr(self, prop.reference_wired_ptr.name)
             if ref_key_value is not None:
                 resolved = scope.resolve(ref_key_value)
                 if resolved is None:
@@ -1383,11 +1403,11 @@ class Node(Struct, _NodeExpressionBase):
     ck: UUID = struct_internal(3, default=None, require=True, protect=True)
     parent: Optional["Node"] = node_parent(4)
     # prototype/template: Optional["Node"] = node_template(5)
-    module: Optional["Module"] = node_ancestor(
-        6, NodeType.MODULE, store=True, wire=True, index_in_pg=True
+    module: "Module" = node_ancestor(
+        6, NodeType.MODULE, require=True, store=True, wire=True, index_in_pg=True
     )
-    # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, store=True, wire=True)
-    bench: Optional["Bench"] = node_ancestor(8, NodeType.BENCH, store=False, wire=True)
+    # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, require=True, store=True, wire=True)
+    bench: "Bench" = node_ancestor(8, NodeType.BENCH, require=True, store=False, wire=True)
     source: NodeSource = struct_internal(
         9, default=NodeSource.PERSISTED, store=False, require=True, protect=True
     )
@@ -1396,9 +1416,11 @@ class Node(Struct, _NodeExpressionBase):
     revision: int = struct_internal(10, default=0, require=True, protect=True)
     created_at: datetime = struct_internal(11, default=None, require=True, protect=True)
     updated_at: datetime = struct_internal(12, default=None, require=True, protect=True)
-    deleted_at: datetime = struct_internal(13, default=None, protect=True)
-    archived_at: datetime = struct_internal(14, default=None, protect=True)
-    last_edited_at: datetime = struct_internal(15, default=None, require=True, protect=True)
+    deleted_at: Optional[datetime] = struct_internal(13, default=None, protect=True)
+    archived_at: Optional[datetime] = struct_internal(14, default=None, protect=True)
+    last_edited_at: Optional[datetime] = struct_internal(
+        15, default=None, require=True, protect=True
+    )
     # only scope nodes can have 'inner' changes
     # last_changed_at: datetime = struct_internal(16, default=None)
     # created_by: ... = struct_internal(17, default=None)
@@ -1512,12 +1534,12 @@ class Node(Struct, _NodeExpressionBase):
                 except ValidationError as e:  # reset on error
                     self.__dict__[key] = prev
                     raise e
-                if prop.reference_ptr:  # update reference key  :NodeReferences
+                if prop.reference_wired_ptr:  # update reference key  :NodeReferences
                     reference_ptr_value = value.ck if value is not None else None
-                    self.__dict__[prop.reference_ptr.name] = reference_ptr_value
+                    self.__dict__[prop.reference_wired_ptr.name] = reference_ptr_value
                     if self.attached:
                         self._session.update(self, [key])
-                        self._updated_self((prop.reference_ptr.name,))
+                        self._updated_self((prop.reference_wired_ptr.name,))
                 elif self.attached:
                     self._session.update(self, [key])
                     self._updated_self((key,))
@@ -1774,7 +1796,7 @@ class ScopeNode(Node):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
     __has_scope__: ClassVar[bool] = True
-    last_changed_at: datetime = struct_internal(16, default=None)
+    last_changed_at: Optional[datetime] = struct_internal(16, default=None)
     issues: NodeList["Issue"] = node_children(NodeType.ISSUE, NRel.Cumulative)
     _scopes_by_name: dict[str, "ScopeNode"] = struct_runtime(default_factory=dict)
     _names_by_ident: dict[str, str] = struct_runtime(default_factory=dict)
@@ -1992,17 +2014,17 @@ class Bench(ScopeNode):
     )
     name: str = struct_property(30)
     slug: str = struct_internal(31, protect=True, unique=True)
-    description: str = struct_property(32, default=None)
+    description: Optional[str] = struct_property(32, default=None)
     organization: Optional["Organization"] = struct_internal(
-        33, protect=True, array=False, references=NodeType.ORGANIZATION
+        33, protect=True, require=False, array=False, references=NodeType.ORGANIZATION
     )
     user: Optional["User"] = struct_internal(
-        34, protect=True, array=False, references=NodeType.USER
+        34, protect=True, require=False, array=False, references=NodeType.USER
     )
     status: BenchStatus = struct_internal(35, protect=True)
 
-    # *per* environment stuff (will be moved into Environment or such later)
-    head = struct_internal(40, protect=True, array=False, references=NodeType.MODULE)
+    # *per* environment/.../? stuff (will be moved there later)
+    head = struct_internal(40, protect=True, require=False, array=False, references=NodeType.MODULE)
     pg_name: Optional[str] = struct_internal(41, protect=True, default=None)
     pg_username: Optional[str] = struct_internal(42, protect=True, default=None, defer=True)
     pg_password: Optional[str] = struct_internal(

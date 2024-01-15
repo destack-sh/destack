@@ -49,7 +49,9 @@ class Expression(Struct):
     """An expression (conditional, aggregation, sort, etc)."""
 
     op: ExpressionOp = struct_property(30, require=True)
-    field: Optional["Field"] = struct_property(31, array=False, references=NodeType.FIELD)
+    field: Optional["Field"] = struct_property(
+        31, require=False, array=False, references=NodeType.FIELD
+    )
     field_key: Optional[str] = struct_property(32, default=None)
     clauses: list["Expression"] | None = struct_property(
         33, default=None, struct_t=StructType.EXPRESSION

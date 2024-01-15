@@ -76,7 +76,11 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             is_array=prop.is_array,
             is_nullable=not prop.is_required,
             is_encrypted=prop.is_encrypted,
+            is_primary_key=prop.name == "id",
+            is_unique=prop.is_unique,
         )
+        if prop.is_encrypted:
+            column.type = ColumnType.BYTES  # all encrypted columns are bytes
         if (
             prop.references
             and prop.name.endswith("_id")
@@ -88,34 +92,41 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             column.on_delete = prop.reference_on_delete
         columns.append(column)
         if prop.is_indexed_in_pg:
-            index = Index(
-                f"bench_idx_{prop.name}",
-                type=IndexType.BTREE,
-                _source=prop.id,
-                columns=[column.name],
-            )
-            indexes.append(index)
+            indexes.append(map_property_to_btree_index(column, prop))
         if prop.is_unique:
-            constraint = Constraint(
-                f"bench_unique_{prop.name}",
-                type=ConstraintType.UNIQUE,
-                _source=prop.id,
-                columns=[column.name],
-            )
-            constraints.append(constraint)
+            constraints.append(map_property_to_unique_constraint(column, prop))
 
-    # index module + deleted_at and module + archived_at if applicable
-    if node.__is_in_module__:
-        for prop_name in ("deleted_at", "archived_at"):
-            prop = node.__properties__.get(prop_name)
-            if prop is not None:
-                index = Index(
-                    f"bench_idx_module_{prop_name}",
-                    type=IndexType.BTREE,
-                    _source=prop.id,
-                    columns=["bench_module_id", f"bench_{prop_name}"],
-                )
-                indexes.append(index)
+    # one of the parent_<type>_id columns must be non-null
+    parent_columns: tuple[str, ...] = tuple(c.name for c in columns if c.name.startswith("parent_"))
+    if parent_columns:
+        constraint = Constraint(
+            f"bench_check_one_parent",
+            type=ConstraintType.CHECK,
+            condition=f"({') OR ('.join(f'{c} IS NOT NULL' for c in parent_columns)})",
+            _source=node.metatype.id,
+        )
+        constraints.append(constraint)
+
+    # index [module] + deleted_at/archived_at if applicable
+    for prop_name in ("deleted_at", "archived_at"):
+        prop = node.__properties__.get(prop_name)
+        if prop is None:
+            continue
+        if node.__is_in_module__:
+            index = Index(
+                f"bench_idx_module_{prop_name}",
+                type=IndexType.BTREE,
+                columns=("bench_module_id", f"bench_{prop_name}"),
+                _source=prop.id,
+            )
+        else:
+            index = Index(
+                f"bench_idx_{prop_name}",
+                type=IndexType.BTREE,
+                columns=(f"bench_{prop_name}",),
+                _source=prop.id,
+            )
+        indexes.append(index)
 
     table = Table(
         _source=node.metatype.id,
@@ -125,6 +136,26 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
         indexes=tuple(indexes),
     )
     return table
+
+
+def map_property_to_unique_constraint(column, prop):
+    constraint = Constraint(
+        f"bench_unique_{prop.name}",
+        type=ConstraintType.UNIQUE,
+        columns=(column.name,),
+        _source=prop.id,
+    )
+    return constraint
+
+
+def map_property_to_btree_index(column, prop):
+    index = Index(
+        f"bench_idx_{prop.name}",
+        type=IndexType.BTREE,
+        columns=(column.name,),
+        _source=prop.id,
+    )
+    return index
 
 
 TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
