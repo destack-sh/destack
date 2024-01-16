@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.15.0"
+VERSION = "2024.01.15.1"
 
 
 #
@@ -140,10 +140,16 @@ BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
 INTERP_NODE_TYPES = {NodeType.ISSUE}
 
 
-class NodeSource(ProtoStrEnum):
-    PERSISTED = "PERSISTED", 1
-    INTERP = "INTERP", 2
-    LOCAL = "LOCAL", 3
+class NodeSource(enum.IntEnum):
+    PERSISTED = 1
+    INTERP = 2
+    LOCAL = 3
+
+
+class NodeVisibility(enum.IntEnum):
+    PUBLIC = 1
+    INTERNAL = 2
+    PRIVATE = 4
 
 
 #

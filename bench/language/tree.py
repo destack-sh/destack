@@ -13,7 +13,7 @@ from typing import (
 from uuid import UUID
 
 from bench.language.const import EditKind, NodeType, to_bench_metatype
-from bench.proto.wire import AnyNodeData, EditData
+from bench.proto.wire import EditData
 from bench.utils.func import to_uuid
 from bench.utils.utils import flatten
 

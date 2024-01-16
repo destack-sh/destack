@@ -1426,6 +1426,7 @@ class Node(Struct, _NodeExpressionBase):
     # created_by: ... = struct_internal(17, default=None)
     # last_edited_by: ... = struct_internal(18, default=None)
     # last_changed_by: ... = struct_internal(19, default=None)
+    # visibility: ... = struct_internal(20, default=None)
     # policies: ... = struct_internal(21, default=None, struct_t=StructType.POLICY)
 
     # 30+ for 'user' node/struct properties

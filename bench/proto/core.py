@@ -2,7 +2,7 @@ import dataclasses
 import enum
 import textwrap
 from dataclasses import dataclass
-from typing import ClassVar, Optional, Union
+from typing import ClassVar, Union
 
 
 class ProtoStrEnum(enum.StrEnum):

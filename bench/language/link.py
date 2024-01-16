@@ -1,33 +1,33 @@
 import abc
-from collections import defaultdict
-from dataclasses import dataclass
 import enum
 import functools
+from collections import defaultdict
+from dataclasses import dataclass
 from typing import (
-    Optional,
-    Collection,
-    NamedTuple,
-    Union,
-    Generic,
-    TypeVar,
     TYPE_CHECKING,
     Any,
+    Collection,
+    Generic,
     Iterator,
+    NamedTuple,
+    Optional,
+    TypeVar,
+    Union,
 )
 from uuid import UUID
 
 from asgiref.sync import async_to_sync
 
 from bench.language.const import (
-    NRel,
-    ExpressionOp,
-    NodeType,
-    QueryEngine,
-    NodeStatus,
     INTERP_NODE_TYPES,
     NS,
-    IssueType,
     ConditionalOp,
+    ExpressionOp,
+    IssueType,
+    NodeStatus,
+    NodeType,
+    NRel,
+    QueryEngine,
     SortOp,
     TypeTag,
 )
@@ -37,7 +37,7 @@ from bench.utils.func import _auto_async_to_sync, nextn
 from bench.utils.utils import DEBUG, flatten
 
 if TYPE_CHECKING:
-    from bench.language import Session, Node, Property, ScopeNode, Field, Expression
+    from bench.language import Expression, Field, Node, Property, ScopeNode, Session
 
 NodeT = TypeVar("NodeT", bound="Node")
 
@@ -889,7 +889,7 @@ class NodeQuery(Generic[NodeT]):
         self, session: "Session", count: bool = False, after: str = None
     ) -> _NodeFetchResult:
         from bench.proto import wire, wiring
-        from bench.sql.engine import pg_select_nodes_data, pg_count, compile_pg_conditional
+        from bench.sql.engine import compile_pg_conditional, pg_count, pg_select_nodes_data
 
         engine = self._get_target_engine()
         if engine == QueryEngine.LOCAL_POSTGRES or (
@@ -929,7 +929,7 @@ class NodeQuery(Generic[NodeT]):
                 limit=self._first,
                 after=after,
             )
-            response = await session.host.search_nodes(request)
+            await session.host.search_nodes(request)
             # return [wiring.unwrap_some_node(n) for n in response.nodes]
             raise NotImplementedError("nocheckin: NodeQuery._do_fetch GLOBAL_POSTGRES")
         else:
@@ -941,7 +941,7 @@ class NodeQuery(Generic[NodeT]):
         from bench.language.builtin import active_session
         from bench.language.expression import coerce_conditional
         from bench.proto import wire, wiring
-        from bench.sql.engine import pg_count, compile_pg_conditional
+        from bench.sql.engine import compile_pg_conditional, pg_count
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         engine = self._get_target_engine()
@@ -974,7 +974,7 @@ class NodeQuery(Generic[NodeT]):
         from bench.language.builtin import active_session
         from bench.language.expression import coerce_conditional
         from bench.proto import wire, wiring
-        from bench.sql.engine import pg_exists, compile_pg_conditional
+        from bench.sql.engine import compile_pg_conditional, pg_exists
 
         filter = coerce_conditional(self._node_cls, filter, kwargs, return_none_if_empty=True)
         engine = self._get_target_engine()

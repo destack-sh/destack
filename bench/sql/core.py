@@ -431,7 +431,7 @@ class PostgresColumnType(enum.StrEnum):
     BOX = "box"
     BYTEA = "bytea"
     CHARACTER = "character"
-    CHARACTER_VARYING = "character_varying"
+    CHARACTER_VARYING = "varchar"
     CIDR = "cidr"
     CIRCLE = "circle"
     DATE = "date"
@@ -502,7 +502,7 @@ MIGRATION_TABLE = Table(  # see bench/sql/migration.py
     "bench_migration",
     columns=(
         Column("id", ColumnType.INT, is_primary_key=True, _source=2),
-        Column("version", ColumnType.STRING, length=64, is_unique=True, _source=30),
+        Column("version", ColumnType.STRING, is_unique=True, _source=30),
         Column("has_global", ColumnType.BOOLEAN, _source=31),
         Column("has_local", ColumnType.BOOLEAN, _source=32),
         Column("applied_at", ColumnType.DATETIME, is_nullable=True, _source=33),
@@ -524,7 +524,7 @@ RECORD_BASE_TABLE = Table(
         Column("created_by_id", ColumnType.UUID, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, default="now()", _source=16),
         Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
-        Column("statement_key", ColumnType.STRING, length=16, _source=20),
+        Column("statement_key", ColumnType.STRING, _source=20),
     ),
     constraints=(
         # ck + statement_key must be unique
@@ -553,6 +553,5 @@ RECORD_EPHEMERAL_TABLE = Table(
     indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes),),
 )
 
-DEFAULT_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)
-DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (RECORD_EPHEMERAL_TABLE,)
-DEFAULT_GLOBAL_TABLES: tuple[Table, ...] = ()
+DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE, RECORD_EPHEMERAL_TABLE)
+DEFAULT_GLOBAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE,)

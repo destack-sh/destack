@@ -1,15 +1,15 @@
-from pathlib import Path
 import shutil
-from subprocess import DEVNULL
 import time
+from pathlib import Path
+from subprocess import DEVNULL
 
 import structlog
 import typer
 
 from bench.cli.utils import _shell
 from bench.language import VERSION
-from bench.language.node import Node, BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES
-from bench.proto.core import Message, Field
+from bench.language.node import BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES, Node
+from bench.proto.core import Field, Message
 from bench.proto.engine import generate_proto_schema
 
 TARGET_PY_DIR = "bench/proto/wire"
@@ -77,7 +77,7 @@ def _regen_proto_artifacts(schema_str: str) -> None:
         _shell(f"mv {TARGET_PY_DIR}/symbolx/bench/__init__.py {TARGET_PY_FILE}")
         Path(TARGET_PY_FILE).write_text(
             Path(TARGET_PY_FILE).read_text()
-            # append AnyNodeData/AnyStructData
+            # append AnyNodeData/AnyStructDatax
             + "\n\nfrom typing import Union # noqa\n"
             + f"AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]\n"
             + f"AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]"
