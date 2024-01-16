@@ -27,7 +27,6 @@ from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     Expression,
     ExpressionOps,
-    FieldReference,
     QueryEngineError,
     QueryEngineIncapableError,
     S,
@@ -35,7 +34,7 @@ from bench.language.expression import (
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
 from bench.language.node import (
     BENCH_CLASS_BY_TYPE,
-    STRUCT_CLASS_BY_STRUCT_TYPE,
+    STRUCT_CLASS_BY_TYPE,
     Node,
     Property,
     Struct,
@@ -301,20 +300,18 @@ OS_CONDITIONAL_OP_BY_BENCH = {
 }
 
 
-def _compile_field_key(field: lang.Field | FieldReference) -> str:
-    if isinstance(field, lang.Field):
-        if field._reflected:
-            return field.py_ident
-        else:
-            return field._source_key
-    elif isinstance(field, str):
-        return field
+def _compile_expression_ref(expr: Expression) -> str:
+    if expr.property_ptr is not None:
+        return expr._property_resolved.name
+    if expr.field is not None:
+        assert expr.field._reflected_from is None, f"cannot use reflected: {expr!r}->{expr.field!r}"
+        return expr.field._source_key
     else:
-        raise TypeError(f"unexpected field ref: {field}")
+        raise TypeError(f"unexpected field ref: {expr!r}")
 
 
 def compile_os_conditional(ctx: CompilationContext, cond: Expression) -> dict[str, Any]:
-    key = _compile_field_key(cond.field or cond.field_key) if cond.field or cond.field_key else None
+    key = _compile_expression_ref(cond) if cond.target else None
     if cond.op == ConditionalOp.TRUE:
         return {"match_all": {}}
     elif cond.op == ConditionalOp.FALSE:
@@ -367,7 +364,10 @@ def compile_os_sort(ctx: CompilationContext, sort: Expression) -> dict[str, Any]
     props = {"order": OS_SORT_ORDER_BY_BENCH[sort.op]}
     if sort.mode:
         props["mode"] = OS_SORT_MODE_BY_BENCH[sort.mode]
-    return {sort._field_str: props}
+    if sort.property_ptr is not None:
+        return {sort._property_resolved: props}
+    else:
+        return {sort.field._source_key: props}
 
 
 @dataclass(frozen=True)
@@ -560,7 +560,7 @@ def map_struct_type_to_os_document(struct: type[Struct]) -> os.Document:
         if prop.is_enum:
             field = os.Field(os.FieldType.KEYWORD)
         elif prop.is_struct:
-            struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[prop.struct_type]
+            struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
             field = os.Field(
                 os.FieldType.OBJECT, properties=map_struct_type_to_os_document(struct_cls).fields
             )

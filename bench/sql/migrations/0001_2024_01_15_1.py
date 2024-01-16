@@ -926,6 +926,47 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     """
     )
 
+    # bench_session
+    await cur.execute(
+        """
+    CREATE TABLE bench_session (
+        id uuid NOT NULL PRIMARY KEY,
+        ck uuid NOT NULL,
+        parent_module_id uuid,
+        module_id uuid NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
+        created_at timestamp NOT NULL,
+        updated_at timestamp NOT NULL,
+        deleted_at timestamp,
+        archived_at timestamp,
+        last_edited_at timestamp NOT NULL,
+        last_changed_at timestamp,
+        policies bytea[],
+        worker_id uuid,
+        worker_process_id varchar,
+        trigger_type varchar,
+        trigger_id uuid,
+        opened_at timestamp,
+        closed_at timestamp
+    )
+    """
+    )
+    await cur.execute(
+        """
+        ALTER TABLE bench_session    
+        ADD CONSTRAINT bench_session_bench_check_one_parent CHECK ((parent_module_id IS NOT NULL))
+    """
+    )
+    await cur.execute(
+        "CREATE INDEX bench_session_bench_idx_module_id ON bench_session USING BTREE (module_id)"
+    )
+    await cur.execute(
+        "CREATE INDEX bench_session_bench_idx_module_deleted_at ON bench_session USING BTREE (module_id, deleted_at)"
+    )
+    await cur.execute(
+        "CREATE INDEX bench_session_bench_idx_module_archived_at ON bench_session USING BTREE (module_id, archived_at)"
+    )
+
     # bench_record_ephemeral
     await cur.execute(
         """
@@ -1054,47 +1095,6 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
     )
     await cur.execute(
         "CREATE INDEX bench_halt_bench_idx_module_archived_at ON bench_halt USING BTREE (module_id, archived_at)"
-    )
-
-    # bench_session
-    await cur.execute(
-        """
-    CREATE TABLE bench_session (
-        id uuid NOT NULL PRIMARY KEY,
-        ck uuid NOT NULL,
-        parent_module_id uuid,
-        module_id uuid NOT NULL,
-        revision bigint NOT NULL DEFAULT 0,
-        created_at timestamp NOT NULL,
-        updated_at timestamp NOT NULL,
-        deleted_at timestamp,
-        archived_at timestamp,
-        last_edited_at timestamp NOT NULL,
-        last_changed_at timestamp,
-        policies bytea[],
-        worker_id uuid,
-        worker_process_id varchar,
-        trigger_type varchar,
-        trigger_id uuid,
-        opened_at timestamp,
-        closed_at timestamp
-    )
-    """
-    )
-    await cur.execute(
-        """
-        ALTER TABLE bench_session    
-        ADD CONSTRAINT bench_session_bench_check_one_parent CHECK ((parent_module_id IS NOT NULL))
-    """
-    )
-    await cur.execute(
-        "CREATE INDEX bench_session_bench_idx_module_id ON bench_session USING BTREE (module_id)"
-    )
-    await cur.execute(
-        "CREATE INDEX bench_session_bench_idx_module_deleted_at ON bench_session USING BTREE (module_id, deleted_at)"
-    )
-    await cur.execute(
-        "CREATE INDEX bench_session_bench_idx_module_archived_at ON bench_session USING BTREE (module_id, archived_at)"
     )
 
     # bench_signal

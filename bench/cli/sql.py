@@ -12,7 +12,7 @@ from rich import print
 
 from bench.cli.utils import _async_to_sync_blocking
 from bench.language.const import VERSION, NodeType
-from bench.language.node import NODE_CLASS_BY_NODE_TYPE, Bench
+from bench.language.node import NODE_CLASS_BY_TYPE, Bench
 from bench.server.session import detached_session
 from bench.sql.client import LOCAL_PG_HOST, LOCAL_PG_PORT, _get_pg_connection_str, async_pg_cursor
 from bench.sql.core import DEFAULT_GLOBAL_TABLES, DEFAULT_LOCAL_TABLES
@@ -42,7 +42,7 @@ def _generate_pg_schema():
         f'VERSION = "{VERSION}"',
     ]
     for node_t in NodeType:
-        node_cls = NODE_CLASS_BY_NODE_TYPE[node_t]
+        node_cls = NODE_CLASS_BY_TYPE[node_t]
         if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
             table = map_node_type_to_pg_table(node_cls)
             const_name = f"{node_cls.metatype.name}_TABLE"
@@ -88,13 +88,13 @@ async def makemigrations(
         old_local_tables = await introspect_tables_from_pg(cur)
     node_global_tables = [
         node.__table__
-        for node in NODE_CLASS_BY_NODE_TYPE.values()
+        for node in NODE_CLASS_BY_TYPE.values()
         if not node.__is_local__ and node.__table__ is not None
     ]
     new_global_tables = [*DEFAULT_GLOBAL_TABLES, *node_global_tables]
     node_local_tables = [
         node.__table__
-        for node in NODE_CLASS_BY_NODE_TYPE.values()
+        for node in NODE_CLASS_BY_TYPE.values()
         if node.__is_local__ and node.__table__ is not None
     ]
     new_local_tables = [*DEFAULT_LOCAL_TABLES, *node_local_tables]
@@ -179,7 +179,7 @@ async def migrate_all_local(
     )
 ):
     async with detached_session(read_only=True):
-        for bench in await Bench.all():
+        for bench in await Bench.tolist():
             async with async_pg_cursor(local_pg_name=bench.pg_name):
                 await migrate_to(target=target, bench=bench.slug)
 

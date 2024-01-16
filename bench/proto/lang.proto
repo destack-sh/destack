@@ -89,6 +89,8 @@ enum BenchType {
   BENCH_TYPE_EXPRESSION = 210;
   BENCH_TYPE_AGGREGATION = 211;
   BENCH_TYPE_AGGREGATION_BUCKET = 212;
+  BENCH_TYPE_NODE_POINTER = 213;
+  BENCH_TYPE_PROPERTY_POINTER = 214;
   BENCH_TYPE_LOG_ENTRY = 220;
   BENCH_TYPE_RUN_CODE_FRAME = 221;
   BENCH_TYPE_RUN_ERROR = 222;
@@ -418,6 +420,8 @@ enum StructType {
   STRUCT_TYPE_EXPRESSION = 210;
   STRUCT_TYPE_AGGREGATION = 211;
   STRUCT_TYPE_AGGREGATION_BUCKET = 212;
+  STRUCT_TYPE_NODE_POINTER = 213;
+  STRUCT_TYPE_PROPERTY_POINTER = 214;
   STRUCT_TYPE_LOG_ENTRY = 220;
   STRUCT_TYPE_RUN_CODE_FRAME = 221;
   STRUCT_TYPE_RUN_ERROR = 222;
@@ -575,8 +579,8 @@ message DependencyData {
 message ExpressionData {
   BenchType metatype = 1;
   ExpressionOp op = 30;
-  SomeNodePointer field_ptr = 31;
-  string field_key = 32;
+  NodePointerData field_ptr = 31;
+  PropertyPointerData property_ptr = 32;
   repeated ExpressionData clauses = 33;
   google.protobuf.Struct value = 34;
   SortMode mode = 35;
@@ -588,11 +592,11 @@ message LogEntryData {
   string id = 2;
   google.protobuf.Timestamp created_at = 32;
   string stream = 33;
-  repeated SomeNodePointer session_ptr = 34;
+  repeated NodePointerData session_ptr = 34;
   string level = 35;
   string logger = 36;
-  SomeNodePointer statement_ptr = 37;
-  SomeNodePointer run_ptr = 38;
+  NodePointerData statement_ptr = 37;
+  NodePointerData run_ptr = 38;
   string message = 39;
   google.protobuf.Struct value = 40;
 }
@@ -607,6 +611,14 @@ message MiniRunData {
   google.protobuf.Struct outputs = 34;
 }
 
+// // NodePointer(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = <factory>, ck: Optional[uuid.UUID] = <factory>, _status: bench.language.const.NodeStatus = None)
+message NodePointerData {
+  BenchType metatype = 1;
+  NodeType type = 30;
+  string id = 31;
+  string ck = 32;
+}
+
 // // A policy regulating access to nodes within its scope.
 message PolicyData {
   BenchType metatype = 1;
@@ -619,13 +631,21 @@ message PolicyData {
 message PolicyRuleData {
   BenchType metatype = 1;
   bool subject_authenticated = 30;
-  repeated AbsoluteNodePointer subject_users_ptr = 31;
+  repeated NodePointerData subject_users_ptr = 31;
   PolicyEffect effect = 40;
   repeated ActionKind verb = 41;
   repeated BenchType object_types = 50;
-  repeated SomeNodePointer object_nodes_ptr = 51;
-  repeated SomeNodePointer object_fields_ptr = 52;
+  repeated NodePointerData object_nodes_ptr = 51;
+  repeated NodePointerData object_fields_ptr = 52;
+  repeated PropertyPointerData object_properties = 53;
   ExpressionData condition = 60;
+}
+
+// // PropertyPointer(type: bench.language.const.BenchType = <factory>, id: Optional[int] = <factory>, _status: bench.language.const.NodeStatus = None)
+message PropertyPointerData {
+  BenchType metatype = 1;
+  BenchType type = 30;
+  int64 id = 31;
 }
 
 // // RunCodeFrame(filename: str = <factory>, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -638,13 +658,13 @@ message RunCodeFrameData {
   string line = 34;
 }
 
-// // RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, statement: Optional[ForwardRef('Statement')] = None, traceback: list[bench.language.run.RunCodeFrame] = <factory>, statement_ptr: bench.proto.wire.AbsoluteNodePointer = None, _status: bench.language.const.NodeStatus = None)
+// // RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, statement: Optional[ForwardRef('Statement')] = None, traceback: list[bench.language.run.RunCodeFrame] = <factory>, statement_ptr: bench.proto.wire.NodePointerData = None, _status: bench.language.const.NodeStatus = None)
 message RunErrorData {
   BenchType metatype = 1;
   RunErrorKind kind = 30;
   string type = 31;
   string message = 32;
-  SomeNodePointer statement_ptr = 33;
+  NodePointerData statement_ptr = 33;
   repeated RunCodeFrameData traceback = 34;
 }
 
@@ -661,8 +681,8 @@ message WorkerImageData {
 message BadgeData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -684,7 +704,7 @@ message BadgeData {
 message BenchData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
+  NodePointerData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -696,10 +716,9 @@ message BenchData {
   string slug = 30;
   string name = 31;
   string description = 32;
-  AbsoluteNodePointer organization_ptr = 33;
-  AbsoluteNodePointer user_ptr = 34;
-  BenchStatus status = 35;
-  AbsoluteNodePointer head_ptr = 40;
+  NodePointerData organization_ptr = 33;
+  NodePointerData user_ptr = 34;
+  NodePointerData head_ptr = 40;
   string pg_name = 41;
   string pg_username = 42;
   string pg_password = 43;
@@ -713,8 +732,8 @@ message BenchData {
 message BlobData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -732,7 +751,7 @@ message BlobData {
 message ClientData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
+  NodePointerData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -746,14 +765,14 @@ message ClientData {
   string access_token = 34;
 }
 
-// // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = <factory>, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected: bool = False, reference_ptr: bench.proto.wire.AbsoluteNodePointer = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _text_parsed: Optional[ForwardRef('Text')] = None)
+// // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = <factory>, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected_from: Optional[bench.language.node.Property] = None, reference_ptr: bench.proto.wire.NodePointerData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _text_parsed: Optional[ForwardRef('Text')] = None)
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -768,7 +787,7 @@ message FieldData {
   google.protobuf.Struct value = 35;
   TypeHint hint = 36;
   int64 flags = 37;
-  SomeNodePointer reference_ptr = 38;
+  NodePointerData reference_ptr = 38;
 }
 
 // // Files are how a Bench organizes statements. Files can also be folders to other files.
@@ -776,9 +795,9 @@ message FileData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -796,9 +815,9 @@ message HaltData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -811,7 +830,7 @@ message HaltData {
 message HandleData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
+  NodePointerData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -826,9 +845,9 @@ message IssueData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -847,16 +866,16 @@ message LinkData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  SomeNodePointer reference_ptr = 30;
+  NodePointerData reference_ptr = 30;
 }
 
 // // A module is a semi-isolated version of a Bench, containing the actual files and so on.
@@ -864,8 +883,8 @@ message ModuleData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -883,7 +902,7 @@ message ModuleData {
 message BaseNodeData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
+  NodePointerData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -896,7 +915,7 @@ message BaseNodeData {
 message NotificationData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
+  NodePointerData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -913,7 +932,7 @@ message NotificationData {
 message OrganizationData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
+  NodePointerData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -921,7 +940,7 @@ message OrganizationData {
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
-  AbsoluteNodePointer handle_ptr = 30;
+  NodePointerData handle_ptr = 30;
   string slug = 31;
   string name = 32;
 }
@@ -931,9 +950,9 @@ message RecordData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -948,9 +967,9 @@ message RunData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -958,11 +977,11 @@ message RunData {
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
-  SomeNodePointer session_ptr = 30;
-  SomeNodePointer root_ptr = 31;
-  AbsoluteNodePointer worker_ptr = 32;
+  NodePointerData session_ptr = 30;
+  NodePointerData root_ptr = 31;
+  NodePointerData worker_ptr = 32;
   string worker_process_id = 33;
-  SomeNodePointer node_ptr = 34;
+  NodePointerData node_ptr = 34;
   string node_path = 35;
   google.protobuf.Timestamp scheduled_at = 36;
   google.protobuf.Timestamp started_at = 37;
@@ -980,15 +999,15 @@ message RunData {
 message SecretData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  SomeNodePointer type_ptr = 30;
+  NodePointerData type_ptr = 30;
   google.protobuf.Struct value = 31;
   string sha512 = 32;
   string name = 33;
@@ -999,9 +1018,9 @@ message SessionData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1010,7 +1029,7 @@ message SessionData {
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
   repeated PolicyData policies = 30;
-  AbsoluteNodePointer worker_ptr = 31;
+  NodePointerData worker_ptr = 31;
   string worker_process_id = 32;
   TriggerType trigger_type = 33;
   string trigger_id = 34;
@@ -1023,16 +1042,16 @@ message SignalData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  SomeNodePointer type_ptr = 30;
+  NodePointerData type_ptr = 30;
   google.protobuf.Struct value = 31;
 }
 
@@ -1041,9 +1060,9 @@ message StatementData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1068,9 +1087,9 @@ message TaggingData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1079,7 +1098,7 @@ message TaggingData {
   google.protobuf.Timestamp last_edited_at = 15;
   string key = 30;
   google.protobuf.Struct value = 31;
-  SomeNodePointer reference_ptr = 32;
+  NodePointerData reference_ptr = 32;
 }
 
 // // A trigger for a statement to run.
@@ -1087,9 +1106,9 @@ message TriggerData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1108,7 +1127,7 @@ message TriggerData {
 message UserData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
+  NodePointerData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1116,7 +1135,7 @@ message UserData {
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   google.protobuf.Timestamp last_changed_at = 16;
-  AbsoluteNodePointer handle_ptr = 30;
+  NodePointerData handle_ptr = 30;
   string slug = 31;
   string name = 32;
   string email = 33;
@@ -1130,9 +1149,9 @@ message ViewData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer module_ptr = 6;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1151,8 +1170,8 @@ message ViewData {
 message WorkerData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1170,8 +1189,8 @@ message WorkerData {
 message WorkerSetData {
   BenchType metatype = 1;
   string id = 2;
-  AbsoluteNodePointer parent_ptr = 4;
-  AbsoluteNodePointer bench_ptr = 8;
+  NodePointerData parent_ptr = 4;
+  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1192,63 +1211,54 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    RunData run = 1;
-    HaltData halt = 2;
-    RecordData record = 3;
-    TriggerData trigger = 4;
-    ViewData view = 5;
-    HandleData handle = 6;
-    OrganizationData organization = 7;
-    SignalData signal = 8;
-    SessionData session = 9;
-    ModuleData module = 10;
-    BadgeData badge = 11;
-    IssueData issue = 12;
-    FileData file = 13;
-    SecretData secret = 14;
+    BadgeData badge = 1;
+    NotificationData notification = 2;
+    LinkData link = 3;
+    RecordData record = 4;
+    WorkerSetData worker_set = 5;
+    ViewData view = 6;
+    ModuleData module = 7;
+    FieldData field = 8;
+    SecretData secret = 9;
+    TaggingData tagging = 10;
+    SessionData session = 11;
+    TriggerData trigger = 12;
+    BlobData blob = 13;
+    OrganizationData organization = 14;
     BenchData bench = 15;
-    ClientData client = 16;
-    WorkerSetData worker_set = 17;
-    BlobData blob = 18;
-    WorkerData worker = 19;
-    UserData user = 20;
-    TaggingData tagging = 21;
-    LinkData link = 22;
-    NotificationData notification = 23;
-    StatementData statement = 24;
-    FieldData field = 25;
+    RunData run = 16;
+    SignalData signal = 17;
+    ClientData client = 18;
+    FileData file = 19;
+    IssueData issue = 20;
+    UserData user = 21;
+    HaltData halt = 22;
+    StatementData statement = 23;
+    WorkerData worker = 24;
+    HandleData handle = 25;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    RunErrorData run_error = 1;
-    RunCodeFrameData run_code_frame = 2;
-    LogEntryData log_entry = 3;
-    PolicyRuleData policy_rule = 4;
-    PolicyData policy = 5;
-    ExpressionData expression = 6;
-    AggregationBucketData aggregation_bucket = 7;
-    MiniRunData mini_run = 8;
-    DependencyData dependency = 9;
-    AggregationData aggregation = 10;
-    WorkerImageData worker_image = 11;
+    AggregationBucketData aggregation_bucket = 1;
+    LogEntryData log_entry = 2;
+    DependencyData dependency = 3;
+    ExpressionData expression = 4;
+    WorkerImageData worker_image = 5;
+    PropertyPointerData property_pointer = 6;
+    PolicyRuleData policy_rule = 7;
+    NodePointerData node_pointer = 8;
+    PolicyData policy = 9;
+    RunErrorData run_error = 10;
+    MiniRunData mini_run = 11;
+    AggregationData aggregation = 12;
+    RunCodeFrameData run_code_frame = 13;
   };
 }
 
 message ModuleTreeData {
   ModuleData module = 1;
   repeated SomeNodeData nodes = 2;
-}
-
-message SomeNodePointer {
-  NodeType metatype = 1;
-  string id = 2;
-  string ck = 3;
-}
-
-message AbsoluteNodePointer {
-  NodeType metatype = 1;
-  string id = 2;
 }
 

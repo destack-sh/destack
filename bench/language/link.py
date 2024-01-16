@@ -206,9 +206,9 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
         """Creates a new node in the list."""
         if len(args) == 1 and isinstance(args[0], Node):
             raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
-        from bench.language.node import NODE_CLASS_BY_NODE_TYPE
+        from bench.language.node import NODE_CLASS_BY_TYPE
 
-        node_cls = NODE_CLASS_BY_NODE_TYPE[self._property.child_node_type]
+        node_cls = NODE_CLASS_BY_TYPE[self._property.child_node_type]
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
             node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NS.SOURCE)
@@ -534,10 +534,24 @@ def _require_expression_op(op: ExpressionOp):
     return decorator
 
 
-def _to_conditional(op: ConditionalOp, field: "Field", value: Any = None):
-    from bench.language.expression import C
+def _to_conditional(op: ConditionalOp, target: Union["Field", "Property"], value: Any = None):
+    from bench.language.expression import C, Property
 
-    return C(op, field=field, value=value)
+    if isinstance(target, Property):
+        field, property = None, target.ptr
+    else:
+        field, property = target, None
+    return C(op, field=field, property_ptr=property, value=value)
+
+
+def _to_sort(op: SortOp, target: Union["Field", "Property"]):
+    from bench.language.expression import S, Property
+
+    if isinstance(target, Property):
+        field, property = None, target.ptr
+    else:
+        field, property = target, None
+    return S(op, field=field, property_ptr=property)
 
 
 class _FieldExpressionBase:
@@ -569,41 +583,41 @@ class _FieldExpressionBase:
         value = self._coerce_value(value)
         if value is None:
             return self.not_exists()
-        return _to_conditional(ConditionalOp.EQUALS, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.EQUALS, self, value=value)
 
     @_require_expression_op(ConditionalOp.NOT_EQUALS)
     def not_equal(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.NOT_EQUALS, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.NOT_EQUALS, self, value=value)
 
     @_require_expression_op(ConditionalOp.GREATER_THAN)
     def greater_than(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.GREATER_THAN, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.GREATER_THAN, self, value=value)
 
     @_require_expression_op(ConditionalOp.GREATER_THAN_OR_EQUALS)
     def greater_than_or_equals(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.GREATER_THAN_OR_EQUALS, self, value=value)
 
     @_require_expression_op(ConditionalOp.LESS_THAN)
     def less_than(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.LESS_THAN, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.LESS_THAN, self, value=value)
 
     @_require_expression_op(ConditionalOp.LESS_THAN_OR_EQUALS)
     def less_than_or_equals(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self, value=value)
 
     def __eq__(self, other):
         if isinstance(self, Node) and isinstance(other, Node):
-            return Node.__eq__(self._as_field, other)  # imitate Field equality
+            return Node.__eq__(self, other)  # imitate Field equality
         return self.equals(other)
 
     def __ne__(self, other):
         if isinstance(self, Node) and isinstance(other, Node):
-            return Node.__ne__(self._as_field, other)
+            return Node.__ne__(self, other)
         return self.not_equal(other)
 
     __gt__ = greater_than
@@ -615,65 +629,61 @@ class _FieldExpressionBase:
 
     @_require_expression_op(ConditionalOp.STARTS_WITH)
     def starts_with(self, value: str) -> "Expression":
-        return _to_conditional(ConditionalOp.STARTS_WITH, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.STARTS_WITH, self, value=value)
 
     @_require_expression_op(ConditionalOp.MATCHES)
     def matches(self, value: str) -> "Expression":
-        return _to_conditional(ConditionalOp.MATCHES, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.MATCHES, self, value=value)
 
     # containment
 
     @_require_expression_op(ConditionalOp.IN)
     def in_(self, *values: list[Any]) -> "Expression":
         values = [self._coerce_value(value) for value in values]
-        return _to_conditional(ConditionalOp.IN, self._as_field, value=values)
+        return _to_conditional(ConditionalOp.IN, self, value=values)
 
     @_require_expression_op(ConditionalOp.NOT_IN)
     def not_in(self, *values: list[Any]) -> "Expression":
         values = [self._coerce_value(value) for value in values]
-        return _to_conditional(ConditionalOp.NOT_IN, self._as_field, value=values)
+        return _to_conditional(ConditionalOp.NOT_IN, self, value=values)
 
     @_require_expression_op(ConditionalOp.CONTAINS)
     def contains(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.CONTAINS, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.CONTAINS, self, value=value)
 
     @_require_expression_op(ConditionalOp.NOT_CONTAINS)
     def not_contains(self, value: Any) -> "Expression":
         value = self._coerce_value(value)
-        return _to_conditional(ConditionalOp.NOT_CONTAINS, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.NOT_CONTAINS, self, value=value)
 
     # existence
 
     @_require_expression_op(ConditionalOp.EXISTS)
     def exists(self) -> "Expression":
-        return _to_conditional(ConditionalOp.EXISTS, self._as_field)
+        return _to_conditional(ConditionalOp.EXISTS, self)
 
     @_require_expression_op(ConditionalOp.NOT_EXISTS)
     def not_exists(self) -> "Expression":
-        return _to_conditional(ConditionalOp.NOT_EXISTS, self._as_field)
+        return _to_conditional(ConditionalOp.NOT_EXISTS, self)
 
     # knn
 
     @_require_expression_op(ConditionalOp.NEAR)
     def near(self, value: list[float]) -> "Expression":
-        return _to_conditional(ConditionalOp.NEAR, self._as_field, value=value)
+        return _to_conditional(ConditionalOp.NEAR, self, value=value)
 
     # sort
 
     @_require_expression_op(SortOp.ASCENDING)
     def asc(self) -> "Expression":
-        from bench.language.expression import S
-
-        return S(SortOp.ASCENDING, field=self._as_field)
+        return _to_sort(SortOp.ASCENDING, self)
 
     ascending = asc
 
     @_require_expression_op(SortOp.DESCENDING)
     def desc(self) -> "Expression":
-        from bench.language.expression import S
-
-        return S(SortOp.DESCENDING, field=self._as_field)
+        return _to_sort(SortOp.DESCENDING, self)
 
     descending = desc
 
@@ -705,10 +715,10 @@ class NodeQuery(Generic[NodeT]):
         engine: Optional[QueryEngine] = None,
         cache: bool = True,
     ):
-        from bench.language.node import NODE_CLASS_BY_NODE_TYPE
+        from bench.language.node import NODE_CLASS_BY_TYPE
 
         self._node_type = node_type
-        self._node_cls = NODE_CLASS_BY_NODE_TYPE[node_type]
+        self._node_cls = NODE_CLASS_BY_TYPE[node_type]
         self._filter = filter
         self._sort = sort
         self._include = include

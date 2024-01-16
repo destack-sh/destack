@@ -793,8 +793,8 @@ WORKER_SET_TABLE = Table(
         Column("target_replicas", ColumnType.BIGINT),
         Column("available_replicas", ColumnType.BIGINT),
         Column("ready_replicas", ColumnType.BIGINT),
-        Column("last_active_at", ColumnType.DATETIME),
-        Column("last_bumped_at", ColumnType.DATETIME),
+        Column("last_active_at", ColumnType.DATETIME, is_nullable=True),
+        Column("last_bumped_at", ColumnType.DATETIME, is_nullable=True),
     ),
     constraints=(
         Constraint(
@@ -887,8 +887,8 @@ USER_TABLE = Table(
         Column("slug", ColumnType.STRING, is_unique=True, is_nullable=True),
         Column("name", ColumnType.STRING),
         Column("email", ColumnType.STRING, is_unique=True),
-        Column("password_salt", ColumnType.BYTES, is_encrypted=True),
-        Column("password_hash", ColumnType.BYTES, is_encrypted=True),
+        Column("password_salt", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
+        Column("password_hash", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
         Column("last_logged_in_at", ColumnType.DATETIME, is_nullable=True),
     ),
     constraints=(

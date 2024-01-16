@@ -15,19 +15,19 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 import bench.language as lang
-from bench.language import ConditionalOp, Field, Module, QueryEngine, Session
+from bench.language import ConditionalOp, Field, Module, QueryEngine, Session, Statement
 from bench.language.const import EditKind, NodeType, TypeFlag, TypeStorageFormat, to_bench_metatype
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     ExpressionOps,
-    FieldReference,
     QueryEngineIncapableError,
 )
-from bench.language.node import NODE_CLASS_BY_NODE_TYPE, UNSET, Node, get_node_id
+from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node, get_node_id, Property
 from bench.language.tree import NodeTree
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData
+from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import UNIVERSAL_RO_PASSWORD, UNIVERSAL_RO_USERNAME, async_pg_cursor
 from bench.sql.core import (
@@ -93,7 +93,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
         if (
             prop.references
             and prop.name.endswith("_id")
-            and node.__is_local__ == NODE_CLASS_BY_NODE_TYPE[prop.references[0]].__is_local__
+            and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.references[0]].__is_local__
         ):
             assert len(prop.references) == 1, f"stored prop {prop!r} has multiple references"
             column.is_foreign_key_to = get_bench_table_name(prop.references[0])
@@ -352,22 +352,20 @@ def sql_node_to_sql(node: SqlNode) -> sql.Composable:
         return sql.Literal(node)
 
 
-def _compile_field_ref(
-    node: typing.Union[type[Node], "HasDatabase"], field: lang.Field | FieldReference
+def _compile_expression_ref(
+    node: typing.Union[type[Node], "HasDatabase"],
+    expr: lang.Expression,
 ) -> SqlNode:
-    if isinstance(field, lang.Property):
-        field = field._as_field
-    if isinstance(field, lang.Field):
-        if field._reflected:
-            return sql.Identifier(field.py_ident)
-        elif isinstance(node, Node) and node.ephemeral:
-            return SqlJsonPath(sql.Identifier("value"), [field._typed_key])
+    if expr.property_ptr is not None:
+        return sql.Identifier(expr._property_resolved.name)
+    elif expr.field is not None:
+        assert expr.field._reflected_from is None, f"cannot use reflected: {expr!r}->{expr.field!r}"
+        if isinstance(node, Statement) and node.ephemeral:
+            return SqlJsonPath(sql.Identifier("value"), [expr.field._typed_key])
         else:
-            return sql.Identifier(get_field_column_name(field))
-    elif isinstance(field, str):
-        return sql.Identifier(field)
+            return sql.Identifier(get_field_column_name(expr.field))
     else:
-        raise TypeError(f"unexpected field ref: {field!r}")
+        raise TypeError(f"unexpected expression ref: {expr!r}")
 
 
 def compile_pg_conditional(
@@ -384,7 +382,7 @@ def compile_pg_conditional(
     elif (
         cond.op in ExpressionOps.COND_COMPARISON or cond.op in ExpressionOps.COND_STRING
     ) and cond.op in PG_CONDITIONAL_OP_BY_BENCH:
-        left = _compile_field_ref(node, cond.field or cond.field_key)
+        left = _compile_expression_ref(node, cond)
         if isinstance(cond.field, Field):  # add explicit cast to LHS if possible
             pg_type = CAST_TYPE_BY_STORAGE_FORMAT[cond.field._storage_format]
             left = sql.SQL("({})::{}").format(sql_node_to_sql(left), sql.SQL(pg_type))
@@ -408,7 +406,7 @@ def compile_pg_conditional(
         return SqlComparison(left=left, op=PG_CONDITIONAL_OP_BY_BENCH[cond.op], right=right)
     elif cond.op in ExpressionOps.COND_EXISTENCE:
         return SqlUnary(
-            left=_compile_field_ref(node, cond.field or cond.field_key),
+            left=_compile_expression_ref(node, cond),
             op=PG_CONDITIONAL_OP_BY_BENCH[cond.op],
         )
     raise QueryEngineIncapableError(QueryEngine.LOCAL_POSTGRES, cond, "unsupported conditional")
@@ -418,7 +416,7 @@ def compile_pg_sort(
     database: "HasDatabase",
     sort: lang.Expression,
 ) -> SqlNode:
-    field_ref = _compile_field_ref(database, sort.field or sort.field_key)
+    field_ref = _compile_expression_ref(database, sort)
     return sql.SQL("{} {}").format(
         sql_node_to_sql(field_ref), sql.SQL(POSTGRES_SORT_OP_BY_BENCH[sort.op])
     )
@@ -511,31 +509,6 @@ def _wrap_pg_error(
     return wrapped_t(message)
 
 
-async def _pg_do_execute(
-    cur: psycopg.AsyncCursor,
-    resource: Table | str,
-    query: sql.Composed,
-    params: Sequence | Mapping | None = None,
-) -> None:
-    try:
-        await cur.execute(query, params)
-    except psycopg.errors.Error as e:
-        raise _wrap_pg_error(resource, query, e) from e
-
-
-async def _pg_do_execute_many(
-    cur: psycopg.AsyncCursor,
-    resource: Table | str,
-    query: sql.Composed,
-    params: Sequence | Mapping | None = None,
-    returning: bool = False,
-) -> None:
-    try:
-        await cur.executemany(query, params, returning=returning)
-    except psycopg.errors.Error as e:
-        raise _wrap_pg_error(resource, query, e) from e
-
-
 async def pg_select_raw(cur: psycopg.AsyncCursor, query: sql.Composable) -> list[dict[str, any]]:
     logger.debug("pg.select_raw", query=sql_to_str(cur, query))
     await cur.execute(query)
@@ -566,7 +539,10 @@ async def pg_select(
         skip=skip,
     )
     logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, statement))
-    await _pg_do_execute(cur, table, statement, params)
+    try:
+        await cur.execute(statement, params)
+    except psycopg.errors.Error as e:
+        raise _wrap_pg_error(table, statement, e) from e
     return await cur.fetchall()
 
 
@@ -609,7 +585,10 @@ async def pg_count(
     if where:
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, statement))
-    await _pg_do_execute(cur, table, statement)
+    try:
+        await cur.execute(statement)
+    except psycopg.errors.Error as e:
+        raise _wrap_pg_error(table, statement, e) from e
     return (await cur.fetchone())["count"]
 
 
@@ -630,7 +609,10 @@ async def pg_exists(
         statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     statement += sql.SQL(")")
     logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
-    await _pg_do_execute(cur, table, statement)
+    try:
+        await cur.execute(statement)
+    except psycopg.errors.Error as e:
+        raise _wrap_pg_error(table, statement, e) from e
     return (await cur.fetchone())["exists"]
 
 
@@ -653,7 +635,10 @@ async def pg_insert(
         )
     logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
     values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
-    await _pg_do_execute_many(cur, table, statement, values, returning=bool(returning))
+    try:
+        await cur.executemany(statement, values, returning=bool(returning))
+    except psycopg.errors.Error as e:
+        raise _wrap_pg_error(table, statement, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -690,7 +675,10 @@ async def pg_upsert(
         )
     logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
     values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
-    await _pg_do_execute_many(cur, table, statement, values, returning=bool(returning))
+    try:
+        await cur.executemany(statement, values, returning=bool(returning))
+    except psycopg.errors.Error as e:
+        raise _wrap_pg_error(table, statement, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -718,7 +706,10 @@ async def pg_update_static(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
     logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, statement))
-    await _pg_do_execute(cur, table, statement)
+    try:
+        await cur.execute(statement)
+    except psycopg.errors.Error as e:
+        raise _wrap_pg_error(table, statement, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -762,7 +753,10 @@ async def pg_update_list(
         (*(value.get(c.name) for c in dynamic_columns), value.get(table._primary_key.name))
         for value in dynamic_values
     ]
-    await _pg_do_execute_many(cur, table, statement, dynamic_values, returning=bool(returning))
+    try:
+        await cur.executemany(statement, dynamic_values, returning=bool(returning))
+    except psycopg.errors.Error as e:
+        raise _wrap_pg_error(table, statement, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -786,7 +780,10 @@ async def pg_delete(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
     logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, statement))
-    await _pg_do_execute(cur, table, statement)
+    try:
+        await cur.execute(statement)
+    except psycopg.errors.Error as e:
+        raise _wrap_pg_error(table, statement, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -805,17 +802,67 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 NodeT = typing.TypeVar("NodeT", bound=Node)
 
 
+def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    if value is None:
+        return None
+    elif prop.is_array and not ignore_array:
+        return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
+    elif prop.is_struct:
+        return bytes(value)
+    elif prop.column_type == ColumnType.JSON:
+        return value
+    elif prop.is_enum:
+        return value.value
+    else:
+        return value
+
+
+def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    if value is None:
+        return None
+    elif prop.is_array and not ignore_array:
+        return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
+    elif prop.is_struct:
+        proto_cls = PROTO_CLASS_BY_TYPE[prop.struct_type]
+        return proto_cls().parse(value)
+    elif prop.column_type == ColumnType.JSON:
+        return value
+    elif prop.is_enum:
+        return prop.py_type_stripped(value)
+    else:
+        return value
+
+
 def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
     """Packs a node's data into a row for the respective table."""
-    node_cls = NODE_CLASS_BY_NODE_TYPE[to_bench_metatype(node.metatype)]
-    for prop in node_cls.__stored_properties__.values():
-        getattr(node, prop.name)
-    raise NotImplementedError("nocheckin: pg_pack_node_data_row")
+    node_cls = NODE_CLASS_BY_TYPE[to_bench_metatype(node.metatype)]
+    try:
+        row: dict[str, any] = {}
+        for prop in node_cls.__stored_properties__.values():
+            value = getattr(node, prop.name)
+            value = _pack_struct_data_prop(prop, value, ignore_array=False)
+            if prop.is_encrypted:
+                pass  # nocheckin: handle colum encrypt/decrypt
+            row[prop.name] = value
+        return row
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ValueError(f"could not pack row {node_cls.metatype.name}: {struct!r}") from e
 
 
 def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNodeData:
     """Unpacks a node's data from a row from the respective table."""
-    raise NotImplementedError("nocheckin: pg_unpack_node_data_row")
+    try:
+        proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
+        data = proto_cls()
+        for prop in node_cls.__stored_properties__.values():
+            value = row[prop.name]
+            value = _unpack_struct_data_prop(prop, value, ignore_array=False)
+            if prop.is_encrypted:
+                pass  # nocheckin: handle colum encrypt/decrypt
+            setattr(data, prop.name, value)
+        return data
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row!r}") from e
 
 
 PgSelectNodesDataResult = typing.NamedTuple(
@@ -834,7 +881,7 @@ async def pg_select_nodes_data(
     skip: int | None = None,
     after: str | None = None,
 ) -> PgSelectNodesDataResult:
-    node_cls = NODE_CLASS_BY_NODE_TYPE[node_type]
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
     if after:
         skip = (skip or 0) + int(decode_pg_cursor(after)) + 1  # 'after' is exclusive
     where = compile_pg_conditional(node_cls, where) if where is not None else None
@@ -848,44 +895,31 @@ async def pg_select_nodes_data(
     return PgSelectNodesDataResult(records_data, cursors, after)
 
 
-def search_nodes_in_pg(
-    session: Session,
-    node_type: NodeType,
-) -> list[NodeT]:
-    raise NotImplementedError("nocheckin: search_nodes_in_pg")
-
-
-async def search_nodes_data_in_pg(
-    cur: psycopg.AsyncCursor,
-):
-    raise NotImplementedError("nocheckin: search_nodes_data_in_pg")
-
-
 async def read_node_tree_from_pg(
     session: Session,
     root_type: NodeType,
-    root_id: UUID,
-    descendant_types: tuple[NodeType] | None = None,
-) -> NodeT | None:
+    root_ids: tuple[UUID, ...],
+    descendant_types: tuple[NodeType, ...] | None = None,
+) -> tuple[NodeT, ...]:
     """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the root node."""
-    root_cls = NODE_CLASS_BY_NODE_TYPE[root_type]
+    root_cls = NODE_CLASS_BY_TYPE[root_type]
     cur = session.local_pg_cursor if root_cls.__is_local__ else session.global_pg_cursor
     nodes_data = await read_node_tree_data_from_pg(
         cur=cur,
         root_type=root_type,
-        root_id=root_id,
+        root_ids=root_ids,
         descendant_types=descendant_types,
     )
     source_tree = NodeTree(nodes_data)
-    root = wiring.unpack_node_inline(source_tree, parent=None, session=session, my_root=root_id)
-    return root
+    root = wiring.unpack_node_inline(source_tree, parent=None, session=session, my_roots=root_ids)
+    return tuple(root.lookup(id) for id in root_ids)
 
 
 async def read_node_tree_data_from_pg(
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
-    root_id: UUID,
-    descendant_types: tuple[NodeType] | None = None,
+    root_ids: tuple[UUID, ...],
+    descendant_types: tuple[NodeType, ...] | None = None,
 ) -> list["AnyNodeData"] | None:
     """Reads 'regular' nodes from the given PG database. Returns an unordered list of all nodes."""
     raise NotImplementedError("nocheckin: read_node_data_from_pg")
@@ -898,10 +932,11 @@ async def write_regular_edits_to_pg(
     *,
     return_nodes: bool = False,
 ) -> list["AnyNodeData"] | None:
+    """Writes 'regular' edits to nodes (that aren't stored specially like records)."""
     raise NotImplementedError("nocheckin: write_regular_edits_to_pg")
 
 
-async def write_local_edits_to_pg(
+async def write_record_edits_to_pg(
     cur: psycopg.AsyncCursor,
     module: Module,
     edits: list[EditData],
@@ -910,7 +945,7 @@ async def write_local_edits_to_pg(
     old_databases_by_id: dict[UUID, "HasDatabase"] | None = None,
 ) -> list["AnyNodeData"] | None:
     """
-    Writes *local* edits to the database. Returns the updated nodes (i.e. records).
+    Writes record edits to the given PG database (which are stored & handled differently).
     Pass in databases for statements that are no longer in the module (i.e. deleted record parent).
     TODO @Performance: use psycopg3 pipelining to batch local edits
      see https://www.psycopg.org/psycopg3/docs/advanced/pipeline.html

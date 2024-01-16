@@ -16,13 +16,15 @@ from bench.language.const import (
     TypeHint,
     TypeStorageFormat,
     TypeTag,
+    BenchType,
 )
-from bench.language.node import Node, Struct, struct, struct_property
+from bench.language.node import Node, Struct, struct, struct_property, Property, BENCH_CLASS_BY_TYPE
 from bench.sql.core import ColumnType
 from bench.utils.utils import to_camel_case
 
 if TYPE_CHECKING:
-    from bench.language import Field, HasFields
+    from bench.language import Field
+    from bench.language.field import HasFields
 
 
 #
@@ -41,7 +43,17 @@ class QueryEngineIncapableError(QueryEngineError):
     pass
 
 
-FieldReference = UUID | str  # str as an alias for fields that we don't have reflected yet
+@struct(StructType.NODE_POINTER)
+class NodePointer(Struct):
+    type: NodeType = struct_property(30, require=True)
+    id: Optional[UUID] = struct_property(31)
+    ck: Optional[UUID] = struct_property(32)
+
+
+@struct(StructType.PROPERTY_POINTER)
+class PropertyPointer(Struct):
+    type: BenchType = struct_property(30, require=True)
+    id: Optional[int] = struct_property(31)
 
 
 @struct(StructType.EXPRESSION)
@@ -52,7 +64,9 @@ class Expression(Struct):
     field: Optional["Field"] = struct_property(
         31, require=False, array=False, references=NodeType.FIELD
     )
-    field_key: Optional[str] = struct_property(32, default=None)
+    property_ptr: Optional[PropertyPointer] = struct_property(
+        32, default=None, struct_t=StructType.PROPERTY_POINTER
+    )
     clauses: list["Expression"] | None = struct_property(
         33, default=None, struct_t=StructType.EXPRESSION
     )
@@ -67,7 +81,6 @@ class Expression(Struct):
         raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
     def __str__(self):
-        field_str = self._field_str if self.field_key or isinstance(self.field, Node) else "<!ref>"
         if self.op in ExpressionOps.COND_STATIC:
             return self.op.name.lower()
         elif self.op in ExpressionOps.COND_LOGICAL:
@@ -80,11 +93,11 @@ class Expression(Struct):
             value_str = str(self.value)
             if len(value_str) > 32:
                 value_str = f"{value_str[:24]}...{value_str[-12:]}"
-            return f"{field_str}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
+            return f"{self.target.py_ident}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
         elif self.op in ExpressionOps.COND_EXISTENCE:
-            return f"{field_str}{_CONDITIONAL_OP_SIGN[self.op]}"
+            return f"{self.target.py_ident}{_CONDITIONAL_OP_SIGN[self.op]}"
         elif self.op in ExpressionOps.SORT:
-            return f"{'-' if self.op == SortOp.DESCENDING else ''}{field_str}"
+            return f"{'-' if self.op == SortOp.DESCENDING else ''}{self.target.py_ident}"
         return self.op.name
 
     def __repr__(self):
@@ -98,9 +111,9 @@ class Expression(Struct):
         elif self.op == ConditionalOp.NOT:
             return self.clauses[0]
         elif self.op == ConditionalOp.EXISTS:
-            return C(ConditionalOp.NOT_EXISTS, field=self.field, field_key=self.field_key)
+            return C(ConditionalOp.NOT_EXISTS, field=self.field, property_ptr=self.property_ptr)
         elif self.op == ConditionalOp.NOT_EXISTS:
-            return C(ConditionalOp.EXISTS, field=self.field, field_key=self.field_key)
+            return C(ConditionalOp.EXISTS, field=self.field, property_ptr=self.property_ptr)
         else:
             return C(ConditionalOp.NOT, clauses=[self])
 
@@ -127,15 +140,19 @@ class Expression(Struct):
             return C(ConditionalOp.OR, clauses=[self, other])
 
     @property
-    def _field_str(self) -> str:
-        if self.field_key:
-            return self.field_key
-        elif self.field is not None:
-            return self.field.py_ident
+    def target(self) -> Union["Field", Property, None]:
+        if self.field is not None:
+            return self.field
+        elif self.property_ptr is not None:
+            return self._property_resolved
         else:
-            raise TypeError(
-                f"cannot stringify unresolved field ref {self.__class__} (op={self.op}, field_ck={self.field_ck}, field_key={self.field_key})"
-            )
+            return None
+
+    @property
+    def _property_resolved(self) -> Property:
+        assert self.property_ptr is not None, f"cannot resolve property for {self!r}"
+        bench_cls = BENCH_CLASS_BY_TYPE[self.property_ptr.type]
+        return bench_cls.__properties_by_id__[self.property_ptr.id]
 
     def _collect_ops(self) -> set[ExpressionOp]:
         """Collect all ops in this expression and its clauses (recursively)."""
@@ -271,15 +288,19 @@ def coerce_conditional(
             field_key, op = arg.split("__", 1)
         else:
             field_key, op = arg, ConditionalOp.EQUALS
-        field = None
+        target = None
         if field_key in node.__properties__:
-            field = node.__properties__[field_key]._as_field
+            target = node.__properties__[field_key]
         elif isinstance(node, Node) and HasFields in node._components:
-            field = node.resolved_fields.get(field_key)
-        if not field:
+            target = node.resolved_fields.get(field_key)
+        if target is None:
             raise TypeError(f"{node!r} has no field {field_key}")
-        _check_field_supports(field, op)
-        clauses.append(Expression(op=op, field=field, value=value))
+        _check_field_supports(target._as_field, op)
+        if isinstance(target, Property):
+            field, property = None, target.ptr
+        else:
+            field, property = target, None
+        clauses.append(Expression(op=op, field=field, property_ptr=property, value=value))
     if not clauses:
         if return_none_if_empty:
             return None
@@ -319,14 +340,19 @@ def coerce_sort(
             else:
                 op = SortOp.ASCENDING
                 field_key = item
-            field = None
+            target = None
             if field_key in node.__properties__:
-                field = node.__properties__[field_key]._as_field
+                target = node.__properties__[field_key]
             elif isinstance(node, Node) and HasFields in node._components:
-                field = node.resolved_fields.get(field_key)
-            if not field:
+                target = node.resolved_fields.get(field_key)
+            if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")
-            item = S(op, field=field)
+            if isinstance(target, Property):
+                field, property = None, target.ptr
+            else:
+                field, property = target, None
+            item = S(op, field=field, property_ptr=property)
+            _check_field_supports(target._as_field, op)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)

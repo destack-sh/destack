@@ -148,13 +148,13 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
             self.bench: Bench = await read_node_tree_from_pg(
                 session=session,
                 root_type=NodeType.BENCH,
-                root_id=self.bench_id,
+                root_ids=(self.bench_id,),
                 descendant_types=(NodeType.BADGE,),
             )
             self.module: Module = await read_node_tree_from_pg(
                 session=session,
                 root_type=NodeType.MODULE,
-                root_id=self.module_id,
+                root_ids=(self.module_id,),
                 descendant_types=IN_MODULE_NODE_TYPES,
             )
 

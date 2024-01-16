@@ -37,6 +37,7 @@ from bench.language.node import (
     struct_internal,
     struct_property,
     struct_runtime,
+    Property,
 )
 from bench.language.text import HasText
 from bench.language.validation import (
@@ -358,7 +359,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
     reference: Optional["Statement"] = struct_internal(
         38, require=False, array=False, references=NodeType.STATEMENT
     )
-    _reflected: bool = struct_runtime(default=False)
+    _reflected_from: Optional[Property] = struct_runtime(default=None)
 
     @staticmethod
     def new(

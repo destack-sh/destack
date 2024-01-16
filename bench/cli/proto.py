@@ -37,21 +37,6 @@ def _generate_proto_schema() -> str:
                     Field(id=2, name="nodes", type="SomeNodeData", repeated=True),
                 ],
             ),
-            Message(
-                name="SomeNodePointer",
-                fields=[
-                    Field(id=1, name="metatype", type="NodeType"),
-                    Field(id=2, name="id", type="string"),
-                    Field(id=3, name="ck", type="string"),
-                ],
-            ),
-            Message(
-                name="AbsoluteNodePointer",
-                fields=[
-                    Field(id=1, name="metatype", type="NodeType"),
-                    Field(id=2, name="id", type="string"),
-                ],
-            ),
         ],
         message_postfix="Data",
     )
@@ -77,7 +62,7 @@ def _regen_proto_artifacts(schema_str: str) -> None:
         _shell(f"mv {TARGET_PY_DIR}/symbolx/bench/__init__.py {TARGET_PY_FILE}")
         Path(TARGET_PY_FILE).write_text(
             Path(TARGET_PY_FILE).read_text()
-            # append AnyNodeData/AnyStructDatax
+            # append AnyNodeData/AnyStructData
             + "\n\nfrom typing import Union # noqa\n"
             + f"AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]\n"
             + f"AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]"
