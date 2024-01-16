@@ -7,6 +7,9 @@ HAS_GLOBAL = True
 HAS_LOCAL = True
 
 
+# nocheckin: replace patch migration with a proper from scratch migration
+
+
 #
 # Global DB for core Bench nodes (runs once)
 #
@@ -36,7 +39,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         parent_file_id uuid REFERENCES bench_file ON DELETE CASCADE,
         parent_statement_id uuid REFERENCES bench_statement ON DELETE CASCADE,
         module_id uuid NOT NULL REFERENCES bench_module ON DELETE CASCADE,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
@@ -82,16 +85,21 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         f"""
         ALTER TABLE bench_bench    
-        ADD COLUMN revision bigint NOT NULL,
+        ADD COLUMN revision bigint NOT NULL DEFAULT 0,
         ADD COLUMN archived_at timestamp,
         ADD COLUMN last_changed_at timestamp,
         ADD COLUMN policies bytea[],
         DROP CONSTRAINT {_constraint_name_0},
-     ADD CONSTRAINT bench_bench_organization_id_fk_bench_organization_id FOREIGN KEY (organization_id) REFERENCES bench_organization(id) ON DELETE SET NULL,
+    ADD CONSTRAINT bench_bench_organization_id_fk_bench_organization_id FOREIGN KEY (organization_id) REFERENCES bench_organization(id) ON DELETE SET NULL,
         DROP CONSTRAINT {_constraint_name_1},
-     ADD CONSTRAINT bench_bench_user_id_fk_bench_user_id FOREIGN KEY (user_id) REFERENCES bench_user(id) ON DELETE SET NULL,
-        ADD COLUMN status varchar NOT NULL,
-        ADD COLUMN head_module_id uuid,
+    ADD CONSTRAINT bench_bench_user_id_fk_bench_user_id FOREIGN KEY (user_id) REFERENCES bench_user(id) ON DELETE SET NULL,
+        ADD COLUMN head_module_id uuid REFERENCES bench_module ON DELETE SET NULL,
+        ALTER COLUMN pg_name DROP NOT NULL,
+        ALTER COLUMN pg_username DROP NOT NULL,
+        ALTER COLUMN pg_password DROP NOT NULL,
+        ALTER COLUMN os_name DROP NOT NULL,
+        ALTER COLUMN os_username DROP NOT NULL,
+        ALTER COLUMN os_password DROP NOT NULL,
         ADD CONSTRAINT bench_bench_bench_unique_slug UNIQUE (slug)
     """
     )
@@ -111,11 +119,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         f"""
         ALTER TABLE bench_module    
-        DROP CONSTRAINT {_constraint_name_0},
-     ADD CONSTRAINT bench_module_parent_bench_id_fk_bench_bench_id FOREIGN KEY (parent_bench_id) REFERENCES bench_bench(id) ON DELETE CASCADE,
-        ALTER COLUMN revision TYPE bigint NOT NULL,
+        ALTER COLUMN parent_bench_id DROP NOT NULL,
+    DROP CONSTRAINT {_constraint_name_0},
+    ADD CONSTRAINT bench_module_parent_bench_id_fk_bench_bench_id FOREIGN KEY (parent_bench_id) REFERENCES bench_bench(id) ON DELETE CASCADE,
+        ALTER COLUMN revision SET DATA TYPE bigint,
+    ALTER COLUMN revision SET DEFAULT 0,
         ADD COLUMN archived_at timestamp,
+        ALTER COLUMN last_changed_at DROP NOT NULL,
         ADD COLUMN policies bytea[],
+        ALTER COLUMN is_snapshot SET DEFAULT False,
         ADD CONSTRAINT bench_module_bench_check_one_parent CHECK ((parent_bench_id IS NOT NULL))
     """
     )
@@ -132,7 +144,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_badge (
         id uuid NOT NULL PRIMARY KEY,
         parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
@@ -165,13 +177,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     )
 
     # bench_blob
+    await cur.execute("TRUNCATE bench_blob")
     await cur.execute(
         """
         ALTER TABLE bench_blob    
-        ADD COLUMN parent_bench_id uuid,
-        ALTER COLUMN revision TYPE bigint NOT NULL,
+        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
+        ALTER COLUMN revision SET DATA TYPE bigint,
+    ALTER COLUMN revision SET DEFAULT 0,
         ADD COLUMN archived_at timestamp,
-        ALTER COLUMN content_length TYPE bigint NOT NULL,
+        ALTER COLUMN content_length SET DATA TYPE bigint,
+        ALTER COLUMN name SET NOT NULL,
+        ALTER COLUMN status SET DEFAULT \'PENDING\',
         ADD CONSTRAINT bench_blob_bench_check_one_parent CHECK ((parent_bench_id IS NOT NULL))
     """
     )
@@ -183,6 +199,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     )
 
     # bench_issue
+    await cur.execute("TRUNCATE bench_issue")
     await cur.execute(
         "SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'bench_issue' AND constraint_type = 'FOREIGN KEY' AND constraint_name LIKE '%parent_statement_id%'"
     )
@@ -200,17 +217,18 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         f"""
         ALTER TABLE bench_issue    
         DROP CONSTRAINT {_constraint_name_0},
-     ADD CONSTRAINT bench_issue_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
+    ADD CONSTRAINT bench_issue_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
         DROP CONSTRAINT {_constraint_name_1},
-     ADD CONSTRAINT bench_issue_parent_file_id_fk_bench_file_id FOREIGN KEY (parent_file_id) REFERENCES bench_file(id) ON DELETE CASCADE,
+    ADD CONSTRAINT bench_issue_parent_file_id_fk_bench_file_id FOREIGN KEY (parent_file_id) REFERENCES bench_file(id) ON DELETE CASCADE,
         DROP CONSTRAINT {_constraint_name_2},
-     ADD CONSTRAINT bench_issue_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
-        ADD COLUMN revision bigint NOT NULL,
+    ADD CONSTRAINT bench_issue_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
+        ADD COLUMN revision bigint NOT NULL DEFAULT 0,
         ADD COLUMN created_at timestamp NOT NULL,
         ADD COLUMN updated_at timestamp NOT NULL,
         ADD COLUMN deleted_at timestamp,
         ADD COLUMN archived_at timestamp,
         ADD COLUMN last_edited_at timestamp NOT NULL,
+        ALTER COLUMN message SET NOT NULL,
         ADD COLUMN path varchar,
         ADD COLUMN properties bigint[],
         ADD CONSTRAINT bench_issue_bench_check_one_parent CHECK ((parent_statement_id IS NOT NULL) OR (parent_file_id IS NOT NULL))
@@ -228,6 +246,9 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
     # bench_field
     await cur.execute(
+        "UPDATE bench_field SET module_id = bench_statement.module_id FROM bench_statement WHERE bench_field.parent_statement_id = bench_statement.id"
+    )
+    await cur.execute(
         "SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'bench_field' AND constraint_type = 'FOREIGN KEY' AND constraint_name LIKE '%parent_statement_id%'"
     )
     _constraint_name_0 = (await cur.fetchone())["constraint_name"]
@@ -239,13 +260,19 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         f"""
         ALTER TABLE bench_field    
-        DROP CONSTRAINT {_constraint_name_0},
-     ADD CONSTRAINT bench_field_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
-        DROP CONSTRAINT {_constraint_name_1},
-     ADD CONSTRAINT bench_field_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
-        ALTER COLUMN revision TYPE bigint NOT NULL,
+        ALTER COLUMN parent_statement_id DROP NOT NULL,
+    DROP CONSTRAINT {_constraint_name_0},
+    ADD CONSTRAINT bench_field_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
+        ALTER COLUMN module_id SET NOT NULL,
+    DROP CONSTRAINT {_constraint_name_1},
+    ADD CONSTRAINT bench_field_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
+        ALTER COLUMN revision SET DATA TYPE bigint,
+    ALTER COLUMN revision SET DEFAULT 0,
         ADD COLUMN archived_at timestamp,
-        ALTER COLUMN flags TYPE bigint NOT NULL,
+        ALTER COLUMN order_key DROP NOT NULL,
+        ALTER COLUMN key DROP NOT NULL,
+        ALTER COLUMN flags SET DATA TYPE bigint,
+    ALTER COLUMN flags SET DEFAULT 0,
         ADD COLUMN reference_statement_ck uuid,
         ADD CONSTRAINT bench_field_bench_check_one_parent CHECK ((parent_statement_id IS NOT NULL))
     """
@@ -273,13 +300,16 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         f"""
         ALTER TABLE bench_tagging    
-        ADD COLUMN parent_file_id uuid,
-        DROP CONSTRAINT {_constraint_name_0},
-     ADD CONSTRAINT bench_tagging_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
-        ADD COLUMN parent_field_id uuid,
-        DROP CONSTRAINT {_constraint_name_1},
-     ADD CONSTRAINT bench_tagging_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
-        ALTER COLUMN revision TYPE bigint NOT NULL,
+        ADD COLUMN parent_file_id uuid REFERENCES bench_file ON DELETE CASCADE,
+        ALTER COLUMN parent_statement_id DROP NOT NULL,
+    DROP CONSTRAINT {_constraint_name_0},
+    ADD CONSTRAINT bench_tagging_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
+        ADD COLUMN parent_field_id uuid REFERENCES bench_field ON DELETE CASCADE,
+        ALTER COLUMN module_id SET NOT NULL,
+    DROP CONSTRAINT {_constraint_name_1},
+    ADD CONSTRAINT bench_tagging_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
+        ALTER COLUMN revision SET DATA TYPE bigint,
+    ALTER COLUMN revision SET DEFAULT 0,
         ADD COLUMN archived_at timestamp,
         ADD COLUMN reference_statement_ck uuid,
         ADD CONSTRAINT bench_tagging_bench_check_one_parent CHECK ((parent_file_id IS NOT NULL) OR (parent_statement_id IS NOT NULL) OR (parent_field_id IS NOT NULL))
@@ -297,6 +327,12 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
     # bench_file
     await cur.execute(
+        "ALTER TABLE bench_file ADD COLUMN parent_module_id uuid REFERENCES bench_module ON DELETE CASCADE"
+    )
+    await cur.execute(
+        "UPDATE bench_file SET parent_module_id = module_id WHERE parent_file_id IS NULL"
+    )
+    await cur.execute(
         "SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'bench_file' AND constraint_type = 'FOREIGN KEY' AND constraint_name LIKE '%parent_file_id%'"
     )
     _constraint_name_0 = (await cur.fetchone())["constraint_name"]
@@ -309,13 +345,15 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         f"""
         ALTER TABLE bench_file    
         DROP CONSTRAINT {_constraint_name_0},
-     ADD CONSTRAINT bench_file_parent_file_id_fk_bench_file_id FOREIGN KEY (parent_file_id) REFERENCES bench_file(id) ON DELETE CASCADE,
-        ADD COLUMN parent_module_id uuid,
+    ADD CONSTRAINT bench_file_parent_file_id_fk_bench_file_id FOREIGN KEY (parent_file_id) REFERENCES bench_file(id) ON DELETE CASCADE,
         DROP CONSTRAINT {_constraint_name_1},
-     ADD CONSTRAINT bench_file_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
-        ALTER COLUMN revision TYPE bigint NOT NULL,
+    ADD CONSTRAINT bench_file_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
+        ALTER COLUMN revision SET DATA TYPE bigint,
+    ALTER COLUMN revision SET DEFAULT 0,
         ADD COLUMN archived_at timestamp,
+        ALTER COLUMN last_changed_at DROP NOT NULL,
         ADD COLUMN policies bytea[],
+        ALTER COLUMN name DROP NOT NULL,
         ADD COLUMN order_key varchar,
         ADD CONSTRAINT bench_file_bench_check_one_parent CHECK ((parent_file_id IS NOT NULL) OR (parent_module_id IS NOT NULL))
     """
@@ -331,13 +369,16 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     )
 
     # bench_secret
+    await cur.execute("TRUNCATE bench_secret")
     await cur.execute(
         """
         ALTER TABLE bench_secret    
-        ADD COLUMN parent_bench_id uuid,
-        ALTER COLUMN revision TYPE bigint NOT NULL,
+        ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE,
+        ALTER COLUMN revision SET DATA TYPE bigint,
+    ALTER COLUMN revision SET DEFAULT 0,
         ADD COLUMN archived_at timestamp,
         ADD COLUMN type_statement_ck uuid,
+        ALTER COLUMN value DROP NOT NULL,
         ADD CONSTRAINT bench_secret_bench_check_one_parent CHECK ((parent_bench_id IS NOT NULL))
     """
     )
@@ -361,13 +402,16 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         f"""
         ALTER TABLE bench_trigger    
-        DROP CONSTRAINT {_constraint_name_0},
-     ADD CONSTRAINT bench_trigger_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
-        DROP CONSTRAINT {_constraint_name_1},
-     ADD CONSTRAINT bench_trigger_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
-        ALTER COLUMN revision TYPE bigint NOT NULL,
+        ALTER COLUMN parent_statement_id DROP NOT NULL,
+    DROP CONSTRAINT {_constraint_name_0},
+    ADD CONSTRAINT bench_trigger_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
+        ALTER COLUMN module_id SET NOT NULL,
+    DROP CONSTRAINT {_constraint_name_1},
+    ADD CONSTRAINT bench_trigger_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
+        ALTER COLUMN revision SET DATA TYPE bigint,
+    ALTER COLUMN revision SET DEFAULT 0,
         ADD COLUMN archived_at timestamp,
-        ALTER COLUMN interval TYPE bigint,
+        ALTER COLUMN interval SET DATA TYPE bigint,
         ADD CONSTRAINT bench_trigger_bench_check_one_parent CHECK ((parent_statement_id IS NOT NULL))
     """
     )
@@ -383,6 +427,12 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
     # bench_statement
     await cur.execute(
+        "ALTER TABLE bench_statement ADD COLUMN parent_file_id uuid REFERENCES bench_file ON DELETE CASCADE"
+    )
+    await cur.execute(
+        "UPDATE bench_statement SET parent_file_id = file_id WHERE parent_statement_id IS NULL"
+    )
+    await cur.execute(
         "SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'bench_statement' AND constraint_type = 'FOREIGN KEY' AND constraint_name LIKE '%parent_statement_id%'"
     )
     _constraint_name_0 = (await cur.fetchone())["constraint_name"]
@@ -395,14 +445,18 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         f"""
         ALTER TABLE bench_statement    
         DROP CONSTRAINT {_constraint_name_0},
-     ADD CONSTRAINT bench_statement_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
-        ADD COLUMN parent_file_id uuid,
+    ADD CONSTRAINT bench_statement_parent_statement_id_fk_bench_statement_id FOREIGN KEY (parent_statement_id) REFERENCES bench_statement(id) ON DELETE CASCADE,
         DROP CONSTRAINT {_constraint_name_1},
-     ADD CONSTRAINT bench_statement_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
-        ALTER COLUMN revision TYPE bigint NOT NULL,
+    ADD CONSTRAINT bench_statement_module_id_fk_bench_module_id FOREIGN KEY (module_id) REFERENCES bench_module(id) ON DELETE CASCADE,
+        ALTER COLUMN revision SET DATA TYPE bigint,
+    ALTER COLUMN revision SET DEFAULT 0,
         ADD COLUMN archived_at timestamp,
+        ALTER COLUMN last_changed_at DROP NOT NULL,
         ADD COLUMN policies bytea[],
-        ALTER COLUMN heading_level TYPE bigint,
+        ALTER COLUMN type SET DEFAULT \'blank\',
+        ALTER COLUMN order_key DROP NOT NULL,
+        ALTER COLUMN heading_level SET DATA TYPE bigint,
+        ALTER COLUMN shared SET DEFAULT True,
         ADD CONSTRAINT bench_statement_bench_check_one_parent CHECK ((parent_statement_id IS NOT NULL) OR (parent_file_id IS NOT NULL))
     """
     )
@@ -416,6 +470,43 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         "CREATE INDEX bench_statement_bench_idx_module_archived_at ON bench_statement USING BTREE (module_id, archived_at)"
     )
 
+    # bench_organization
+    await cur.execute(
+        """
+        ALTER TABLE bench_organization    
+        DROP COLUMN description,
+        DROP COLUMN owner_slug_id
+    """
+    )
+    await cur.execute(
+        "DROP INDEX IF EXISTS bench_organization_bench_organization_owner_slug_id_2e358dd2_like"
+    )
+
+    # bench_user
+    await cur.execute(
+        """
+        ALTER TABLE bench_user    
+        DROP COLUMN bot,
+        DROP COLUMN date_joined,
+        DROP COLUMN description,
+        DROP COLUMN first_name,
+        DROP COLUMN is_active,
+        DROP COLUMN is_staff,
+        DROP COLUMN is_superuser,
+        DROP COLUMN last_login,
+        DROP COLUMN last_name,
+        DROP COLUMN owner_slug_id,
+        DROP COLUMN password,
+        DROP COLUMN status,
+        DROP COLUMN username
+    """
+    )
+    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_username_key")
+    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_email_key")
+    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_username_2249ce76_like")
+    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_email_351ac247_like")
+    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_owner_slug_id_f8588f18_like")
+
     # bench_handle
     await cur.execute(
         "SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = 'bench_handle' AND constraint_type = 'PRIMARY KEY' AND constraint_name LIKE '%slug%'"
@@ -425,11 +516,11 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         f"""
         ALTER TABLE bench_handle    
-        ADD COLUMN id uuid NOT NULL,
-        ADD COLUMN revision bigint NOT NULL,
+        ADD COLUMN id uuid NOT NULL PRIMARY KEY DEFAULT uuid_generate_v4(),
+        ADD COLUMN revision bigint NOT NULL DEFAULT 0,
         ADD COLUMN deleted_at timestamp,
         ADD COLUMN archived_at timestamp,
-        ADD COLUMN last_edited_at timestamp NOT NULL,
+        ADD COLUMN last_edited_at timestamp NOT NULL DEFAULT now(),
         DROP CONSTRAINT {_constraint_name_0},
         ADD CONSTRAINT bench_handle_bench_unique_slug UNIQUE (slug)
     """
@@ -445,17 +536,18 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_user    
-        ADD COLUMN revision bigint NOT NULL,
+        ADD COLUMN revision bigint NOT NULL DEFAULT 0,
         ADD COLUMN deleted_at timestamp,
         ADD COLUMN archived_at timestamp,
-        ADD COLUMN last_edited_at timestamp NOT NULL,
+        ADD COLUMN last_edited_at timestamp NOT NULL DEFAULT now(),
         ADD COLUMN last_changed_at timestamp,
-        ADD COLUMN handle_id uuid,
-        ADD COLUMN name varchar NOT NULL,
-        ADD COLUMN password_salt bytea NOT NULL,
-        ADD COLUMN password_hash bytea NOT NULL,
+        ADD COLUMN handle_id uuid REFERENCES bench_handle ON DELETE SET NULL,
+        ADD COLUMN slug varchar UNIQUE,
+        ADD COLUMN name varchar,
+        ADD COLUMN password_salt bytea,
+        ADD COLUMN password_hash bytea,
         ADD COLUMN last_logged_in_at timestamp,
-        ADD CONSTRAINT bench_user_bench_unique_username UNIQUE (username),
+        ADD CONSTRAINT bench_user_bench_unique_slug UNIQUE (slug),
         ADD CONSTRAINT bench_user_bench_unique_email UNIQUE (email)
     """
     )
@@ -470,12 +562,14 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     await cur.execute(
         """
         ALTER TABLE bench_organization    
-        ADD COLUMN revision bigint NOT NULL,
+        ADD COLUMN revision bigint NOT NULL DEFAULT 0,
         ADD COLUMN deleted_at timestamp,
         ADD COLUMN archived_at timestamp,
-        ADD COLUMN last_edited_at timestamp NOT NULL,
+        ADD COLUMN last_edited_at timestamp NOT NULL DEFAULT now(),
         ADD COLUMN last_changed_at timestamp,
-        ADD COLUMN handle_id uuid
+        ADD COLUMN handle_id uuid REFERENCES bench_handle ON DELETE SET NULL,
+        ADD COLUMN slug varchar UNIQUE,
+        ADD CONSTRAINT bench_organization_bench_unique_slug UNIQUE (slug)
     """
     )
     await cur.execute(
@@ -491,7 +585,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_client (
         id uuid NOT NULL PRIMARY KEY,
         parent_user_id uuid REFERENCES bench_user ON DELETE CASCADE,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
@@ -525,7 +619,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_notification (
         id uuid NOT NULL PRIMARY KEY,
         parent_user_id uuid REFERENCES bench_user ON DELETE CASCADE,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
@@ -560,7 +654,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         parent_statement_id uuid REFERENCES bench_statement ON DELETE CASCADE,
         parent_file_id uuid REFERENCES bench_file ON DELETE CASCADE,
         module_id uuid NOT NULL REFERENCES bench_module ON DELETE CASCADE,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
@@ -593,18 +687,21 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
     # bench_workerset
     await cur.execute(
+        "ALTER TABLE bench_workerset ADD COLUMN parent_bench_id uuid REFERENCES bench_bench ON DELETE CASCADE"
+    )
+    await cur.execute("UPDATE bench_workerset SET parent_bench_id = bench_id")
+    await cur.execute(
         """
         ALTER TABLE bench_workerset    
-        ADD COLUMN parent_bench_id uuid,
-        ADD COLUMN revision bigint NOT NULL,
+        ADD COLUMN revision bigint NOT NULL DEFAULT 0,
         ADD COLUMN deleted_at timestamp,
         ADD COLUMN archived_at timestamp,
-        ADD COLUMN last_edited_at timestamp NOT NULL,
+        ADD COLUMN last_edited_at timestamp NOT NULL DEFAULT now(),
         ADD COLUMN last_changed_at timestamp,
-        ALTER COLUMN desired_replicas TYPE bigint NOT NULL,
-        ALTER COLUMN target_replicas TYPE bigint NOT NULL,
-        ALTER COLUMN available_replicas TYPE bigint NOT NULL,
-        ALTER COLUMN ready_replicas TYPE bigint NOT NULL,
+        ALTER COLUMN desired_replicas SET DATA TYPE bigint,
+        ALTER COLUMN target_replicas SET DATA TYPE bigint,
+        ALTER COLUMN available_replicas SET DATA TYPE bigint,
+        ALTER COLUMN ready_replicas SET DATA TYPE bigint,
         ADD CONSTRAINT bench_workerset_bench_check_one_parent CHECK ((parent_bench_id IS NOT NULL))
     """
     )
@@ -621,7 +718,7 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     CREATE TABLE bench_worker (
         id uuid NOT NULL PRIMARY KEY,
         parent_worker_set_id uuid REFERENCES bench_workerset ON DELETE CASCADE,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
@@ -668,17 +765,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     """
     )
 
-    # bench_organization
-    await cur.execute(
-        """
-        ALTER TABLE bench_organization    
-        DROP COLUMN owner_slug_id
-    """
-    )
-    await cur.execute(
-        "DROP INDEX IF EXISTS bench_organization_bench_organization_owner_slug_id_2e358dd2_like"
-    )
-
     # bench_module
     await cur.execute(
         """
@@ -705,30 +791,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
 
     # bench_resolvedfield
     await cur.execute("DROP TABLE bench_resolvedfield")
-
-    # bench_user
-    await cur.execute(
-        """
-        ALTER TABLE bench_user    
-        DROP COLUMN bot,
-        DROP COLUMN date_joined,
-        DROP COLUMN description,
-        DROP COLUMN first_name,
-        DROP COLUMN is_active,
-        DROP COLUMN is_staff,
-        DROP COLUMN is_superuser,
-        DROP COLUMN last_login,
-        DROP COLUMN last_name,
-        DROP COLUMN owner_slug_id,
-        DROP COLUMN password,
-        DROP COLUMN status
-    """
-    )
-    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_username_key")
-    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_email_key")
-    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_username_2249ce76_like")
-    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_email_351ac247_like")
-    await cur.execute("DROP INDEX IF EXISTS bench_user_bench_user_owner_slug_id_f8588f18_like")
 
     # bench_bench
     await cur.execute(
@@ -800,15 +862,6 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
     """
     )
 
-    # bench_user_user_permissions
-    await cur.execute("DROP TABLE bench_user_user_permissions")
-
-    # bench_session
-    await cur.execute("DROP TABLE bench_session")
-
-    # bench_run
-    await cur.execute("DROP TABLE bench_run")
-
     # bench_trigger
     await cur.execute(
         """
@@ -837,6 +890,17 @@ async def upgrade_global(cur: psycopg.AsyncCursor):
         DROP COLUMN module_id
     """
     )
+
+    await cur.execute("ALTER TABLE bench_session DROP COLUMN last_edited_in_id")
+
+    # bench_user_user_permissions
+    await cur.execute("DROP TABLE bench_user_user_permissions")
+
+    # bench_run
+    await cur.execute("DROP TABLE bench_run")
+
+    # bench_session
+    await cur.execute("DROP TABLE bench_session")
 
 
 async def downgrade_global(cur: psycopg.AsyncCursor):
@@ -905,7 +969,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         parent_session_id uuid REFERENCES bench_session ON DELETE CASCADE,
         parent_run_id uuid REFERENCES bench_run ON DELETE CASCADE,
         module_id uuid NOT NULL,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
@@ -966,7 +1030,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         ck uuid NOT NULL,
         parent_run_id uuid REFERENCES bench_run ON DELETE CASCADE,
         module_id uuid NOT NULL,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
@@ -1000,7 +1064,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         ck uuid NOT NULL,
         parent_module_id uuid,
         module_id uuid NOT NULL,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,
@@ -1041,7 +1105,7 @@ async def upgrade_local(cur: psycopg.AsyncCursor):
         ck uuid NOT NULL,
         parent_module_id uuid,
         module_id uuid NOT NULL,
-        revision bigint NOT NULL,
+        revision bigint NOT NULL DEFAULT 0,
         created_at timestamp NOT NULL,
         updated_at timestamp NOT NULL,
         deleted_at timestamp,

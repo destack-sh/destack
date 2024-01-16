@@ -31,8 +31,12 @@ class WorkerSet(ScopeNode):
     target_replicas: int = struct_internal(35, protect=True)
     available_replicas: int = struct_internal(36, protect=True)
     ready_replicas: int = struct_internal(37, protect=True)
-    last_active_at: datetime = struct_internal(38, protect=True, default_factory=utcnow_with_tz)
-    last_bumped_at: datetime = struct_internal(39, protect=True, default_factory=utcnow_with_tz)
+    last_active_at: Optional[datetime] = struct_internal(
+        38, protect=True, default_factory=utcnow_with_tz
+    )
+    last_bumped_at: Optional[datetime] = struct_internal(
+        39, protect=True, default_factory=utcnow_with_tz
+    )
 
     workers: list["Worker"] = node_children(NodeType.WORKER)
 

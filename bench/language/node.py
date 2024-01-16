@@ -2013,8 +2013,8 @@ class Bench(ScopeNode):
     policies: Optional[list["Policy"]] = struct_internal(
         20, default_factory=list, struct_t=StructType.POLICY
     )
-    name: str = struct_property(30)
-    slug: str = struct_internal(31, protect=True, unique=True)
+    slug: str = struct_internal(30, protect=True, unique=True)
+    name: str = struct_property(31)
     description: Optional[str] = struct_property(32, default=None)
     organization: Optional["Organization"] = struct_internal(
         33, protect=True, require=False, array=False, references=NodeType.ORGANIZATION
@@ -2022,7 +2022,7 @@ class Bench(ScopeNode):
     user: Optional["User"] = struct_internal(
         34, protect=True, require=False, array=False, references=NodeType.USER
     )
-    status: BenchStatus = struct_internal(35, protect=True)
+    # status: BenchStatus = struct_internal(35, protect=True)
 
     # *per* environment/.../? stuff (will be moved there later)
     head = struct_internal(40, protect=True, require=False, array=False, references=NodeType.MODULE)

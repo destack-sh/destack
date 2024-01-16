@@ -237,12 +237,12 @@ class Column(TableObject):
             pg_type = POSTGRES_TYPE_BY_COLUMN_TYPE[self.type]
         if self.is_array:
             pg_type += "[]"
-        if not self.is_nullable:
-            pg_type += " NOT NULL"
         return pg_type
 
     def sql(self) -> str:
         parts = [self.name, self.type_sql()]
+        if not self.is_nullable:
+            parts.append("NOT NULL")
         if self.is_primary_key:
             parts.append("PRIMARY KEY")
         if self.is_unique:

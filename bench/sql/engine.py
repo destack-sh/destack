@@ -79,6 +79,15 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             is_primary_key=prop.name == "id",
             is_unique=prop.is_unique,
         )
+        if prop.default is not UNSET and prop.default is not None:
+            if isinstance(prop.default, enum.Enum):
+                column.default = repr(prop.default.value)
+            elif isinstance(prop.default, str):
+                column.default = prop.default
+            elif isinstance(prop.default, int):
+                column.default = str(prop.default)
+            else:
+                raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
         if prop.is_encrypted:
             column.type = ColumnType.BYTES  # all encrypted columns are bytes
         if (

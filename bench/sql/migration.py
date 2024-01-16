@@ -98,7 +98,7 @@ async def _read_migrations_from_pg(
     """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
     try:
         where = "applied_at IS NOT NULL" if applied_only else None
-        migrations_rows = await pg_select(cur, MIGRATION_TABLE, where=where, order_by="id ASC")
+        migrations_rows = await pg_select(cur, MIGRATION_TABLE, where=where, order_by=sql.SQL("id"))
         migrations = [unpack_migration_row(row) for row in migrations_rows]
         return migrations
     except SqlUndefinedObject:
@@ -193,12 +193,21 @@ async def migrate_to(
     # apply the migrations
     if not migrations_to_apply:
         log.info("migration.apply_missing.noop")
+        return []
     else:
         log.info("migration.apply_missing.start", migrations_to_apply=migrations_to_apply)
         await _do_migrate(cur, migrations_to_apply, is_upgrade=is_upgrade, is_global=is_global)
 
     # update the migration table (applied + missing)
-    await _write_migrations_to_pg(cur, all_migrations)
+    missing_migrations = [
+        m
+        for m in all_migrations
+        if not any(m.id == s.id for s in stored_migrations)
+        and not any(m.id == a.id for a in applied_migrations)
+    ]
+    migrations_to_update = [*migrations_to_apply, *missing_migrations]
+    if migrations_to_update:
+        await _write_migrations_to_pg(cur, migrations_to_update)
 
     return migrations_to_apply
 
@@ -501,7 +510,7 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
             table_contents = ",\n".join(f"    {col.sql()}" for col in op.new_object.columns)
             return f"CREATE TABLE {op.new_object.name} (\n{table_contents}\n)"
         elif isinstance(op.new_object, Column):
-            return f"ALTER TABLE {op.new_object.table.name} ADD COLUMN {op.new_object.name} {op.new_object.type_sql()}"
+            return f"ALTER TABLE {op.new_object.table.name} ADD COLUMN {op.new_object.sql()}"
         elif isinstance(op.new_object, Index):
             return f"CREATE INDEX {op.new_object.sql()}"
         elif isinstance(op.new_object, Constraint):
@@ -531,25 +540,35 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
             if any(k in op.diff_keys for k in ("type", "is_array", "length")):
                 # change type
                 updates.append(
-                    f" ALTER COLUMN {op.old_object.name}" f" TYPE {op.new_object.type_sql()}"
+                    f"ALTER COLUMN {op.old_object.name}"
+                    f" SET DATA TYPE {op.new_object.type_sql()}"
+                )
+            if "is_nullable" in op.diff_keys:
+                # change nullability
+                updates.append(
+                    f"ALTER COLUMN {op.old_object.name}"
+                    f" {op.new_object.is_nullable and 'DROP' or 'SET'} NOT NULL"
                 )
             if "default" in op.diff_keys:
                 # change default
-                updates.append(
-                    f" ALTER COLUMN {op.old_object.name}" f" SET DEFAULT {op.new_object.default}"
-                )
+                if op.new_object.default is None:
+                    updates.append(f"ALTER COLUMN {op.old_object.name}" f" DROP DEFAULT")
+                else:
+                    updates.append(
+                        f"ALTER COLUMN {op.old_object.name} SET DEFAULT {op.new_object.default}"
+                    )
             if "is_foreign_key_to" in op.diff_keys or "on_delete" in op.diff_keys:
                 # drop and recreate foreign key constraint
                 if op.old_object.is_foreign_key_to:
                     # selects inside DDL aren't technically allowed, so we factor them out in post-processing
                     updates.append(
-                        f" DROP CONSTRAINT"
+                        f"DROP CONSTRAINT"
                         f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'FOREIGN KEY' AND constraint_name LIKE '%{op.old_object.name}%')"
                     )
                 if op.new_object.is_foreign_key_to:
                     constraint_name = f"{op.new_object.qualified_name.replace('.', '_')}_fk_{op.new_object.is_foreign_key_to}_id"
                     updates.append(
-                        f" ADD CONSTRAINT {constraint_name}"
+                        f"ADD CONSTRAINT {constraint_name}"
                         f" FOREIGN KEY ({op.new_object.name})"
                         f" REFERENCES {op.new_object.is_foreign_key_to}(id)"
                         f" ON DELETE {op.new_object.on_delete.value}"
@@ -557,17 +576,17 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
             if "is_primary_key" in op.diff_keys:
                 if op.old_object.is_primary_key:  # drop it
                     updates.append(
-                        f" DROP CONSTRAINT"
+                        f"DROP CONSTRAINT"
                         f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'PRIMARY KEY' AND constraint_name LIKE '%{op.old_object.name}%')"
                     )
                 else:  # create it
                     updates.append(
-                        f" ADD CONSTRAINT {op.new_object.table}_pkey"
+                        f"ADD CONSTRAINT {op.new_object.table}_pkey"
                         f" PRIMARY KEY ({op.new_object.name})"
                     )
             if not updates:
                 return None
-            return f"ALTER TABLE {op.old_object.table.name}" + ",\n".join(updates)
+            return f"ALTER TABLE {op.old_object.table.name} " + ",\n".join(updates)
         elif isinstance(op.old_object, Index):
             # drop and recreate
             drop = f"DROP INDEX {op.old_object.name}"
@@ -693,7 +712,6 @@ GROUP BY
                 is_unique="UNIQUE" in (row["constraint_types"] or ""),
                 is_nullable=row["is_nullable"] == "YES",
                 is_array=is_array,
-                # nocheckin: recover Column.encrypted
                 default=row["column_default"],
             )
             columns_by_table[row["table_name"]].append(column)
