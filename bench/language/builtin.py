@@ -51,7 +51,7 @@ def _without_validation() -> None:
 def _make_builtin_bench(name: str) -> tuple[Bench, Module]:
     # :BuiltinLibs
     bench_id = uuid5(UUID_NAMESPACE, f"builtin:{name}")
-    bench = Bench(name=name, slug=name, id=bench_id, status=BenchStatus.AVAILABLE)
+    bench = Bench(name=name, slug=name, id=bench_id)
     module_id = uuid5(bench_id, VERSION)
     module = Module(parent=bench, id=module_id)
     return bench, module

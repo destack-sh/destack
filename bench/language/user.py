@@ -17,17 +17,16 @@ class User(ScopeNode):
     """A (global) Bench user."""
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
-    # nocheckin: rename User.username->slug
-    username: str = struct_internal(31, protect=True, unique=True)
-    name: str = struct_internal(32)
+    slug: Optional[str] = struct_internal(31, protect=True, unique=True)
+    name: str = struct_property(32)
     email: str = struct_internal(33, defer=True, unique=True, protect=True)
-    password_salt: bytes = struct_internal(34, defer=True, encrypt=True, protect=True)
-    password_hash: bytes = struct_internal(35, defer=True, encrypt=True, protect=True)
+    password_salt: Optional[bytes] = struct_internal(34, defer=True, encrypt=True, protect=True)
+    password_hash: Optional[bytes] = struct_internal(35, defer=True, encrypt=True, protect=True)
     last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, protect=True)
 
     @property
     def path(self):
-        return self.username
+        return self.slug
 
 
 @node(NodeType.ORGANIZATION, root=None, in_module=False, in_bench=False)
@@ -35,8 +34,12 @@ class Organization(ScopeNode):
     """A (global) Bench organization."""
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
-    name: str = struct_internal(31)
-    description: Optional[str] = struct_property(32)
+    slug: Optional[str] = struct_internal(31, protect=True, unique=True)
+    name: str = struct_property(32)
+
+    @property
+    def path(self):
+        return self.slug
 
 
 @node(NodeType.CLIENT, root=NodeType.USER, in_bench=False, in_module=False)
