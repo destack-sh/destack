@@ -100,6 +100,8 @@ class StructType(ProtoStrEnum):
     EXPRESSION = "EXPRESSION", 210
     AGGREGATION = "AGGREGATION", 211
     AGGREGATION_BUCKET = "AGGREGATION_BUCKET", 212
+    NODE_POINTER = "NODE_POINTER", 213
+    PROPERTY_POINTER = "PROPERTY_POINTER", 214
     LOG_ENTRY = "LOG_ENTRY", 220
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
     RUN_ERROR = "RUN_ERROR", 222
@@ -435,7 +437,7 @@ class TypeFlag(enum.IntFlag):
     IS_OUTPUT = 2**0
     IS_ARRAY = 2**1
     IS_OPTIONAL = 2**2
-    IS_UNION_WITH = 2**3
+    IS_UNION_WITH = 2**3  # nocheckin: move IS_UNION_WITH to Statement properties
     IS_SECRET = 2**4
     IS_STORE_ONLY = 2**5
     IS_ARRAYABLE = 2**6

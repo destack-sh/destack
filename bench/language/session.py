@@ -309,7 +309,7 @@ class Session(ScopeNode):
     @_auto_async_to_sync
     async def flush_local(self):
         """Flushes local Postgres edits."""
-        from bench.sql.engine import update_dynamic_local_pg_schema, write_local_edits_to_pg
+        from bench.sql.engine import update_dynamic_local_pg_schema, write_record_edits_to_pg
 
         # if the schema changed, also flush PG schema
         if self._schema_changed:
@@ -317,7 +317,7 @@ class Session(ScopeNode):
             self._schema_changed = False
 
         edits = self._eat_edits(local=True)
-        await write_local_edits_to_pg(self.local_pg_cursor, self.module, edits.local_edits)
+        await write_record_edits_to_pg(self.local_pg_cursor, self.module, edits.local_edits)
 
     @_auto_async_to_sync
     async def flush_session(self, force: bool = False, kill_pending_runs: bool = False) -> None:
@@ -354,7 +354,7 @@ class Session(ScopeNode):
     async def commit(self):
         """Commits module edits and syncs committed local edits to OS."""
         from bench.os.engine import sync_pg_databases_to_os
-        from bench.sql.engine import write_local_edits_to_pg
+        from bench.sql.engine import write_record_edits_to_pg
 
         assert not self._failed_commit, f"session {self!r} is broken after failed commit"
 
@@ -374,7 +374,7 @@ class Session(ScopeNode):
             if edits.global_edits:
                 await self._host.commit_edits(edits.global_edits)
             if edits.local_edits or edits.session_edits:
-                await write_local_edits_to_pg(
+                await write_record_edits_to_pg(
                     cur=self.local_pg_cursor,
                     module=self.module,
                     edits=[*(edits.local_edits or ()), *(edits.session_edits or ())],

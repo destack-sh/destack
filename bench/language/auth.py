@@ -11,6 +11,7 @@ from bench.language.const import (
     PolicyEffect,
     StructType,
 )
+from bench.language.expression import PropertyPointer
 from bench.language.node import Bench, Node, Struct, node, node_parent, struct, struct_internal
 
 if TYPE_CHECKING:
@@ -50,6 +51,9 @@ class PolicyRule(Struct):
     )
     object_fields: list["Field"] | None = struct_internal(
         52, require=False, array=True, references=NodeType.FIELD
+    )
+    object_properties: list[PropertyPointer] | None = struct_internal(
+        53, require=False, array=True, struct_t=StructType.PROPERTY_POINTER
     )
     # [condition]
     condition: Optional["Expression"] = struct_internal(

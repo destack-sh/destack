@@ -13,8 +13,8 @@ from bench.language.const import BenchType, NodeType, StructType
 from bench.language.node import (
     BENCH_CLASS_BY_TYPE,
     METATYPE_PROPERTY,
-    NODE_CLASS_BY_NODE_TYPE,
-    STRUCT_CLASS_BY_STRUCT_TYPE,
+    NODE_CLASS_BY_TYPE,
+    STRUCT_CLASS_BY_TYPE,
     Node,
     NodeStatus,
     NodeTree,
@@ -24,7 +24,7 @@ from bench.language.node import (
 )
 from bench.language.session import Session
 from bench.proto import wire
-from bench.proto.wire import AbsoluteNodePointer, AnyNodeData, AnyStructData, SomeNodePointer
+from bench.proto.wire import NodePointerData, AnyNodeData, AnyStructData
 from bench.sql.core import ColumnType
 from bench.utils.func import to_uuid
 from bench.utils.utils import hybridmethod, to_snake_case
@@ -128,9 +128,9 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.is_enum:
         return pack_enum(prop.py_type_stripped, value)
     elif prop.parents is not None:
-        return AbsoluteNodePointer(metatype=value.metatype, id=value.id)
+        return NodePointerData(metatype=value.metatype, id=value.id)
     elif prop.references is not None:
-        return SomeNodePointer(metatype=value.metatype, id=value.id, ck=value.ck)
+        return NodePointerData(metatype=value.metatype, id=value.id, ck=value.ck)
     elif prop.column_type == ColumnType.UUID:
         return str(value)  # uuids are wired as strings
     elif prop.column_type == ColumnType.JSON:
@@ -181,12 +181,13 @@ def unpack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
 def pack_struct(struct: Struct) -> AnyStructData:
     """Pack a struct and any contained structs."""
     data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
-    data_kwargs = {}
+    data = data_cls()
     try:
         for prop in struct.__stored_properties__.values():
             value = getattr(struct, prop.name)
-            data_kwargs[prop.name] = _pack_struct_prop(prop, value, ignore_array=False)
-        return data_cls(**data_kwargs)
+            value = _pack_struct_prop(prop, value, ignore_array=False)
+            setattr(data, prop.name, value)
+        return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack {struct.metatype.name}: {struct!r}") from e
 
@@ -199,7 +200,7 @@ def pack_struct_maybe(struct: Struct | None) -> AnyStructData | None:
 
 def unpack_struct(struct_data: AnyStructData) -> Struct:
     """Unpack a struct and any contained structs."""
-    struct_cls = STRUCT_CLASS_BY_STRUCT_TYPE[StructType(struct_data.metatype.name)]
+    struct_cls = STRUCT_CLASS_BY_TYPE[StructType(struct_data.metatype.name)]
     struct_kwargs = {}
     try:
         for prop in struct_cls.__stored_properties__.values():
@@ -229,7 +230,7 @@ def pack_node_maybe(node: Node | None) -> AnyNodeData | None:
 
 
 def unpack_node(node_data: AnyNodeData, parent: Node | None, session: Session | None) -> Node:
-    node_cls = NODE_CLASS_BY_NODE_TYPE[NodeType(node_data.metatype.name)]
+    node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype.name)]
     node_kwargs = {}
     try:
         for prop in node_cls.__stored_properties__.values():
@@ -263,7 +264,6 @@ def unpack_node_inline(
     parent: Node | None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
-    my_root: UUID | None = None,
 ) -> Node:
     """Unpack a node and all its inline descendants"""
     exclude = exclude or tuple()
@@ -313,8 +313,6 @@ def unpack_node_inline(
     else:
         raise ValueError(f"unexpected root {real_root} ({type(real_root)})")
 
-    if my_root:
-        return real_root.lookup(my_root)
     return real_root
 
 

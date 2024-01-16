@@ -3,7 +3,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Collection, Union
 
 from bench.language.const import NodeType
-from bench.language.node import NODE_CLASS_BY_NODE_TYPE
+from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.proto.core import (
     Enum,
     EnumValue,
@@ -51,16 +51,7 @@ def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThin
         field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.column_type]
         return Field(id=prop.id, name=prop.name, type=field_type, repeated=prop.is_array)
     elif prop.parents is not None or prop.references is not None:
-        is_absolute = prop.parents is not None or not any(
-            NODE_CLASS_BY_NODE_TYPE[n].__is_in_module__ and n != NodeType.MODULE
-            for n in prop.references
-        )
-        return Field(
-            id=prop.id,
-            name=prop.name,
-            type="AbsoluteNodePointer" if is_absolute else "SomeNodePointer",
-            repeated=prop.is_array,
-        )
+        return Field(id=prop.id, name=prop.name, type="NodePointerData", repeated=prop.is_array)
     else:
         raise TypeError(f"cannot map {prop.column_type} to proto type: {prop!r}")
 

@@ -36,7 +36,6 @@ from bench.language.const import (
     STRUCT_TYPES,
     UNSET,
     UUID_NAMESPACE,
-    BenchStatus,
     BenchType,
     IssueKind,
     IssueType,
@@ -73,7 +72,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import AbsoluteNodePointer, EditData, SomeNodeData
+from bench.proto.wire import EditData, SomeNodeData, NodePointerData
 from bench.sql.core import CascadeAction, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import did_you_mean_str, get_subclasses, strip_py_type, try_tuple
@@ -90,6 +89,7 @@ if TYPE_CHECKING:
         Session,
         User,
         WorkerSet,
+        PropertyPointer,
         symbolx_lib,
     )
     from bench.language.issue import IssueHandler
@@ -120,7 +120,7 @@ class Property(_FieldExpressionBase):
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
     name: str | None = None  # name from LHS of assignment
     description: str | None = None  # description from docstring
-    component: type["Node"] | None = None  # source component class
+    component: type["Struct"] | None = None  # source component class
     py_type_raw: Any = None  # type annotation on LHS of assignment
     py_type_stripped: Any = UNSET  # stripped type annotation
     # config
@@ -159,9 +159,22 @@ class Property(_FieldExpressionBase):
     custom_copy: Callable[[Any], Any] | None = None
     ignore_conflicts_with: tuple[type["Node"], ...] | None = None
 
+    def __post_init__(self):
+        if (
+            not self.is_tree_relation
+            and self.is_runtime_only
+            and self.default is UNSET
+            and self.default_factory is None
+        ):
+            raise ValueError(f"missing default for {self!r}")
+        if self.references:
+            if self.default is not UNSET:
+                raise ValueError(f"cannot set default for reference property {self!r}")
+            self.default = None
+
     @functools.cached_property
     def _as_field(self) -> "Field":
-        assert self.is_reflected, f"{self!r} is not reflected"
+        assert self.is_reflected is True, f"{self!r} is not reflected"
 
         from bench.language.field import Field
 
@@ -184,26 +197,22 @@ class Property(_FieldExpressionBase):
             tag, hint = TypeTag.JSON, None
         else:
             raise ValueError(f"unexpected column type in {self!r}: {self.column_type}")
-        field = Field(
-            name=self.name,
-            ck=uuid.uuid5(UUID_NAMESPACE, f"{metatype_id}.{self.id}"),
-            tag=tag,
-            hint=hint,
-        )
+        field_ck = uuid.uuid5(UUID_NAMESPACE, f"{metatype_id}.{self.id}")
+        field = Field(name=self.name, ck=field_ck, tag=tag, hint=hint, _reflected_from=self)
         return field
 
-    def __post_init__(self):
-        if (
-            not self.is_tree_relation
-            and self.is_runtime_only
-            and self.default is UNSET
-            and self.default_factory is None
-        ):
-            raise ValueError(f"missing default for {self!r}")
-        if self.references:
-            if self.default is not UNSET:
-                raise ValueError(f"cannot set default for reference property {self!r}")
-            self.default = None
+    @functools.cached_property
+    def ptr(self) -> "PropertyPointer":
+        """A pointer to this property."""
+        assert self.is_reflected is True, f"{self!r} is not reflected"
+        assert self.component is not None, f"{self!r} is not finalized"
+        from bench.language.expression import PropertyPointer
+
+        return PropertyPointer(type=self.component.metatype, id=self.id)
+
+    @property
+    def py_ident(self) -> str:
+        return self.name
 
     def __str__(self):
         if self.component is None:
@@ -377,7 +386,7 @@ class Property(_FieldExpressionBase):
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw=AbsoluteNodePointer,
+                py_type_raw=NodePointerData,
                 default=None,
                 parents=self.parents,
                 reference_source=self,
@@ -420,7 +429,7 @@ class Property(_FieldExpressionBase):
                 id=self.id,
                 name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw=AbsoluteNodePointer,
+                py_type_raw=NodePointerData,
                 references=(self.ancestor,),
                 reference_source=self,
                 reference_on_delete=CascadeAction.CASCADE,
@@ -469,7 +478,7 @@ class Property(_FieldExpressionBase):
                 id=self.id,
                 name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw=AbsoluteNodePointer,
+                py_type_raw=NodePointerData,
                 references=self.references,
                 reference_source=self,
                 is_required=self.is_required,
@@ -734,9 +743,9 @@ _FORBIDDEN_NODE_METHODS = (
     + [m.rec for m in _ComponentMethod]
     + ["__post_init__", "__del__"]
 )
-NODE_CLASS_BY_NODE_TYPE: dict[NodeType, type["NodeT"]] = {}
+NODE_CLASS_BY_TYPE: dict[NodeType, type["NodeT"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
-STRUCT_CLASS_BY_STRUCT_TYPE: dict[StructType, type["Struct"]] = {}
+STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 BENCH_CLASS_BY_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
 _COMPONENT_METHODS: dict[[_ComponentMethod, type["Node"]], Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
@@ -970,11 +979,11 @@ def struct_component(
         # register struct
         if struct_type:
             cls.metatype = struct_type
-            if struct_type in STRUCT_CLASS_BY_STRUCT_TYPE:
+            if struct_type in STRUCT_CLASS_BY_TYPE:
                 raise ValueError(
-                    f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_STRUCT_TYPE[struct_type]}"
+                    f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"
                 )
-            STRUCT_CLASS_BY_STRUCT_TYPE[struct_type] = cls
+            STRUCT_CLASS_BY_TYPE[struct_type] = cls
         return cls
 
     if cls is not None:
@@ -1041,11 +1050,11 @@ def node_component(
         # register as concrete node class for node_type
         if node_type:
             cls.metatype = node_type
-            if node_type in NODE_CLASS_BY_NODE_TYPE:
+            if node_type in NODE_CLASS_BY_TYPE:
                 raise ValueError(
-                    f"node class conflict for {node_type}: {cls}, {NODE_CLASS_BY_NODE_TYPE[node_type]}"
+                    f"node class conflict for {node_type}: {cls}, {NODE_CLASS_BY_TYPE[node_type]}"
                 )
-            NODE_CLASS_BY_NODE_TYPE[node_type] = cls
+            NODE_CLASS_BY_TYPE[node_type] = cls
         NODE_COMPONENT_CLASS_BY_NAME[cls.__name__] = cls
 
         return cls
@@ -2000,7 +2009,6 @@ class Link(Node):
     reference: Optional[Node] = struct_property(
         30, array=False, references=LINK_TARGET_NODE_TYPES, require=True
     )
-    # reference_type: NodeType # (computed)
 
 
 @node(NodeType.BENCH, in_module=False)
@@ -2329,7 +2337,8 @@ class Module(ScopeNode):
 
         source = [wiring.unwrap_some_node(s) for s in source]
         source = NodeTree(source)
-        module: Module = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
+        root: Bench = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
+        module: Module = root.resolve()  # ???
         assert isinstance(module, Module), f"unexpected module: {module!r}"
         module._source = source
         old_source = module._source.copy()
@@ -2360,18 +2369,18 @@ def _complete_bench_setup():
     from bench.language import const
 
     # populate known types
-    for bench_t in chain(NODE_CLASS_BY_NODE_TYPE.values(), STRUCT_CLASS_BY_STRUCT_TYPE.values()):
+    for bench_t in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
         _BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
     for maybe_bench_t in const.__dict__.values():
         if isinstance(maybe_bench_t, type) and issubclass(maybe_bench_t, enum.Enum):
             _BENCH_CLASSES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
     BENCH_CLASSES = frozenset(_BENCH_CLASSES_BY_NAME.values())
     for node_t in NODE_TYPES:
-        BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_NODE_TYPE[node_t]
+        BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_TYPE[node_t]
     for struct_t in STRUCT_TYPES:
-        BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_STRUCT_TYPE[struct_t]
-    NODE_CLASSES = frozenset(NODE_CLASS_BY_NODE_TYPE.values())
-    STRUCT_CLASSES = frozenset(STRUCT_CLASS_BY_STRUCT_TYPE.values())
+        BENCH_CLASS_BY_TYPE[struct_t] = STRUCT_CLASS_BY_TYPE[struct_t]
+    NODE_CLASSES = frozenset(NODE_CLASS_BY_TYPE.values())
+    STRUCT_CLASSES = frozenset(STRUCT_CLASS_BY_TYPE.values())
 
     # finalize classes
     for cls in chain(get_subclasses(Node), get_subclasses(Struct)):
@@ -2407,7 +2416,7 @@ def _complete_bench_setup():
                     raise ValueError(
                         f"cannot store {prop!r} as {prop.py_type_raw!r} (missing struct_type)"
                     )
-                if STRUCT_CLASS_BY_STRUCT_TYPE[prop.struct_type] is not prop.py_type_raw:
+                if STRUCT_CLASS_BY_TYPE[prop.struct_type] is not prop.py_type_raw:
                     raise ValueError(f"{prop!r} {prop.struct_type} != {prop.py_type_raw}")
 
         # set stored properties now that storage info is determined
@@ -2418,7 +2427,7 @@ def _complete_bench_setup():
     # set tables
     from bench.sql.engine import TABLE_BY_NODE_TYPE
 
-    for node_cls in NODE_CLASS_BY_NODE_TYPE.values():
+    for node_cls in NODE_CLASS_BY_TYPE.values():
         if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
             node_cls.__table__ = TABLE_BY_NODE_TYPE.get(node_cls.metatype)
         else:
@@ -2430,14 +2439,14 @@ def _complete_bench_setup():
     def _has_module_ancestor(node_type: NodeType) -> bool:
         if node_type == NodeType.MODULE:
             return True
-        for parent_type in NODE_CLASS_BY_NODE_TYPE[node_type].__parent_property__.parents:
+        for parent_type in NODE_CLASS_BY_TYPE[node_type].__parent_property__.parents:
             if parent_type == NodeType.MODULE:
                 return True
             if parent_type != node_type:
                 return _has_module_ancestor(parent_type)
         return False
 
-    for node_cls in NODE_CLASS_BY_NODE_TYPE.values():
+    for node_cls in NODE_CLASS_BY_TYPE.values():
         if node_cls.__root__ is None or node_cls.__root__ != NodeType.BENCH:
             in_bench = False
             in_module = False
@@ -2448,13 +2457,13 @@ def _complete_bench_setup():
             raise ValueError(
                 f"{node_cls!r} parent types are inconsistent: root={node_cls.__root__} implies in_bench={in_bench} and in_module={in_module}, but got in_bench={node_cls.__is_in_bench__} and in_module={node_cls.__is_in_module__}"
             )
-    in_bench_types = [t.metatype for t in NODE_CLASS_BY_NODE_TYPE.values() if t.__is_in_bench__]
-    in_module_types = [t.metatype for t in NODE_CLASS_BY_NODE_TYPE.values() if t.__is_in_module__]
+    in_bench_types = [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]
+    in_module_types = [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_module__]
     assert set(IN_BENCH_NODE_TYPES) == set(in_bench_types), "IN_BENCH_NODE_TYPES inconsistent"
     assert set(IN_MODULE_NODE_TYPES) == set(in_module_types), "IN_MODULE_NODE_TYPES inconsistent"
 
     # check that all enum types are valid proto-able enums
-    for struct_t in chain(STRUCT_CLASS_BY_STRUCT_TYPE.values(), NODE_CLASS_BY_NODE_TYPE.values()):
+    for struct_t in chain(STRUCT_CLASS_BY_TYPE.values(), NODE_CLASS_BY_TYPE.values()):
         for prop in struct_t.__properties__.values():
             if prop.is_enum and not issubclass(
                 prop.py_type_stripped, (ProtoStrEnum, enum.IntEnum, enum.IntFlag)

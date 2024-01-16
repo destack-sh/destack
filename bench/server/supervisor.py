@@ -8,7 +8,7 @@ from grpclib import Status as GRPCStatus
 from bench.language import Handle, User
 from bench.language.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.language.const import to_bench_metatype
-from bench.language.node import NODE_CLASS_BY_NODE_TYPE
+from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.proto import wiring
 from bench.proto.mesh import BenchServiceBase
 from bench.proto.wire import (
@@ -117,7 +117,7 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         for root in read_nodes_request.roots:
             node_type = to_bench_metatype(root.type)
-            node_cls = NODE_CLASS_BY_NODE_TYPE[node_type]
+            node_cls = NODE_CLASS_BY_TYPE[node_type]
             if node_cls.__is_in_module__:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid root node type")
 
