@@ -1,7 +1,6 @@
 import asyncio
 import enum
 import os
-from datetime import datetime
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
@@ -13,18 +12,8 @@ import openai
 import structlog
 
 from bench.language.cache import Cache
-from bench.language.const import StructType
 from bench.language.field import Field, HasFields, TypedDict, TypeTag
-from bench.language.node import (
-    Node,
-    ScopeNode,
-    Struct,
-    node_component,
-    struct,
-    struct_internal,
-    struct_runtime,
-)
-from bench.sql.core import ColumnType
+from bench.language.node import Node, ScopeNode, node_component, struct_runtime
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env, omit_empty

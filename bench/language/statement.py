@@ -1,9 +1,7 @@
 import typing
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
-from uuid import UUID
 
 from bench.language.code_ import HasCode
 from bench.language.const import (
@@ -40,7 +38,7 @@ from bench.language.validation import enum_validator, validate_is_str, validate_
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 from bench.utils.func import dict_minus
-from bench.utils.utils import IdentifierType, IdentT, identity, to_pyidentifier
+from bench.utils.utils import IdentifierType, IdentT, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language import File, Policy

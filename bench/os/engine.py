@@ -21,13 +21,7 @@ from bench.language import (
     TypeTag,
     symbolx_lib,
 )
-from bench.language.const import (
-    RUNNABLE_STATEMENT_TYPES,
-    BenchType,
-    EditKind,
-    TypeFlag,
-    to_bench_metatype,
-)
+from bench.language.const import RUNNABLE_STATEMENT_TYPES, BenchType, EditKind, TypeFlag
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -47,11 +41,11 @@ from bench.language.node import (
     Struct,
 )
 from bench.language.run import HasRun
-from bench.proto import wire, wiring
-from bench.proto.wire import EditData
 from bench.os import core as os
 from bench.os.client import get_os_errors, os_client, os_client_sync
 from bench.os.core import SubfieldType
+from bench.proto import wire, wiring
+from bench.proto.wire import EditData
 from bench.sql.core import ColumnType
 
 logger = structlog.get_logger(__name__)

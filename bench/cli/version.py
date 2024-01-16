@@ -4,7 +4,6 @@ from pathlib import Path
 
 import structlog
 import typer
-from rich import print
 
 from bench.language.const import VERSION
 

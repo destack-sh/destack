@@ -167,7 +167,7 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
             # forward to record query (stored custom)
             raise GRPCError(GRPCStatus.UNIMPLEMENTED)
         async with detached_session(read_only=True):
-            client = await check_authenticated(self.metadata)
+            await check_authenticated(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def search_nodes(

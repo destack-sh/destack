@@ -104,7 +104,7 @@ def hash_password(password: str, salt: bytes) -> bytes:
     ), f"password too long: {len(password)} > {PASSWORD_MAX_LENGTH}"
 
     return scrypt(
-        password,
+        password.encode("utf-8"),
         salt=salt,
         n=SCRYPT_N,
         r=SCRYPT_R,

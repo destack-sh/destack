@@ -10,26 +10,22 @@ import typer
 from more_itertools import first
 from rich import print
 
+from bench.cli.utils import _async_to_sync_blocking
 from bench.language.const import VERSION, NodeType
-from bench.language.node import (
-    NODE_CLASS_BY_NODE_TYPE,
-)
+from bench.language.node import NODE_CLASS_BY_NODE_TYPE, Bench
+from bench.server.session import detached_session
+from bench.sql.client import LOCAL_PG_HOST, LOCAL_PG_PORT, _get_pg_connection_str, async_pg_cursor
 from bench.sql.core import DEFAULT_GLOBAL_TABLES, DEFAULT_LOCAL_TABLES
+from bench.sql.engine import map_node_type_to_pg_table
 from bench.sql.migration import (
     Migration,
     add_migration_to_fs,
     generate_migration_code,
     generate_migration_ops,
+    introspect_tables_from_pg,
     migrate_to,
     read_migrations_from_fs,
 )
-from bench.utils.utils import DEBUG
-from bench.cli.utils import _async_to_sync_blocking
-from bench.language.node import Bench
-from bench.server.session import detached_session
-from bench.sql.client import async_pg_cursor, _get_pg_connection_str, LOCAL_PG_HOST, LOCAL_PG_PORT
-from bench.sql.engine import map_node_type_to_pg_table
-from bench.sql.migration import introspect_tables_from_pg
 from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)
@@ -75,6 +71,7 @@ async def makemigrations(
     ),
     no_downgrade: bool = typer.Option(default=False, help="exclude downgrade operations"),
     dry_run: bool = typer.Option(default=False, help="only print, don't store"),
+    overwrite: bool = typer.Option(default=False, help="overwrite existing migration for version"),
 ):
     logger.info("makemigrations", bench=bench, local_pg_name=local_pg_name)
     start = time.time()
@@ -113,7 +110,12 @@ async def makemigrations(
     known_migrations = read_migrations_from_fs()
     conflicting_migration = first((m for m in known_migrations if m.version == VERSION), None)
     if conflicting_migration:
-        raise RuntimeError(f"existing migration for version {VERSION}: {conflicting_migration}")
+        if overwrite:
+            logger.info("makemigrations.overwrite", migration=conflicting_migration)
+            Path(conflicting_migration.path).unlink()
+            known_migrations.remove(conflicting_migration)
+        else:
+            raise RuntimeError(f"existing migration for version {VERSION}: {conflicting_migration}")
 
     latest_migration = max(known_migrations, key=lambda m: m.id, default=None)
     new_migration = Migration(
@@ -123,10 +125,8 @@ async def makemigrations(
         has_local=bool(local_migration_ops),
         applied_at=None,
     )
-    # which cursor we pass doesn't matter, it's just used for formatting SQL
     migration_code = generate_migration_code(
         new_migration,
-        cur=cur,
         global_ops=global_migration_ops,
         local_ops=local_migration_ops,
         exclude_inverse=no_downgrade,
@@ -161,26 +161,8 @@ async def migrate(
     else:
         local_pg_name = None
 
-    # get target migrations from our source of truth (local file system)
-    all_migrations = read_migrations_from_fs()
-    if target:
-        target_migration = first(
-            (m for m in all_migrations if str(m.id) == target or m.version == target), None
-        )
-        if target_migration is None:
-            raise ValueError(f"unknown migration '{target}': {all_migrations}")
-    else:
-        if len(all_migrations) == 0:
-            raise ValueError("no migrations found")
-        target_migration = all_migrations[-1]
-
     async with async_pg_cursor(local_pg_name=local_pg_name) as cur:
-        await migrate_to(
-            cur=cur,
-            all_migrations=all_migrations,
-            target_migration=target_migration,
-            is_global=bench is None,
-        )
+        await migrate_to(cur=cur, target=target, is_global=bench is None)
         if not dry_run:
             await cur.connection.commit()
         else:
@@ -189,18 +171,17 @@ async def migrate(
     logger.info("migrate.done", duration=time.time() - start)
 
 
-if DEBUG:
-
-    @app.command(help="apply local SQL migrations to ALL benches")
-    @_async_to_sync_blocking
-    async def migrate_all_local(
-        to: Optional[str] = typer.Option(
-            default=None, help="the migration to migrate to [default=latest]"
-        )
-    ):
-        async with detached_session(read_only=True):
-            for bench in await Bench.all():
-                await migrate_to(target=to, bench=bench.slug)
+@app.command(help="apply local SQL migrations to ALL benches")
+@_async_to_sync_blocking
+async def migrate_all_local(
+    target: Optional[str] = typer.Option(
+        default=None, help="the migration to migrate to [default=latest]"
+    )
+):
+    async with detached_session(read_only=True):
+        for bench in await Bench.all():
+            async with async_pg_cursor(local_pg_name=bench.pg_name):
+                await migrate_to(target=target, bench=bench.slug)
 
 
 @app.command()

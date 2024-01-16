@@ -4,7 +4,7 @@ import os
 
 import structlog
 
-from bench.utils.utils import DEBUG, TEST, get_from_env
+from bench.utils.utils import get_from_env
 
 LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "DEBUG")
 NOISY_LOG_LEVEL = os.getenv("NOISY_LOG_LEVEL", "INFO")

@@ -1,11 +1,7 @@
-import asyncio
 import contextvars
-import functools
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid5
-
-from asgiref.sync import async_to_sync
 
 from bench.language.const import UUID_NAMESPACE, VERSION, BenchStatus
 from bench.language.node import Bench, Module

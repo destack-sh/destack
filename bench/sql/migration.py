@@ -1,33 +1,34 @@
 import asyncio
+import enum
+import importlib
+import os
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-import enum
-import os
 from pathlib import Path
-import re
 from textwrap import indent
-from typing import Any, Optional, Callable, Awaitable, Collection
+from typing import Any, Awaitable, Callable, Collection, Optional
 
-from more_itertools import first
 import psycopg
-from psycopg import sql
 import structlog
+from more_itertools import first
+from psycopg import sql
 
 from bench.sql.core import (
-    Table,
-    Column,
-    Index,
-    Constraint,
-    MIGRATION_TABLE,
-    PostgresColumnType,
     COLUMN_TYPE_BY_POSTGRES_TYPE,
-    ConstraintType,
-    IndexType,
-    CascadeAction,
+    MIGRATION_TABLE,
     POSTGRES_TYPE_BY_UDT,
-    TableObject,
+    CascadeAction,
+    Column,
+    Constraint,
+    ConstraintType,
+    Index,
+    IndexType,
     ObjectKind,
+    PostgresColumnType,
+    Table,
+    TableObject,
 )
 from bench.sql.engine import SqlUndefinedObject, pg_select, pg_select_raw, pg_upsert
 from bench.utils.utils import format_python
@@ -101,6 +102,7 @@ async def _read_migrations_from_pg(
         migrations = [unpack_migration_row(row) for row in migrations_rows]
         return migrations
     except SqlUndefinedObject:
+        await cur.connection.rollback()
         return []
 
 
@@ -113,14 +115,15 @@ async def _write_migrations_to_pg(cur: psycopg.AsyncCursor, migrations: list[Mig
 def read_migrations_from_fs() -> list[Migration]:
     """Reads the available migrations from local filesystem. Actually loads each migration file."""
     migrations: list[Migration] = []
-    for migration_path in sorted(os.listdir(MIGRATIONS_PATH)):
-        if migration_path in ("0000_template.py", "__init__.py") or not migration_path.endswith(
+    for migration_file in sorted(os.listdir(MIGRATIONS_PATH)):
+        if migration_file in ("0000_template.py", "__init__.py") or not migration_file.endswith(
             ".py"
         ):
             continue
 
         # parse the file
-        migration_code = Path(MIGRATIONS_PATH + "/" + migration_path).read_text()
+        migration_path = MIGRATIONS_PATH + "/" + migration_file
+        migration_code = Path(migration_path).read_text()
         migration_metadata: dict[str, str] = {
             match[0]: match[1] for match in re.findall(r"([A-Z_]+) = (.*)", migration_code)
         }
@@ -138,15 +141,15 @@ def read_migrations_from_fs() -> list[Migration]:
 
 def _load_migration_from_path(migration: Migration) -> MigrationFile:
     assert migration.path is not None, "migration path not set"
-    migration_module = __import__(migration.path)
+    module_path = migration.path.replace("/", ".").replace(".py", "")
+    migration_module = importlib.import_module(module_path)
     file = MigrationFile(path=migration.path, module=migration_module)
     return file
 
 
 async def migrate_to(
     cur: psycopg.AsyncCursor,
-    target_migration: Migration,
-    all_migrations: list[Migration],
+    target: str | int,
     *,
     is_global: bool,
 ) -> list[Migration]:
@@ -155,10 +158,24 @@ async def migrate_to(
     Also updates the migrations table.
     """
 
-    is_upgrade = target_migration.id > max(m.id for m in all_migrations)
+    # get target migrations from our source of truth (local file system)
+    all_migrations = read_migrations_from_fs()
+    if target:
+        target_migration = first(
+            (m for m in all_migrations if str(m.id) == target or m.version == target), None
+        )
+        if target_migration is None:
+            raise ValueError(f"unknown migration '{target}': {all_migrations}")
+    else:
+        if len(all_migrations) == 0:
+            raise ValueError("no migrations found")
+        target_migration = all_migrations[-1]
+
+    logger.debug("migration.load", target_migration=target_migration, is_global=is_global)
+    stored_migrations = await _read_migrations_from_pg(cur)
+    is_upgrade = all(m.id > target_migration.id for m in stored_migrations if m.applied_at)
     log = logger.bind(target_migration=target_migration, is_upgrade=is_upgrade, is_global=is_global)
     logger.info("migration.apply_missing")
-    stored_migrations = await _read_migrations_from_pg(cur)
     applied_migrations = [m for m in stored_migrations if m.applied_at is not None]
     current_migration = max(applied_migrations, key=lambda m: m.id) if applied_migrations else None
     current_migration_id = current_migration.id if current_migration else -1
@@ -334,7 +351,6 @@ def generate_migration_ops(
 def generate_migration_code(
     migration: Migration,
     *,
-    cur: psycopg.AsyncCursor,
     global_ops: list[MigrationOp],
     local_ops: list[MigrationOp],
     exclude_inverse: bool = False,
@@ -363,7 +379,7 @@ def generate_migration_code(
         ("upgrade_local", local_ops),
         ("downgrade_local", local_ops_inverse),
     ]:
-        method_body = _render_migration_body(cur, ops)
+        method_body = _render_migration_body(ops)
         method_placeholder = f"    pass  # <{method_name}>"
         assert method_placeholder in migration_code, f"method placeholder not found: {method_name}"
         migration_code = migration_code.replace(method_placeholder, indent(method_body, "    "))
@@ -372,7 +388,7 @@ def generate_migration_code(
     return migration_code
 
 
-def _render_migration_body(cur: psycopg.AsyncCursor, ops: list[MigrationOp] | None) -> str:
+def _render_migration_body(ops: list[MigrationOp] | None) -> str:
     """Renders migration operations into an executable method body."""
 
     if ops is None:
@@ -408,21 +424,22 @@ def _render_migration_body(cur: psycopg.AsyncCursor, ops: list[MigrationOp] | No
         if current_alter_statements:
             _emit_alter(table, current_alter_statements)
 
-    for op in ops:
-        # render statements
-        stmt = _render_migration_op(op)
-        if stmt is None:
-            continue
-        if isinstance(stmt, sql.Composed):
-            stmt = stmt.as_string(cur).strip()
-        else:
-            stmt = str(stmt).strip()
+    def _wrap_statement(stmt: str) -> str:
+        stmt = str(stmt).strip()
         if "\n" in stmt:
             stmt = f'"""\n{stmt}\n"""'
         else:
-            if "'" in stmt:
+            if "'" in stmt and "\\'" not in stmt:
                 stmt = stmt.replace("'", "\\'")
             stmt = f"'{stmt}'"
+        return stmt
+
+    # render statements
+    for op in ops:
+        stmt = _render_migration_op(op)
+        if stmt is None:
+            continue
+        stmt = _wrap_statement(stmt)
 
         if op.table != current_table:
             if current_statements:
@@ -434,8 +451,32 @@ def _render_migration_body(cur: psycopg.AsyncCursor, ops: list[MigrationOp] | No
     if current_table and current_statements:
         _emit(current_table, current_statements)
 
-    lines = [f"await cur.execute({line})" if "#" not in line else line for line in lines]
-    method_body = "\n".join(lines)
+    # post process lines
+    wrapped_lines: list[str] = []
+    for line in lines:
+        if "#" in line:
+            # leave comments as-is
+            wrapped_lines.append(line)
+            continue
+
+        # pull out (SELECT ...) sub-queries
+        subqueries = re.findall(r"\(SELECT.*?\)", line)
+        for i, subquery in enumerate(subqueries):
+            selected_columns = re.findall(r"SELECT (.*?) FROM", subquery)[0].split(", ")
+            var_name = f"_{selected_columns[0]}_{i}"
+            line = line.replace(subquery, f"{{{var_name}}}")
+            subquery = _wrap_statement(subquery[1:-1])
+            wrapped_lines.append(
+                f"await cur.execute({subquery})\n{var_name} = (await cur.fetchone())['{selected_columns[0]}']"
+            )
+
+        # wrap with execute
+        if subqueries:
+            # suppress type warning because f string is not a literal
+            wrapped_lines.append("# noinspection PyTypeChecker")
+            line = "f" + line
+        wrapped_lines.append(f"await cur.execute({line})")
+    method_body = "\n".join(wrapped_lines)
     return method_body
 
 
@@ -450,7 +491,7 @@ def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = Fa
     return migration_path
 
 
-def _render_migration_op(op: MigrationOp) -> Optional[sql.Composable | str]:
+def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
     """
     Renders the given operation into a SQL operation.
     Generally 'flat' (does not include nested objects) except for table create.
@@ -500,25 +541,28 @@ def _render_migration_op(op: MigrationOp) -> Optional[sql.Composable | str]:
             if "is_foreign_key_to" in op.diff_keys or "on_delete" in op.diff_keys:
                 # drop and recreate foreign key constraint
                 if op.old_object.is_foreign_key_to:
+                    # selects inside DDL aren't technically allowed, so we factor them out in post-processing
                     updates.append(
                         f" DROP CONSTRAINT"
-                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'FOREIGN KEY' AND column_name = '{op.old_object.name})'"
+                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'FOREIGN KEY' AND constraint_name LIKE '%{op.old_object.name}%')"
                     )
                 if op.new_object.is_foreign_key_to:
+                    constraint_name = f"{op.new_object.qualified_name.replace('.', '_')}_fk_{op.new_object.is_foreign_key_to}_id"
                     updates.append(
-                        f" ADD CONSTRAINT {op.new_object.name}"
+                        f" ADD CONSTRAINT {constraint_name}"
                         f" FOREIGN KEY ({op.new_object.name})"
-                        f" REFERENCES {op.new_object.is_foreign_key_to}(id) ON DELETE {op.new_object.on_delete.value}"
+                        f" REFERENCES {op.new_object.is_foreign_key_to}(id)"
+                        f" ON DELETE {op.new_object.on_delete.value}"
                     )
             if "is_primary_key" in op.diff_keys:
                 if op.old_object.is_primary_key:  # drop it
                     updates.append(
                         f" DROP CONSTRAINT"
-                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'PRIMARY KEY' AND column_name = '{op.old_object.name}')"
+                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'PRIMARY KEY' AND constraint_name LIKE '%{op.old_object.name}%')"
                     )
                 else:  # create it
                     updates.append(
-                        f" ADD CONSTRAINT {op.new_object.name}"
+                        f" ADD CONSTRAINT {op.new_object.table}_pkey"
                         f" PRIMARY KEY ({op.new_object.name})"
                     )
             if not updates:

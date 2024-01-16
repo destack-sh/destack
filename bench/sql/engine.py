@@ -112,7 +112,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
     parent_columns: tuple[str, ...] = tuple(c.name for c in columns if c.name.startswith("parent_"))
     if parent_columns:
         constraint = Constraint(
-            f"bench_check_one_parent",
+            "bench_check_one_parent",
             type=ConstraintType.CHECK,
             condition=f"({') OR ('.join(f'{c} IS NOT NULL' for c in parent_columns)})",
             _source=node.metatype.id,
@@ -128,14 +128,14 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             index = Index(
                 f"bench_idx_module_{prop_name}",
                 type=IndexType.BTREE,
-                columns=("bench_module_id", f"bench_{prop_name}"),
+                columns=("module_id", prop_name),
                 _source=prop.id,
             )
         else:
             index = Index(
                 f"bench_idx_{prop_name}",
                 type=IndexType.BTREE,
-                columns=(f"bench_{prop_name}",),
+                columns=(prop_name,),
                 _source=prop.id,
             )
         indexes.append(index)
@@ -236,7 +236,7 @@ async def update_dynamic_local_pg_schema(pg_name: str, module: Module) -> None:
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))
 
     try:
-        async with async_pg_cursor(pg_name, autocommit=False) as cur:
+        async with async_pg_cursor(pg_name, autocommit=False):
             # introspect and update schema
             raise NotImplementedError("nocheckin: update_dynamic_local_pg_schema")
     except Exception as e:
@@ -798,10 +798,9 @@ NodeT = typing.TypeVar("NodeT", bound=Node)
 
 def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
     """Packs a node's data into a row for the respective table."""
-    row: dict[str, any] = {}
     node_cls = NODE_CLASS_BY_NODE_TYPE[to_bench_metatype(node.metatype)]
     for prop in node_cls.__stored_properties__.values():
-        value = getattr(node, prop.name)
+        getattr(node, prop.name)
     raise NotImplementedError("nocheckin: pg_pack_node_data_row")
 
 
