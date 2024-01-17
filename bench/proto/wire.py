@@ -638,6 +638,7 @@ class ExpressionData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     op: "ExpressionOp" = betterproto.enum_field(30)
+    field_ptr: "NodePointerData" = betterproto.message_field(31)
     property_ptr: "PropertyPointerData" = betterproto.message_field(32)
     clauses: List["ExpressionData"] = betterproto.message_field(33)
     value: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(34)
@@ -1049,6 +1050,7 @@ class LinkData(betterproto.Message):
     deleted_at: datetime = betterproto.message_field(13)
     archived_at: datetime = betterproto.message_field(14)
     last_edited_at: datetime = betterproto.message_field(15)
+    reference_ptr: "NodePointerData" = betterproto.message_field(30)
 
 
 @dataclass(eq=False, repr=False)
@@ -1464,48 +1466,48 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    worker_set: "WorkerSetData" = betterproto.message_field(1, group="node")
-    secret: "SecretData" = betterproto.message_field(2, group="node")
-    halt: "HaltData" = betterproto.message_field(3, group="node")
-    trigger: "TriggerData" = betterproto.message_field(4, group="node")
-    field: "FieldData" = betterproto.message_field(5, group="node")
-    module: "ModuleData" = betterproto.message_field(6, group="node")
-    worker: "WorkerData" = betterproto.message_field(7, group="node")
-    file: "FileData" = betterproto.message_field(8, group="node")
-    session: "SessionData" = betterproto.message_field(9, group="node")
-    badge: "BadgeData" = betterproto.message_field(10, group="node")
-    statement: "StatementData" = betterproto.message_field(11, group="node")
-    tagging: "TaggingData" = betterproto.message_field(12, group="node")
-    bench: "BenchData" = betterproto.message_field(13, group="node")
-    user: "UserData" = betterproto.message_field(14, group="node")
+    session: "SessionData" = betterproto.message_field(1, group="node")
+    halt: "HaltData" = betterproto.message_field(2, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(3, group="node")
+    signal: "SignalData" = betterproto.message_field(4, group="node")
+    worker: "WorkerData" = betterproto.message_field(5, group="node")
+    client: "ClientData" = betterproto.message_field(6, group="node")
+    record: "RecordData" = betterproto.message_field(7, group="node")
+    user: "UserData" = betterproto.message_field(8, group="node")
+    view: "ViewData" = betterproto.message_field(9, group="node")
+    statement: "StatementData" = betterproto.message_field(10, group="node")
+    bench: "BenchData" = betterproto.message_field(11, group="node")
+    secret: "SecretData" = betterproto.message_field(12, group="node")
+    blob: "BlobData" = betterproto.message_field(13, group="node")
+    trigger: "TriggerData" = betterproto.message_field(14, group="node")
     organization: "OrganizationData" = betterproto.message_field(15, group="node")
-    link: "LinkData" = betterproto.message_field(16, group="node")
-    client: "ClientData" = betterproto.message_field(17, group="node")
-    issue: "IssueData" = betterproto.message_field(18, group="node")
-    view: "ViewData" = betterproto.message_field(19, group="node")
-    signal: "SignalData" = betterproto.message_field(20, group="node")
-    record: "RecordData" = betterproto.message_field(21, group="node")
-    blob: "BlobData" = betterproto.message_field(22, group="node")
-    run: "RunData" = betterproto.message_field(23, group="node")
-    notification: "NotificationData" = betterproto.message_field(24, group="node")
-    handle: "HandleData" = betterproto.message_field(25, group="node")
+    module: "ModuleData" = betterproto.message_field(16, group="node")
+    field: "FieldData" = betterproto.message_field(17, group="node")
+    notification: "NotificationData" = betterproto.message_field(18, group="node")
+    file: "FileData" = betterproto.message_field(19, group="node")
+    run: "RunData" = betterproto.message_field(20, group="node")
+    tagging: "TaggingData" = betterproto.message_field(21, group="node")
+    badge: "BadgeData" = betterproto.message_field(22, group="node")
+    issue: "IssueData" = betterproto.message_field(23, group="node")
+    handle: "HandleData" = betterproto.message_field(24, group="node")
+    link: "LinkData" = betterproto.message_field(25, group="node")
 
 
 @dataclass(eq=False, repr=False)
 class SomeStructData(betterproto.Message):
-    log_entry: "LogEntryData" = betterproto.message_field(1, group="struct")
-    policy_rule: "PolicyRuleData" = betterproto.message_field(2, group="struct")
-    run_error: "RunErrorData" = betterproto.message_field(3, group="struct")
-    aggregation_bucket: "AggregationBucketData" = betterproto.message_field(4, group="struct")
-    worker_image: "WorkerImageData" = betterproto.message_field(5, group="struct")
-    policy: "PolicyData" = betterproto.message_field(6, group="struct")
+    mini_run: "MiniRunData" = betterproto.message_field(1, group="struct")
+    worker_image: "WorkerImageData" = betterproto.message_field(2, group="struct")
+    log_entry: "LogEntryData" = betterproto.message_field(3, group="struct")
+    policy_rule: "PolicyRuleData" = betterproto.message_field(4, group="struct")
+    expression: "ExpressionData" = betterproto.message_field(5, group="struct")
+    aggregation_bucket: "AggregationBucketData" = betterproto.message_field(6, group="struct")
     property_pointer: "PropertyPointerData" = betterproto.message_field(7, group="struct")
-    mini_run: "MiniRunData" = betterproto.message_field(8, group="struct")
-    aggregation: "AggregationData" = betterproto.message_field(9, group="struct")
-    node_pointer: "NodePointerData" = betterproto.message_field(10, group="struct")
-    dependency: "DependencyData" = betterproto.message_field(11, group="struct")
-    expression: "ExpressionData" = betterproto.message_field(12, group="struct")
-    run_code_frame: "RunCodeFrameData" = betterproto.message_field(13, group="struct")
+    run_code_frame: "RunCodeFrameData" = betterproto.message_field(8, group="struct")
+    node_pointer: "NodePointerData" = betterproto.message_field(9, group="struct")
+    policy: "PolicyData" = betterproto.message_field(10, group="struct")
+    run_error: "RunErrorData" = betterproto.message_field(11, group="struct")
+    dependency: "DependencyData" = betterproto.message_field(12, group="struct")
+    aggregation: "AggregationData" = betterproto.message_field(13, group="struct")
 
 
 @dataclass(eq=False, repr=False)
@@ -3032,46 +3034,46 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    WorkerSetData,
-    SecretData,
-    HaltData,
-    TriggerData,
-    FieldData,
-    ModuleData,
-    WorkerData,
-    FileData,
     SessionData,
-    BadgeData,
-    StatementData,
-    TaggingData,
-    BenchData,
-    UserData,
-    OrganizationData,
-    LinkData,
-    ClientData,
-    IssueData,
-    ViewData,
+    HaltData,
+    WorkerSetData,
     SignalData,
+    WorkerData,
+    ClientData,
     RecordData,
+    UserData,
+    ViewData,
+    StatementData,
+    BenchData,
+    SecretData,
     BlobData,
-    RunData,
+    TriggerData,
+    OrganizationData,
+    ModuleData,
+    FieldData,
     NotificationData,
+    FileData,
+    RunData,
+    TaggingData,
+    BadgeData,
+    IssueData,
     HandleData,
+    LinkData,
 ]
 AnyStructData = Union[
+    MiniRunData,
+    WorkerImageData,
     LogEntryData,
     PolicyRuleData,
-    RunErrorData,
-    AggregationBucketData,
-    WorkerImageData,
-    PolicyData,
-    PropertyPointerData,
-    MiniRunData,
-    AggregationData,
-    NodePointerData,
-    DependencyData,
     ExpressionData,
+    AggregationBucketData,
+    PropertyPointerData,
     RunCodeFrameData,
+    NodePointerData,
+    PolicyData,
+    RunErrorData,
+    DependencyData,
+    AggregationData,
 ]
 
 VERSION = "2024.01.15.1"

@@ -13,5 +13,5 @@ if not (TEST or DEBUG or SOME_TYPE_CHECKING):
 posthog.bench_api_key = "phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma"
 posthog.host = "https://eu.posthog.com"
 
-if TEST or DEBUG:
+if TEST or DEBUG or SOME_TYPE_CHECKING:
     posthog.disabled = True

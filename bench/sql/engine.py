@@ -79,17 +79,24 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             is_primary_key=prop.name == "id",
             is_unique=prop.is_unique,
         )
+        # default
         if prop.default is not UNSET and prop.default is not None:
-            if isinstance(prop.default, enum.Enum):
-                column.default = repr(prop.default.value)
-            elif isinstance(prop.default, str):
-                column.default = prop.default
+            if isinstance(prop.default, enum.Enum) and not isinstance(
+                prop.default, (enum.IntEnum, enum.IntFlag)
+            ):
+                column.default = f"'{prop.default.value}'::character varying"
+            elif isinstance(prop.default, bool):
+                column.default = "false" if prop.default is False else "true"
             elif isinstance(prop.default, int):
                 column.default = str(prop.default)
+            elif isinstance(prop.default, str):
+                column.default = f"'{prop.default}'::character varying"
             else:
                 raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
+        # is_encrypted
         if prop.is_encrypted:
             column.type = ColumnType.BYTES  # all encrypted columns are bytes
+        # references
         if (
             prop.reference_types
             and prop.name.endswith("_id")
@@ -99,7 +106,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             column.is_foreign_key_to = get_bench_table_name(prop.reference_types[0])
             assert isinstance(prop.reference_on_delete, CascadeAction)
             column.on_delete = prop.reference_on_delete
-        columns.append(column)
+
         if prop.is_indexed_in_pg:
             index = Index(
                 f"bench_idx_{prop.name}",
@@ -116,6 +123,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
                 _source=prop.id,
             )
             constraints.append(constraint)
+        columns.append(column)
 
     # one of the parent_<type>_id columns must be non-null
     parent_columns: tuple[str, ...] = tuple(c.name for c in columns if c.name.startswith("parent_"))

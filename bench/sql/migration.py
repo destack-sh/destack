@@ -92,12 +92,15 @@ def unpack_migration_row(row: dict[str, Any]) -> Migration:
     )
 
 
-async def _read_migrations_from_pg(
-    cur: psycopg.AsyncCursor, *, applied_only: bool = False
+async def read_migrations_from_pg(
+    cur: psycopg.AsyncCursor, *, applied: bool = None
 ) -> list[Migration]:
     """Reads the 'bench_migration' table (if it exists) and returns the corresponding Migration."""
     try:
-        where = "applied_at IS NOT NULL" if applied_only else None
+        if applied is not None:
+            where = sql.SQL("applied_at IS NOT NULL") if applied else sql.SQL("applied_at IS NULL")
+        else:
+            where = None
         migrations_rows = await pg_select(cur, MIGRATION_TABLE, where=where, order_by=sql.SQL("id"))
         migrations = [unpack_migration_row(row) for row in migrations_rows]
         return migrations
@@ -172,7 +175,7 @@ async def migrate_to(
         target_migration = all_migrations[-1]
 
     logger.debug("migration.load", target_migration=target_migration, is_global=is_global)
-    stored_migrations = await _read_migrations_from_pg(cur)
+    stored_migrations = await read_migrations_from_pg(cur)
     is_upgrade = all(m.id > target_migration.id for m in stored_migrations if m.applied_at)
     log = logger.bind(target_migration=target_migration, is_upgrade=is_upgrade, is_global=is_global)
     logger.info("migration.apply_missing")
@@ -309,12 +312,15 @@ class MigrationOp:
 
 
 def generate_migration_ops(
-    old_tables: list[Table], new_tables: list[Table], *, use_source_as_id: bool = True
+    old_tables: list[Table], new_tables: list[Table], *, use_source_as_id: bool = False
 ) -> list[MigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
 
     def _to_id(obj: TableObject) -> str:
-        return obj._source or obj.qualified_name if use_source_as_id else obj.qualified_name
+        if use_source_as_id:
+            return obj._source or obj.qualified_name
+        else:
+            return obj.qualified_name
 
     ops: list[MigrationOp] = []
     old_objects: list[TableObject] = [obj for table in old_tables for obj in table.walk()]
@@ -338,11 +344,8 @@ def generate_migration_ops(
         elif new_object.name != old_object.name:
             ops.append(MigrationOp(MigrationOpKind.RENAME, new_object, old_object))
         elif old_object.hash_flat() != new_object.hash_flat():
-            ops.append(
-                MigrationOp(
-                    MigrationOpKind.UPDATE, new_object, old_object, new_object.diff_keys(old_object)
-                )
-            )
+            diff = new_object.diff_keys(old_object)
+            ops.append(MigrationOp(MigrationOpKind.UPDATE, new_object, old_object, diff))
     deleted_tables: set[str] = set()
     for old_object in old_objects:
         old_id = _to_id(old_object)
@@ -604,9 +607,9 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
         elif isinstance(op.old_object, Column):
             return f"ALTER TABLE {op.old_object.table.name} DROP COLUMN {op.old_object.name}"
         elif isinstance(op.old_object, Index):
-            return f"DROP INDEX IF EXISTS {op.old_object.name}"
+            return f"DROP INDEX {op.old_object.name}"
         elif isinstance(op.old_object, Constraint):
-            return f"ALTER TABLE {op.old_object.table.name} DROP CONSTRAINT IF EXISTS {op.old_object.name}"
+            return f"ALTER TABLE {op.old_object.table.name} DROP CONSTRAINT {op.old_object.name}"
 
     raise RuntimeError(f"unexpected migration op: {op!r}")
 
@@ -632,6 +635,12 @@ async def introspect_tables_from_pg(
         include_constraints=include_constraints,
         include_indexes=include_indexes,
     )
+
+    def _strip_condition(condition: str) -> str:
+        # remove outermost (...) if present until only one (...) remains
+        while condition.startswith("((") and condition.endswith("))"):
+            condition = condition[1:-1]
+        return condition
 
     # tables
     tables_query = """
@@ -749,11 +758,17 @@ GROUP BY
         constraints_by_table: dict[str, list[Constraint]] = defaultdict(list)
         for row in constraints_rows:
             columns = row["column_names"].split(", ") if row["column_names"] else []
+            if not columns:
+                columns = None
+            constraint_name = row["constraint_name"][len(row["table_name"]) + 1 :]
+            condition = row.get("condition")
+            if condition:
+                condition = _strip_condition(condition)
             constraint = Constraint(
-                inner_name=row["constraint_name"],
+                inner_name=constraint_name,
                 type=ConstraintType(row["constraint_type"]),
                 columns=columns,
-                condition=(row.get("condition")),
+                condition=condition,
             )
             if constraint.type == ConstraintType.UNIQUE and len(constraint.columns) == 1:
                 continue  # skip simple unique constraints, already handled by columns
@@ -780,15 +795,21 @@ WHERE
             definition = row["index_definition"]
             columns_str = definition.split("(")[1].split(")")[0]
             columns = [col.strip() for col in columns_str.split(",")]
+            if not columns:
+                columns = None
             # definition like 'CREATE INDEX index_name ON table_name USING index_type (columns) [WHERE condition]'
             index_type = re.search(r"USING (\w+)", definition).group(1)
             condition = (
                 re.search(r"WHERE (.+)", definition).group(1) if "WHERE" in definition else None
             )
+            if condition:
+                condition = _strip_condition(condition)
+            table_name = row["table_name"]
+            index_name = row["index_name"][len(table_name) + 1 :]
             index = Index(
-                inner_name=row["index_name"],
+                inner_name=index_name,
                 type=IndexType(index_type.upper()),
-                columns=columns,
+                columns=tuple(columns),
                 condition=condition,
             )
             # ignore simple primary/foreign key index
@@ -813,8 +834,8 @@ WHERE
         table = Table(
             name=table_name,
             columns=tuple(columns_by_table.get(table_name, [])),
-            indexes=indexes_by_table.get(table_name, []),
-            constraints=constraints_by_table.get(table_name, []),
+            indexes=tuple(indexes_by_table.get(table_name, [])),
+            constraints=tuple(constraints_by_table.get(table_name, [])),
         )
         tables.append(table)
 

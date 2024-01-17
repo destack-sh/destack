@@ -579,6 +579,7 @@ message DependencyData {
 message ExpressionData {
   BenchType metatype = 1;
   ExpressionOp op = 30;
+  NodePointerData field_ptr = 31;
   PropertyPointerData property_ptr = 32;
   repeated ExpressionData clauses = 33;
   google.protobuf.Struct value = 34;
@@ -874,6 +875,7 @@ message LinkData {
   google.protobuf.Timestamp deleted_at = 13;
   google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
+  NodePointerData reference_ptr = 30;
 }
 
 // // A module is a semi-isolated version of a Bench, containing the actual files and so on.
@@ -1209,49 +1211,49 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    WorkerSetData worker_set = 1;
-    SecretData secret = 2;
-    HaltData halt = 3;
-    TriggerData trigger = 4;
-    FieldData field = 5;
-    ModuleData module = 6;
-    WorkerData worker = 7;
-    FileData file = 8;
-    SessionData session = 9;
-    BadgeData badge = 10;
-    StatementData statement = 11;
-    TaggingData tagging = 12;
-    BenchData bench = 13;
-    UserData user = 14;
+    SessionData session = 1;
+    HaltData halt = 2;
+    WorkerSetData worker_set = 3;
+    SignalData signal = 4;
+    WorkerData worker = 5;
+    ClientData client = 6;
+    RecordData record = 7;
+    UserData user = 8;
+    ViewData view = 9;
+    StatementData statement = 10;
+    BenchData bench = 11;
+    SecretData secret = 12;
+    BlobData blob = 13;
+    TriggerData trigger = 14;
     OrganizationData organization = 15;
-    LinkData link = 16;
-    ClientData client = 17;
-    IssueData issue = 18;
-    ViewData view = 19;
-    SignalData signal = 20;
-    RecordData record = 21;
-    BlobData blob = 22;
-    RunData run = 23;
-    NotificationData notification = 24;
-    HandleData handle = 25;
+    ModuleData module = 16;
+    FieldData field = 17;
+    NotificationData notification = 18;
+    FileData file = 19;
+    RunData run = 20;
+    TaggingData tagging = 21;
+    BadgeData badge = 22;
+    IssueData issue = 23;
+    HandleData handle = 24;
+    LinkData link = 25;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    LogEntryData log_entry = 1;
-    PolicyRuleData policy_rule = 2;
-    RunErrorData run_error = 3;
-    AggregationBucketData aggregation_bucket = 4;
-    WorkerImageData worker_image = 5;
-    PolicyData policy = 6;
+    MiniRunData mini_run = 1;
+    WorkerImageData worker_image = 2;
+    LogEntryData log_entry = 3;
+    PolicyRuleData policy_rule = 4;
+    ExpressionData expression = 5;
+    AggregationBucketData aggregation_bucket = 6;
     PropertyPointerData property_pointer = 7;
-    MiniRunData mini_run = 8;
-    AggregationData aggregation = 9;
-    NodePointerData node_pointer = 10;
-    DependencyData dependency = 11;
-    ExpressionData expression = 12;
-    RunCodeFrameData run_code_frame = 13;
+    RunCodeFrameData run_code_frame = 8;
+    NodePointerData node_pointer = 9;
+    PolicyData policy = 10;
+    RunErrorData run_error = 11;
+    DependencyData dependency = 12;
+    AggregationData aggregation = 13;
   };
 }
 

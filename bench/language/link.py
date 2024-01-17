@@ -939,8 +939,9 @@ class NodeQuery(Generic[NodeT]):
                 sort=[wiring.pack_struct(s) for s in self._sort] if self._sort else None,
                 limit=self._first,
                 after=after,
+                count=count,
             )
-            await session.host.search_nodes(request)
+            response = await session.host.search_nodes(request)
             # return [wiring.unwrap_some_node(n) for n in response.nodes]
             raise NotImplementedError("nocheckin: NodeQuery._do_fetch GLOBAL_POSTGRES")
         else:

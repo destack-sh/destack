@@ -1381,9 +1381,7 @@ class Node(Struct, _NodeExpressionBase):
     ck: UUID = struct_internal(3, default=None, require=True, protect=True)
     parent: Optional["Node"] = node_parent(4)
     # prototype/template: Optional["Node"] = node_template(5)
-    module: "Module" = node_ancestor(
-        6, NodeType.MODULE, require=True, store=True, wire=True, index_in_pg=True
-    )
+    module: "Module" = node_ancestor(6, NodeType.MODULE, require=True, store=True, wire=True)
     # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, require=True, store=True, wire=True)
     bench: "Bench" = node_ancestor(8, NodeType.BENCH, require=True, store=False, wire=True)
     source: NodeSource = struct_internal(
