@@ -437,6 +437,7 @@ class Table(TableObject):
         return self
 
     def walk(self) -> tuple[TableObject, ...]:
+        # NOTE: the order here matters and is assumed in the diff logic
         return self, *self.columns, *self.indexes, *self.constraints
 
     def columns_include(self, other: "Table") -> bool:

@@ -1229,31 +1229,31 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    BlobData blob = 1;
-    StatementData statement = 2;
-    ViewData view = 3;
-    UserData user = 4;
+    TaggingData tagging = 1;
+    BadgeData badge = 2;
+    HandleData handle = 3;
+    BenchData bench = 4;
     IssueData issue = 5;
-    TaggingData tagging = 6;
-    TriggerData trigger = 7;
-    HandleData handle = 8;
-    WorkerData worker = 9;
-    BadgeData badge = 10;
-    BenchData bench = 11;
+    ModuleData module = 6;
+    WorkerSetData worker_set = 7;
+    SignalData signal = 8;
+    TriggerData trigger = 9;
+    ClientData client = 10;
+    SessionData session = 11;
     NotificationData notification = 12;
-    WorkerSetData worker_set = 13;
-    ModuleData module = 14;
-    RunData run = 15;
-    FileData file = 16;
-    RecordData record = 17;
-    OrganizationData organization = 18;
-    ClientData client = 19;
-    SignalData signal = 20;
-    SessionData session = 21;
-    HaltData halt = 22;
-    FieldData field = 23;
-    SecretData secret = 24;
-    LinkData link = 25;
+    ViewData view = 13;
+    SecretData secret = 14;
+    FieldData field = 15;
+    OrganizationData organization = 16;
+    RunData run = 17;
+    LinkData link = 18;
+    WorkerData worker = 19;
+    StatementData statement = 20;
+    RecordData record = 21;
+    FileData file = 22;
+    HaltData halt = 23;
+    BlobData blob = 24;
+    UserData user = 25;
   };
 }
 

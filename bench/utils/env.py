@@ -14,11 +14,13 @@ def setup_dotenv():
 
     # find .env files (walk up from current directory)
     dot_env_paths = []
-    for path in Path.cwd().parents:
+    dir = Path.cwd()
+    while dir != dir.parent:
         for dot_env_file in dot_env_files:
-            dot_env_path = path / dot_env_file
+            dot_env_path = dir / dot_env_file
             if dot_env_path.exists():
                 dot_env_paths.append(dot_env_path)
+        dir = dir.parent
 
     for dot_env_path in dot_env_paths:
         dotenv.load_dotenv(dot_env_path, verbose=True, override=True)

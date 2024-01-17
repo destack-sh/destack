@@ -63,7 +63,7 @@ BENCH_TABLE = Table(
     ),
     constraints=(
         Constraint(
-            "bench_unique_slug",
+            "bench_idx_slug",
             ConstraintType.UNIQUE,
             columns=("slug",),
             index="bench_bench_bench_idx_slug",
@@ -843,7 +843,7 @@ WORKER_TABLE = Table(
     ),
     constraints=(
         Constraint(
-            "bench_unique_external_id",
+            "bench_idx_external_id",
             ConstraintType.UNIQUE,
             columns=("external_id",),
             index="bench_worker_bench_idx_external_id",
@@ -875,7 +875,7 @@ HANDLE_TABLE = Table(
     ),
     constraints=(
         Constraint(
-            "bench_unique_slug",
+            "bench_idx_slug",
             ConstraintType.UNIQUE,
             columns=("slug",),
             index="bench_handle_bench_idx_slug",
@@ -916,13 +916,13 @@ USER_TABLE = Table(
     ),
     constraints=(
         Constraint(
-            "bench_unique_slug",
+            "bench_idx_slug",
             ConstraintType.UNIQUE,
             columns=("slug",),
             index="bench_user_bench_idx_slug",
         ),
         Constraint(
-            "bench_unique_email",
+            "bench_idx_email",
             ConstraintType.UNIQUE,
             columns=("email",),
             index="bench_user_bench_idx_email",
@@ -958,7 +958,7 @@ ORGANIZATION_TABLE = Table(
     ),
     constraints=(
         Constraint(
-            "bench_unique_slug",
+            "bench_idx_slug",
             ConstraintType.UNIQUE,
             columns=("slug",),
             index="bench_organization_bench_idx_slug",
@@ -996,7 +996,7 @@ CLIENT_TABLE = Table(
     ),
     constraints=(
         Constraint(
-            "bench_unique_access_token",
+            "bench_idx_access_token",
             ConstraintType.UNIQUE,
             columns=("access_token",),
             index="bench_client_bench_idx_access_token",
@@ -1074,7 +1074,7 @@ BADGE_TABLE = Table(
     ),
     constraints=(
         Constraint(
-            "bench_unique_link_token",
+            "bench_idx_link_token",
             ConstraintType.UNIQUE,
             columns=("link_token",),
             index="bench_badge_bench_idx_link_token",

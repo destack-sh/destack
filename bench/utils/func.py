@@ -81,9 +81,9 @@ def next_or_none(iterator: Iterable[Any]) -> Any | None:
         return None
 
 
-def partition(pred, iterable) -> tuple[list[Any], list[Any]]:
+def partition(pred, iterable) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
     t1, t2 = tee(iterable)
-    return list(filterfalse(pred, t1)), list(filter(pred, t2))
+    return tuple(filterfalse(pred, t1)), tuple(filter(pred, t2))
 
 
 def group_by(iterable, key: callable) -> dict[Any, list[Any]]:

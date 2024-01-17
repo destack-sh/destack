@@ -4,7 +4,7 @@ import importlib
 import os
 import re
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
 from textwrap import indent
@@ -31,6 +31,7 @@ from bench.sql.core import (
     TableObject,
 )
 from bench.sql.engine import SqlUndefinedObject, pg_select, pg_select_raw, pg_upsert
+from bench.utils.func import partition
 from bench.utils.utils import format_python
 
 MIGRATIONS_PATH = "bench/sql/migrations"
@@ -311,34 +312,41 @@ class MigrationOp:
         raise RuntimeError(f"unexpected migration op type: {self.kind}")
 
 
-def generate_migration_ops(
-    old_tables: list[Table], new_tables: list[Table], *, use_source_as_id: bool = False
-) -> list[MigrationOp]:
+def generate_migration_ops(old_tables: list[Table], new_tables: list[Table]) -> list[MigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
 
     def _to_id(obj: TableObject) -> str:
-        if use_source_as_id:
-            return obj._source or obj.qualified_name
-        else:
-            return obj.qualified_name
+        return obj.qualified_name
 
-    ops: list[MigrationOp] = []
+    # order of walk is table -> column -> index -> constraint
     old_objects: list[TableObject] = [obj for table in old_tables for obj in table.walk()]
     old_objects_by_id: dict[str, TableObject] = {_to_id(obj): obj for obj in old_objects}
     new_objects: list[TableObject] = [obj for table in new_tables for obj in table.walk()]
     new_objects_by_id: dict[str, TableObject] = {_to_id(obj): obj for obj in new_objects}
+    deleted_objects: tuple[TableObject, ...] = tuple(
+        obj for obj in old_objects if _to_id(obj) not in new_objects_by_id
+    )
 
-    # diff objects (delete before create)
-    deleted_tables: set[str] = set()
+    # diff objects
+    deleted_ids: set[str] = set()
+    delete_ops: list[MigrationOp] = []
     for old_object in old_objects:
         old_id = _to_id(old_object)
         new_object = new_objects_by_id.get(old_id)
         if new_object is None:
-            if old_object.kind == ObjectKind.TABLE:
-                deleted_tables.add(old_id)
-            elif _to_id(old_object.table) in deleted_tables:
+            if _to_id(old_object.table) in deleted_ids:
                 continue  # skip, table deleted
-            ops.append(MigrationOp(MigrationOpKind.DELETE, None, old_object))
+            if old_object.kind == ObjectKind.INDEX:
+                # skip if owning constraint is also deleted
+                if any(
+                    obj.kind == ObjectKind.CONSTRAINT and obj.name == old_object.qualified_name
+                    for obj in deleted_objects
+                ):
+                    continue
+            delete_ops.append(MigrationOp(MigrationOpKind.DELETE, None, old_object))
+            deleted_ids.add(old_id)
+    # regular order: table -> column -> index -> constraint
+    cru_ops: list[MigrationOp] = []
     for new_object in new_objects:
         new_id = _to_id(new_object)
         old_object = old_objects_by_id.get(new_id)
@@ -350,15 +358,46 @@ def generate_migration_ops(
                 and _to_id(new_object.table) not in old_objects_by_id
             ):
                 continue
-            ops.append(MigrationOp(MigrationOpKind.CREATE, new_object, None))
+            cru_ops.append(MigrationOp(MigrationOpKind.CREATE, new_object, None))
         elif new_object.name != old_object.name:
-            ops.append(MigrationOp(MigrationOpKind.RENAME, new_object, old_object))
+            cru_ops.append(MigrationOp(MigrationOpKind.RENAME, new_object, old_object))
         elif old_object.hash_flat() != new_object.hash_flat():
             diff = new_object.diff_keys(old_object)
             if not diff:
                 continue  # hashing changed
-            ops.append(MigrationOp(MigrationOpKind.UPDATE, new_object, old_object, diff))
+            cru_ops.append(MigrationOp(MigrationOpKind.UPDATE, new_object, old_object, diff))
 
+    # fix dependencies in create operations, split ops into two passes as needed:
+    #  1. create tables without FK columns
+    #  2. patch in all the FK columns, create indexes, and constraints
+    first_cru_ops: list[MigrationOp] = []
+    patch_cru_ops: list[MigrationOp] = []
+    for op in cru_ops:
+        if op.kind != MigrationOpKind.CREATE:
+            patch_cru_ops.append(op)
+            continue
+
+        if op.object_kind == ObjectKind.TABLE:
+            assert isinstance(op.new_object, Table)
+            # only columns are created implicitly in migration ops
+            first_columns, deferred_columns = partition(
+                lambda col: col.is_foreign_key_to, (c.clone() for c in op.new_object.columns)
+            )
+            first_table = replace(op.new_object, columns=first_columns, constraints=(), indexes=())
+            first_cru_ops.append(MigrationOp(MigrationOpKind.CREATE, first_table, None))
+            for col in deferred_columns:
+                col._table = first_table
+                patch_cru_ops.append(MigrationOp(MigrationOpKind.CREATE, col, None))
+        elif op.object_kind == ObjectKind.COLUMN:
+            assert isinstance(op.new_object, Column)
+            if op.new_object.is_foreign_key_to:
+                patch_cru_ops.append(op)
+            else:
+                first_cru_ops.append(op)
+        else:
+            patch_cru_ops.append(op)
+
+    ops = [*delete_ops, *first_cru_ops, *patch_cru_ops]
     return ops
 
 
@@ -455,7 +494,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
             continue
         stmt = _wrap_statement(stmt)
 
-        if op.table != current_table:
+        if current_table is None or op.table.table_name != current_table.table_name:
             if current_statements:
                 _emit(current_table, current_statements)
             current_table = op.table
@@ -839,13 +878,6 @@ WHERE
                 )
                 if column.is_primary_key or column.is_foreign_key_to:
                     continue
-            # ignore indexes owned by constraints
-            if any(
-                c.inner_name == index.inner_name
-                for c in constraints_by_table[row["table_name"]]
-                if c.type == ConstraintType.UNIQUE
-            ):
-                continue
 
             indexes_by_table[row["table_name"]].append(index)
     else:
