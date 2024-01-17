@@ -18,7 +18,7 @@ class User(ScopeNode):
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
     slug: Optional[str] = struct_internal(31, protect=True, unique=True)
-    name: str = struct_property(32)
+    name: Optional[str] = struct_property(32)
     email: str = struct_internal(33, defer=True, unique=True, protect=True)
     password_salt: Optional[bytes] = struct_internal(34, defer=True, encrypt=True, protect=True)
     password_hash: Optional[bytes] = struct_internal(35, defer=True, encrypt=True, protect=True)

@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional
 
 from bench.language.const import NodeType
-from bench.language.node import Bench, node, node_parent, struct_internal, struct_property
+from bench.language.node import Bench, node, node_parent, struct_internal, struct_property, Module
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 from bench.utils.func import _auto_async_to_sync
@@ -11,11 +11,11 @@ if TYPE_CHECKING:
     from bench.language import Statement
 
 
-@node(NodeType.SECRET, in_module=False)
+@node(NodeType.SECRET, in_module=True, in_bench=True)
 class Secret(HasValue):
     """A shared secret with a deferred value (loaded on demand)t."""
 
-    parent: Bench = node_parent(4, NodeType.BENCH)
+    parent: Module = node_parent(4, NodeType.MODULE)
     type: Optional["Statement"] = struct_internal(
         30, require=False, array=False, references=NodeType.STATEMENT
     )
