@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid5
 
-from bench.language.const import UUID_NAMESPACE, VERSION, BenchStatus
+from bench.language.const import UUID_NAMESPACE, VERSION
 from bench.language.node import Bench, Module
 from bench.utils.utils import DEBUG
 
@@ -48,16 +48,10 @@ def _without_validation() -> None:
         raise RuntimeError("cannot disable validation outside debug mode")
 
 
-def _make_builtin_bench(name: str) -> tuple[Bench, Module]:
-    # :BuiltinLibs
-    bench_id = uuid5(UUID_NAMESPACE, f"builtin:{name}")
-    bench = Bench(name=name, slug=name, id=bench_id)
-    module_id = uuid5(bench_id, VERSION)
-    module = Module(parent=bench, id=module_id)
-    return bench, module
-
-
 # real data will be patched in at first runtime start
-# nocheckin: patch in symbolx_bench at runtime
-symbolx_bench, symbolx_lib = _make_builtin_bench("symbolx.bench")
+# nocheckin: patch in symbolx_bench at runtime start
+symbolx_bench = Bench(
+    name="SymbolX", slug="symbolx.bench", id=uuid5(UUID_NAMESPACE, f"builtin:symbolx.bench")
+)
+symbolx_lib = Module(parent=symbolx_bench, id=uuid5(symbolx_bench.id, VERSION))
 DEFAULT_DEPENDENCIES = {symbolx_bench.slug: symbolx_lib.id}

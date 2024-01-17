@@ -26,7 +26,7 @@ from bench.language.expression import (
 from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node, get_node_id, Property
 from bench.language.tree import NodeTree
 from bench.proto import wire, wiring
-from bench.proto.wire import AnyNodeData, EditData
+from bench.proto.wire import AnyNodeData, EditData, NodePointerData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import UNIVERSAL_RO_PASSWORD, UNIVERSAL_RO_USERNAME, async_pg_cursor
@@ -91,12 +91,12 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
         if prop.is_encrypted:
             column.type = ColumnType.BYTES  # all encrypted columns are bytes
         if (
-            prop.references
+            prop.reference_types
             and prop.name.endswith("_id")
-            and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.references[0]].__is_local__
+            and node.__is_local__ == NODE_CLASS_BY_TYPE[prop.reference_types[0]].__is_local__
         ):
-            assert len(prop.references) == 1, f"stored prop {prop!r} has multiple references"
-            column.is_foreign_key_to = get_bench_table_name(prop.references[0])
+            assert len(prop.reference_types) == 1, f"stored prop {prop!r} has multiple references"
+            column.is_foreign_key_to = get_bench_table_name(prop.reference_types[0])
             assert isinstance(prop.reference_on_delete, CascadeAction)
             column.on_delete = prop.reference_on_delete
         columns.append(column)
@@ -839,11 +839,22 @@ def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
     try:
         row: dict[str, any] = {}
         for prop in node_cls.__stored_properties__.values():
-            value = getattr(node, prop.name)
-            value = _pack_struct_data_prop(prop, value, ignore_array=False)
-            if prop.is_encrypted:
-                pass  # nocheckin: handle colum encrypt/decrypt
-            row[prop.name] = value
+            if prop.reference_source is None:  # regular non-ref property
+                value = getattr(node, prop.name)
+                value = _pack_struct_data_prop(prop, value, ignore_array=False)
+                if prop.is_encrypted:
+                    pass  # nocheckin: handle colum encrypt/decrypt
+                row[prop.name] = value
+            else:  # unravel reference into per-type columns
+                assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
+                ptr: NodePointerData | None = getattr(prop.reference_source.name)
+                if ptr is not None and prop.reference_types[0] == ptr.type:
+                    if prop.name.endswith("_ck"):
+                        row[prop.name] = ptr.ck
+                    else:
+                        row[prop.name] = ptr.id
+                else:
+                    row[prop.name] = None
         return row
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not pack row {node_cls.metatype.name}: {struct!r}") from e
@@ -853,13 +864,23 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
     """Unpacks a node's data from a row from the respective table."""
     try:
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
-        data = proto_cls()
+        data = proto_cls(metatype=node_cls.metatype)
         for prop in node_cls.__stored_properties__.values():
-            value = row[prop.name]
-            value = _unpack_struct_data_prop(prop, value, ignore_array=False)
-            if prop.is_encrypted:
-                pass  # nocheckin: handle colum encrypt/decrypt
-            setattr(data, prop.name, value)
+            if prop.reference_source is None:  # regular non-ref property
+                value = row[prop.name]
+                value = _unpack_struct_data_prop(prop, value, ignore_array=False)
+                if prop.is_encrypted:
+                    pass  # nocheckin: handle colum encrypt/decrypt
+                setattr(data, prop.name, value)
+            else:  # ravel reference from per-type columns
+                assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
+                ptr = row[prop.name]
+                if ptr is not None:
+                    if prop.name.endswith("_ck"):
+                        ptr = NodePointerData(type=prop.reference_types[0], ck=ptr)
+                    else:
+                        ptr = NodePointerData(type=prop.reference_types[0], id=ptr)
+                    setattr(data, prop.reference_source.name, ptr)
         return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row!r}") from e
@@ -945,7 +966,7 @@ async def write_record_edits_to_pg(
     old_databases_by_id: dict[UUID, "HasDatabase"] | None = None,
 ) -> list["AnyNodeData"] | None:
     """
-    Writes record edits to the given PG database (which are stored & handled differently).
+    Writes record edits to the given PG database (unlike regular edits, these can act on materialized tables).
     Pass in databases for statements that are no longer in the module (i.e. deleted record parent).
     TODO @Performance: use psycopg3 pipelining to batch local edits
      see https://www.psycopg.org/psycopg3/docs/advanced/pipeline.html

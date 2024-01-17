@@ -50,7 +50,7 @@ def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThin
     elif prop.column_type in PROTO_FIELD_TYPE_BY_COLUMN_TYPE:
         field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.column_type]
         return Field(id=prop.id, name=prop.name, type=field_type, repeated=prop.is_array)
-    elif prop.parents is not None or prop.references is not None:
+    elif prop.reference_kind is not None:
         return Field(id=prop.id, name=prop.name, type="NodePointerData", repeated=prop.is_array)
     else:
         raise TypeError(f"cannot map {prop.column_type} to proto type: {prop!r}")

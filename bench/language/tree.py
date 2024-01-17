@@ -14,7 +14,6 @@ from uuid import UUID
 
 from bench.language.const import EditKind, NodeType, to_bench_metatype
 from bench.proto.wire import EditData
-from bench.utils.func import to_uuid
 from bench.utils.utils import flatten
 
 if TYPE_CHECKING:
@@ -452,17 +451,16 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
     def add(self, node: "Node"):
         """Add a node to the tree (error if node already exists)"""
-        node_ck = to_uuid(node.ck)
-        if node_ck in self.nodes_by_ck and self.nodes_by_ck[node_ck] is not node:
-            raise ValueError(f"node {node!r} (ck={node_ck}) already exists in {self!r}")
-        self.nodes_by_ck[node_ck] = node
+        if node.ck in self.nodes_by_ck and self.nodes_by_ck[node.ck] is not node:
+            raise ValueError(f"node {node!r} (ck={node.ck}) already exists in {self!r}")
+        self.nodes_by_ck[node.ck] = node
         if node.parent is not None:
             self.nodes_by_parent_ck[node.parent.ck].append(node)
 
     def update(self, node: "Node"):
         """Updates the node in this tree (must exist)"""
-        node_ck = to_uuid(node.ck)
-        node_parent_ck = to_uuid(node.parent.ck)
+        node_ck = node.ck
+        node_parent_ck = node.parent.ck
         existing = self.nodes_by_ck.get(node_ck)
         if existing is None:
             raise ValueError(f"node {node!r} (ck={node_ck}) does not exist in {self!r}")
@@ -480,13 +478,13 @@ class DetachedNodeTree(NodeTreeBase[NT]):
 
     def remove(self, node: "Node"):
         """Remove a node from the tree (incl. all descendants if recursive)"""
-        descendants = self.get_descendants(to_uuid(node.ck), recursive=True, include_self=True)
+        descendants = self.get_descendants(node.ck, recursive=True, include_self=True)
         for descendant in descendants:
-            descendant_ck = to_uuid(descendant.ck)
+            descendant_ck = descendant.ck
             if descendant_ck in self.nodes_by_parent_ck:
                 self.nodes_by_parent_ck.pop(descendant_ck)
-            if descendant.parent and to_uuid(descendant.parent.ck) in self.nodes_by_parent_ck:
-                self.nodes_by_parent_ck[to_uuid(descendant.parent.ck)].remove(descendant)
+            if descendant.parent and descendant.parent.ck in self.nodes_by_parent_ck:
+                self.nodes_by_parent_ck[descendant.parent.ck].remove(descendant)
             if descendant_ck in self.nodes_by_ck:
                 self.nodes_by_ck.pop(descendant_ck)
 
@@ -511,11 +509,10 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         descendants.extend(children)
         if recursive:
             for child in children:
-                child_ck = to_uuid(child.ck)
-                if child_ck not in self.nodes_by_parent_ck:
+                if child.ck not in self.nodes_by_parent_ck:
                     continue
                 descendants.extend(
-                    self.get_descendants(child_ck, node_type, prefilter=prefilter, recursive=True)
+                    self.get_descendants(child.ck, node_type, prefilter=prefilter, recursive=True)
                 )
         if not prefilter and node_type:
             descendants = [n for n in descendants if n.metatype == node_type]
@@ -527,11 +524,10 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         children = deque(nodes)
         while children:
             child = children.popleft()
-            child_ck = to_uuid(child.ck)
-            if child_ck not in descendants_by_ck:
-                descendants_by_ck[child_ck] = child
-                if child_ck in self.nodes_by_parent_ck:
-                    children.extend(self.nodes_by_parent_ck[child_ck])
+            if child.ck not in descendants_by_ck:
+                descendants_by_ck[child.ck] = child
+                if child.ck in self.nodes_by_parent_ck:
+                    children.extend(self.nodes_by_parent_ck[child.ck])
         return descendants_by_ck.values()
 
     def get_ancestor(self, node_id: UUID, node_type: NodeType | None = None) -> Optional["NT"]:

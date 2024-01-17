@@ -136,7 +136,7 @@ class _InterpChange:
         if level & _NC.UpdateLists:
             for ancestor in self.ancestors:
                 for prop in ancestor.__list_properties__.values():
-                    if prop.child_node_type in self.affected_node_types:
+                    if any(t in self.affected_node_types for t in prop.reference_types):
                         getattr(ancestor, prop.name)._update(ancestor)
 
         if level & _NC.Detach:
@@ -208,7 +208,7 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
             raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
         from bench.language.node import NODE_CLASS_BY_TYPE
 
-        node_cls = NODE_CLASS_BY_TYPE[self._property.child_node_type]
+        node_cls = NODE_CLASS_BY_TYPE[self._property.reference_types[0]]
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
             node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NS.SOURCE)
@@ -279,7 +279,8 @@ class NodeList(NodeListBase[NodeT]):
 
     def __init__(self, parent: "ScopeNode", property: "Property"):
         super().__init__(parent, property)
-        self._child_node_type: NodeType = property.child_node_type
+        assert len(property.reference_types) == 1, f"cannot have many child types: {property!r}"
+        self._child_node_type: NodeType = property.reference_types[0]
         self._flags = property.children_flags
         self._nodes: list[NodeT] = []
 
@@ -481,7 +482,7 @@ class NodeList(NodeListBase[NodeT]):
         if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
             return self.get(obj) is not None
         elif isinstance(obj, Node):
-            if obj.metatype != self._property.child_node_type:
+            if obj.metatype != self._property.reference_types[0]:
                 raise TypeError(f"{self!r} cannot contain {obj!r}")
             return obj in self._nodes
         else:
