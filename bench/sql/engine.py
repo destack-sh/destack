@@ -23,7 +23,7 @@ from bench.language.expression import (
     ExpressionOps,
     QueryEngineIncapableError,
 )
-from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node, get_node_id, Property
+from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node, Property, get_node_id
 from bench.language.tree import NodeTree
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, NodePointerData
@@ -925,19 +925,21 @@ async def pg_select_nodes_data(
     return PgSelectNodesDataResult(records_data, cursors, after)
 
 
-async def read_node_tree_from_pg(
+async def read_nodes_from_pg(
     session: Session,
     root_type: NodeType,
     root_ids: tuple[UUID, ...],
+    ancestor_types: tuple[NodeType, ...] | None = None,
     descendant_types: tuple[NodeType, ...] | None = None,
 ) -> tuple[NodeT, ...]:
-    """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the root node."""
+    """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the roots."""
     root_cls = NODE_CLASS_BY_TYPE[root_type]
     cur = session.local_pg_cursor if root_cls.__is_local__ else session.global_pg_cursor
     nodes_data = await read_node_tree_data_from_pg(
         cur=cur,
         root_type=root_type,
         root_ids=root_ids,
+        ancestor_types=ancestor_types,
         descendant_types=descendant_types,
     )
     source_tree = NodeTree(nodes_data)
@@ -945,10 +947,22 @@ async def read_node_tree_from_pg(
     return tuple(root.lookup(id) for id in root_ids)
 
 
+async def read_node_from_pg(
+    session: Session,
+    root_type: NodeType,
+    root_id: UUID,
+    descendant_types: tuple[NodeType, ...] | None = None,
+) -> NodeT:
+    """Reads a 'regular' node from the given PG database and unpacks it into the session."""
+    roots = await read_nodes_from_pg(session, root_type, (root_id,), descendant_types)
+    return roots[0]
+
+
 async def read_node_tree_data_from_pg(
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
     root_ids: tuple[UUID, ...],
+    ancestor_types: tuple[NodeType, ...] | None = None,
     descendant_types: tuple[NodeType, ...] | None = None,
 ) -> list["AnyNodeData"] | None:
     """Reads 'regular' nodes from the given PG database. Returns an unordered list of all nodes."""

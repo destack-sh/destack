@@ -3,18 +3,9 @@
 import os
 import sys
 
-import dotenv
+from bench.utils.env import setup_dotenv
 
-from bench.utils.utils import get_from_env
-
-# :Dotenv
-LOCAL_ENV = get_from_env("LOCAL_ENV", "local")
-if LOCAL_ENV == "prod":
-    DOT_ENV_FILES = [".env", ".env.prod"]
-else:
-    DOT_ENV_FILES = [".env"]
-for dot_env_file in DOT_ENV_FILES:
-    dotenv.load_dotenv(dot_env_file, verbose=True, override=True)
+setup_dotenv()
 
 
 def main():

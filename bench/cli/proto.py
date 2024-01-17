@@ -28,7 +28,7 @@ def _generate_proto_schema() -> str:
         name="symbolx.bench",
         bench_classes=[*BENCH_CLASSES, Node],
         aliases={Node: "BaseNode"},
-        unions={"SomeNode": ("node", NODE_CLASSES), "SomeStruct": ("struct", STRUCT_CLASSES)},
+        unions={"SomeNode": ("node", NODE_CLASSES)},
         extras=[
             Message(
                 name="ModuleTreeData",
