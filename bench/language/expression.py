@@ -47,7 +47,16 @@ class QueryEngineIncapableError(QueryEngineError):
 class NodePointer(Struct):
     type: NodeType = struct_property(30, require=True)
     id: Optional[UUID] = struct_property(31)
-    ck: Optional[UUID] = struct_property(32)
+    ck: Optional[UUID] = struct_property(32, default=None)
+
+    @staticmethod
+    def from_node(node: Optional[Node]) -> Optional["NodePointer"]:
+        if node is None:
+            return None
+        if node.__is_in_module__:
+            return NodePointer(type=node.metatype, id=node.id, ck=node.ck)
+        else:
+            return NodePointer(type=node.metatype, id=node.id)
 
 
 @struct(StructType.PROPERTY_POINTER)

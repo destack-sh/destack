@@ -259,7 +259,7 @@ class RunError(Struct, Exception):
     kind: RunErrorKind = struct_internal(30)
     type: str = struct_internal(31)
     message: Optional[str] = struct_internal(32, default=None)
-    statement: Optional["Statement"] = struct_internal(
+    node: Optional["Node"] = struct_internal(
         33, require=False, array=False, references=NodeType.STATEMENT
     )
     traceback: list[RunCodeFrame] = struct_internal(

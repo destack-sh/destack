@@ -212,7 +212,7 @@ class Column(TableObject):
     on_delete: CascadeAction | None = None
     is_unique: bool = False
     is_nullable: bool = False
-    is_encrypted: bool = False  # nocheckin: handle Column.is_encrypted
+    is_encrypted: bool = False
     length: int | None = None
     default: str | None = None
     _source: str | int | None = None

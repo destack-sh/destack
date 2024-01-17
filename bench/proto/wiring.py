@@ -21,6 +21,7 @@ from bench.language.node import (
     Property,
     ScopeNode,
     Struct,
+    NodeReferenceKind,
 )
 from bench.language.session import Session
 from bench.proto import wire
@@ -88,7 +89,7 @@ def copy_struct_data(data: AnyStructData) -> AnyStructData:
     bench_cls = BENCH_CLASS_BY_TYPE[data.metatype.name]
     data_kwargs = {}
     try:
-        for prop in bench_cls.__stored_properties__.values():
+        for prop in bench_cls.__wired_properties__.values():
             if prop.is_computed and prop.id != METATYPE_PROPERTY.id and prop.name != "parent_id":
                 continue
             value = getattr(data, prop.name)
@@ -127,9 +128,9 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return pack_struct(value)
     elif prop.is_enum:
         return pack_enum(prop.py_type_stripped, value)
-    elif prop.parents is not None:
+    elif prop.reference_kind in (NodeReferenceKind.PARENT, NodeReferenceKind.ANCESTOR):
         return NodePointerData(metatype=value.metatype, id=value.id)
-    elif prop.references is not None:
+    elif prop.reference_kind == NodeReferenceKind.REGULAR:
         return NodePointerData(metatype=value.metatype, id=value.id, ck=value.ck)
     elif prop.column_type == ColumnType.UUID:
         return str(value)  # uuids are wired as strings
@@ -183,7 +184,7 @@ def pack_struct(struct: Struct) -> AnyStructData:
     data_cls = PROTO_CLASS_BY_TYPE[struct.metatype]
     data = data_cls()
     try:
-        for prop in struct.__stored_properties__.values():
+        for prop in struct.__wired_properties__.values():
             value = getattr(struct, prop.name)
             value = _pack_struct_prop(prop, value, ignore_array=False)
             setattr(data, prop.name, value)
@@ -203,7 +204,7 @@ def unpack_struct(struct_data: AnyStructData) -> Struct:
     struct_cls = STRUCT_CLASS_BY_TYPE[StructType(struct_data.metatype.name)]
     struct_kwargs = {}
     try:
-        for prop in struct_cls.__stored_properties__.values():
+        for prop in struct_cls.__wired_properties__.values():
             if prop.is_computed:
                 continue
             value = getattr(struct_data, prop.name)
@@ -233,9 +234,9 @@ def unpack_node(node_data: AnyNodeData, parent: Node | None, session: Session | 
     node_cls = NODE_CLASS_BY_TYPE[NodeType(node_data.metatype.name)]
     node_kwargs = {}
     try:
-        for prop in node_cls.__stored_properties__.values():
-            if prop.is_computed:
-                continue
+        for prop in node_cls.__wired_properties__.values():
+            if prop.name == "metatype":
+                continue  # implicit in node_cls
             value = getattr(node_data, prop.name)
             node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
         return node_cls(**node_kwargs, parent=parent, _session=session)

@@ -659,7 +659,7 @@ RUN_TABLE = Table(
             on_delete=CascadeAction.CASCADE,
         ),
         Column(
-            "root_id",
+            "root_run_id",
             ColumnType.UUID,
             is_foreign_key_to="bench_run",
             on_delete=CascadeAction.CASCADE,
@@ -690,7 +690,7 @@ RUN_TABLE = Table(
     indexes=(
         Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_session_id", IndexType.BTREE, ("session_id",)),
-        Index("bench_idx_root_id", IndexType.BTREE, ("root_id",)),
+        Index("bench_idx_root_run_id", IndexType.BTREE, ("root_run_id",)),
         Index("bench_idx_worker_id", IndexType.BTREE, ("worker_id",)),
         Index("bench_idx_node_statement_ck", IndexType.BTREE, ("node_statement_ck",)),
         Index("bench_idx_status", IndexType.BTREE, ("status",)),
