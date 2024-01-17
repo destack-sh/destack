@@ -5,12 +5,19 @@
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, AsyncIterator, Dict, List, Optional
+from typing import (
+    TYPE_CHECKING,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 
 import betterproto
 import betterproto.lib.google.protobuf as betterproto_lib_google_protobuf
 import grpclib
 from betterproto.grpc.grpclib_server import ServiceBase
+
 
 if TYPE_CHECKING:
     import grpclib.server
@@ -1479,31 +1486,31 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    blob: "BlobData" = betterproto.message_field(1, group="node")
-    statement: "StatementData" = betterproto.message_field(2, group="node")
-    view: "ViewData" = betterproto.message_field(3, group="node")
-    user: "UserData" = betterproto.message_field(4, group="node")
+    tagging: "TaggingData" = betterproto.message_field(1, group="node")
+    badge: "BadgeData" = betterproto.message_field(2, group="node")
+    handle: "HandleData" = betterproto.message_field(3, group="node")
+    bench: "BenchData" = betterproto.message_field(4, group="node")
     issue: "IssueData" = betterproto.message_field(5, group="node")
-    tagging: "TaggingData" = betterproto.message_field(6, group="node")
-    trigger: "TriggerData" = betterproto.message_field(7, group="node")
-    handle: "HandleData" = betterproto.message_field(8, group="node")
-    worker: "WorkerData" = betterproto.message_field(9, group="node")
-    badge: "BadgeData" = betterproto.message_field(10, group="node")
-    bench: "BenchData" = betterproto.message_field(11, group="node")
+    module: "ModuleData" = betterproto.message_field(6, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(7, group="node")
+    signal: "SignalData" = betterproto.message_field(8, group="node")
+    trigger: "TriggerData" = betterproto.message_field(9, group="node")
+    client: "ClientData" = betterproto.message_field(10, group="node")
+    session: "SessionData" = betterproto.message_field(11, group="node")
     notification: "NotificationData" = betterproto.message_field(12, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(13, group="node")
-    module: "ModuleData" = betterproto.message_field(14, group="node")
-    run: "RunData" = betterproto.message_field(15, group="node")
-    file: "FileData" = betterproto.message_field(16, group="node")
-    record: "RecordData" = betterproto.message_field(17, group="node")
-    organization: "OrganizationData" = betterproto.message_field(18, group="node")
-    client: "ClientData" = betterproto.message_field(19, group="node")
-    signal: "SignalData" = betterproto.message_field(20, group="node")
-    session: "SessionData" = betterproto.message_field(21, group="node")
-    halt: "HaltData" = betterproto.message_field(22, group="node")
-    field: "FieldData" = betterproto.message_field(23, group="node")
-    secret: "SecretData" = betterproto.message_field(24, group="node")
-    link: "LinkData" = betterproto.message_field(25, group="node")
+    view: "ViewData" = betterproto.message_field(13, group="node")
+    secret: "SecretData" = betterproto.message_field(14, group="node")
+    field: "FieldData" = betterproto.message_field(15, group="node")
+    organization: "OrganizationData" = betterproto.message_field(16, group="node")
+    run: "RunData" = betterproto.message_field(17, group="node")
+    link: "LinkData" = betterproto.message_field(18, group="node")
+    worker: "WorkerData" = betterproto.message_field(19, group="node")
+    statement: "StatementData" = betterproto.message_field(20, group="node")
+    record: "RecordData" = betterproto.message_field(21, group="node")
+    file: "FileData" = betterproto.message_field(22, group="node")
+    halt: "HaltData" = betterproto.message_field(23, group="node")
+    blob: "BlobData" = betterproto.message_field(24, group="node")
+    user: "UserData" = betterproto.message_field(25, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -3032,47 +3039,47 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    BlobData,
-    StatementData,
-    ViewData,
-    UserData,
-    IssueData,
     TaggingData,
-    TriggerData,
-    HandleData,
-    WorkerData,
     BadgeData,
+    HandleData,
     BenchData,
-    NotificationData,
-    WorkerSetData,
+    IssueData,
     ModuleData,
-    RunData,
-    FileData,
-    RecordData,
-    OrganizationData,
-    ClientData,
+    WorkerSetData,
     SignalData,
+    TriggerData,
+    ClientData,
     SessionData,
-    HaltData,
-    FieldData,
+    NotificationData,
+    ViewData,
     SecretData,
+    FieldData,
+    OrganizationData,
+    RunData,
     LinkData,
+    WorkerData,
+    StatementData,
+    RecordData,
+    FileData,
+    HaltData,
+    BlobData,
+    UserData,
 ]
 AnyStructData = Union[
-    AggregationData,
-    DependencyData,
-    WorkerImageData,
-    ExpressionData,
-    PolicyData,
-    MiniRunData,
     ContextData,
-    RunErrorData,
-    LogEntryData,
     PolicyRuleData,
-    RunCodeFrameData,
+    MiniRunData,
+    DependencyData,
+    LogEntryData,
+    WorkerImageData,
     PropertyPointerData,
     AggregationBucketData,
     NodePointerData,
+    RunErrorData,
+    AggregationData,
+    RunCodeFrameData,
+    ExpressionData,
+    PolicyData,
 ]
 
 VERSION = "2024.01.17.3"

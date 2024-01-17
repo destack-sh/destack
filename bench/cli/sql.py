@@ -12,7 +12,7 @@ from rich import print
 
 from bench.cli.utils import _async_to_sync_blocking
 from bench.language.const import VERSION, NodeType
-from bench.language.node import NODE_CLASS_BY_TYPE, Bench
+from bench.language.node import NODE_CLASS_BY_TYPE, Bench, NODE_CLASSES
 from bench.server.session import detached_session
 from bench.sql.client import _get_pg_connection_str, async_pg_cursor
 from bench.sql.core import DEFAULT_GLOBAL_TABLES, DEFAULT_LOCAL_TABLES
@@ -106,15 +106,11 @@ async def makemigrations(
     async with async_pg_cursor(local_pg_name=local_pg_name) as cur:
         old_local_tables = await introspect_tables_from_pg(cur)
     node_global_tables = [
-        node.__table__
-        for node in NODE_CLASS_BY_TYPE.values()
-        if not node.__is_local__ and node.__table__ is not None
+        node.__table__ for node in NODE_CLASSES if not node.__is_local__ and node.__table__
     ]
     new_global_tables = [*DEFAULT_GLOBAL_TABLES, *node_global_tables]
     node_local_tables = [
-        node.__table__
-        for node in NODE_CLASS_BY_TYPE.values()
-        if node.__is_local__ and node.__table__ is not None
+        node.__table__ for node in NODE_CLASSES if node.__is_local__ and node.__table__
     ]
     new_local_tables = [*DEFAULT_LOCAL_TABLES, *node_local_tables]
 

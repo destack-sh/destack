@@ -119,7 +119,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             indexes.append(index)
             if prop.is_unique:
                 constraint = Constraint(
-                    f"bench_unique_{prop.name}",
+                    index.inner_name,  # must be the same as the index name (postgres will rename otherwise)
                     type=ConstraintType.UNIQUE,
                     columns=(column.name,),
                     index=f"{table_name}_{index.inner_name}",
