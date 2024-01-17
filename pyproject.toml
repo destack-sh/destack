@@ -6,9 +6,6 @@ line-length = 100
 # ignore line too long
 ignore = ["E501"]
 
-[tool.django-stubs]
-django_settings_module = "bench.settings"
-
 [tool.pyright]
 include = ["bench"]
 exclude = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
@@ -26,6 +23,4 @@ known_first_party = "bench"
 skip = "migrations"
 
 [tool.pytest.ini_options]
-addopts = "--ds=bench.settings"
-# use below for distributed pytest
-# addopts = "--ds=bench.settings -n=4 --dist=loadscope"
+asyncio_mode = "auto"

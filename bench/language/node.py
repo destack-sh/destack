@@ -72,7 +72,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, SomeNodeData, NodePointerData
+from bench.proto.wire import EditData, NodePointerData, SomeNodeData
 from bench.sql.core import CascadeAction, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import did_you_mean_str, get_subclasses, strip_py_type, try_tuple
@@ -86,10 +86,10 @@ if TYPE_CHECKING:
         NodeVisitor,
         Organization,
         Policy,
+        PropertyPointer,
         Session,
         User,
         WorkerSet,
-        PropertyPointer,
         symbolx_lib,
     )
     from bench.language.issue import IssueHandler
@@ -1244,7 +1244,7 @@ class Struct(abc.ABC):
     # TODO @Broken: track in-struct edits (__setattr__) :StructScope
 
     def _init_inner(self):
-        # in session copy reference keys from references if set :NodePointers
+        # init reference pointers if references are set :NodePointers
         for prop in self.__reference_properties__.values():
             ref = getattr(self, prop.name)
             if prop.reference_wired_ptr is not None and isinstance(ref, Node):

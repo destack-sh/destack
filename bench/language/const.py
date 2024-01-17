@@ -97,6 +97,7 @@ class StructType(ProtoStrEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
     POLICY = "POLICY", 200
     POLICY_RULE = "POLICY_RULE", 201
+    CONTEXT = "CONTEXT", 202
     EXPRESSION = "EXPRESSION", 210
     AGGREGATION = "AGGREGATION", 211
     AGGREGATION_BUCKET = "AGGREGATION_BUCKET", 212

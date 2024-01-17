@@ -59,7 +59,7 @@ from bench.server.utils import (
     validate_bench_data_many,
 )
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
-from bench.sql.engine import read_node_tree_from_pg
+from bench.sql.engine import read_node_from_pg, read_nodes_from_pg
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -84,7 +84,7 @@ class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
     async def start_quick(self) -> None:
         async with detached_session():
             benches: list[Bench] = await Bench.tolist()
-            await asyncio.gather(self._start_host(bench.id, bench.head_id) for bench in benches)
+        await asyncio.gather(*(self._start_host(bench.id, bench.head_id) for bench in benches))
 
     def close(self) -> None:
         for host in self._hosts_by_module_id.values():
@@ -145,16 +145,16 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
 
     async def start_quick(self) -> None:
         async with detached_session() as session:
-            self.bench: Bench = await read_node_tree_from_pg(
+            self.bench: Bench = await read_node_from_pg(
                 session=session,
                 root_type=NodeType.BENCH,
-                root_ids=(self.bench_id,),
+                root_id=self.bench_id,
                 descendant_types=(NodeType.BADGE,),
             )
-            self.module: Module = await read_node_tree_from_pg(
+            self.module: Module = await read_node_from_pg(
                 session=session,
                 root_type=NodeType.MODULE,
-                root_ids=(self.module_id,),
+                root_ids=self.module_id,
                 descendant_types=IN_MODULE_NODE_TYPES,
             )
 

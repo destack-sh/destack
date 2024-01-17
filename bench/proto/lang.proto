@@ -55,6 +55,7 @@ enum BenchStatus {
   BENCH_STATUS_RESERVED = 1;
   BENCH_STATUS_PREPARING = 2;
   BENCH_STATUS_AVAILABLE = 3;
+  BENCH_STATUS_MIGRATING = 4;
 }
 
 enum BenchType {
@@ -86,6 +87,7 @@ enum BenchType {
   BENCH_TYPE_BADGE = 105;
   BENCH_TYPE_POLICY = 200;
   BENCH_TYPE_POLICY_RULE = 201;
+  BENCH_TYPE_CONTEXT = 202;
   BENCH_TYPE_EXPRESSION = 210;
   BENCH_TYPE_AGGREGATION = 211;
   BENCH_TYPE_AGGREGATION_BUCKET = 212;
@@ -417,6 +419,7 @@ enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_POLICY = 200;
   STRUCT_TYPE_POLICY_RULE = 201;
+  STRUCT_TYPE_CONTEXT = 202;
   STRUCT_TYPE_EXPRESSION = 210;
   STRUCT_TYPE_AGGREGATION = 211;
   STRUCT_TYPE_AGGREGATION_BUCKET = 212;
@@ -568,6 +571,19 @@ message AggregationBucketData {
   int64 count = 31;
 }
 
+// // The context of a request for evaluating a policy.
+message ContextData {
+  BenchType metatype = 1;
+  bool subject_is_system = 30;
+  bool subject_is_authenticated = 31;
+  bool subject_is_owner = 32;
+  NodePointerData subject_user_ptr = 33;
+  repeated ActionKind verbs = 41;
+  repeated BenchType object_types = 50;
+  repeated NodePointerData object_nodes_ptr = 51;
+  repeated PropertyPointerData object_properties = 52;
+}
+
 // // Dependency(name: str = <factory>, version: str = <factory>, _status: bench.language.const.NodeStatus = None)
 message DependencyData {
   BenchType metatype = 1;
@@ -630,14 +646,14 @@ message PolicyData {
 // // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
 message PolicyRuleData {
   BenchType metatype = 1;
-  bool subject_authenticated = 30;
-  repeated NodePointerData subject_users_ptr = 31;
+  bool subject_is_authenticated = 31;
+  bool subject_is_owner = 32;
+  repeated NodePointerData subject_users_ptr = 33;
   PolicyEffect effect = 40;
   repeated ActionKind verb = 41;
   repeated BenchType object_types = 50;
   repeated NodePointerData object_nodes_ptr = 51;
-  repeated NodePointerData object_fields_ptr = 52;
-  repeated PropertyPointerData object_properties = 53;
+  repeated PropertyPointerData object_properties = 52;
   ExpressionData condition = 60;
 }
 
@@ -1213,49 +1229,31 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    ModuleData module = 1;
-    BlobData blob = 2;
-    RecordData record = 3;
-    WorkerSetData worker_set = 4;
-    SignalData signal = 5;
-    RunData run = 6;
+    BlobData blob = 1;
+    StatementData statement = 2;
+    ViewData view = 3;
+    UserData user = 4;
+    IssueData issue = 5;
+    TaggingData tagging = 6;
     TriggerData trigger = 7;
-    SecretData secret = 8;
-    FileData file = 9;
-    ClientData client = 10;
-    UserData user = 11;
-    LinkData link = 12;
-    BadgeData badge = 13;
-    HaltData halt = 14;
-    StatementData statement = 15;
-    TaggingData tagging = 16;
-    SessionData session = 17;
+    HandleData handle = 8;
+    WorkerData worker = 9;
+    BadgeData badge = 10;
+    BenchData bench = 11;
+    NotificationData notification = 12;
+    WorkerSetData worker_set = 13;
+    ModuleData module = 14;
+    RunData run = 15;
+    FileData file = 16;
+    RecordData record = 17;
     OrganizationData organization = 18;
-    NotificationData notification = 19;
-    IssueData issue = 20;
-    HandleData handle = 21;
-    ViewData view = 22;
-    BenchData bench = 23;
-    WorkerData worker = 24;
-    FieldData field = 25;
-  };
-}
-
-message SomeStructData {
-  oneof struct {
-    PropertyPointerData property_pointer = 1;
-    LogEntryData log_entry = 2;
-    RunCodeFrameData run_code_frame = 3;
-    AggregationBucketData aggregation_bucket = 4;
-    NodePointerData node_pointer = 5;
-    PolicyRuleData policy_rule = 6;
-    RunErrorData run_error = 7;
-    WorkerImageData worker_image = 8;
-    MiniRunData mini_run = 9;
-    AggregationData aggregation = 10;
-    DependencyData dependency = 11;
-    ExpressionData expression = 12;
-    PolicyData policy = 13;
+    ClientData client = 19;
+    SignalData signal = 20;
+    SessionData session = 21;
+    HaltData halt = 22;
+    FieldData field = 23;
+    SecretData secret = 24;
+    LinkData link = 25;
   };
 }
 

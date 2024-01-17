@@ -12,10 +12,19 @@ from bench.language.const import (
     StructType,
 )
 from bench.language.expression import PropertyPointer
-from bench.language.node import Bench, Node, Struct, node, node_parent, struct, struct_internal
+from bench.language.node import (
+    Bench,
+    Node,
+    Struct,
+    node,
+    node_parent,
+    struct,
+    struct_internal,
+    struct_runtime,
+)
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Field, User
+    from bench.language import Expression, User
 
 
 @struct(StructType.POLICY)
@@ -36,28 +45,60 @@ class PolicyRule(Struct):
     """A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition]."""
 
     # subject
-    subject_authenticated: bool = struct_internal(30, default=False)
+    subject_is_system: bool = struct_runtime(
+        default=False
+    )  # not stored because only we can be system
+    subject_is_authenticated: bool = struct_internal(31, default=False)
+    subject_is_owner: bool = struct_internal(32, default=False)
     subject_users: Optional[list["User"]] = struct_internal(
-        31, require=False, array=True, references=NodeType.USER
+        33, require=False, array=True, references=NodeType.USER
     )
-    # subject_groups, subject_roles, ...
+    # subject_groups, subject_identities, subject_roles, ...
+
     # verb
     effect: PolicyEffect = struct_internal(40)
     verb: Optional[list[ActionKind]] = struct_internal(41)
+
     # object
     object_types: Optional[list[BenchType]] = struct_internal(50, default=None)
     object_nodes: list[Node] | None = struct_internal(
         51, require=False, array=True, references=tuple(NodeType)
     )
-    object_fields: list["Field"] | None = struct_internal(
-        52, require=False, array=True, references=NodeType.FIELD
-    )
     object_properties: list[PropertyPointer] | None = struct_internal(
-        53, require=False, array=True, struct_t=StructType.PROPERTY_POINTER
+        52, require=False, array=True, struct_t=StructType.PROPERTY_POINTER
     )
+    # object_fields: list["Field"] | None = struct_internal(
+    #     53, require=False, array=True, references=NodeType.FIELD
+    # )
+
     # [condition]
     condition: Optional["Expression"] = struct_internal(
         60, default=None, struct_t=StructType.EXPRESSION
+    )
+
+
+@struct(StructType.CONTEXT)
+class Context(Struct):
+    """The context of a request for evaluating a policy."""
+
+    # subject
+    subject_is_system: bool = struct_internal(30, default=False)
+    subject_is_authenticated: bool = struct_internal(31, default=False)
+    subject_is_owner: bool = struct_internal(32, default=False)
+    subject_user: Optional["User"] = struct_internal(
+        33, array=False, require=False, references=NodeType.USER
+    )
+
+    # verb
+    verbs: list[ActionKind] = struct_internal(41, default_factory=list)
+
+    # object
+    object_types: list[BenchType] = struct_internal(50, default_factory=list)
+    object_nodes: list[Node] | None = struct_internal(
+        51, array=True, require=False, default_factory=list, references=tuple(NodeType)
+    )
+    object_properties: list[PropertyPointer] | None = struct_internal(
+        52, default_factory=list, struct_t=StructType.PROPERTY_POINTER
     )
 
 

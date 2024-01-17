@@ -1,21 +1,12 @@
 from pathlib import Path
 
-import dotenv
 import typer
 from rich.console import Console
 
+from bench.utils.env import setup_dotenv
 from bench.utils.logging import configure_logging
-from bench.utils.utils import get_from_env
 
-# load .env files
-LOCAL_ENV = get_from_env("LOCAL_ENV", "local")
-if LOCAL_ENV == "prod":
-    DOT_ENV_FILES = [".env", ".env.prod"]
-else:
-    DOT_ENV_FILES = [".env"]
-for dot_env_file in DOT_ENV_FILES:
-    dotenv.load_dotenv(dot_env_file, verbose=True, override=True)
-
+setup_dotenv()
 configure_logging(apply_logging=True, apply_structlog=True)
 
 # add all 'app' instances into CLI (from ./bench/management/*.py)
