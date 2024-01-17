@@ -7,7 +7,7 @@ from rich.console import Console
 from bench.utils.logging import configure_logging
 from bench.utils.utils import get_from_env
 
-# :Dotenv
+# load .env files
 LOCAL_ENV = get_from_env("LOCAL_ENV", "local")
 if LOCAL_ENV == "prod":
     DOT_ENV_FILES = [".env", ".env.prod"]

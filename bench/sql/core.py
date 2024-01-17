@@ -100,7 +100,12 @@ class Object:
 
     def hash_flat(self) -> int:
         """Get a stable hash of this object's data attributes, ignoring nested objects."""
-        return stable_hash(*(getattr(self, field_name) for field_name in self.FLAT_DATA_FIELDS))
+        values = (
+            getattr(self, field_name)
+            for field_name in self.FLAT_DATA_FIELDS
+            if getattr(self, field_name) is not None
+        )
+        return stable_hash(*values)
 
     def diff_flat(self, other: "TableObject") -> dict[str, Any]:
         """Get a diff of this object's data attributes, ignoring nested objects."""
@@ -196,9 +201,9 @@ class Column(TableObject):
         "is_primary_key",
         "is_foreign_key_to",
         "on_delete",
-        "is_unique",
+        # "is_unique",, handled via constraints
         "is_nullable",
-        "is_encrypted",
+        # "is_encrypted", handled in read/write
         "length",
         "default",
     )
@@ -245,8 +250,7 @@ class Column(TableObject):
             parts.append("NOT NULL")
         if self.is_primary_key:
             parts.append("PRIMARY KEY")
-        if self.is_unique:
-            parts.append("UNIQUE")
+        # uniqueness is managed via constraints
         if self.default is not None:
             parts.append(f"DEFAULT {self.default}")
         if self.is_foreign_key_to is not None:
@@ -280,8 +284,17 @@ class Constraint(TableObject):
     type: ConstraintType
     columns: tuple[str, ...] | None = None
     condition: str | None = None
+    index: str | None = None  # existing index to use
+    _full_name: str | None = None  # as introspected from pg (naming may change)
     _source: str | int | None = None
     _table: Union["Table", None] = None
+
+    def __post_init__(self):
+        if self.condition is not None:
+            # must be wrapped in parentheses
+            assert self.condition.startswith("(") and self.condition.endswith(
+                ")"
+            ), f"invalid condition: {self!r}"
 
     def __str__(self):
         table_name = self._table.name if self._table else None
@@ -292,14 +305,17 @@ class Constraint(TableObject):
 
     @property
     def name(self):
-        return f"{self.table_name}_{self.inner_name}"
+        return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
         parts = [self.name, self.type]
         if self.type == ConstraintType.CHECK:
             parts.append(f"({self.condition})")
         elif self.type == ConstraintType.UNIQUE:
-            parts.append(f"({', '.join(self.columns)})")
+            if self.index is not None:
+                parts.append(f"USING INDEX {self.index}")
+            else:
+                parts.append(f"({', '.join(self.columns)})")
         return " ".join(parts)
 
 
@@ -320,15 +336,30 @@ class Index(TableObject):
     A SQL index.
     """
 
-    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = ("inner_name", "type", "columns", "condition")
+    FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = (
+        "inner_name",
+        "type",
+        "columns",
+        "is_unique",
+        "condition",
+    )
     kind: ClassVar[ObjectKind] = ObjectKind.INDEX
 
     inner_name: str
     type: IndexType
     columns: tuple[str, ...]
+    is_unique: bool = False
     condition: str | None = None
+    _full_name: str | None = None  # as introspected from pg (naming may change)
     _source: str | int | None = None
     _table: Union["Table", None] = None
+
+    def __post_init__(self):
+        if self.condition is not None:
+            # must be wrapped in parentheses
+            assert self.condition.startswith("(") and self.condition.endswith(
+                ")"
+            ), f"invalid condition: {self!r}"
 
     def __str__(self):
         table_name = self._table.name if self._table else None
@@ -339,7 +370,7 @@ class Index(TableObject):
 
     @property
     def name(self):
-        return f"{self.table_name}_{self.inner_name}"
+        return self._full_name or f"{self.table_name}_{self.inner_name}"
 
     def sql(self) -> str:
         parts = [
@@ -364,14 +395,14 @@ class Table(TableObject):
 
     name: str
     columns: tuple[Column, ...]
-    constraints: tuple[Constraint, ...] = ()
     indexes: tuple[Index, ...] = ()
+    constraints: tuple[Constraint, ...] = ()
     _source: str | int | None = None
     _columns_by_name: dict[str, Column] = field(init=False)
     _primary_key: Column | None = field(init=False)
 
     def __post_init__(self):
-        for object in chain(self.columns, self.constraints, self.indexes):
+        for object in chain(self.columns, self.indexes, self.constraints):
             if object._table is not None:
                 raise ValueError(f"{object} is already attached to {object._table}")
             object._table = self
@@ -395,7 +426,7 @@ class Table(TableObject):
         return f"<Table {self}>"
 
     def __hash__(self):
-        return stable_hash(self.kind, self.name, self.columns, self.constraints, self.indexes)
+        return stable_hash(self.kind, self.name, self.columns, self.indexes, self.constraints)
 
     @property
     def table(self) -> "Table":
@@ -406,7 +437,7 @@ class Table(TableObject):
         return self
 
     def walk(self) -> tuple[TableObject, ...]:
-        return self, *self.columns, *self.constraints, *self.indexes
+        return self, *self.columns, *self.indexes, *self.constraints
 
     def columns_include(self, other: "Table") -> bool:
         """Returns True if the columns are equal, ignoring order."""

@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.17.0"
+VERSION = "2024.01.17.3"
 
 
 #
@@ -66,6 +66,7 @@ class NodeType(ProtoStrEnum):
     CLIENT = "CLIENT", 103
     NOTIFICATION = "NOTIFICATION", 104
     BADGE = "BADGE", 105
+    # IDENTITY = "IDENTITY", 106
 
     # INVITE = "INVITE", 110
     # MEMBERSHIP = "MEMBERSHIP", 111
@@ -83,8 +84,7 @@ NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
 IN_MODULE_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt
     for nt in NODE_TYPES
-    if NodeType.MODULE.id <= nt.id < NodeType.WORKER_SET.id
-    and nt not in (NodeType.BLOB, NodeType.SECRET)
+    if NodeType.MODULE.id <= nt.id < NodeType.WORKER_SET.id and nt not in (NodeType.BLOB,)
 )
 IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt
@@ -203,6 +203,7 @@ class BenchStatus(ProtoStrEnum):
     RESERVED = "RESERVED", 1
     PREPARING = "PREPARING", 2
     AVAILABLE = "AVAILABLE", 3
+    MIGRATING = "MIGRATING", 4
 
 
 class BadgeType(ProtoStrEnum):
@@ -283,6 +284,8 @@ class NodeTrackingLevel(enum.IntEnum):
 NTL = NodeTrackingLevel
 
 
+# TODO @Cleanup: remove LookupBy, always look up by identifier
+#  (for non-Python shaped languages, we can just transform the query into snake_case)
 class LookupBy(ProtoStrEnum):
     Name = "Name", 1
     PyIdent = "PyIdent", 2

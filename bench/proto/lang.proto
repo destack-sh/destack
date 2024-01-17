@@ -999,7 +999,9 @@ message RunData {
 message SecretData {
   BenchType metatype = 1;
   string id = 2;
+  string ck = 3;
   NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
   NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1211,49 +1213,49 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    SessionData session = 1;
-    HaltData halt = 2;
-    WorkerSetData worker_set = 3;
-    SignalData signal = 4;
-    WorkerData worker = 5;
-    ClientData client = 6;
-    RecordData record = 7;
-    UserData user = 8;
-    ViewData view = 9;
-    StatementData statement = 10;
-    BenchData bench = 11;
-    SecretData secret = 12;
-    BlobData blob = 13;
-    TriggerData trigger = 14;
-    OrganizationData organization = 15;
-    ModuleData module = 16;
-    FieldData field = 17;
-    NotificationData notification = 18;
-    FileData file = 19;
-    RunData run = 20;
-    TaggingData tagging = 21;
-    BadgeData badge = 22;
-    IssueData issue = 23;
-    HandleData handle = 24;
-    LinkData link = 25;
+    ModuleData module = 1;
+    BlobData blob = 2;
+    RecordData record = 3;
+    WorkerSetData worker_set = 4;
+    SignalData signal = 5;
+    RunData run = 6;
+    TriggerData trigger = 7;
+    SecretData secret = 8;
+    FileData file = 9;
+    ClientData client = 10;
+    UserData user = 11;
+    LinkData link = 12;
+    BadgeData badge = 13;
+    HaltData halt = 14;
+    StatementData statement = 15;
+    TaggingData tagging = 16;
+    SessionData session = 17;
+    OrganizationData organization = 18;
+    NotificationData notification = 19;
+    IssueData issue = 20;
+    HandleData handle = 21;
+    ViewData view = 22;
+    BenchData bench = 23;
+    WorkerData worker = 24;
+    FieldData field = 25;
   };
 }
 
 message SomeStructData {
   oneof struct {
-    MiniRunData mini_run = 1;
-    WorkerImageData worker_image = 2;
-    LogEntryData log_entry = 3;
-    PolicyRuleData policy_rule = 4;
-    ExpressionData expression = 5;
-    AggregationBucketData aggregation_bucket = 6;
-    PropertyPointerData property_pointer = 7;
-    RunCodeFrameData run_code_frame = 8;
-    NodePointerData node_pointer = 9;
-    PolicyData policy = 10;
-    RunErrorData run_error = 11;
-    DependencyData dependency = 12;
-    AggregationData aggregation = 13;
+    PropertyPointerData property_pointer = 1;
+    LogEntryData log_entry = 2;
+    RunCodeFrameData run_code_frame = 3;
+    AggregationBucketData aggregation_bucket = 4;
+    NodePointerData node_pointer = 5;
+    PolicyRuleData policy_rule = 6;
+    RunErrorData run_error = 7;
+    WorkerImageData worker_image = 8;
+    MiniRunData mini_run = 9;
+    AggregationData aggregation = 10;
+    DependencyData dependency = 11;
+    ExpressionData expression = 12;
+    PolicyData policy = 13;
   };
 }
 

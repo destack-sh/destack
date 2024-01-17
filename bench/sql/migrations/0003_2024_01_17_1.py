@@ -1,10 +1,10 @@
 # This migration was automatically generated on 2024.01.17. Edit as needed.
 import psycopg
 
-ID = 2
-VERSION = "2024.01.17.0"
+ID = 3
+VERSION = "2024.01.17.1"
 HAS_GLOBAL = True
-HAS_LOCAL = False
+HAS_LOCAL = True
 
 
 #
@@ -13,6 +13,50 @@ HAS_LOCAL = False
 
 
 async def upgrade_global(cur: psycopg.AsyncCursor):
+    # bench_module
+    await cur.execute("DROP INDEX bench_projectversion_project_id_a8fd4b48")
+
+    # bench_field
+    await cur.execute("DROP INDEX bench_field_module_id_fd7c14c9")
+    await cur.execute("DROP INDEX bench_simpletypenode_statement_id_0c6968df")
+    await cur.execute("DROP INDEX bench_field_bench_idx_module_id")
+
+    # bench_bench
+    await cur.execute("DROP INDEX bench_project_organization_id_beed2131")
+    await cur.execute("DROP INDEX bench_project_user_id_1cbf531a")
+
+    # bench_statement
+    await cur.execute("DROP INDEX bench_statement_parent_id_0708bb5b")
+    await cur.execute("DROP INDEX bench_statement_project_version_id_7cb81a39")
+    await cur.execute("DROP INDEX bench_statement_bench_idx_module_id")
+
+    # bench_tagging
+    await cur.execute("DROP INDEX bench_tagging_module_id_64a4aaba")
+    await cur.execute("DROP INDEX bench_tagging_bench_idx_module_id")
+    await cur.execute("DROP INDEX bench_tagging_statement_id_d2aa61d0")
+
+    # bench_trigger
+    await cur.execute("DROP INDEX bench_trigger_module_id_cfb4ac09")
+    await cur.execute("DROP INDEX bench_trigger_statement_id_ec859879")
+    await cur.execute("DROP INDEX bench_trigger_bench_idx_module_id")
+
+    # bench_link
+    await cur.execute("DROP INDEX bench_link_bench_idx_module_id")
+
+    # bench_issue
+    await cur.execute("DROP INDEX bench_issue_bench_idx_module_id")
+    await cur.execute("DROP INDEX bench_issue_project_version_id_761a0549")
+    await cur.execute("DROP INDEX bench_issue_statement_id_29579c23")
+    await cur.execute("DROP INDEX bench_issue_file_id_87bab795")
+
+    # bench_file
+    await cur.execute("DROP INDEX bench_file_parent_id_c49f463c")
+    await cur.execute("DROP INDEX bench_file_project_version_id_3b7023e0")
+    await cur.execute("DROP INDEX bench_file_bench_idx_module_id")
+
+    # bench_view
+    await cur.execute("DROP INDEX bench_view_bench_idx_module_id")
+
     # bench_bench
     await cur.execute(
         "CREATE UNIQUE INDEX bench_bench_bench_idx_slug ON bench_bench USING BTREE (slug)"

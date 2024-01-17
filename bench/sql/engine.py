@@ -59,6 +59,7 @@ def get_bench_table_name(node_type: NodeType) -> str:
 
 def map_node_type_to_pg_table(node: type[Node]) -> Table:
     # TODO @Robustness: add Bench check constraints in Postgres
+    table_name = get_bench_table_name(node.metatype)
     columns: list[Column] = []
     constraints: list[Constraint] = []
     indexes: list[Index] = []
@@ -107,22 +108,24 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
             assert isinstance(prop.reference_on_delete, CascadeAction)
             column.on_delete = prop.reference_on_delete
 
-        if prop.is_indexed_in_pg:
+        if prop.is_indexed_in_pg or prop.is_unique:
             index = Index(
                 f"bench_idx_{prop.name}",
                 type=IndexType.BTREE,
                 columns=(column.name,),
+                is_unique=prop.is_unique,
                 _source=prop.id,
             )
             indexes.append(index)
-        if prop.is_unique:
-            constraint = Constraint(
-                f"bench_unique_{prop.name}",
-                type=ConstraintType.UNIQUE,
-                columns=(column.name,),
-                _source=prop.id,
-            )
-            constraints.append(constraint)
+            if prop.is_unique:
+                constraint = Constraint(
+                    f"bench_unique_{prop.name}",
+                    type=ConstraintType.UNIQUE,
+                    columns=(column.name,),
+                    index=f"{table_name}_{index.inner_name}",
+                    _source=prop.id,
+                )
+                constraints.append(constraint)
         columns.append(column)
 
     # one of the parent_<type>_id columns must be non-null
@@ -141,7 +144,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
         prop = node.__properties__.get(prop_name)
         if prop is None:
             continue
-        if node.__is_in_module__:
+        if node.__is_in_module__ and "module_id" in node.__properties__:
             index = Index(
                 f"bench_idx_module_{prop_name}",
                 type=IndexType.BTREE,
@@ -159,7 +162,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
 
     table = Table(
         _source=node.metatype.id,
-        name=get_bench_table_name(node.metatype),
+        name=table_name,
         columns=tuple(columns),
         constraints=tuple(constraints),
         indexes=tuple(indexes),
@@ -502,9 +505,7 @@ RowIn = dict[str, SqlPrimitive | SqlExpression]
 RowOut = dict[str, SqlPrimitive]
 
 
-def _wrap_pg_error(
-    resource: Table | str, query: sql.Composed, e: psycopg.errors.Error
-) -> Exception:
+def _wrap_pg_error(resource: Any, e: psycopg.errors.Error) -> Exception:
     if isinstance(e, (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn)):
         wrapped_t = SqlUndefinedObject
     else:
@@ -550,7 +551,7 @@ async def pg_select(
     try:
         await cur.execute(statement, params)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, statement, e) from e
+        raise _wrap_pg_error(table, e) from e
     return await cur.fetchall()
 
 
@@ -596,7 +597,7 @@ async def pg_count(
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, statement, e) from e
+        raise _wrap_pg_error(table, e) from e
     return (await cur.fetchone())["count"]
 
 
@@ -620,7 +621,7 @@ async def pg_exists(
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, statement, e) from e
+        raise _wrap_pg_error(table, e) from e
     return (await cur.fetchone())["exists"]
 
 
@@ -646,7 +647,7 @@ async def pg_insert(
     try:
         await cur.executemany(statement, values, returning=bool(returning))
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, statement, e) from e
+        raise _wrap_pg_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -686,7 +687,7 @@ async def pg_upsert(
     try:
         await cur.executemany(statement, values, returning=bool(returning))
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, statement, e) from e
+        raise _wrap_pg_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -717,7 +718,7 @@ async def pg_update_static(
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, statement, e) from e
+        raise _wrap_pg_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -764,7 +765,7 @@ async def pg_update_list(
     try:
         await cur.executemany(statement, dynamic_values, returning=bool(returning))
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, statement, e) from e
+        raise _wrap_pg_error(table, e) from e
     if returning:
         return await cur.fetchall()
 
@@ -791,7 +792,7 @@ async def pg_delete(
     try:
         await cur.execute(statement)
     except psycopg.errors.Error as e:
-        raise _wrap_pg_error(table, statement, e) from e
+        raise _wrap_pg_error(table, e) from e
     if returning:
         return await cur.fetchall()
 

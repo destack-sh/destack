@@ -258,6 +258,10 @@ export interface SearchNodesRequest {
      * @generated from protobuf field: symbolx.bench.ReadNodesOptions options = 7;
      */
     options?: ReadNodesOptions;
+    /**
+     * @generated from protobuf field: bool count = 8;
+     */
+    count: boolean;
 }
 /**
  * @generated from protobuf message symbolx.bench.SearchNodesResponse
@@ -275,6 +279,10 @@ export interface SearchNodesResponse {
      * @generated from protobuf field: string start_cursor = 3;
      */
     startCursor: string;
+    /**
+     * @generated from protobuf field: int32 total = 4;
+     */
+    total: number;
 }
 /**
  * @generated from protobuf message symbolx.bench.AggregateNodesRequest
@@ -1468,7 +1476,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
             { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 5, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
             { no: 6, name: "after", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 7, name: "options", kind: "message", T: () => ReadNodesOptions }
+            { no: 7, name: "options", kind: "message", T: () => ReadNodesOptions },
+            { no: 8, name: "count", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesRequest>): SearchNodesRequest {
@@ -1477,6 +1486,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         message.sort = [];
         message.limit = 0;
         message.after = "";
+        message.count = false;
         if (value !== undefined)
             reflectionMergePartial<SearchNodesRequest>(this, message, value);
         return message;
@@ -1506,6 +1516,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                     break;
                 case /* symbolx.bench.ReadNodesOptions options */ 7:
                     message.options = ReadNodesOptions.internalBinaryRead(reader, reader.uint32(), options, message.options);
+                    break;
+                case /* bool count */ 8:
+                    message.count = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1540,6 +1553,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* symbolx.bench.ReadNodesOptions options = 7; */
         if (message.options)
             ReadNodesOptions.internalBinaryWrite(message.options, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
+        /* bool count = 8; */
+        if (message.count !== false)
+            writer.tag(8, WireType.Varint).bool(message.count);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -1556,7 +1572,8 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         super("symbolx.bench.SearchNodesResponse", [
             { no: 1, name: "nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => SomeNodeData },
             { no: 2, name: "cursors", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 3, name: "start_cursor", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 4, name: "total", kind: "scalar", T: 5 /*ScalarType.INT32*/ }
         ]);
     }
     create(value?: PartialMessage<SearchNodesResponse>): SearchNodesResponse {
@@ -1564,6 +1581,7 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         message.nodes = [];
         message.cursors = [];
         message.startCursor = "";
+        message.total = 0;
         if (value !== undefined)
             reflectionMergePartial<SearchNodesResponse>(this, message, value);
         return message;
@@ -1581,6 +1599,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
                     break;
                 case /* string start_cursor */ 3:
                     message.startCursor = reader.string();
+                    break;
+                case /* int32 total */ 4:
+                    message.total = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1603,6 +1624,9 @@ class SearchNodesResponse$Type extends MessageType<SearchNodesResponse> {
         /* string start_cursor = 3; */
         if (message.startCursor !== "")
             writer.tag(3, WireType.LengthDelimited).string(message.startCursor);
+        /* int32 total = 4; */
+        if (message.total !== 0)
+            writer.tag(4, WireType.Varint).int32(message.total);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
