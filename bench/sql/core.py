@@ -19,7 +19,7 @@ def stable_hash(*args) -> int:
     hasher = hashlib.sha256()
 
     def update_hash(value):
-        if isinstance(value, list):
+        if isinstance(value, (list, tuple)):
             for item in value:
                 update_hash(item)
         elif isinstance(value, (str, int, enum.Enum, type(None))):
@@ -470,6 +470,7 @@ POSTGRES_TYPE_BY_UDT: dict[str, PostgresColumnType] = {
     "float4": PostgresColumnType.REAL,
     "float8": PostgresColumnType.DOUBLE_PRECISION,
     "timestamptz": PostgresColumnType.TIMESTAMP,
+    "timestamp": PostgresColumnType.TIMESTAMP,
     "jsonb": PostgresColumnType.JSONB,
     "bytea": PostgresColumnType.BYTEA,
     "text": PostgresColumnType.TEXT,

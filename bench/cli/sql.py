@@ -25,6 +25,7 @@ from bench.sql.migration import (
     introspect_tables_from_pg,
     migrate_to,
     read_migrations_from_fs,
+    read_migrations_from_pg,
 )
 from bench.utils.utils import format_python
 
@@ -76,6 +77,24 @@ async def makemigrations(
     logger.info("makemigrations", bench=bench, local_pg_name=local_pg_name)
     start = time.time()
 
+    # check existing migrations for conflicts & unapplied
+    known_migrations = read_migrations_from_fs()
+    conflicting_migration = first((m for m in known_migrations if m.version == VERSION), None)
+    if conflicting_migration:
+        if overwrite:
+            logger.info("makemigrations.overwrite", migration=conflicting_migration)
+            Path(conflicting_migration.path).unlink()
+            known_migrations.remove(conflicting_migration)
+        else:
+            raise RuntimeError(
+                f"existing migration for version {VERSION}: {conflicting_migration!r}"
+            )
+    async with async_pg_cursor() as cur:
+        unapplied_migrations = await read_migrations_from_pg(cur, applied=False)
+    if unapplied_migrations:
+        # we introspect DB state, so we can't makemigrations if we have unapplied migrations
+        raise RuntimeError(f"unapplied migrations: {unapplied_migrations!r}")
+
     if not local_pg_name:
         async with detached_session(read_only=True):
             bench = await Bench.get(slug=bench)
@@ -106,16 +125,6 @@ async def makemigrations(
     if not global_migration_ops and not local_migration_ops:
         logger.info("makemigrations.noop")
         return
-
-    known_migrations = read_migrations_from_fs()
-    conflicting_migration = first((m for m in known_migrations if m.version == VERSION), None)
-    if conflicting_migration:
-        if overwrite:
-            logger.info("makemigrations.overwrite", migration=conflicting_migration)
-            Path(conflicting_migration.path).unlink()
-            known_migrations.remove(conflicting_migration)
-        else:
-            raise RuntimeError(f"existing migration for version {VERSION}: {conflicting_migration}")
 
     latest_migration = max(known_migrations, key=lambda m: m.id, default=None)
     new_migration = Migration(

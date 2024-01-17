@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.15.1"
+VERSION = "2024.01.17.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -83,7 +83,7 @@ MODULE_TABLE = Table(
         Column("last_edited_at", ColumnType.DATETIME),
         Column("last_changed_at", ColumnType.DATETIME, is_nullable=True),
         Column("policies", ColumnType.BYTES, is_array=True, is_nullable=True),
-        Column("is_snapshot", ColumnType.BOOLEAN, default="False"),
+        Column("is_snapshot", ColumnType.BOOLEAN, default="false"),
     ),
     constraints=(
         Constraint(
@@ -142,7 +142,6 @@ FILE_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -181,7 +180,7 @@ STATEMENT_TABLE = Table(
         Column("last_edited_at", ColumnType.DATETIME),
         Column("last_changed_at", ColumnType.DATETIME, is_nullable=True),
         Column("policies", ColumnType.BYTES, is_array=True, is_nullable=True),
-        Column("type", ColumnType.STRING, default="'blank'"),
+        Column("type", ColumnType.STRING, default="'blank'::character varying"),
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("order_key", ColumnType.STRING, is_nullable=True),
         Column("heading_level", ColumnType.BIGINT, is_nullable=True),
@@ -189,7 +188,7 @@ STATEMENT_TABLE = Table(
         Column("key", ColumnType.STRING, is_nullable=True),
         Column("code", ColumnType.STRING, is_nullable=True),
         Column("value", ColumnType.JSON, is_nullable=True),
-        Column("shared", ColumnType.BOOLEAN, default="True"),
+        Column("shared", ColumnType.BOOLEAN, default="true"),
     ),
     constraints=(
         Constraint(
@@ -199,7 +198,6 @@ STATEMENT_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -230,9 +228,9 @@ TRIGGER_TABLE = Table(
         Column("archived_at", ColumnType.DATETIME, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME),
         Column("type", ColumnType.STRING),
-        Column("active", ColumnType.BOOLEAN, default="True"),
+        Column("active", ColumnType.BOOLEAN, default="true"),
         Column("schedule_type", ColumnType.STRING, is_nullable=True),
-        Column("timezone", ColumnType.STRING, is_nullable=True, default="UTC"),
+        Column("timezone", ColumnType.STRING, is_nullable=True, default="'UTC'::character varying"),
         Column("interval", ColumnType.BIGINT, is_nullable=True),
         Column("cron", ColumnType.STRING, is_nullable=True),
     ),
@@ -244,7 +242,6 @@ TRIGGER_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -300,7 +297,6 @@ TAGGING_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -348,7 +344,6 @@ FIELD_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -400,7 +395,6 @@ VIEW_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -451,7 +445,6 @@ ISSUE_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -512,7 +505,6 @@ LINK_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -539,7 +531,7 @@ BLOB_TABLE = Table(
         Column("content_length", ColumnType.BIGINT),
         Column("content_type", ColumnType.STRING),
         Column("name", ColumnType.STRING),
-        Column("status", ColumnType.STRING, default="'PENDING'"),
+        Column("status", ColumnType.STRING, default="'PENDING'::character varying"),
     ),
     constraints=(
         Constraint(
@@ -619,7 +611,6 @@ SESSION_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -688,7 +679,6 @@ RUN_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_session_id", IndexType.BTREE, ("session_id",)),
         Index("bench_idx_root_run_id", IndexType.BTREE, ("root_run_id",)),
         Index("bench_idx_worker_id", IndexType.BTREE, ("worker_id",)),
@@ -731,7 +721,6 @@ HALT_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
     ),
@@ -761,7 +750,6 @@ SIGNAL_TABLE = Table(
         ),
     ),
     indexes=(
-        Index("bench_idx_module_id", IndexType.BTREE, ("module_id",)),
         Index("bench_idx_type_statement_ck", IndexType.BTREE, ("type_statement_ck",)),
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
         Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),

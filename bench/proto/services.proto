@@ -89,11 +89,13 @@ message SearchNodesRequest {
   int32 limit = 5;
   string after = 6;
   ReadNodesOptions options = 7;
+  bool count = 8;
 }
 message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
   repeated string cursors = 2;
   string start_cursor = 3;
+  int32 total = 4;
 }
 
 message AggregateNodesRequest {
