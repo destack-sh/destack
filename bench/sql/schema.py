@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.18.2"
+VERSION = "2024.01.18.3"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -138,6 +138,7 @@ FILE_TABLE = Table(
         Column("policies", ColumnType.BYTES, is_array=True, is_nullable=True),
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("order_key", ColumnType.STRING, is_nullable=True),
+        Column("text", ColumnType.STRING, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
@@ -367,13 +368,6 @@ VIEW_TABLE = Table(
             is_nullable=True,
         ),
         Column(
-            "parent_file_id",
-            ColumnType.UUID,
-            is_foreign_key_to="bench_file",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
             "module_id",
             ColumnType.UUID,
             is_foreign_key_to="bench_module",
@@ -400,7 +394,7 @@ VIEW_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_statement_id IS NOT NULL) OR (parent_file_id IS NOT NULL)",
+            condition="(parent_statement_id IS NOT NULL)",
         ),
     ),
 )

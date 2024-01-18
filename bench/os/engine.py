@@ -419,7 +419,7 @@ class OsSearchResult:
         return records_data
 
 
-def compile_os_search(
+def os_compile_search(
     metatype: BenchType,
     query: Optional[Expression] = None,
     sort: Optional[list[Expression]] = None,
@@ -472,7 +472,7 @@ async def os_search(
     after: Optional[str] = None,
 ) -> OsSearchResult:
     """Executes a search query against OpenSearch."""
-    search = compile_os_search(metatype, filter, sort, limit, skip, count, after)
+    search = os_compile_search(metatype, filter, sort, limit, skip, count, after)
     logger.debug("os.search", os_name=os_name, search=search)
     try:
         os_results = await os_client.search(index=os_name, body=search.to_dict())
@@ -497,7 +497,7 @@ def os_search_sync(
     """
     Executes a search query against OpenSearch.
     """
-    search = compile_os_search(metatype, filter, sort, limit, skip, count, after)
+    search = os_compile_search(metatype, filter, sort, limit, skip, count, after)
     logger.debug("os.search", os_name=os_name, search=search)
     try:
         os_results = os_client_sync.search(index=os_name, body=search.to_dict())
@@ -931,9 +931,7 @@ def create_local_os_index(
     log.info("os.create_user.done", username=os_username)
 
 
-async def write_edits_to_os(
-    module: Module, edits: list[EditData], *, refresh: bool = False
-) -> None:
+async def os_write_edits(module: Module, edits: list[EditData], *, refresh: bool = False) -> None:
     """
     Writes/mirrors any relevant edit to OpenSearch.
     All regular DB edit come this way.
@@ -981,7 +979,7 @@ async def write_edits_to_os(
     await _flush()  # flush all remaining edits
 
 
-async def sync_databases_to_os(module: Module, databases: list[HasDatabase]) -> None:
+async def os_sync_databases(module: Module, databases: list[HasDatabase]) -> None:
     """
     Mirrors the given databases to OpenSearch, replacing any existing data.
     Obviously not scalable yet because it just selects everything in one go (no streaming).
@@ -1007,10 +1005,10 @@ async def sync_databases_to_os(module: Module, databases: list[HasDatabase]) -> 
         {"terms": {"statement_key": [d.key for d in databases]}},
     ]
     await os_client.delete_by_query(module.os_name, body={"query": {"bool": {"filter": filter}}})
-    await write_records_to_os(module, all_records)
+    await os_write_records(module, all_records)
 
 
-async def write_records_to_os(module: Module, records: list[wire.RecordData]) -> None:
+async def os_write_records(module: Module, records: list[wire.RecordData]) -> None:
     if not records:
         return
     ops: list[dict] = []

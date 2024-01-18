@@ -170,13 +170,13 @@ del _s
 _IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
     t.type: t.identifier for t in _STATEMENT_DESCRIPTORS.values()
 }
-_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, _Passthrough]]] = {
+_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, _Passthrough], ...]] = {
     t.type: t.passthrough for t in _STATEMENT_DESCRIPTORS.values()
 }
-_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node]]] = {
+_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node], ...]] = {
     t.type: t.dynamic_components for t in _STATEMENT_DESCRIPTORS.values()
 }
-_ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node]] = tuple(
+_ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     c for t in _STATEMENT_DESCRIPTORS.values() for c in t.dynamic_components
 )
 

@@ -30,20 +30,20 @@ class ActionKind(betterproto.Enum):
     READ = 1
     LIST = 2
     AGGREGATE = 3
-    CREATE = 10
-    UPSERT = 11
-    UPDATE = 12
-    MOVE = 13
-    BUMP = 14
-    SOFT_DELETE = 15
-    RESTORE = 16
-    ARCHIVE = 17
-    UNARCHIVE = 18
-    DELETE = 19
-    START = 20
-    PAUSE = 21
-    RESUME = 22
-    KILL = 23
+    CREATE = 20
+    UPSERT = 21
+    UPDATE = 22
+    MOVE = 23
+    BUMP = 24
+    SOFT_DELETE = 25
+    RESTORE = 26
+    ARCHIVE = 27
+    UNARCHIVE = 28
+    DELETE = 29
+    START = 40
+    PAUSE = 41
+    RESUME = 42
+    KILL = 43
 
 
 class AggregationOp(betterproto.Enum):
@@ -89,8 +89,8 @@ class BenchType(betterproto.Enum):
     FIELD = 15
     RECORD = 16
     VIEW = 17
-    ISSUE = 19
-    LINK = 20
+    ISSUE = 20
+    LINK = 21
     BLOB = 40
     SECRET = 41
     SESSION = 50
@@ -154,16 +154,16 @@ class ConditionalOp(betterproto.Enum):
 
 class EditKind(betterproto.Enum):
     UNSPECIFIED = 0
-    CREATE = 10
-    UPSERT = 11
-    UPDATE = 12
-    MOVE = 13
-    BUMP = 14
-    SOFT_DELETE = 15
-    RESTORE = 16
-    ARCHIVE = 17
-    UNARCHIVE = 18
-    DELETE = 19
+    CREATE = 20
+    UPSERT = 21
+    UPDATE = 22
+    MOVE = 23
+    BUMP = 24
+    SOFT_DELETE = 25
+    RESTORE = 26
+    ARCHIVE = 27
+    UNARCHIVE = 28
+    DELETE = 29
 
 
 class ExpressionKind(betterproto.Enum):
@@ -291,8 +291,8 @@ class NodeType(betterproto.Enum):
     FIELD = 15
     RECORD = 16
     VIEW = 17
-    ISSUE = 19
-    LINK = 20
+    ISSUE = 20
+    LINK = 21
     BLOB = 40
     SECRET = 41
     SESSION = 50
@@ -321,12 +321,10 @@ class NotificationStatus(betterproto.Enum):
     ACTIVE = 1
     READ = 2
     EXPIRED = 3
-    ARCHIVED = 4
 
 
 class NotificationType(betterproto.Enum):
     UNSPECIFIED = 0
-    EDIT = 1
 
 
 class PolicyEffect(betterproto.Enum):
@@ -372,10 +370,10 @@ class RunErrorKind(betterproto.Enum):
 
 class RunKind(betterproto.Enum):
     UNSPECIFIED = 0
-    START = 20
-    PAUSE = 21
-    RESUME = 22
-    KILL = 23
+    START = 40
+    PAUSE = 41
+    RESUME = 42
+    KILL = 43
 
 
 class RunStatus(betterproto.Enum):
@@ -975,6 +973,7 @@ class FileData(betterproto.Message):
     policies: List["PolicyData"] = betterproto.message_field(20)
     name: str = betterproto.string_field(30)
     order_key: str = betterproto.string_field(31)
+    text: str = betterproto.string_field(32)
 
 
 @dataclass(eq=False, repr=False)
@@ -1385,12 +1384,12 @@ class UserData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ViewData(betterproto.Message):
     """
-    // View(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None,
-    policies: Optional[list['Policy']] = None, name: str | None = None,
-    order_key: str | None = None, node_type: bench.language.const.NodeType =
-    <factory>, filter: Optional[bench.language.expression.Expression] = None,
-    sort: Optional[list[bench.language.expression.Expression]] = None,
-    parent_ptr: bench.proto.wire.NodePointerData = None, _status:
+    // View(parent: ForwardRef('Statement') = None, policies:
+    Optional[list['Policy']] = None, name: str | None = None, order_key: str |
+    None = None, node_type: bench.language.const.NodeType = <factory>, filter:
+    Optional[bench.language.expression.Expression] = None, sort:
+    Optional[list[bench.language.expression.Expression]] = None, parent_ptr:
+    bench.proto.wire.NodePointerData = None, _status:
     bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
     = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
     1>, revision: int = 0, created_at: datetime.datetime = None, updated_at:
@@ -1486,31 +1485,31 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    issue: "IssueData" = betterproto.message_field(1, group="node")
-    signal: "SignalData" = betterproto.message_field(2, group="node")
-    notification: "NotificationData" = betterproto.message_field(3, group="node")
-    record: "RecordData" = betterproto.message_field(4, group="node")
-    file: "FileData" = betterproto.message_field(5, group="node")
-    secret: "SecretData" = betterproto.message_field(6, group="node")
-    user: "UserData" = betterproto.message_field(7, group="node")
-    link: "LinkData" = betterproto.message_field(8, group="node")
-    view: "ViewData" = betterproto.message_field(9, group="node")
+    record: "RecordData" = betterproto.message_field(1, group="node")
+    session: "SessionData" = betterproto.message_field(2, group="node")
+    handle: "HandleData" = betterproto.message_field(3, group="node")
+    run: "RunData" = betterproto.message_field(4, group="node")
+    link: "LinkData" = betterproto.message_field(5, group="node")
+    field: "FieldData" = betterproto.message_field(6, group="node")
+    tagging: "TaggingData" = betterproto.message_field(7, group="node")
+    badge: "BadgeData" = betterproto.message_field(8, group="node")
+    halt: "HaltData" = betterproto.message_field(9, group="node")
     client: "ClientData" = betterproto.message_field(10, group="node")
-    worker: "WorkerData" = betterproto.message_field(11, group="node")
-    organization: "OrganizationData" = betterproto.message_field(12, group="node")
-    session: "SessionData" = betterproto.message_field(13, group="node")
-    run: "RunData" = betterproto.message_field(14, group="node")
-    field: "FieldData" = betterproto.message_field(15, group="node")
-    module: "ModuleData" = betterproto.message_field(16, group="node")
-    handle: "HandleData" = betterproto.message_field(17, group="node")
-    bench: "BenchData" = betterproto.message_field(18, group="node")
-    halt: "HaltData" = betterproto.message_field(19, group="node")
-    blob: "BlobData" = betterproto.message_field(20, group="node")
+    user: "UserData" = betterproto.message_field(11, group="node")
+    view: "ViewData" = betterproto.message_field(12, group="node")
+    blob: "BlobData" = betterproto.message_field(13, group="node")
+    statement: "StatementData" = betterproto.message_field(14, group="node")
+    file: "FileData" = betterproto.message_field(15, group="node")
+    worker: "WorkerData" = betterproto.message_field(16, group="node")
+    bench: "BenchData" = betterproto.message_field(17, group="node")
+    module: "ModuleData" = betterproto.message_field(18, group="node")
+    issue: "IssueData" = betterproto.message_field(19, group="node")
+    organization: "OrganizationData" = betterproto.message_field(20, group="node")
     trigger: "TriggerData" = betterproto.message_field(21, group="node")
-    tagging: "TaggingData" = betterproto.message_field(22, group="node")
+    signal: "SignalData" = betterproto.message_field(22, group="node")
     worker_set: "WorkerSetData" = betterproto.message_field(23, group="node")
-    badge: "BadgeData" = betterproto.message_field(24, group="node")
-    statement: "StatementData" = betterproto.message_field(25, group="node")
+    secret: "SecretData" = betterproto.message_field(24, group="node")
+    notification: "NotificationData" = betterproto.message_field(25, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -3039,47 +3038,47 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    IssueData,
-    SignalData,
-    NotificationData,
     RecordData,
-    FileData,
-    SecretData,
-    UserData,
-    LinkData,
-    ViewData,
-    ClientData,
-    WorkerData,
-    OrganizationData,
     SessionData,
-    RunData,
-    FieldData,
-    ModuleData,
     HandleData,
-    BenchData,
-    HaltData,
-    BlobData,
-    TriggerData,
+    RunData,
+    LinkData,
+    FieldData,
     TaggingData,
-    WorkerSetData,
     BadgeData,
+    HaltData,
+    ClientData,
+    UserData,
+    ViewData,
+    BlobData,
     StatementData,
+    FileData,
+    WorkerData,
+    BenchData,
+    ModuleData,
+    IssueData,
+    OrganizationData,
+    TriggerData,
+    SignalData,
+    WorkerSetData,
+    SecretData,
+    NotificationData,
 ]
 AnyStructData = Union[
-    AggregationBucketData,
-    PropertyPointerData,
-    RunErrorData,
+    MiniRunData,
     AggregationData,
+    ContextData,
+    ExpressionData,
+    RunErrorData,
+    PolicyData,
+    PropertyPointerData,
     RunCodeFrameData,
     NodePointerData,
-    LogEntryData,
+    AggregationBucketData,
     WorkerImageData,
-    ExpressionData,
-    PolicyData,
-    ContextData,
     PolicyRuleData,
-    MiniRunData,
     DependencyData,
+    LogEntryData,
 ]
 
-VERSION = "2024.01.18.2"
+VERSION = "2024.01.18.3"

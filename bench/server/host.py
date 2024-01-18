@@ -59,7 +59,7 @@ from bench.server.utils import (
     detached_session,
 )
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
-from bench.sql.engine import read_node_from_pg
+from bench.sql.engine import pg_read_node
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -145,17 +145,18 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
 
     async def start_quick(self) -> None:
         async with detached_session() as session:
-            self.bench: Bench = await read_node_from_pg(
+            self.bench: Bench = await pg_read_node(
                 session=session,
                 root_type=NodeType.BENCH,
                 root_id=self.bench_id,
                 descendant_types=(NodeType.BADGE,),
             )
-            self.module: Module = await read_node_from_pg(
+            self.module: Module = await pg_read_node(
                 session=session,
                 root_type=NodeType.MODULE,
-                root_ids=self.module_id,
+                root_id=self.module_id,
                 descendant_types=IN_MODULE_NODE_TYPES,
+                parent=self.bench,
             )
 
     #
