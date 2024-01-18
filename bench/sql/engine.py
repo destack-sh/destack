@@ -16,14 +16,21 @@ from psycopg.types.json import Jsonb
 
 import bench.language as lang
 from bench.language import ConditionalOp, Field, Module, QueryEngine, Session, Statement
-from bench.language.const import EditKind, NodeType, TypeFlag, TypeStorageFormat, to_bench_metatype
+from bench.language.const import (
+    EditKind,
+    NodeType,
+    TypeFlag,
+    TypeStorageFormat,
+    to_bench_metatype,
+    NODE_TYPES,
+)
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     ExpressionOps,
     QueryEngineIncapableError,
 )
-from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node, Property, get_node_id
+from bench.language.node import NODE_CLASS_BY_TYPE, UNSET, Node, Property, get_node_id, NODE_CLASSES
 from bench.language.tree import NodeTree
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, NodePointerData
@@ -41,6 +48,8 @@ from bench.sql.core import (
     IndexType,
     SqlPrimitive,
     Table,
+    DEFAULT_GLOBAL_TABLES,
+    DEFAULT_LOCAL_TABLES,
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL_ENV, to_all_caps
@@ -57,7 +66,7 @@ def get_bench_table_name(node_type: NodeType) -> str:
     return f"bench_{node_type.name.lower().replace('_', '')}"
 
 
-def map_node_type_to_pg_table(node: type[Node]) -> Table:
+def map_node_class_to_pg_table(node: type[Node]) -> Table:
     # TODO @Robustness: add Bench check constraints in Postgres
     table_name = get_bench_table_name(node.metatype)
     columns: list[Column] = []
@@ -169,13 +178,6 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
     )
     return table
 
-
-TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
-    # read previously generated tables in schema.py
-    node_type: getattr(schema, f"{to_all_caps(node_type.name)}_TABLE")
-    for node_type in NodeType
-    if hasattr(schema, f"{to_all_caps(node_type.name)}_TABLE")
-}
 
 COLUMN_TYPE_BY_STORAGE_FORMAT: dict[TypeStorageFormat, ColumnType] = {
     TypeStorageFormat.STRING: ColumnType.STRING,
@@ -1428,3 +1430,23 @@ async def delete_local_pg_database(pg_name: str, pg_username: str) -> None:
         await cur.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(pg_name)))
 
     log.info("pg.delete_db.done")
+
+
+TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
+    # read previously generated tables in schema.py
+    node_type: getattr(schema, f"{to_all_caps(node_type.name)}_TABLE")
+    for node_type in NODE_TYPES
+    if hasattr(schema, f"{to_all_caps(node_type.name)}_TABLE")
+}
+NODE_TABLES: tuple[Table, ...] = tuple(TABLE_BY_NODE_TYPE.values())
+GLOBAL_TABLES: tuple[Table, ...] = DEFAULT_GLOBAL_TABLES + tuple(
+    TABLE_BY_NODE_TYPE[node.metatype]
+    for node in NODE_CLASSES
+    if not node.__is_local__ and node.__is_stored__ and not node.__is_stored_custom__
+)
+LOCAL_TABLES: tuple[Table, ...] = DEFAULT_LOCAL_TABLES + tuple(
+    TABLE_BY_NODE_TYPE[node.metatype]
+    for node in NODE_CLASSES
+    if node.__is_local__ and node.__is_stored__ and not node.__is_stored_custom__
+)
+ALL_TABLES: tuple[Table, ...] = GLOBAL_TABLES + LOCAL_TABLES

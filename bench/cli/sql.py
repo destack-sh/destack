@@ -12,11 +12,10 @@ from rich import print
 
 from bench.cli.utils import _async_to_sync_blocking
 from bench.language.const import VERSION, NodeType
-from bench.language.node import NODE_CLASS_BY_TYPE, NODE_CLASSES, Bench
-from bench.server.session import detached_session
+from bench.language.node import NODE_CLASS_BY_TYPE, Bench
+from bench.server.utils import detached_session
 from bench.sql.client import _get_pg_connection_str, async_pg_cursor
-from bench.sql.core import DEFAULT_GLOBAL_TABLES, DEFAULT_LOCAL_TABLES
-from bench.sql.engine import map_node_type_to_pg_table
+from bench.sql.engine import map_node_class_to_pg_table, GLOBAL_TABLES, LOCAL_TABLES
 from bench.sql.migration import (
     Migration,
     add_migration_to_fs,
@@ -47,7 +46,7 @@ def _generate_pg_schema():
     for node_t in NodeType:
         node_cls = NODE_CLASS_BY_TYPE[node_t]
         if node_cls.__is_stored__ and not node_cls.__is_stored_custom__:
-            table = map_node_type_to_pg_table(node_cls)
+            table = map_node_class_to_pg_table(node_cls)
             const_name = f"{node_cls.metatype.name}_TABLE"
             table_def = f"{const_name} = {table.source_repr()}"
             chunks.append(table_def)
@@ -114,18 +113,10 @@ async def makemigrations(
         old_global_tables = await introspect_tables_from_pg(cur)
     async with async_pg_cursor(local_pg_name=local_pg_name) as cur:
         old_local_tables = await introspect_tables_from_pg(cur)
-    node_global_tables = [
-        node.__table__ for node in NODE_CLASSES if not node.__is_local__ and node.__table__
-    ]
-    new_global_tables = [*DEFAULT_GLOBAL_TABLES, *node_global_tables]
-    node_local_tables = [
-        node.__table__ for node in NODE_CLASSES if node.__is_local__ and node.__table__
-    ]
-    new_local_tables = [*DEFAULT_LOCAL_TABLES, *node_local_tables]
 
     # generate migration
-    global_migration_ops = generate_migration_ops(old_global_tables, new_global_tables)
-    local_migration_ops = generate_migration_ops(old_local_tables, new_local_tables)
+    global_migration_ops = generate_migration_ops(old_global_tables, GLOBAL_TABLES)
+    local_migration_ops = generate_migration_ops(old_local_tables, LOCAL_TABLES)
     if not global_migration_ops and not local_migration_ops:
         logger.info("makemigrations.noop")
         return

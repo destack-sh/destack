@@ -339,7 +339,9 @@ class MigrationOp:
         raise RuntimeError(f"unexpected migration op type: {self.kind}")
 
 
-def generate_migration_ops(old_tables: list[Table], new_tables: list[Table]) -> list[MigrationOp]:
+def generate_migration_ops(
+    old_tables: Collection[Table], new_tables: Collection[Table]
+) -> list[MigrationOp]:
     """Generates the migration operations to go from the old tables to the new tables."""
 
     def _to_id(obj: TableObject) -> str:
