@@ -14,7 +14,8 @@ from bench.language.node import (
     struct_property,
 )
 from bench.language.tagging import HasTags
-from bench.language.validation import validate_name
+from bench.language.text import HasText
+from bench.language.validation import validate_name, validate_is_str
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
 
 @node(NodeType.FILE, passthrough=(("statements", _Passthrough.Scope),))
-class File(ScopeNode, HasTags):
+class File(ScopeNode, HasTags, HasText):
     """
     Files are how a Bench organizes statements. Files can also be folders to other files.
     """
@@ -33,7 +34,7 @@ class File(ScopeNode, HasTags):
     )
     name: Optional[str] = struct_property(30, validate=validate_name)
     order_key: Optional[str] = struct_internal(31, default=None)
-
+    text: str | None = struct_property(32, default=None, validate=validate_is_str)
     children: NodeList[Union["File", "Statement"]] = node_children(
         NodeType.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
     )

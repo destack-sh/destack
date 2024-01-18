@@ -73,7 +73,7 @@ from bench.language.validation import (
 )
 from bench.proto.core import ProtoStrEnum
 from bench.proto.wire import EditData, NodePointerData, SomeNodeData
-from bench.sql.core import CascadeAction, ColumnType, Table
+from bench.sql.core import CascadeAction, ColumnType, Table, Column
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import did_you_mean_str, get_subclasses, strip_py_type, try_tuple
 from bench.utils.utils import LOCAL_ENV, IdentifierType, frozendict, required_field, to_pyidentifier
@@ -174,48 +174,6 @@ class Property(_FieldExpressionBase):
         if self.is_runtime_only and self.default is UNSET and self.default_factory is None:
             raise ValueError(f"missing default for {self!r}")
 
-    @functools.cached_property
-    def _as_field(self) -> "Field":
-        assert self.is_reflected is True, f"{self!r} is not reflected"
-
-        from bench.language.field import Field
-
-        # derive constant ck for field using ids
-        metatype = getattr(self.component, "metatype", None)  # (ABCs don't have a metatype)
-        metatype_id = metatype.id if metatype is not None else None
-        if self.column_type == ColumnType.BOOLEAN:
-            tag, hint = TypeTag.BOOLEAN, None
-        elif self.column_type == ColumnType.BIGINT:
-            tag, hint = TypeTag.NUMBER, TypeHint.INTEGER
-        elif self.column_type == ColumnType.FLOAT:
-            tag, hint = TypeTag.NUMBER, None
-        elif self.column_type == ColumnType.STRING:
-            tag, hint = TypeTag.STRING, None
-        elif self.column_type == ColumnType.DATETIME:
-            tag, hint = TypeTag.STRING, TypeHint.DATETIME
-        elif self.column_type == ColumnType.UUID:
-            tag, hint = TypeTag.STRING, TypeHint.UUID
-        elif self.column_type == ColumnType.JSON:
-            tag, hint = TypeTag.JSON, None
-        else:
-            raise ValueError(f"unexpected column type in {self!r}: {self.column_type}")
-        field_ck = uuid.uuid5(UUID_NAMESPACE, f"{metatype_id}.{self.id}")
-        field = Field(name=self.name, ck=field_ck, tag=tag, hint=hint, _reflected_from=self)
-        return field
-
-    @functools.cached_property
-    def ptr(self) -> "PropertyPointer":
-        """A pointer to this property."""
-        assert self.is_reflected is True, f"{self!r} is not reflected"
-        assert self.component is not None, f"{self!r} is not finalized"
-        from bench.language.expression import PropertyPointer
-
-        return PropertyPointer(type=self.component.metatype, id=self.id)
-
-    @property
-    def py_ident(self) -> str:
-        return self.name
-
     def __str__(self):
         if self.component is None:
             return "<detached>"
@@ -268,6 +226,53 @@ class Property(_FieldExpressionBase):
         attrs_str = ", ".join(non_default)
         attrs_str = f" ({attrs_str})" if attrs_str else ""
         return f"<{self.__class__.__name__} {str(self)}{attrs_str}>"
+
+    @functools.cached_property
+    def _as_field(self) -> "Field":
+        assert self.is_reflected is True, f"{self!r} is not reflected"
+
+        from bench.language.field import Field
+
+        # derive constant ck for field using ids
+        metatype = getattr(self.component, "metatype", None)  # (ABCs don't have a metatype)
+        metatype_id = metatype.id if metatype is not None else None
+        if self.column_type == ColumnType.BOOLEAN:
+            tag, hint = TypeTag.BOOLEAN, None
+        elif self.column_type == ColumnType.BIGINT:
+            tag, hint = TypeTag.NUMBER, TypeHint.INTEGER
+        elif self.column_type == ColumnType.FLOAT:
+            tag, hint = TypeTag.NUMBER, None
+        elif self.column_type == ColumnType.STRING:
+            tag, hint = TypeTag.STRING, None
+        elif self.column_type == ColumnType.DATETIME:
+            tag, hint = TypeTag.STRING, TypeHint.DATETIME
+        elif self.column_type == ColumnType.UUID:
+            tag, hint = TypeTag.STRING, TypeHint.UUID
+        elif self.column_type == ColumnType.JSON:
+            tag, hint = TypeTag.JSON, None
+        else:
+            raise ValueError(f"unexpected column type in {self!r}: {self.column_type}")
+        field_ck = uuid.uuid5(UUID_NAMESPACE, f"{metatype_id}.{self.id}")
+        field = Field(name=self.name, ck=field_ck, tag=tag, hint=hint, _reflected_from=self)
+        return field
+
+    @functools.cached_property
+    def ptr(self) -> "PropertyPointer":
+        """A pointer to this property."""
+        assert self.is_reflected is True, f"{self!r} is not reflected"
+        assert self.component is not None, f"{self!r} is not finalized"
+        from bench.language.expression import PropertyPointer
+
+        return PropertyPointer(type=self.component.metatype, id=self.id)
+
+    @property
+    def py_ident(self) -> str:
+        return self.name
+
+    @property
+    def column(self) -> Column:
+        self.component: type["Node"]
+        return self.component.__table__._columns_by_name[self.name]
 
     @property
     def is_tree_relation(self) -> bool:
@@ -1345,7 +1350,7 @@ class Node(Struct, _NodeExpressionBase):
     The id is derived from the module id, so it's only assigned when the node is attached.
     """
 
-    metatype: ClassVar[NodeType]  # type discriminator is field 0 if needed?
+    metatype: ClassVar[NodeType]
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
@@ -2019,9 +2024,20 @@ class Bench(ScopeNode):
 
     # versions: NodeList["Module"] = node_children(NodeType.MODULE, NRel.Remote)
 
+    def __str__(self):
+        name_str = f"{self.path} '{self.name}' " if self.name else ""
+        return f"{name_str}"
+
+    def __repr__(self):
+        return f"<Bench {self}>"
+
     @property
-    def owner(self) -> Union["Organization", "User"]:
+    def owner(self) -> Union["Organization", "User", None]:
         return self.organization or self.user
+
+    @property
+    def path(self) -> str:
+        return self.slug
 
     @property
     def attached(self) -> bool:
@@ -2325,10 +2341,18 @@ class Module(ScopeNode):
         return module
 
 
+# quick access to all the classes
 _BENCH_CLASSES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
 BENCH_CLASSES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
 NODE_CLASSES: frozenset[type[Node]] = frozenset()
 STRUCT_CLASSES: frozenset[type[Struct]] = frozenset()
+
+# direct parent/child
+PARENT_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
+CHILD_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
+# transient parent/child
+ANCESTOR_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
+DESCENDANT_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
 
 
 def _complete_bench_setup():
@@ -2404,26 +2428,48 @@ def _complete_bench_setup():
         else:
             node_cls.__table__ = None
 
-    # determine node ancestry (is in module/bench)
-    #  (to check if it was set consistently - we need to set this manually in @node
-    #   because we can only walk parent types after finalization)
-    def _has_module_ancestor(node_type: NodeType) -> bool:
-        if node_type == NodeType.MODULE:
-            return True
-        for parent_type in NODE_CLASS_BY_TYPE[node_type].__parent_property__.reference_types:
-            if parent_type == NodeType.MODULE:
-                return True
-            if parent_type != node_type:
-                return _has_module_ancestor(parent_type)
-        return False
-
+    # determine node ancestry relationships (parent/child)
+    parent_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
+    child_types: dict[NodeType, set[NodeType]] = {nt: set() for nt in NODE_TYPES}
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        if node_cls.__root__ is None or node_cls.__root__ != NodeType.BENCH:
-            in_bench = False
-            in_module = False
-        else:  # check if node is in module
-            in_bench = True
-            in_module = _has_module_ancestor(node_cls.metatype)
+        for parent_type in node_cls.__parent_property__.reference_types:
+            parent_types[node_cls.metatype].add(parent_type)
+            child_types[parent_type].add(node_cls.metatype)
+    # ancestor/descendant: extend parent/child transitively
+    ancestor_types: dict[NodeType, set[NodeType]] = defaultdict(set)
+    descendant_types: dict[NodeType, set[NodeType]] = defaultdict(set)
+    for node_type in NODE_TYPES:
+        new_parents = list(parent_types[node_type])
+        while new_parents:
+            new_parent = new_parents.pop()
+            ancestor_types[node_type].add(new_parent)
+            ancestor_types[node_type] |= ancestor_types[new_parent]
+            new_parents.extend(parent_types[new_parent] - ancestor_types[node_type])
+        new_children = list(child_types[node_type])
+        while new_children:
+            new_child = new_children.pop()
+            descendant_types[node_type].add(new_child)
+            descendant_types[node_type] |= descendant_types[new_child]
+            new_children.extend(child_types[new_child] - descendant_types[node_type])
+
+    global ANCESTOR_NODE_TYPES, DESCENDANT_NODE_TYPES, PARENT_NODE_TYPES, CHILD_NODE_TYPES
+    for node_type in NODE_TYPES:
+        ANCESTOR_NODE_TYPES[node_type] = tuple(ancestor_types[node_type])
+        DESCENDANT_NODE_TYPES[node_type] = tuple(descendant_types[node_type])
+        PARENT_NODE_TYPES[node_type] = tuple(parent_types[node_type])
+        CHILD_NODE_TYPES[node_type] = tuple(child_types[node_type])
+
+    # check that is_in_module/is_in_bench was declared correctly
+    #  (need to set that in @node upfront because traversing parents can only happen in finalization)
+    for node_cls in NODE_CLASS_BY_TYPE.values():
+        in_bench = (
+            node_cls.metatype == NodeType.BENCH
+            or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.BENCH]
+        )
+        in_module = (
+            node_cls.metatype == NodeType.MODULE
+            or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.MODULE]
+        )
         if in_bench != node_cls.__is_in_bench__ or in_module != node_cls.__is_in_module__:
             raise ValueError(
                 f"{node_cls!r} parent types are inconsistent: root={node_cls.__root__} implies in_bench={in_bench} and in_module={in_module}, but got in_bench={node_cls.__is_in_bench__} and in_module={node_cls.__is_in_module__}"

@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.18.2"
+VERSION = "2024.01.18.3"
 
 
 #
@@ -27,7 +27,7 @@ VERSION = "2024.01.18.2"
 class NodeType(ProtoStrEnum):
     # root
     BENCH = "BENCH", 1
-    # ENVIRONMENT = "ENVIRONMENT", 2
+    # UNIVERSE = "UNIVERSE", 2
     # PLACE = "PLACE", 3
     # BRANCH = "BRANCH", 4
 
@@ -41,8 +41,9 @@ class NodeType(ProtoStrEnum):
     RECORD = "RECORD", 16  # (local)
     VIEW = "VIEW", 17
     # TILE = "TILE", 18
-    ISSUE = "ISSUE", 19
-    LINK = "LINK", 20
+    # STEP = "STEP", 19
+    ISSUE = "ISSUE", 20
+    LINK = "LINK", 21
 
     # bench-level
     BLOB = "BLOB", 40
@@ -66,11 +67,12 @@ class NodeType(ProtoStrEnum):
     CLIENT = "CLIENT", 103
     NOTIFICATION = "NOTIFICATION", 104
     BADGE = "BADGE", 105
+
     # IDENTITY = "IDENTITY", 106
+    # ROLE = "ROLE", 107
 
     # INVITE = "INVITE", 110
     # MEMBERSHIP = "MEMBERSHIP", 111
-    # ROLE = "ROLE", 112
     # COMMENT = "COMMENT", 130
 
     @property
@@ -167,23 +169,23 @@ class ReadKind(ProtoStrEnum):
 
 
 class EditKind(ProtoStrEnum):
-    CREATE = "CREATE", 10  # start at 10, so we can have read 'actions' as well
-    UPSERT = "UPSERT", 11
-    UPDATE = "UPDATE", 12
-    MOVE = "MOVE", 13
-    BUMP = "BUMP", 14
-    SOFT_DELETE = "SOFT_DELETE", 15
-    RESTORE = "RESTORE", 16
-    ARCHIVE = "ARCHIVE", 17
-    UNARCHIVE = "UNARCHIVE", 18
-    DELETE = "DELETE", 19
+    CREATE = "CREATE", 20  # start at 20, so we can have read 'actions' as well
+    UPSERT = "UPSERT", 21
+    UPDATE = "UPDATE", 22
+    MOVE = "MOVE", 23
+    BUMP = "BUMP", 24
+    SOFT_DELETE = "SOFT_DELETE", 25
+    RESTORE = "RESTORE", 26
+    ARCHIVE = "ARCHIVE", 27
+    UNARCHIVE = "UNARCHIVE", 28
+    DELETE = "DELETE", 29
 
 
 class RunKind(ProtoStrEnum):
-    START = "START", 20
-    PAUSE = "PAUSE", 21
-    RESUME = "RESUME", 22
-    KILL = "KILL", 23
+    START = "START", 40
+    PAUSE = "PAUSE", 41
+    RESUME = "RESUME", 42
+    KILL = "KILL", 43
 
 
 if typing.TYPE_CHECKING:
@@ -218,14 +220,13 @@ class PolicyEffect(ProtoStrEnum):
 
 
 class NotificationType(ProtoStrEnum):
-    EDIT = "EDIT", 1
+    pass
 
 
 class NotificationStatus(ProtoStrEnum):
     ACTIVE = "ACTIVE", 1
     READ = "READ", 2
     EXPIRED = "EXPIRED", 3
-    ARCHIVED = "ARCHIVED", 4
 
 
 class StatementType(ProtoStrEnum):

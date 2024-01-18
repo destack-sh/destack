@@ -160,7 +160,7 @@ class Expression(Struct):
     @property
     def _property_resolved(self) -> Property:
         assert self.property_ptr is not None, f"cannot resolve property for {self!r}"
-        bench_cls = BENCH_CLASS_BY_TYPE[self.property_ptr.type]
+        bench_cls = BENCH_CLASS_BY_TYPE[self.property_ptr.type] if self.property_ptr.type else Node
         return bench_cls.__properties_by_id__[self.property_ptr.id]
 
     def _collect_ops(self) -> set[ExpressionOp]:
@@ -276,7 +276,7 @@ class AggregationBucket(Struct):
 
 def coerce_conditional(
     node: Union[Node, type[Node], "HasFields"],
-    expr: Optional[Expression],
+    expr: Optional[Expression] = None,
     kwargs: Optional[dict[str, Any]] = None,
     return_none_if_empty: bool = False,
 ) -> Optional[Expression]:
@@ -295,6 +295,7 @@ def coerce_conditional(
     for arg, value in kwargs.items():
         if "__" in arg:
             field_key, op = arg.split("__", 1)
+            op = CONDITIONAL_OP_BY_DJANGO_STR[op]
         else:
             field_key, op = arg, ConditionalOp.EQUALS
         target = None
@@ -309,6 +310,11 @@ def coerce_conditional(
             field, property = None, target.ptr
         else:
             field, property = target, None
+        if value is None:
+            if op == ConditionalOp.EQUALS:
+                op = ConditionalOp.NOT_EXISTS
+            elif op == ConditionalOp.NOT_EQUALS:
+                op = ConditionalOp.EXISTS
         clauses.append(Expression(op=op, field=field, property_ptr=property, value=value))
     if not clauses:
         if return_none_if_empty:

@@ -92,21 +92,6 @@ class NodeTreeBase(abc.ABC, Generic[NT]):
         """Gets all descendants as filtered in BFS order"""
         raise NotImplementedError
 
-    def collect_descendants(self, nodes: Collection[NT]) -> list["NT"]:
-        """Gets all descendants in BFS order"""
-        raise NotImplementedError
-
-    def get_ancestor(self, node_id: UUID, node_type: NodeType | None = None) -> Optional["NT"]:
-        """Finds the next ancestor of the given type (including self)"""
-        raise NotImplementedError
-
-    def ancestor(self, node_id: UUID, node_type: NodeType | None = None) -> "NT":
-        """Gets the next ancestor of the given type (including self)"""
-        node = self.get_ancestor(node_id, node_type)
-        if node is None:
-            raise LookupError(f"no ancestor of type {node_type} for node {node_id!r}")
-        return node
-
     def apply_edit(self, edit: EditData):
         """Applies a list of edits to the tree"""
         if edit.kind in (EditKind.CREATE, EditKind.RESTORE):
@@ -357,60 +342,6 @@ class NodeTree(NodeTreeBase[NT]):
             descendants = [n for n in descendants if to_bench_metatype(n.metatype) == node_type]
         return descendants
 
-    def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
-        """Gets all descendants in BFS order"""
-        descendants_by_ck: dict[UUID, NT] = {}
-        children = deque(nodes)
-        while children:
-            child = children.popleft()
-            if child.ck not in descendants_by_ck:
-                descendants_by_ck[child.ck] = child
-                if child.id in self.node_id_by_parent_id:
-                    children.extend(
-                        self.nodes_by_id[n] for n in self.node_id_by_parent_id[child.id]
-                    )
-        return descendants_by_ck.values()
-
-    def get_ancestor(self, node_id: UUID, node_type: NodeType | None = None) -> Optional["NT"]:
-        """Finds the next ancestor of the given type (including self)"""
-        assert isinstance(node_id, UUID), f"expected UUID, got {node_id!r}"
-        if node_id in self.nodes_by_id:
-            node_id = node_id
-        elif node_id in self.nodes_by_ck:
-            node_id = self.nodes_by_ck[node_id].id
-        else:
-            raise ValueError(f"node {node_id} is not in {self!r}")
-        node = self.nodes_by_id.get(node_id)
-        while node:
-            if not node_type or to_bench_metatype(node.metatype) == node_type:
-                return node
-            if node.parent_id is None:
-                return None
-            node = self.nodes_by_id[to_uuid(node.parent_id)]
-        return None
-
-    def get_ancestors(
-        self,
-        node_id: UUID,
-        node_type: NodeType | None = None,
-        include_self: bool = False,
-    ) -> list["NT"]:
-        """Finds all ancestors of the given type"""
-        assert isinstance(node_id, UUID), f"expected UUID, got {node_id!r}"
-        ancestors = []
-        node = self.nodes_by_id.get(node_id)
-        if node is None:
-            raise ValueError(f"node {node_id} is not in {self!r}")
-        if include_self:
-            ancestors.append(node)
-        while node:
-            if not node_type or to_bench_metatype(node.metatype) == node_type:
-                ancestors.append(node)
-            if node.parent_id is None:
-                break
-            node = self.nodes_by_id[to_uuid(node.parent_id)]
-        return ancestors
-
 
 class DetachedNodeTree(NodeTreeBase[NT]):
     """
@@ -517,29 +448,3 @@ class DetachedNodeTree(NodeTreeBase[NT]):
         if not prefilter and node_type:
             descendants = [n for n in descendants if n.metatype == node_type]
         return descendants
-
-    def collect_descendants(self, nodes: Collection[NT]) -> Collection["NT"]:
-        """Gets all descendants in BFS order"""
-        descendants_by_ck: dict[UUID, NT] = {}
-        children = deque(nodes)
-        while children:
-            child = children.popleft()
-            if child.ck not in descendants_by_ck:
-                descendants_by_ck[child.ck] = child
-                if child.ck in self.nodes_by_parent_ck:
-                    children.extend(self.nodes_by_parent_ck[child.ck])
-        return descendants_by_ck.values()
-
-    def get_ancestor(self, node_id: UUID, node_type: NodeType | None = None) -> Optional["NT"]:
-        """Finds the next ancestor of the given type (including self)"""
-        assert isinstance(node_id, UUID), f"expected UUID, got {node_id!r}"
-        node = self.nodes_by_ck.get(node_id)
-        if node is None:
-            raise ValueError(f"node {node_id} is not in {self!r}")
-        while node:
-            if not node_type or node.metatype == node_type:
-                return node
-            if node.parent is None:
-                return None
-            node = node.parent
-        return None

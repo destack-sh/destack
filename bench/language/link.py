@@ -705,7 +705,7 @@ _NodeFetchResult = NamedTuple(
 class NodeQuery(Generic[NodeT]):
     def __init__(
         self,
-        node_type: NodeType,
+        node_type: NodeType | None,
         filter: Optional["Expression"] = None,
         sort: list["Expression"] | None = None,
         include: list[FieldOrProperty] | None = None,
@@ -716,10 +716,10 @@ class NodeQuery(Generic[NodeT]):
         engine: Optional[QueryEngine] = None,
         cache: bool = True,
     ):
-        from bench.language.node import NODE_CLASS_BY_TYPE
+        from bench.language.node import NODE_CLASS_BY_TYPE, Node
 
         self._node_type = node_type
-        self._node_cls = NODE_CLASS_BY_TYPE[node_type]
+        self._node_cls = NODE_CLASS_BY_TYPE[node_type] if node_type else Node
         self._filter = filter
         self._sort = sort
         self._include = include
@@ -836,15 +836,19 @@ class NodeQuery(Generic[NodeT]):
         copy._sort = sort
         return copy
 
-    def select(self, *fields: FieldOrProperty) -> "NodeQuery[NodeT]":
+    def select(self, *properties: FieldOrProperty) -> "NodeQuery[NodeT]":
         """Selects only the given fields in the results."""
         raise NotImplementedError("not yet supported")
 
-    def include(self, *fields: FieldOrProperty) -> "NodeQuery[NodeT]":
+    def include(self, *properties: FieldOrProperty) -> "NodeQuery[NodeT]":
         """Includes the given related fields in the results."""
         raise NotImplementedError("not yet supported")
 
-    def distinct(self, *fields: FieldOrProperty) -> "NodeQuery[NodeT]":
+    def exclude(self, *properties: FieldOrProperty) -> "NodeQuery[NodeT]":
+        """Excludes the given related fields in the results."""
+        raise NotImplementedError("not yet supported")
+
+    def distinct(self, *properties: FieldOrProperty) -> "NodeQuery[NodeT]":
         """Returns results with distinct values in the given fields."""
         raise NotImplementedError("not yet supported")
 
@@ -1032,16 +1036,20 @@ class _NodeExpressionBase:
         return NodeQuery(node_type=cls.metatype).sort(sort, *args)
 
     @classmethod
-    def select(cls: type["Node"], *fields: FieldOrProperty) -> "NodeQuery":
-        return NodeQuery(node_type=cls.metatype).select(*fields)
+    def select(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).select(*properties)
 
     @classmethod
-    def include(cls: type["Node"], *fields: FieldOrProperty) -> "NodeQuery":
-        return NodeQuery(node_type=cls.metatype).include(*fields)
+    def include(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).include(*properties)
 
     @classmethod
-    def distinct(cls: type["Node"], *fields: FieldOrProperty) -> "NodeQuery":
-        return NodeQuery(node_type=cls.metatype).distinct(*fields)
+    def exclude(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).exclude(*properties)
+
+    @classmethod
+    def distinct(cls: type["Node"], *properties: FieldOrProperty) -> "NodeQuery":
+        return NodeQuery(node_type=cls.metatype).distinct(*properties)
 
     @classmethod
     def first(cls: type["Node"], count: int) -> "NodeQuery":

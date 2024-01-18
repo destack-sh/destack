@@ -5,7 +5,6 @@ import pytest
 import structlog
 
 from bench.language import User, Handle
-from bench.language.node import NODE_CLASSES
 from bench.sql.client import async_pg_cursor
 from bench.sql.migration import (
     introspect_tables_from_pg,
