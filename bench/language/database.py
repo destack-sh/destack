@@ -4,18 +4,12 @@ from copy import deepcopy
 from typing import Optional
 from uuid import UUID
 
-from asgiref.sync import async_to_sync
 import psycopg
 import structlog
+from asgiref.sync import async_to_sync
 from psycopg import sql
 
-from bench.utils.func import _auto_async_to_sync
-from bench.language.const import (
-    ConditionalOp,
-    NodeType,
-    QueryEngine,
-    new_dynamic_node_key,
-)
+from bench.language.const import ConditionalOp, NodeType, QueryEngine, new_dynamic_node_key
 from bench.language.expression import C, Expression, ExpressionOps, coerce_conditional, coerce_sort
 from bench.language.issue import IssueHandler
 from bench.language.node import (
@@ -38,7 +32,7 @@ from bench.language.node import (
 from bench.language.value import HasValue
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, ColumnType, Table
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import describe_type
+from bench.utils.func import _auto_async_to_sync, describe_type
 from bench.utils.utils import flatten
 
 if typing.TYPE_CHECKING:
@@ -277,7 +271,9 @@ class RecordQuery:
         if len(results) == 1:
             return results[0]
         else:
-            raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results!r}")
+            raise ValueError(
+                f"expected 1 result from {self!r} (filter={filter!r}), got {len(results)}: {results!r}"
+            )
 
     def filter(self, filter: Expression = None, **kwargs) -> "RecordQuery":
         """Adds a filter clause to the query."""

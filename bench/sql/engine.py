@@ -122,7 +122,7 @@ def map_node_type_to_pg_table(node: type[Node]) -> Table:
                     index.inner_name,  # must be the same as the index name (postgres will rename otherwise)
                     type=ConstraintType.UNIQUE,
                     columns=(column.name,),
-                    index=f"{table_name}_{index.inner_name}",
+                    index=index.inner_name,
                     _source=prop.id,
                 )
                 constraints.append(constraint)

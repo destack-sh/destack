@@ -215,7 +215,7 @@ class Column(TableObject):
     is_primary_key: bool = False
     is_foreign_key_to: str | None = None
     on_delete: CascadeAction | None = None
-    is_unique: bool = False
+    is_unique: bool = False  # handled via constraints
     is_nullable: bool = False
     is_encrypted: bool = False
     length: int | None = None
@@ -284,8 +284,8 @@ class Constraint(TableObject):
     type: ConstraintType
     columns: tuple[str, ...] | None = None
     condition: str | None = None
-    index: str | None = None  # existing index to use
-    _full_name: str | None = None  # as introspected from pg (naming may change)
+    index: str | None = None  # existing index to use (name must be relative to same table)
+    _full_name: str | None = None  # as introspected from pg (naming can change)
     _source: str | int | None = None
     _table: Union["Table", None] = None
 
@@ -313,7 +313,7 @@ class Constraint(TableObject):
             parts.append(f"({self.condition})")
         elif self.type == ConstraintType.UNIQUE:
             if self.index is not None:
-                parts.append(f"USING INDEX {self.index}")
+                parts.append(f"USING INDEX {self.table_name}_{self.index}")
             else:
                 parts.append(f"({', '.join(self.columns)})")
         return " ".join(parts)
@@ -449,6 +449,9 @@ class Table(TableObject):
                 return False
         return True
 
+    def columns_by_name(self, *names: str) -> tuple[Column, ...]:
+        return tuple(self._columns_by_name[name] for name in names)
+
 
 class PostgresColumnType(enum.StrEnum):
     """
@@ -559,17 +562,33 @@ RECORD_BASE_TABLE = Table(
         Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
         Column("statement_key", ColumnType.STRING, _source=20),
     ),
-    constraints=(
-        # ck + statement_key must be unique
-        Constraint(
-            "unique_ck_statement_key", ConstraintType.UNIQUE, columns=("ck", "statement_key")
-        ),
-    ),
     indexes=(
         # for fetching all records of a database
-        Index("statement_key_deleted_at", IndexType.BTREE, columns=("statement_key", "deleted_at")),
         Index(
-            "statement_key_archive_at", IndexType.BTREE, columns=("statement_key", "archived_at")
+            "bench_idx_statement_key_deleted_at",
+            IndexType.BTREE,
+            columns=("statement_key", "deleted_at"),
+        ),
+        Index(
+            "bench_idx_statement_key_archive_at",
+            IndexType.BTREE,
+            columns=("statement_key", "archived_at"),
+        ),
+        # control the unique index for the ck/statement_key
+        # ck + statement_key must be unique (order is deliberate to get ck_ and statement_key_ indices)
+        Index(
+            "bench_idx_ck_statement_key",
+            IndexType.BTREE,
+            is_unique=True,
+            columns=("ck", "statement_key"),
+        ),
+    ),
+    constraints=(
+        Constraint(
+            "bench_idx_ck_statement_key",
+            ConstraintType.UNIQUE,
+            columns=("ck", "statement_key"),
+            index="bench_idx_ck_statement_key",
         ),
     ),
 )
@@ -582,8 +601,8 @@ RECORD_EPHEMERAL_TABLE = Table(
         Column("statement_id", ColumnType.UUID, _source=22),
         Column("value", ColumnType.JSON, is_nullable=True, _source=30),
     ),
-    constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),
     indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes),),
+    constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),
 )
 
 DEFAULT_LOCAL_TABLES: tuple[Table, ...] = (MIGRATION_TABLE, RECORD_EPHEMERAL_TABLE)
