@@ -546,7 +546,7 @@ def _to_conditional(op: ConditionalOp, target: Union["Field", "Property"], value
 
 
 def _to_sort(op: SortOp, target: Union["Field", "Property"]):
-    from bench.language.expression import S, Property
+    from bench.language.expression import Property, S
 
     if isinstance(target, Property):
         field, property = None, target.ptr
@@ -812,7 +812,9 @@ class NodeQuery(Generic[NodeT]):
         if len(results) == 1:
             return results[0]
         else:
-            raise ValueError(f"expected 1 result from {self!r}, got {len(results)}: {results!r}")
+            raise ValueError(
+                f"expected 1 result from {self!r} (filter={filter!r}), got {len(results)}: {results!r}"
+            )
 
     def filter(self, filter: "Expression" = None, **kwargs) -> "NodeQuery[NodeT]":
         """Adds a filter clause to the query."""

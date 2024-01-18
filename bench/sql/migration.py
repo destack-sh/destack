@@ -30,7 +30,7 @@ from bench.sql.core import (
     Table,
     TableObject,
 )
-from bench.sql.engine import SqlUndefinedObject, pg_select, pg_select_raw, pg_upsert
+from bench.sql.engine import SqlUndefinedObject, pg_delete, pg_select, pg_select_raw, pg_upsert
 from bench.utils.func import partition
 from bench.utils.utils import format_python
 
@@ -116,6 +116,19 @@ async def _write_migrations_to_pg(cur: psycopg.AsyncCursor, migrations: list[Mig
     await pg_upsert(cur, MIGRATION_TABLE, migrations_rows)
 
 
+async def delete_migrations_in_pg(cur: psycopg.AsyncCursor, from_id: int, to_id: int) -> None:
+    """Deletes migrations from the database."""
+    migrations_rows = await pg_delete(
+        cur,
+        MIGRATION_TABLE,
+        where=sql.SQL(f"id >= {from_id} AND id <= {to_id}"),
+        returning=MIGRATION_TABLE.columns,
+    )
+    migrations = [unpack_migration_row(row) for row in migrations_rows]
+    if migrations:
+        logger.warning("migration.delete", migrations=migrations)
+
+
 def read_migrations_from_fs() -> list[Migration]:
     """Reads the available migrations from local filesystem. Actually loads each migration file."""
     migrations: list[Migration] = []
@@ -141,6 +154,20 @@ def read_migrations_from_fs() -> list[Migration]:
         )
         migrations.append(migration)
     return migrations
+
+
+def delete_migrations_in_fs(from_id: int, to_id: int) -> None:
+    """Deletes migrations from the local filesystem."""
+    for migration_file in Path.glob(Path(MIGRATIONS_PATH), "*.py"):
+        if migration_file.stem in (
+            "0000_template",
+            "__init__",
+        ) or not migration_file.name.endswith(".py"):
+            continue
+        logger.warning("migration.delete", migration_file=migration_file)
+        migration_id = int(migration_file.name.split("_")[0])
+        if from_id <= migration_id <= to_id:
+            migration_file.unlink()
 
 
 def _load_migration_from_path(migration: Migration) -> MigrationFile:

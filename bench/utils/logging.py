@@ -18,12 +18,6 @@ FORMATTERS = {
         "()": structlog.stdlib.ProcessorFormatter,
         "processor": structlog.dev.ConsoleRenderer(pad_event=0),
     },
-    "key_value": {
-        "()": structlog.stdlib.ProcessorFormatter,
-        "processor": structlog.processors.KeyValueRenderer(
-            key_order=["timestamp", "level", "event", "logger"]
-        ),
-    },
 }
 
 HANDLERS = {
@@ -46,18 +40,7 @@ if not get_from_env("JSON_LOGS", default=False, type_cast=bool):
 else:
     logged_handlers = ["json_console"]
 
-NOISY_LOG_SOURCES = {
-    "bench.msg.core",
-    "bench.api.runtime",
-    "bench.api.job",
-    "bench.api.build",
-    "bench.api.execution",
-    "bench.api.user",
-    "bench.api.multiplayer",
-    "bench.language.code",
-    "bench.language.tracing",
-    "bench.worker.run",
-}
+NOISY_LOG_SOURCES = {}
 NOISY_LOGGERS = {
     source: {
         "handlers": logged_handlers,
@@ -73,15 +56,7 @@ LOGGING = {
     "formatters": FORMATTERS,
     "handlers": HANDLERS,
     "loggers": {
-        "daphne": {"handlers": logged_handlers, "level": "INFO", "propagate": False},
-        "django_structlog": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
-        "axes": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "bench": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
-        "django.db.backends": {
-            "handlers": logged_handlers,
-            "level": NOISY_LOG_LEVEL,
-            "propagate": False,
-        },
         **NOISY_LOGGERS,
     },
 }
