@@ -282,7 +282,7 @@ class NodeList(NodeListBase[NodeT]):
         assert len(property.reference_types) == 1, f"cannot have many child types: {property!r}"
         self._child_node_type: NodeType = property.reference_types[0]
         self._flags = property.children_flags
-        self._nodes: list[NodeT] = []
+        self._nodes: tuple[NodeT, ...] = ()
 
     if DEBUG:
         # for debugger inspection
@@ -382,7 +382,7 @@ class NodeList(NodeListBase[NodeT]):
             _node._local_tree = None
         else:  # or just add
             added = [_node]
-            self._parent._local_root_tree.add(_node)
+            self._parent._local_root_tree.create(_node)
 
         # register node scope
         if (
@@ -442,7 +442,7 @@ class NodeList(NodeListBase[NodeT]):
         change = _InterpChange._collect(self._parent, None, [_node], _trigger)
         if _delete and self._parent._session:
             self._parent.session.delete(_node)
-        self._parent._local_root_tree.remove(_node)
+        self._parent._local_root_tree.delete(_node)
         _node.parent = None
         change._effect(_trigger)
         if _trigger & _NC.UpdateLists:

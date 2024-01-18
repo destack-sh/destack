@@ -62,6 +62,7 @@ from bench.sql.core import (
     DEFAULT_LOCAL_TABLES,
 )
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.func import describe_type
 from bench.utils.utils import DEBUG, LOCAL_ENV, to_all_caps
 
 logger = structlog.get_logger(__name__)
@@ -380,7 +381,7 @@ def _compile_expression_ref(
     expr: lang.Expression,
 ) -> SqlNode:
     if expr.property_ptr is not None:
-        return sql.Identifier(expr._property_resolved.name)
+        return sql.Identifier(expr._stored_property_resolved.name)
     elif expr.field is not None:
         assert expr.field._reflected_from is None, f"cannot use reflected: {expr!r}->{expr.field!r}"
         if isinstance(node, Statement) and node.ephemeral:
@@ -890,24 +891,25 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
         proto_cls = PROTO_CLASS_BY_TYPE[node_cls.metatype]
         data = proto_cls(metatype=node_cls.metatype)
         for prop in node_cls.__stored_properties__.values():
-            if prop.reference_source is None:  # regular non-ref property
-                value = row[prop.name]
+            value = row.get(prop.name)
+            if value is None:
+                continue
+            elif prop.reference_source is None:  # regular non-ref property
                 value = _unpack_struct_data_prop(prop, value, ignore_array=False)
                 if prop.is_encrypted:
                     pass  # nocheckin: handle colum encrypt/decrypt
                 setattr(data, prop.name, value)
             else:  # ravel reference from per-type columns
                 assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
-                ptr = row[prop.name]
-                if ptr is not None:
-                    if prop.name.endswith("_ck"):
-                        ptr = NodePointerData(type=prop.reference_types[0], ck=ptr)
-                    else:
-                        ptr = NodePointerData(type=prop.reference_types[0], id=ptr)
-                    setattr(data, prop.reference_source.name, ptr)
+                if prop.name.endswith("_ck"):
+                    ptr = NodePointerData(type=prop.reference_types[0], ck=value)
+                else:
+                    ptr = NodePointerData(type=prop.reference_types[0], id=value)
+                setattr(data, prop.reference_source.name, ptr)
         return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
-        raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row!r}") from e
+        row_str = repr(row) if DEBUG else describe_type(row)
+        raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row_str}") from e
 
 
 PgSelectNodesDataResult = typing.NamedTuple(
@@ -976,7 +978,10 @@ async def pg_read_node_tree_data(
 
     # select "roots"
     roots = await pg_select_nodes_data(
-        cur=cur, node_type=root_type, where=global_filter & Node.filter(id__in=root_ids)._filter
+        cur=cur,
+        node_type=root_type,
+        where=global_filter & Node.filter(id__in=root_ids)._filter,
+        properties=select_properties_by_type[root_type],
     )
     if not roots.nodes:
         return None
