@@ -536,11 +536,9 @@ class RecordList(NodeListBase[Record], RecordQuery):
         if node.id is None and self._parent.attached:
             node._assign_id(self._parent.module.id)
         # 'create' node
-        if _create:
-            if not self._parent.attached:
-                # detached record nodes are temporarily hoisted into inline tree :TempRecordTree
-                self._parent._local_root_tree.add(node)
-        # update affected nodes (manually trigger ChangeEffect)
+        if _create and not self._parent.attached:
+            raise RuntimeError(f"cannot create {node!r} in detached {self!r}")
+        # update affected nodes
         if _trigger:
             node._attached_self()
             if self._parent._session:
@@ -554,10 +552,9 @@ class RecordList(NodeListBase[Record], RecordQuery):
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
         # 'create' nodes
-        if _create:
-            if not self._parent.attached:
-                self._parent._local_root_tree.add_many(nodes)  # :TempRecordTree
-        # update affected nodes (manually trigger ChangeEffect)
+        if _create and not self._parent.attached:
+            raise RuntimeError(f"cannot create {nodes!r} in detached {self!r}")
+        # update affected nodes
         if _trigger:
             for n in nodes:
                 n._attached_self()
@@ -573,7 +570,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
             if self._parent._session:
                 self._parent._session.delete(self, node)
             if not self._parent.attached:
-                self._parent._local_root_tree.remove(node)
+                self._parent._local_root_tree.delete(node)
         node.parent = None
 
     @_auto_async_to_sync

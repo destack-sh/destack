@@ -167,9 +167,7 @@ class Property(_FieldExpressionBase):
     ignore_conflicts_with: tuple[type["Node"], ...] | None = None
 
     def __post_init__(self):
-        if self.reference_kind is not None:
-            if self.default is not UNSET:
-                raise ValueError(f"cannot set default for reference property {self!r}")
+        if self.reference_kind is not None and self.default is UNSET:
             self.default = None
         if self.is_runtime_only and self.default is UNSET and self.default_factory is None:
             raise ValueError(f"missing default for {self!r}")
@@ -227,6 +225,9 @@ class Property(_FieldExpressionBase):
         attrs_str = f" ({attrs_str})" if attrs_str else ""
         return f"<{self.__class__.__name__} {str(self)}{attrs_str}>"
 
+    def clone(self):
+        return dataclasses.replace(self, component=None)
+
     @functools.cached_property
     def _as_field(self) -> "Field":
         assert self.is_reflected is True, f"{self!r} is not reflected"
@@ -259,11 +260,16 @@ class Property(_FieldExpressionBase):
     @functools.cached_property
     def ptr(self) -> "PropertyPointer":
         """A pointer to this property."""
-        assert self.is_reflected is True, f"{self!r} is not reflected"
         assert self.component is not None, f"{self!r} is not finalized"
         from bench.language.expression import PropertyPointer
 
-        return PropertyPointer(type=self.component.metatype, id=self.id)
+        if self.reference_kind and len(self.reference_types) == 1:
+            references_type = self.reference_types[0]
+        else:
+            references_type = None
+        return PropertyPointer(
+            type=self.component.metatype, id=self.id, references_type=references_type
+        )
 
     @property
     def py_ident(self) -> str:
@@ -271,7 +277,8 @@ class Property(_FieldExpressionBase):
 
     @property
     def column(self) -> Column:
-        self.component: type["Node"]
+        assert issubclass(self.component, Node), f"{self!r} is not a node property"
+        assert isinstance(self.component.__table__, Table), f"{self.component} has no table"
         return self.component.__table__._columns_by_name[self.name]
 
     @property
@@ -842,6 +849,8 @@ def _process_struct_base_cls(
             # override parent & id with more specific values
             if existing is None or name.startswith("parent") or existing.id is UNSET:
                 if prop.is_static or component not in dynamic_components:
+                    prop = prop.clone()
+                    prop.component = cls
                     properties_by_name[name] = prop
             elif not prop.equals_type(existing):
                 if existing.ignore_conflicts_with and any(
@@ -1231,6 +1240,23 @@ class Struct(abc.ABC):
             self._status = NS.INTERP if _active_session.get() else NS.SOURCE
         self._init_self()
 
+    @classmethod
+    def _get_property(cls, ptr: "PropertyPointer") -> Property | None:
+        if not ptr.references_type:
+            return cls.__properties_by_id__.get(ptr.id, None)
+        else:
+            for prop in cls.__stored_properties__.values():
+                if prop.id == ptr.id and prop.reference_types[0] == ptr.references_type:
+                    return prop
+            return None
+
+    @classmethod
+    def _resolve_property(cls, ptr: "PropertyPointer") -> Property | None:
+        prop = cls._get_property(ptr)
+        if prop is None:
+            raise ValueError(f"unknown property pointer: {ptr!r} in {cls!r}")
+        return prop
+
     @property
     def _components(self) -> tuple[type["Node"], ...]:
         return self.__static_components__
@@ -1417,6 +1443,7 @@ class Node(Struct, _NodeExpressionBase):
     _status: NodeStatus = struct_runtime(default=None)
     _track: NodeTrackingLevel = struct_runtime(default=NodeTrackingLevel.FULL)
     _new: bool = struct_runtime(default=False)
+    _deferred_properties: tuple[str, ...] | None = struct_runtime(default=None)
 
     def __post_init__(self):
         # init ck/id
@@ -1796,7 +1823,7 @@ class ScopeNode(Node):
                 self._local_tree = DetachedNodeTree()
             else:
                 self._local_tree = NodeTree()
-            self._local_tree.add(self)
+            self._local_tree.create(self)
 
     def _updated_inner(self, properties: Collection[str]) -> None:
         if "name" in properties:

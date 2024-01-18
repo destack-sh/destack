@@ -2,6 +2,8 @@ import functools
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
+from more_itertools import first
+
 from bench.language.const import (
     _CONDITIONAL_OP_SIGN,
     AggregationOp,
@@ -46,8 +48,14 @@ class QueryEngineIncapableError(QueryEngineError):
 @struct(StructType.NODE_POINTER)
 class NodePointer(Struct):
     type: NodeType = struct_property(30, require=True)
-    id: Optional[UUID] = struct_property(31)
+    id: Optional[UUID] = struct_property(31, default=None)
     ck: Optional[UUID] = struct_property(32, default=None)
+
+    def __str__(self):
+        return f"{self.type.name}:[id={self.id}, ck={self.ck}]"
+
+    def __repr__(self):
+        return f"<NodePointer {self}>"
 
     @staticmethod
     def from_node(node: Optional[Node]) -> Optional["NodePointer"]:
@@ -63,6 +71,14 @@ class NodePointer(Struct):
 class PropertyPointer(Struct):
     type: BenchType = struct_property(30, require=True)
     id: Optional[int] = struct_property(31)
+    # to disambiguate contributed properties
+    references_type: Optional[NodeType] = struct_property(32)
+
+    def __str__(self):
+        return f"{self.type.name}:{self.id}"
+
+    def __repr__(self):
+        return f"<PropertyPointer {self}>"
 
 
 @struct(StructType.EXPRESSION)
@@ -153,15 +169,15 @@ class Expression(Struct):
         if self.field is not None:
             return self.field
         elif self.property_ptr is not None:
-            return self._property_resolved
+            return self._stored_property_resolved
         else:
             return None
 
-    @property
-    def _property_resolved(self) -> Property:
+    @functools.cached_property
+    def _stored_property_resolved(self) -> Property:
         assert self.property_ptr is not None, f"cannot resolve property for {self!r}"
         bench_cls = BENCH_CLASS_BY_TYPE[self.property_ptr.type] if self.property_ptr.type else Node
-        return bench_cls.__properties_by_id__[self.property_ptr.id]
+        return bench_cls._resolve_property(self.property_ptr)
 
     def _collect_ops(self) -> set[ExpressionOp]:
         """Collect all ops in this expression and its clauses (recursively)."""

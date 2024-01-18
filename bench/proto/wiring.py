@@ -297,7 +297,7 @@ def unpack_node_inline(
                     setattr(parent, prop.name, getattr(node, prop.name))
             node = parent
 
-        unpacked_tree.add(node)
+        unpacked_tree.create(node)
 
     # index & recover node lists
     real_root = unpacked_tree.root
