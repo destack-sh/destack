@@ -35,8 +35,11 @@ from bench.proto.wire import (
     WatchEditsRequest,
     WatchEditsResponse,
 )
-from bench.server.session import detached_session
-from bench.server.utils import check_authenticated_client, validate_bench_data_many
+from bench.server.utils import (
+    check_authenticated_client,
+    validate_bench_data_many,
+    detached_session,
+)
 
 logger = structlog.get_logger(__name__)
 

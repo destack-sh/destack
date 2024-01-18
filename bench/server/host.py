@@ -51,15 +51,15 @@ from bench.proto.wire import (
     WatchLogsRequest,
     WatchLogsResponse,
 )
-from bench.server.session import detached_session
 from bench.server.utils import (
     check_authenticated,
     check_authenticated_worker,
     get_s3_client,
     validate_bench_data_many,
+    detached_session,
 )
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
-from bench.sql.engine import read_node_from_pg, read_nodes_from_pg
+from bench.sql.engine import read_node_from_pg
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
