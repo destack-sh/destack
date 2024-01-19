@@ -54,22 +54,32 @@ def _regen_proto_artifacts(schema_str: str) -> None:
         # backup existing target
         # (only needed for Python since we need the source to compile to regenerate to retry)
         shutil.copy(TARGET_PY_FILE, TARGET_PY_FILE + ".bak")
+
+        # generate
         Path(TARGET_PY_FILE).unlink(missing_ok=True)
         Path(TARGET_PY_DIR).mkdir(parents=True, exist_ok=True)
         _shell(
             f"protoc -I . --python_betterproto_out={TARGET_PY_DIR} {GENERATED_PROTO_FILE} {EXTRA_PROTO_FILES}",
         )
         _shell(f"mv {TARGET_PY_DIR}/symbolx/bench/__init__.py {TARGET_PY_FILE}")
+
+        # add/patch our extra stuff
+        betterproto_code = Path(TARGET_PY_FILE).read_text()
+        patch_prefix_code = "import bench.proto.monkey # noqa\n"
+        patch_postfix_code = f"""
+from typing import Union # noqa
+AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
+AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
+
+VERSION = '{VERSION}'
+        """
         Path(TARGET_PY_FILE).write_text(
-            Path(TARGET_PY_FILE).read_text()
-            # append AnyNodeData/AnyStructData
-            + "\n\nfrom typing import Union # noqa\n"
-            + f"AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]\n"
-            + f"AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]"
-            # append VERSION
-            + f"\n\nVERSION = '{VERSION}'"
+            patch_prefix_code + "\n\n" + betterproto_code + "\n\n" + patch_postfix_code
         )
+
+        # and fix it up
         shutil.rmtree(TARGET_PY_DIR, ignore_errors=True)
+        _shell(f"ruff {TARGET_PY_FILE} --fix", check=False, stdout=DEVNULL)
         _shell(f"pre-commit run black --files {TARGET_PY_FILE}", check=False, stdout=DEVNULL)
     except Exception as e:
         # restore backup

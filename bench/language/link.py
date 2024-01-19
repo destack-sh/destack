@@ -382,7 +382,7 @@ class NodeList(NodeListBase[NodeT]):
             _node._local_tree = None
         else:  # or just add
             added = [_node]
-            self._parent._local_root_tree.create(_node)
+            self._parent._local_root_tree.add(_node)
 
         # register node scope
         if (

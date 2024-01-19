@@ -1,8 +1,7 @@
 import enum
 from collections import OrderedDict
 from copy import copy
-from dataclasses import dataclass
-from typing import Any, Mapping, Self, Union
+from typing import Any, Union
 from uuid import UUID
 
 import betterproto
@@ -24,57 +23,15 @@ from bench.language.node import (
     NodeReferenceKind,
 )
 from bench.language.session import Session
+from bench.language.tree import NodeDataTree
 from bench.proto import wire
 from bench.proto.wire import NodePointerData, AnyNodeData, AnyStructData
 from bench.sql.core import ColumnType
 from bench.utils.func import to_uuid
-from bench.utils.utils import hybridmethod, to_snake_case
+from bench.utils.utils import to_snake_case
 
 logger = structlog.get_logger(__name__)
 
-
-# monkey-patch betterproto 'Struct' to fix from_dict/to_dict
-#  pulls ahead changes from https://github.com/danielgtaylor/python-betterproto/pull/551
-#  see https://github.com/danielgtaylor/python-betterproto/issues/332
-
-
-@dataclass(eq=False, repr=False)
-class PatchedStruct(BetterprotoStruct):
-    @hybridmethod
-    def from_dict(cls: type[Self], value: Mapping[str, Any]) -> Self:  # noqa
-        self = cls()
-        return self.from_dict(value)
-
-    @from_dict.instancemethod
-    def from_dict(self, value: Mapping[str, Any]) -> Self:
-        fields = {**value}
-        for k in fields:
-            if hasattr(fields[k], "from_dict"):
-                fields[k] = fields[k].from_dict()
-
-        self.fields = fields
-        return self
-
-    def to_dict(
-        self,
-        casing: betterproto.Casing = betterproto.Casing.CAMEL,
-        include_default_values: bool = False,
-    ) -> dict[str, Any]:
-        output = {**self.fields}
-        for k in self.fields:
-            if hasattr(self.fields[k], "to_dict"):
-                output[k] = self.fields[k].to_dict(casing, include_default_values)
-        return output
-
-
-# ensure 'Value' is in namespace the first time a Struct-like class is created
-# if we don't do this here calls will fail mysteriously later
-from betterproto.lib.google.protobuf import Value  # noqa
-
-PatchedStruct()
-
-BetterprotoStruct.from_dict = PatchedStruct.from_dict
-BetterprotoStruct.to_dict = PatchedStruct.to_dict
 
 PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
     _type: getattr(wire, _type.camel_name + "Data")
@@ -173,8 +130,6 @@ def unpack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
         return enum_cls(value)
     elif type(value) == str:  # noqa
         return enum_cls(value)
-    elif value.name == "UNSPECIFIED":
-        return None  # revert to default
     else:
         return enum_cls[value.name]
 
@@ -261,7 +216,7 @@ def pack_node_inline(
 
 
 def unpack_node_inline(
-    source_tree: NodeTree[AnyNodeData],
+    source_tree: NodeDataTree,
     parent: Node | None,
     session: Session | None = None,
     exclude: set[NodeType] = None,
@@ -275,19 +230,18 @@ def unpack_node_inline(
         if node_data.metatype in exclude:
             continue
 
-        parent_id = to_uuid(node_data.parent_id)
-        if parent_id is None:
+        if node_data.parent_ptr is None:
             node_parent = parent
-        elif parent_id not in unpacked_tree.nodes_by_id:
-            if parent is not None and parent_id == parent.id:
+        elif node_data.parent_ptr.id not in unpacked_tree.nodes_by_id:
+            if parent is not None and node_data.parent_ptr.id == parent.id:
                 node_parent = parent
             else:
                 logger.warn(
-                    f"node {node_data.id} parent {parent_id} not found in unpacked {unpacked_tree!r}"
+                    f"node {node_data.id} parent {node_data.parent_ptr} not in unpacked {unpacked_tree!r}"
                 )
                 continue  # can happen if there was a race condition in delete cascade and create
         else:
-            node_parent = unpacked_tree.nodes_by_id[parent_id]
+            node_parent = unpacked_tree.nodes_by_id[node_data.parent_ptr.id]
         node = unpack_node(node_data, node_parent, session=session)
 
         # keep parent instance if it was passed (update in place)
@@ -297,12 +251,12 @@ def unpack_node_inline(
                     setattr(parent, prop.name, getattr(node, prop.name))
             node = parent
 
-        unpacked_tree.create(node)
+        unpacked_tree.add(node)
 
     # index & recover node lists
     real_root = unpacked_tree.root
     if isinstance(real_root, ScopeNode):
-        real_root._local_root_tree.set(unpacked_tree.nodes_by_ck.values())
+        real_root._local_root_tree.set(unpacked_tree.nodes)
     for node in unpacked_tree.nodes_by_id.values():
         node._status = NodeStatus.SOURCE  # status is auto-set to interpreted if a session is active
         if isinstance(node, ScopeNode):

@@ -155,6 +155,7 @@ class Field(ProtoThing):
     id: int | None
     name: str
     type: FieldType | Enum | Message | str
+    optional: bool = False
     repeated: bool = False
     key_type: FieldType | None = None  # for map
     value_type: FieldType | None = None  # for map
@@ -162,24 +163,25 @@ class Field(ProtoThing):
 
     def to_proto_source(self) -> str:
         """Convert to proto source."""
+        prefix = ""
         if self.repeated:
-            repeated = "repeated "
-        else:
-            repeated = ""
+            prefix += "repeated "
+        elif self.optional:
+            prefix += "optional "
         if self.type == FieldType.REPEATED:
-            type = f"{repeated}{self.value_type}[]"
+            type = f"{prefix}{self.value_type}[]"
         elif self.type == FieldType.MAP:
-            type = f"{repeated}map<{self.key_type}, {self.value_type}>"
+            type = f"{prefix}map<{self.key_type}, {self.value_type}>"
         elif self.type == FieldType.ONE_OF:
-            type = f"{repeated}oneof {self.name} {{\n"
+            type = f"{prefix}oneof {self.name} {{\n"
             for sub_field in self.sub_fields:
                 type += f"  {sub_field.to_proto_source()};\n"
             type += "}"
             return type  # no id for one of
         elif isinstance(self.type, (Enum, Message)):
-            type = f"{repeated}{self.type.name}"
+            type = f"{prefix}{self.type.name}"
         elif isinstance(self.type, FieldType):
-            type = f"{repeated}{self.type.value}"
+            type = f"{prefix}{self.type.value}"
         else:
-            type = f"{repeated}{self.type}"
+            type = f"{prefix}{self.type}"
         return f"{type} {self.name} = {self.id}"

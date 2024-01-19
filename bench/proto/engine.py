@@ -40,23 +40,41 @@ PROTO_FIELD_TYPE_BY_COLUMN_TYPE: dict[ColumnType, FieldType] = {
 _BenchType = type[Union["Node", "Struct", "Property", enum.StrEnum, enum.IntFlag]]
 
 
-def _bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThing]) -> Field:
+def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThing]) -> Field:
     assert not prop.is_runtime_only, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
     if prop.is_struct or prop.is_enum and prop.column_type == ColumnType.STRING:
-        proto_t = bench_t_to_proto_t(prop.py_type_stripped, cache)
-        return Field(id=prop.id, name=prop.name, type=proto_t, repeated=prop.is_array)
+        proto_t = map_bench_type_to_proto(prop.py_type_stripped, cache)
+        return Field(
+            id=prop.id,
+            name=prop.name,
+            type=proto_t,
+            optional=prop.is_optional or prop.is_deferred,
+            repeated=prop.is_array,
+        )
     elif prop.column_type in PROTO_FIELD_TYPE_BY_COLUMN_TYPE:
         field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.column_type]
-        return Field(id=prop.id, name=prop.name, type=field_type, repeated=prop.is_array)
+        return Field(
+            id=prop.id,
+            name=prop.name,
+            type=field_type,
+            optional=prop.is_optional or prop.is_deferred,
+            repeated=prop.is_array,
+        )
     elif prop.reference_kind is not None:
-        return Field(id=prop.id, name=prop.name, type="NodePointerData", repeated=prop.is_array)
+        return Field(
+            id=prop.id,
+            name=prop.name,
+            type="NodePointerData",
+            optional=prop.is_optional or prop.is_deferred,
+            repeated=prop.is_array,
+        )
     else:
         raise TypeError(f"cannot map {prop.column_type} to proto type: {prop!r}")
 
 
-def _bench_struct_to_proto(
+def map_bench_struct_to_proto(
     node: type["Struct"], cache: dict[_BenchType, ProtoThing], alias: str = None
 ) -> Message:
     struct = Message(name=alias or node.__name__, reserved_names=[], reserved_ids=[], fields=[])
@@ -66,7 +84,7 @@ def _bench_struct_to_proto(
     for prop in node.__properties__.values():
         if not prop.is_wired:
             continue
-        field = _bench_property_to_proto(prop, cache)
+        field = map_bench_property_to_proto(prop, cache)
         struct.fields.append(field)
     for reserved in node.__reserved_properties__:
         if isinstance(reserved, str):
@@ -79,7 +97,7 @@ def _bench_struct_to_proto(
     return struct
 
 
-def _bench_enum_to_proto(
+def map_bench_enum_to_proto(
     bench_t: type[ProtoStrEnum] | type[enum.IntEnum] | type[enum.IntFlag],
     cache: dict[_BenchType, ProtoThing],
     alias: str = None,
@@ -110,7 +128,7 @@ def _bench_enum_to_proto(
     return proto_t
 
 
-def bench_t_to_proto_t(
+def map_bench_type_to_proto(
     bench_t: _BenchType, cache: dict[_BenchType, ProtoThing], alias: str = None
 ) -> ProtoThing:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
@@ -120,9 +138,9 @@ def bench_t_to_proto_t(
     if bench_t in cache:
         return cache[bench_t]
     if issubclass(bench_t, (Node, Struct)):
-        ret = _bench_struct_to_proto(bench_t, cache, alias=alias)
+        ret = map_bench_struct_to_proto(bench_t, cache, alias=alias)
     elif issubclass(bench_t, enum.Enum):
-        ret = _bench_enum_to_proto(bench_t, cache, alias=alias)
+        ret = map_bench_enum_to_proto(bench_t, cache, alias=alias)
     else:
         raise TypeError(f"invalid type: {bench_t!r}")
     cache[bench_t] = ret
@@ -141,7 +159,7 @@ def generate_proto_schema(
 
     proto_types_cache: dict[type[_BenchType], ProtoThing] = {}
     for thing in bench_classes:
-        _ = bench_t_to_proto_t(thing, proto_types_cache, alias=aliases.get(thing))
+        _ = map_bench_type_to_proto(thing, proto_types_cache, alias=aliases.get(thing))
 
     # collect proto types
     collected_enums: list[type[enum.Enum]] = [t for t in bench_classes if issubclass(t, enum.Enum)]
@@ -162,7 +180,7 @@ def generate_proto_schema(
             Field(
                 id=i + 1,
                 name=to_snake_case(t.__name__),
-                type=bench_t_to_proto_t(t, proto_types_cache),
+                type=map_bench_type_to_proto(t, proto_types_cache),
             )
             for i, t in enumerate(unioned_types)
         ]

@@ -41,7 +41,7 @@ from bench.language.node import (
     NODE_CLASSES,
     PARENT_NODE_TYPES,
 )
-from bench.language.tree import NodeTree
+from bench.language.tree import NodeDataTree
 from bench.proto import wire, wiring
 from bench.proto.wire import AnyNodeData, EditData, NodePointerData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
@@ -62,7 +62,7 @@ from bench.sql.core import (
     DEFAULT_LOCAL_TABLES,
 )
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import describe_type
+from bench.utils.func import describe_type, to_uuid
 from bench.utils.utils import DEBUG, LOCAL_ENV, to_all_caps
 
 logger = structlog.get_logger(__name__)
@@ -834,6 +834,8 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
         return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         return bytes(value)
+    elif prop.column_type == ColumnType.UUID:
+        return to_uuid(value)
     elif prop.column_type == ColumnType.JSON:
         return value
     elif prop.is_enum:
@@ -850,6 +852,8 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.is_struct:
         proto_cls = PROTO_CLASS_BY_TYPE[prop.struct_type]
         return proto_cls().parse(value)
+    elif prop.column_type == ColumnType.UUID:
+        return str(value)
     elif prop.column_type == ColumnType.JSON:
         return value
     elif prop.is_enum:
@@ -963,7 +967,7 @@ ALL_SELECTED_PROPERTIES: Mapping[NodeType, tuple[Property, ...]] = {
 }
 
 
-async def pg_read_node_tree_data(
+async def pg_read_node_data_tree(
     cur: psycopg.AsyncCursor,
     root_type: NodeType,
     root_ids: tuple[UUID, ...],
@@ -972,9 +976,9 @@ async def pg_read_node_tree_data(
     descendant_types: tuple[NodeType, ...] | None = None,
     global_filter: lang.Expression = DEFAULT_GLOBAL_FILTER,
     select_properties_by_type: dict[NodeType, tuple[Property, ...]] = DEFAULT_SELECTED_PROPERTIES,
-) -> list["AnyNodeData"] | None:
+) -> NodeDataTree | None:
     """Reads 'regular' nodes from the given PG database. Returns an unordered list of all nodes."""
-    visited_by_id: dict[str, AnyNodeData] = {}
+    visited_tree = NodeDataTree()
 
     # select "roots"
     roots = await pg_select_nodes_data(
@@ -985,6 +989,8 @@ async def pg_read_node_tree_data(
     )
     if not roots.nodes:
         return None
+    for node in roots.nodes:
+        visited_tree.add(node)
 
     # select ancestors (recursively)
     # (basically, walk parent pointer if type is in ancestor_types)
@@ -993,15 +999,13 @@ async def pg_read_node_tree_data(
         to_select_by_type: dict[NodeType, list[str]] = defaultdict(list)
         while current_parents:
             to_select_by_type.clear()
-            for node in current_parents:
-                visited_by_id[node.id] = node
 
             # traverse unseen parents to select next
             for node in current_parents:
                 if (
                     node.parent_ptr is not None
                     and node.parent_ptr.type in ancestor_types
-                    and node.parent_ptr.id not in visited_by_id
+                    and node.parent_ptr.id not in visited_tree
                 ):
                     to_select_by_type[node.parent_ptr.type].append(node.parent_ptr.id)
 
@@ -1015,15 +1019,14 @@ async def pg_read_node_tree_data(
                     select_properties_by_type=select_properties_by_type,
                 )
                 next_parents.extend(layer.nodes)
+                for node in layer.nodes:
+                    visited_tree.add(node)
             current_parents = next_parents
 
     # select descendants (recursively)
     if descendant_types:
         current_parents: list[wire.AnyNodeData] = roots.nodes
         while current_parents:
-            for node in current_parents:
-                visited_by_id[node.id] = node
-
             next_parents: list[wire.AnyNodeData] = []
             # traverse all direct children of plausible types
             for child_type in descendant_types:
@@ -1055,10 +1058,13 @@ async def pg_read_node_tree_data(
                     where=global_filter & parent_filter,
                     properties=select_properties_by_type[child_type],
                 )
-                next_parents.extend(n for n in children.nodes if n.id not in visited_by_id)
+                next_parents.extend(n for n in children.nodes if n.id not in visited_tree)
+                for child in children.nodes:
+                    visited_tree.add(child)
+
             current_parents = next_parents
 
-    return list(visited_by_id.values())
+    return visited_tree
 
 
 async def pg_read_nodes(
@@ -1073,7 +1079,7 @@ async def pg_read_nodes(
     """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the roots."""
     root_cls = NODE_CLASS_BY_TYPE[root_type]
     cur = session.local_pg_cursor if root_cls.__is_local__ else session.global_pg_cursor
-    nodes_data = await pg_read_node_tree_data(
+    source_tree = await pg_read_node_data_tree(
         cur=cur,
         root_type=root_type,
         root_ids=root_ids,
@@ -1082,9 +1088,8 @@ async def pg_read_nodes(
         global_filter=global_filter,
         select_properties_by_type=select_properties_by_type,
     )
-    if nodes_data is None:
+    if source_tree is None:
         raise ValueError(f"could not find nodes {root_type.name}:{root_ids} (in {session!r})")
-    source_tree = NodeTree(nodes_data)
     root = wiring.unpack_node_inline(source_tree, parent=None, session=session)
     return tuple(root.lookup(id) for id in root_ids)
 
