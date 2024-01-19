@@ -39,7 +39,6 @@ from bench.language.const import (
     BenchType,
     IssueKind,
     IssueType,
-    LookupBy,
     ModuleReference,
     NodePath,
     NodeRelationType,
@@ -73,9 +72,24 @@ from bench.language.validation import (
 )
 from bench.proto.core import ProtoStrEnum
 from bench.proto.wire import EditData, NodePointerData, SomeNodeData
-from bench.sql.core import CascadeAction, ColumnType, Table, Column
+from bench.sql.core import (
+    CascadeAction,
+    ColumnType,
+    Table,
+    Column,
+    Index,
+    Constraint,
+    ConstraintType,
+    IndexType,
+)
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import did_you_mean_str, get_subclasses, strip_py_type, try_tuple
+from bench.utils.func import (
+    did_you_mean_str,
+    get_subclasses,
+    strip_py_type,
+    try_tuple,
+    check_collections_equal,
+)
 from bench.utils.utils import LOCAL_ENV, IdentifierType, frozendict, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
@@ -155,7 +169,7 @@ class Property(_FieldExpressionBase):
     reference_stored_ptrs: tuple["Property", ...] | None = None  # stored reference for references
     reference_source: Optional["Property"] = None  # for reference relations (reverse)
     reference_on_delete: CascadeAction | None = UNSET
-    children_flags: NodeRelationType = NodeRelationType.Default
+    children_flags: NodeRelationType = NodeRelationType.DEFAULT
 
     struct_type: StructType | None = None  # for struct properties
     column_type: ColumnType | None = UNSET
@@ -654,7 +668,7 @@ def node_ancestor(
 
 def node_children(
     node_type: NodeType,
-    flags: NRel = NRel.Default,
+    flags: NRel = NRel.DEFAULT,
     custom_list: type["NodeListBase"] = None,
     alias: str = None,
 ):
@@ -906,10 +920,10 @@ def _process_struct_base_cls(
         elif name in cls.__annotations__:
             del cls.__annotations__[name]
         # also set extra computed reference properties
-        if prop.reference_kind and not prop.reference_source:
-            setattr(cls, prop.name + "_id", _node_computed_attr("id", prop))
-            setattr(cls, prop.name + "_ck", _node_computed_attr("ck", prop))
-            setattr(cls, prop.name + "_type", _node_computed_attr("type", prop))
+        if prop.reference_kind and not prop.reference_source and prop.reference_wired_ptr:
+            for computed_attr in ("id", "ck"):
+                computed_prop = _node_computed_attr(computed_attr, prop, prop.reference_wired_ptr)
+                setattr(cls, prop.name + "_" + computed_attr, computed_prop)
 
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
 
@@ -1060,6 +1074,9 @@ def node(
     in_module: bool = True,
     in_bench: bool = True,
     reserved: set[str | int] = None,
+    indexes: tuple[Index, ...] = (),
+    constraints: tuple[Constraint, ...] = (),
+    unique_together: tuple[tuple[str, ...], ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
 
@@ -1078,6 +1095,23 @@ def node(
         cls.__is_stored_custom__ = stored_custom
         cls.__is_indexed_in_os__ = index_in_os
         cls.__is_local__ = local
+
+        extra_indexes: list[Index] = [*indexes]
+        extra_constraints: list[Constraint] = [*constraints]
+        for columns in unique_together:
+            index_name = f"bench_idx_{'_'.join(columns)}"
+            index = Index(index_name, type=IndexType.BTREE, is_unique=True, columns=columns)
+            constraint = Constraint(
+                index.inner_name,
+                type=ConstraintType.UNIQUE,
+                columns=columns,
+                index=index.inner_name,
+            )
+            extra_indexes.append(index)
+            extra_constraints.append(constraint)
+
+        cls.__extra_indexes__ = tuple(extra_indexes)
+        cls.__extra_constraints__ = tuple(extra_constraints)
 
         parent_property = cls.__properties__.get("parent", None)
         if parent_property is None:
@@ -1140,14 +1174,17 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
     return property(get, set)
 
 
-def _node_computed_attr(x: str, prop: Property) -> property:
-    """Computed value from another property."""
+def _node_computed_attr(x: str, prop: Property, backup_prop: Property) -> property:
+    """Computed value from another property. If prop is not set, use backup prop."""
 
     def get(self: NodeT) -> Optional[Any]:
         reference = getattr(self, prop.name)
-        if reference is None:
-            return None
-        return getattr(reference, x)
+        if reference is not None:
+            return getattr(reference, x)
+        reference = getattr(self, backup_prop.name)
+        if reference is not None:
+            return getattr(reference, x)
+        return None
 
     def set(self: NodeT, value: Any):
         raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
@@ -1408,7 +1445,9 @@ class Node(Struct, _NodeExpressionBase):
     __is_stored_custom__: ClassVar[bool] = False  # custom PG storage logic (for records)
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS
     __is_local__: ClassVar[bool] = False  # stored in Bench-local DB (instead of global Bench DB)
-    __table__: ClassVar["Table"] = UNSET  # if stored regularly, set after finalization
+    __extra_indexes__: ClassVar[tuple[Index, ...]] = ()  # extra indexes for PG
+    __extra_constraints__: ClassVar[tuple[Constraint, ...]] = ()  # extra constraints for PG
+    __table__: ClassVar[Table] = UNSET  # if stored regularly, set after finalization
 
     # 1-9: reserved for node identity
     id: UUID = struct_internal(2, default=None, require=True, protect=True)
@@ -1814,8 +1853,8 @@ class ScopeNode(Node):
 
     __has_scope__: ClassVar[bool] = True
     last_changed_at: Optional[datetime] = struct_internal(16, default=None)
-    issues: NodeList["Issue"] = node_children(NodeType.ISSUE, NRel.Cumulative)
-    _scopes_by_name: dict[str, "ScopeNode"] = struct_runtime(default_factory=dict)
+    issues: NodeList["Issue"] = node_children(NodeType.ISSUE, NRel.CUMULATIVE)
+    _scopes_by_ident: dict[str, "ScopeNode"] = struct_runtime(default_factory=dict)
     _names_by_ident: dict[str, str] = struct_runtime(default_factory=dict)
     # the local tree is maintained at the local root (usually module, maybe a detached root node)
     _local_tree: Union["NodeTreeBase", None] = struct_runtime(default=None)
@@ -1858,23 +1897,17 @@ class ScopeNode(Node):
     _activate_rec = _make_rec_method(_ComponentMethod.activate, Node._activate_self)
     _deactivate_rec = _make_rec_method(_ComponentMethod.deactivate, Node._deactivate_self)
 
-    def _get_scope(self, name: str, by: Optional[LookupBy]) -> Union["ScopeNode", None]:
-        if by is None and name in self._scopes_by_name or by == LookupBy.Name:
-            return self._scopes_by_name.get(name)
-        if by is None and name in self._names_by_ident or by == LookupBy.PyIdent:
-            if name in self._names_by_ident:
-                name = self._names_by_ident[name]
-                return self._scopes_by_name.get(name)
-        return None
+    def _get_scope(self, name: str) -> Union["ScopeNode", None]:
+        return self._scopes_by_ident.get(name)
 
-    def _find_scope(self, name: str, by: Optional[LookupBy]) -> Union["ScopeNode", None]:
-        scope = self._get_scope(name, by)
+    def _find_scope(self, name: str) -> Union["ScopeNode", None]:
+        scope = self._get_scope(name)
         if scope is not None:
             # check that we're not resolving something from an out-of-sync cache
             assert scope.attached == self.attached, f"{scope!r} isn't in the same tree as {self!r}"
             return scope
         if self.parent is not None:
-            return self.parent._find_scope(name, by=by)
+            return self.parent._find_scope(name)
         return None
 
     def _update_lists(self, scope: "ScopeNode"):
@@ -1882,14 +1915,14 @@ class ScopeNode(Node):
             getattr(self, prop.name)._update(scope)
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
-        self._scopes_by_name = {}
+        self._scopes_by_ident = {}
         self._names_by_ident = {}
 
     def _index_inner(self) -> None:
         for prop in self.__list_properties__.values():
-            if prop.children_flags & NRel.Scoped:
+            if prop.children_flags & NRel.SCOPED:
                 for child in getattr(self, prop.name):
-                    if child.name and (not prop.children_flags & NRel.Flat or child.parent == self):
+                    if child.name and (not prop.children_flags & NRel.FLAT or child.parent == self):
                         self._add_node_to_scope(child)
 
     def _walk_rec(self) -> Collection["Node"]:
@@ -1899,15 +1932,15 @@ class ScopeNode(Node):
         """
         Adds a child node into this scope. Idempotent for the same node.
         """
-        if node.name in self._scopes_by_name or node.py_ident in self._names_by_ident:
+        if node.name in self._scopes_by_ident or node.py_ident in self._names_by_ident:
             if node.py_ident in self._names_by_ident:
-                existing = self._scopes_by_name[self._names_by_ident[node.py_ident]]
+                existing = self._scopes_by_ident[self._names_by_ident[node.py_ident]]
             else:
-                existing = self._scopes_by_name[node.name]
+                existing = self._scopes_by_ident[node.name]
             if existing.id != node.id:
                 self._on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=node, path=node.path)
         else:
-            self._scopes_by_name[node.name] = node
+            self._scopes_by_ident[node.name] = node
             self._names_by_ident[node.py_ident] = node.name
 
     def _import_scope_tree(self, scope: "ScopeNode") -> None:
@@ -1934,7 +1967,6 @@ class ScopeNode(Node):
     def lookup(
         self,
         path: Union["NodePath", UUID, str],
-        by: Optional[LookupBy] = None,
         node_t: NodeType | StatementType | type[NodeT] | None = None,
     ) -> NodeT | None:
         """
@@ -1945,12 +1977,12 @@ class ScopeNode(Node):
             if self._local_tree is not None:
                 return self._local_tree.get(path)
             else:
-                return self._local_root_scope.lookup(path, by=by, node_t=node_t)
+                return self._local_root_scope.lookup(path, node_t=node_t)
 
         if isinstance(path, str):
             path = parse_node_path(path)
         if path.path == ".":
-            return self._find_scope(path.name, by)
+            return self._find_scope(path.name)
         elif path.path.startswith("."):
             path = NodePath(path.path[1:], path.name)
         parts = path.path.split(".", 2)
@@ -1958,25 +1990,24 @@ class ScopeNode(Node):
             first_part, inner_part = parts[0], NodePath(parts[1], path.name)
         else:
             first_part, inner_part = parts[0], path.name
-        scope = self._find_scope(first_part, by=by)
+        scope = self._find_scope(first_part)
         if scope is None:
             return None
-        return scope.lookup(inner_part, node_t=node_t, by=by)
+        return scope.lookup(inner_part, node_t=node_t)
 
     def resolve(
         self,
         path: Union["NodePath", UUID, str],
-        by: Optional[LookupBy] = None,
         node_t: type[NodeT] | None = None,
     ) -> NodeT:
-        result = self.lookup(path, by=by, node_t=node_t)
+        result = self.lookup(path, node_t=node_t)
         if result is None:
             raise LookupError(f"{path} not found in {self!r}")
         return result
 
     def _get_visible_scopes(self) -> dict[str, "ScopeNode"]:
         """Returns the scopes visible from this node."""
-        scopes = {**self._scopes_by_name}
+        scopes = {**self._scopes_by_ident}
         if self.parent:
             for name, child in self.parent._get_visible_scopes().items():
                 if name not in scopes:  # shadowing
@@ -2054,7 +2085,7 @@ class Bench(ScopeNode):
         46, protect=True, default=None, defer=True, encrypt=True
     )
 
-    worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET, NRel.Flat)
+    worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET, NRel.FLAT)
 
     # versions: NodeList["Module"] = node_children(NodeType.MODULE, NRel.Remote)
 
@@ -2115,7 +2146,7 @@ class Module(ScopeNode):
     )  # main environment?
     is_snapshot: bool = struct_internal(32, protect=True, default=False)  # snapshot or head?
 
-    files: NodeList["File"] = node_children(NodeType.FILE, NRel.Flat | NRel.Named | NRel.Scoped)
+    files: NodeList["File"] = node_children(NodeType.FILE, NRel.FLAT | NRel.NAMED | NRel.SCOPED)
     dependencies: dict[str, "Module"] = struct_runtime(default_factory=dict)
     builtins: list["File"] = struct_runtime(default_factory=list)
 
@@ -2184,7 +2215,6 @@ class Module(ScopeNode):
     def lookup(
         self,
         path: Union["NodePath", UUID, str],
-        by: Optional[LookupBy] = None,
         node_t: NodeType | type[NodeT] | None = None,
     ) -> NodeT | None:
         if path in self._lookup_cache:
@@ -2199,7 +2229,7 @@ class Module(ScopeNode):
                         resolved = dependency._tree[path]
                         break
         elif isinstance(path, str) and path.startswith("."):
-            resolved = ScopeNode.lookup(self, path, node_t=node_t, by=by)
+            resolved = ScopeNode.lookup(self, path, node_t=node_t)
         else:
             if isinstance(path, str):
                 path = parse_absolute_node_reference(path)
@@ -2211,7 +2241,7 @@ class Module(ScopeNode):
             if dependency is None:
                 resolved = None
             else:
-                resolved = dependency.lookup(sub_path, node_t=node_t, by=by)
+                resolved = dependency.lookup(sub_path, node_t=node_t)
 
         if not resolved:
             return resolved
@@ -2222,7 +2252,7 @@ class Module(ScopeNode):
         return resolved
 
     def _get_visible_scopes(self) -> dict[str, "ScopeNode"]:
-        scopes = {**self._scopes_by_name}
+        scopes = {**self._scopes_by_ident}
         for builtin in self.builtins:
             scopes.update(builtin._get_visible_scopes())
         return scopes
@@ -2457,10 +2487,13 @@ def _complete_bench_setup():
             raise ValueError(
                 f"{node_cls!r} parent types are inconsistent: root={node_cls.__root__} implies in_bench={in_bench} and in_module={in_module}, but got in_bench={node_cls.__is_in_bench__} and in_module={node_cls.__is_in_module__}"
             )
-    in_bench_types = [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]
-    in_module_types = [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_module__]
-    assert set(IN_BENCH_NODE_TYPES) == set(in_bench_types), "IN_BENCH_NODE_TYPES inconsistent"
-    assert set(IN_MODULE_NODE_TYPES) == set(in_module_types), "IN_MODULE_NODE_TYPES inconsistent"
+    check_collections_equal(
+        IN_BENCH_NODE_TYPES, [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]
+    )
+    check_collections_equal(
+        IN_MODULE_NODE_TYPES,
+        [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_module__],
+    )
 
     # check that all enum types are valid proto-able enums
     for struct_t in chain(STRUCT_CLASS_BY_TYPE.values(), NODE_CLASS_BY_TYPE.values()):

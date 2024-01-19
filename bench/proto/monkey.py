@@ -12,23 +12,29 @@ import betterproto
 from betterproto import hybridmethod
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
+from bench.utils.utils import frozendict
+
 # monkey-patch default generator to initialize all *optional* fields as None
 # (including nested messages, primitives, and repeated fields - proto3 can only 'optional' primitives,
 #  which is a newer addition for field presence tracking)
 
 _default_gen_none = type(None)
 
+_EMPTY_DICT = frozendict()
+
+
+def _default_gen_dict() -> dict:
+    return _EMPTY_DICT
+
 
 def _get_field_default_gen(cls: type["betterproto.Message"], field: dataclasses.Field) -> Any:
     t = cls._type_hint(field.name)
 
     if hasattr(t, "__origin__"):
-        if t.__origin__ is dict:
-            # This is some kind of map (dict in Python).
-            return dict
-        elif t.__origin__ is list:
-            # This is some kind of list (repeated) field.
-            return list
+        if t.__origin__ is dict:  # map (make const since we never modify it directly)
+            return _default_gen_dict
+        elif t.__origin__ is list:  # repeated field (also make const)
+            return tuple
         elif t.__origin__ is Union and t.__args__[1] is type(None):
             return _default_gen_none
         else:

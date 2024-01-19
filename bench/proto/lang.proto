@@ -59,32 +59,33 @@ enum BenchStatus {
 }
 
 enum BenchType {
+  option allow_alias = true;
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
-  BENCH_TYPE_MODULE = 10;
-  BENCH_TYPE_FILE = 11;
-  BENCH_TYPE_STATEMENT = 12;
-  BENCH_TYPE_TRIGGER = 13;
-  BENCH_TYPE_TAGGING = 14;
-  BENCH_TYPE_FIELD = 15;
-  BENCH_TYPE_RECORD = 16;
-  BENCH_TYPE_VIEW = 17;
+  BENCH_TYPE_MODULE = 20;
+  BENCH_TYPE_FILE = 21;
+  BENCH_TYPE_STATEMENT = 22;
+  BENCH_TYPE_TRIGGER = 23;
+  BENCH_TYPE_TAGGING = 24;
+  BENCH_TYPE_FIELD = 25;
+  BENCH_TYPE_RECORD = 26;
+  BENCH_TYPE_VIEW = 27;
   BENCH_TYPE_ISSUE = 20;
-  BENCH_TYPE_LINK = 21;
-  BENCH_TYPE_BLOB = 40;
-  BENCH_TYPE_SECRET = 41;
+  BENCH_TYPE_LINK = 31;
+  BENCH_TYPE_SECRET = 32;
+  BENCH_TYPE_BLOB = 33;
   BENCH_TYPE_SESSION = 50;
   BENCH_TYPE_RUN = 51;
-  BENCH_TYPE_HALT = 52;
+  BENCH_TYPE_PAUSE = 52;
   BENCH_TYPE_SIGNAL = 53;
-  BENCH_TYPE_WORKER_SET = 60;
-  BENCH_TYPE_WORKER = 61;
-  BENCH_TYPE_HANDLE = 100;
-  BENCH_TYPE_USER = 101;
-  BENCH_TYPE_ORGANIZATION = 102;
-  BENCH_TYPE_CLIENT = 103;
-  BENCH_TYPE_NOTIFICATION = 104;
-  BENCH_TYPE_BADGE = 105;
+  BENCH_TYPE_BADGE = 60;
+  BENCH_TYPE_WORKER_SET = 80;
+  BENCH_TYPE_WORKER = 81;
+  BENCH_TYPE_HANDLE = 120;
+  BENCH_TYPE_USER = 121;
+  BENCH_TYPE_ORGANIZATION = 122;
+  BENCH_TYPE_CLIENT = 123;
+  BENCH_TYPE_NOTIFICATION = 124;
   BENCH_TYPE_POLICY = 200;
   BENCH_TYPE_POLICY_RULE = 201;
   BENCH_TYPE_CONTEXT = 202;
@@ -101,6 +102,8 @@ enum BenchType {
   BENCH_TYPE_MINI_RUN = 223;
   BENCH_TYPE_WORKER_IMAGE = 230;
   BENCH_TYPE_DEPENDENCY = 231;
+  BENCH_TYPE_RICH_TEXT = 240;
+  BENCH_TYPE_RICH_TEXT_SPAN = 241;
 }
 
 enum BlobStatus {
@@ -223,23 +226,17 @@ enum IssueType {
   ISSUE_TYPE_TASK_IS_STATIC = 13;
 }
 
-enum LookupBy {
-  LOOKUP_BY_UNSPECIFIED = 0;
-  LOOKUP_BY_Name = 1;
-  LOOKUP_BY_PyIdent = 2;
-}
-
 // // Parent relation between node and descendants.
 enum NodeRelationType {
-  NODE_RELATION_TYPE_Default = 0;
-  NODE_RELATION_TYPE_Remote = 1;
-  NODE_RELATION_TYPE_Shared = 2;
-  NODE_RELATION_TYPE_Flat = 4;
-  NODE_RELATION_TYPE_Cumulative = 8;
-  NODE_RELATION_TYPE_Named = 16;
-  NODE_RELATION_TYPE_Scoped = 32;
-  NODE_RELATION_TYPE_Keyed = 64;
-  NODE_RELATION_TYPE_Ordered = 128;
+  NODE_RELATION_TYPE_DEFAULT = 0;
+  NODE_RELATION_TYPE_REMOTE = 1;
+  NODE_RELATION_TYPE_SHARED = 2;
+  NODE_RELATION_TYPE_FLAT = 4;
+  NODE_RELATION_TYPE_CUMULATIVE = 8;
+  NODE_RELATION_TYPE_NAMED = 16;
+  NODE_RELATION_TYPE_SCOPED = 32;
+  NODE_RELATION_TYPE_KEYED = 64;
+  NODE_RELATION_TYPE_ORDERED = 128;
 }
 
 enum NodeSource {
@@ -263,32 +260,33 @@ enum NodeTrackingLevel {
 }
 
 enum NodeType {
+  option allow_alias = true;
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_BENCH = 1;
-  NODE_TYPE_MODULE = 10;
-  NODE_TYPE_FILE = 11;
-  NODE_TYPE_STATEMENT = 12;
-  NODE_TYPE_TRIGGER = 13;
-  NODE_TYPE_TAGGING = 14;
-  NODE_TYPE_FIELD = 15;
-  NODE_TYPE_RECORD = 16;
-  NODE_TYPE_VIEW = 17;
+  NODE_TYPE_MODULE = 20;
+  NODE_TYPE_FILE = 21;
+  NODE_TYPE_STATEMENT = 22;
+  NODE_TYPE_TRIGGER = 23;
+  NODE_TYPE_TAGGING = 24;
+  NODE_TYPE_FIELD = 25;
+  NODE_TYPE_RECORD = 26;
+  NODE_TYPE_VIEW = 27;
   NODE_TYPE_ISSUE = 20;
-  NODE_TYPE_LINK = 21;
-  NODE_TYPE_BLOB = 40;
-  NODE_TYPE_SECRET = 41;
+  NODE_TYPE_LINK = 31;
+  NODE_TYPE_SECRET = 32;
+  NODE_TYPE_BLOB = 33;
   NODE_TYPE_SESSION = 50;
   NODE_TYPE_RUN = 51;
-  NODE_TYPE_HALT = 52;
+  NODE_TYPE_PAUSE = 52;
   NODE_TYPE_SIGNAL = 53;
-  NODE_TYPE_WORKER_SET = 60;
-  NODE_TYPE_WORKER = 61;
-  NODE_TYPE_HANDLE = 100;
-  NODE_TYPE_USER = 101;
-  NODE_TYPE_ORGANIZATION = 102;
-  NODE_TYPE_CLIENT = 103;
-  NODE_TYPE_NOTIFICATION = 104;
-  NODE_TYPE_BADGE = 105;
+  NODE_TYPE_BADGE = 60;
+  NODE_TYPE_WORKER_SET = 80;
+  NODE_TYPE_WORKER = 81;
+  NODE_TYPE_HANDLE = 120;
+  NODE_TYPE_USER = 121;
+  NODE_TYPE_ORGANIZATION = 122;
+  NODE_TYPE_CLIENT = 123;
+  NODE_TYPE_NOTIFICATION = 124;
 }
 
 enum NodeVisibility {
@@ -433,6 +431,8 @@ enum StructType {
   STRUCT_TYPE_MINI_RUN = 223;
   STRUCT_TYPE_WORKER_IMAGE = 230;
   STRUCT_TYPE_DEPENDENCY = 231;
+  STRUCT_TYPE_RICH_TEXT = 240;
+  STRUCT_TYPE_RICH_TEXT_SPAN = 241;
 }
 
 // // Classic headings big to small.
@@ -679,6 +679,20 @@ message PropertyPointerData {
   optional NodeType references_type = 32;
 }
 
+// // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
+message RichTextData {
+  BenchType metatype = 1;
+  repeated RichTextSpanData spans = 30;
+  optional string plain_text = 31;
+}
+
+// // RichTextSpan(text: str = '', reference: bench.language.node.Node | None = None, reference_ptr: bench.proto.wire.NodePointerData = None, _status: bench.language.const.NodeStatus = None)
+message RichTextSpanData {
+  BenchType metatype = 1;
+  string text = 30;
+  optional NodePointerData reference_ptr = 31;
+}
+
 // // RunCodeFrame(filename: str = <factory>, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, _status: bench.language.const.NodeStatus = None)
 message RunCodeFrameData {
   BenchType metatype = 1;
@@ -708,11 +722,13 @@ message WorkerImageData {
   repeated DependencyData dependencies = 33;
 }
 
-// // A badge for a non-member to access parts of this Bench (via web or programmatically).
+// // A badge for a non-member to access parts of this Bench.
 message BadgeData {
   BenchType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
   NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -763,7 +779,9 @@ message BenchData {
 message BlobData {
   BenchType metatype = 1;
   string id = 2;
+  string ck = 3;
   optional NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
   NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -840,22 +858,6 @@ message FileData {
   optional string name = 30;
   optional string order_key = 31;
   optional string text = 32;
-}
-
-// // A resumable interruption in the execution (Run) of a statement.
-message HaltData {
-  BenchType metatype = 1;
-  string id = 2;
-  string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
-  int64 revision = 10;
-  google.protobuf.Timestamp created_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  optional google.protobuf.Timestamp deleted_at = 13;
-  optional google.protobuf.Timestamp archived_at = 14;
-  google.protobuf.Timestamp last_edited_at = 15;
 }
 
 // // A (global) Bench handle.
@@ -975,6 +977,22 @@ message OrganizationData {
   optional NodePointerData handle_ptr = 30;
   optional string slug = 31;
   string name = 32;
+}
+
+// // A resumable interruption in the execution (Run) of a statement.
+message PauseData {
+  BenchType metatype = 1;
+  string id = 2;
+  string ck = 3;
+  optional NodePointerData parent_ptr = 4;
+  NodePointerData module_ptr = 6;
+  NodePointerData bench_ptr = 8;
+  int64 revision = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+  optional google.protobuf.Timestamp deleted_at = 13;
+  optional google.protobuf.Timestamp archived_at = 14;
+  google.protobuf.Timestamp last_edited_at = 15;
 }
 
 // // A record in a database. The containing table is usually a real Postgres table.
@@ -1172,7 +1190,7 @@ message UserData {
   optional NodePointerData handle_ptr = 30;
   optional string slug = 31;
   optional string name = 32;
-  string email = 33;
+  optional string email = 33;
   optional bytes password_salt = 34;
   optional bytes password_hash = 35;
   optional google.protobuf.Timestamp last_logged_in_at = 36;
@@ -1245,31 +1263,31 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    WorkerData worker = 1;
-    RecordData record = 2;
-    HandleData handle = 3;
-    BadgeData badge = 4;
-    BenchData bench = 5;
-    RunData run = 6;
-    TaggingData tagging = 7;
-    FieldData field = 8;
-    TriggerData trigger = 9;
-    NotificationData notification = 10;
-    SessionData session = 11;
-    HaltData halt = 12;
-    OrganizationData organization = 13;
-    IssueData issue = 14;
-    SignalData signal = 15;
-    StatementData statement = 16;
-    WorkerSetData worker_set = 17;
-    FileData file = 18;
-    SecretData secret = 19;
-    UserData user = 20;
-    BlobData blob = 21;
-    LinkData link = 22;
-    ClientData client = 23;
-    ViewData view = 24;
-    ModuleData module = 25;
+    TriggerData trigger = 1;
+    BlobData blob = 2;
+    FieldData field = 3;
+    UserData user = 4;
+    TaggingData tagging = 5;
+    StatementData statement = 6;
+    IssueData issue = 7;
+    PauseData pause = 8;
+    RecordData record = 9;
+    SessionData session = 10;
+    HandleData handle = 11;
+    ViewData view = 12;
+    BenchData bench = 13;
+    LinkData link = 14;
+    WorkerData worker = 15;
+    BadgeData badge = 16;
+    FileData file = 17;
+    SecretData secret = 18;
+    OrganizationData organization = 19;
+    ModuleData module = 20;
+    NotificationData notification = 21;
+    SignalData signal = 22;
+    WorkerSetData worker_set = 23;
+    ClientData client = 24;
+    RunData run = 25;
   };
 }
 

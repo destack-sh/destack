@@ -81,8 +81,8 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
     # TODO @Robustness: add Bench check constraints in Postgres
     table_name = get_bench_table_name(node.metatype)
     columns: list[Column] = []
-    constraints: list[Constraint] = []
-    indexes: list[Index] = []
+    constraints: list[Constraint] = [*(node.__extra_constraints__ or ())]
+    indexes: list[Index] = [*(node.__extra_indexes__ or ())]
     properties = list(node.__properties__.values())
     properties.sort(key=lambda p: p.id or -1)
 
@@ -871,12 +871,12 @@ def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
             if prop.reference_source is None:  # regular non-ref property
                 value = getattr(node, prop.name)
                 value = _pack_struct_data_prop(prop, value, ignore_array=False)
-                if prop.is_encrypted:
-                    pass  # nocheckin: handle colum encrypt/decrypt
                 row[prop.name] = value
             else:  # unravel reference into per-type columns
                 assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
-                ptr: NodePointerData | None = getattr(prop.reference_source.name)
+                ptr: NodePointerData | None = getattr(
+                    prop.reference_source.reference_wired_ptr.name
+                )
                 if ptr is not None and prop.reference_types[0] == ptr.type:
                     if prop.name.endswith("_ck"):
                         row[prop.name] = ptr.ck
@@ -900,8 +900,6 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
                 continue
             elif prop.reference_source is None:  # regular non-ref property
                 value = _unpack_struct_data_prop(prop, value, ignore_array=False)
-                if prop.is_encrypted:
-                    pass  # nocheckin: handle colum encrypt/decrypt
                 setattr(data, prop.name, value)
             else:  # ravel reference from per-type columns
                 assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
@@ -909,7 +907,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
                     ptr = NodePointerData(type=prop.reference_types[0], ck=value)
                 else:
                     ptr = NodePointerData(type=prop.reference_types[0], id=value)
-                setattr(data, prop.reference_source.name, ptr)
+                setattr(data, prop.reference_source.reference_wired_ptr.name, ptr)
         return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         row_str = repr(row) if DEBUG else describe_type(row)
@@ -920,6 +918,9 @@ PgSelectNodesDataResult = typing.NamedTuple(
     "PgSelectNodesDataResult",
     [("nodes", list[wire.AnyNodeData]), ("cursors", list[str]), ("start_cursor", str | None)],
 )
+
+
+# nocheckin: handle colum encrypt/decrypt
 
 
 async def pg_select_nodes_data(
@@ -1075,6 +1076,7 @@ async def pg_read_nodes(
     descendant_types: tuple[NodeType, ...] | None = None,
     global_filter: lang.Expression = DEFAULT_GLOBAL_FILTER,
     select_properties_by_type: dict[NodeType, tuple[Property, ...]] = DEFAULT_SELECTED_PROPERTIES,
+    parent: Node | None = None,
 ) -> tuple[NodeT, ...]:
     """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the roots."""
     root_cls = NODE_CLASS_BY_TYPE[root_type]
@@ -1090,7 +1092,7 @@ async def pg_read_nodes(
     )
     if source_tree is None:
         raise ValueError(f"could not find nodes {root_type.name}:{root_ids} (in {session!r})")
-    root = wiring.unpack_node_inline(source_tree, parent=None, session=session)
+    root = wiring.unpack_node_inline(source_tree, parent=parent, session=session)
     return tuple(root.lookup(id) for id in root_ids)
 
 
@@ -1100,6 +1102,7 @@ async def pg_read_node(
     root_id: UUID,
     ancestor_types: tuple[NodeType, ...] | None = None,
     descendant_types: tuple[NodeType, ...] | None = None,
+    parent: Node | None = None,
 ) -> NodeT:
     """Reads a 'regular' node from the given PG database and unpacks it into the session."""
     roots = await pg_read_nodes(
@@ -1108,9 +1111,10 @@ async def pg_read_node(
         root_ids=(root_id,),
         ancestor_types=ancestor_types,
         descendant_types=descendant_types,
+        parent=parent,
     )
-    if not roots:
-        raise ValueError(f"could not find node {root_type.name}:{root_id} (in {session!r})")
+    if len(roots) != 1:
+        raise ValueError(f"could not find root {root_type.name}:{root_id} (in {session!r})")
     return roots[0]
 
 
@@ -1595,11 +1599,17 @@ NODE_TABLES: tuple[Table, ...] = tuple(TABLE_BY_NODE_TYPE.values())
 GLOBAL_TABLES: tuple[Table, ...] = DEFAULT_GLOBAL_TABLES + tuple(
     TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
-    if not node.__is_local__ and node.__is_stored__ and not node.__is_stored_custom__
+    if not node.__is_local__
+    and node.__is_stored__
+    and not node.__is_stored_custom__
+    and node.metatype in TABLE_BY_NODE_TYPE
 )
 LOCAL_TABLES: tuple[Table, ...] = DEFAULT_LOCAL_TABLES + tuple(
     TABLE_BY_NODE_TYPE[node.metatype]
     for node in NODE_CLASSES
-    if node.__is_local__ and node.__is_stored__ and not node.__is_stored_custom__
+    if node.__is_local__
+    and node.__is_stored__
+    and not node.__is_stored_custom__
+    and node.metatype in TABLE_BY_NODE_TYPE
 )
 ALL_TABLES: tuple[Table, ...] = GLOBAL_TABLES + LOCAL_TABLES

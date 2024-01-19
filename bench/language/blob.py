@@ -13,15 +13,16 @@ import structlog
 from bench.language.builtin import active_session
 from bench.language.const import BlobStatus, NodeType
 from bench.language.node import (
-    Bench,
     Node,
     node,
     node_parent,
     struct_internal,
     struct_property,
     struct_runtime,
+    Module,
 )
 from bench.language.validation import ValidationHandler, on_invalid_raise
+from bench.sql.core import Index, Constraint, ConstraintType
 from bench.utils.func import _auto_async_to_sync
 
 logger = structlog.get_logger(__name__)
@@ -31,14 +32,14 @@ BLOB_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 BLOB_MAX_NAME_LENGTH = 256
 
 
-@node(NodeType.BLOB, in_module=False)
+@node(NodeType.BLOB, unique_together=(("module_id", "sha512"),))
 class Blob(Node):
     """
     A proxy to a remotely stored object behaving like a Python file on demand.
     :BlobType
     """
 
-    parent: Bench = node_parent(4, NodeType.BENCH)
+    parent: Module = node_parent(4, NodeType.MODULE)
     sha512: str = struct_internal(30)
     content_length: int = struct_internal(31)
     content_type: str = struct_internal(32)
@@ -52,9 +53,6 @@ class Blob(Node):
 
     def __repr__(self):
         return f"<Blob {self}>"
-
-    def __getitem__(self, item):
-        return self.__dict__[item]
 
     def _validate_inner(
         self, properties: typing.Collection[str], on_invalid: ValidationHandler

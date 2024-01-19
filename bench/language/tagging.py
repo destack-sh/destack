@@ -95,4 +95,4 @@ class Tagging(HasValue, Node):
 
 @node_component
 class HasTags(Node):
-    tags: NodeList["Tagging"] = node_children(NodeType.TAGGING, NRel.Keyed)
+    tags: NodeList["Tagging"] = node_children(NodeType.TAGGING, NRel.KEYED)

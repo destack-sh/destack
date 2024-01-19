@@ -13,7 +13,6 @@ from bench.language.const import (
 )
 from bench.language.expression import PropertyPointer
 from bench.language.node import (
-    Bench,
     Node,
     Struct,
     node,
@@ -21,6 +20,7 @@ from bench.language.node import (
     struct,
     struct_internal,
     struct_runtime,
+    Module,
 )
 
 if TYPE_CHECKING:
@@ -102,17 +102,17 @@ class Context(Struct):
     )
 
 
-@node(NodeType.BADGE, in_module=False)
+@node(NodeType.BADGE)
 class Badge(Node):
-    """A badge for a non-member to access parts of this Bench (via web or programmatically)."""
+    """A badge for a non-member to access parts of this Bench."""
 
-    parent: Bench = node_parent(4, NodeType.BENCH)
+    parent: Module = node_parent(4, NodeType.MODULE)
     type: BadgeType = struct_internal(30)
     name: Optional[str] = struct_internal(31)
     policy: Policy = struct_internal(32, struct_t=StructType.POLICY)
     expires_at: Optional[datetime] = struct_internal(33, default=None)
     # sharing link badge
-    link_token: Optional[UUID] = struct_internal(40, default=None, unique=True)
+    link_token: Optional[UUID] = struct_internal(40, default=None)
     link_password: Optional[str] = struct_internal(41, default=None, encrypt=True, defer=True)
     link_password_digest: Optional[str] = struct_internal(42, default=None, encrypt=True)
     # access key badge

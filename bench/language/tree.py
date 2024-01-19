@@ -34,6 +34,10 @@ class NodeTreeBase(abc.ABC, Generic[SomeNodeT, IdT]):
     def nodes(self) -> Collection[SomeNodeT]:
         raise NotImplementedError
 
+    @property
+    def roots(self) -> tuple[SomeNodeT, ...]:
+        raise NotImplementedError
+
     def copy(self) -> "NodeTreeBase[SomeNodeT, IdT]":
         raise NotImplementedError
 
@@ -70,6 +74,13 @@ class NodeTreeBase(abc.ABC, Generic[SomeNodeT, IdT]):
 
     # utilities
 
+    @property
+    def root(self) -> Optional[SomeNodeT]:
+        roots = self.roots
+        if len(roots) > 1:
+            raise ValueError(f"expected 0 or 1 root nodes, got {roots}")
+        return roots[0] if roots else None
+
     def __getitem__(self, item: IdT):
         return self.get(item)
 
@@ -104,6 +115,14 @@ class NodeTree(NodeTreeBase[NodeT, UUID]):
     @property
     def nodes(self) -> Collection[NodeT]:
         return self.nodes_by_ck.values()
+
+    @property
+    def roots(self) -> tuple[NodeDataT, ...]:
+        return tuple(
+            node
+            for node in self.nodes_by_id.values()
+            if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
+        )
 
     def copy(self):
         return NodeTree(self)
@@ -219,6 +238,14 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
     def nodes(self) -> Collection[NodeDataT]:
         return self.nodes_by_id.values()
 
+    @property
+    def roots(self) -> tuple[NodeDataT, ...]:
+        return tuple(
+            node
+            for node in self.nodes_by_id.values()
+            if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
+        )
+
     def copy(self):
         return NodeDataTree(self)
 
@@ -317,21 +344,6 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
             descendants = [n for n in descendants if n.metatype == node_type]
         return descendants
 
-    @property
-    def roots(self) -> list[NodeDataT]:
-        return [
-            node
-            for node in self.nodes_by_id.values()
-            if node.parent_ptr is None or node.parent_ptr.id not in self.nodes_by_id
-        ]
-
-    @property
-    def root(self) -> Optional[NodeDataT]:
-        roots = self.roots
-        if len(roots) > 1:
-            raise ValueError(f"expected 0 or 1 root nodes, got {roots}")
-        return roots[0] if roots else None
-
     def walk_bfs(self, roots: list[NodeDataT] = None) -> Generator[NodeDataT, None, None]:
         """Walks the tree in breadth-first order"""
         num_traversed = 0
@@ -362,6 +374,14 @@ class DetachedNodeTree(NodeTreeBase[NodeT, UUID]):
     @property
     def nodes(self) -> Collection[NodeT]:
         return self.nodes_by_ck.values()
+
+    @property
+    def roots(self) -> tuple[NodeT, ...]:
+        return tuple(
+            node
+            for node in self.nodes_by_ck.values()
+            if node.parent is None or node.parent.ck not in self.nodes_by_ck
+        )
 
     def get(self, node_ck: UUID) -> Optional[NodeT]:
         """Gets a node by id"""

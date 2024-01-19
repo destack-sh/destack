@@ -176,7 +176,7 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
             attach_to_prop = first(
                 p
                 for p in node.parent.__list_properties_by_child__[node.metatype]
-                if not p.children_flags & NRel.Flat
+                if not p.children_flags & NRel.FLAT
             )
             parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
             if node.metatype in (NodeType.RECORD, NodeType.TAGGING, NodeType.TRIGGER):

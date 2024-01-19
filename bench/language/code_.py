@@ -21,7 +21,7 @@ from bench.language.builtin import symbolx_lib
 from bench.language.const import ConditionalOp, IssueType, NodePath, SortMode, SortOp, TypeFlag
 from bench.language.expression import C
 from bench.language.field import TypedDict
-from bench.language.node import LookupBy, Node, ScopeNode, node_component, struct_runtime
+from bench.language.node import Node, ScopeNode, node_component, struct_runtime
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
@@ -96,7 +96,7 @@ class HasCode(Node):
         self._statement_references = {}
         self._code_export_references = {}
         for key, reference in self._parse.references.items():
-            resolved = scope.lookup(reference, by=LookupBy.PyIdent)
+            resolved = scope.lookup(reference)
             if resolved is not None:
                 self._statement_references[key] = resolved
 
@@ -127,10 +127,10 @@ class HasCode(Node):
     def _do_import_sync(self, path: str, name: str) -> tuple[Any, ...]:
         """Import a statement or exported Python object at runtime."""
         reference = NodePath(path, name)
-        resolved = self.lookup(reference, by=LookupBy.PyIdent)
+        resolved = self.lookup(reference)
         if resolved is None:
             # fall back to code object import
-            resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
+            resolved = self.lookup(reference.path)
             if resolved is None:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (not found)")
             if HasCode not in resolved._components or not resolved._export:
@@ -144,10 +144,10 @@ class HasCode(Node):
     async def _do_import_async(self, path: str, name: str) -> tuple[Any, ...]:
         """Import a statement or exported Python object at runtime."""
         reference = NodePath(path, name)
-        resolved = self.lookup(reference, by=LookupBy.PyIdent)
+        resolved = self.lookup(reference)
         if resolved is None:
             # fall back to code object import
-            resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
+            resolved = self.lookup(reference.path)
             if not isinstance(resolved, HasCode) or not resolved._export:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
             ret = await resolved.to_async()()

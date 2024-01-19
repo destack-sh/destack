@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.18.3"
+VERSION = "2024.01.19.2"
 
 
 #
@@ -30,50 +30,52 @@ class NodeType(ProtoStrEnum):
     # UNIVERSE = "UNIVERSE", 2
     # PLACE = "PLACE", 3
     # BRANCH = "BRANCH", 4
+    # DEPENDENCY = "DEPENDENCY", 5
+    # UPGRADE = "UPGRADE", 6
 
-    # module/source
-    MODULE = "MODULE", 10
-    FILE = "FILE", 11
-    STATEMENT = "STATEMENT", 12
-    TRIGGER = "TRIGGER", 13
-    TAGGING = "TAGGING", 14
-    FIELD = "FIELD", 15
-    RECORD = "RECORD", 16  # (local)
-    VIEW = "VIEW", 17
-    # TILE = "TILE", 18
-    # STEP = "STEP", 19
+    # source
+    # nocheckin: rename module->package, file->box, statement->block (and blob->file)
+    MODULE = "MODULE", 20
+    FILE = "FILE", 21
+    STATEMENT = "STATEMENT", 22
+    TRIGGER = "TRIGGER", 23
+    TAGGING = "TAGGING", 24
+    FIELD = "FIELD", 25
+    RECORD = "RECORD", 26  # (local)
+    VIEW = "VIEW", 27
+    # TILE = "TILE", 28
+    # STEP = "STEP", 29
     ISSUE = "ISSUE", 20
-    LINK = "LINK", 21
-
-    # bench-level
-    BLOB = "BLOB", 40
-    SECRET = "SECRET", 41
+    LINK = "LINK", 31
+    SECRET = "SECRET", 32
+    BLOB = "BLOB", 33
 
     # session (all local)
     SESSION = "SESSION", 50
     RUN = "RUN", 51
-    HALT = "HALT", 52
+    PAUSE = "PAUSE", 52
     SIGNAL = "SIGNAL", 53
 
-    # worker
-    WORKER_SET = "WORKER_SET", 60
-    WORKER = "WORKER", 61
-    # WORKER_PROCESS = "WORKER_PROCESS", 62
+    # auth
+    BADGE = "BADGE", 60
+    # IDENTITY = "IDENTITY", 61
+    # ROLE = "ROLE", 62
+
+    # resources
+    WORKER_SET = "WORKER_SET", 80
+    WORKER = "WORKER", 81
+    # WORKER_PROCESS = "WORKER_PROCESS", 82
 
     # user
-    HANDLE = "HANDLE", 100
-    USER = "USER", 101
-    ORGANIZATION = "ORGANIZATION", 102
-    CLIENT = "CLIENT", 103
-    NOTIFICATION = "NOTIFICATION", 104
-    BADGE = "BADGE", 105
+    HANDLE = "HANDLE", 120
+    USER = "USER", 121
+    ORGANIZATION = "ORGANIZATION", 122
+    CLIENT = "CLIENT", 123
+    NOTIFICATION = "NOTIFICATION", 124
 
-    # IDENTITY = "IDENTITY", 106
-    # ROLE = "ROLE", 107
-
-    # INVITE = "INVITE", 110
-    # MEMBERSHIP = "MEMBERSHIP", 111
-    # COMMENT = "COMMENT", 130
+    # INVITE = "INVITE", 130
+    # MEMBERSHIP = "MEMBERSHIP", 131
+    # COMMENT = "COMMENT", 131
 
     @property
     def camel_name(self):
@@ -83,16 +85,8 @@ class NodeType(ProtoStrEnum):
 NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
 # (we duplicate in-module/in-bench info here to access it while initialising the node classes,
 #  but we check for consistency during finalization)
-IN_MODULE_NODE_TYPES: tuple[NodeType, ...] = tuple(
-    nt
-    for nt in NODE_TYPES
-    if NodeType.MODULE.id <= nt.id < NodeType.WORKER_SET.id and nt not in (NodeType.BLOB,)
-)
-IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(
-    nt
-    for nt in NODE_TYPES
-    if NodeType.BENCH.id <= nt.id < NodeType.HANDLE.id or nt in (NodeType.BADGE,)
-)
+IN_MODULE_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80)
+IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.id < 100)
 
 
 class StructType(ProtoStrEnum):
@@ -100,6 +94,7 @@ class StructType(ProtoStrEnum):
     POLICY = "POLICY", 200
     POLICY_RULE = "POLICY_RULE", 201
     CONTEXT = "CONTEXT", 202
+
     EXPRESSION = "EXPRESSION", 210
     AGGREGATION = "AGGREGATION", 211
     AGGREGATION_BUCKET = "AGGREGATION_BUCKET", 212
@@ -107,13 +102,18 @@ class StructType(ProtoStrEnum):
     PROPERTY_POINTER = "PROPERTY_POINTER", 214
     NODE_PATH = "NODE_PATH", 215
     PROPERTY_PATH = "PROPERTY_PATH", 216
+
     LOG_ENTRY = "LOG_ENTRY", 220
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
     RUN_ERROR = "RUN_ERROR", 222
     MINI_RUN = "MINI_RUN", 223
     # CURSOR = "CURSOR", 224
+
     WORKER_IMAGE = "WORKER_IMAGE", 230
     DEPENDENCY = "DEPENDENCY", 231
+
+    RICH_TEXT = "RICH_TEXT", 240
+    RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 241
 
     @property
     def camel_name(self):
@@ -288,25 +288,18 @@ class NodeTrackingLevel(enum.IntEnum):
 NTL = NodeTrackingLevel
 
 
-# TODO @Cleanup: remove LookupBy, always look up by identifier
-#  (for non-Python shaped languages, we can just transform the query into snake_case)
-class LookupBy(ProtoStrEnum):
-    Name = "Name", 1
-    PyIdent = "PyIdent", 2
-
-
 class NodeRelationType(enum.IntEnum):
     """Parent relation between node and descendants."""
 
-    Default = 0  # default inline relation
-    Remote = 2**0  # not inline: Statement->Record, ...
-    Shared = 2**1  # across versions: Statement->Comment, Statement[versioned=False]->Record, ...
-    Flat = 2**2  # flattened inner hierarchy: Module->File, File->Statement, ...
-    Cumulative = 2**3  # sum of descendants: Module->Issue, File->Issue, ...
-    Named = 2**4  # indexed by name: Module->File, File->Statement, ...
-    Scoped = 2**5  # scoped by name: Module->File, File->Statement, ...
-    Keyed = 2**6  # indexed by key: File->Tagging, Statement->Tagging, ...
-    Ordered = 2**7  # ordered: File->Statement, Statement->Field, ...
+    DEFAULT = 0  # default inline relation
+    REMOTE = 2**0  # not inline: Statement->Record, ...
+    SHARED = 2**1  # across versions: Statement->Comment, Statement[versioned=False]->Record, ...
+    FLAT = 2**2  # flattened inner hierarchy: Module->File, File->Statement, ...
+    CUMULATIVE = 2**3  # sum of descendants: Module->Issue, File->Issue, ...
+    NAMED = 2**4  # indexed by name: Module->File, File->Statement, ...
+    SCOPED = 2**5  # scoped by name: Module->File, File->Statement, ...
+    KEYED = 2**6  # indexed by key: File->Tagging, Statement->Tagging, ...
+    ORDERED = 2**7  # ordered: File->Statement, Statement->Field, ...
 
 
 NRel = NodeRelationType

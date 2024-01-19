@@ -84,30 +84,30 @@ class BenchStatus(betterproto.Enum):
 class BenchType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    MODULE = 10
-    FILE = 11
-    STATEMENT = 12
-    TRIGGER = 13
-    TAGGING = 14
-    FIELD = 15
-    RECORD = 16
-    VIEW = 17
+    MODULE = 20
+    FILE = 21
+    STATEMENT = 22
+    TRIGGER = 23
+    TAGGING = 24
+    FIELD = 25
+    RECORD = 26
+    VIEW = 27
     ISSUE = 20
-    LINK = 21
-    BLOB = 40
-    SECRET = 41
+    LINK = 31
+    SECRET = 32
+    BLOB = 33
     SESSION = 50
     RUN = 51
-    HALT = 52
+    PAUSE = 52
     SIGNAL = 53
-    WORKER_SET = 60
-    WORKER = 61
-    HANDLE = 100
-    USER = 101
-    ORGANIZATION = 102
-    CLIENT = 103
-    NOTIFICATION = 104
-    BADGE = 105
+    BADGE = 60
+    WORKER_SET = 80
+    WORKER = 81
+    HANDLE = 120
+    USER = 121
+    ORGANIZATION = 122
+    CLIENT = 123
+    NOTIFICATION = 124
     POLICY = 200
     POLICY_RULE = 201
     CONTEXT = 202
@@ -124,6 +124,8 @@ class BenchType(betterproto.Enum):
     MINI_RUN = 223
     WORKER_IMAGE = 230
     DEPENDENCY = 231
+    RICH_TEXT = 240
+    RICH_TEXT_SPAN = 241
 
 
 class BlobStatus(betterproto.Enum):
@@ -245,24 +247,18 @@ class IssueType(betterproto.Enum):
     TASK_IS_STATIC = 13
 
 
-class LookupBy(betterproto.Enum):
-    UNSPECIFIED = 0
-    Name = 1
-    PyIdent = 2
-
-
 class NodeRelationType(betterproto.Enum):
     """// Parent relation between node and descendants."""
 
-    Default = 0
-    Remote = 1
-    Shared = 2
-    Flat = 4
-    Cumulative = 8
-    Named = 16
-    Scoped = 32
-    Keyed = 64
-    Ordered = 128
+    DEFAULT = 0
+    REMOTE = 1
+    SHARED = 2
+    FLAT = 4
+    CUMULATIVE = 8
+    NAMED = 16
+    SCOPED = 32
+    KEYED = 64
+    ORDERED = 128
 
 
 class NodeSource(betterproto.Enum):
@@ -288,30 +284,30 @@ class NodeTrackingLevel(betterproto.Enum):
 class NodeType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    MODULE = 10
-    FILE = 11
-    STATEMENT = 12
-    TRIGGER = 13
-    TAGGING = 14
-    FIELD = 15
-    RECORD = 16
-    VIEW = 17
+    MODULE = 20
+    FILE = 21
+    STATEMENT = 22
+    TRIGGER = 23
+    TAGGING = 24
+    FIELD = 25
+    RECORD = 26
+    VIEW = 27
     ISSUE = 20
-    LINK = 21
-    BLOB = 40
-    SECRET = 41
+    LINK = 31
+    SECRET = 32
+    BLOB = 33
     SESSION = 50
     RUN = 51
-    HALT = 52
+    PAUSE = 52
     SIGNAL = 53
-    WORKER_SET = 60
-    WORKER = 61
-    HANDLE = 100
-    USER = 101
-    ORGANIZATION = 102
-    CLIENT = 103
-    NOTIFICATION = 104
-    BADGE = 105
+    BADGE = 60
+    WORKER_SET = 80
+    WORKER = 81
+    HANDLE = 120
+    USER = 121
+    ORGANIZATION = 122
+    CLIENT = 123
+    NOTIFICATION = 124
 
 
 class NodeVisibility(betterproto.Enum):
@@ -460,6 +456,8 @@ class StructType(betterproto.Enum):
     MINI_RUN = 223
     WORKER_IMAGE = 230
     DEPENDENCY = 231
+    RICH_TEXT = 240
+    RICH_TEXT_SPAN = 241
 
 
 class TextHeadingLevel(betterproto.Enum):
@@ -785,6 +783,31 @@ class PropertyPointerData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class RichTextData(betterproto.Message):
+    """
+    // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None
+    = None, _status: bench.language.const.NodeStatus = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    spans: List["RichTextSpanData"] = betterproto.message_field(30)
+    plain_text: Optional[str] = betterproto.string_field(31, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class RichTextSpanData(betterproto.Message):
+    """
+    // RichTextSpan(text: str = '', reference: bench.language.node.Node | None
+    = None, reference_ptr: bench.proto.wire.NodePointerData = None, _status:
+    bench.language.const.NodeStatus = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    text: str = betterproto.string_field(30)
+    reference_ptr: Optional["NodePointerData"] = betterproto.message_field(31, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class RunCodeFrameData(betterproto.Message):
     """
     // RunCodeFrame(filename: str = <factory>, lineno: int = <factory>, name:
@@ -838,14 +861,13 @@ class WorkerImageData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BadgeData(betterproto.Message):
-    """
-    // A badge for a non-member to access parts of this Bench (via web or
-    programmatically).
-    """
+    """// A badge for a non-member to access parts of this Bench."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodePointerData"] = betterproto.message_field(4, optional=True)
+    module_ptr: "NodePointerData" = betterproto.message_field(6)
     bench_ptr: "NodePointerData" = betterproto.message_field(8)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -905,7 +927,9 @@ class BlobData(betterproto.Message):
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodePointerData"] = betterproto.message_field(4, optional=True)
+    module_ptr: "NodePointerData" = betterproto.message_field(6)
     bench_ptr: "NodePointerData" = betterproto.message_field(8)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
@@ -1013,24 +1037,6 @@ class FileData(betterproto.Message):
     name: Optional[str] = betterproto.string_field(30, optional=True)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
     text: Optional[str] = betterproto.string_field(32, optional=True)
-
-
-@dataclass(eq=False, repr=False)
-class HaltData(betterproto.Message):
-    """// A resumable interruption in the execution (Run) of a statement."""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodePointerData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodePointerData" = betterproto.message_field(6)
-    bench_ptr: "NodePointerData" = betterproto.message_field(8)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_edited_at: datetime = betterproto.message_field(15)
 
 
 @dataclass(eq=False, repr=False)
@@ -1188,6 +1194,24 @@ class OrganizationData(betterproto.Message):
     handle_ptr: Optional["NodePointerData"] = betterproto.message_field(30, optional=True)
     slug: Optional[str] = betterproto.string_field(31, optional=True)
     name: str = betterproto.string_field(32)
+
+
+@dataclass(eq=False, repr=False)
+class PauseData(betterproto.Message):
+    """// A resumable interruption in the execution (Run) of a statement."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodePointerData"] = betterproto.message_field(4, optional=True)
+    module_ptr: "NodePointerData" = betterproto.message_field(6)
+    bench_ptr: "NodePointerData" = betterproto.message_field(8)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    last_edited_at: datetime = betterproto.message_field(15)
 
 
 @dataclass(eq=False, repr=False)
@@ -1432,7 +1456,7 @@ class UserData(betterproto.Message):
     handle_ptr: Optional["NodePointerData"] = betterproto.message_field(30, optional=True)
     slug: Optional[str] = betterproto.string_field(31, optional=True)
     name: Optional[str] = betterproto.string_field(32, optional=True)
-    email: str = betterproto.string_field(33)
+    email: Optional[str] = betterproto.string_field(33, optional=True)
     password_salt: Optional[bytes] = betterproto.bytes_field(34, optional=True)
     password_hash: Optional[bytes] = betterproto.bytes_field(35, optional=True)
     last_logged_in_at: Optional[datetime] = betterproto.message_field(36, optional=True)
@@ -1542,31 +1566,31 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    worker: "WorkerData" = betterproto.message_field(1, group="node")
-    record: "RecordData" = betterproto.message_field(2, group="node")
-    handle: "HandleData" = betterproto.message_field(3, group="node")
-    badge: "BadgeData" = betterproto.message_field(4, group="node")
-    bench: "BenchData" = betterproto.message_field(5, group="node")
-    run: "RunData" = betterproto.message_field(6, group="node")
-    tagging: "TaggingData" = betterproto.message_field(7, group="node")
-    field: "FieldData" = betterproto.message_field(8, group="node")
-    trigger: "TriggerData" = betterproto.message_field(9, group="node")
-    notification: "NotificationData" = betterproto.message_field(10, group="node")
-    session: "SessionData" = betterproto.message_field(11, group="node")
-    halt: "HaltData" = betterproto.message_field(12, group="node")
-    organization: "OrganizationData" = betterproto.message_field(13, group="node")
-    issue: "IssueData" = betterproto.message_field(14, group="node")
-    signal: "SignalData" = betterproto.message_field(15, group="node")
-    statement: "StatementData" = betterproto.message_field(16, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(17, group="node")
-    file: "FileData" = betterproto.message_field(18, group="node")
-    secret: "SecretData" = betterproto.message_field(19, group="node")
-    user: "UserData" = betterproto.message_field(20, group="node")
-    blob: "BlobData" = betterproto.message_field(21, group="node")
-    link: "LinkData" = betterproto.message_field(22, group="node")
-    client: "ClientData" = betterproto.message_field(23, group="node")
-    view: "ViewData" = betterproto.message_field(24, group="node")
-    module: "ModuleData" = betterproto.message_field(25, group="node")
+    trigger: "TriggerData" = betterproto.message_field(1, group="node")
+    blob: "BlobData" = betterproto.message_field(2, group="node")
+    field: "FieldData" = betterproto.message_field(3, group="node")
+    user: "UserData" = betterproto.message_field(4, group="node")
+    tagging: "TaggingData" = betterproto.message_field(5, group="node")
+    statement: "StatementData" = betterproto.message_field(6, group="node")
+    issue: "IssueData" = betterproto.message_field(7, group="node")
+    pause: "PauseData" = betterproto.message_field(8, group="node")
+    record: "RecordData" = betterproto.message_field(9, group="node")
+    session: "SessionData" = betterproto.message_field(10, group="node")
+    handle: "HandleData" = betterproto.message_field(11, group="node")
+    view: "ViewData" = betterproto.message_field(12, group="node")
+    bench: "BenchData" = betterproto.message_field(13, group="node")
+    link: "LinkData" = betterproto.message_field(14, group="node")
+    worker: "WorkerData" = betterproto.message_field(15, group="node")
+    badge: "BadgeData" = betterproto.message_field(16, group="node")
+    file: "FileData" = betterproto.message_field(17, group="node")
+    secret: "SecretData" = betterproto.message_field(18, group="node")
+    organization: "OrganizationData" = betterproto.message_field(19, group="node")
+    module: "ModuleData" = betterproto.message_field(20, group="node")
+    notification: "NotificationData" = betterproto.message_field(21, group="node")
+    signal: "SignalData" = betterproto.message_field(22, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(23, group="node")
+    client: "ClientData" = betterproto.message_field(24, group="node")
+    run: "RunData" = betterproto.message_field(25, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -3095,49 +3119,51 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    WorkerData,
-    RecordData,
-    HandleData,
-    BadgeData,
-    BenchData,
-    RunData,
-    TaggingData,
-    FieldData,
     TriggerData,
-    NotificationData,
-    SessionData,
-    HaltData,
-    OrganizationData,
-    IssueData,
-    SignalData,
+    BlobData,
+    FieldData,
+    UserData,
+    TaggingData,
     StatementData,
-    WorkerSetData,
+    IssueData,
+    PauseData,
+    RecordData,
+    SessionData,
+    HandleData,
+    ViewData,
+    BenchData,
+    LinkData,
+    WorkerData,
+    BadgeData,
     FileData,
     SecretData,
-    UserData,
-    BlobData,
-    LinkData,
-    ClientData,
-    ViewData,
+    OrganizationData,
     ModuleData,
+    NotificationData,
+    SignalData,
+    WorkerSetData,
+    ClientData,
+    RunData,
 ]
 AnyStructData = Union[
-    PolicyData,
     ContextData,
-    AggregationData,
-    PropertyPointerData,
-    MiniRunData,
+    DependencyData,
+    PolicyData,
     ExpressionData,
-    NodePointerData,
-    RunCodeFrameData,
-    PolicyRuleData,
+    MiniRunData,
     LogEntryData,
-    RunErrorData,
+    WorkerImageData,
     PropertyPathData,
     AggregationBucketData,
-    WorkerImageData,
+    RunCodeFrameData,
+    RunErrorData,
     NodePathData,
-    DependencyData,
+    AggregationData,
+    PolicyRuleData,
+    PropertyPointerData,
+    RichTextSpanData,
+    NodePointerData,
+    RichTextData,
 ]
 
-VERSION = "2024.01.18.3"
+VERSION = "2024.01.19.2"
