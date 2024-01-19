@@ -1,7 +1,7 @@
 import dataclasses
 import enum
 import hashlib
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Any, ClassVar, Union
@@ -150,7 +150,7 @@ class TableObject(Object):
 
     def clone(self) -> "TableObject":
         """Deep copy this table object without the table reference."""
-        return replace(self, _table=None)
+        return dataclasses.replace(self, _table=None)
 
 
 class ColumnType(enum.StrEnum):
@@ -226,7 +226,15 @@ class Column(TableObject):
     def __str__(self):
         args_str = ", ".join(
             f"{name}={self.__dict__[name]}"
-            for name in ("is_array", "is_primary_key", "is_unique", "is_nullable", "default")
+            for name in (
+                "is_array",
+                "is_unique",
+                "is_nullable",
+                "default",
+                "is_primary_key",
+                "is_foreign_key_to",
+                "on_delete",
+            )
             if self.__dict__[name]
         )
         table_name = self._table.name if self._table else None
@@ -398,8 +406,8 @@ class Table(TableObject):
     indexes: tuple[Index, ...] = ()
     constraints: tuple[Constraint, ...] = ()
     _source: str | int | None = None
-    _columns_by_name: dict[str, Column] = field(init=False)
-    _primary_key: Column | None = field(init=False)
+    _columns_by_name: dict[str, Column] = dataclasses.field(init=False)
+    _primary_key: Column | None = dataclasses.field(init=False)
 
     def __post_init__(self):
         for object in chain(self.columns, self.indexes, self.constraints):

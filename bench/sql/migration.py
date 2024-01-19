@@ -641,9 +641,10 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
                 # drop and recreate foreign key constraint
                 if op.old_object.is_foreign_key_to:
                     # selects inside DDL aren't technically allowed, so we factor them out in post-processing
+                    object_name = op.old_object.qualified_name.replace(".", "_")
                     updates.append(
                         f"DROP CONSTRAINT IF EXISTS"  # may have cascaded
-                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'FOREIGN KEY' AND constraint_name LIKE '%{op.old_object.name}%')"
+                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'FOREIGN KEY' AND constraint_name LIKE '{object_name}%')"
                     )
                 if op.new_object.is_foreign_key_to:
                     constraint_name = f"{op.new_object.qualified_name.replace('.', '_')}_fk_{op.new_object.is_foreign_key_to}_id"
@@ -655,9 +656,10 @@ def _render_migration_op(op: MigrationOp) -> Optional[str | tuple[str, str]]:
                     )
             if "is_primary_key" in op.diff_keys:
                 if op.old_object.is_primary_key:  # drop it
+                    object_name = op.old_object.qualified_name.replace(".", "_")
                     updates.append(
                         f"DROP CONSTRAINT IF EXISTS"  # may have cascaded
-                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'PRIMARY KEY' AND constraint_name LIKE '%{op.old_object.name}%')"
+                        f" (SELECT constraint_name FROM information_schema.table_constraints WHERE table_schema = 'public' AND table_name = '{op.old_object.table.name}' AND constraint_type = 'PRIMARY KEY' AND constraint_name LIKE '{object_name}%')"
                     )
                 else:  # create it
                     updates.append(
@@ -753,7 +755,7 @@ SELECT
    col.column_default,
    string_agg(tc.constraint_type, ',') AS constraint_types,
    string_agg(tc.constraint_name, ',') AS constraint_names,
-   string_agg(ccu.table_name, ',') AS foreign_table_names,
+   string_agg(ccu.table_name, ',') AS target_table_names,
    string_agg(rc.delete_rule, ',') AS delete_rules
 FROM 
    information_schema.columns col
@@ -790,18 +792,42 @@ GROUP BY
                 postgres_type = PostgresColumnType.CHARACTER_VARYING  # we don't do TEXT
             column_type = COLUMN_TYPE_BY_POSTGRES_TYPE[postgres_type]
             is_foreign_key_to = (
-                row["foreign_table_names"]
+                row["target_table_names"]
                 if "FOREIGN KEY" in (row["constraint_types"] or "")
                 else None
             )
-            cascade_action = CascadeAction(row["delete_rules"]) if row.get("delete_rules") else None
+            cascade_action = (
+                CascadeAction(row["delete_rules"].split(",")[0])
+                if row.get("delete_rules")
+                else None
+            )
+
+            # exclude constraints that apply to more than this column (they're handled separately)
+            target_table_names = (
+                row["target_table_names"].split(",") if row["target_table_names"] else ()
+            )
+            constraint_names = row["constraint_names"].split(",") if row["constraint_names"] else ()
+            constraint_types = row["constraint_types"].split(",") if row["constraint_types"] else ()
+            if constraint_names:
+                scalar_constraint_types = []
+                for target_table_name, constraint_name, constraint_type in zip(
+                    target_table_names, constraint_names, constraint_types
+                ):
+                    if f"{constraint_name},{constraint_name}" not in row["constraint_names"]:
+                        scalar_constraint_types.append(constraint_type)
+                        if constraint_type == "FOREIGN KEY":
+                            is_foreign_key_to = target_table_name
+            else:
+                is_foreign_key_to = None
+                scalar_constraint_types = ()
+
             column = Column(
                 name=row["column_name"],
                 type=column_type,
-                is_primary_key="PRIMARY KEY" in (row["constraint_types"] or ""),
+                is_primary_key="PRIMARY KEY" in constraint_types,
                 is_foreign_key_to=is_foreign_key_to,
                 on_delete=cascade_action,
-                is_unique="UNIQUE" in (row["constraint_types"] or ""),
+                is_unique="UNIQUE" in scalar_constraint_types,
                 is_nullable=row["is_nullable"] == "YES",
                 is_array=is_array,
                 default=row["column_default"],

@@ -1263,31 +1263,31 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    TriggerData trigger = 1;
-    BlobData blob = 2;
-    FieldData field = 3;
-    UserData user = 4;
-    TaggingData tagging = 5;
-    StatementData statement = 6;
-    IssueData issue = 7;
-    PauseData pause = 8;
-    RecordData record = 9;
-    SessionData session = 10;
-    HandleData handle = 11;
-    ViewData view = 12;
-    BenchData bench = 13;
+    ModuleData module = 1;
+    WorkerData worker = 2;
+    HandleData handle = 3;
+    SignalData signal = 4;
+    SessionData session = 5;
+    RecordData record = 6;
+    FieldData field = 7;
+    ClientData client = 8;
+    StatementData statement = 9;
+    TaggingData tagging = 10;
+    BenchData bench = 11;
+    RunData run = 12;
+    OrganizationData organization = 13;
     LinkData link = 14;
-    WorkerData worker = 15;
-    BadgeData badge = 16;
-    FileData file = 17;
-    SecretData secret = 18;
-    OrganizationData organization = 19;
-    ModuleData module = 20;
-    NotificationData notification = 21;
-    SignalData signal = 22;
-    WorkerSetData worker_set = 23;
-    ClientData client = 24;
-    RunData run = 25;
+    ViewData view = 15;
+    UserData user = 16;
+    BadgeData badge = 17;
+    FileData file = 18;
+    SecretData secret = 19;
+    NotificationData notification = 20;
+    BlobData blob = 21;
+    WorkerSetData worker_set = 22;
+    PauseData pause = 23;
+    TriggerData trigger = 24;
+    IssueData issue = 25;
   };
 }
 
