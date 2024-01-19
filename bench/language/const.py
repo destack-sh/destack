@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.19.3"
+VERSION = "2024.01.19.4"
 
 
 #
@@ -364,9 +364,6 @@ class TextHeadingLevel(enum.IntEnum):
 class TypeTag(ProtoStrEnum):
     """The Bench primitive type of a field/type."""
 
-    __RESERVED_IDS__ = {5}
-    __RESERVED_NAMES__ = {"blob"}
-
     STRING = "string", 1
     NUMBER = "number", 2
     BOOLEAN = "boolean", 3
@@ -374,7 +371,6 @@ class TypeTag(ProtoStrEnum):
     JSON = "json", 7  # == ANY
     LITERAL = "literal", 10
     NODE = "node", 11
-    # should retire these :SimpleTypes
     STRUCT = "struct", 6
     FUNCTION = "function", 8
     ENUM = "enum", 9

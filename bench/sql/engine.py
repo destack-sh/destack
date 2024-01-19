@@ -1052,7 +1052,9 @@ async def pg_read_node_data_tree(
                 parent_filter = lang.C(op=ConditionalOp.OR, clauses=parents_filters)
 
                 # collect children
-                # nocheckin: recurse in SQL if child is parent of itself
+                # TODO @Performance!: recurse read node in SQL if child is parent of itself
+                #  (also: we could likely take advantage of the ancestry graph to optimize this more)
+                #  (maybe also for ancestors (same problem in reverse), but that's used much less)
                 children = await pg_select_nodes_data(
                     cur=cur,
                     node_type=child_type,

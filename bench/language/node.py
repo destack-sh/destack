@@ -418,6 +418,7 @@ class Property(_FieldExpressionBase):
             is_stored = True
             is_required = False
             is_array = False
+            is_computed = False
             on_delete = CascadeAction.CASCADE
         elif self.reference_kind == NodeReferenceKind.ANCESTOR:
             assert self.is_wired is not UNSET, f"must set is_wired on {self!r}"
@@ -426,6 +427,7 @@ class Property(_FieldExpressionBase):
             is_stored = self.is_stored
             is_required = self.is_required
             is_array = False
+            is_computed = True
             on_delete = CascadeAction.CASCADE
         elif self.reference_kind == NodeReferenceKind.REGULAR:
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
@@ -433,6 +435,7 @@ class Property(_FieldExpressionBase):
             is_wired = True
             is_stored = True
             is_required = False
+            is_computed = False
             is_array = self.is_array
             on_delete = CascadeAction.SET_NULL
         else:
@@ -451,6 +454,7 @@ class Property(_FieldExpressionBase):
                 is_runtime=True,
                 is_wired=True,
                 is_stored=False,
+                is_computed=is_computed,
                 is_array=is_array,
                 is_required=is_required,
                 column_type=None,
@@ -1457,7 +1461,7 @@ class Node(Struct, _NodeExpressionBase):
     # prototype/template: Optional["Node"] = node_template(5)
     module: "Module" = node_ancestor(6, NodeType.MODULE, require=True, store=True, wire=True)
     # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, require=True, store=True, wire=True)
-    bench: "Bench" = node_ancestor(8, NodeType.BENCH, require=True, store=False, wire=True)
+    bench: "Bench" = node_ancestor(8, NodeType.BENCH, require=True, store=False, wire=False)
     source: NodeSource = struct_internal(
         9, default=NodeSource.PERSISTED, store=False, require=True, protect=True
     )
@@ -1476,6 +1480,7 @@ class Node(Struct, _NodeExpressionBase):
     # created_by: ... = struct_internal(17, default=None)
     # last_edited_by: ... = struct_internal(18, default=None)
     # last_changed_by: ... = struct_internal(19, default=None)
+    # only some nodes have further constraints
     # visibility: ... = struct_internal(20, default=None)
     # policies: ... = struct_internal(21, default=None, struct_t=StructType.POLICY)
 

@@ -190,8 +190,8 @@ def unpack_node(node_data: AnyNodeData, parent: Node | None, session: Session | 
     node_kwargs = {}
     try:
         for prop in node_cls.__wired_properties__.values():
-            if prop.name == "metatype":
-                continue  # implicit in node_cls
+            if not prop.is_runtime or prop.is_computed:
+                continue
             value = getattr(node_data, prop.name)
             node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
         return node_cls(**node_kwargs, parent=parent, _session=session)
