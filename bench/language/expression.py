@@ -2,8 +2,6 @@ import functools
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from more_itertools import first
-
 from bench.language.const import (
     _CONDITIONAL_OP_SIGN,
     AggregationOp,
@@ -79,6 +77,32 @@ class PropertyPointer(Struct):
 
     def __repr__(self):
         return f"<PropertyPointer {self}>"
+
+
+@struct(StructType.NODE_PATH)
+class NodePath(Struct):
+    nodes: list[NodePointer] = struct_property(
+        30, require=True, array=True, struct_t=StructType.NODE_POINTER
+    )
+
+    def __str__(self):
+        return f"{'->'.join(str(node) for node in self.nodes)}"
+
+    def __repr__(self):
+        return f"<NodePath {self}>"
+
+
+@struct(StructType.PROPERTY_PATH)
+class PropertyPath(Struct):
+    properties: list[PropertyPointer] = struct_property(
+        30, require=True, array=True, struct_t=StructType.PROPERTY_POINTER
+    )
+
+    def __str__(self):
+        return f"{'->'.join(str(property) for property in self.properties)}"
+
+    def __repr__(self):
+        return f"<PropertyPath {self}>"
 
 
 @struct(StructType.EXPRESSION)
@@ -275,8 +299,8 @@ class Aggregation(Struct):
     """The result of an aggregation expression."""
 
     op: AggregationOp = struct_property(30, require=True)
-    exists: bool = struct_property(31, default=False)
-    scalar: float = struct_property(32, default=None)
+    exists: Optional[bool] = struct_property(31, default=False)
+    scalar: Optional[float] = struct_property(32, default=None)
     buckets: list["AggregationBucket"] | None = struct_property(
         33, default=None, array=True, struct_t=StructType.AGGREGATION_BUCKET
     )

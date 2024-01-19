@@ -140,6 +140,7 @@ class Session(ScopeNode):
     _init_run_value: dict | None = struct_runtime(default=None)
     _cache: Union["Cache", None] = struct_runtime(default=None)
     _log: structlog.BoundLogger = struct_runtime(default=None)
+
     _failed_commit: bool = struct_runtime(default=False)
     _dangling_nodes_by_ck: dict[UUID, Node] = struct_runtime(default_factory=dict)
     _global_pg_cursor: psycopg.AsyncCursor | None = struct_runtime(default=None)

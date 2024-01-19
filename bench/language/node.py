@@ -64,7 +64,7 @@ from bench.language.link import (
     _NodeExpressionBase,
     on_issue_raise,
 )
-from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase
+from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase, NodeDataTree
 from bench.language.validation import (
     PropertyValidationHandler,
     ValidationError,
@@ -306,6 +306,10 @@ class Property(_FieldExpressionBase):
         return self.struct_type is not None
 
     @property
+    def is_optional(self) -> bool:
+        return not self.is_required
+
+    @property
     def is_enum(self):
         return isinstance(self.py_type_stripped, enum.EnumMeta)
 
@@ -327,7 +331,7 @@ class Property(_FieldExpressionBase):
                 return False
         return True
 
-    def finalize_type(self) -> None:
+    def _finalize_type(self) -> None:
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
         # store/wire property by default if not runtime (and not marked as _not_ store)
@@ -1754,7 +1758,10 @@ class Node(Struct, _NodeExpressionBase):
 
     @property
     def attached(self) -> bool:
-        return self.parent is not None and self.module is not None
+        if self.__is_in_module__:
+            return self.parent is not None and self.module is not None
+        elif self.__is_in_bench__:
+            return self.parent is not None and self.bench is not None
 
     @property
     def scope(self) -> Optional["ScopeNode"]:
@@ -1823,7 +1830,7 @@ class ScopeNode(Node):
                 self._local_tree = DetachedNodeTree()
             else:
                 self._local_tree = NodeTree()
-            self._local_tree.create(self)
+            self._local_tree.add(self)
 
     def _updated_inner(self, properties: Collection[str]) -> None:
         if "name" in properties:
@@ -2066,10 +2073,6 @@ class Bench(ScopeNode):
     def path(self) -> str:
         return self.slug
 
-    @property
-    def attached(self) -> bool:
-        return True  # always "attached"
-
 
 @dataclass
 class NodeChange:
@@ -2117,7 +2120,7 @@ class Module(ScopeNode):
     builtins: list["File"] = struct_runtime(default_factory=list)
 
     _lookup_cache: dict[str, NodeT] = struct_runtime(default_factory=dict)
-    _source: Optional[NodeTree] = struct_runtime(default=None)
+    _source: Optional[NodeDataTree] = struct_runtime(default=None)
 
     def __str__(self):
         if self.issues:
@@ -2157,10 +2160,6 @@ class Module(ScopeNode):
     @property
     def _nodes(self) -> Collection[Node]:
         return self._tree.nodes_by_ck.values()
-
-    @property
-    def attached(self) -> bool:
-        return True  # always "attached"
 
     @property
     def path(self) -> str:
@@ -2289,15 +2288,8 @@ class Module(ScopeNode):
 
     def _apply_edits_to_source(self, edits: list[EditData]) -> None:
         """Applies the edits directly to the source without any interp."""
-
         for edit in edits:
-            try:
-                self._source.apply_edit(edit)
-            except ValueError as e:
-                if edit.node_type not in INTERP_NODE_TYPES:
-                    raise ValueError(f"failed to apply edit {edit!r} to {self!r}") from e
-                # interp errors are fine here since e.g. a deleted issue's parent may have disappeared
-                #  (we could filter that, but it's easier not to, the edits are explicit for clients)
+            self._source.apply_edit(edit)
 
     def _compute_change(
         self,
@@ -2305,43 +2297,7 @@ class Module(ScopeNode):
         old_source: NodeTree,
     ) -> NodeChange:
         """Computes the change between the old and new module state."""
-        new_nodes: dict[UUID, Node] = self.module._tree.nodes_by_ck
-        added = []
-        updated = []
-        for n in new_nodes.values():
-            if n.ck in old_source.nodes_by_ck:
-                if (
-                    n.metatype not in INTERP_NODE_TYPES
-                    and n.revision != old_source.nodes_by_ck[n.ck].revision
-                ):
-                    updated.append(n)
-            else:
-                added.append(n)
-        removed = [n for n in old_source.nodes_by_ck.values() if n.ck not in new_nodes]
-
-        # gather interp edits (delete from old, create in new)
-        old_editor = NodeTreeEditor(old_source, self._bench_id, self.id)
-        for node in removed:
-            # :InterpEditFilter
-            if node.metatype in INTERP_NODE_TYPES:
-                if node.ck not in old_source.nodes_by_ck:
-                    # need to investigate
-                    logger.warning(f"node {node!r} not found in old source for {self!r}")
-                    continue
-                # recover parent info from old source
-                old_editor.delete(old_source.nodes_by_ck[node.ck])
-        new_editor = NodeTreeEditor(self._source, self._bench_id, self.id)
-        for node in added:
-            if node.metatype in INTERP_NODE_TYPES:
-                new_editor.create(node)
-
-        return NodeChange(
-            source_edits=source_edits,
-            interp_edits=new_editor.edits + old_editor.edits,
-            added=added,
-            updated=updated,
-            removed=removed,
-        )
+        raise NotImplementedError("nocheckin: _compute_change")
 
     @staticmethod
     def make(source: list["SomeNodeData"]) -> "Module":
@@ -2410,7 +2366,7 @@ def _complete_bench_setup():
         for name, prop in cls.__properties__.items():
             prop: Property
             # determine final storage type
-            prop.finalize_type()
+            prop._finalize_type()
 
             # set properties (that exist at runtime) on class
             if prop.is_runtime:
