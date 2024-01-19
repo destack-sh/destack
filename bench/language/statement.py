@@ -191,7 +191,7 @@ class Statement(ScopeNode, HasTags):
 
     parent: Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
     children: NodeList["Statement"] = node_children(
-        NodeType.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
+        NodeType.STATEMENT, NRel.ORDERED | NRel.NAMED | NRel.SCOPED
     )
 
     policies: Optional[list["Policy"]] = struct_internal(

@@ -283,6 +283,14 @@ def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False
     return f"Nothing similar in {len(candidates)} candidates."
 
 
+def check_collections_equal(a: Collection[T], b: Collection[T]):
+    a = set(a)
+    b = set(b)
+    difference = a.symmetric_difference(b)
+    if difference:
+        raise ValueError(f"collections are not equal: {difference}")
+
+
 def cyrb53a(s: str, seed: int = 0) -> int:
     """
     53-bit cyrb53a hash.

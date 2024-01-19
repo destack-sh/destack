@@ -293,7 +293,7 @@ class NodeList(NodeListBase[NodeT]):
 
     def _scope(self) -> dict[str, "Node"]:
         """Gets the visible scope for error reporting"""
-        if self._flags & NRel.Named:
+        if self._flags & NRel.NAMED:
             return {n.py_ident: n for n in self._nodes}
         return {}
 
@@ -301,7 +301,7 @@ class NodeList(NodeListBase[NodeT]):
         self, after: NodeT = None, before: NodeT = None
     ) -> tuple[Optional[str], Optional[str]]:
         """Gets the order key bounds after the given (default to last)."""
-        assert self._flags & NRel.Ordered, f"cannot get order key for {self!r}"
+        assert self._flags & NRel.ORDERED, f"cannot get order key for {self!r}"
         if after is not None:
             next_ok = nextn(
                 n.order_key
@@ -325,27 +325,27 @@ class NodeList(NodeListBase[NodeT]):
     def _update(self, scope: "ScopeNode"):
         # _children is effectively a computed property which is replaced wholesale,
         # we don't do diff updates to keep it simple with all the relation types.
-        if self._flags & NRel.Cumulative:
+        if self._flags & NRel.CUMULATIVE:
             # all matching children of parent's descendants
             #  e.g. Module->Issue, File->Issue, ... -> all issues
             self._nodes = scope._local_root_tree.get_descendants(
                 scope.ck, self._child_node_type, recursive=True, prefilter=False
             )
-            assert not self._flags & NRel.Ordered, f"cannot order cumulative {self}"
-        elif self._flags & NRel.Flat:
+            assert not self._flags & NRel.ORDERED, f"cannot order cumulative {self}"
+        elif self._flags & NRel.FLAT:
             # all matching descendants of matching children of parent
             #  e.g. Module->File, File->File, ... -> all files
             self._nodes = scope._local_root_tree.get_descendants(
                 scope.ck, self._child_node_type, recursive=True, prefilter=True
             )
-            if self._flags & NRel.Ordered:
+            if self._flags & NRel.ORDERED:
                 self._nodes = _sort_nested_ordered_list(self._parent.ck, self._nodes)
         else:
             # only matching children of parent
             self._nodes = scope._local_root_tree.get_descendants(
                 scope.ck, self._child_node_type, recursive=False
             )
-            if self._flags & NRel.Ordered:
+            if self._flags & NRel.ORDERED:
                 self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
 
     def append(
@@ -386,14 +386,14 @@ class NodeList(NodeListBase[NodeT]):
 
         # register node scope
         if (
-            self._flags & NRel.Scoped
+            self._flags & NRel.SCOPED
             and _node.name
-            and (not self._flags & NRel.Flat or _node.parent == self._parent)
+            and (not self._flags & NRel.FLAT or _node.parent == self._parent)
         ):
             self._parent._add_node_to_scope(_node)
 
         # assign order key to ordered nodes
-        if self._flags & NRel.Ordered and _node.order_key is None:
+        if self._flags & NRel.ORDERED and _node.order_key is None:
             _node.order_key = generate_key_between(*self._ok_bounds(after, before))
         # update affected nodes
         if _trigger:
@@ -420,7 +420,7 @@ class NodeList(NodeListBase[NodeT]):
             return
 
         # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
-        if self._flags & NRel.Ordered:
+        if self._flags & NRel.ORDERED:
             oks = generate_n_keys_between(*self._ok_bounds(after, before), n=len(nodes))
             for node, ok in zip(nodes, oks):
                 node.order_key = ok
@@ -460,11 +460,11 @@ class NodeList(NodeListBase[NodeT]):
             assert not self._nodes, f"{self!r} is not empty"
 
     def get(self, some_id: str) -> Optional[NodeT]:
-        if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
+        if not (self._flags & NRel.KEYED) and not (self._flags & NRel.NAMED):
             raise ValueError(f"cannot get {some_id!r} from {self!r}")
         for child in self._nodes:
-            if (self._flags & NRel.Keyed and child.key == some_id) or (
-                self._flags & NRel.Named and (child.name == some_id or child.py_ident == some_id)
+            if (self._flags & NRel.KEYED and child.key == some_id) or (
+                self._flags & NRel.NAMED and (child.name == some_id or child.py_ident == some_id)
             ):
                 return child
         return None
@@ -477,9 +477,9 @@ class NodeList(NodeListBase[NodeT]):
 
     def __contains__(self, obj: object) -> bool:
         # special case to unwrap key (e.g. for tagging/tag objects)
-        if self._flags & NRel.Keyed and hasattr(obj, "key"):
+        if self._flags & NRel.KEYED and hasattr(obj, "key"):
             obj = obj.key
-        if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
+        if isinstance(obj, str) and (self._flags & NRel.KEYED or self._flags & NRel.NAMED):
             return self.get(obj) is not None
         elif isinstance(obj, Node):
             if obj.metatype != self._property.reference_types[0]:

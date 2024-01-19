@@ -241,7 +241,7 @@ def unpack_node_inline(
                 )
                 continue  # can happen if there was a race condition in delete cascade and create
         else:
-            node_parent = unpacked_tree.nodes_by_id[node_data.parent_ptr.id]
+            node_parent = unpacked_tree.get(to_uuid(node_data.parent_ptr.id))
         node = unpack_node(node_data, node_parent, session=session)
 
         # keep parent instance if it was passed (update in place)

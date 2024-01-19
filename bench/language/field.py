@@ -550,7 +550,7 @@ class HasFields(HasType):
     """A node with fields"""
 
     fields: NodeList["Field"] = node_children(
-        NodeType.FIELD, NRel.Named | NRel.Scoped | NRel.Ordered
+        NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
     )
 
     _did_resolve_fields: bool = struct_runtime(default=False)

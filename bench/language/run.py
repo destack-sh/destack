@@ -285,8 +285,8 @@ class RunError(Struct, Exception):
         )
 
 
-@node(NodeType.HALT, local=True)
-class Halt(Node):
+@node(NodeType.PAUSE, local=True)
+class Pause(Node):
     """A resumable interruption in the execution (Run) of a statement."""
 
     parent: "Run" = node_parent(4, NodeType.RUN)

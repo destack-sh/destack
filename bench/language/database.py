@@ -600,8 +600,8 @@ class RecordList(NodeListBase[Record], RecordQuery):
 
 @node_component
 class HasDatabase(Node):
-    views: NodeList["View"] = node_children(NodeType.VIEW, NRel.Named | NRel.Ordered)
-    records: NodeList[Record] = node_children(NodeType.RECORD, NRel.Remote, custom_list=RecordList)
+    views: NodeList["View"] = node_children(NodeType.VIEW, NRel.NAMED | NRel.ORDERED)
+    records: NodeList[Record] = node_children(NodeType.RECORD, NRel.REMOTE, custom_list=RecordList)
     _table: Optional[Table] = struct_runtime(default=None)
 
     def _init_inner(self):

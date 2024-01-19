@@ -11,7 +11,7 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language.const import IN_MODULE_NODE_TYPES, NodeType
+from bench.language.const import NodeType, IN_MODULE_NODE_TYPES
 from bench.language.node import Bench, Module
 from bench.language.tree import NodeTree
 from bench.proto import wire
@@ -63,6 +63,10 @@ from bench.sql.engine import pg_read_node
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
+
+IN_MODULE_SOURCE_NODE_TYPES: tuple[NodeType, ...] = tuple(
+    nt for nt in IN_MODULE_NODE_TYPES if nt.id < NodeType.BLOB.id
+)
 
 
 class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
@@ -130,11 +134,11 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
         super().__init__()
         self.bench_id = bench_id
         self.module_id = module_id
-        self.bench: Bench | None = None
-        self.module: Module | None = None
+        self._bench: Bench | None = None
+        self._module: Module | None = None
 
     def __str__(self):
-        return f"{self.module or self.module_id}"
+        return f"{self._module or self.module_id}"
 
     def __repr__(self):
         return f"<ModuleHost {self}>"
@@ -143,19 +147,29 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
     def module_source(self) -> NodeTree[AnyNodeData]:
         return self.module._source
 
+    @property
+    def bench(self) -> Bench:
+        assert self._bench is not None, f"bench not loaded in {self}"
+        return self._bench
+
+    @property
+    def module(self) -> Module:
+        assert self._module is not None, f"module not loaded in {self}"
+        return self._module
+
     async def start_quick(self) -> None:
         async with detached_session() as session:
-            self.bench: Bench = await pg_read_node(
+            self._bench: Bench = await pg_read_node(
                 session=session,
                 root_type=NodeType.BENCH,
                 root_id=self.bench_id,
                 descendant_types=(NodeType.BADGE,),
             )
-            self.module: Module = await pg_read_node(
+            self._module: Module = await pg_read_node(
                 session=session,
                 root_type=NodeType.MODULE,
                 root_id=self.module_id,
-                descendant_types=IN_MODULE_NODE_TYPES,
+                descendant_types=IN_MODULE_SOURCE_NODE_TYPES,
                 parent=self.bench,
             )
 

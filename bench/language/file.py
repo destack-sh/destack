@@ -36,10 +36,10 @@ class File(ScopeNode, HasTags, HasText):
     order_key: Optional[str] = struct_internal(31, default=None)
     text: str | None = struct_property(32, default=None, validate=validate_is_str)
     children: NodeList[Union["File", "Statement"]] = node_children(
-        NodeType.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
+        NodeType.STATEMENT, NRel.FLAT | NRel.ORDERED | NRel.NAMED | NRel.SCOPED
     )
     statements: NodeList["Statement"] = node_children(
-        NodeType.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named
+        NodeType.STATEMENT, NRel.FLAT | NRel.ORDERED | NRel.NAMED
     )
 
     @staticmethod

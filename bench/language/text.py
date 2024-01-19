@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.const import NodeReference, NodeType, TypedNodeReference
+from bench.language.const import NodeReference, NodeType, TypedNodeReference, StructType
 from bench.language.node import (
     UNSET,
     Node,
@@ -12,6 +12,10 @@ from bench.language.node import (
     node_component,
     struct_property,
     struct_runtime,
+    struct,
+    Struct,
+    struct_internal,
+    LINK_TARGET_NODE_TYPES,
 )
 from bench.language.projection import NodeVisitor
 from bench.language.validation import validate_is_str
@@ -278,3 +282,19 @@ def render_text_simple(text_spans: list[TextSpan]) -> str:
         else:
             spans_str.append(span.text)
     return "".join(spans_str)
+
+
+@struct(StructType.RICH_TEXT)
+class RichText(Struct):
+    spans: list["RichTextSpan"] = struct_property(
+        30, default_factory=list, struct_t=StructType.RICH_TEXT
+    )
+    plain_text: str | None = struct_internal(31, default=None)
+
+
+@struct(StructType.RICH_TEXT_SPAN)
+class RichTextSpan(Struct):
+    text: str = struct_property(30, default="")
+    reference: Node | None = struct_property(
+        31, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
+    )
