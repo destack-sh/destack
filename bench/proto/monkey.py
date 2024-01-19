@@ -48,7 +48,7 @@ def _get_field_default_gen(cls: type["betterproto.Message"], field: dataclasses.
     else:
         # This is either a primitive scalar or another message type. Calling
         # it should result in its zero value.
-        return t()
+        return t
 
 
 class _PatchedProtoClassMetadata(betterproto.ProtoClassMetadata):

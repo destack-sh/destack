@@ -64,8 +64,8 @@ from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
 
-IN_MODULE_SOURCE_NODE_TYPES: tuple[NodeType, ...] = tuple(
-    nt for nt in IN_MODULE_NODE_TYPES if nt.id < NodeType.BLOB.id
+LOADED_SOURCE_TYPES: tuple[NodeType, ...] = tuple(
+    nt for nt in IN_MODULE_NODE_TYPES if nt.id < NodeType.BLOB.id and nt not in (NodeType.RECORD,)
 )
 
 
@@ -169,7 +169,7 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
                 session=session,
                 root_type=NodeType.MODULE,
                 root_id=self.module_id,
-                descendant_types=IN_MODULE_SOURCE_NODE_TYPES,
+                descendant_types=LOADED_SOURCE_TYPES,
                 parent=self.bench,
             )
 

@@ -729,7 +729,6 @@ message BadgeData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -782,7 +781,6 @@ message BlobData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -821,7 +819,6 @@ message FieldData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -846,7 +843,6 @@ message FileData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -881,7 +877,6 @@ message IssueData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -902,7 +897,6 @@ message LinkData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -918,7 +912,6 @@ message ModuleData {
   string id = 2;
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -986,7 +979,6 @@ message PauseData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1002,7 +994,6 @@ message RecordData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1019,7 +1010,6 @@ message RunData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1052,7 +1042,6 @@ message SecretData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1072,7 +1061,6 @@ message SessionData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1096,7 +1084,6 @@ message SignalData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1114,7 +1101,6 @@ message StatementData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1141,7 +1127,6 @@ message TaggingData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1160,7 +1145,6 @@ message TriggerData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1203,7 +1187,6 @@ message ViewData {
   string ck = 3;
   optional NodePointerData parent_ptr = 4;
   NodePointerData module_ptr = 6;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1223,7 +1206,6 @@ message WorkerData {
   BenchType metatype = 1;
   string id = 2;
   optional NodePointerData parent_ptr = 4;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1242,7 +1224,6 @@ message WorkerSetData {
   BenchType metatype = 1;
   string id = 2;
   optional NodePointerData parent_ptr = 4;
-  NodePointerData bench_ptr = 8;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1263,31 +1244,31 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    ModuleData module = 1;
-    WorkerData worker = 2;
-    HandleData handle = 3;
-    SignalData signal = 4;
-    SessionData session = 5;
-    RecordData record = 6;
+    BadgeData badge = 1;
+    IssueData issue = 2;
+    SessionData session = 3;
+    UserData user = 4;
+    ModuleData module = 5;
+    SignalData signal = 6;
     FieldData field = 7;
-    ClientData client = 8;
-    StatementData statement = 9;
-    TaggingData tagging = 10;
-    BenchData bench = 11;
-    RunData run = 12;
-    OrganizationData organization = 13;
-    LinkData link = 14;
-    ViewData view = 15;
-    UserData user = 16;
-    BadgeData badge = 17;
-    FileData file = 18;
-    SecretData secret = 19;
-    NotificationData notification = 20;
-    BlobData blob = 21;
-    WorkerSetData worker_set = 22;
+    WorkerData worker = 8;
+    FileData file = 9;
+    ViewData view = 10;
+    LinkData link = 11;
+    StatementData statement = 12;
+    ClientData client = 13;
+    SecretData secret = 14;
+    TaggingData tagging = 15;
+    RunData run = 16;
+    NotificationData notification = 17;
+    OrganizationData organization = 18;
+    BlobData blob = 19;
+    TriggerData trigger = 20;
+    WorkerSetData worker_set = 21;
+    HandleData handle = 22;
     PauseData pause = 23;
-    TriggerData trigger = 24;
-    IssueData issue = 25;
+    RecordData record = 24;
+    BenchData bench = 25;
   };
 }
 

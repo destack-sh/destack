@@ -484,7 +484,7 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
 
     @property
     def _type_of_value(self) -> "HasFields":
-        return symbolx_lib.resolve(".reflect.FieldMetadata")
+        return None
 
     def _init_inner(self):
         self.key = self.key or new_dynamic_node_key(self.ck)
