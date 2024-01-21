@@ -8,9 +8,9 @@ from bench.language.const import (
     NodeType,
     StatementType,
     StructType,
-    TextHeadingLevel,
     TypeFlag,
     TypeTag,
+    NodeVisibility,
 )
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
@@ -22,7 +22,6 @@ from bench.language.node import (
     ScopeNode,
     _Passthrough,
     node,
-    node_ancestor,
     node_children,
     node_component,
     node_parent,
@@ -34,7 +33,7 @@ from bench.language.tagging import HasTags
 from bench.language.task import HasTask
 from bench.language.text import HasText
 from bench.language.trigger import HasTriggers
-from bench.language.validation import enum_validator, validate_is_str, validate_name
+from bench.language.validation import validate_is_str, validate_name
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 from bench.utils.func import dict_minus
@@ -97,8 +96,10 @@ class _StatementDescriptor:
 
 # :StatementDescriptors
 _s = _StatementDescriptor
+_s(StatementType.BOX, (HasFields, HasText), IdentT.VARIABLE, tag=TypeTag.STRUCT)
 _s(StatementType.TAG, (HasFields, HasText), IdentT.VARIABLE, tag=TypeTag.STRUCT)
 _s(StatementType.TEXT, (HasText,), IdentT.VARIABLE)
+_s(StatementType.LINK, (HasText,), IdentT.VARIABLE)
 _s(StatementType.BLANK, (), IdentT.VARIABLE)
 _s(
     StatementType.CLASS,
@@ -152,10 +153,7 @@ _s(
     (HasDatabase, HasFields, HasText),
     IdentT.VARIABLE,
     tag=TypeTag.STRUCT,
-    passthrough=(
-        ("records", _Passthrough.Full),
-        ("resolved_fields", _Passthrough.Scope),
-    ),
+    passthrough=(("records", _Passthrough.Full), ("fields", _Passthrough.Scope)),
 )
 _s(
     StatementType.VIEW,
@@ -164,6 +162,7 @@ _s(
     passthrough=(("fields", _Passthrough.Full),),
 )
 _s(StatementType.SCREEN, (HasText,), IdentT.VARIABLE)
+
 assert len(_STATEMENT_DESCRIPTORS) == len(StatementType), "missing statement descriptors"
 del _s
 
@@ -187,28 +186,32 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
 class Statement(ScopeNode, HasTags):
-    """A Bench statement, the core building block containing logic, schemas, data and AI stuff."""
+    """A Bench building block, the core building block containing logic, schemas, data and AI stuff."""
 
     parent: Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
     children: NodeList["Statement"] = node_children(
         NodeType.STATEMENT, NRel.ORDERED | NRel.NAMED | NRel.SCOPED
     )
 
+    visibility: NodeVisibility = struct_internal(20, default=NodeVisibility.PUBLIC)
     policies: Optional[list["Policy"]] = struct_internal(
-        20, default_factory=list, struct_t=StructType.POLICY
+        21, default_factory=list, struct_t=StructType.POLICY
     )
     type: StatementType = struct_internal(30, default=StatementType.BLANK)
-    file: Optional["File"] = node_ancestor(31, NodeType.FILE, store=False)
+    inline: bool = struct_internal(31, default=False)
     name: str | None = struct_property(32, default=None, validate=validate_name)
     order_key: str | None = struct_internal(33, default=None)
-    heading_level: Optional["TextHeadingLevel"] = struct_property(
-        35, default=None, validate=enum_validator(TextHeadingLevel)
-    )
-    text: str | None = struct_property(36, default=None, validate=validate_is_str)
-    key: str | None = struct_internal(37, default=None)
-    code: str | None = struct_property(38, default=None, validate=validate_is_str)
+    text: str | None = struct_property(34, default=None, validate=validate_is_str)
+    key: str | None = struct_internal(35, default=None)
+    code: str | None = struct_property(36, default=None, validate=validate_is_str)
     value: Any | None = struct_property(
-        39, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
+        37, default=None, copy=deepcopy, column_type=ColumnType.JSON
+    )
+    secret_value: Any | None = struct_internal(
+        38, default=None, encrypt=True, defer=True, copy=deepcopy, column_type=ColumnType.JSON
+    )
+    reference: Optional["Statement"] = struct_internal(
+        39, require=False, array=False, references=NodeType.STATEMENT
     )
     shared: bool = struct_internal(40, default=True)
 
@@ -324,7 +327,7 @@ class Statement(ScopeNode, HasTags):
 # Statement.<type> convenience constructors
 Statement.text = Statement.text_
 for _type in StatementType:
-    if _type in StatementType.TEXT:
+    if _type == StatementType.TEXT:
         continue
     method = staticmethod(
         lambda name=None, _type=_type, *args, **kwargs: Statement.new(

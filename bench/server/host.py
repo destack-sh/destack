@@ -65,7 +65,9 @@ from bench.utils.func import to_uuid
 logger = structlog.get_logger(__name__)
 
 LOADED_SOURCE_TYPES: tuple[NodeType, ...] = tuple(
-    nt for nt in IN_MODULE_NODE_TYPES if nt.id < NodeType.BLOB.id and nt not in (NodeType.RECORD,)
+    nt
+    for nt in IN_MODULE_NODE_TYPES
+    if nt.id < NodeType.SESSION.id and nt not in (NodeType.RECORD,)
 )
 
 

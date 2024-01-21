@@ -58,8 +58,13 @@ class Record(HasValue, Node):
     # :RecordSchema
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
     value: typing.Any | None = struct_property(
-        30, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
+        30,
+        default_factory=dict,
+        copy=deepcopy,
+        column_type=ColumnType.JSON,
+        ignore_conflicts_with=(HasValue,),
     )
+    # could also have secret_value like in Block here, but would unfurl for materialized
 
     @staticmethod
     def new(

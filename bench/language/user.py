@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from bench.language.const import NodeType, NotificationStatus, NotificationType
+from bench.language.const import NodeType, NotificationStatus, NotificationKind
 from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
 
 
@@ -65,7 +65,7 @@ class Notification(Node):
     """A notification for a user."""
 
     parent: User = node_parent(4, NodeType.USER)
-    type: NotificationType = struct_internal(30)
+    kind: NotificationKind = struct_internal(30)
     status: NotificationStatus = struct_internal(31)
     expires_at: datetime = struct_internal(32)
     read_at: datetime = struct_internal(33)

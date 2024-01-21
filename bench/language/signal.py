@@ -19,7 +19,7 @@ class Signal(HasValue):
         30, require=False, array=False, references=NodeType.STATEMENT, index_in_pg=True
     )
     value: Any | None = struct_property(
-        31, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
+        31, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
     # source_run: Optional["Run"] = struct_internal(32, require=False, array=False, references=NodeType.RUN)
     # source_statement: Optional["Statement"] = struct_internal(

@@ -35,7 +35,6 @@ from .node import (
 from .projection import NodeVisitor
 from .render import render
 from .run import Pause, Run, RunError
-from .secret import Secret
 from .session import LogEntry, Session
 from .signal import Signal
 from .statement import Statement
@@ -83,7 +82,6 @@ __all__ = [
     "S",
     "ScheduleType",
     "ScopeNode",
-    "Secret",
     "Session",
     "Signal",
     "SortMode",

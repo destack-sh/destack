@@ -149,7 +149,7 @@ class Run(ScopeNode, HasValue):
     error: Optional["RunError"] = struct_internal(45, default=None, column_type=ColumnType.JSON)
     value: Any | None = struct_internal(
         46,
-        default_factory=dict,
+        default=None,
         copy=deepcopy,
         column_type=ColumnType.JSON,
         ignore_conflicts_with=(HasValue,),

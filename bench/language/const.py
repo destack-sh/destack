@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.19.4"
+VERSION = "2024.01.21.1"
 
 
 #
@@ -34,7 +34,7 @@ class NodeType(ProtoStrEnum):
     # UPGRADE = "UPGRADE", 6
 
     # source
-    # nocheckin: rename module->package, file->box, statement->block (and blob->file)
+    # nocheckin: rename module->package, file->block, statement->block (and blob->file)
     MODULE = "MODULE", 20
     FILE = "FILE", 21
     STATEMENT = "STATEMENT", 22
@@ -47,8 +47,6 @@ class NodeType(ProtoStrEnum):
     # STEP = "STEP", 29
     ISSUE = "ISSUE", 20
     LINK = "LINK", 31
-    SECRET = "SECRET", 32
-    BLOB = "BLOB", 33
 
     # session (all local)
     SESSION = "SESSION", 50
@@ -58,13 +56,14 @@ class NodeType(ProtoStrEnum):
 
     # auth
     BADGE = "BADGE", 60
-    # IDENTITY = "IDENTITY", 61
-    # ROLE = "ROLE", 62
+    # ROLE = "ROLE", 61
+    # IDENTITY = "IDENTITY", 62
 
-    # resources
+    # resources (compute/storage/etc.)
     WORKER_SET = "WORKER_SET", 80
     WORKER = "WORKER", 81
     # WORKER_PROCESS = "WORKER_PROCESS", 82
+    BUCKET_OBJECT = "BUCKET_OBJECT", 83
 
     # user
     HANDLE = "HANDLE", 120
@@ -91,29 +90,31 @@ IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.
 
 class StructType(ProtoStrEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
-    POLICY = "POLICY", 200
-    POLICY_RULE = "POLICY_RULE", 201
-    CONTEXT = "CONTEXT", 202
+    NODE_POINTER = "NODE_POINTER", 200
+    PROPERTY_POINTER = "PROPERTY_POINTER", 201
+    NODE_PATH = "NODE_PATH", 202
+    PROPERTY_PATH = "PROPERTY_PATH", 203
+    BLOB = "BLOB", 204
 
-    EXPRESSION = "EXPRESSION", 210
-    AGGREGATION = "AGGREGATION", 211
-    AGGREGATION_BUCKET = "AGGREGATION_BUCKET", 212
-    NODE_POINTER = "NODE_POINTER", 213
-    PROPERTY_POINTER = "PROPERTY_POINTER", 214
-    NODE_PATH = "NODE_PATH", 215
-    PROPERTY_PATH = "PROPERTY_PATH", 216
+    POLICY = "POLICY", 220
+    POLICY_RULE = "POLICY_RULE", 221
+    CONTEXT = "CONTEXT", 222
 
-    LOG_ENTRY = "LOG_ENTRY", 220
-    RUN_CODE_FRAME = "RUN_CODE_FRAME", 221
-    RUN_ERROR = "RUN_ERROR", 222
-    MINI_RUN = "MINI_RUN", 223
-    # CURSOR = "CURSOR", 224
+    EXPRESSION = "EXPRESSION", 240
+    AGGREGATION = "AGGREGATION", 241
+    AGGREGATION_BUCKET = "AGGREGATION_BUCKET", 242
 
-    WORKER_IMAGE = "WORKER_IMAGE", 230
-    DEPENDENCY = "DEPENDENCY", 231
+    LOG_ENTRY = "LOG_ENTRY", 260
+    RUN_CODE_FRAME = "RUN_CODE_FRAME", 261
+    RUN_ERROR = "RUN_ERROR", 262
+    MINI_RUN = "MINI_RUN", 263
+    # CURSOR = "CURSOR", 264
 
-    RICH_TEXT = "RICH_TEXT", 240
-    RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 241
+    WORKER_IMAGE = "WORKER_IMAGE", 280
+    DEPENDENCY = "DEPENDENCY", 281
+
+    RICH_TEXT = "RICH_TEXT", 300
+    RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 301
 
     @property
     def camel_name(self):
@@ -147,105 +148,29 @@ BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
 INTERP_NODE_TYPES = {NodeType.ISSUE}
 
 
-class NodeSource(enum.IntEnum):
-    PERSISTED = 1
-    INTERP = 2
-    LOCAL = 3
-
-
-class NodeVisibility(enum.IntEnum):
-    PUBLIC = 1
-    INTERNAL = 2
-    PRIVATE = 4
-
-
-#
-# Edits
-#
-
-
-class ReadKind(ProtoStrEnum):
-    READ = "READ", 1  # any read action
-    LIST = "LIST", 2  # list, search, filter, etc.
-    AGGREGATE = "AGGREGATE", 3  # count, sum, group, min, etc.
-
-
-class EditKind(ProtoStrEnum):
-    CREATE = "CREATE", 20  # start at 20, so we can have read 'actions' as well
-    UPSERT = "UPSERT", 21
-    UPDATE = "UPDATE", 22
-    MOVE = "MOVE", 23
-    BUMP = "BUMP", 24
-    SOFT_DELETE = "SOFT_DELETE", 25
-    RESTORE = "RESTORE", 26
-    ARCHIVE = "ARCHIVE", 27
-    UNARCHIVE = "UNARCHIVE", 28
-    DELETE = "DELETE", 29
-
-
-class RunKind(ProtoStrEnum):
-    START = "START", 40
-    PAUSE = "PAUSE", 41
-    RESUME = "RESUME", 42
-    KILL = "KILL", 43
-
-
-if typing.TYPE_CHECKING:
-    ActionKind = ReadKind | EditKind | RunKind
-else:
-    ActionKind = ProtoStrEnum(
-        "ActionKind",
-        {ak.name: (ak.name, ak.id) for ak in chain(ReadKind, EditKind, RunKind)},
-    )
-
-
-#
-# Other stuff
-#
-
-
-class BenchStatus(ProtoStrEnum):
-    RESERVED = "RESERVED", 1
-    PREPARING = "PREPARING", 2
-    AVAILABLE = "AVAILABLE", 3
-    MIGRATING = "MIGRATING", 4
-
-
-class BadgeType(ProtoStrEnum):
-    SHARING_LINK = "SHARING_LINK", 1
-    ACCESS_KEY = "ACCESS_KEY", 2
-
-
-class PolicyEffect(ProtoStrEnum):
-    ALLOW = "ALLOW", 1
-    DENY = "DENY", 2
-
-
-class NotificationType(ProtoStrEnum):
-    pass
-
-
-class NotificationStatus(ProtoStrEnum):
-    ACTIVE = "ACTIVE", 1
-    READ = "READ", 2
-    EXPIRED = "EXPIRED", 3
-
-
 class StatementType(ProtoStrEnum):
-    TAG = "tag", 1
-    TEXT = "text", 2
-    BLANK = "blank", 3
-    CLASS = "class", 4
-    CHOICE = "choice", 5
-    SIGNAL = "signal", 6
-    TASK = "task", 7
-    CODE = "code", 8
-    FLOW = "flow", 9
-    MODEL = "model", 10
-    VARIABLE = "variable", 11
-    DATABASE = "database", 12
-    VIEW = "view", 13
-    SCREEN = "screen", 14
+    BOX = "box", 1  # group of blocks
+    BLANK = "blank", 2  # placeholder/spacer
+    TEXT = "text", 3  # define a 'paragraph' of text/comment/instruction/etc.
+    VARIABLE = "variable", 4  # define a single- or multi-field variable
+    LINK = "link", 5  # an explicit link to another block/node
+
+    TAG = "tag", 10  # define a tag with fields
+    CLASS = "class", 11  # define a single- or multi-field class type
+    CHOICE = "choice", 12  # define a choice type with fields
+    SIGNAL = "signal", 13  # define a signal type with fields
+
+    TASK = "task", 20  # define a task with fields
+    CODE = "code", 21  # define a code block / function with fields
+    FLOW = "flow", 22  # define a flow with steps and fields
+    MODEL = "model", 23  # define a model 'function' with fields
+
+    VIEW = "view", 30  # define a view (or multiple views)
+    DATABASE = "database", 31  # define a database with views
+    SCREEN = "screen", 32  # define a screen with tiles
+
+    # ROLE = "role", 40  # define a role with policies
+    # IDENTITY = "identity", 41  # define an identity with roles
 
     @property
     def camel_name(self):
@@ -258,6 +183,19 @@ RUNNABLE_STATEMENT_TYPES = {
     StatementType.TASK,
     StatementType.FLOW,
 }
+
+
+class NodeSource(enum.IntEnum):
+    PERSISTED = 1
+    INTERP = 2
+    LOCAL = 3
+
+
+class NodeVisibility(enum.IntEnum):
+    PUBLIC = 1
+    INTERNAL = 2
+    PRIVATE = 4
+
 
 DYNAMIC_NODE_KEY_LENGTH = 8
 
@@ -347,12 +285,76 @@ def node_path_as_str(node_path: "NodePath") -> str:
     return f"{node_path.path}:{node_path.name}"
 
 
-class TextHeadingLevel(enum.IntEnum):
-    """Classic headings big to small."""
+#
+# Edits
+#
 
-    H1 = 1
-    H2 = 2
-    H3 = 3
+
+class ReadKind(ProtoStrEnum):
+    READ = "READ", 1  # any read action
+    LIST = "LIST", 2  # list, search, filter, etc.
+    AGGREGATE = "AGGREGATE", 3  # count, sum, group, min, etc.
+
+
+class EditKind(ProtoStrEnum):
+    CREATE = "CREATE", 20  # start at 20, so we can have read 'actions' as well
+    UPSERT = "UPSERT", 21
+    UPDATE = "UPDATE", 22
+    MOVE = "MOVE", 23
+    BUMP = "BUMP", 24
+    SOFT_DELETE = "SOFT_DELETE", 25
+    RESTORE = "RESTORE", 26
+    ARCHIVE = "ARCHIVE", 27
+    UNARCHIVE = "UNARCHIVE", 28
+    DELETE = "DELETE", 29
+
+
+class RunKind(ProtoStrEnum):
+    START = "START", 40
+    PAUSE = "PAUSE", 41
+    RESUME = "RESUME", 42
+    KILL = "KILL", 43
+
+
+if typing.TYPE_CHECKING:
+    ActionKind = ReadKind | EditKind | RunKind
+else:
+    ActionKind = ProtoStrEnum(
+        "ActionKind",
+        {ak.name: (ak.name, ak.id) for ak in chain(ReadKind, EditKind, RunKind)},
+    )
+
+
+#
+# Other stuff
+#
+
+
+class BenchStatus(ProtoStrEnum):
+    RESERVED = "RESERVED", 1
+    PREPARING = "PREPARING", 2
+    AVAILABLE = "AVAILABLE", 3
+    MIGRATING = "MIGRATING", 4
+
+
+class BadgeType(ProtoStrEnum):
+    SHARING_LINK = "SHARING_LINK", 1
+    ACCESS_KEY = "ACCESS_KEY", 2
+
+
+class PolicyEffect(ProtoStrEnum):
+    ALLOW = "ALLOW", 1
+    DENY = "DENY", 2
+
+
+class NotificationKind(ProtoStrEnum):
+    pass
+
+
+class NotificationStatus(ProtoStrEnum):
+    ACTIVE = "ACTIVE", 1
+    READ = "READ", 2
+    EXPIRED = "EXPIRED", 3
 
 
 # TODO @Architecture: :SimpleTypes ... TypeTag/TypeHint/TypeFlag/TypeStorageFormat mess

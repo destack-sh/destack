@@ -1,8 +1,7 @@
 import hashlib
 import io
 import mimetypes
-import typing
-from typing import Optional
+from typing import Optional, TYPE_CHECKING, Union, Collection, BinaryIO
 from urllib.parse import parse_qs, urlparse, urlunparse
 from uuid import UUID, uuid5
 
@@ -11,7 +10,7 @@ import requests
 import structlog
 
 from bench.language.builtin import active_session
-from bench.language.const import BlobStatus, NodeType
+from bench.language.const import BlobStatus, NodeType, StructType
 from bench.language.node import (
     Node,
     node,
@@ -20,10 +19,15 @@ from bench.language.node import (
     struct_property,
     struct_runtime,
     Module,
+    Bench,
+    struct,
+    Struct,
 )
 from bench.language.validation import ValidationHandler, on_invalid_raise
-from bench.sql.core import Index, Constraint, ConstraintType
 from bench.utils.func import _auto_async_to_sync
+
+if TYPE_CHECKING:
+    from bench.language import Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -32,31 +36,43 @@ BLOB_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 BLOB_MAX_NAME_LENGTH = 256
 
 
-@node(NodeType.BLOB, unique_together=(("module_id", "sha512"),))
-class Blob(Node):
-    """
-    A proxy to a remotely stored object behaving like a Python file on demand.
-    :BlobType
-    """
+@node(NodeType.BUCKET_OBJECT, in_module=False)
+class BucketObject(Node):
+    """The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512."""
 
-    parent: Module = node_parent(4, NodeType.MODULE)
+    parent: Bench = node_parent(4, NodeType.BENCH)
     sha512: str = struct_internal(30)
     content_length: int = struct_internal(31)
     content_type: str = struct_internal(32)
+    status: BlobStatus = struct_internal(33)
+
+
+@struct(StructType.BLOB)
+class Blob(Struct):
+    """A reference to a file stored somewhere."""
+
+    sha512: Optional[str] = struct_internal(30)
+    content_length: Optional[int] = struct_internal(31)
+    content_type: Optional[str] = struct_internal(32)
     name: str = struct_property(33)
-    status: BlobStatus = struct_internal(34, default=BlobStatus.PENDING)
+    object: Optional[BucketObject] = struct_internal(
+        34, require=False, array=False, references=NodeType.BUCKET_OBJECT
+    )
+    status: BlobStatus = struct_internal(35, default=BlobStatus.PENDING)
 
     _cached_bytes: Optional[bytes] = struct_runtime(default=None)
 
     def __str__(self):
-        return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
+        return f"{self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
 
     def __repr__(self):
-        return f"<Blob {self}>"
+        return f"<File {self}>"
 
-    def _validate_inner(
-        self, properties: typing.Collection[str], on_invalid: ValidationHandler
-    ) -> None:
+    @property
+    def external(self) -> None:
+        return self.object_ptr is None
+
+    def _validate_inner(self, properties: Collection[str], on_invalid: ValidationHandler) -> None:
         if len(self.name) > BLOB_MAX_NAME_LENGTH:
             on_invalid(
                 self,
@@ -101,7 +117,7 @@ class Blob(Node):
         return content.decode().splitlines()
 
     @_auto_async_to_sync
-    async def io(self) -> typing.BinaryIO:
+    async def io(self) -> BinaryIO:
         """Get a file-like object for the blob."""
         return io.BytesIO(await self.download())
 
@@ -172,9 +188,7 @@ class Blob(Node):
 
     @staticmethod
     @_auto_async_to_sync
-    async def from_file(
-        file: typing.BinaryIO, name: str = None, content_type: str = None
-    ) -> "Blob":
+    async def from_file(file: BinaryIO, name: str = None, content_type: str = None) -> "Blob":
         """Upload a file to blob storage."""
         content = file.read()
         content_type = content_type or mimetypes.guess_type(file.name)[0]
@@ -182,12 +196,10 @@ class Blob(Node):
 
     @staticmethod
     @_auto_async_to_sync
-    async def from_content(
-        name: str, content_type: str, content: bytes | typing.BinaryIO
-    ) -> "Blob":
+    async def from_content(name: str, content_type: str, content: bytes | BinaryIO) -> "Blob":
         """Upload a file to blob storage."""
         session = active_session()
-        if isinstance(content, typing.BinaryIO):
+        if isinstance(content, BinaryIO):
             content = content.read()
         obj = Blob(
             sha512=hashlib.sha512(content).hexdigest(),

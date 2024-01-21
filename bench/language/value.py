@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 @node_component
 class HasValue(Node):
     value: Any | None = struct_property(
-        UNSET, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
+        UNSET, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
 
     @property
