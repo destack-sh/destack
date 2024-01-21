@@ -438,7 +438,7 @@ class DetachedNodeTree(NodeTreeBase[NodeT, UUID]):
         assert isinstance(node_id_or_ck, UUID), f"expected UUID, got {node_id_or_ck!r}"
         children = [
             child
-            for child in self.nodes_by_parent_ck.get(node_id_or_ck, [])
+            for child in self.nodes_by_parent_ck.get(node_id_or_ck, ())
             if not node_type or not prefilter or child.metatype == node_type
         ]
         descendants = []

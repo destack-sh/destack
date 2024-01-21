@@ -2041,7 +2041,9 @@ class ScopeNode(Node):
 
 # all sub-module node types (inside a module)
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
-    nt for nt in NODE_TYPES if NodeType.MODULE.id < nt.id < NodeType.BLOB.id and nt != NodeType.LINK
+    nt
+    for nt in NODE_TYPES
+    if NodeType.MODULE.id < nt.id < NodeType.SESSION.id and nt != NodeType.LINK
 )
 LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.MODULE, NodeType.FILE, NodeType.STATEMENT)
 

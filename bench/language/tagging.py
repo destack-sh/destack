@@ -32,7 +32,7 @@ class Tagging(HasValue, Node):
     )
     key: str = struct_internal(30)
     value: typing.Any | None = struct_property(
-        31, default_factory=dict, copy=deepcopy, column_type=ColumnType.JSON
+        31, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
     reference: Optional["Statement"] = struct_internal(
         32, require=False, array=False, references=NodeType.STATEMENT
@@ -80,7 +80,7 @@ class Tagging(HasValue, Node):
 
     @property
     def _type_of_value(self) -> "HasFields":
-        return symbolx_lib.resolve(".reflect.TaggingMetadata")
+        return None
 
     def __str__(self):
         parent_str = self.parent.path if self.parent is not None else "<detached>"

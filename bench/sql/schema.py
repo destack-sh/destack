@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.19.4"
+VERSION = "2024.01.21.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -185,15 +185,18 @@ STATEMENT_TABLE = Table(
         Column("archived_at", ColumnType.DATETIME, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME),
         Column("last_changed_at", ColumnType.DATETIME, is_nullable=True),
+        Column("visibility", ColumnType.BIGINT, default="1"),
         Column("policies", ColumnType.BYTES, is_array=True, is_nullable=True),
         Column("type", ColumnType.STRING, default="'blank'::character varying"),
+        Column("inline", ColumnType.BOOLEAN, default="false"),
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("order_key", ColumnType.STRING, is_nullable=True),
-        Column("heading_level", ColumnType.BIGINT, is_nullable=True),
         Column("text", ColumnType.STRING, is_nullable=True),
         Column("key", ColumnType.STRING, is_nullable=True),
         Column("code", ColumnType.STRING, is_nullable=True),
         Column("value", ColumnType.JSON, is_nullable=True),
+        Column("secret_value", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
+        Column("reference_statement_ck", ColumnType.UUID, is_nullable=True),
         Column("shared", ColumnType.BOOLEAN, default="true"),
     ),
     indexes=(
@@ -379,7 +382,6 @@ VIEW_TABLE = Table(
         Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
         Column("archived_at", ColumnType.DATETIME, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME),
-        Column("policies", ColumnType.BYTES, is_array=True, is_nullable=True),
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("order_key", ColumnType.STRING, is_nullable=True),
         Column("node_type", ColumnType.STRING),
@@ -494,7 +496,6 @@ LINK_TABLE = Table(
         Column("reference_field_ck", ColumnType.UUID, is_nullable=True),
         Column("reference_record_ck", ColumnType.UUID, is_nullable=True),
         Column("reference_view_ck", ColumnType.UUID, is_nullable=True),
-        Column("reference_secret_ck", ColumnType.UUID, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
@@ -505,100 +506,6 @@ LINK_TABLE = Table(
             "bench_check_one_parent",
             ConstraintType.CHECK,
             condition="(parent_module_id IS NOT NULL) OR (parent_file_id IS NOT NULL) OR (parent_statement_id IS NOT NULL)",
-        ),
-    ),
-)
-
-SECRET_TABLE = Table(
-    "bench_secret",
-    (
-        Column("id", ColumnType.UUID, is_primary_key=True),
-        Column("ck", ColumnType.UUID),
-        Column(
-            "parent_module_id",
-            ColumnType.UUID,
-            is_foreign_key_to="bench_module",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "module_id",
-            ColumnType.UUID,
-            is_foreign_key_to="bench_module",
-            on_delete=CascadeAction.CASCADE,
-        ),
-        Column("revision", ColumnType.BIGINT, default="0"),
-        Column("created_at", ColumnType.DATETIME),
-        Column("updated_at", ColumnType.DATETIME),
-        Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
-        Column("archived_at", ColumnType.DATETIME, is_nullable=True),
-        Column("last_edited_at", ColumnType.DATETIME),
-        Column("type_statement_ck", ColumnType.UUID, is_nullable=True),
-        Column("value", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
-        Column("sha512", ColumnType.STRING),
-        Column("name", ColumnType.STRING, is_nullable=True),
-    ),
-    indexes=(
-        Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
-        Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
-    ),
-    constraints=(
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_module_id IS NOT NULL)",
-        ),
-    ),
-)
-
-BLOB_TABLE = Table(
-    "bench_blob",
-    (
-        Column("id", ColumnType.UUID, is_primary_key=True),
-        Column("ck", ColumnType.UUID),
-        Column(
-            "parent_module_id",
-            ColumnType.UUID,
-            is_foreign_key_to="bench_module",
-            on_delete=CascadeAction.CASCADE,
-            is_nullable=True,
-        ),
-        Column(
-            "module_id",
-            ColumnType.UUID,
-            is_foreign_key_to="bench_module",
-            on_delete=CascadeAction.CASCADE,
-        ),
-        Column("revision", ColumnType.BIGINT, default="0"),
-        Column("created_at", ColumnType.DATETIME),
-        Column("updated_at", ColumnType.DATETIME),
-        Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
-        Column("archived_at", ColumnType.DATETIME, is_nullable=True),
-        Column("last_edited_at", ColumnType.DATETIME),
-        Column("sha512", ColumnType.STRING),
-        Column("content_length", ColumnType.BIGINT),
-        Column("content_type", ColumnType.STRING),
-        Column("name", ColumnType.STRING),
-        Column("status", ColumnType.STRING, default="'PENDING'::character varying"),
-    ),
-    indexes=(
-        Index(
-            "bench_idx_module_id_sha512", IndexType.BTREE, ("module_id", "sha512"), is_unique=True
-        ),
-        Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
-        Index("bench_idx_module_archived_at", IndexType.BTREE, ("module_id", "archived_at")),
-    ),
-    constraints=(
-        Constraint(
-            "bench_idx_module_id_sha512",
-            ConstraintType.UNIQUE,
-            columns=("module_id", "sha512"),
-            index="bench_idx_module_id_sha512",
-        ),
-        Constraint(
-            "bench_check_one_parent",
-            ConstraintType.CHECK,
-            condition="(parent_module_id IS NOT NULL)",
         ),
     ),
 )
@@ -910,6 +817,41 @@ WORKER_TABLE = Table(
     ),
 )
 
+BUCKET_OBJECT_TABLE = Table(
+    "bench_bucketobject",
+    (
+        Column("id", ColumnType.UUID, is_primary_key=True),
+        Column(
+            "parent_bench_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_bench",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column("revision", ColumnType.BIGINT, default="0"),
+        Column("created_at", ColumnType.DATETIME),
+        Column("updated_at", ColumnType.DATETIME),
+        Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
+        Column("archived_at", ColumnType.DATETIME, is_nullable=True),
+        Column("last_edited_at", ColumnType.DATETIME),
+        Column("sha512", ColumnType.STRING),
+        Column("content_length", ColumnType.BIGINT),
+        Column("content_type", ColumnType.STRING),
+        Column("status", ColumnType.STRING),
+    ),
+    indexes=(
+        Index("bench_idx_deleted_at", IndexType.BTREE, ("deleted_at",)),
+        Index("bench_idx_archived_at", IndexType.BTREE, ("archived_at",)),
+    ),
+    constraints=(
+        Constraint(
+            "bench_check_one_parent",
+            ConstraintType.CHECK,
+            condition="(parent_bench_id IS NOT NULL)",
+        ),
+    ),
+)
+
 HANDLE_TABLE = Table(
     "bench_handle",
     (
@@ -1066,7 +1008,7 @@ NOTIFICATION_TABLE = Table(
         Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
         Column("archived_at", ColumnType.DATETIME, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME),
-        Column("type", ColumnType.STRING),
+        Column("kind", ColumnType.STRING),
         Column("status", ColumnType.STRING),
         Column("expires_at", ColumnType.DATETIME),
         Column("read_at", ColumnType.DATETIME),

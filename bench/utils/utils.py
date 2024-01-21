@@ -165,6 +165,10 @@ def to_camel_case(snake_str: str) -> str:
 @cachetools.cached(cache={})
 def to_snake_case(camel_str: str) -> str:
     """From camel case to snake case."""
+    # early cancel if already snake case
+    if not re.match("^[a-z0-9_]+$", camel_str):
+        return camel_str
+
     components = re.split(r"(?<=[a-z])(?=[A-Z0-9])", camel_str)
     return "_".join(components).lower()
 

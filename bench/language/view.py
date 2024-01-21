@@ -12,9 +12,6 @@ if typing.TYPE_CHECKING:
 @node(NodeType.VIEW)
 class View(Node):
     parent: typing.Union["Statement"] = node_parent(4, NodeType.STATEMENT)
-    policies: Optional[list["Policy"]] = struct_internal(
-        20, default=None, struct_t=StructType.POLICY
-    )
     name: str | None = struct_property(30, default=None)
     order_key: str | None = struct_property(31, default=None)
     node_type: NodeType = struct_property(32)
