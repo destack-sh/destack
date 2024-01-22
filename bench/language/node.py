@@ -71,7 +71,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, NodePointerData, SomeNodeData
+from bench.proto.wire import EditData, NodeReferenceData, SomeNodeData
 from bench.sql.core import (
     CascadeAction,
     ColumnType,
@@ -100,7 +100,7 @@ if TYPE_CHECKING:
         NodeVisitor,
         Organization,
         Policy,
-        PropertyPointer,
+        PropertyReference,
         Session,
         User,
         WorkerSet,
@@ -272,16 +272,16 @@ class Property(_FieldExpressionBase):
         return field
 
     @functools.cached_property
-    def ptr(self) -> "PropertyPointer":
+    def ptr(self) -> "PropertyReference":
         """A pointer to this property."""
         assert self.component is not None, f"{self!r} is not finalized"
-        from bench.language.expression import PropertyPointer
+        from bench.language.expression import PropertyReference
 
         if self.reference_kind and len(self.reference_types) == 1:
             references_type = self.reference_types[0]
         else:
             references_type = None
-        return PropertyPointer(
+        return PropertyReference(
             type=self.component.metatype, id=self.id, references_type=references_type
         )
 
@@ -447,7 +447,7 @@ class Property(_FieldExpressionBase):
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw=NodePointerData,
+                py_type_raw=NodeReferenceData,
                 reference_kind=self.reference_kind,
                 reference_types=self.reference_types,
                 reference_source=self,
@@ -1286,7 +1286,7 @@ class Struct(abc.ABC):
         self._init_self()
 
     @classmethod
-    def _get_property(cls, ptr: "PropertyPointer") -> Property | None:
+    def _get_property(cls, ptr: "PropertyReference") -> Property | None:
         if not ptr.references_type:
             return cls.__properties_by_id__.get(ptr.id, None)
         else:
@@ -1296,7 +1296,7 @@ class Struct(abc.ABC):
             return None
 
     @classmethod
-    def _resolve_property(cls, ptr: "PropertyPointer") -> Property | None:
+    def _resolve_property(cls, ptr: "PropertyReference") -> Property | None:
         prop = cls._get_property(ptr)
         if prop is None:
             raise ValueError(f"unknown property pointer: {ptr!r} in {cls!r}")
@@ -1324,9 +1324,9 @@ class Struct(abc.ABC):
         for prop in self.__reference_properties__.values():
             ref = getattr(self, prop.name)
             if prop.reference_wired_ptr is not None and isinstance(ref, Node):
-                from bench.language.expression import NodePointer
+                from bench.language.expression import NodeReference
 
-                self.__dict__[prop.reference_wired_ptr.name] = NodePointer.from_node(ref)
+                self.__dict__[prop.reference_wired_ptr.name] = NodeReference.from_node(ref)
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         # clear node references :NodePointers
@@ -1592,9 +1592,9 @@ class Node(Struct, _NodeExpressionBase):
                     self.__dict__[key] = prev
                     raise e
                 if prop.reference_wired_ptr:  # update reference pointer  :NodePointers
-                    from bench.language.expression import NodePointer
+                    from bench.language.expression import NodeReference
 
-                    self.__dict__[prop.reference_wired_ptr.name] = NodePointer.from_node(value)
+                    self.__dict__[prop.reference_wired_ptr.name] = NodeReference.from_node(value)
                     if self.attached:
                         self._session.update(self, [key])
                         self._updated_self((prop.reference_wired_ptr.name,))

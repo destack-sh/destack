@@ -66,7 +66,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoT
         return Field(
             id=prop.id,
             name=prop.name,
-            type="NodePointerData",
+            type="NodeReferenceData",
             optional=prop.is_optional or prop.is_deferred,
             repeated=prop.is_array,
         )

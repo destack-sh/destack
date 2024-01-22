@@ -84,15 +84,6 @@ class HasRun(Node):
         raise NotImplementedError
 
 
-@struct(StructType.MINI_RUN)
-class MiniRun(Struct):
-    generated_at: datetime = struct_internal(30)
-    generated_in: UUID = struct_internal(31)
-    duration: float = struct_internal(32)
-    inputs: Any = struct_internal(33, column_type=ColumnType.JSON)
-    outputs: Any = struct_internal(34, column_type=ColumnType.JSON)
-
-
 def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
     inputs_bytes = msgpack.packb(inputs_raw, use_bin_type=True)
     input_hash = hashlib.sha256(inputs_bytes).hexdigest()

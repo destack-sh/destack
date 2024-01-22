@@ -3,10 +3,10 @@ from typing import Optional
 
 from bench.language.const import NodeType, StructType
 from bench.language.expression import Expression
-from bench.language.node import Node, node, node_parent, struct_internal, struct_property
+from bench.language.node import Node, node, node_parent, struct_property
 
 if typing.TYPE_CHECKING:
-    from bench.language import File, Policy, Statement
+    from bench.language import Statement
 
 
 @node(NodeType.VIEW)

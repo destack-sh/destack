@@ -25,7 +25,7 @@ from bench.language.node import (
 from bench.language.session import Session
 from bench.language.tree import NodeDataTree
 from bench.proto import wire
-from bench.proto.wire import NodePointerData, AnyNodeData, AnyStructData
+from bench.proto.wire import NodeReferenceData, AnyNodeData, AnyStructData
 from bench.sql.core import ColumnType
 from bench.utils.func import to_uuid
 from bench.utils.utils import to_snake_case
@@ -86,9 +86,9 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.is_enum:
         return pack_enum(prop.py_type_stripped, value)
     elif prop.reference_kind in (NodeReferenceKind.PARENT, NodeReferenceKind.ANCESTOR):
-        return NodePointerData(metatype=value.metatype, id=value.id)
+        return NodeReferenceData(metatype=value.metatype, id=value.id)
     elif prop.reference_kind == NodeReferenceKind.REGULAR:
-        return NodePointerData(metatype=value.metatype, id=value.id, ck=value.ck)
+        return NodeReferenceData(metatype=value.metatype, id=value.id, ck=value.ck)
     elif prop.column_type == ColumnType.UUID:
         return str(value)  # uuids are wired as strings
     elif prop.column_type == ColumnType.JSON:

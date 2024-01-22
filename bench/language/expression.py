@@ -43,8 +43,8 @@ class QueryEngineIncapableError(QueryEngineError):
     pass
 
 
-@struct(StructType.NODE_POINTER)
-class NodePointer(Struct):
+@struct(StructType.NODE_REFERENCE)
+class NodeReference(Struct):
     type: NodeType = struct_property(30, require=True)
     id: Optional[UUID] = struct_property(31, default=None)
     ck: Optional[UUID] = struct_property(32, default=None)
@@ -53,20 +53,20 @@ class NodePointer(Struct):
         return f"{self.type.name}:[id={self.id}, ck={self.ck}]"
 
     def __repr__(self):
-        return f"<NodePointer {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     @staticmethod
-    def from_node(node: Optional[Node]) -> Optional["NodePointer"]:
+    def from_node(node: Optional[Node]) -> Optional["NodeReference"]:
         if node is None:
             return None
         if node.__is_in_module__:
-            return NodePointer(type=node.metatype, id=node.id, ck=node.ck)
+            return NodeReference(type=node.metatype, id=node.id, ck=node.ck)
         else:
-            return NodePointer(type=node.metatype, id=node.id)
+            return NodeReference(type=node.metatype, id=node.id)
 
 
-@struct(StructType.PROPERTY_POINTER)
-class PropertyPointer(Struct):
+@struct(StructType.PROPERTY_REFERENCE)
+class PropertyReference(Struct):
     type: BenchType = struct_property(30, require=True)
     id: Optional[int] = struct_property(31)
     # to disambiguate contributed properties
@@ -76,13 +76,15 @@ class PropertyPointer(Struct):
         return f"{self.type.name}:{self.id}"
 
     def __repr__(self):
-        return f"<PropertyPointer {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
 
 @struct(StructType.NODE_PATH)
 class NodePath(Struct):
-    nodes: list[NodePointer] = struct_property(
-        30, require=True, array=True, struct_t=StructType.NODE_POINTER
+    """A path of nodes."""
+
+    nodes: list[NodeReference] = struct_property(
+        30, require=True, array=True, struct_t=StructType.NODE_REFERENCE
     )
 
     def __str__(self):
@@ -94,8 +96,10 @@ class NodePath(Struct):
 
 @struct(StructType.PROPERTY_PATH)
 class PropertyPath(Struct):
-    properties: list[PropertyPointer] = struct_property(
-        30, require=True, array=True, struct_t=StructType.PROPERTY_POINTER
+    """A path of Node/Struct properties."""
+
+    properties: list[PropertyReference] = struct_property(
+        30, require=True, array=True, struct_t=StructType.PROPERTY_REFERENCE
     )
 
     def __str__(self):
@@ -103,6 +107,53 @@ class PropertyPath(Struct):
 
     def __repr__(self):
         return f"<PropertyPath {self}>"
+
+
+@struct(StructType.FIELD_PATH)
+class FieldPath(Struct):
+    """A path of built-in Node/Struct properties and user-defined Fields."""
+
+    segments: list["FieldPathSegment"] = struct_property(
+        30, require=True, array=True, struct_t=StructType.FIELD_PATH_SEGMENT
+    )
+
+    def __str__(self):
+        return ".".join(str(segment) for segment in self.segments)
+
+    def __repr__(self):
+        return f"<FieldPath {self}>"
+
+
+@struct(StructType.FIELD_PATH_SEGMENT)
+class FieldPathSegment(Struct):
+    """A single segment of a FieldPath."""
+
+    property: PropertyReference = struct_property(
+        30, require=True, struct_t=StructType.PROPERTY_REFERENCE
+    )
+    field: Optional["Field"] = struct_property(
+        31, require=False, array=False, references=NodeType.FIELD
+    )
+
+    def __str__(self):
+        return f"{self.property}{f'.{self.field}' if self.field else ''}"
+
+    def __repr__(self):
+        return f"<FieldPathSegment {self}>"
+
+
+@struct(StructType.VALUE_REFERENCE)
+class ValueReference(Struct):
+    """Reference a value at a path of a Node."""
+
+    node: Node = struct_property(30, require=True, array=False, references=(NodeType.STATEMENT,))
+    path: FieldPath = struct_property(31, require=True, struct_t=StructType.FIELD_PATH)
+
+    def __str__(self):
+        return f"{self.node.path}.{self.path}"
+
+    def __repr__(self):
+        return f"<ValueReference {self}>"
 
 
 @struct(StructType.EXPRESSION)
@@ -113,14 +164,14 @@ class Expression(Struct):
     field: Optional["Field"] = struct_property(
         31, require=False, array=False, references=NodeType.FIELD
     )
-    property_ptr: Optional[PropertyPointer] = struct_property(
-        32, default=None, struct_t=StructType.PROPERTY_POINTER
+    property_ptr: Optional[PropertyReference] = struct_property(
+        32, default=None, struct_t=StructType.PROPERTY_REFERENCE
     )
     clauses: list["Expression"] | None = struct_property(
-        33, default=None, struct_t=StructType.EXPRESSION
+        35, default=None, struct_t=StructType.EXPRESSION
     )
-    value: Any = struct_property(34, default=None, column_type=ColumnType.JSON)
-    mode: Optional[SortMode] = struct_property(35, default=None)
+    value: Any = struct_property(36, default=None, column_type=ColumnType.JSON)
+    mode: Optional[SortMode] = struct_property(37, default=None)
 
     @property
     def kind(self) -> ExpressionKind:

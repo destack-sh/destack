@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.21.1"
+VERSION = "2024.01.22.1"
 
 
 #
@@ -74,7 +74,8 @@ class NodeType(ProtoStrEnum):
 
     # INVITE = "INVITE", 130
     # MEMBERSHIP = "MEMBERSHIP", 131
-    # COMMENT = "COMMENT", 131
+    # COMMENT = "COMMENT", 132
+    # MESSAGE = "MESSAGE", 133
 
     @property
     def camel_name(self):
@@ -90,11 +91,15 @@ IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.
 
 class StructType(ProtoStrEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
-    NODE_POINTER = "NODE_POINTER", 200
-    PROPERTY_POINTER = "PROPERTY_POINTER", 201
+    NODE_REFERENCE = "NODE_REFERENCE", 200
+    PROPERTY_REFERENCE = "PROPERTY_REFERENCE", 201
     NODE_PATH = "NODE_PATH", 202
     PROPERTY_PATH = "PROPERTY_PATH", 203
-    BLOB = "BLOB", 204
+    FIELD_PATH = "FIELD_PATH", 204
+    FIELD_PATH_SEGMENT = "FIELD_PATH_SEGMENT", 205
+    VALUE_REFERENCE = "VALUE_REFERENCE", 206
+
+    BLOB = "BLOB", 210
 
     POLICY = "POLICY", 220
     POLICY_RULE = "POLICY_RULE", 221
@@ -107,7 +112,6 @@ class StructType(ProtoStrEnum):
     LOG_ENTRY = "LOG_ENTRY", 260
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 261
     RUN_ERROR = "RUN_ERROR", 262
-    MINI_RUN = "MINI_RUN", 263
     # CURSOR = "CURSOR", 264
 
     WORKER_IMAGE = "WORKER_IMAGE", 280

@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.21.1"
+VERSION = "2024.01.22.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -188,7 +188,7 @@ STATEMENT_TABLE = Table(
         Column("visibility", ColumnType.BIGINT, default="1"),
         Column("policies", ColumnType.BYTES, is_array=True, is_nullable=True),
         Column("type", ColumnType.STRING, default="'blank'::character varying"),
-        Column("inline", ColumnType.BOOLEAN, default="false"),
+        Column("bases_statement_ck", ColumnType.UUID, is_array=True, is_nullable=True),
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("order_key", ColumnType.STRING, is_nullable=True),
         Column("text", ColumnType.STRING, is_nullable=True),
@@ -197,6 +197,7 @@ STATEMENT_TABLE = Table(
         Column("value", ColumnType.JSON, is_nullable=True),
         Column("secret_value", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
         Column("reference_statement_ck", ColumnType.UUID, is_nullable=True),
+        Column("is_inline", ColumnType.BOOLEAN, default="true"),
         Column("shared", ColumnType.BOOLEAN, default="true"),
     ),
     indexes=(

@@ -15,7 +15,7 @@ from bench.language.const import NodeType, IN_MODULE_NODE_TYPES
 from bench.language.node import Bench, Module
 from bench.language.tree import NodeTree
 from bench.proto import wire
-from bench.proto.mesh import BenchServiceBase
+from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,

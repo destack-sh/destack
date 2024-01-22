@@ -188,7 +188,7 @@ class HasModel(HasFields, Node):
 
 
 # avoid circular import
-from .run import MiniRun, RunError, RunErrorKind  # noqa: E402
+from .run import RunError, RunErrorKind  # noqa: E402
 
 
 class ModelError(RunError):
