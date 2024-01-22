@@ -61,7 +61,6 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
     TODO @Broken: _render_prop recursively with all nodes/structs (blobs, secrets, etc. see typing)
     """
     from bench.language.packer import render_value
-    from bench.language.text import HasText
     from bench.language.value import HasValue
 
     if value is None:
@@ -81,7 +80,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         # render text into simple form
         if isinstance(value, Text):
             value = render_text_simple(value.spans)
-        elif name == "text" and HasText in node._components and value and node._text_spans:
+        elif name == "text" and value and node._text_spans:
             value = render_text_simple(node._text_spans)
         # if it contains newlines transform into multiline string
         # and escape any multiline strings inside
@@ -95,7 +94,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         value = render_value(
             value,
             node.metatype_of_value,
-            get_k=lambda f: f.py_ident,
+            get_k=lambda f: f.ident,
             filter_v=DEFAULT_VALUE_FILTER,
             ignore_array=True,
         )
@@ -174,17 +173,15 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
         # render as define (root) or create/append (child)
         if node.parent and node.parent.ck in nodes_by_ck:
             attach_to_prop = first(
-                p
-                for p in node.parent.__list_properties_by_child__[node.metatype]
-                if not p.children_flags & NRel.FLAT
+                p for p in node.parent.__list_properties_by_child__[node.metatype]
             )
-            parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
+            parent_str = f"{node.parent.ident}.{attach_to_prop.name}"
             if node.metatype in (NodeType.RECORD, NodeType.TAGGING, NodeType.TRIGGER):
                 op = _Op(parent_str, _OpType.CREATE, [init_node])
             else:
                 op = _Op(parent_str, _OpType.APPEND, [init_node])
         else:
-            op = _Op(node.py_ident, _OpType.ASSIGN, [init_node])
+            op = _Op(node.ident, _OpType.ASSIGN, [init_node])
         ops.append(op)
 
     # merge successive ops (if they can be combined like create/append)

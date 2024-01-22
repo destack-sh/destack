@@ -180,7 +180,7 @@ class HasCode(Node):
             "ximport": self._import_sync if not self._is_async else self._import_async,
             "install": _install_package,
             **self._statement_references,
-            **{s.py_ident: s for s in symbolx_lib.files.builtins.statements},
+            **{s.ident: s for s in symbolx_lib.files.builtins.statements},
         }
 
         import bench.language
@@ -230,9 +230,9 @@ class HasCode(Node):
 
         locals = self._prep_locals()
         func_body, start_offset, end_offset = self._prep_func_body()
-        func_name = f"{self.py_ident or '_anon'}_{self.id.hex[:6]}"
+        func_name = f"{self.ident or '_anon'}_{self.id.hex[:6]}"
         func_params = ", ".join(
-            i.py_ident + "=None" for i in self.resolved_fields if not (i.flags & TypeFlag.IS_OUTPUT)
+            i.ident + "=None" for i in self.resolved_fields if not (i.flags & TypeFlag.IS_OUTPUT)
         )
         try:
             method_str = f"def {func_name}({func_params}):\n{textwrap.indent(func_body, ' ' * 4)}"

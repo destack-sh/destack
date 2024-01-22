@@ -1,78 +1,20 @@
 import re
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.const import NodeReference, NodeType, TypedNodeReference, StructType
+from bench.language.const import NodeReference, NodeType, StructType, TypedNodeReference
 from bench.language.node import (
-    UNSET,
-    Node,
-    ScopeNode,
-    node_component,
-    struct_property,
-    struct_runtime,
-    struct,
-    Struct,
-    struct_internal,
     LINK_TARGET_NODE_TYPES,
+    Node,
+    Struct,
+    struct,
+    struct_internal,
+    struct_property,
 )
-from bench.language.projection import NodeVisitor
-from bench.language.validation import validate_is_str
 
 if TYPE_CHECKING:
-    from bench.language.issue import IssueHandler
-
-
-@node_component
-class HasText(Node):
-    """Some instruction text with optional references."""
-
-    text: str | None = struct_property(UNSET, default=None, validate=validate_is_str)
-    _text_parsed: Optional["Text"] = struct_runtime(default=None, copy=lambda v: deepcopy(v))
-
-    @property
-    def text_plain(self) -> Optional[str]:
-        if self._text_spans is None:
-            return None
-        return "".join(str(s) for s in self._text_spans)
-
-    @property
-    def _text_spans(self) -> list["TextSpan"]:
-        if self._text_parsed is None:
-            return []
-        return self._text_parsed.spans
-
-    @property
-    def mentions(self) -> list["TextMention"]:
-        return [span for span in self._text_spans if isinstance(span, TextMention)]
-
-    def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
-        self._text_parsed = None
-
-    def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
-        if self.text is None:
-            return
-
-        if self._new:
-            # crude way of parsing out simple @mentions for new stuff
-            # TODO @Cleanup @Architecture: institutionalize post-user-set special interp (value coerce/clean)
-            spans = parse_text_multi(self.text)
-        else:
-            spans = parse_text_html(self.text)
-
-        self._text_parsed = Text(spans=spans, _raw_text=self.text)
-        changed_source = self._text_parsed._resolve(scope)
-        if changed_source:
-            # update text with resolved references
-            self.text = render_text_html(self._text_parsed.spans)
-
-    def _visit_inner(self, visitor: "NodeVisitor") -> None:
-        if self._text_spans is None:
-            return
-        for span in self._text_spans:
-            if isinstance(span, TextMention) and isinstance(span.reference, Node):
-                visitor.visit_reference(span.reference)
+    pass
 
 
 @dataclass
@@ -81,33 +23,8 @@ class Text:
     _raw_text: str | None = None
 
     @property
-    def text_plain(self) -> Optional[str]:
-        return "".join(str(s) for s in self.spans)
-
-    @property
     def mentions(self) -> list["TextMention"]:
         return [span for span in self.spans if isinstance(span, TextMention)]
-
-    def _resolve(self, scope: "ScopeNode") -> bool:
-        # resolve references
-        changed_source = False
-        for span in self.spans:
-            if not isinstance(span, TextMention):
-                continue
-            if isinstance(span.reference, Node):
-                continue
-            resolved = None
-            if span.reference is not None:
-                if isinstance(span.reference, TypedNodeReference):
-                    resolved = scope.lookup(span.reference.ref, node_t=span.reference.type)
-                else:
-                    resolved = scope.lookup(span.reference)
-            if resolved is not None:
-                if isinstance(span.reference, str) or isinstance(span.reference.ref, str):
-                    # user code set a string reference, need to track change
-                    changed_source = True
-                span.reference = resolved  # success
-        return changed_source
 
 
 @dataclass
@@ -141,7 +58,7 @@ class TextMention:
     reference_path: Optional[str] = None
 
     def __str__(self):
-        return f"@{self.reference.py_ident}"
+        return f"@{self.reference.ident}"
 
     def __repr__(self):
         return f"<TextMention {self}>"
@@ -277,7 +194,7 @@ def render_text_simple(text_spans: list[TextSpan]) -> str:
     for span in text_spans:
         if isinstance(span, TextMention):
             # should be smarter about qualifying/scoping paths here
-            path = span.reference.py_ident if isinstance(span.reference, Node) else None
+            path = span.reference.ident if isinstance(span.reference, Node) else None
             spans_str.append("@" + (path or "???"))
         else:
             spans_str.append(span.text)
@@ -291,6 +208,9 @@ class RichText(Struct):
     )
     plain_text: str | None = struct_internal(31, default=None)
 
+    def __content_str__(self):
+        return self.plain_text
+
 
 @struct(StructType.RICH_TEXT_SPAN)
 class RichTextSpan(Struct):
@@ -298,3 +218,6 @@ class RichTextSpan(Struct):
     reference: Node | None = struct_property(
         31, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
     )
+
+    def __content_str__(self):
+        return self.text

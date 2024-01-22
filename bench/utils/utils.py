@@ -98,7 +98,7 @@ IdentT = IdentifierType
 
 
 @cachetools.cached(cache={})
-def to_pyidentifier(name: str, type: IdentifierType) -> str:
+def to_identifier(name: str, type: IdentifierType) -> str:
     """Turns a string into a valid Python identifier."""
     if type in (
         IdentifierType.METHOD,
@@ -153,7 +153,7 @@ def _strip_alpha_num(name: str) -> str:
 
 
 def to_pyidentifier_multi(*parts: str, type: IdentifierType) -> str:
-    return ".".join(to_pyidentifier(part, type) for part in parts)
+    return ".".join(to_identifier(part, type) for part in parts)
 
 
 @cachetools.cached(cache={})

@@ -1,7 +1,7 @@
 import hashlib
 import io
 import mimetypes
-from typing import Optional, TYPE_CHECKING, Union, Collection, BinaryIO
+from typing import TYPE_CHECKING, BinaryIO, Collection, Optional, Union
 from urllib.parse import parse_qs, urlparse, urlunparse
 from uuid import UUID, uuid5
 
@@ -12,16 +12,16 @@ import structlog
 from bench.language.builtin import active_session
 from bench.language.const import BlobStatus, NodeType, StructType
 from bench.language.node import (
+    Bench,
+    Module,
     Node,
+    Struct,
     node,
     node_parent,
+    struct,
     struct_internal,
     struct_property,
     struct_runtime,
-    Module,
-    Bench,
-    struct,
-    Struct,
 )
 from bench.language.validation import ValidationHandler, on_invalid_raise
 from bench.utils.func import _auto_async_to_sync
@@ -64,9 +64,6 @@ class Blob(Struct):
 
     def __str__(self):
         return f"{self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
-
-    def __repr__(self):
-        return f"<File {self}>"
 
     @property
     def is_external(self) -> None:

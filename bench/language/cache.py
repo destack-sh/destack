@@ -1,9 +1,9 @@
 from typing import Optional
 from uuid import UUID
 
-from bench.utils.func import _auto_async_to_sync
 from bench.language.node import Module
 from bench.utils.cache import redis
+from bench.utils.func import _auto_async_to_sync
 
 Key = str | bytes
 Value = str | bytes
@@ -45,7 +45,7 @@ class Cache:
         return f"{self.module} cache"
 
     def __repr__(self):
-        return f"<CacheAsync {self}>"
+        return f"<Cache {self}>"
 
     @_auto_async_to_sync
     async def get(self, key: Key) -> Optional[Value]:

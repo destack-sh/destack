@@ -51,11 +51,6 @@ class HasModel(HasFields, Node):
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         # model is remote if we don't have the key in scope or environment
-        provider = self.path.split(".")[0]
-        if ALLOW_KEY_FROM_ENV:
-            self._api_key = os.environ.get(f"{provider.upper()}_API_KEY")
-        self._remote = self._api_key is None
-
         self._has_vector_io = False
         for n in self._walk_rec():
             if isinstance(n, Field) and n.tag == TypeTag.VECTOR:

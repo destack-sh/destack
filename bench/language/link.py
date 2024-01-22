@@ -19,7 +19,6 @@ from uuid import UUID
 from asgiref.sync import async_to_sync
 
 from bench.language.const import (
-    INTERP_NODE_TYPES,
     NS,
     ConditionalOp,
     ExpressionOp,
@@ -34,7 +33,7 @@ from bench.language.const import (
 from bench.language.validation import on_invalid_raise
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
 from bench.utils.func import _auto_async_to_sync, nextn
-from bench.utils.utils import DEBUG, flatten
+from bench.utils.utils import flatten
 
 if TYPE_CHECKING:
     from bench.language import Expression, Field, Node, Property, ScopeNode, Session
@@ -46,11 +45,9 @@ class _NodeChange(enum.IntFlag):
     """The kind of reactive change effect to trigger in a node."""
 
     Ignore = 0
-    UpdateLists = 2**0
     Detach = 2**1
     Attach = 2**2
-    Tach = Detach | Attach
-    Full = UpdateLists | Detach | Attach
+    Full = Detach | Attach
 
 
 _NC = _NodeChange
@@ -68,7 +65,7 @@ def on_issue_raise(
     raise Issue.from_subject(subject=subject, type=type, message=message, path=path).to_error()
 
 
-@dataclass
+@dataclass(slots=True)
 class _InterpChange:
     """
     The effect of a change in nodes.
@@ -78,67 +75,34 @@ class _InterpChange:
     prev_session: Optional["Session"]
     prev_status: Optional[NodeStatus]
     level: _NC
-    affected_node_types: set[NodeType] | None
-    ancestors: list["Node"] | None
-    affected: list["Node"] | None
+    affected: tuple["Node", ...] | None
 
     @staticmethod
     def _collect(
         from_parent: Optional["Node"],
         to_parent: Optional["Node"],
-        changed: list["Node"],
+        changed: tuple["Node", ...],
         level: _NC,
     ) -> "_InterpChange":
         """Collects nodes affected by a change in the given children."""
         assert changed, f"cannot create update on {to_parent!r} without changed nodes"
         assert from_parent or to_parent, f"cannot create update on {changed!r} without parent"
 
-        # collect ancestors to update their affected node lists
-        affected_node_types = set([n.metatype for n in changed])
-        ancestors = []
-        if level >= _NC.UpdateLists:
-            parent = from_parent
-            while parent is not None:
-                ancestors.append(parent)
-                parent = parent.parent
-            parent = to_parent
-            while parent is not None:
-                ancestors.append(parent)
-                parent = parent.parent
-
         # collect nodes to reinterp following attach/detach
         if level & (_NC.Detach | _NC.Attach):
-            affected_nodes: list[Node] | None = ancestors[:]
-            for child in changed:
-                affected_nodes.append(child)
-                if child.__has_scope__:
-                    affected_nodes.extend(
-                        child._local_root_tree.get_descendants(
-                            child.ck, recursive=True, include_self=False
-                        )
-                    )
-            # filter out interp types
-            affected_nodes = [n for n in affected_nodes if n.metatype not in INTERP_NODE_TYPES]
+            affected_nodes = changed
         else:
             affected_nodes = None
 
         return _InterpChange(
             prev_session=to_parent._session if to_parent else None,
             prev_status=to_parent._status if to_parent else None,
-            affected_node_types=affected_node_types,
-            ancestors=ancestors,
             affected=affected_nodes,
             level=level,
         )
 
     def _effect(self, level: _NC | None = None) -> None:
         """Applies the effect of a trigger to update the affected nodes."""
-        if level & _NC.UpdateLists:
-            for ancestor in self.ancestors:
-                for prop in ancestor.__list_properties__.values():
-                    if any(t in self.affected_node_types for t in prop.reference_types):
-                        getattr(ancestor, prop.name)._update(ancestor)
-
         if level & _NC.Detach:
             for _node in self.affected:
                 if _node._session and _node._status == NS.ACTIVE:
@@ -188,7 +152,8 @@ def _sort_nested_ordered_list(root_ck: UUID, nodes: list[NodeT]) -> list[NodeT]:
 
 class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
     """
-    Base node list for custom implementation (right now just for database).
+    A list of node descendants for a parent's property.
+    This is the primary way of adding, removing and accessing regular node relations.
     """
 
     def __init__(self, parent: "ScopeNode", property: "Property"):
@@ -197,10 +162,6 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self._parent.path}->{self._property.name}: {self}>"
-
-    def _update(self, scope: "ScopeNode"):
-        """Recomputes the list from the given scope."""
-        raise NotImplementedError
 
     def create(self, *args, _append: bool = True, **kwargs) -> NodeT:
         """Creates a new node in the list."""
@@ -272,30 +233,23 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
 
 
 class NodeList(NodeListBase[NodeT]):
-    """
-    A list of node descendants for a parent's property.
-    This is the primary way of adding, removing and accessing inline node relations.
-    """
+    __slots__ = ("_child_node_type", "_flags")
 
     def __init__(self, parent: "ScopeNode", property: "Property"):
         super().__init__(parent, property)
         assert len(property.reference_types) == 1, f"cannot have many child types: {property!r}"
         self._child_node_type: NodeType = property.reference_types[0]
         self._flags = property.children_flags
-        self._nodes: tuple[NodeT, ...] = ()
-
-    if DEBUG:
-        # for debugger inspection
-        nodes = property(lambda self: self._nodes)
 
     def __str__(self):
         return str(self._nodes)
 
-    def _scope(self) -> dict[str, "Node"]:
-        """Gets the visible scope for error reporting"""
-        if self._flags & NRel.NAMED:
-            return {n.py_ident: n for n in self._nodes}
-        return {}
+    @property
+    def _nodes(self) -> tuple[NodeT, ...]:
+        """Access the computed nodes"""
+        return self._parent._local_root_tree.collect_descendants(
+            self._parent, self._child_node_type, recursive=bool(self._flags & NRel.CUMULATIVE)
+        )
 
     def _ok_bounds(
         self, after: NodeT = None, before: NodeT = None
@@ -322,32 +276,6 @@ class NodeList(NodeListBase[NodeT]):
             )
             return last_ok, None
 
-    def _update(self, scope: "ScopeNode"):
-        # _children is effectively a computed property which is replaced wholesale,
-        # we don't do diff updates to keep it simple with all the relation types.
-        if self._flags & NRel.CUMULATIVE:
-            # all matching children of parent's descendants
-            #  e.g. Module->Issue, File->Issue, ... -> all issues
-            self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_node_type, recursive=True, prefilter=False
-            )
-            assert not self._flags & NRel.ORDERED, f"cannot order cumulative {self}"
-        elif self._flags & NRel.FLAT:
-            # all matching descendants of matching children of parent
-            #  e.g. Module->File, File->File, ... -> all files
-            self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_node_type, recursive=True, prefilter=True
-            )
-            if self._flags & NRel.ORDERED:
-                self._nodes = _sort_nested_ordered_list(self._parent.ck, self._nodes)
-        else:
-            # only matching children of parent
-            self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_node_type, recursive=False
-            )
-            if self._flags & NRel.ORDERED:
-                self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
-
     def append(
         self,
         _node: NodeT,
@@ -355,7 +283,7 @@ class NodeList(NodeListBase[NodeT]):
         after: NodeT = None,
         before: NodeT = None,
         _trigger: _NC = _NC.Full,
-    ) -> list[NodeT]:
+    ) -> tuple[NodeT, ...]:
         assert isinstance(_node, Node), f"cannot append {_node!r} to {self!r}"
         if _node.parent is not None:
             raise ValueError(f"cannot attach {_node!r} to {self!r}: attached to {_node.parent!r}")
@@ -366,7 +294,7 @@ class NodeList(NodeListBase[NodeT]):
             for n in _node._walk_rec():
                 if n.id is None:
                     n._assign_id(module_id)
-        change = _InterpChange._collect(None, self._parent, [_node], _trigger)
+        change = _InterpChange._collect(None, self._parent, (_node,), _trigger)
         # update parent after updating ids (the above walks tree, which is changed here)
         _node.parent = self._parent
         # validate node now that it has a parent (while in session)
@@ -376,20 +304,16 @@ class NodeList(NodeListBase[NodeT]):
         # index node into parent scope
         if _node.__has_scope__ and _node._local_tree is not None:
             # subsume if previously detached (ignores out of line nodes)
-            added = _node._local_tree.get_descendants(_node.ck, recursive=True, include_self=True)
+            added = _node._local_tree.collect_descendants(_node, recursive=True)
             _node._local_tree.update(_node)  # parent changed
             self._parent._import_scope_tree(_node)
             _node._local_tree = None
         else:  # or just add
-            added = [_node]
+            added = (_node,)
             self._parent._local_root_tree.add(_node)
 
         # register node scope
-        if (
-            self._flags & NRel.SCOPED
-            and _node.name
-            and (not self._flags & NRel.FLAT or _node.parent == self._parent)
-        ):
+        if self._flags & NRel.SCOPED and _node.name:
             self._parent._add_node_to_scope(_node)
 
         # assign order key to ordered nodes
@@ -399,12 +323,11 @@ class NodeList(NodeListBase[NodeT]):
         if _trigger:
             # and update every affected node (to list/interp as needed)
             change._effect(_trigger)
-            assert _node in self._nodes, f"node {_node!r} not in {self!r}"
 
         # 'create' node in session if it's attached
         if _create and self._parent._session and self._parent.attached:
             self._parent._session.create(*added)
-        # temporarily hoisted records may no longer be in tree, so return our added nodes
+
         return added
 
     def extend(
@@ -414,7 +337,7 @@ class NodeList(NodeListBase[NodeT]):
         after: NodeT = None,
         before: NodeT = None,
         _trigger: _NC = _NC.Full,
-    ):
+    ) -> None:
         nodes = flatten(*nodes)
         if not nodes:
             return
@@ -433,38 +356,32 @@ class NodeList(NodeListBase[NodeT]):
         for node in nodes:
             added.extend(self.append(node, _create=False, _trigger=_NC.Ignore))
         change._effect(_trigger & ~_NC.Detach)
-        if _trigger & _NC.UpdateLists:
-            assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
         if _create and self._parent._session and self._parent.attached:
-            self._parent._session.create(*added)
+            self._parent._session.create_many(*added)
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
         change = _InterpChange._collect(self._parent, None, [_node], _trigger)
         if _delete and self._parent._session:
             self._parent.session.delete(_node)
-        self._parent._local_root_tree.delete(_node)
+        self._parent._local_root_tree.remove(_node)
         _node.parent = None
         change._effect(_trigger)
-        if _trigger & _NC.UpdateLists:
-            assert _node not in self._nodes, f"node {_node!r} still in {self!r}"
 
     def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full):
         if not self._nodes:
             return
-        change = _InterpChange._collect(self._parent, None, self._nodes, _trigger)
-        removed = list(self._nodes)
+        removed = tuple(self._nodes)
+        change = _InterpChange._collect(self._parent, None, removed, _trigger)
         for _node in removed:
             self.remove(_node, _delete=_delete, _trigger=_NC.Ignore)
         change._effect(_trigger)
-        if _trigger & _NC.UpdateLists:
-            assert not self._nodes, f"{self!r} is not empty"
 
     def get(self, some_id: str) -> Optional[NodeT]:
         if not (self._flags & NRel.KEYED) and not (self._flags & NRel.NAMED):
             raise ValueError(f"cannot get {some_id!r} from {self!r}")
         for child in self._nodes:
             if (self._flags & NRel.KEYED and child.key == some_id) or (
-                self._flags & NRel.NAMED and (child.name == some_id or child.py_ident == some_id)
+                self._flags & NRel.NAMED and (child.name == some_id or child.ident == some_id)
             ):
                 return child
         return None
@@ -473,7 +390,7 @@ class NodeList(NodeListBase[NodeT]):
         return self._nodes.index(node)
 
     def __bool__(self):
-        return bool(self._nodes)
+        return len(self._nodes) > 0
 
     def __contains__(self, obj: object) -> bool:
         # special case to unwrap key (e.g. for tagging/tag objects)
@@ -500,7 +417,7 @@ class NodeList(NodeListBase[NodeT]):
 
     def __getattr__(self, item):
         if item.startswith("_"):
-            return super().__getattr__(item)
+            return super().__getattribute__(item)
         node = self.get(item)
         if node is None:
             raise AttributeError(f"no node '{item}' in {self!r}")

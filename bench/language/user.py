@@ -1,8 +1,9 @@
 from datetime import datetime
 from typing import Optional
 
-from bench.language.const import NodeType, NotificationStatus, NotificationKind
+from bench.language.const import NodeType, NotificationKind, NotificationStatus
 from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
+from bench.utils.utils import IdentifierType, to_identifier
 
 
 @node(NodeType.HANDLE, root=None, in_module=False, in_bench=False)
@@ -25,7 +26,7 @@ class User(ScopeNode):
     last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, protect=True)
 
     @property
-    def path(self):
+    def ident(self):
         return self.slug
 
 
@@ -38,7 +39,7 @@ class Organization(ScopeNode):
     name: str = struct_property(32)
 
     @property
-    def path(self):
+    def ident(self):
         return self.slug
 
 
@@ -54,6 +55,10 @@ class Client(Node):
     access_token: Optional[str] = struct_internal(
         34, default=None, protect=True, defer=True, unique=True
     )
+
+    @property
+    def ident(self):
+        return to_identifier(self.name, IdentifierType.VARIABLE)
 
     @property
     def user(self) -> User:

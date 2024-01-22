@@ -21,13 +21,13 @@ from bench.language.const import (
     new_dynamic_node_key,
 )
 from bench.language.issue import IssueHandler
-from bench.language.link import _NodeChange
 from bench.language.node import (
     NS,
     UNSET,
     Node,
     NodeList,
     NRel,
+    Property,
     ScopeNode,
     _FieldExpressionBase,
     node,
@@ -37,9 +37,7 @@ from bench.language.node import (
     struct_internal,
     struct_property,
     struct_runtime,
-    Property,
 )
-from bench.language.text import HasText
 from bench.language.validation import (
     ValidationHandler,
     enum_validator,
@@ -52,7 +50,7 @@ from bench.sql.core import ColumnType
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import dict_minus, nextn
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
-from bench.utils.utils import IdentifierType, to_pyidentifier
+from bench.utils.utils import IdentifierType, to_identifier
 
 if typing.TYPE_CHECKING:
     from bench.language import Statement
@@ -76,10 +74,10 @@ class TypeError(TypeError):
             value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
 
         if isinstance(expected, Field) and not expected.resolved_fields:
-            expected_str = f"field '{expected.py_ident}' ({expected._type_str})"
+            expected_str = f"field '{expected.ident}' ({expected._type_str})"
         else:
             expected_fields_str = ", ".join(
-                f"'{f.py_ident}' ({f._type_str})" for f in expected.resolved_fields
+                f"'{f.ident}' ({f._type_str})" for f in expected.resolved_fields
             )
             expected_str = f"fields {expected_fields_str or '<empty>'} from {expected!r}"
 
@@ -259,7 +257,7 @@ class Type:
         """Reconstruct minimal Python code to create this type."""
         if node._tag == TypeTag.TYPE_REFERENCE:
             if isinstance(node._reference, Node):
-                reference_str = node._reference.py_ident
+                reference_str = node._reference.ident
             elif isinstance(node._reference, UUID):
                 reference_str = f"UUID('{node._reference}')"
             else:
@@ -297,17 +295,13 @@ class HasType(Node):
     key: str | None = struct_internal(UNSET, default=None)
 
     @property
-    def resolved_fields(self) -> NodeList["ResolvedField"]:
-        raise NotImplementedError
-
-    @property
-    def py_ident(self) -> Optional[str]:
+    def ident(self) -> Optional[str]:
         if self.name is None:
             return None
         elif self.tag == TypeTag.LITERAL:
-            return to_pyidentifier(self.name, IdentifierType.CONSTANT)
+            return to_identifier(self.name, IdentifierType.CONSTANT)
         else:
-            return to_pyidentifier(self.name, IdentifierType.FIELD)
+            return to_identifier(self.name, IdentifierType.FIELD)
 
     @property
     def _storage_format(self) -> TypeStorageFormat:
@@ -344,7 +338,7 @@ class HasType(Node):
 
 
 @node(NodeType.FIELD)
-class Field(HasText, HasValue, HasType, _FieldExpressionBase):
+class Field(HasValue, HasType, _FieldExpressionBase):
     parent: Union["Statement", None] = node_parent(4, NodeType.STATEMENT)
     name: str | None = struct_property(30, default=None, validate=validate_name)
     order_key: str | None = struct_internal(31, default=None)
@@ -469,16 +463,15 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
         init_kwargs = dict_minus(props, "name", "flags", "text", "tag", "hint", "reference")
         return init_name, init_args, init_kwargs
 
-    def __str__(self):
-        name_str = f"{self.path} '{self.name}' " if self.name else ""
-        return f"{name_str}{self._type_str}"
+    def __content_str__(self):
+        return self._type_str
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
 
     def __eq__(self, other):
         if self.tag == TypeTag.LITERAL and isinstance(other, str):
-            return self.name == other or self.py_ident == other
+            return self.name == other or self.ident == other
 
         return _FieldExpressionBase.__eq__(self, other)  # override to avoid recursion
 
@@ -511,13 +504,6 @@ class Field(HasText, HasValue, HasType, _FieldExpressionBase):
                     f"expected secret hint for IsSecret ({self.hint})",
                     ["hint", "flags"],
                 )
-
-    @property
-    def path(self) -> str:
-        if self.parent is None:
-            return f"<detached>.{self.py_ident}"
-        else:
-            return f"{self.parent.path}.{self.py_ident}"
 
     @property
     def dimensions(self) -> int:
@@ -598,7 +584,7 @@ class HasFields(HasType):
                 for child in field.reference.resolved_fields:
                     if child.flags & TypeFlag.IS_CONFIG:
                         continue  # ignore config fields
-                    existing = nextn(f for f in resolved_fields if f.py_ident == child.py_ident)
+                    existing = nextn(f for f in resolved_fields if f.ident == child.ident)
                     # check if self is compatible if overlapping
                     if existing is None:
                         resolved_fields.append(child)
@@ -616,14 +602,13 @@ class HasFields(HasType):
         # maintain resolved field order
         for i, ok in enumerate(generate_n_keys_between(None, None, len(resolved_fields))):
             resolved_fields[i].order_key = ok
-        self.resolved_fields.set(resolved_fields, _trigger=_NodeChange.UpdateLists)
         self._did_resolve_fields = True
 
     def _inputs_from_args(self, args, kwargs) -> dict:
         inputs = {**kwargs}
         input_fields = [f for f in self.resolved_fields if not (f.flags & TypeFlag.IS_OUTPUT)]
         for input_t, input in zip(input_fields, args):
-            inputs[input_t.py_ident] = input
+            inputs[input_t.ident] = input
         return inputs
 
 
@@ -645,7 +630,7 @@ class TypedDict(dict):
 
     def __repr__(self):
         kwargs_str = ", ".join(f"{k}={v!r}" for k, v in self.items())
-        return f"{self._type.py_ident}({kwargs_str})"
+        return f"{self._type.ident}({kwargs_str})"
 
     def __getitem__(self, item):
         try:
@@ -664,7 +649,7 @@ class TypedDict(dict):
         try:
             return dict.__getitem__(self, item)
         except KeyError:
-            field = self._type.resolved_fields.get(item)
+            field = self._type.fields.get(item)
             if field and (
                 self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
             ):

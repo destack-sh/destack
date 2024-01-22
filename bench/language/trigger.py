@@ -17,6 +17,7 @@ from bench.language.node import (
 )
 from bench.language.validation import ValidationHandler, enum_validator
 from bench.utils.func import dict_minus
+from bench.utils.utils import to_identifier
 
 if TYPE_CHECKING:
     from bench.language.statement import Statement
@@ -35,13 +36,14 @@ class Trigger(Node):
 
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
     type: TriggerType = struct_property(30, require=True, validate=enum_validator(TriggerType))
-    active: bool = struct_property(31, default=True)
+    # name: str | None = struct_property(31, default=None)
+    active: bool = struct_property(32, default=True)
     schedule_type: Optional[ScheduleType] = struct_property(
-        32, default=None, validate=enum_validator(ScheduleType)
+        33, default=None, validate=enum_validator(ScheduleType)
     )
-    timezone: Optional[str] = struct_property(33, default=pytz.utc.zone)
-    interval: Optional[int] = struct_property(34, default=None)
-    cron: Optional[str] = struct_property(35, default=None)
+    timezone: Optional[str] = struct_property(34, default=pytz.utc.zone)
+    interval: Optional[int] = struct_property(35, default=None)
+    cron: Optional[str] = struct_property(36, default=None)
 
     @staticmethod
     def new(
@@ -81,7 +83,7 @@ class Trigger(Node):
         else:
             raise ValueError(f"unexpected trigger type: {node!r}")
 
-    def __str__(self):
+    def __content_str__(self):
         if self.type == TriggerType.TIME:
             schedule_str = (
                 self.interval if self.schedule_type == ScheduleType.INTERVAL else self.cron
@@ -89,12 +91,7 @@ class Trigger(Node):
             content_str = f"{self.schedule_type} {self.timezone} {schedule_str}"
         else:
             content_str = None
-        return (
-            f"{self.type} {content_str or '<none>'} on {self.parent} in {self.scope or '<global>'}"
-        )
-
-    def __repr__(self):
-        return f"<Trigger {self}>"
+        return f"{self.type} {content_str or '<none>'}"
 
     # ignore scope and statement for now
 

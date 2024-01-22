@@ -5,6 +5,7 @@ from typing import (
     Collection,
     Generator,
     Generic,
+    Iterable,
     Optional,
     TypeVar,
     Union,
@@ -50,7 +51,7 @@ class NodeTreeBase(abc.ABC, Generic[SomeNodeT, IdT]):
         raise NotImplementedError
 
     def add(self, node: "SomeNodeT"):
-        """Add a node to the tree (error if node already exists)"""
+        """Add a node to the tree (error if node already exists, *no* descendants)"""
         raise NotImplementedError
 
     def update(self, node: "SomeNodeT"):
@@ -61,16 +62,17 @@ class NodeTreeBase(abc.ABC, Generic[SomeNodeT, IdT]):
         """Remove a node from the tree (incl. all descendants)"""
         raise NotImplementedError
 
-    def get_descendants(
-        self,
-        node_id: IdT,
-        node_type: NodeType | None = None,
-        recursive: bool = False,
-        prefilter: bool = False,
-        include_self: bool = False,
-    ) -> list["NodeT"]:
-        """Gets all descendants as filtered in BFS order"""
+    def collect_descendants(
+        self, node: SomeNodeT, node_type: NodeType | None = None, recursive: bool = False
+    ) -> tuple["NodeT", ...] | list["NodeT"]:
+        """Collects all descendants as filtered in BFS order"""
         raise NotImplementedError
+
+    def iter_descendants(
+        self, node: SomeNodeT, node_type: NodeType | None = None, recursive: bool = False
+    ) -> Iterable[NodeT]:
+        """Iterate through filtered descendants in BFS order"""
+        return iter(self.collect_descendants(node, node_type, recursive))
 
     # utilities
 
@@ -100,12 +102,18 @@ class NodeTreeBase(abc.ABC, Generic[SomeNodeT, IdT]):
 
 
 class NodeTree(NodeTreeBase[NodeT, UUID]):
-    """An indexed tree of module nodes (UUIDs for ids, parent_ids)."""
+    """
+    An indexed tree of module nodes (UUIDs for ids, parent_ids).
+    This is the backing tree to most live nodes, so we optimize access a bit.
+    """
 
     def __init__(self, nodes: Collection[NodeT] | "NodeTree" = None):
         self.nodes_by_id: dict[UUID, NodeT] = {}
         self.nodes_by_ck: dict[UUID, NodeT] = {}  # most nodes have a ck as well
-        self.child_ids_by_parent_id: dict[UUID, list[UUID]] = {}
+        self.nodes_by_parent_id_and_type: dict[tuple[UUID, NodeType], list[NodeT]] = defaultdict(
+            list
+        )
+
         if isinstance(nodes, list):
             for node in nodes or []:
                 self.add(node)
@@ -139,7 +147,7 @@ class NodeTree(NodeTreeBase[NodeT, UUID]):
         """Clear the tree"""
         self.nodes_by_id.clear()
         self.nodes_by_ck.clear()
-        self.child_ids_by_parent_id.clear()
+        self.nodes_by_parent_id_and_type.clear()
 
     def add(self, node: NodeT):
         assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} without id"
@@ -150,75 +158,84 @@ class NodeTree(NodeTreeBase[NodeT, UUID]):
             )
         self.nodes_by_id[node.id] = node
         self.nodes_by_ck[node.ck] = node
+
         if node.parent_id is not None:
-            if node.parent_id not in self.child_ids_by_parent_id:
-                self.child_ids_by_parent_id[node.parent_id] = []
-            self.child_ids_by_parent_id[node.parent_id].append(node.id)
+            self.nodes_by_parent_id_and_type[(node.parent_id, node.metatype)].append(node)
 
     def update(self, node: NodeT):
         assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} without id"
-        existing = self.nodes_by_id.get(node.id)
-        if existing is None:
+        old = self.nodes_by_id.get(node.id)
+        if old is None:
             raise ValueError(f"node {node!r} does not exist in {self!r}")
         self.nodes_by_id[node.id] = node
         self.nodes_by_ck[node.ck] = node
-        if existing.parent_id is not None:
-            self.child_ids_by_parent_id[existing.parent_id].remove(existing.id)
-        if node.parent_id is not None:
-            if node.parent_id not in self.child_ids_by_parent_id:
-                self.child_ids_by_parent_id[node.parent_id] = []
-            if node.id not in self.child_ids_by_parent_id[node.parent_id]:
-                self.child_ids_by_parent_id[node.parent_id].append(node.id)
+
+        # we can just update the parent->child reference and that will 'move' all descendants
+        if old.parent_id != node.parent_id:
+            if old.parent_id is not None:
+                self.nodes_by_parent_id_and_type[(old.parent_id, old.metatype)].remove(old)
+            if node.parent_id is not None:
+                self.nodes_by_parent_id_and_type[(node.parent_id, node.metatype)].append(node)
 
     def remove(self, node: NodeT):
-        assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} without id"
-        descendants = self.get_descendants(node.id, recursive=True, include_self=True)
-        for descendant in descendants:
-            if descendant.id in self.nodes_by_id:
-                self.nodes_by_id.pop(descendant.id)
-            if descendant.ck in self.nodes_by_ck:
-                self.nodes_by_ck.pop(descendant.ck)
-            if descendant.id in self.child_ids_by_parent_id:
-                self.child_ids_by_parent_id.pop(descendant.id)
-            if descendant.parent_id in self.child_ids_by_parent_id:
-                self.child_ids_by_parent_id[descendant.parent_id].remove(descendant.id)
+        from bench.language.node import CHILD_NODE_TYPES
 
-    def get_descendants(
+        assert isinstance(node.id, UUID), f"cannot add {node!r} to {self!r} without id"
+
+        queue = deque([node])
+        if node.parent is not None:
+            self.nodes_by_parent_id_and_type[(node.parent.id, node.metatype)].remove(node)
+        while queue:
+            node = queue.popleft()
+            self.nodes_by_id.pop(node.id, None)
+            self.nodes_by_ck.pop(node.ck, None)
+
+            if node.__has_scope__:
+                for child_type in CHILD_NODE_TYPES[node.metatype]:
+                    children = self.nodes_by_parent_id_and_type.pop((node.id, child_type), ())
+                    if len(children) > 0:
+                        if CHILD_NODE_TYPES[child_type]:
+                            queue.extend(children)
+                        else:
+                            for child in children:
+                                self.nodes_by_id.pop(child.id, None)
+                                self.nodes_by_ck.pop(child.ck, None)
+
+    def collect_descendants(
         self,
-        node_id_or_ck: UUID,
+        node: NodeT,
         node_type: NodeType | None = None,
         recursive: bool = False,
-        prefilter: bool = False,
-        include_self: bool = False,
-    ) -> list["NodeT"]:
-        """Gets all children descendants as filtered in BFS order"""
-        assert isinstance(node_id_or_ck, UUID), f"expected UUID, got {node_id_or_ck!r}"
-        if node_id_or_ck in self.nodes_by_id:
-            node_id_or_ck = node_id_or_ck
-        elif node_id_or_ck in self.nodes_by_ck:
-            node_id_or_ck = self.nodes_by_ck[node_id_or_ck].id
-        else:
-            raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
-        children = [
-            self.nodes_by_id[child_id]
-            for child_id in self.child_ids_by_parent_id.get(node_id_or_ck, [])
-            if not node_type or not prefilter or self.nodes_by_id[child_id].metatype == node_type
-        ]
+    ) -> tuple["NodeT", ...] | list["NodeT"]:
+        from bench.language.node import CHILD_NODE_TYPES
 
-        descendants = []
-        if include_self:
-            descendants.append(self.nodes_by_id[node_id_or_ck])
-        descendants.extend(children)
-        if recursive:
-            for child in children:
-                if child.id not in self.child_ids_by_parent_id:
-                    continue
-                descendants.extend(
-                    self.get_descendants(child.id, node_type, prefilter=prefilter, recursive=True)
-                )
-        if not prefilter and node_type:
-            descendants = [n for n in descendants if n.metatype == node_type]
-        return descendants
+        assert isinstance(node.id, UUID), f"expected Node, got {node!r}"
+        if not node.__has_scope__:
+            return ()
+        if not recursive:
+            if node_type is not None:  # best case
+                return self.nodes_by_parent_id_and_type.get((node.id, node_type), ())
+            else:
+                descendants: list[NodeT] = []
+                for child_type in CHILD_NODE_TYPES[node.metatype]:
+                    children = self.nodes_by_parent_id_and_type.get((node.id, child_type), ())
+                    if len(children) > 0:
+                        descendants.extend(children)
+                return descendants
+        else:
+            descendants: list[NodeT] = []
+            queue = deque([node])
+            while queue:
+                current_node = queue.popleft()
+                for child_type in CHILD_NODE_TYPES[current_node.metatype]:
+                    children = self.nodes_by_parent_id_and_type.get(
+                        (current_node.id, child_type), ()
+                    )
+                    if len(children) > 0:
+                        if node_type is None or child_type == node_type:
+                            descendants.extend(children)
+                        queue.extend(children)
+            return descendants
 
 
 class NodeDataTree(NodeTreeBase[NodeDataT, str]):
@@ -227,7 +244,7 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
     def __init__(self, nodes: Collection[NodeDataT] | "NodeDataTree" = None):
         self.nodes_by_id: dict[str, NodeDataT] = {}
         self.nodes_by_ck: dict[str, NodeDataT] = {}  # *most* nodes have a ck as well
-        self.child_ids_by_parent_id: dict[str, list[str]] = {}
+        self.node_ids_by_parent_id: dict[str, list[str]] = {}
         if isinstance(nodes, list):
             for node in nodes or []:
                 self.add(node)
@@ -261,7 +278,7 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
         """Clear the tree"""
         self.nodes_by_id.clear()
         self.nodes_by_ck.clear()
-        self.child_ids_by_parent_id.clear()
+        self.node_ids_by_parent_id.clear()
 
     def add(self, node: NodeDataT):
         assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} without id"
@@ -274,9 +291,9 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
         if hasattr(node, "ck"):
             self.nodes_by_ck[node.ck] = node
         if node.parent_ptr is not None:
-            if node.parent_ptr.id not in self.child_ids_by_parent_id:
-                self.child_ids_by_parent_id[node.parent_ptr.id] = []
-            self.child_ids_by_parent_id[node.parent_ptr.id].append(node.id)
+            if node.parent_ptr.id not in self.node_ids_by_parent_id:
+                self.node_ids_by_parent_id[node.parent_ptr.id] = []
+            self.node_ids_by_parent_id[node.parent_ptr.id].append(node.id)
 
     def update(self, node: NodeDataT):
         assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} without id"
@@ -287,62 +304,56 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
         if hasattr(node, "ck"):
             self.nodes_by_ck[node.ck] = node
         if existing.parent_ptr is not None:
-            self.child_ids_by_parent_id[existing.parent_ptr.id].remove(existing.id)
+            self.node_ids_by_parent_id[existing.parent_ptr.id].remove(existing.id)
         if node.parent_ptr is not None:
-            if node.parent_ptr.id not in self.child_ids_by_parent_id:
-                self.child_ids_by_parent_id[node.parent_ptr.id] = []
-            if node.id not in self.child_ids_by_parent_id[node.parent_ptr.id]:
-                self.child_ids_by_parent_id[node.parent_ptr.id].append(node.id)
+            if node.parent_ptr.id not in self.node_ids_by_parent_id:
+                self.node_ids_by_parent_id[node.parent_ptr.id] = []
+            if node.id not in self.node_ids_by_parent_id[node.parent_ptr.id]:
+                self.node_ids_by_parent_id[node.parent_ptr.id].append(node.id)
 
     def remove(self, node: NodeDataT):
         assert isinstance(node.id, str), f"cannot add {node!r} to {self!r} without id"
-        descendants = self.get_descendants(node.id, recursive=True, include_self=True)
-        for n in descendants:
-            if n.id in self.nodes_by_id:
-                self.nodes_by_id.pop(n.id)
-            if getattr(n, "ck", None) in self.nodes_by_ck:
-                self.nodes_by_ck.pop(n.ck)
-            if n.id in self.child_ids_by_parent_id:
-                self.child_ids_by_parent_id.pop(n.id)
-            if n.parent_ptr is not None and n.parent_ptr.id in self.child_ids_by_parent_id:
-                self.child_ids_by_parent_id[n.parent_ptr.id].remove(n.id)
+        if node.parent_ptr is not None:
+            self.node_ids_by_parent_id[node.parent_ptr.id].remove(node.id)
+        queue = deque([node])
+        while queue:
+            node = queue.popleft()
+            self.nodes_by_id.pop(node.id, None)
+            if hasattr(node, "ck"):
+                self.nodes_by_ck.pop(node.ck, None)
+            child_ids = self.node_ids_by_parent_id.pop(node.id, ())
+            if len(child_ids) > 0:
+                queue.extend(self.nodes_by_id[child_id] for child_id in child_ids)
 
-    def get_descendants(
-        self,
-        node_id_or_ck: str,
-        node_type: NodeType | None = None,
-        recursive: bool = False,
-        prefilter: bool = False,
-        include_self: bool = False,
-    ) -> list["NodeDataT"]:
+    def collect_descendants(
+        self, node: NodeT, node_type: NodeType | None = None, recursive: bool = False
+    ) -> tuple["NodeDataT", ...] | list["NodeDataT"]:
         """Gets all children descendants as filtered in BFS order"""
-        assert isinstance(node_id_or_ck, str), f"expected str, got {node_id_or_ck!r}"
-        if node_id_or_ck in self.nodes_by_id:
-            node_id_or_ck = node_id_or_ck
-        elif node_id_or_ck in self.nodes_by_ck:
-            node_id_or_ck = self.nodes_by_ck[node_id_or_ck].id
-        else:
-            raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
-        children = [
-            self.nodes_by_id[child_id]
-            for child_id in self.child_ids_by_parent_id.get(node_id_or_ck, [])
-            if not node_type or not prefilter or self.nodes_by_id[child_id].metatype == node_type
-        ]
-
-        descendants = []
-        if include_self:
-            descendants.append(self.nodes_by_id[node_id_or_ck])
-        descendants.extend(children)
-        if recursive:
-            for child in children:
-                if child.id not in self.child_ids_by_parent_id:
-                    continue
-                descendants.extend(
-                    self.get_descendants(child.id, node_type, prefilter=prefilter, recursive=True)
+        assert isinstance(node.id, str), f"expected NodeData, got {Node!r}"
+        if not recursive:
+            if node_type is not None:
+                return tuple(
+                    self.nodes_by_id[child_id]
+                    for child_id in self.node_ids_by_parent_id.get(node.id, [])
+                    if self.nodes_by_id[child_id].metatype == node_type
                 )
-        if not prefilter and node_type:
-            descendants = [n for n in descendants if n.metatype == node_type]
-        return descendants
+            else:
+                return tuple(
+                    self.nodes_by_id[child_id]
+                    for child_id in self.node_ids_by_parent_id.get(node.id, [])
+                )
+        else:
+            descendants: list[NodeDataT] = []
+            queue = deque(
+                self.nodes_by_id[child_id]
+                for child_id in self.node_ids_by_parent_id.get(node.id, [])
+            )
+            while queue:
+                current_node = queue.popleft()
+                descendants.append(current_node)
+                for child_id in self.node_ids_by_parent_id.get(current_node.id, []):
+                    queue.append(self.nodes_by_id[child_id])
+            return descendants
 
     def walk_bfs(self, roots: list[NodeDataT] = None) -> Generator[NodeDataT, None, None]:
         """Walks the tree in breadth-first order"""
@@ -352,7 +363,7 @@ class NodeDataTree(NodeTreeBase[NodeDataT, str]):
             current_node = queue.popleft()
             num_traversed += 1
             yield current_node
-            for child_id in self.child_ids_by_parent_id.get(current_node.id, []):
+            for child_id in self.node_ids_by_parent_id.get(current_node.id, []):
                 queue.append(self.nodes_by_id[child_id])
         if roots == self.roots and num_traversed != len(self.nodes_by_id):
             raise ValueError(
@@ -395,63 +406,66 @@ class DetachedNodeTree(NodeTreeBase[NodeT, UUID]):
 
     def add(self, node: "Node"):
         """Add a node to the tree (error if node already exists)"""
+        assert node.__is_in_module__, f"cannot add non-module node {node!r} to {self!r}"
         if node.ck in self.nodes_by_ck and self.nodes_by_ck[node.ck] is not node:
             raise ValueError(f"node {node!r} (ck={node.ck}) already exists in {self!r}")
         self.nodes_by_ck[node.ck] = node
+
         if node.parent is not None:
             self.nodes_by_parent_ck[node.parent.ck].append(node)
 
     def update(self, node: "Node"):
         """Updates the node in this tree (must exist)"""
-        node_ck = node.ck
-        node_parent_ck = node.parent.ck
-        existing = self.nodes_by_ck.get(node_ck)
+        existing = self.nodes_by_ck.get(node.ck)
         if existing is None:
-            raise ValueError(f"node {node!r} (ck={node_ck}) does not exist in {self!r}")
-        self.nodes_by_ck[node_ck] = node
+            raise ValueError(f"node {node!r} (ck={node.ck}) does not exist in {self!r}")
+        self.nodes_by_ck[node.ck] = node
+
         if existing.parent is not None and existing.parent in self.nodes_by_parent_ck:
             self.nodes_by_parent_ck[existing.parent_id].remove(existing)
-        if node.parent is not None and node not in self.nodes_by_parent_ck[node_parent_ck]:
-            self.nodes_by_parent_ck[node_parent_ck].append(node)
+        if node.parent is not None and node not in self.nodes_by_parent_ck[node.parent.ck]:
+            self.nodes_by_parent_ck[node.parent.ck].append(node)
 
     def remove(self, node: "Node"):
         """Remove a node from the tree (incl. all descendants if recursive)"""
-        descendants = self.get_descendants(node.ck, recursive=True, include_self=True)
+        descendants = self.collect_descendants(node, recursive=True, include_self=True)
         for descendant in descendants:
             descendant_ck = descendant.ck
+            if descendant_ck in self.nodes_by_ck:
+                self.nodes_by_ck.pop(descendant_ck)
+
             if descendant_ck in self.nodes_by_parent_ck:
                 self.nodes_by_parent_ck.pop(descendant_ck)
             if descendant.parent and descendant.parent.ck in self.nodes_by_parent_ck:
                 self.nodes_by_parent_ck[descendant.parent.ck].remove(descendant)
-            if descendant_ck in self.nodes_by_ck:
-                self.nodes_by_ck.pop(descendant_ck)
 
-    def get_descendants(
+    def collect_descendants(
         self,
-        node_id_or_ck: UUID,
+        node: NodeDataT,
         node_type: NodeType | None = None,
         recursive: bool = False,
-        prefilter: bool = False,
-        include_self: bool = False,
-    ) -> list["NodeT"]:
+    ) -> tuple["NodeT", ...] | list["NodeT"]:
         """Gets all children descendants as filtered in BFS order"""
-        assert isinstance(node_id_or_ck, UUID), f"expected UUID, got {node_id_or_ck!r}"
-        children = [
-            child
-            for child in self.nodes_by_parent_ck.get(node_id_or_ck, ())
-            if not node_type or not prefilter or child.metatype == node_type
-        ]
-        descendants = []
-        if include_self:
-            descendants.append(self.nodes_by_ck[node_id_or_ck])
-        descendants.extend(children)
-        if recursive:
-            for child in children:
-                if child.ck not in self.nodes_by_parent_ck:
-                    continue
-                descendants.extend(
-                    self.get_descendants(child.ck, node_type, prefilter=prefilter, recursive=True)
+        assert isinstance(node.ck, UUID), f"expected UUID in node, got {node!r}"
+        if not node.__has_scope__:
+            return ()
+        node_ck = node.ck
+        if not recursive:
+            if node_type is not None:
+                return tuple(
+                    child
+                    for child in self.nodes_by_parent_ck.get(node_ck, ())
+                    if child.metatype == node_type
                 )
-        if not prefilter and node_type:
-            descendants = [n for n in descendants if n.metatype == node_type]
-        return descendants
+            else:
+                return tuple(self.nodes_by_parent_ck.get(node_ck, ()))
+        else:
+            descendants: list[NodeT] = []
+            queue = deque(self.nodes_by_parent_ck.get(node_ck, ()))
+            while queue:
+                current_node = queue.popleft()
+                descendants.append(current_node)
+                children = self.nodes_by_parent_ck.get(current_node.ck, ())
+                if len(children) > 0:
+                    queue.extend(children)
+            return descendants
