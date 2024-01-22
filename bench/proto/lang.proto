@@ -85,11 +85,14 @@ enum BenchType {
   BENCH_TYPE_ORGANIZATION = 122;
   BENCH_TYPE_CLIENT = 123;
   BENCH_TYPE_NOTIFICATION = 124;
-  BENCH_TYPE_NODE_POINTER = 200;
-  BENCH_TYPE_PROPERTY_POINTER = 201;
+  BENCH_TYPE_NODE_REFERENCE = 200;
+  BENCH_TYPE_PROPERTY_REFERENCE = 201;
   BENCH_TYPE_NODE_PATH = 202;
   BENCH_TYPE_PROPERTY_PATH = 203;
-  BENCH_TYPE_BLOB = 204;
+  BENCH_TYPE_FIELD_PATH = 204;
+  BENCH_TYPE_FIELD_PATH_SEGMENT = 205;
+  BENCH_TYPE_VALUE_REFERENCE = 206;
+  BENCH_TYPE_BLOB = 210;
   BENCH_TYPE_POLICY = 220;
   BENCH_TYPE_POLICY_RULE = 221;
   BENCH_TYPE_CONTEXT = 222;
@@ -99,7 +102,6 @@ enum BenchType {
   BENCH_TYPE_LOG_ENTRY = 260;
   BENCH_TYPE_RUN_CODE_FRAME = 261;
   BENCH_TYPE_RUN_ERROR = 262;
-  BENCH_TYPE_MINI_RUN = 263;
   BENCH_TYPE_WORKER_IMAGE = 280;
   BENCH_TYPE_DEPENDENCY = 281;
   BENCH_TYPE_RICH_TEXT = 300;
@@ -416,11 +418,14 @@ enum StatementType {
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_NODE_POINTER = 200;
-  STRUCT_TYPE_PROPERTY_POINTER = 201;
+  STRUCT_TYPE_NODE_REFERENCE = 200;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 201;
   STRUCT_TYPE_NODE_PATH = 202;
   STRUCT_TYPE_PROPERTY_PATH = 203;
-  STRUCT_TYPE_BLOB = 204;
+  STRUCT_TYPE_FIELD_PATH = 204;
+  STRUCT_TYPE_FIELD_PATH_SEGMENT = 205;
+  STRUCT_TYPE_VALUE_REFERENCE = 206;
+  STRUCT_TYPE_BLOB = 210;
   STRUCT_TYPE_POLICY = 220;
   STRUCT_TYPE_POLICY_RULE = 221;
   STRUCT_TYPE_CONTEXT = 222;
@@ -430,7 +435,6 @@ enum StructType {
   STRUCT_TYPE_LOG_ENTRY = 260;
   STRUCT_TYPE_RUN_CODE_FRAME = 261;
   STRUCT_TYPE_RUN_ERROR = 262;
-  STRUCT_TYPE_MINI_RUN = 263;
   STRUCT_TYPE_WORKER_IMAGE = 280;
   STRUCT_TYPE_DEPENDENCY = 281;
   STRUCT_TYPE_RICH_TEXT = 300;
@@ -574,7 +578,7 @@ message BlobData {
   optional int64 content_length = 31;
   optional string content_type = 32;
   string name = 33;
-  optional NodePointerData object_ptr = 34;
+  optional NodeReferenceData object_ptr = 34;
   BlobStatus status = 35;
 }
 
@@ -584,11 +588,11 @@ message ContextData {
   bool subject_is_system = 30;
   bool subject_is_authenticated = 31;
   bool subject_is_owner = 32;
-  optional NodePointerData subject_user_ptr = 33;
+  optional NodeReferenceData subject_user_ptr = 33;
   repeated ActionKind verbs = 41;
   repeated BenchType object_types = 50;
-  repeated NodePointerData object_nodes_ptr = 51;
-  repeated PropertyPointerData object_properties = 52;
+  repeated NodeReferenceData object_nodes_ptr = 51;
+  repeated PropertyReferenceData object_properties = 52;
 }
 
 // // Dependency(name: str = <factory>, version: str = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -602,11 +606,24 @@ message DependencyData {
 message ExpressionData {
   BenchType metatype = 1;
   ExpressionOp op = 30;
-  optional NodePointerData field_ptr = 31;
-  optional PropertyPointerData property_ptr = 32;
-  repeated ExpressionData clauses = 33;
-  google.protobuf.Struct value = 34;
-  optional SortMode mode = 35;
+  optional NodeReferenceData field_ptr = 31;
+  optional PropertyReferenceData property_ptr = 32;
+  repeated ExpressionData clauses = 35;
+  google.protobuf.Struct value = 36;
+  optional SortMode mode = 37;
+}
+
+// // A path of built-in Node/Struct properties and user-defined Fields.
+message FieldPathData {
+  BenchType metatype = 1;
+  repeated FieldPathSegmentData segments = 30;
+}
+
+// // A single segment of a FieldPath.
+message FieldPathSegmentData {
+  BenchType metatype = 1;
+  PropertyReferenceData property = 30;
+  optional NodeReferenceData field_ptr = 31;
 }
 
 // // An entry. In a log.
@@ -615,33 +632,23 @@ message LogEntryData {
   string id = 2;
   google.protobuf.Timestamp created_at = 32;
   string stream = 33;
-  repeated NodePointerData session_ptr = 34;
+  repeated NodeReferenceData session_ptr = 34;
   optional string level = 35;
   optional string logger = 36;
-  optional NodePointerData statement_ptr = 37;
-  optional NodePointerData run_ptr = 38;
+  optional NodeReferenceData statement_ptr = 37;
+  optional NodeReferenceData run_ptr = 38;
   optional string message = 39;
   optional google.protobuf.Struct value = 40;
 }
 
-// // MiniRun(generated_at: datetime.datetime = <factory>, generated_in: uuid.UUID = <factory>, duration: float = <factory>, inputs: Any = <factory>, outputs: Any = <factory>, _status: bench.language.const.NodeStatus = None)
-message MiniRunData {
-  BenchType metatype = 1;
-  google.protobuf.Timestamp generated_at = 30;
-  string generated_in = 31;
-  float duration = 32;
-  google.protobuf.Struct inputs = 33;
-  google.protobuf.Struct outputs = 34;
-}
-
-// // NodePath(nodes: list[bench.language.expression.NodePointer] = <factory>, _status: bench.language.const.NodeStatus = None)
+// // A path of nodes.
 message NodePathData {
   BenchType metatype = 1;
-  repeated NodePointerData nodes = 30;
+  repeated NodeReferenceData nodes = 30;
 }
 
-// // NodePointer(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus = None)
-message NodePointerData {
+// // NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus = None)
+message NodeReferenceData {
   BenchType metatype = 1;
   NodeType type = 30;
   optional string id = 31;
@@ -661,23 +668,23 @@ message PolicyRuleData {
   BenchType metatype = 1;
   bool subject_is_authenticated = 31;
   bool subject_is_owner = 32;
-  repeated NodePointerData subject_users_ptr = 33;
+  repeated NodeReferenceData subject_users_ptr = 33;
   PolicyEffect effect = 40;
   repeated ActionKind verb = 41;
   repeated BenchType object_types = 50;
-  repeated NodePointerData object_nodes_ptr = 51;
-  repeated PropertyPointerData object_properties = 52;
+  repeated NodeReferenceData object_nodes_ptr = 51;
+  repeated PropertyReferenceData object_properties = 52;
   optional ExpressionData condition = 60;
 }
 
-// // PropertyPath(properties: list[bench.language.expression.PropertyPointer] = <factory>, _status: bench.language.const.NodeStatus = None)
+// // A path of Node/Struct properties.
 message PropertyPathData {
   BenchType metatype = 1;
-  repeated PropertyPointerData properties = 30;
+  repeated PropertyReferenceData properties = 30;
 }
 
-// // PropertyPointer(type: bench.language.const.BenchType = <factory>, id: Optional[int] = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
-message PropertyPointerData {
+// // PropertyReference(type: bench.language.const.BenchType = <factory>, id: Optional[int] = <factory>, references_type: Optional[bench.language.const.NodeType] = <factory>, _status: bench.language.const.NodeStatus = None)
+message PropertyReferenceData {
   BenchType metatype = 1;
   BenchType type = 30;
   optional int64 id = 31;
@@ -691,11 +698,11 @@ message RichTextData {
   optional string plain_text = 31;
 }
 
-// // RichTextSpan(text: str = '', reference: bench.language.node.Node | None = None, reference_ptr: bench.proto.wire.NodePointerData = None, _status: bench.language.const.NodeStatus = None)
+// // RichTextSpan(text: str = '', reference: bench.language.node.Node | None = None, reference_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None)
 message RichTextSpanData {
   BenchType metatype = 1;
   string text = 30;
-  optional NodePointerData reference_ptr = 31;
+  optional NodeReferenceData reference_ptr = 31;
 }
 
 // // RunCodeFrame(filename: str = <factory>, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -708,14 +715,21 @@ message RunCodeFrameData {
   string line = 34;
 }
 
-// // RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = <factory>, node_ptr: bench.proto.wire.NodePointerData = None, _status: bench.language.const.NodeStatus = None)
+// // RunError(kind: bench.language.const.RunErrorKind = <factory>, type: str = <factory>, message: Optional[str] = None, node: Optional[ForwardRef('Node')] = None, traceback: list[bench.language.run.RunCodeFrame] = <factory>, node_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None)
 message RunErrorData {
   BenchType metatype = 1;
   RunErrorKind kind = 30;
   string type = 31;
   optional string message = 32;
-  optional NodePointerData node_ptr = 33;
+  optional NodeReferenceData node_ptr = 33;
   repeated RunCodeFrameData traceback = 34;
+}
+
+// // Reference a value at a path of a Node.
+message ValueReferenceData {
+  BenchType metatype = 1;
+  optional NodeReferenceData node_ptr = 30;
+  FieldPathData path = 31;
 }
 
 // // WorkerImage(language: str = <factory>, version: str = <factory>, platform: str = <factory>, dependencies: list['Dependency'] = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -732,8 +746,8 @@ message BadgeData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -755,7 +769,7 @@ message BadgeData {
 message BenchData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -767,9 +781,9 @@ message BenchData {
   string slug = 30;
   string name = 31;
   optional string description = 32;
-  optional NodePointerData organization_ptr = 33;
-  optional NodePointerData user_ptr = 34;
-  optional NodePointerData head_ptr = 40;
+  optional NodeReferenceData organization_ptr = 33;
+  optional NodeReferenceData user_ptr = 34;
+  optional NodeReferenceData head_ptr = 40;
   optional string pg_name = 41;
   optional string pg_username = 42;
   optional string pg_password = 43;
@@ -782,7 +796,7 @@ message BenchData {
 message BucketObjectData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -799,7 +813,7 @@ message BucketObjectData {
 message ClientData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -813,13 +827,13 @@ message ClientData {
   optional string access_token = 34;
 }
 
-// // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = None, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: bench.proto.wire.NodePointerData = None, reference_ptr: bench.proto.wire.NodePointerData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None, _text_parsed: Optional[ForwardRef('Text')] = None)
+// // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = None, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: bench.proto.wire.NodeReferenceData = None, reference_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None, _text_parsed: Optional[ForwardRef('Text')] = None)
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -834,7 +848,7 @@ message FieldData {
   optional google.protobuf.Struct value = 35;
   optional TypeHint hint = 36;
   int64 flags = 37;
-  optional NodePointerData reference_ptr = 38;
+  optional NodeReferenceData reference_ptr = 38;
 }
 
 // // Files are how a Bench organizes statements. Files can also be folders to other files.
@@ -842,8 +856,8 @@ message FileData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -861,7 +875,7 @@ message FileData {
 message HandleData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -871,13 +885,13 @@ message HandleData {
   string slug = 30;
 }
 
-// // Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[str] = None, properties: Optional[list[int]] = None, parent_ptr: bench.proto.wire.NodePointerData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// // Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[str] = None, properties: Optional[list[int]] = None, parent_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message IssueData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -896,15 +910,15 @@ message LinkData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional NodePointerData reference_ptr = 30;
+  optional NodeReferenceData reference_ptr = 30;
 }
 
 // // A module is a semi-isolated version of a Bench, containing the actual files and so on.
@@ -912,7 +926,7 @@ message ModuleData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -930,7 +944,7 @@ message ModuleData {
 message BaseNodeData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -943,7 +957,7 @@ message BaseNodeData {
 message NotificationData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -960,7 +974,7 @@ message NotificationData {
 message OrganizationData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -968,7 +982,7 @@ message OrganizationData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodePointerData handle_ptr = 30;
+  optional NodeReferenceData handle_ptr = 30;
   optional string slug = 31;
   string name = 32;
 }
@@ -978,8 +992,8 @@ message PauseData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -993,8 +1007,8 @@ message RecordData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1009,8 +1023,8 @@ message RunData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1018,11 +1032,11 @@ message RunData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  NodePointerData session_ptr = 30;
-  optional NodePointerData root_ptr = 31;
-  optional NodePointerData worker_ptr = 32;
+  NodeReferenceData session_ptr = 30;
+  optional NodeReferenceData root_ptr = 31;
+  optional NodeReferenceData worker_ptr = 32;
   optional string worker_process_id = 33;
-  optional NodePointerData node_ptr = 34;
+  optional NodeReferenceData node_ptr = 34;
   optional string node_path = 35;
   optional google.protobuf.Timestamp scheduled_at = 36;
   optional google.protobuf.Timestamp started_at = 37;
@@ -1041,8 +1055,8 @@ message SessionData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1051,7 +1065,7 @@ message SessionData {
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   repeated PolicyData policies = 30;
-  optional NodePointerData worker_ptr = 31;
+  optional NodeReferenceData worker_ptr = 31;
   optional string worker_process_id = 32;
   optional TriggerType trigger_type = 33;
   optional string trigger_id = 34;
@@ -1064,15 +1078,15 @@ message SignalData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional NodePointerData type_ptr = 30;
+  optional NodeReferenceData type_ptr = 30;
   optional google.protobuf.Struct value = 31;
 }
 
@@ -1081,8 +1095,8 @@ message StatementData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1093,7 +1107,7 @@ message StatementData {
   int64 visibility = 20;
   repeated PolicyData policies = 21;
   StatementType type = 30;
-  bool inline = 31;
+  repeated NodeReferenceData bases_ptr = 31;
   optional string name = 32;
   optional string order_key = 33;
   optional string text = 34;
@@ -1101,8 +1115,9 @@ message StatementData {
   optional string code = 36;
   optional google.protobuf.Struct value = 37;
   optional google.protobuf.Struct secret_value = 38;
-  optional NodePointerData reference_ptr = 39;
-  bool shared = 40;
+  optional NodeReferenceData reference_ptr = 39;
+  bool is_inline = 40;
+  bool shared = 41;
 }
 
 // // An association between a tag and a statement (with optional value).
@@ -1110,8 +1125,8 @@ message TaggingData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1120,7 +1135,7 @@ message TaggingData {
   google.protobuf.Timestamp last_edited_at = 15;
   string key = 30;
   optional google.protobuf.Struct value = 31;
-  optional NodePointerData reference_ptr = 32;
+  optional NodeReferenceData reference_ptr = 32;
 }
 
 // // A trigger for a statement to run.
@@ -1128,8 +1143,8 @@ message TriggerData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1148,7 +1163,7 @@ message TriggerData {
 message UserData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1156,7 +1171,7 @@ message UserData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  optional NodePointerData handle_ptr = 30;
+  optional NodeReferenceData handle_ptr = 30;
   optional string slug = 31;
   optional string name = 32;
   optional string email = 33;
@@ -1165,13 +1180,13 @@ message UserData {
   optional google.protobuf.Timestamp last_logged_in_at = 36;
 }
 
-// // View(parent: ForwardRef('Statement') = None, name: str | None = None, order_key: str | None = None, node_type: bench.language.const.NodeType = <factory>, filter: Optional[bench.language.expression.Expression] = None, sort: Optional[list[bench.language.expression.Expression]] = None, parent_ptr: bench.proto.wire.NodePointerData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// // View(parent: ForwardRef('Statement') = None, name: str | None = None, order_key: str | None = None, node_type: bench.language.const.NodeType = <factory>, filter: Optional[bench.language.expression.Expression] = None, sort: Optional[list[bench.language.expression.Expression]] = None, parent_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message ViewData {
   BenchType metatype = 1;
   string id = 2;
   string ck = 3;
-  optional NodePointerData parent_ptr = 4;
-  NodePointerData module_ptr = 6;
+  optional NodeReferenceData parent_ptr = 4;
+  NodeReferenceData module_ptr = 6;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1185,11 +1200,11 @@ message ViewData {
   repeated ExpressionData sort = 34;
 }
 
-// // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: bench.proto.wire.NodePointerData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message WorkerData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1207,7 +1222,7 @@ message WorkerData {
 message WorkerSetData {
   BenchType metatype = 1;
   string id = 2;
-  optional NodePointerData parent_ptr = 4;
+  optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
   google.protobuf.Timestamp updated_at = 12;
@@ -1228,29 +1243,29 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    NotificationData Notification = 1;
+    ClientData Client = 1;
     StatementData Statement = 2;
-    BenchData Bench = 3;
-    WorkerData Worker = 4;
-    BadgeData Badge = 5;
+    FileData File = 3;
+    OrganizationData Organization = 4;
+    ModuleData Module = 5;
     BucketObjectData BucketObject = 6;
-    TaggingData Tagging = 7;
-    SignalData Signal = 8;
+    SignalData Signal = 7;
+    WorkerSetData WorkerSet = 8;
     ViewData View = 9;
-    TriggerData Trigger = 10;
-    WorkerSetData WorkerSet = 11;
-    LinkData Link = 12;
-    FieldData Field = 13;
-    HandleData Handle = 14;
-    RunData Run = 15;
-    ClientData Client = 16;
-    SessionData Session = 17;
-    PauseData Pause = 18;
-    IssueData Issue = 19;
-    UserData User = 20;
-    FileData File = 21;
-    ModuleData Module = 22;
-    OrganizationData Organization = 23;
+    UserData User = 10;
+    RunData Run = 11;
+    BenchData Bench = 12;
+    TriggerData Trigger = 13;
+    SessionData Session = 14;
+    HandleData Handle = 15;
+    WorkerData Worker = 16;
+    LinkData Link = 17;
+    NotificationData Notification = 18;
+    BadgeData Badge = 19;
+    TaggingData Tagging = 20;
+    PauseData Pause = 21;
+    FieldData Field = 22;
+    IssueData Issue = 23;
     RecordData Record = 24;
   };
 }

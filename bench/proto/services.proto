@@ -18,9 +18,9 @@ message ReadNodesOptions {
   // Load all descendants of these types.
   repeated NodeType descendant_types = 2;
   // Additional deferred or related properties to load.
-  repeated PropertyPointerData include_properties = 3;
+  repeated PropertyReferenceData include_properties = 3;
   // Additional regular properties to defer.
-  repeated PropertyPointerData exclude_properties = 4;
+  repeated PropertyReferenceData exclude_properties = 4;
   // Additional filter for every node (incl. root node, e.g. to load non-deleted, only archived, etc.).
   ExpressionData global_filter = 5;
 }
@@ -74,7 +74,7 @@ message CreateBenchResponse {
 }
 
 message ReadNodesRequest {
-  repeated NodePointerData roots = 1;
+  repeated NodeReferenceData roots = 1;
   ReadNodesOptions options = 2;
 }
 message ReadNodesResponse {
@@ -83,7 +83,7 @@ message ReadNodesResponse {
 
 message SearchNodesRequest {
   NodeType node_type = 1;
-  NodePointerData parent = 2;
+  NodeReferenceData parent = 2;
   ExpressionData filter = 3;
   repeated ExpressionData sort = 4;
   int32 limit = 5;
@@ -100,7 +100,7 @@ message SearchNodesResponse {
 
 message AggregateNodesRequest {
   NodeType node_type = 1;
-  NodePointerData parent = 2;
+  NodeReferenceData parent = 2;
   ExpressionData filter = 3;
   repeated ExpressionData sort = 4;
   int32 limit = 5;
@@ -201,7 +201,7 @@ message GetLogsResponse {
 
 message PasteNodesRequest {
   string source_module_id = 1;
-  repeated NodePointerData source_nodes = 2;
+  repeated NodeReferenceData source_nodes = 2;
   map<string, string> target_ids = 3;
   map<string, string> target_cks = 4;
   map<string, string> target_parent_ids = 5;

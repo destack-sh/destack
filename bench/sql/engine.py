@@ -43,7 +43,7 @@ from bench.language.node import (
 )
 from bench.language.tree import NodeDataTree
 from bench.proto import wire, wiring
-from bench.proto.wire import AnyNodeData, EditData, NodePointerData
+from bench.proto.wire import AnyNodeData, EditData, NodeReferenceData
 from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import UNIVERSAL_RO_PASSWORD, UNIVERSAL_RO_USERNAME, async_pg_cursor
@@ -874,7 +874,7 @@ def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
                 row[prop.name] = value
             else:  # unravel reference into per-type columns
                 assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
-                ptr: NodePointerData | None = getattr(
+                ptr: NodeReferenceData | None = getattr(
                     prop.reference_source.reference_wired_ptr.name
                 )
                 if ptr is not None and prop.reference_types[0] == ptr.type:
@@ -904,9 +904,9 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
             else:  # ravel reference from per-type columns
                 assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
                 if prop.name.endswith("_ck"):
-                    ptr = NodePointerData(type=prop.reference_types[0], ck=value)
+                    ptr = NodeReferenceData(type=prop.reference_types[0], ck=value)
                 else:
-                    ptr = NodePointerData(type=prop.reference_types[0], id=value)
+                    ptr = NodeReferenceData(type=prop.reference_types[0], id=value)
                 setattr(data, prop.reference_source.reference_wired_ptr.name, ptr)
         return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:

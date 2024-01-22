@@ -64,7 +64,7 @@ class Record(HasValue, Node):
         column_type=ColumnType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
-    # could also have secret_value like in Block here, but would unfurl for materialized
+    # could also have Record.secret_value as in Block (no materialization needed?)
 
     @staticmethod
     def new(

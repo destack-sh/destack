@@ -26,14 +26,14 @@ import { LogEntryData } from "./lang";
 import { WorkerSetData } from "./lang";
 import { EditData } from "./common";
 import { AggregationData } from "./lang";
-import { NodePointerData } from "./lang";
+import { NodeReferenceData } from "./lang";
 import { SomeNodeData } from "./lang";
 import { BenchData } from "./lang";
 import { OrganizationData } from "./lang";
 import { ClientData } from "./lang";
 import { UserData } from "./lang";
 import { ExpressionData } from "./lang";
-import { PropertyPointerData } from "./lang";
+import { PropertyReferenceData } from "./lang";
 import { NodeType } from "./lang";
 /**
  * @generated from protobuf message symbolx.bench.ReadNodesOptions
@@ -54,15 +54,15 @@ export interface ReadNodesOptions {
     /**
      * Additional deferred or related properties to load.
      *
-     * @generated from protobuf field: repeated symbolx.bench.PropertyPointerData include_properties = 3;
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData include_properties = 3;
      */
-    includeProperties: PropertyPointerData[];
+    includeProperties: PropertyReferenceData[];
     /**
      * Additional regular properties to defer.
      *
-     * @generated from protobuf field: repeated symbolx.bench.PropertyPointerData exclude_properties = 4;
+     * @generated from protobuf field: repeated symbolx.bench.PropertyReferenceData exclude_properties = 4;
      */
-    excludeProperties: PropertyPointerData[];
+    excludeProperties: PropertyReferenceData[];
     /**
      * Additional filter for every node (incl. root node, e.g. to load non-deleted, only archived, etc.).
      *
@@ -209,9 +209,9 @@ export interface CreateBenchResponse {
  */
 export interface ReadNodesRequest {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodePointerData roots = 1;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData roots = 1;
      */
-    roots: NodePointerData[];
+    roots: NodeReferenceData[];
     /**
      * @generated from protobuf field: symbolx.bench.ReadNodesOptions options = 2;
      */
@@ -235,9 +235,9 @@ export interface SearchNodesRequest {
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: symbolx.bench.NodePointerData parent = 2;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent = 2;
      */
-    parent?: NodePointerData;
+    parent?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.ExpressionData filter = 3;
      */
@@ -293,9 +293,9 @@ export interface AggregateNodesRequest {
      */
     nodeType: NodeType;
     /**
-     * @generated from protobuf field: symbolx.bench.NodePointerData parent = 2;
+     * @generated from protobuf field: symbolx.bench.NodeReferenceData parent = 2;
      */
-    parent?: NodePointerData;
+    parent?: NodeReferenceData;
     /**
      * @generated from protobuf field: symbolx.bench.ExpressionData filter = 3;
      */
@@ -445,9 +445,9 @@ export interface PasteNodesRequest {
      */
     sourceModuleId: string;
     /**
-     * @generated from protobuf field: repeated symbolx.bench.NodePointerData source_nodes = 2;
+     * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData source_nodes = 2;
      */
-    sourceNodes: NodePointerData[];
+    sourceNodes: NodeReferenceData[];
     /**
      * @generated from protobuf field: map<string, string> target_ids = 3;
      */
@@ -781,8 +781,8 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
         super("symbolx.bench.ReadNodesOptions", [
             { no: 1, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
             { no: 2, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 3, name: "include_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyPointerData },
-            { no: 4, name: "exclude_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyPointerData },
+            { no: 3, name: "include_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
+            { no: 4, name: "exclude_properties", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => PropertyReferenceData },
             { no: 5, name: "global_filter", kind: "message", T: () => ExpressionData }
         ]);
     }
@@ -815,11 +815,11 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
                     else
                         message.descendantTypes.push(reader.int32());
                     break;
-                case /* repeated symbolx.bench.PropertyPointerData include_properties */ 3:
-                    message.includeProperties.push(PropertyPointerData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.PropertyReferenceData include_properties */ 3:
+                    message.includeProperties.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
-                case /* repeated symbolx.bench.PropertyPointerData exclude_properties */ 4:
-                    message.excludeProperties.push(PropertyPointerData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.PropertyReferenceData exclude_properties */ 4:
+                    message.excludeProperties.push(PropertyReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.ExpressionData global_filter */ 5:
                     message.globalFilter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.globalFilter);
@@ -850,12 +850,12 @@ class ReadNodesOptions$Type extends MessageType<ReadNodesOptions> {
                 writer.int32(message.descendantTypes[i]);
             writer.join();
         }
-        /* repeated symbolx.bench.PropertyPointerData include_properties = 3; */
+        /* repeated symbolx.bench.PropertyReferenceData include_properties = 3; */
         for (let i = 0; i < message.includeProperties.length; i++)
-            PropertyPointerData.internalBinaryWrite(message.includeProperties[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.PropertyPointerData exclude_properties = 4; */
+            PropertyReferenceData.internalBinaryWrite(message.includeProperties[i], writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbolx.bench.PropertyReferenceData exclude_properties = 4; */
         for (let i = 0; i < message.excludeProperties.length; i++)
-            PropertyPointerData.internalBinaryWrite(message.excludeProperties[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
+            PropertyReferenceData.internalBinaryWrite(message.excludeProperties[i], writer.tag(4, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ExpressionData global_filter = 5; */
         if (message.globalFilter)
             ExpressionData.internalBinaryWrite(message.globalFilter, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
@@ -1369,7 +1369,7 @@ export const CreateBenchResponse = new CreateBenchResponse$Type();
 class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
     constructor() {
         super("symbolx.bench.ReadNodesRequest", [
-            { no: 1, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodePointerData },
+            { no: 1, name: "roots", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 2, name: "options", kind: "message", T: () => ReadNodesOptions }
         ]);
     }
@@ -1385,8 +1385,8 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.NodePointerData roots */ 1:
-                    message.roots.push(NodePointerData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.NodeReferenceData roots */ 1:
+                    message.roots.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* symbolx.bench.ReadNodesOptions options */ 2:
                     message.options = ReadNodesOptions.internalBinaryRead(reader, reader.uint32(), options, message.options);
@@ -1403,9 +1403,9 @@ class ReadNodesRequest$Type extends MessageType<ReadNodesRequest> {
         return message;
     }
     internalBinaryWrite(message: ReadNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.NodePointerData roots = 1; */
+        /* repeated symbolx.bench.NodeReferenceData roots = 1; */
         for (let i = 0; i < message.roots.length; i++)
-            NodePointerData.internalBinaryWrite(message.roots[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.roots[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ReadNodesOptions options = 2; */
         if (message.options)
             ReadNodesOptions.internalBinaryWrite(message.options, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
@@ -1471,7 +1471,7 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
     constructor() {
         super("symbolx.bench.SearchNodesRequest", [
             { no: 1, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "parent", kind: "message", T: () => NodePointerData },
+            { no: 2, name: "parent", kind: "message", T: () => NodeReferenceData },
             { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 5, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
@@ -1499,8 +1499,8 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
                 case /* symbolx.bench.NodeType node_type */ 1:
                     message.nodeType = reader.int32();
                     break;
-                case /* symbolx.bench.NodePointerData parent */ 2:
-                    message.parent = NodePointerData.internalBinaryRead(reader, reader.uint32(), options, message.parent);
+                case /* symbolx.bench.NodeReferenceData parent */ 2:
+                    message.parent = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parent);
                     break;
                 case /* symbolx.bench.ExpressionData filter */ 3:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -1535,9 +1535,9 @@ class SearchNodesRequest$Type extends MessageType<SearchNodesRequest> {
         /* symbolx.bench.NodeType node_type = 1; */
         if (message.nodeType !== 0)
             writer.tag(1, WireType.Varint).int32(message.nodeType);
-        /* symbolx.bench.NodePointerData parent = 2; */
+        /* symbolx.bench.NodeReferenceData parent = 2; */
         if (message.parent)
-            NodePointerData.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ExpressionData filter = 3; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
@@ -1642,7 +1642,7 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
     constructor() {
         super("symbolx.bench.AggregateNodesRequest", [
             { no: 1, name: "node_type", kind: "enum", T: () => ["symbolx.bench.NodeType", NodeType, "NODE_TYPE_"] },
-            { no: 2, name: "parent", kind: "message", T: () => NodePointerData },
+            { no: 2, name: "parent", kind: "message", T: () => NodeReferenceData },
             { no: 3, name: "filter", kind: "message", T: () => ExpressionData },
             { no: 4, name: "sort", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => ExpressionData },
             { no: 5, name: "limit", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
@@ -1668,8 +1668,8 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
                 case /* symbolx.bench.NodeType node_type */ 1:
                     message.nodeType = reader.int32();
                     break;
-                case /* symbolx.bench.NodePointerData parent */ 2:
-                    message.parent = NodePointerData.internalBinaryRead(reader, reader.uint32(), options, message.parent);
+                case /* symbolx.bench.NodeReferenceData parent */ 2:
+                    message.parent = NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, message.parent);
                     break;
                 case /* symbolx.bench.ExpressionData filter */ 3:
                     message.filter = ExpressionData.internalBinaryRead(reader, reader.uint32(), options, message.filter);
@@ -1701,9 +1701,9 @@ class AggregateNodesRequest$Type extends MessageType<AggregateNodesRequest> {
         /* symbolx.bench.NodeType node_type = 1; */
         if (message.nodeType !== 0)
             writer.tag(1, WireType.Varint).int32(message.nodeType);
-        /* symbolx.bench.NodePointerData parent = 2; */
+        /* symbolx.bench.NodeReferenceData parent = 2; */
         if (message.parent)
-            NodePointerData.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.parent, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* symbolx.bench.ExpressionData filter = 3; */
         if (message.filter)
             ExpressionData.internalBinaryWrite(message.filter, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
@@ -2316,7 +2316,7 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
     constructor() {
         super("symbolx.bench.PasteNodesRequest", [
             { no: 1, name: "source_module_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "source_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodePointerData },
+            { no: 2, name: "source_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "target_ids", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
             { no: 4, name: "target_cks", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
             { no: 5, name: "target_parent_ids", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
@@ -2343,8 +2343,8 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
                 case /* string source_module_id */ 1:
                     message.sourceModuleId = reader.string();
                     break;
-                case /* repeated symbolx.bench.NodePointerData source_nodes */ 2:
-                    message.sourceNodes.push(NodePointerData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.NodeReferenceData source_nodes */ 2:
+                    message.sourceNodes.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 case /* map<string, string> target_ids */ 3:
                     this.binaryReadMap3(message.targetIds, reader, options);
@@ -2437,9 +2437,9 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
         /* string source_module_id = 1; */
         if (message.sourceModuleId !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.sourceModuleId);
-        /* repeated symbolx.bench.NodePointerData source_nodes = 2; */
+        /* repeated symbolx.bench.NodeReferenceData source_nodes = 2; */
         for (let i = 0; i < message.sourceNodes.length; i++)
-            NodePointerData.internalBinaryWrite(message.sourceNodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+            NodeReferenceData.internalBinaryWrite(message.sourceNodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         /* map<string, string> target_ids = 3; */
         for (let k of globalThis.Object.keys(message.targetIds))
             writer.tag(3, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k).tag(2, WireType.LengthDelimited).string(message.targetIds[k]).join();

@@ -5,7 +5,7 @@ import structlog
 import typer
 
 from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
-from bench.proto.mesh import BenchServer
+from bench.proto.services import BenchServer
 from bench.runtime.node import Worker
 from bench.server.host import ModuleHostMultiplexer
 from bench.server.supervisor import GlobalSupervisor

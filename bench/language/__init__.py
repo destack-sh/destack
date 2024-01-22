@@ -18,7 +18,7 @@ from .const import (
     TypeTag,
 )
 from .database import Record
-from .expression import A, C, E, Expression, S, PropertyPointer, NodePointer
+from .expression import A, C, E, Expression, S, PropertyReference, NodeReference
 from .field import Field, Type, TypeStorageFormat
 from .file import File
 from .issue import Issue
@@ -68,7 +68,7 @@ __all__ = [
     "Module",
     "Node",
     "NodeVisitor",
-    "NodePointer",
+    "NodeReference",
     "Organization",
     "Policy",
     "PolicyEffect",
@@ -100,7 +100,7 @@ __all__ = [
     "TypeStorageFormat",
     "TypeTag",
     "User",
-    "PropertyPointer",
+    "PropertyReference",
     "View",
     "VERSION",
     "WorkerImage",

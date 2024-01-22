@@ -198,7 +198,9 @@ class Statement(ScopeNode, HasTags):
         21, default_factory=list, struct_t=StructType.POLICY
     )
     type: StatementType = struct_internal(30, default=StatementType.BLANK)
-    inline: bool = struct_internal(31, default=False)
+    bases: list["Statement"] | None = struct_internal(
+        31, default=None, require=False, array=True, references=NodeType.STATEMENT
+    )
     name: str | None = struct_property(32, default=None, validate=validate_name)
     order_key: str | None = struct_internal(33, default=None)
     text: str | None = struct_property(34, default=None, validate=validate_is_str)
@@ -213,7 +215,8 @@ class Statement(ScopeNode, HasTags):
     reference: Optional["Statement"] = struct_internal(
         39, require=False, array=False, references=NodeType.STATEMENT
     )
-    shared: bool = struct_internal(40, default=True)
+    is_inline: bool = struct_internal(40, default=True)
+    shared: bool = struct_internal(41, default=True)
 
     @staticmethod
     def new(

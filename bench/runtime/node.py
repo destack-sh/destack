@@ -4,7 +4,7 @@ from uuid import UUID
 import structlog
 from grpclib import GRPCError, Status as GRPCStatus
 
-from bench.proto.mesh import MonitoredServiceBase
+from bench.proto.services import MonitoredServiceBase
 from bench.proto.wire import (
     WorkerBase,
     RestartWorkerRequest,

@@ -10,7 +10,7 @@ from bench.language.auth import check_password, generate_access_token, generate_
 from bench.language.const import to_bench_metatype
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.proto import wiring
-from bench.proto.mesh import BenchServiceBase
+from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,

@@ -11,7 +11,7 @@ from bench.language.const import (
     PolicyEffect,
     StructType,
 )
-from bench.language.expression import PropertyPointer
+from bench.language.expression import PropertyReference
 from bench.language.node import (
     Node,
     Struct,
@@ -64,8 +64,8 @@ class PolicyRule(Struct):
     object_nodes: list[Node] | None = struct_internal(
         51, require=False, array=True, references=tuple(NodeType)
     )
-    object_properties: list[PropertyPointer] | None = struct_internal(
-        52, require=False, array=True, struct_t=StructType.PROPERTY_POINTER
+    object_properties: list[PropertyReference] | None = struct_internal(
+        52, require=False, array=True, struct_t=StructType.PROPERTY_REFERENCE
     )
     # object_fields: list["Field"] | None = struct_internal(
     #     53, require=False, array=True, references=NodeType.FIELD
@@ -97,8 +97,8 @@ class Context(Struct):
     object_nodes: list[Node] | None = struct_internal(
         51, array=True, require=False, default_factory=list, references=tuple(NodeType)
     )
-    object_properties: list[PropertyPointer] | None = struct_internal(
-        52, default_factory=list, struct_t=StructType.PROPERTY_POINTER
+    object_properties: list[PropertyReference] | None = struct_internal(
+        52, default_factory=list, struct_t=StructType.PROPERTY_REFERENCE
     )
 
 

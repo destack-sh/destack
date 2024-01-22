@@ -69,7 +69,7 @@ class Blob(Struct):
         return f"<File {self}>"
 
     @property
-    def external(self) -> None:
+    def is_external(self) -> None:
         return self.object_ptr is None
 
     def _validate_inner(self, properties: Collection[str], on_invalid: ValidationHandler) -> None:
