@@ -15,17 +15,17 @@ from bench.language.node import (
     NODE_CLASS_BY_TYPE,
     STRUCT_CLASS_BY_TYPE,
     Node,
+    NodeReferenceKind,
     NodeStatus,
     NodeTree,
     Property,
     ScopeNode,
     Struct,
-    NodeReferenceKind,
 )
 from bench.language.session import Session
 from bench.language.tree import NodeDataTree
 from bench.proto import wire
-from bench.proto.wire import NodeReferenceData, AnyNodeData, AnyStructData
+from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
 from bench.sql.core import ColumnType
 from bench.utils.func import to_uuid
 from bench.utils.utils import to_snake_case
@@ -206,7 +206,8 @@ def pack_node_inline(
     exclude = exclude or ()
     packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
 
-    to_pack = root._local_root_tree.get_descendants(root.ck, include_self=True, recursive=True)
+    to_pack = root._local_root_tree.collect_descendants(root, recursive=True)
+    packed_by_id[root.id] = pack_node(root)
     for node in to_pack:
         if node.metatype in exclude:
             continue
@@ -259,8 +260,6 @@ def unpack_node_inline(
         real_root._local_root_tree.set(unpacked_tree.nodes)
     for node in unpacked_tree.nodes_by_id.values():
         node._status = NodeStatus.SOURCE  # status is auto-set to interpreted if a session is active
-        if isinstance(node, ScopeNode):
-            node._update_lists(node)
     if isinstance(real_root, ScopeNode):
         real_root._index_rec()
     elif isinstance(real_root, Node):

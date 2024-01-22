@@ -1,8 +1,8 @@
 import base64
-from collections import defaultdict
 import enum
 import struct
 import typing
+from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
 from typing import Any, Collection, Mapping, Optional, Sequence, cast
@@ -18,28 +18,28 @@ from psycopg.types.json import Jsonb
 import bench.language as lang
 from bench.language import ConditionalOp, Field, Module, QueryEngine, Session, Statement
 from bench.language.const import (
+    NODE_TYPES,
     EditKind,
     NodeType,
     TypeFlag,
     TypeStorageFormat,
     to_bench_metatype,
-    NODE_TYPES,
 )
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
+    Expression,
     ExpressionOps,
     QueryEngineIncapableError,
-    Expression,
 )
 from bench.language.node import (
     NODE_CLASS_BY_TYPE,
+    NODE_CLASSES,
+    PARENT_NODE_TYPES,
     UNSET,
     Node,
     Property,
     get_node_id,
-    NODE_CLASSES,
-    PARENT_NODE_TYPES,
 )
 from bench.language.tree import NodeDataTree
 from bench.proto import wire, wiring
@@ -48,6 +48,8 @@ from bench.proto.wiring import PROTO_CLASS_BY_TYPE
 from bench.sql import schema
 from bench.sql.client import UNIVERSAL_RO_PASSWORD, UNIVERSAL_RO_USERNAME, async_pg_cursor
 from bench.sql.core import (
+    DEFAULT_GLOBAL_TABLES,
+    DEFAULT_LOCAL_TABLES,
     RECORD_BASE_TABLE,
     CascadeAction,
     Column,
@@ -58,8 +60,6 @@ from bench.sql.core import (
     IndexType,
     SqlPrimitive,
     Table,
-    DEFAULT_GLOBAL_TABLES,
-    DEFAULT_LOCAL_TABLES,
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type, to_uuid
@@ -833,7 +833,7 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     elif prop.is_array and not ignore_array:
         return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
-        return bytes(value)
+        raise NotImplementedError("nocheckin: pg_pack_struct_prop (JSONB? for queryable?)")
     elif prop.column_type == ColumnType.UUID:
         return to_uuid(value)
     elif prop.column_type == ColumnType.JSON:
@@ -851,7 +851,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
         return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         proto_cls = PROTO_CLASS_BY_TYPE[prop.struct_type]
-        return proto_cls().parse(value)
+        raise NotImplementedError("see pg_unpack_struct_prop")
     elif prop.column_type == ColumnType.UUID:
         return str(value)
     elif prop.column_type == ColumnType.JSON:
@@ -1323,7 +1323,7 @@ def pg_wrap_record_field_value(
         if len(value_str) > 256:
             value_str = value_str[:196] + "..." + value_str[-56:]
         raise ValueError(
-            f"{record_str} field value '{field.py_ident}' is too large: {msgpack_size} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a Blob instead)\nValue (truncated): {value_str}"
+            f"{record_str} field value '{field.ident}' is too large: {msgpack_size} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a Blob instead)\nValue (truncated): {value_str}"
         )
     if field._storage_format == TypeStorageFormat.OBJECT:
         return Jsonb(value)

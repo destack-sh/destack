@@ -231,14 +231,12 @@ enum IssueType {
 // // Parent relation between node and descendants.
 enum NodeRelationType {
   NODE_RELATION_TYPE_DEFAULT = 0;
-  NODE_RELATION_TYPE_REMOTE = 1;
-  NODE_RELATION_TYPE_SHARED = 2;
-  NODE_RELATION_TYPE_FLAT = 4;
-  NODE_RELATION_TYPE_CUMULATIVE = 8;
-  NODE_RELATION_TYPE_NAMED = 16;
-  NODE_RELATION_TYPE_SCOPED = 32;
-  NODE_RELATION_TYPE_KEYED = 64;
-  NODE_RELATION_TYPE_ORDERED = 128;
+  NODE_RELATION_TYPE_STORED_CUSTOM = 1;
+  NODE_RELATION_TYPE_CUMULATIVE = 2;
+  NODE_RELATION_TYPE_NAMED = 4;
+  NODE_RELATION_TYPE_SCOPED = 8;
+  NODE_RELATION_TYPE_KEYED = 16;
+  NODE_RELATION_TYPE_ORDERED = 32;
 }
 
 enum NodeSource {
@@ -827,7 +825,7 @@ message ClientData {
   optional string access_token = 34;
 }
 
-// // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = None, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: bench.proto.wire.NodeReferenceData = None, reference_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None, _text_parsed: Optional[ForwardRef('Text')] = None)
+// // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, tag: bench.language.const.TypeTag = <factory>, key: str | None = None, value: typing.Any | None = None, hint: bench.language.const.TypeHint | None = None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference: Optional[ForwardRef('Statement')] = None, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: bench.proto.wire.NodeReferenceData = None, reference_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
@@ -885,7 +883,7 @@ message HandleData {
   string slug = 30;
 }
 
-// // Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[str] = None, properties: Optional[list[int]] = None, parent_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// // Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[int]] = None, parent_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 1>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message IssueData {
   BenchType metatype = 1;
   string id = 2;
@@ -901,7 +899,7 @@ message IssueData {
   IssueType type = 30;
   IssueKind kind = 31;
   string message = 32;
-  optional string path = 34;
+  optional FieldPathData path = 34;
   repeated int64 properties = 35;
 }
 
@@ -1133,7 +1131,6 @@ message TaggingData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  string key = 30;
   optional google.protobuf.Struct value = 31;
   optional NodeReferenceData reference_ptr = 32;
 }
@@ -1243,30 +1240,30 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    ClientData Client = 1;
-    StatementData Statement = 2;
-    FileData File = 3;
-    OrganizationData Organization = 4;
-    ModuleData Module = 5;
-    BucketObjectData BucketObject = 6;
-    SignalData Signal = 7;
-    WorkerSetData WorkerSet = 8;
-    ViewData View = 9;
-    UserData User = 10;
+    TaggingData Tagging = 1;
+    TriggerData Trigger = 2;
+    ViewData View = 3;
+    ModuleData Module = 4;
+    LinkData Link = 5;
+    IssueData Issue = 6;
+    FileData File = 7;
+    UserData User = 8;
+    PauseData Pause = 9;
+    WorkerSetData WorkerSet = 10;
     RunData Run = 11;
-    BenchData Bench = 12;
-    TriggerData Trigger = 13;
-    SessionData Session = 14;
-    HandleData Handle = 15;
-    WorkerData Worker = 16;
-    LinkData Link = 17;
-    NotificationData Notification = 18;
-    BadgeData Badge = 19;
-    TaggingData Tagging = 20;
-    PauseData Pause = 21;
-    FieldData Field = 22;
-    IssueData Issue = 23;
-    RecordData Record = 24;
+    SignalData Signal = 12;
+    FieldData Field = 13;
+    BadgeData Badge = 14;
+    OrganizationData Organization = 15;
+    RecordData Record = 16;
+    BenchData Bench = 17;
+    WorkerData Worker = 18;
+    StatementData Statement = 19;
+    NotificationData Notification = 20;
+    ClientData Client = 21;
+    SessionData Session = 22;
+    HandleData Handle = 23;
+    BucketObjectData BucketObject = 24;
   };
 }
 

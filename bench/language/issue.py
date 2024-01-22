@@ -2,7 +2,8 @@ import uuid
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.const import IssueKind, IssueType, NodeType
+from bench.language.const import IssueKind, IssueType, NodeType, StructType
+from bench.language.expression import FieldPath
 from bench.language.node import Node, node, node_parent, struct_property
 from bench.language.validation import enum_validator
 
@@ -65,7 +66,9 @@ class Issue(Node):
     type: IssueType = struct_property(30, validate=enum_validator(IssueType))
     kind: IssueKind = struct_property(31, default=None, validate=enum_validator(IssueKind))
     message: str = struct_property(32, default=None)
-    path: Optional[str] = struct_property(34, default=None)
+    path: Optional[FieldPath] = struct_property(
+        34, default=None, require=False, array=False, struct_t=StructType.FIELD_PATH
+    )
     properties: Optional[list[int]] = struct_property(35, default=None)
 
     def _init_inner(self):
@@ -81,11 +84,8 @@ class Issue(Node):
         self.message = message.format(**kwargs)
         self.kind = _ISSUE_KIND_BY_TYPE[self.type]
 
-    def __str__(self):
-        return f"{self.parent} {self.kind}: {self.type} {self.message}"
-
-    def __repr__(self):
-        return f"<Issue {self}>"
+    def __content_str__(self):
+        return f"{self.kind}: {self.type} {self.message}"
 
     @property
     def subject_id(self) -> UUID | None:
@@ -99,7 +99,7 @@ class Issue(Node):
         subject: Node,
         type: IssueType,
         message: str = None,
-        path: Optional[str] = None,
+        path: Optional[FieldPath] = None,
         properties: Optional[list[str]] = None,
     ) -> "Issue":
         from bench.language import File, Statement

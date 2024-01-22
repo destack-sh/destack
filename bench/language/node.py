@@ -21,6 +21,7 @@ from typing import (
     Union,
     cast,
     dataclass_transform,
+    final,
 )
 from uuid import UUID, uuid4
 
@@ -63,7 +64,7 @@ from bench.language.link import (
     _NodeExpressionBase,
     on_issue_raise,
 )
-from bench.language.tree import DetachedNodeTree, NodeTree, NodeTreeBase, NodeDataTree
+from bench.language.tree import DetachedNodeTree, NodeDataTree, NodeTree, NodeTreeBase
 from bench.language.validation import (
     PropertyValidationHandler,
     ValidationError,
@@ -74,23 +75,23 @@ from bench.proto.core import ProtoStrEnum
 from bench.proto.wire import EditData, NodeReferenceData, SomeNodeData
 from bench.sql.core import (
     CascadeAction,
-    ColumnType,
-    Table,
     Column,
-    Index,
+    ColumnType,
     Constraint,
     ConstraintType,
+    Index,
     IndexType,
+    Table,
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import (
+    check_collections_equal,
     did_you_mean_str,
     get_subclasses,
     strip_py_type,
     try_tuple,
-    check_collections_equal,
 )
-from bench.utils.utils import LOCAL_ENV, IdentifierType, frozendict, required_field, to_pyidentifier
+from bench.utils.utils import LOCAL_ENV, IdentifierType, frozendict, required_field, to_identifier
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -286,7 +287,7 @@ class Property(_FieldExpressionBase):
         )
 
     @property
-    def py_ident(self) -> str:
+    def ident(self) -> str:
         return self.name
 
     @property
@@ -929,6 +930,7 @@ def _process_struct_base_cls(
                 computed_prop = _node_computed_attr(computed_attr, prop, prop.reference_wired_ptr)
                 setattr(cls, prop.name + "_" + computed_attr, computed_prop)
 
+    # nocheckin: use slots for struct/node classes
     cls = dataclass(cls, repr=False, eq=False)  # type: ignore
 
     # collect methods implemented in this class (specifically)
@@ -1285,6 +1287,16 @@ class Struct(abc.ABC):
             self._status = NS.INTERP if _active_session.get() else NS.SOURCE
         self._init_self()
 
+    @final
+    def __str__(self):
+        return self.__content_str__()
+
+    def __content_str__(self) -> str:
+        return ""
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {str(self)}>"
+
     @classmethod
     def _get_property(cls, ptr: "PropertyReference") -> Property | None:
         if not ptr.references_type:
@@ -1320,7 +1332,7 @@ class Struct(abc.ABC):
     # TODO @Broken: track in-struct edits (__setattr__) :StructScope
 
     def _init_inner(self):
-        # init reference pointers if references are set :NodePointers
+        # init reference pointers if references are set :NodeReferences
         for prop in self.__reference_properties__.values():
             ref = getattr(self, prop.name)
             if prop.reference_wired_ptr is not None and isinstance(ref, Node):
@@ -1329,7 +1341,7 @@ class Struct(abc.ABC):
                 self.__dict__[prop.reference_wired_ptr.name] = NodeReference.from_node(ref)
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
-        # clear node references :NodePointers
+        # clear node references :NodeReferences
         scope_tree = scope._local_tree if scope is not None else None
         for prop in self.__reference_properties__.values():
             if scope_tree is not None:  # if scope is set only clear nodes in scope
@@ -1340,7 +1352,7 @@ class Struct(abc.ABC):
             # setattr(self, prop.name, None)
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
-        # resolve node references :NodePointers
+        # resolve node references :NodeReferences
         for prop in self.__reference_properties__.values():
             if getattr(self, prop.name, None) is not None:
                 continue  # already resolved
@@ -1352,7 +1364,7 @@ class Struct(abc.ABC):
                 setattr(self, prop.name, resolved)
 
     def _visit_inner(self, visitor: "NodeVisitor"):
-        # visit node references :NodePointers
+        # visit node references :NodeReferences
         for prop in self.__reference_properties__.values():
             value = getattr(self, prop.name)
             if isinstance(value, Node):
@@ -1431,7 +1443,7 @@ class Node(Struct, _NodeExpressionBase):
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __list_properties__: ClassVar[dict[str, Property]] = {}
-    __list_properties_by_child__: ClassVar[dict[NodeType, list[Property]]] = defaultdict(list)
+    __list_properties_by_child__: ClassVar[dict[NodeType, tuple[Property, ...]]] = defaultdict(list)
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __reference_properties__: ClassVar[dict[str, Property]] = {}
@@ -1566,6 +1578,64 @@ class Node(Struct, _NodeExpressionBase):
         assert self.ck is not None, f"cannot assign id to {self!r} without ck"
         self.id = get_node_id(module_id, self.ck)
 
+    @final
+    def __str__(self):  # noqa: we want to override the default __str__ for nodes
+        content_str = self.__content_str__()
+        ident_str = self.ident
+        if ident_str is None:
+            ident_str = str(self.id)
+        if content_str:
+            content_str = f" ({content_str})"
+        if self.__parent_property__ is None:
+            return f"{ident_str}{content_str}"
+        elif self.parent is None:
+            return f"<detached>.{ident_str}{content_str}"
+        else:
+            path_segments: list[str] = []
+            parent = self.parent
+            while (
+                parent is not None and parent.metatype != NodeType.BENCH
+            ):  # skip bench (same path as pkg)
+                path_segments.append(parent.ident)
+                parent = parent.parent
+            path_segments.reverse()
+            path = ".".join(path_segments)
+            return f"{path}.{ident_str}{content_str}"
+
+    @final
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {str(self)}>"
+
+    @property
+    def attached(self) -> bool:
+        if self.__is_in_module__:
+            return self.parent is not None and self.module is not None
+        elif self.__is_in_bench__:
+            return self.parent is not None and self.bench is not None
+
+    @property
+    def scope(self) -> Optional["ScopeNode"]:
+        return self.parent
+
+    @property
+    def ident(self) -> Optional[str]:
+        return None
+
+    @property
+    def path(self) -> str:
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement path")
+
+    @property
+    def session(self) -> "Session":
+        """Access the session, error-ing if there is none."""
+        if self._session is None:
+            raise RuntimeError(f"no active session for {self!r}")
+        return self._session
+
+    @session.setter
+    def session(self, session: Optional["Session"]):
+        self._session = session
+
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.id == other.id and self.ck == other.ck
 
@@ -1591,7 +1661,7 @@ class Node(Struct, _NodeExpressionBase):
                 except ValidationError as e:  # reset on error
                     self.__dict__[key] = prev
                     raise e
-                if prop.reference_wired_ptr:  # update reference pointer  :NodePointers
+                if prop.reference_wired_ptr:  # update reference pointer  :NodeReferences
                     from bench.language.expression import NodeReference
 
                     self.__dict__[prop.reference_wired_ptr.name] = NodeReference.from_node(value)
@@ -1626,10 +1696,8 @@ class Node(Struct, _NodeExpressionBase):
             return self.__dict__[item]
 
         attr = UNSET
-        # prefer components own methods
+        # prefer components methods
         for component in self._components:
-            if component is self.__class__ or component is Node:
-                continue
             attr = getattr(component, item, UNSET)
             if attr is not UNSET:
                 break
@@ -1644,7 +1712,7 @@ class Node(Struct, _NodeExpressionBase):
                     attr = target.get(item) or UNSET
                 if attr is not UNSET:
                     break
-        # attribute be property, method, or just plain value
+        # attribute could be property, method, or just plain value
         if attr is not UNSET:
             if isinstance(attr, property):
                 return attr.fget(self)
@@ -1746,7 +1814,7 @@ class Node(Struct, _NodeExpressionBase):
         if existing_lists:
             changed_nodes: list[NodeT] = []
             was_interp = self._status >= NS.INTERP
-            detach_trigger = _NC.UpdateLists | _NC.Detach if was_interp else _NC.UpdateLists
+            detach_trigger = _NC.Detach if was_interp else _NC.Ignore
             for name, existing in existing_lists.items():
                 if existing and not isinstance(existing, NodeList):
                     getattr(self, name).extend(*existing, _trigger=detach_trigger)
@@ -1800,32 +1868,6 @@ class Node(Struct, _NodeExpressionBase):
         # only scope nodes can host issues, forward to parent
         self.parent._on_issue(subject=self, type=type, message=message, **kwargs)
 
-    @property
-    def attached(self) -> bool:
-        if self.__is_in_module__:
-            return self.parent is not None and self.module is not None
-        elif self.__is_in_bench__:
-            return self.parent is not None and self.bench is not None
-
-    @property
-    def scope(self) -> Optional["ScopeNode"]:
-        return self.parent
-
-    @property
-    def path(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__} does not implement path")
-
-    @property
-    def session(self) -> "Session":
-        """Access the session, error-ing if there is none."""
-        if self._session is None:
-            raise RuntimeError(f"no active session for {self!r}")
-        return self._session
-
-    @session.setter
-    def session(self, session: Optional["Session"]):
-        self._session = session
-
 
 def _make_rec_method(
     method: _ComponentMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None
@@ -1835,7 +1877,7 @@ def _make_rec_method(
     @functools.wraps(wraps)
     def rec_method(self: "ScopeNode", *args, **kwargs):
         # tree has only host and inlined nodes, so this ignores out-of-line descendants (like records)
-        descendants = self._local_root_tree.get_descendants(self.ck, recursive=True)
+        descendants = self._local_root_tree.collect_descendants(self, recursive=True)
         method_name = method.self
         if custom_kwargs:
             for node in descendants:
@@ -1859,8 +1901,6 @@ class ScopeNode(Node):
     __has_scope__: ClassVar[bool] = True
     last_changed_at: Optional[datetime] = struct_internal(16, default=None)
     issues: NodeList["Issue"] = node_children(NodeType.ISSUE, NRel.CUMULATIVE)
-    _scopes_by_ident: dict[str, "ScopeNode"] = struct_runtime(default_factory=dict)
-    _names_by_ident: dict[str, str] = struct_runtime(default_factory=dict)
     # the local tree is maintained at the local root (usually module, maybe a detached root node)
     _local_tree: Union["NodeTreeBase", None] = struct_runtime(default=None)
 
@@ -1878,7 +1918,7 @@ class ScopeNode(Node):
 
     def _updated_inner(self, properties: Collection[str]) -> None:
         if "name" in properties:
-            _InterpChange._collect(self.parent, self.parent, [self], _NC.Full)._effect(_NC.Full)
+            _InterpChange._collect(self.parent, self.parent, (self,), _NC.Full)._effect(_NC.Full)
 
     _clear_rec = _make_rec_method(
         _ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
@@ -1915,38 +1955,31 @@ class ScopeNode(Node):
             return self.parent._find_scope(name)
         return None
 
-    def _update_lists(self, scope: "ScopeNode"):
-        for prop in self.__list_properties__.values():
-            getattr(self, prop.name)._update(scope)
-
-    def _clear_inner(self, scope: Optional["ScopeNode"] = None):
-        self._scopes_by_ident = {}
-        self._names_by_ident = {}
-
     def _index_inner(self) -> None:
         for prop in self.__list_properties__.values():
             if prop.children_flags & NRel.SCOPED:
                 for child in getattr(self, prop.name):
-                    if child.name and (not prop.children_flags & NRel.FLAT or child.parent == self):
+                    if child.name:
                         self._add_node_to_scope(child)
 
-    def _walk_rec(self) -> Collection["Node"]:
-        return self._local_root_tree.get_descendants(self.ck, recursive=True, include_self=True)
+    def _walk_rec(self) -> Iterable["Node"]:
+        yield self
+        yield from self._local_root_tree.collect_descendants(self, recursive=True)
 
     def _add_node_to_scope(self, node: "ScopeNode") -> None:
         """
         Adds a child node into this scope. Idempotent for the same node.
         """
-        if node.name in self._scopes_by_ident or node.py_ident in self._names_by_ident:
-            if node.py_ident in self._names_by_ident:
-                existing = self._scopes_by_ident[self._names_by_ident[node.py_ident]]
+        if node.name in self._scopes_by_ident or node.ident in self._names_by_ident:
+            if node.ident in self._names_by_ident:
+                existing = self._scopes_by_ident[self._names_by_ident[node.ident]]
             else:
                 existing = self._scopes_by_ident[node.name]
             if existing.id != node.id:
                 self._on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=node, path=node.path)
         else:
             self._scopes_by_ident[node.name] = node
-            self._names_by_ident[node.py_ident] = node.name
+            self._names_by_ident[node.ident] = node.name
 
     def _import_scope_tree(self, scope: "ScopeNode") -> None:
         """Adds the given tree into this scope."""
@@ -2025,8 +2058,7 @@ class ScopeNode(Node):
         if not subject.attached:
             return  # no way to derive issue id, so just ignore?
         issue = Issue.from_subject(subject, type, message, **kwargs)
-        if issue not in issue.subject.issues:  # dedup
-            issue.subject.issues.append(issue, _trigger=_NC.UpdateLists)
+        issue.subject.issues.append(issue, _trigger=_NC.Ignore)
 
     @property
     def errors(self) -> list["Issue"]:
@@ -2092,23 +2124,16 @@ class Bench(ScopeNode):
         46, protect=True, default=None, defer=True, encrypt=True
     )
 
-    worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET, NRel.FLAT)
+    worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET)
 
     # versions: NodeList["Module"] = node_children(NodeType.MODULE, NRel.Remote)
-
-    def __str__(self):
-        name_str = f"{self.path} '{self.name}' " if self.name else ""
-        return f"{name_str}"
-
-    def __repr__(self):
-        return f"<Bench {self}>"
 
     @property
     def owner(self) -> Union["Organization", "User", None]:
         return self.organization or self.user
 
     @property
-    def path(self) -> str:
+    def ident(self) -> str:
         return self.slug
 
 
@@ -2148,32 +2173,14 @@ class Module(ScopeNode):
     policies: Optional[list["Policy"]] = struct_internal(
         20, default_factory=list, struct_t=StructType.POLICY
     )
-    is_main: bool = struct_internal(
-        31, protect=True, default=False, store=False
-    )  # main environment?
     is_snapshot: bool = struct_internal(32, protect=True, default=False)  # snapshot or head?
 
-    files: NodeList["File"] = node_children(NodeType.FILE, NRel.FLAT | NRel.NAMED | NRel.SCOPED)
+    files: NodeList["File"] = node_children(NodeType.FILE, NRel.NAMED | NRel.SCOPED)
     dependencies: dict[str, "Module"] = struct_runtime(default_factory=dict)
     builtins: list["File"] = struct_runtime(default_factory=list)
 
     _lookup_cache: dict[str, NodeT] = struct_runtime(default_factory=dict)
     _source: Optional[NodeDataTree] = struct_runtime(default=None)
-
-    def __str__(self):
-        if self.issues:
-            issue_strs = []
-            for k in (IssueKind.ERROR, IssueKind.WARNING, IssueKind.NOTICE):
-                issues_of_kind = [i for i in self.issues if i.kind == k]
-                if issues_of_kind:
-                    issue_strs.append(f"{len(issues_of_kind)} {k.name.lower()}s")
-            issues_str = f", {', '.join(issue_strs)}"
-        else:
-            issues_str = ""
-        return f"{self.name} ({len(self.files)} files{issues_str})"
-
-    def __repr__(self):
-        return f"<Module {str(self)}>"
 
     @property
     def name(self):
@@ -2200,12 +2207,11 @@ class Module(ScopeNode):
         return self._tree.nodes_by_ck.values()
 
     @property
-    def path(self) -> str:
-        return self.py_ident
+    def ident(self) -> str:
+        return self.parent.ident
 
-    @property
-    def py_ident(self) -> str:
-        return to_pyidentifier(self.name, IdentifierType.PATH)
+    def __content_str__(self):
+        return f"is_snapshot={self.is_snapshot}"
 
     def add_builtin(self, file: "File") -> None:
         if not any(dep == file.module for dep in self.dependencies.values()):
@@ -2370,6 +2376,7 @@ STRUCT_CLASSES: frozenset[type[Struct]] = frozenset()
 # direct parent/child
 PARENT_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
 CHILD_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
+FERTILE_CHILD_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
 # transient parent/child
 ANCESTOR_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
 DESCENDANT_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
@@ -2455,6 +2462,11 @@ def _complete_bench_setup():
         for parent_type in node_cls.__parent_property__.reference_types:
             parent_types[node_cls.metatype].add(parent_type)
             child_types[parent_type].add(node_cls.metatype)
+    # fertile child types: child types that can have children
+    fertile_child_types: dict[NodeType, set[NodeType]] = defaultdict(set)
+    for node_type, child_type in child_types.items():
+        for parent_type in child_type:
+            fertile_child_types[parent_type].add(node_type)
     # ancestor/descendant: extend parent/child transitively
     ancestor_types: dict[NodeType, set[NodeType]] = defaultdict(set)
     descendant_types: dict[NodeType, set[NodeType]] = defaultdict(set)
@@ -2473,11 +2485,13 @@ def _complete_bench_setup():
             new_children.extend(child_types[new_child] - descendant_types[node_type])
 
     global ANCESTOR_NODE_TYPES, DESCENDANT_NODE_TYPES, PARENT_NODE_TYPES, CHILD_NODE_TYPES
+    global FERTILE_CHILD_NODE_TYPES
     for node_type in NODE_TYPES:
         ANCESTOR_NODE_TYPES[node_type] = tuple(ancestor_types[node_type])
         DESCENDANT_NODE_TYPES[node_type] = tuple(descendant_types[node_type])
         PARENT_NODE_TYPES[node_type] = tuple(parent_types[node_type])
         CHILD_NODE_TYPES[node_type] = tuple(child_types[node_type])
+        FERTILE_CHILD_NODE_TYPES[node_type] = tuple(fertile_child_types[node_type])
 
     # check that is_in_module/is_in_bench was declared correctly
     #  (need to set that in @node upfront because traversing parents can only happen in finalization)

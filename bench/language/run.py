@@ -7,8 +7,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from asgiref.sync import async_to_sync, sync_to_async
 import msgpack
+from asgiref.sync import async_to_sync, sync_to_async
 
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
@@ -147,12 +147,9 @@ class Run(ScopeNode, HasValue):
     )
     runs: list["Run"] = node_children(NodeType.RUN)
 
-    def __str__(self):
+    def __content_str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
         return f"{self.node} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
-
-    def __repr__(self):
-        return f"<Run {self}>"
 
     def _mark_dead_if_active(self):
         if self.active:

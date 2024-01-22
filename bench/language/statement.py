@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from bench.language.code_ import HasCode
 from bench.language.const import (
     NodeType,
+    NodeVisibility,
     StatementType,
     StructType,
     TypeFlag,
     TypeTag,
-    NodeVisibility,
 )
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
@@ -31,13 +31,12 @@ from bench.language.node import (
 from bench.language.run import HasRun
 from bench.language.tagging import HasTags
 from bench.language.task import HasTask
-from bench.language.text import HasText
 from bench.language.trigger import HasTriggers
 from bench.language.validation import validate_is_str, validate_name
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 from bench.utils.func import dict_minus
-from bench.utils.utils import IdentifierType, IdentT, to_pyidentifier
+from bench.utils.utils import IdentifierType, IdentT, to_identifier
 
 if TYPE_CHECKING:
     from bench.language import File, Policy
@@ -51,12 +50,12 @@ class InstantiableType(Node):
         assert self.type == StatementType.CLASS, f"{self!r} is not a class"
         combined = {}
         for field, arg in zip(self.resolved_fields, args):
-            combined[field.py_ident] = arg
+            combined[field.ident] = arg
         for field in self.resolved_fields:
             if field.name in kwargs:
-                combined[field.py_ident] = kwargs[field.name]
-            elif field.py_ident in kwargs:
-                combined[field.py_ident] = kwargs[field.py_ident]
+                combined[field.ident] = kwargs[field.name]
+            elif field.ident in kwargs:
+                combined[field.ident] = kwargs[field.ident]
         check_type(combined, self)
         return TypedDict(combined, self)
 
@@ -96,72 +95,72 @@ class _StatementDescriptor:
 
 # :StatementDescriptors
 _s = _StatementDescriptor
-_s(StatementType.BOX, (HasFields, HasText), IdentT.VARIABLE, tag=TypeTag.STRUCT)
-_s(StatementType.TAG, (HasFields, HasText), IdentT.VARIABLE, tag=TypeTag.STRUCT)
-_s(StatementType.TEXT, (HasText,), IdentT.VARIABLE)
-_s(StatementType.LINK, (HasText,), IdentT.VARIABLE)
+_s(StatementType.BOX, (HasFields,), IdentT.VARIABLE, tag=TypeTag.STRUCT)
+_s(StatementType.TAG, (HasFields,), IdentT.VARIABLE, tag=TypeTag.STRUCT)
+_s(StatementType.TEXT, (), IdentT.VARIABLE)
+_s(StatementType.LINK, (), IdentT.VARIABLE)
 _s(StatementType.BLANK, (), IdentT.VARIABLE)
 _s(
     StatementType.CLASS,
-    (InstantiableType, HasFields, HasText),
+    (InstantiableType, HasFields),
     IdentT.TYPE,
     tag=TypeTag.STRUCT,
     passthrough=(("fields", _Passthrough.Full),),
 )
 _s(
     StatementType.SIGNAL,
-    (InstantiableType, HasFields, HasText),
+    (InstantiableType, HasFields),
     IdentT.TYPE,
     tag=TypeTag.STRUCT,
     passthrough=(("fields", _Passthrough.Full),),
 )
 _s(
     StatementType.CHOICE,
-    (InstantiableType, HasFields, HasText),
+    (InstantiableType, HasFields),
     IdentT.TYPE,
     tag=TypeTag.ENUM,
     passthrough=(("fields", _Passthrough.Full),),
 )
 _s(
     StatementType.TASK,
-    (HasTask, HasRun, HasFields, HasText),
+    (HasTask, HasRun, HasFields),
     IdentT.METHOD,
     tag=TypeTag.FUNCTION,
 )
 _s(
     StatementType.CODE,
-    (HasCode, HasRun, HasTriggers, HasFields, HasText),
+    (HasCode, HasRun, HasTriggers, HasFields),
     IdentT.METHOD,
     tag=TypeTag.FUNCTION,
 )
-_s(StatementType.FLOW, (HasRun, HasFields, HasText), IdentT.METHOD, tag=TypeTag.FUNCTION)
+_s(StatementType.FLOW, (HasRun, HasFields), IdentT.METHOD, tag=TypeTag.FUNCTION)
 _s(
     StatementType.MODEL,
-    (HasModel, HasRun, HasFields, HasText),
+    (HasModel, HasRun, HasFields),
     IdentT.METHOD,
     tag=TypeTag.FUNCTION,
 )
 _s(
     StatementType.VARIABLE,
-    (HasValue, HasFields, HasText),
+    (HasValue, HasFields),
     IdentT.VARIABLE,
     tag=TypeTag.STRUCT,
     passthrough=(("value", _Passthrough.Full),),
 )
 _s(
     StatementType.DATABASE,
-    (HasDatabase, HasFields, HasText),
+    (HasDatabase, HasFields),
     IdentT.VARIABLE,
     tag=TypeTag.STRUCT,
     passthrough=(("records", _Passthrough.Full), ("fields", _Passthrough.Scope)),
 )
 _s(
     StatementType.VIEW,
-    (HasFields, HasText),
+    (HasFields,),
     IdentT.VARIABLE,
     passthrough=(("fields", _Passthrough.Full),),
 )
-_s(StatementType.SCREEN, (HasText,), IdentT.VARIABLE)
+_s(StatementType.SCREEN, (), IdentT.VARIABLE)
 
 assert len(_STATEMENT_DESCRIPTORS) == len(StatementType), "missing statement descriptors"
 del _s
@@ -272,10 +271,10 @@ class Statement(ScopeNode, HasTags):
     def _passthrough_targets(self) -> tuple[tuple[str, _Passthrough]] | None:
         return _ALL_PASSTHROUGH_BY_TYPE[self.type]
 
-    def __str__(self):
-        return f"{self.path} '{self.name}'" if self.name else self.path
+    def __content_str__(self):
+        return ""
 
-    def __repr__(self):
+    def __repr__(self):  # noqa: we want to override the default repr
         return f"<Statement.{self.type.camel_name} {self}>"
 
     def _init_inner(self) -> None:
@@ -299,32 +298,11 @@ class Statement(ScopeNode, HasTags):
         raise NotImplementedError(f"{self!r} does not support morphing yet")
 
     @property
-    def path(self) -> str:
-        if self.file is None:
-            return f"<detached>.{self.infile_path}"
-        else:
-            return self.file.path + "." + str(self.infile_path)
-
-    @property
-    def infile_path(self) -> str:
-        parent = self.parent
-        ancestor_parts = [self.py_ident or "<anon>"]
-        seen_ids = [self.ck]
-        while isinstance(parent, Statement):
-            if parent.id in seen_ids:
-                ancestor_parts.append("<!loop>")
-                break
-            ancestor_parts.append(parent.py_ident or "<anon>")
-            seen_ids.append(parent.ck)
-            parent = parent.parent
-        return ".".join(reversed(ancestor_parts))
-
-    @property
-    def py_ident(self) -> Optional[str]:
+    def ident(self) -> Optional[str]:
         if self.name is None:
             return None
         else:
-            return to_pyidentifier(self.name, _IDENTIFIER_BY_TYPE[self.type])
+            return to_identifier(self.name, _IDENTIFIER_BY_TYPE[self.type])
 
 
 # Statement.<type> convenience constructors

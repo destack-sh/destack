@@ -5,6 +5,7 @@ from uuid import UUID
 from bench.language.const import (
     _CONDITIONAL_OP_SIGN,
     AggregationOp,
+    BenchType,
     ConditionalOp,
     ExpressionKind,
     ExpressionOp,
@@ -16,9 +17,8 @@ from bench.language.const import (
     TypeHint,
     TypeStorageFormat,
     TypeTag,
-    BenchType,
 )
-from bench.language.node import Node, Struct, struct, struct_property, Property, BENCH_CLASS_BY_TYPE
+from bench.language.node import BENCH_CLASS_BY_TYPE, Node, Property, Struct, struct, struct_property
 from bench.sql.core import ColumnType
 from bench.utils.utils import to_camel_case
 
@@ -49,11 +49,8 @@ class NodeReference(Struct):
     id: Optional[UUID] = struct_property(31, default=None)
     ck: Optional[UUID] = struct_property(32, default=None)
 
-    def __str__(self):
+    def __content_str__(self):
         return f"{self.type.name}:[id={self.id}, ck={self.ck}]"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
 
     @staticmethod
     def from_node(node: Optional[Node]) -> Optional["NodeReference"]:
@@ -72,11 +69,8 @@ class PropertyReference(Struct):
     # to disambiguate contributed properties
     references_type: Optional[NodeType] = struct_property(32)
 
-    def __str__(self):
+    def __content_str__(self):
         return f"{self.type.name}:{self.id}"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
 
 
 @struct(StructType.NODE_PATH)
@@ -87,11 +81,8 @@ class NodePath(Struct):
         30, require=True, array=True, struct_t=StructType.NODE_REFERENCE
     )
 
-    def __str__(self):
+    def __content_str__(self):
         return f"{'->'.join(str(node) for node in self.nodes)}"
-
-    def __repr__(self):
-        return f"<NodePath {self}>"
 
 
 @struct(StructType.PROPERTY_PATH)
@@ -102,11 +93,8 @@ class PropertyPath(Struct):
         30, require=True, array=True, struct_t=StructType.PROPERTY_REFERENCE
     )
 
-    def __str__(self):
+    def __content_str__(self):
         return f"{'->'.join(str(property) for property in self.properties)}"
-
-    def __repr__(self):
-        return f"<PropertyPath {self}>"
 
 
 @struct(StructType.FIELD_PATH)
@@ -117,11 +105,8 @@ class FieldPath(Struct):
         30, require=True, array=True, struct_t=StructType.FIELD_PATH_SEGMENT
     )
 
-    def __str__(self):
+    def __content_str__(self):
         return ".".join(str(segment) for segment in self.segments)
-
-    def __repr__(self):
-        return f"<FieldPath {self}>"
 
 
 @struct(StructType.FIELD_PATH_SEGMENT)
@@ -135,11 +120,8 @@ class FieldPathSegment(Struct):
         31, require=False, array=False, references=NodeType.FIELD
     )
 
-    def __str__(self):
+    def __content_str__(self):
         return f"{self.property}{f'.{self.field}' if self.field else ''}"
-
-    def __repr__(self):
-        return f"<FieldPathSegment {self}>"
 
 
 @struct(StructType.VALUE_REFERENCE)
@@ -149,11 +131,8 @@ class ValueReference(Struct):
     node: Node = struct_property(30, require=True, array=False, references=(NodeType.STATEMENT,))
     path: FieldPath = struct_property(31, require=True, struct_t=StructType.FIELD_PATH)
 
-    def __str__(self):
+    def __content_str__(self):
         return f"{self.node.path}.{self.path}"
-
-    def __repr__(self):
-        return f"<ValueReference {self}>"
 
 
 @struct(StructType.EXPRESSION)
@@ -180,7 +159,7 @@ class Expression(Struct):
     def __bool__(self):
         raise TypeError(f"cannot evaluate {self!r} directly (did you mean to compare a property?)")
 
-    def __str__(self):
+    def __content_str__(self):
         if self.op in ExpressionOps.COND_STATIC:
             return self.op.name.lower()
         elif self.op in ExpressionOps.COND_LOGICAL:
@@ -193,15 +172,12 @@ class Expression(Struct):
             value_str = str(self.value)
             if len(value_str) > 32:
                 value_str = f"{value_str[:24]}...{value_str[-12:]}"
-            return f"{self.target.py_ident}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
+            return f"{self.target.ident}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
         elif self.op in ExpressionOps.COND_EXISTENCE:
-            return f"{self.target.py_ident}{_CONDITIONAL_OP_SIGN[self.op]}"
+            return f"{self.target.ident}{_CONDITIONAL_OP_SIGN[self.op]}"
         elif self.op in ExpressionOps.SORT:
-            return f"{'-' if self.op == SortOp.DESCENDING else ''}{self.target.py_ident}"
-        return self.op.name
-
-    def __repr__(self):
-        return f"<{to_camel_case(self.kind.name)} {self}>"
+            return f"{'-' if self.op == SortOp.DESCENDING else ''}{self.target.ident}"
+        return to_camel_case(self.op.name)
 
     def __invert__(self):
         if self.op == ConditionalOp.TRUE:

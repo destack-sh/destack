@@ -30,7 +30,6 @@ class Tagging(HasValue, Node):
     parent: Union["File", "Statement", "Field"] | None = node_parent(
         4, NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
     )
-    key: str = struct_internal(30)
     value: typing.Any | None = struct_property(
         31, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
@@ -49,22 +48,19 @@ class Tagging(HasValue, Node):
 
         if isinstance(reference, Tagging):
             reference = reference.reference
-            key = reference.key
         elif isinstance(reference, Statement):
             if reference.type != StatementType.TAG:
                 raise TypeError(f"cannot use {reference!r} as a tag")
-            key = reference.key
         elif isinstance(reference, str):
             module = (for_parent.module if for_parent else None) or symbolx_lib
             resolved = symbolx_lib.lookup(".builtins." + reference) or module.lookup(reference)
             if resolved is None:
                 raise ValueError(f"cannot find tag {reference!r}")
             reference = resolved
-            key = reference.key
         else:
             raise TypeError(f"cannot use {reference!r} as a tag")
 
-        return Tagging(reference=reference, key=key, *args, **kwargs)
+        return Tagging(reference=reference, *args, **kwargs)
 
     @staticmethod
     def to_python(
@@ -82,15 +78,8 @@ class Tagging(HasValue, Node):
     def _type_of_value(self) -> "HasFields":
         return None
 
-    def __str__(self):
-        parent_str = self.parent.path if self.parent is not None else "<detached>"
-        if isinstance(self.reference, Node):
-            return f"{parent_str}#{self.reference.path}"
-        else:
-            return f"{parent_str}#{self.key}"
-
-    def __repr__(self):
-        return f"<Tagging {self}>"
+    def __content_str__(self):
+        return self.reference.path
 
 
 @node_component

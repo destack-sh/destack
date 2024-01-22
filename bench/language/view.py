@@ -20,11 +20,8 @@ class View(Node):
         34, default=None, struct_t=StructType.EXPRESSION
     )
 
-    def __str__(self):
-        return f"{self.parent.path}:{self.name} {self.node_type} ({self.filter}, {self.layout})"
-
-    def __repr__(self):
-        return f"<View {self}>"
+    def __content_str__(self):
+        return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"
 
     @property
     def path(self) -> str:

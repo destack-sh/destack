@@ -97,12 +97,8 @@ class Record(HasValue, Node):
             check_type(value, for_parent)
         return Record(value=value, _status=_status, **id_kwargs)
 
-    def __str__(self):
-        self_str = f"{self.id} {describe_type(self.value) or '<empty>'}"
-        if self.parent is None:
-            return f"<detached>:{self_str}"
-        else:
-            return f"{self.parent.path}:{self_str}"
+    def __content_str__(self):
+        return f"{describe_type(self.value) or '<empty>'}"
 
     def __repr__(self):
         return f"<Record {self}>"
@@ -471,7 +467,7 @@ class RecordQuery:
         # 'serialize' values (probably need a better way here to retain some native types?)
         check_type(value, self._database)
         value = pack_value(
-            value, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f._typed_key)
+            value, self._database, ignore_outer=True, map_k=lambda f: (f.ident, f._typed_key)
         )
         value = pg_wrap_record_value(self._database, value)
         # update values alongside :LocalRecordCru
@@ -532,10 +528,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
     def __str__(self):
         return f"from {self._parent._table.name}"
 
-    def _update(self, scope: "ScopeNode"):
-        pass  # nothing to do, not part of regular tree
-
-    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Tach):
+    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Full):
         assert isinstance(node, Record), f"cannot append {node!r} to {self!r}"
         node.parent = self._parent
         if node.id is None and self._parent.attached:
@@ -552,7 +545,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
         if _create and self._parent._session and self._parent.attached:
             self._parent.session.create(node)
 
-    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Tach) -> None:
+    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         nodes = flatten(nodes)
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
@@ -570,16 +563,16 @@ class RecordList(NodeListBase[Record], RecordQuery):
         if _create and self._parent._session and self._parent.attached:
             self._parent.session.create(*nodes)
 
-    def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Tach) -> None:
+    def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
         if _delete:
             if self._parent._session:
                 self._parent._session.delete(self, node)
             if not self._parent.attached:
-                self._parent._local_root_tree.delete(node)
+                self._parent._local_root_tree.remove(node)
         node.parent = None
 
     @_auto_async_to_sync
-    async def clear(self, _delete: bool = True, _trigger: _NC = _NC.Tach) -> None:
+    async def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
         if _delete:
             await RecordQuery.filter(self).delete()
 
@@ -606,7 +599,9 @@ class RecordList(NodeListBase[Record], RecordQuery):
 @node_component
 class HasDatabase(Node):
     views: NodeList["View"] = node_children(NodeType.VIEW, NRel.NAMED | NRel.ORDERED)
-    records: NodeList[Record] = node_children(NodeType.RECORD, NRel.REMOTE, custom_list=RecordList)
+    records: NodeList[Record] = node_children(
+        NodeType.RECORD, NRel.STORED_CUSTOM, custom_list=RecordList
+    )
     _table: Optional[Table] = struct_runtime(default=None)
 
     def _init_inner(self):

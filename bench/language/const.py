@@ -9,14 +9,14 @@ from uuid import UUID
 
 from bench.proto.core import ProtoStrEnum
 from bench.utils.func import cyrb53a
-from bench.utils.utils import IdentifierType, to_pyidentifier
+from bench.utils.utils import IdentifierType, to_identifier
 
 if typing.TYPE_CHECKING:
     from bench.language import Node, Statement  # noqa: F401
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.22.1"
+VERSION = "2024.01.22.2"
 
 
 #
@@ -147,7 +147,7 @@ def to_bench_metatype(_type: typing.Union[BenchType, int]) -> BenchType:
 
 
 BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
-    _type: to_pyidentifier(_type, IdentifierType.TYPE) for _type in chain(NodeType, StructType)
+    _type: to_identifier(_type, IdentifierType.TYPE) for _type in chain(NodeType, StructType)
 }
 INTERP_NODE_TYPES = {NodeType.ISSUE}
 
@@ -178,7 +178,7 @@ class StatementType(ProtoStrEnum):
 
     @property
     def camel_name(self):
-        return to_pyidentifier(self.name, IdentifierType.TYPE)
+        return to_identifier(self.name, IdentifierType.TYPE)
 
 
 RUNNABLE_STATEMENT_TYPES = {
@@ -234,14 +234,12 @@ class NodeRelationType(enum.IntEnum):
     """Parent relation between node and descendants."""
 
     DEFAULT = 0  # default inline relation
-    REMOTE = 2**0  # not inline: Statement->Record, ...
-    SHARED = 2**1  # across versions: Statement->Comment, Statement[versioned=False]->Record, ...
-    FLAT = 2**2  # flattened inner hierarchy: Module->File, File->Statement, ...
-    CUMULATIVE = 2**3  # sum of descendants: Module->Issue, File->Issue, ...
-    NAMED = 2**4  # indexed by name: Module->File, File->Statement, ...
-    SCOPED = 2**5  # scoped by name: Module->File, File->Statement, ...
-    KEYED = 2**6  # indexed by key: File->Tagging, Statement->Tagging, ...
-    ORDERED = 2**7  # ordered: File->Statement, Statement->Field, ...
+    STORED_CUSTOM = 2**0  # not inline: Statement->Record, ...
+    CUMULATIVE = 2**1  # sum of descendants: Module->Issue, File->Issue, ...
+    NAMED = 2**2  # indexed by name: Module->File, File->Statement, ...
+    SCOPED = 2**3  # scoped by name: Module->File, File->Statement, ...
+    KEYED = 2**4  # indexed by key: File->Tagging, Statement->Tagging, ...
+    ORDERED = 2**5  # ordered: File->Statement, Statement->Field, ...
 
 
 NRel = NodeRelationType

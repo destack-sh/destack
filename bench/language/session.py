@@ -49,8 +49,8 @@ from bench.language.node import (
 )
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
-from bench.proto.wire import EditData, ModuleHostStub
 from bench.os.client import get_os_errors, os_client
+from bench.proto.wire import EditData, ModuleHostStub
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
@@ -168,7 +168,7 @@ class Session(ScopeNode):
     _stacktrace: list[Run] | None = struct_runtime(default_factory=list)
     _active_nodes_by_ck: dict[UUID, Node] | None = struct_runtime(default=None)
 
-    def __str__(self):
+    def __content_str__(self):
         if self.closed_at:
             status = "closed"
         elif self.opened_at:
@@ -176,27 +176,17 @@ class Session(ScopeNode):
         else:
             status = "pending"
         return (
-            f"{self.module.name if self.module else '<detached>'} ({status}, "
+            f" ({status}, "
             f"{len(self._local_edits)} local edits, "
             f"{len(self._global_edits)} global edits, "
             f"{len(self._runs_by_id) if self._runs_by_id is not None else 0} runs"
             f")"
         )
 
-    def __repr__(self):
-        return f"<Session {self}>"
-
     @property
     def host(self) -> ModuleHostStub:
         assert self._host is not None, f"host not available in {self!r}"
         return self._host
-
-    @property
-    def path(self):
-        if self.parent is not None:
-            return f"{self.parent.path}.{self.id}"
-        else:
-            return f"<detached>.{self.id}"
 
     @property
     def dangling(self) -> tuple[Node, ...]:
@@ -310,7 +300,7 @@ class Session(ScopeNode):
     @_auto_async_to_sync
     async def flush_local(self):
         """Flushes local Postgres edits."""
-        from bench.sql.engine import update_dynamic_local_pg_schema, pg_write_record_edits
+        from bench.sql.engine import pg_write_record_edits, update_dynamic_local_pg_schema
 
         # if the schema changed, also flush PG schema
         if self._schema_changed:
@@ -330,8 +320,8 @@ class Session(ScopeNode):
     @_auto_async_to_sync
     async def flush_logs(self) -> None:
         """Flushes session logs. This is non-transactional, so it's separate from flush_session."""
-        from bench.proto import wiring
         from bench.os.engine import pack_struct
+        from bench.proto import wiring
 
         with self._tracing_lock:
             logs = self._pending_logs
@@ -808,7 +798,7 @@ class Session(ScopeNode):
         )
         run._session = None  # reset to None so it can be activated
         # we track session nodes manually :ManualSessionTracking
-        parent.runs.append(run, _trigger=_NC.UpdateLists, _create=False)
+        parent.runs.append(run, _trigger=_NC.Ignore, _create=False)
         custom_value = _custom_value.get()
         if root is None and self._root_run_value:
             run.value.update(self._root_run_value)
@@ -964,7 +954,7 @@ def _pack_and_truncate_value(
     return map_value(
         value=value,
         type=type,
-        map_k=lambda f: (f.py_ident, f.metatyped_key),
+        map_k=lambda f: (f.ident, f.metatyped_key),
         map_v=pack_value_flat,
         premap_v=_truncate_value,
         ignore_array=ignore_array,

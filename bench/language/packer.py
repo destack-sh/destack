@@ -173,7 +173,7 @@ def walk_value(
     ignore_array: bool = False,
 ) -> Iterable[Any]:
     """Yields all flat values in the value recursively."""
-    get_k = get_k or (lambda f: f.py_ident)
+    get_k = get_k or (lambda f: f.ident)
 
     if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
@@ -232,7 +232,7 @@ def check_type(
     Raises TypeError if not.
     """
 
-    get_k = get_k or (lambda f: f.py_ident)
+    get_k = get_k or (lambda f: f.ident)
 
     def _check(valid: bool, message: str = None):
         if not valid:
@@ -511,7 +511,7 @@ class EnumMapper(TypeMapper):
 
     def render_python(self, type: HasType, value: Any) -> str:
         field_ = type.resolved_fields.get(value) if not isinstance(value, Field) else value
-        return f"{type._effective_type.py_ident}.{field_.py_ident}"
+        return f"{type._effective_type.ident}.{field_.ident}"
 
 
 @dataclass
@@ -547,7 +547,7 @@ class NodeMapper(TypeMapper):
         return str(value.ck) if isinstance(value, Node) else value
 
     def render_python(self, type: HasType, value: Any) -> str:
-        return value.py_ident
+        return value.ident
 
 
 @dataclass
@@ -573,8 +573,8 @@ class StructMapper(TypeMapper):
             if field_value is None:
                 continue
             field_str = render_value(field_, field_value)
-            parts_strs.append(f"{field_.py_ident}={field_str}")
-        return f"{type.py_ident}({', '.join(parts_strs)})"
+            parts_strs.append(f"{field_.ident}={field_str}")
+        return f"{type.ident}({', '.join(parts_strs)})"
 
 
 @dataclass
@@ -664,7 +664,7 @@ def unpack_value(
     return map_value(
         value=value,
         type=type,
-        map_k=map_k or (lambda f: (f._typed_key, f.py_ident)),
+        map_k=map_k or (lambda f: (f._typed_key, f.ident)),
         map_v=partial(unpack_value_flat, scope=scope, session=session),
         ignore_array=ignore_array,
         ignore_outer=ignore_outer,
@@ -698,7 +698,7 @@ def pack_value(
     return map_value(
         value=value,
         type=type,
-        map_k=map_k or (lambda f: (f.py_ident, f._typed_key)),
+        map_k=map_k or (lambda f: (f.ident, f._typed_key)),
         map_v=map_v,
         ignore_array=ignore_array,
         ignore_outer=ignore_outer,
@@ -716,19 +716,19 @@ def key_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
             return value
 
     return map_value(
-        value, type, map_k=lambda f: (f.py_ident, f._typed_key), map_v=map_v, is_output=is_output
+        value, type, map_k=lambda f: (f.ident, f._typed_key), map_v=map_v, is_output=is_output
     )
 
 
 def unkey_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
     def map_v(value: Any, type: HasType, *args, **kwargs) -> Any:
         if type._effective_tag == TypeTag.ENUM:
-            return type.resolved_fields.get(value).py_ident
+            return type.resolved_fields.get(value).ident
         else:
             return value
 
     return map_value(
-        value, type, map_k=lambda f: (f._typed_key, f.py_ident), map_v=map_v, is_output=is_output
+        value, type, map_k=lambda f: (f._typed_key, f.ident), map_v=map_v, is_output=is_output
     )
 
 
@@ -753,7 +753,7 @@ def render_value(
     is_output: bool = None,
 ) -> str:
     """Renders the given value as a Python string."""
-    get_k = get_k or (lambda f: f.py_ident)
+    get_k = get_k or (lambda f: f.ident)
 
     if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
