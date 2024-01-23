@@ -85,9 +85,9 @@ enum BenchType {
   BENCH_TYPE_ORGANIZATION = 122;
   BENCH_TYPE_CLIENT = 123;
   BENCH_TYPE_NOTIFICATION = 124;
-  BENCH_TYPE_NODE_REFERENCE = 200;
-  BENCH_TYPE_PROPERTY_REFERENCE = 201;
-  BENCH_TYPE_NODE_PATH = 202;
+  BENCH_TYPE_BENCH_PATH = 200;
+  BENCH_TYPE_NODE_REFERENCE = 201;
+  BENCH_TYPE_PROPERTY_REFERENCE = 202;
   BENCH_TYPE_PROPERTY_PATH = 203;
   BENCH_TYPE_FIELD_PATH = 204;
   BENCH_TYPE_FIELD_PATH_SEGMENT = 205;
@@ -335,6 +335,14 @@ enum ReadKind {
   READ_KIND_AGGREGATE = 3;
 }
 
+enum RichTextFlag {
+  RICH_TEXT_FLAG_NONE = 0;
+  RICH_TEXT_FLAG_BOLD = 1;
+  RICH_TEXT_FLAG_ITALIC = 2;
+  RICH_TEXT_FLAG_UNDERLINE = 4;
+  RICH_TEXT_FLAG_STRIKETHROUGH = 8;
+}
+
 enum RunErrorKind {
   RUN_ERROR_KIND_UNSPECIFIED = 0;
   RUN_ERROR_KIND_Internal = 1;
@@ -416,9 +424,9 @@ enum StatementType {
 
 enum StructType {
   STRUCT_TYPE_UNSPECIFIED = 0;
-  STRUCT_TYPE_NODE_REFERENCE = 200;
-  STRUCT_TYPE_PROPERTY_REFERENCE = 201;
-  STRUCT_TYPE_NODE_PATH = 202;
+  STRUCT_TYPE_BENCH_PATH = 200;
+  STRUCT_TYPE_NODE_REFERENCE = 201;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 202;
   STRUCT_TYPE_PROPERTY_PATH = 203;
   STRUCT_TYPE_FIELD_PATH = 204;
   STRUCT_TYPE_FIELD_PATH_SEGMENT = 205;
@@ -569,6 +577,48 @@ message AggregationBucketData {
   int64 count = 31;
 }
 
+// // A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
+//     Path are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
+//     Sub-nodes inside a block are prefixed by a ':', fields are accessed (and separated) by '.'.
+// 
+//     flotothemoon/Mirror/Notion/Databases/Landscape
+//     ^ bench      ^ blocks
+//     flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
+//     ^ bench      ^ blocks                      ^ sub-nodes                ^ field
+//     flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
+//     ^ bench      ^ blocks                                              ^ field
+// 
+//     flotothemoon.name
+//     ^ bench      ^ field
+//     flotothemoon-tests/Tests/Databases/TestPopulate.code
+//     ^ bench            ^ blocks                     ^ field
+// 
+//     ../../Header Screen:Header/Title.theme.primary.color
+//     ^ blocks           ^ sub-nodes  ^ field
+//     ../../../../Graphs
+//     ^ (ambiguous, requires context: if in block, blocks, else sub nodes)
+// 
+//     symbolx@2024-01-01/Library/Common/Utils/DateUtils
+//     ^ bench ^ package  ^ blocks
+//     symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
+//     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
+// 
+//     ../../Something/../SomethingElse
+//     X (invalid, cannot go up and down in the same path)
+// 
+//     The general syntax is:
+//     [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
+//     For absolute paths, the bench name is required.
+message BenchPathData {
+  BenchType metatype = 1;
+  optional string bench_slug = 30;
+  repeated string block_path = 31;
+  repeated string sub_node_path = 32;
+  repeated string field_path = 33;
+  optional string branch_slug = 34;
+  optional string module_slug = 35;
+}
+
 // // A reference to a file stored somewhere.
 message BlobData {
   BenchType metatype = 1;
@@ -639,12 +689,6 @@ message LogEntryData {
   optional google.protobuf.Struct value = 40;
 }
 
-// // A path of nodes.
-message NodePathData {
-  BenchType metatype = 1;
-  repeated NodeReferenceData nodes = 30;
-}
-
 // // NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus = None)
 message NodeReferenceData {
   BenchType metatype = 1;
@@ -696,11 +740,12 @@ message RichTextData {
   optional string plain_text = 31;
 }
 
-// // RichTextSpan(text: str = '', reference: bench.language.node.Node | None = None, reference_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None)
+// // RichTextSpan(text: str = '', flags: bench.language.const.RichTextFlag = <RichTextFlag.NONE: 0>, reference: bench.language.node.Node | None = None, reference_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None)
 message RichTextSpanData {
   BenchType metatype = 1;
   string text = 30;
-  optional NodeReferenceData reference_ptr = 31;
+  int64 flags = 31;
+  optional NodeReferenceData reference_ptr = 32;
 }
 
 // // RunCodeFrame(filename: str = <factory>, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, _status: bench.language.const.NodeStatus = None)
@@ -923,7 +968,6 @@ message LinkData {
 message ModuleData {
   BenchType metatype = 1;
   string id = 2;
-  string ck = 3;
   optional NodeReferenceData parent_ptr = 4;
   int64 revision = 10;
   google.protobuf.Timestamp created_at = 11;
@@ -1149,11 +1193,11 @@ message TriggerData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   TriggerType type = 30;
-  bool active = 31;
-  optional ScheduleType schedule_type = 32;
-  optional string timezone = 33;
-  optional int64 interval = 34;
-  optional string cron = 35;
+  bool active = 32;
+  optional ScheduleType schedule_type = 33;
+  optional string timezone = 34;
+  optional int64 interval = 35;
+  optional string cron = 36;
 }
 
 // // A (global) Bench user.
@@ -1240,30 +1284,30 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    TaggingData Tagging = 1;
-    TriggerData Trigger = 2;
-    ViewData View = 3;
-    ModuleData Module = 4;
-    LinkData Link = 5;
-    IssueData Issue = 6;
-    FileData File = 7;
-    UserData User = 8;
-    PauseData Pause = 9;
-    WorkerSetData WorkerSet = 10;
-    RunData Run = 11;
-    SignalData Signal = 12;
-    FieldData Field = 13;
-    BadgeData Badge = 14;
-    OrganizationData Organization = 15;
-    RecordData Record = 16;
-    BenchData Bench = 17;
-    WorkerData Worker = 18;
-    StatementData Statement = 19;
-    NotificationData Notification = 20;
-    ClientData Client = 21;
-    SessionData Session = 22;
-    HandleData Handle = 23;
-    BucketObjectData BucketObject = 24;
+    ModuleData Module = 1;
+    BenchData Bench = 2;
+    ClientData Client = 3;
+    RecordData Record = 4;
+    OrganizationData Organization = 5;
+    FieldData Field = 6;
+    LinkData Link = 7;
+    SessionData Session = 8;
+    BadgeData Badge = 9;
+    IssueData Issue = 10;
+    NotificationData Notification = 11;
+    WorkerSetData WorkerSet = 12;
+    HandleData Handle = 13;
+    PauseData Pause = 14;
+    TriggerData Trigger = 15;
+    StatementData Statement = 16;
+    SignalData Signal = 17;
+    ViewData View = 18;
+    BucketObjectData BucketObject = 19;
+    UserData User = 20;
+    WorkerData Worker = 21;
+    TaggingData Tagging = 22;
+    FileData File = 23;
+    RunData Run = 24;
   };
 }
 

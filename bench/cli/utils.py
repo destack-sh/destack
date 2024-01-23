@@ -55,7 +55,7 @@ class InconsistencyError(RuntimeError):
         super().__init__(f"bench internal state is inconsistent: {msg}")
 
 
-async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "symbolx.bench") -> None:
+async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "symbolx") -> None:
     """Checks whether the language constructs are in sync with the derived stuff."""
     from bench.language import VERSION as LANG_VERSION
     from bench.proto.wire import VERSION as PROTO_VERSION

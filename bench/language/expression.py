@@ -32,17 +32,6 @@ if TYPE_CHECKING:
 #
 
 
-class QueryEngineError(Exception):
-    def __init__(
-        self, engine: QueryEngine, expr: Union["Expression", list["Expression"]], reason: str
-    ):
-        super().__init__(f"query engine {engine.value} failed on {expr!r}: {reason}")
-
-
-class QueryEngineIncapableError(QueryEngineError):
-    pass
-
-
 @struct(StructType.NODE_REFERENCE)
 class NodeReference(Struct):
     type: NodeType = struct_property(30, require=True)
@@ -71,18 +60,6 @@ class PropertyReference(Struct):
 
     def __content_str__(self):
         return f"{self.type.name}:{self.id}"
-
-
-@struct(StructType.NODE_PATH)
-class NodePath(Struct):
-    """A path of nodes."""
-
-    nodes: list[NodeReference] = struct_property(
-        30, require=True, array=True, struct_t=StructType.NODE_REFERENCE
-    )
-
-    def __content_str__(self):
-        return f"{'->'.join(str(node) for node in self.nodes)}"
 
 
 @struct(StructType.PROPERTY_PATH)
@@ -133,6 +110,17 @@ class ValueReference(Struct):
 
     def __content_str__(self):
         return f"{self.node.path}.{self.path}"
+
+
+class QueryEngineError(Exception):
+    def __init__(
+        self, engine: QueryEngine, expr: Union["Expression", list["Expression"]], reason: str
+    ):
+        super().__init__(f"query engine {engine.value} failed on {expr!r}: {reason}")
+
+
+class QueryEngineIncapableError(QueryEngineError):
+    pass
 
 
 @struct(StructType.EXPRESSION)

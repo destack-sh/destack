@@ -3,6 +3,7 @@ import dataclasses
 import enum
 import functools
 import inspect
+import re
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
@@ -40,8 +41,6 @@ from bench.language.const import (
     BenchType,
     IssueKind,
     IssueType,
-    ModuleReference,
-    NodePath,
     NodeRelationType,
     NodeSource,
     NodeStatus,
@@ -52,8 +51,6 @@ from bench.language.const import (
     StructType,
     TypeHint,
     TypeTag,
-    parse_absolute_node_reference,
-    parse_node_path,
 )
 from bench.language.link import (
     _NC,
@@ -91,7 +88,7 @@ from bench.utils.func import (
     strip_py_type,
     try_tuple,
 )
-from bench.utils.utils import LOCAL_ENV, IdentifierType, frozendict, required_field, to_identifier
+from bench.utils.utils import frozendict, required_field
 
 if TYPE_CHECKING:
     from bench.language import (
@@ -150,7 +147,7 @@ class Property(_FieldExpressionBase):
     is_array: bool = UNSET
     is_required: bool = False  # = must be non-null
     is_internal: bool = False  # = not directly editable for user
-    is_protected: bool = False  # = only editable by system
+    is_system: bool = False  # = only editable by system
     is_reflected: bool = UNSET  # eventually all properties should be reflected, for now only some
     is_computed: bool = False
     is_runtime_only: bool = False
@@ -203,7 +200,7 @@ class Property(_FieldExpressionBase):
             "is_array",
             "is_required",
             "is_internal",
-            "is_protected",
+            "is_system",
             "is_runtime_only",
             "is_computed",
             "is_reflected",
@@ -588,14 +585,14 @@ def struct_internal(
     defer: bool = False,
     encrypt: bool = False,
     unique: bool = False,
-    protect: bool = False,
+    system: bool = False,
 ):
     """Internal only struct/node property."""
     return Property(
         id=id,
         description=description,
         is_internal=True,
-        is_protected=protect,
+        is_system=system,
         is_required=require,
         default=default,
         default_factory=default_factory,
@@ -661,7 +658,7 @@ def node_ancestor(
         reference_types=(node_type,),
         is_internal=True,
         is_computed=True,
-        is_protected=True,
+        is_system=True,
         is_ancestor_nearest=nearest,
         is_ancestor_self=include_self,
         is_stored=store,
@@ -887,6 +884,7 @@ def _process_struct_base_cls(
     cls.__reserved_properties__ = frozenset(reserved_properties)
 
     # create class (map to dataclass)
+    # TODO @Cleanup: the ck/module/bench property removal is a bit hacky & confusing
     for name, prop in list(properties_by_name.items()):
         # map property to class attribute or dataclass field
         if ((not is_in_bench or cls.__name__ == "Bench") and prop.name == "bench") or (
@@ -898,7 +896,7 @@ def _process_struct_base_cls(
             # remove contributed reference keys too
             for key in prop.reference_ptrs:
                 del properties_by_name[key.name]
-        elif prop.name == "ck" and is_node and not is_in_module:
+        elif prop.name == "ck" and is_node and (not is_in_module or cls.__name__ == "Module"):
             # remove node ck (is == id if outside a module) :MagicNodeProps
             attr = _node_ck_from_id_prop(prop)
             del properties_by_name[name]
@@ -1028,7 +1026,7 @@ def node_component(
             is_in_bench=is_in_bench,
             is_final=is_final,
         )
-        cls.__static_passthrough__ = passthrough
+        cls.__passthrough_targets__ = passthrough
         # register node properties
         props = properties.values()
         list_properties: dict[str, Property] = {}
@@ -1373,10 +1371,6 @@ class Struct(abc.ABC):
     def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
         """Validate cross-property constraints given the modified properties."""
         # since this is the root module, we also validate the properties directly
-        from bench.language.builtin import _should_validate
-
-        if LOCAL_ENV and not _should_validate():
-            return  # escape hatch for testing
         for name in properties:
             prop = self.__properties__.get(name)
             assert prop is not None, f"unknown property '{name}' on {self!r}"
@@ -1436,7 +1430,7 @@ class Node(Struct, _NodeExpressionBase):
     metatype: ClassVar[NodeType]
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
-    __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
+    __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
 
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
@@ -1466,26 +1460,26 @@ class Node(Struct, _NodeExpressionBase):
     __table__: ClassVar[Table] = UNSET  # if stored regularly, set after finalization
 
     # 1-9: reserved for node identity
-    id: UUID = struct_internal(2, default=None, require=True, protect=True)
+    id: UUID = struct_internal(2, default=None, require=True, system=True)
     # NOTE: ck/module/branch/bench only exist if __is_in_module__/__is_in_bench__ :MagicNodeProps
-    ck: UUID = struct_internal(3, default=None, require=True, protect=True)
+    ck: UUID = struct_internal(3, default=None, require=True, system=True)
     parent: Optional["Node"] = node_parent(4)
     # prototype/template: Optional["Node"] = node_template(5)
     module: "Module" = node_ancestor(6, NodeType.MODULE, require=True, store=True, wire=True)
     # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, require=True, store=True, wire=True)
     bench: "Bench" = node_ancestor(8, NodeType.BENCH, require=True, store=False, wire=False)
     source: NodeSource = struct_internal(
-        9, default=NodeSource.PERSISTED, store=False, require=True, protect=True
+        9, default=NodeSource.PERSISTED, store=False, require=True, system=True
     )
 
     # 10-29: reserved for node tracking
-    revision: int = struct_internal(10, default=0, require=True, protect=True)
-    created_at: datetime = struct_internal(11, default=None, require=True, protect=True)
-    updated_at: datetime = struct_internal(12, default=None, require=True, protect=True)
-    deleted_at: Optional[datetime] = struct_internal(13, default=None, protect=True)
-    archived_at: Optional[datetime] = struct_internal(14, default=None, protect=True)
+    revision: int = struct_internal(10, default=0, require=True, system=True)
+    created_at: datetime = struct_internal(11, default=None, require=True, system=True)
+    updated_at: datetime = struct_internal(12, default=None, require=True, system=True)
+    deleted_at: Optional[datetime] = struct_internal(13, default=None, system=True)
+    archived_at: Optional[datetime] = struct_internal(14, default=None, system=True)
     last_edited_at: Optional[datetime] = struct_internal(
-        15, default=None, require=True, protect=True
+        15, default=None, require=True, system=True
     )
     # only scope nodes can have 'inner' changes
     # last_changed_at: datetime = struct_internal(16, default=None)
@@ -1552,11 +1546,6 @@ class Node(Struct, _NodeExpressionBase):
         return type(self).__name__
 
     @property
-    def _passthrough_targets(self) -> tuple[tuple[str, _Passthrough]] | None:
-        """Pass through __getattr__/__setattr__ properties (before defaulting to usual)"""
-        return self.__static_passthrough__
-
-    @property
     def _local_root(self) -> "Node":
         parent = self
         while parent.parent is not None:
@@ -1588,19 +1577,8 @@ class Node(Struct, _NodeExpressionBase):
             content_str = f" ({content_str})"
         if self.__parent_property__ is None:
             return f"{ident_str}{content_str}"
-        elif self.parent is None:
-            return f"<detached>.{ident_str}{content_str}"
         else:
-            path_segments: list[str] = []
-            parent = self.parent
-            while (
-                parent is not None and parent.metatype != NodeType.BENCH
-            ):  # skip bench (same path as pkg)
-                path_segments.append(parent.ident)
-                parent = parent.parent
-            path_segments.reverse()
-            path = ".".join(path_segments)
-            return f"{path}.{ident_str}{content_str}"
+            return f"{self.path}{content_str}"
 
     @final
     def __repr__(self):
@@ -1623,7 +1601,20 @@ class Node(Struct, _NodeExpressionBase):
 
     @property
     def path(self) -> str:
-        raise NotImplementedError(f"{self.__class__.__name__} does not implement path")
+        if self.__parent_property__ is None or not self.__parent_property__.reference_types:
+            return self.ident
+        elif self.parent is None:
+            return f"<detached>/{self.ident}"
+        else:
+            path_segments: list[str] = [self.ident]
+            parent = self.parent
+            while parent is not None and parent.metatype != NodeType.BENCH:
+                # skip bench (same path as pkg)
+                path_segments.append(parent.ident)
+                parent = parent.parent
+            path_segments.reverse()
+            path = ".".join(path_segments)
+            return f"{path}/{self.ident}"
 
     @property
     def session(self) -> "Session":
@@ -1677,7 +1668,7 @@ class Node(Struct, _NodeExpressionBase):
             return
 
         # try first full passthrough target (if any)
-        for target, mode in self._passthrough_targets:
+        for target, mode in self.__passthrough_targets__:
             target = getattr(self, target)
             if mode == _Passthrough.Full:
                 setattr(target, key, value)
@@ -1686,8 +1677,8 @@ class Node(Struct, _NodeExpressionBase):
         # report set error with additional info
         candidates = {
             **(self.__tracked_properties__ if self._status == NS.ACTIVE else self.__properties__),
-            **{s.name: s for s in self._scopes_by_name.values()},
         }
+        candidates.update(self._scopes_by_name)
         did_you_mean = did_you_mean_str(candidates, key)
         raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
@@ -1703,7 +1694,7 @@ class Node(Struct, _NodeExpressionBase):
                 break
         # check passthrough targets if tracked in session
         if attr is UNSET and self._session is not None:
-            for target, mode in self._passthrough_targets:
+            for target, mode in self.__passthrough_targets__:
                 target = getattr(self, target)
                 if mode == _Passthrough.Full:
                     attr = getattr(target, item, UNSET)
@@ -2004,7 +1995,7 @@ class ScopeNode(Node):
 
     def lookup(
         self,
-        path: Union["NodePath", UUID, str],
+        path: Union["BenchPath", UUID, str],
         node_t: NodeType | StatementType | type[NodeT] | None = None,
     ) -> NodeT | None:
         """
@@ -2022,10 +2013,10 @@ class ScopeNode(Node):
         if path.path == ".":
             return self._find_scope(path.name)
         elif path.path.startswith("."):
-            path = NodePath(path.path[1:], path.name)
+            path = BenchPath(path.path[1:], path.name)
         parts = path.path.split(".", 2)
         if len(parts) > 1:
-            first_part, inner_part = parts[0], NodePath(parts[1], path.name)
+            first_part, inner_part = parts[0], BenchPath(parts[1], path.name)
         else:
             first_part, inner_part = parts[0], path.name
         scope = self._find_scope(first_part)
@@ -2035,7 +2026,7 @@ class ScopeNode(Node):
 
     def resolve(
         self,
-        path: Union["NodePath", UUID, str],
+        path: Union["BenchPath", UUID, str],
         node_t: type[NodeT] | None = None,
     ) -> NodeT:
         result = self.lookup(path, node_t=node_t)
@@ -2071,6 +2062,80 @@ class ScopeNode(Node):
         return [i for i in self.errors or [] if i.parent == self]
 
 
+class InvalidBenchPath(ValueError):
+    pass
+
+
+class AmbiguousBenchPath(ValueError):
+    pass
+
+
+@struct(StructType.BENCH_PATH)
+class BenchPath(Struct):
+    """
+    A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
+    Path are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
+    Sub-nodes inside a block are prefixed by a ':', fields are accessed (and separated) by '.'.
+
+    flotothemoon/Mirror/Notion/Databases/Landscape
+    ^ bench      ^ blocks
+    flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name
+    ^ bench      ^ blocks                      ^ sub-nodes                ^ field
+    flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
+    ^ bench      ^ blocks                                              ^ field
+
+    flotothemoon.name
+    ^ bench      ^ field
+    flotothemoon-tests/Tests/Databases/TestPopulate.code
+    ^ bench            ^ blocks                     ^ field
+
+    ../../Header Screen:Header/Title.theme.primary.color
+    ^ blocks           ^ sub-nodes  ^ field
+    ../../../../Graphs
+    ^ (ambiguous, requires context: if in block, blocks, else sub nodes)
+
+    symbolx@2024-01-01/Library/Common/Utils/DateUtils
+    ^ bench ^ package  ^ blocks
+    symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
+    ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
+
+    ../../Something/../SomethingElse
+    X (invalid, cannot go up and down in the same path)
+
+    The general syntax is:
+    [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
+    For absolute paths, the bench name is required.
+    """
+
+    bench_slug: Optional[str] = struct_property(30, default=None)
+    block_path: tuple[str, ...] | None = struct_property(31, default=None)
+    sub_node_path: tuple[str, ...] | None = struct_property(32, default=None)
+    field_path: tuple[str, ...] | None = struct_property(33, default=None)
+
+    branch_slug: Optional[str] = struct_property(34, default=None)  # (not yet supported)
+    module_slug: Optional[str] = struct_property(35, default=None)  # (not yet supported)
+
+    def __content_str__(self) -> str:
+        path_str = self.bench_slug or ""
+        if self.block_path:
+            path_str += "/" + "/".join(self.block_path)
+        if self.sub_node_path:
+            path_str += ":" + "/".join(self.sub_node_path)
+        if self.field_path:
+            path_str += "." + ".".join(self.field_path)
+        return path_str
+
+    @staticmethod
+    def parse(path: str, root_type: NodeType = None) -> "BenchPath":
+        """
+        Parses a path string into a BenchPath. Uses root type to disambiguate some relative paths.
+        """
+        raise NotImplementedError
+
+    def to_absolute(self, root: Optional["Node"] = None) -> "BenchPath":
+        raise NotImplementedError
+
+
 # all sub-module node types (inside a module)
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt
@@ -2100,28 +2165,28 @@ class Bench(ScopeNode):
     policies: Optional[list["Policy"]] = struct_internal(
         20, default_factory=list, struct_t=StructType.POLICY
     )
-    slug: str = struct_internal(30, protect=True, unique=True)
+    slug: str = struct_internal(30, system=True, unique=True)
     name: str = struct_property(31)
     description: Optional[str] = struct_property(32, default=None)
     organization: Optional["Organization"] = struct_internal(
-        33, protect=True, require=False, array=False, references=NodeType.ORGANIZATION
+        33, system=True, require=False, array=False, references=NodeType.ORGANIZATION
     )
     user: Optional["User"] = struct_internal(
-        34, protect=True, require=False, array=False, references=NodeType.USER
+        34, system=True, require=False, array=False, references=NodeType.USER
     )
-    # status: BenchStatus = struct_internal(35, protect=True)
+    # status: BenchStatus = struct_internal(35, system=True)
 
     # *per* environment/.../? stuff (will be moved there later)
-    head = struct_internal(40, protect=True, require=False, array=False, references=NodeType.MODULE)
-    pg_name: Optional[str] = struct_internal(41, protect=True, default=None)
-    pg_username: Optional[str] = struct_internal(42, protect=True, default=None, defer=True)
+    head = struct_internal(40, system=True, require=False, array=False, references=NodeType.MODULE)
+    pg_name: Optional[str] = struct_internal(41, system=True, default=None)
+    pg_username: Optional[str] = struct_internal(42, system=True, default=None, defer=True)
     pg_password: Optional[str] = struct_internal(
-        43, protect=True, default=None, defer=True, encrypt=True
+        43, system=True, default=None, defer=True, encrypt=True
     )
-    os_name: Optional[str] = struct_internal(44, protect=True, default=None)
-    os_username: Optional[str] = struct_internal(45, protect=True, default=None, defer=True)
+    os_name: Optional[str] = struct_internal(44, system=True, default=None)
+    os_username: Optional[str] = struct_internal(45, system=True, default=None, defer=True)
     os_password: Optional[str] = struct_internal(
-        46, protect=True, default=None, defer=True, encrypt=True
+        46, system=True, default=None, defer=True, encrypt=True
     )
 
     worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET)
@@ -2173,7 +2238,7 @@ class Module(ScopeNode):
     policies: Optional[list["Policy"]] = struct_internal(
         20, default_factory=list, struct_t=StructType.POLICY
     )
-    is_snapshot: bool = struct_internal(32, protect=True, default=False)  # snapshot or head?
+    is_snapshot: bool = struct_internal(32, system=True, default=False)  # snapshot or head?
 
     files: NodeList["File"] = node_children(NodeType.FILE, NRel.NAMED | NRel.SCOPED)
     dependencies: dict[str, "Module"] = struct_runtime(default_factory=dict)
@@ -2218,16 +2283,16 @@ class Module(ScopeNode):
             raise ValueError(f"cannot add builtin {file!r} to {self!r} without {file.module!r}")
         self.builtins.append(file)
 
-    def add_dependency(self, dependency: Union["Module", ModuleReference]) -> None:
-        if dependency.name in self.dependencies:
+    def add_dependency(self, dependency: "Module") -> None:
+        if dependency.ident in self.dependencies:
             raise ValueError(
-                f"{self!r} already has dependency {dependency.name}: {self.dependencies[dependency.name]}"
+                f"{self!r} already has dependency {dependency.ident}: {self.dependencies[dependency.ident]}"
             )
-        self.dependencies[dependency.name] = dependency
+        self.dependencies[dependency.ident] = dependency
 
     def lookup(
         self,
-        path: Union["NodePath", UUID, str],
+        path: Union["BenchPath", UUID, str],
         node_t: NodeType | type[NodeT] | None = None,
     ) -> NodeT | None:
         if path in self._lookup_cache:
@@ -2238,8 +2303,8 @@ class Module(ScopeNode):
             resolved = self._local_tree.get(path)
             if resolved is None:
                 for dependency in self.dependencies.values():
-                    if path in dependency._tree:
-                        resolved = dependency._tree[path]
+                    resolved = dependency._tree.get(path)
+                    if resolved is not None:
                         break
         elif isinstance(path, str) and path.startswith("."):
             resolved = ScopeNode.lookup(self, path, node_t=node_t)

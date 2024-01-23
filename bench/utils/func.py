@@ -222,7 +222,7 @@ def strip_py_type(py_type: type) -> tuple[type, TypeInfo]:
         else:
             raise ValueError(f"cannot map generic union types: {py_type}")
     # strip list
-    if typing.get_origin(py_type) is list:
+    if typing.get_origin(py_type) is list or typing.get_origin(py_type) is tuple:
         py_type = typing.get_args(py_type)[0]
         is_array = True
     return py_type, TypeInfo(is_optional, is_arrayable, is_array)

@@ -84,7 +84,6 @@ class _StatementDescriptor:
     type: StatementType
     dynamic_components: tuple[typing.Type[Node], ...]
     identifier: IdentifierType
-    passthrough: tuple[tuple[str, _Passthrough], ...] = tuple()
     tag: Optional[TypeTag] = None
 
     def __post_init__(self):
@@ -100,33 +99,10 @@ _s(StatementType.TAG, (HasFields,), IdentT.VARIABLE, tag=TypeTag.STRUCT)
 _s(StatementType.TEXT, (), IdentT.VARIABLE)
 _s(StatementType.LINK, (), IdentT.VARIABLE)
 _s(StatementType.BLANK, (), IdentT.VARIABLE)
-_s(
-    StatementType.CLASS,
-    (InstantiableType, HasFields),
-    IdentT.TYPE,
-    tag=TypeTag.STRUCT,
-    passthrough=(("fields", _Passthrough.Full),),
-)
-_s(
-    StatementType.SIGNAL,
-    (InstantiableType, HasFields),
-    IdentT.TYPE,
-    tag=TypeTag.STRUCT,
-    passthrough=(("fields", _Passthrough.Full),),
-)
-_s(
-    StatementType.CHOICE,
-    (InstantiableType, HasFields),
-    IdentT.TYPE,
-    tag=TypeTag.ENUM,
-    passthrough=(("fields", _Passthrough.Full),),
-)
-_s(
-    StatementType.TASK,
-    (HasTask, HasRun, HasFields),
-    IdentT.METHOD,
-    tag=TypeTag.FUNCTION,
-)
+_s(StatementType.CLASS, (InstantiableType, HasFields), IdentT.TYPE, tag=TypeTag.STRUCT)
+_s(StatementType.SIGNAL, (InstantiableType, HasFields), IdentT.TYPE, tag=TypeTag.STRUCT)
+_s(StatementType.CHOICE, (InstantiableType, HasFields), IdentT.TYPE, tag=TypeTag.ENUM)
+_s(StatementType.TASK, (HasTask, HasRun, HasFields), IdentT.METHOD, tag=TypeTag.FUNCTION)
 _s(
     StatementType.CODE,
     (HasCode, HasRun, HasTriggers, HasFields),
@@ -134,32 +110,10 @@ _s(
     tag=TypeTag.FUNCTION,
 )
 _s(StatementType.FLOW, (HasRun, HasFields), IdentT.METHOD, tag=TypeTag.FUNCTION)
-_s(
-    StatementType.MODEL,
-    (HasModel, HasRun, HasFields),
-    IdentT.METHOD,
-    tag=TypeTag.FUNCTION,
-)
-_s(
-    StatementType.VARIABLE,
-    (HasValue, HasFields),
-    IdentT.VARIABLE,
-    tag=TypeTag.STRUCT,
-    passthrough=(("value", _Passthrough.Full),),
-)
-_s(
-    StatementType.DATABASE,
-    (HasDatabase, HasFields),
-    IdentT.VARIABLE,
-    tag=TypeTag.STRUCT,
-    passthrough=(("records", _Passthrough.Full), ("fields", _Passthrough.Scope)),
-)
-_s(
-    StatementType.VIEW,
-    (HasFields,),
-    IdentT.VARIABLE,
-    passthrough=(("fields", _Passthrough.Full),),
-)
+_s(StatementType.MODEL, (HasModel, HasRun, HasFields), IdentT.METHOD, tag=TypeTag.FUNCTION)
+_s(StatementType.VARIABLE, (HasValue, HasFields), IdentT.VARIABLE, tag=TypeTag.STRUCT)
+_s(StatementType.DATABASE, (HasDatabase, HasFields), IdentT.VARIABLE, tag=TypeTag.STRUCT)
+_s(StatementType.VIEW, (HasFields,), IdentT.VARIABLE)
 _s(StatementType.SCREEN, (), IdentT.VARIABLE)
 
 assert len(_STATEMENT_DESCRIPTORS) == len(StatementType), "missing statement descriptors"
@@ -167,9 +121,6 @@ del _s
 
 _IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
     t.type: t.identifier for t in _STATEMENT_DESCRIPTORS.values()
-}
-_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, _Passthrough], ...]] = {
-    t.type: t.passthrough for t in _STATEMENT_DESCRIPTORS.values()
 }
 _DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node], ...]] = {
     t.type: t.dynamic_components for t in _STATEMENT_DESCRIPTORS.values()
@@ -181,7 +132,7 @@ _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
 
 @node(
     NodeType.STATEMENT,
-    passthrough=(("children", _Passthrough.Scope),),
+    passthrough=(("value", _Passthrough.Full),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
 class Statement(ScopeNode, HasTags):
@@ -267,10 +218,6 @@ class Statement(ScopeNode, HasTags):
     def _instance_cache_key(self) -> str:
         return self.type
 
-    @property
-    def _passthrough_targets(self) -> tuple[tuple[str, _Passthrough]] | None:
-        return _ALL_PASSTHROUGH_BY_TYPE[self.type]
-
     def __content_str__(self):
         return ""
 
@@ -322,9 +269,4 @@ for _type in StatementType:
 
 _ALL_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node]]] = {
     t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Statement.__static_components__ for t in StatementType
-}
-_ALL_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, _Passthrough]]] = {
-    # custom passthrough + default passthrough
-    t: _PASSTHROUGH_BY_TYPE.get(t, tuple()) + Statement.__static_passthrough__
-    for t in StatementType
 }

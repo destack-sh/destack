@@ -2,7 +2,14 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional
 
 from bench.language.const import NodeType
-from bench.language.node import Module, node, node_parent, struct_internal, struct_property
+from bench.language.node import (
+    Module,
+    node,
+    node_parent,
+    struct_internal,
+    struct_property,
+    _Passthrough,
+)
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 
@@ -10,7 +17,7 @@ if TYPE_CHECKING:
     from bench.language import Statement
 
 
-@node(NodeType.SIGNAL, local=True, index_in_os=True)
+@node(NodeType.SIGNAL, local=True, index_in_os=True, passthrough=(("value", _Passthrough.Full),))
 class Signal(HasValue):
     """A signal received in this Bench. May be emitted by a Bench or an external source."""
 

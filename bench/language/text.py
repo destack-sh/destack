@@ -1,9 +1,9 @@
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, NamedTuple
 from uuid import UUID
 
-from bench.language.const import NodeReference, NodeType, StructType, TypedNodeReference
+from bench.language.const import NodeType, StructType, RichTextFlag
 from bench.language.node import (
     LINK_TARGET_NODE_TYPES,
     Node,
@@ -50,11 +50,13 @@ TEXT_MENTION_REGEX = re.compile(
 TEXT_MENTION_TEMPLATE = (
     '<span data-ref-ck="{ck}" data-ref-type="{type}" data-ref-path="{path}"></span>'
 )
+NodeReference = Union["Node", str, UUID]
+TypedNodeReference = NamedTuple("TypedNodeReference", [("type", NodeType), ("ref", UUID)])
 
 
 @dataclass
 class TextMention:
-    reference: Union[NodeReference | TypedNodeReference, Node]
+    reference: Union[UUID, Node]
     reference_path: Optional[str] = None
 
     def __str__(self):
@@ -215,8 +217,9 @@ class RichText(Struct):
 @struct(StructType.RICH_TEXT_SPAN)
 class RichTextSpan(Struct):
     text: str = struct_property(30, default="")
+    flags: RichTextFlag = struct_property(31, default=RichTextFlag.NONE)
     reference: Node | None = struct_property(
-        31, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
+        32, array=False, default=None, require=False, references=LINK_TARGET_NODE_TYPES
     )
 
     def __content_str__(self):
