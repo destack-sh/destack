@@ -1,7 +1,7 @@
 import hashlib
 import io
 import mimetypes
-from typing import TYPE_CHECKING, BinaryIO, Collection, Optional, Union
+from typing import TYPE_CHECKING, BinaryIO, Collection, Optional
 from urllib.parse import parse_qs, urlparse, urlunparse
 from uuid import UUID, uuid5
 
@@ -13,7 +13,6 @@ from bench.language.builtin import active_session
 from bench.language.const import BlobStatus, NodeType, StructType
 from bench.language.node import (
     Bench,
-    Module,
     Node,
     Struct,
     node,
@@ -27,7 +26,7 @@ from bench.language.validation import ValidationHandler, on_invalid_raise
 from bench.utils.func import _auto_async_to_sync
 
 if TYPE_CHECKING:
-    from bench.language import Statement
+    pass
 
 logger = structlog.get_logger(__name__)
 

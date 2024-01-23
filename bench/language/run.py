@@ -181,7 +181,7 @@ _IGNORED_PACKAGE_PATHS = tuple(package.replace(".", "/") for package in _IGNORED
 
 @struct(StructType.RUN_CODE_FRAME)
 class RunCodeFrame(Struct):
-    filename: str = struct_internal(30)
+    node: Node = struct_internal(30, array=False, require=True, references=NodeType.STATEMENT)
     lineno: int = struct_internal(31)
     name: str = struct_internal(32)
     locals: Optional[dict[str, Any]] = struct_internal(
@@ -208,7 +208,7 @@ class RunCodeFrame(Struct):
         found_start = False
         cleaned_stack = []
         for frame in stack:
-            if any(prefix in frame.filename for prefix in _IGNORED_PACKAGE_PATHS):
+            if any(prefix in frame.node for prefix in _IGNORED_PACKAGE_PATHS):
                 continue  # skip support code
             if not found_start:
                 # impute bench source info into instantiated code callables
@@ -218,7 +218,7 @@ class RunCodeFrame(Struct):
                         found_start = True
                     elif not found_start:
                         continue  # ignore
-                    frame.filename = from_statement.path
+                    frame.node = from_statement
                     frame.name = from_statement.name or "<unnamed>"
                     frame.lineno = frame.lineno - code._transform.start_offset
                     frame.line = code.code.splitlines()[frame.lineno - 1]
@@ -229,8 +229,8 @@ class RunCodeFrame(Struct):
             if found_start:
                 # trim file path for python modules
                 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-                if python_version in frame.filename:
-                    frame.filename = frame.filename.split(python_version)[-1][1:]  # skip slash
+                if python_version in frame.node:
+                    frame.node = frame.node.split(python_version)[-1][1:]  # skip slash
                 cleaned_stack.append(frame)
         return [f for f in cleaned_stack if f.line]
 

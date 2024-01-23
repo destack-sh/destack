@@ -138,7 +138,7 @@ def map_value(
     # map into a dict
     mapped = {}
     assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
-    for subtype in type.resolved_fields:
+    for subtype in type.fields:
         assert (
             not subtype.flags & TypeFlag.IS_UNION_WITH
         ), f"unexpected union with {type}->{subtype}"
@@ -173,7 +173,7 @@ def walk_value(
     ignore_array: bool = False,
 ) -> Iterable[Any]:
     """Yields all flat values in the value recursively."""
-    get_k = get_k or (lambda f: f.ident)
+    get_k = get_k or (lambda f: f.py_ident)
 
     if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
@@ -199,7 +199,7 @@ def walk_value(
         return  # type error, ignore here
 
     assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
-    for subtype in type.resolved_fields:
+    for subtype in type.fields:
         assert (
             not subtype.flags & TypeFlag.IS_UNION_WITH
         ), f"unexpected union with {type}->{subtype}"
@@ -232,7 +232,7 @@ def check_type(
     Raises TypeError if not.
     """
 
-    get_k = get_k or (lambda f: f.ident)
+    get_k = get_k or (lambda f: f.py_ident)
 
     def _check(valid: bool, message: str = None):
         if not valid:
@@ -266,7 +266,7 @@ def check_type(
         if type.tag == TypeTag.FUNCTION and is_output:
             value = value or {}  # None is allowed for empty outputs
         is_dc = is_dataclass(value)
-        for f in type.resolved_fields:
+        for f in type.fields:
             if is_output is not None and bool(f.flags & TypeFlag.IS_OUTPUT) != is_output:
                 continue
             k = get_k(f)
@@ -277,7 +277,7 @@ def check_type(
             check_type(subvalue, f, get_k=get_k, on_invalid=on_invalid)
         if hasattr(value, "keys"):
             for key in value.keys():
-                exists = any(get_k(f) == key for f in type.resolved_fields)
+                exists = any(get_k(f) == key for f in type.fields)
                 _check(exists, f"extraneous field '{key}'")
 
 
@@ -496,22 +496,22 @@ class EnumMapper(TypeMapper):
         if isinstance(value, str):
             # allow string values for built-in enums
             # (that also function as regular enums in code)
-            return value in type.resolved_fields
-        return isinstance(value, Field) and value.key in type.resolved_fields
+            return value in type.fields
+        return isinstance(value, Field) and value.key in type.fields
 
     def unpack_value(
         self, type: HasFields, scope: ScopeNode, session: Optional[Session], value: Any
     ) -> Any:
-        field_ = type.resolved_fields.get(value)
+        field_ = type.fields.get(value)
         return field_.field if field_ else value
 
     def pack_value(self, type: HasFields, value: Any) -> Any:
-        field_ = type.resolved_fields.get(value) if not isinstance(value, Field) else value
+        field_ = type.fields.get(value) if not isinstance(value, Field) else value
         return field_.key if field_ else value
 
     def render_python(self, type: HasType, value: Any) -> str:
-        field_ = type.resolved_fields.get(value) if not isinstance(value, Field) else value
-        return f"{type._effective_type.ident}.{field_.ident}"
+        field_ = type.fields.get(value) if not isinstance(value, Field) else value
+        return f"{type._effective_type.py_ident}.{field_.py_ident}"
 
 
 @dataclass
@@ -547,7 +547,7 @@ class NodeMapper(TypeMapper):
         return str(value.ck) if isinstance(value, Node) else value
 
     def render_python(self, type: HasType, value: Any) -> str:
-        return value.ident
+        return value.py_ident
 
 
 @dataclass
@@ -566,15 +566,15 @@ class StructMapper(TypeMapper):
     def render_python(self, type: HasType, value: Any) -> str:
         # render parts as python
         parts_strs = []
-        for field_ in type.resolved_fields:
+        for field_ in type.fields:
             if field_.flags & TypeFlag.IS_OUTPUT:
                 continue
             field_value = value[field_.key]
             if field_value is None:
                 continue
             field_str = render_value(field_, field_value)
-            parts_strs.append(f"{field_.ident}={field_str}")
-        return f"{type.ident}({', '.join(parts_strs)})"
+            parts_strs.append(f"{field_.py_ident}={field_str}")
+        return f"{type.py_ident}({', '.join(parts_strs)})"
 
 
 @dataclass
@@ -664,7 +664,7 @@ def unpack_value(
     return map_value(
         value=value,
         type=type,
-        map_k=map_k or (lambda f: (f._typed_key, f.ident)),
+        map_k=map_k or (lambda f: (f._typed_key, f.py_ident)),
         map_v=partial(unpack_value_flat, scope=scope, session=session),
         ignore_array=ignore_array,
         ignore_outer=ignore_outer,
@@ -698,7 +698,7 @@ def pack_value(
     return map_value(
         value=value,
         type=type,
-        map_k=map_k or (lambda f: (f.ident, f._typed_key)),
+        map_k=map_k or (lambda f: (f.py_ident, f._typed_key)),
         map_v=map_v,
         ignore_array=ignore_array,
         ignore_outer=ignore_outer,
@@ -716,19 +716,19 @@ def key_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
             return value
 
     return map_value(
-        value, type, map_k=lambda f: (f.ident, f._typed_key), map_v=map_v, is_output=is_output
+        value, type, map_k=lambda f: (f.py_ident, f._typed_key), map_v=map_v, is_output=is_output
     )
 
 
 def unkey_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
     def map_v(value: Any, type: HasType, *args, **kwargs) -> Any:
         if type._effective_tag == TypeTag.ENUM:
-            return type.resolved_fields.get(value).ident
+            return type.fields.get(value).py_ident
         else:
             return value
 
     return map_value(
-        value, type, map_k=lambda f: (f._typed_key, f.ident), map_v=map_v, is_output=is_output
+        value, type, map_k=lambda f: (f._typed_key, f.py_ident), map_v=map_v, is_output=is_output
     )
 
 
@@ -753,7 +753,7 @@ def render_value(
     is_output: bool = None,
 ) -> str:
     """Renders the given value as a Python string."""
-    get_k = get_k or (lambda f: f.ident)
+    get_k = get_k or (lambda f: f.py_ident)
 
     if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
@@ -801,7 +801,7 @@ def render_value(
     # map struct-like types into a dict
     assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
     elements = {}
-    for subtype in type.resolved_fields:
+    for subtype in type.fields:
         assert (
             not subtype.flags & TypeFlag.IS_UNION_WITH
         ), f"unexpected union with {type}->{subtype}"

@@ -245,7 +245,7 @@ def map_field_to_pg_column(field: lang.Field) -> Column:
 
 def map_database_to_pg_table(statement: lang.Statement) -> Table:
     """Gets the full table with all specific fields of a database and general record stuff."""
-    columns = [map_field_to_pg_column(f) for f in statement.resolved_fields]
+    columns = [map_field_to_pg_column(f) for f in statement.fields]
     indexes = []
     constraints = []
 
@@ -838,7 +838,7 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     elif prop.column_type == ColumnType.UUID:
         return to_uuid(value)
     elif prop.column_type == ColumnType.JSON:
-        return value
+        return wiring.unpack_json(value)
     elif prop.is_enum:
         return value.value
     else:
@@ -851,12 +851,12 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.is_array and not ignore_array:
         return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
-        proto_cls = PROTO_CLASS_BY_TYPE[prop.struct_type]
+        PROTO_CLASS_BY_TYPE[prop.struct_type]
         raise NotImplementedError("see pg_unpack_struct_prop")
     elif prop.column_type == ColumnType.UUID:
         return str(value)
     elif prop.column_type == ColumnType.JSON:
-        return value
+        return wiring.pack_json(value)
     elif prop.is_enum:
         return prop.py_type_stripped(value)
     else:
@@ -1176,7 +1176,7 @@ async def pg_write_record_edits(
             for record in records:
                 # keep only properties touched in the edit
                 row = {"id": record.id}
-                for field in database.resolved_fields:  # all 'value' fields are considered changed
+                for field in database.fields:  # all 'value' fields are considered changed
                     column_name = get_field_column_name(field)
                     value = record.value.get(field._typed_key)
                     row[column_name] = pg_wrap_record_field_value(database, record, field, value)
@@ -1301,7 +1301,7 @@ def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) ->
         row["statement_id"] = database.id
         row["value"] = Jsonb(record.value)
     else:
-        for field in database.resolved_fields:
+        for field in database.fields:
             column_name = get_field_column_name(field)
             value = record.value.get(field._typed_key)
             row[column_name] = pg_wrap_record_field_value(database, record, field, value)
@@ -1324,7 +1324,7 @@ def pg_wrap_record_field_value(
         if len(value_str) > 256:
             value_str = value_str[:196] + "..." + value_str[-56:]
         raise ValueError(
-            f"{record_str} field value '{field.ident}' is too large: {msgpack_size} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a Blob instead)\nValue (truncated): {value_str}"
+            f"{record_str} field value '{field.py_ident}' is too large: {msgpack_size} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a Blob instead)\nValue (truncated): {value_str}"
         )
     if field._storage_format == TypeStorageFormat.OBJECT:
         return Jsonb(value)
@@ -1361,7 +1361,7 @@ def pg_wrap_record_value(database: "HasDatabase", value: dict) -> dict:
         value = {"value": sql.SQL("value || {}").format(sql.Literal(Jsonb(value)))}
     else:  # remap typed keys to column names
         value_columnized = {}
-        for field in database.resolved_fields:
+        for field in database.fields:
             v = value.get(field._typed_key, UNSET)
             if v is not UNSET:
                 column_name = get_field_column_name(field)
@@ -1376,7 +1376,7 @@ def pg_unpack_record_data_row(database: "HasDatabase", row: RowOut) -> wire.Reco
     else:
         value = {
             f._typed_key: pg_unwrap_record_field_value(database, f, row[get_field_column_name(f)])
-            for f in database.resolved_fields
+            for f in database.fields
         }
     return wire.RecordData(
         id=row["id"],

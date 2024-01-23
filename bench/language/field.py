@@ -72,11 +72,11 @@ class TypeError(TypeError):
         if len(value_str) > max_value_str_len:
             value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
 
-        if isinstance(expected, Field) and not expected.resolved_fields:
-            expected_str = f"field '{expected.ident}' ({expected._type_str})"
+        if isinstance(expected, Field) and not expected.fields:
+            expected_str = f"field '{expected.py_ident}' ({expected._type_str})"
         else:
             expected_fields_str = ", ".join(
-                f"'{f.ident}' ({f._type_str})" for f in expected.resolved_fields
+                f"'{f.py_ident}' ({f._type_str})" for f in expected.fields
             )
             expected_str = f"fields {expected_fields_str or '<empty>'} from {expected!r}"
 
@@ -255,7 +255,7 @@ class Type:
         """Reconstruct minimal Python code to create this type."""
         if node._tag == TypeTag.TYPE_REFERENCE:
             if isinstance(node._reference, Node):
-                reference_str = node._reference.ident
+                reference_str = node._reference.py_ident
             elif isinstance(node._reference, UUID):
                 reference_str = f"UUID('{node._reference}')"
             else:
@@ -457,7 +457,7 @@ class Field(HasValue, HasType, _FieldExpressionBase):
 
     def __eq__(self, other):
         if self.tag == TypeTag.LITERAL and isinstance(other, str):
-            return self.name == other or self.ident == other
+            return self.name == other or self.py_ident == other
 
         return _FieldExpressionBase.__eq__(self, other)  # override to avoid recursion
 
@@ -574,10 +574,10 @@ class HasFields(HasType):
                     continue  # validation error, ignore
                 # inline fields from union-ed type to resolved fields
                 field.reference._resolve_fields(path, on_issue)
-                for child in field.reference.resolved_fields:
+                for child in field.reference.fields:
                     if child.flags & TypeFlag.IS_CONFIG:
                         continue  # ignore config fields
-                    existing = nextn(f for f in resolved_fields if f.ident == child.ident)
+                    existing = nextn(f for f in resolved_fields if f.py_ident == child.py_ident)
                     # check if self is compatible if overlapping
                     if existing is None:
                         resolved_fields.append(child)
@@ -599,9 +599,9 @@ class HasFields(HasType):
 
     def _inputs_from_args(self, args, kwargs) -> dict:
         inputs = {**kwargs}
-        input_fields = [f for f in self.resolved_fields if not (f.flags & TypeFlag.IS_OUTPUT)]
+        input_fields = [f for f in self.fields if not (f.flags & TypeFlag.IS_OUTPUT)]
         for input_t, input in zip(input_fields, args):
-            inputs[input_t.ident] = input
+            inputs[input_t.py_ident] = input
         return inputs
 
 
@@ -623,13 +623,13 @@ class TypedDict(dict):
 
     def __repr__(self):
         kwargs_str = ", ".join(f"{k}={v!r}" for k, v in self.items())
-        return f"{self._type.ident}({kwargs_str})"
+        return f"{self._type.py_ident}({kwargs_str})"
 
     def __getitem__(self, item):
         try:
             return dict.__getitem__(self, item)
         except KeyError:
-            field = self._type.resolved_fields.get(item)
+            field = self._type.fields.get(item)
             if field and (
                 self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
             ):
@@ -653,7 +653,7 @@ class TypedDict(dict):
         if name in TypedDict._PROPS:
             return super().__setattr__(name, value)
 
-        field = self._type.resolved_fields.get(name)
+        field = self._type.fields.get(name)
         if field and (
             self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
         ):

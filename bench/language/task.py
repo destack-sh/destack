@@ -55,7 +55,7 @@ class HasTask(Node):
         randomize_tag = symbolx_lib.resolve(".builtins.randomize")
         self._randomize = randomize_tag in self.tags
 
-        if not any(f.flags & TypeFlag.IS_OUTPUT for f in self.resolved_fields):
+        if not any(f.flags & TypeFlag.IS_OUTPUT for f in self.fields):
             on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task feasibility
         #  - check if task is possible given the fields, models & available statements
@@ -205,7 +205,7 @@ async def run_task(
             # done, terminate
             # unpack -> check is not ideal since it doesn't let us collect unpack errors nicely
             outputs = unpack_value(
-                outputs, task, is_output=True, map_k=lambda f: (f.ident, f.ident)
+                outputs, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
             )
             check_type(outputs, task, is_output=True)
             return TypedDict(outputs, task, is_output=True)
@@ -346,14 +346,14 @@ def _type_to_json_schema(
     """Convert a Bench type to a JSON schema element."""
     fields = [
         f
-        for f in type.resolved_fields
+        for f in type.fields
         if is_output is None or bool(f.flags & TypeFlag.IS_OUTPUT) == is_output
     ]
     if type.flags & TypeFlag.IS_ARRAY and not ignore_array:
         element_type = _type_to_json_schema(type, ignore_array=True)
         element_type.name = None  # not needed for array element
         return JsonSchemaElement(
-            name=type.ident,
+            name=type.py_ident,
             type=JsonSchemaElementType.array,
             text=type.text_plain,
             items=element_type,
@@ -366,26 +366,30 @@ def _type_to_json_schema(
             type=JsonSchemaElementType.object,
             text=type.text_plain,
             properties=[_type_to_json_schema(field) for field in fields],
-            required=[field.ident for field in fields if not (field.flags & TypeFlag.IS_OPTIONAL)],
+            required=[
+                field.py_ident for field in fields if not (field.flags & TypeFlag.IS_OPTIONAL)
+            ],
         )
     elif type._effective_tag in TypeTag.STRUCT:
         return JsonSchemaElement(
-            name=type.ident,
+            name=type.py_ident,
             type=JsonSchemaElementType.object,
             text=type.text_plain,
             properties=[_type_to_json_schema(field) for field in fields],
-            required=[field.ident for field in fields if not (field.flags & TypeFlag.IS_OPTIONAL)],
+            required=[
+                field.py_ident for field in fields if not (field.flags & TypeFlag.IS_OPTIONAL)
+            ],
         )
     elif type._effective_tag == TypeTag.ENUM:
         return JsonSchemaElement(
-            name=type.ident,
+            name=type.py_ident,
             type=JsonSchemaElementType.string,
             text=type.text_plain,
             enum=[value.name for value in fields],
         )
     elif type._effective_tag in (TypeTag.STRING, TypeTag.NUMBER, TypeTag.BOOLEAN):
         return JsonSchemaElement(
-            name=type.ident,
+            name=type.py_ident,
             type=_PARAM_TYPE_BY_TAG[type._effective_tag],
             text=type.text_plain,
         )
@@ -408,11 +412,11 @@ class BaseTextTaskCompiler(TaskCompiler):
         from bench.language.packer import pack_value_flat
 
         if type._effective_tag == TypeTag.ENUM:
-            return type.resolved_fields.get(value).name
+            return type.fields.get(value).name
         elif type.hint == TypeHint.RICH_TEXT and isinstance(value, Text):
             return render_text_simple(value.spans)
         elif type.hint in (TypeHint.STATEMENT, TypeHint.FIELD):
-            return value.ident
+            return value.py_ident
         else:
             return pack_value_flat(value, type, *args, **kwargs)
 
@@ -444,7 +448,7 @@ class BaseTextTaskCompiler(TaskCompiler):
             run_outputs_str = json.dumps(
                 map_value(run.outputs, run.node, map_v=self._render_value_flat), indent=2
             )
-            return f"Previous result for '{run.node.ident}' given '{run_inputs_str}':\n {run_outputs_str}"
+            return f"Previous result for '{run.node.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
 
     def _compile_error_text(self, error: RunError | TaskError) -> str:
         return f"Avoid previous error: {self._render_error(error)}"
@@ -475,14 +479,14 @@ class BaseTextTaskCompiler(TaskCompiler):
 
         # inputs
         inputs_strs = []
-        for field_ in task.resolved_fields:
+        for field_ in task.fields:
             if field_.flags & TypeFlag.IS_OUTPUT or field_.flags & TypeFlag.IS_CONFIG:
                 continue
-            field_value = inputs.get(field_.ident)
+            field_value = inputs.get(field_.py_ident)
             if field_value is None:
                 continue
             field_str = render_value(field_value, field_)
-            inputs_strs.append(f"{field_.ident}: {field_str}")
+            inputs_strs.append(f"{field_.py_ident}: {field_str}")
         inputs_str = ", ".join(inputs_strs)
         inputs_str = format_python(f"{{{inputs_str}}}")
         nonce_str = f"(nonce:{nonce})" if nonce else ""
@@ -491,7 +495,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         )
 
         # output schema
-        output_fields = [f for f in task.resolved_fields if f.flags & TypeFlag.IS_OUTPUT]
+        output_fields = [f for f in task.fields if f.flags & TypeFlag.IS_OUTPUT]
         output_schema = _type_to_json_schema(task, is_output=True).to_dict()
         output_schema = omit_empty(output_schema)
         output_schema_str = json.dumps(output_schema, indent=2)
@@ -508,7 +512,7 @@ class BaseTextTaskCompiler(TaskCompiler):
             f' "<top-level-field name>":\\n```\n<json value>\n``` (repeat for top-level schema properties).\n'
             f" \nFor example:\n"
             f"COMPLETE\n"
-            f'"{output_fields[0].ident}":\n```\n<the value>\n```\n'
+            f'"{output_fields[0].py_ident}":\n```\n<the value>\n```\n'
         )
 
         # context from previous runs
@@ -543,7 +547,7 @@ class BaseTextTaskCompiler(TaskCompiler):
                 flags=re.DOTALL | re.MULTILINE,
             )
             for match in completed_pairs:
-                field = task.resolved_fields.get(match.group("key"))
+                field = task.fields.get(match.group("key"))
                 if not field:
                     continue  # ignore
                 value = match.group("inner") or match.group("body")
@@ -562,7 +566,7 @@ class BaseTextTaskCompiler(TaskCompiler):
                         flags=re.DOTALL,
                     )
                     value = json.loads(value)
-                outputs[field.ident] = value
+                outputs[field.py_ident] = value
         except (TypeError, ValueError, JSONDecodeError) as e:
             raise TaskError(TaskErrorType.InvalidFormat, model, f"invalid JSON arguments: {str(e)}")
 

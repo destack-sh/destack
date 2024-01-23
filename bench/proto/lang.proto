@@ -115,6 +115,13 @@ enum BlobStatus {
   BLOB_STATUS_AVAILABLE = 3;
 }
 
+enum Casing {
+  CASING_UNSPECIFIED = 0;
+  CASING_SNAKE = 1;
+  CASING_CAMEL = 2;
+  CASING_ALL_CAPS = 3;
+}
+
 enum ConditionalOp {
   CONDITIONAL_OP_UNSPECIFIED = 0;
   CONDITIONAL_OP_TRUE = 1;
@@ -192,16 +199,6 @@ enum ExpressionOp {
   EXPRESSION_OP_HISTOGRAM = 8;
   EXPRESSION_OP_ASCENDING = 1;
   EXPRESSION_OP_DESCENDING = 2;
-}
-
-enum IdentifierType {
-  IDENTIFIER_TYPE_UNSPECIFIED = 0;
-  IDENTIFIER_TYPE_METHOD = 1;
-  IDENTIFIER_TYPE_TYPE = 2;
-  IDENTIFIER_TYPE_CONSTANT = 3;
-  IDENTIFIER_TYPE_PATH = 4;
-  IDENTIFIER_TYPE_VARIABLE = 5;
-  IDENTIFIER_TYPE_FIELD = 6;
 }
 
 enum IssueKind {
@@ -588,23 +585,34 @@ message AggregationBucketData {
 //     flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
 //     ^ bench      ^ blocks                                              ^ field
 // 
+//     flotothemoon
+//     ^ bench
 //     flotothemoon.name
 //     ^ bench      ^ field
 //     flotothemoon-tests/Tests/Databases/TestPopulate.code
 //     ^ bench            ^ blocks                     ^ field
 // 
+//     .
+//     ^ current (ambiguous, default to block level)
+//     ..
+//     ^ parent (ambiguous)
 //     ../../Header Screen:Header/Title.theme.primary.color
 //     ^ blocks           ^ sub-nodes  ^ field
 //     ../../../../Graphs
-//     ^ (ambiguous, requires context: if in block, blocks, else sub nodes)
+//     ^ parents (ambiguous)
+// 
 // 
 //     symbolx@2024-01-01/Library/Common/Utils/DateUtils
 //     ^ bench ^ package  ^ blocks
 //     symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
 //     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
 // 
+//     ''
+//     ERROR (invalid, empty path)
+//     '../'
+//     ERROR (invalid, trailing slash)
 //     ../../Something/../SomethingElse
-//     X (invalid, cannot go up and down in the same path)
+//     ERROR (invalid, cannot go up and down in the same path)
 // 
 //     The general syntax is:
 //     [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
@@ -1284,30 +1292,30 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    ModuleData Module = 1;
-    BenchData Bench = 2;
-    ClientData Client = 3;
-    RecordData Record = 4;
-    OrganizationData Organization = 5;
-    FieldData Field = 6;
-    LinkData Link = 7;
-    SessionData Session = 8;
-    BadgeData Badge = 9;
-    IssueData Issue = 10;
-    NotificationData Notification = 11;
-    WorkerSetData WorkerSet = 12;
-    HandleData Handle = 13;
-    PauseData Pause = 14;
-    TriggerData Trigger = 15;
-    StatementData Statement = 16;
-    SignalData Signal = 17;
-    ViewData View = 18;
-    BucketObjectData BucketObject = 19;
-    UserData User = 20;
-    WorkerData Worker = 21;
-    TaggingData Tagging = 22;
-    FileData File = 23;
-    RunData Run = 24;
+    LinkData link = 1;
+    FileData file = 2;
+    RecordData record = 3;
+    TaggingData tagging = 4;
+    ViewData view = 5;
+    BadgeData badge = 6;
+    WorkerData worker = 7;
+    TriggerData trigger = 8;
+    UserData user = 9;
+    OrganizationData organization = 10;
+    BucketObjectData bucket_object = 11;
+    HandleData handle = 12;
+    NotificationData notification = 13;
+    RunData run = 14;
+    WorkerSetData worker_set = 15;
+    PauseData pause = 16;
+    IssueData issue = 17;
+    SignalData signal = 18;
+    StatementData statement = 19;
+    ClientData client = 20;
+    BenchData bench = 21;
+    FieldData field = 22;
+    SessionData session = 23;
+    ModuleData module = 24;
   };
 }
 

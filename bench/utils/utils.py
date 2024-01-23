@@ -1,16 +1,13 @@
 import inspect
 import os
-import re
 import sys
 import textwrap
 import typing
 from dataclasses import field
 from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
 
-import cachetools
 import sentry_sdk
 
-from bench.proto.core import ProtoStrEnum
 
 
 class UnreachableError(Exception):

@@ -49,13 +49,13 @@ class InstantiableType(Node):
 
         assert self.type == StatementType.CLASS, f"{self!r} is not a class"
         combined = {}
-        for field, arg in zip(self.resolved_fields, args):
-            combined[field.ident] = arg
-        for field in self.resolved_fields:
+        for field, arg in zip(self.fields, args):
+            combined[field.py_ident] = arg
+        for field in self.fields:
             if field.name in kwargs:
-                combined[field.ident] = kwargs[field.name]
-            elif field.ident in kwargs:
-                combined[field.ident] = kwargs[field.ident]
+                combined[field.py_ident] = kwargs[field.name]
+            elif field.py_ident in kwargs:
+                combined[field.py_ident] = kwargs[field.py_ident]
         check_type(combined, self)
         return TypedDict(combined, self)
 
@@ -68,7 +68,7 @@ class InstantiableType(Node):
             return TypedDict(inputs, self)
         elif self.type == StatementType.CHOICE:
             assert len(args) == 1, f"{self!r} must be called with a single argument"
-            resolved = self.resolved_fields.get(args[0])
+            resolved = self.fields.get(args[0])
             if resolved is None:
                 raise ValueError(f"{self!r} has no field {args[0]}")
             return resolved.field
@@ -194,7 +194,7 @@ class Statement(ScopeNode, HasTags):
     def to_python(
         node: "Statement", props: dict, for_parent: Union["Statement", "File", None] = None
     ) -> tuple[str, dict, dict]:
-        init_name = f"Statement.{node.type.lower()}"
+        init_name = f"{node.type.lower()}Statement"
         if init_name == "Statement.class":
             init_name = "Statement.class_"
         if node.type == StatementType.BLANK:
@@ -224,7 +224,7 @@ class Statement(ScopeNode, HasTags):
         return ""
 
     def __repr__(self):  # noqa: we want to override the default repr
-        return f"<Block.{self.type.bench_name} {self}>"
+        return f"<{self.type.bench_name}Block {self}>"
 
     def _init_inner(self) -> None:
         # add runtime properties from dynamic components

@@ -27,7 +27,7 @@ from bench.language.tree import NodeDataTree
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
 from bench.sql.core import ColumnType
-from bench.utils.casing import to_casing, Casing
+from bench.utils.casing import Casing, to_casing
 from bench.utils.func import to_uuid
 
 logger = structlog.get_logger(__name__)
@@ -67,11 +67,11 @@ def copy_struct_data(data: AnyStructData) -> AnyStructData:
     return data_cls(**data_kwargs)
 
 
-def pack_jsonable(value: dict) -> BetterprotoStruct:
+def pack_json(value: dict) -> BetterprotoStruct:
     return BetterprotoStruct.from_dict(value)
 
 
-def unpack_jsonable(value: BetterprotoStruct) -> dict:
+def unpack_json(value: BetterprotoStruct) -> dict:
     return value.to_dict()
 
 
@@ -205,7 +205,7 @@ def pack_node_inline(
     exclude = exclude or ()
     packed_by_id: dict[UUID, AnyNodeData] = OrderedDict()
 
-    to_pack = root._local_root_tree.collect_descendants(root, recursive=True)
+    to_pack = root._root_tree.collect_descendants(root, recursive=True)
     packed_by_id[root.id] = pack_node(root)
     for node in to_pack:
         if node.metatype in exclude:
@@ -256,7 +256,7 @@ def unpack_node_inline(
     # index & recover node lists
     real_root = unpacked_tree.root
     if isinstance(real_root, ScopeNode):
-        real_root._local_root_tree.set(unpacked_tree.nodes)
+        real_root._root_tree.set(unpacked_tree.nodes)
     for node in unpacked_tree.nodes_by_id.values():
         node._status = NodeStatus.SOURCE  # status is auto-set to interpreted if a session is active
     if isinstance(real_root, ScopeNode):

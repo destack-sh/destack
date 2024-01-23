@@ -954,7 +954,7 @@ def _pack_and_truncate_value(
     return map_value(
         value=value,
         type=type,
-        map_k=lambda f: (f.ident, f.metatyped_key),
+        map_k=lambda f: (f.py_ident, f.metatyped_key),
         map_v=pack_value_flat,
         premap_v=_truncate_value,
         ignore_array=ignore_array,

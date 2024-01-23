@@ -1,9 +1,9 @@
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Union, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, Optional, Union
 from uuid import UUID
 
-from bench.language.const import NodeType, StructType, RichTextFlag
+from bench.language.const import NodeType, RichTextFlag, StructType
 from bench.language.node import (
     LINK_TARGET_NODE_TYPES,
     Node,
@@ -60,7 +60,7 @@ class TextMention:
     reference_path: Optional[str] = None
 
     def __str__(self):
-        return f"@{self.reference.ident}"
+        return f"@{self.reference}"
 
     def __repr__(self):
         return f"<TextMention {self}>"
@@ -196,7 +196,7 @@ def render_text_simple(text_spans: list[TextSpan]) -> str:
     for span in text_spans:
         if isinstance(span, TextMention):
             # should be smarter about qualifying/scoping paths here
-            path = span.reference.ident if isinstance(span.reference, Node) else None
+            path = span.reference.py_ident if isinstance(span.reference, Node) else None
             spans_str.append("@" + (path or "???"))
         else:
             spans_str.append(span.text)
