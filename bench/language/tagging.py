@@ -79,7 +79,7 @@ class Tagging(HasValue, Node):
         return None
 
     def __content_str__(self):
-        return self.reference.path
+        return f"#{self.reference}"
 
 
 @node_component

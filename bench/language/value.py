@@ -27,7 +27,7 @@ class HasValue(Node):
             from bench.language.packer import check_type
 
             try:
-                get_k = lambda f: f.ident if self._status == NS.ACTIVE else f._typed_key  # noqa
+                get_k = lambda f: f.py_ident if self._status == NS.ACTIVE else f._typed_key  # noqa
                 check_type(self.value or {}, self._type_of_value, get_k=get_k)
             except TypeError as e:
                 on_invalid(self, f"invalid value: {e}", ["value"])
@@ -49,9 +49,9 @@ class HasValue(Node):
         #  (e.g. the type wasn't available on instantiation)
         assert self._type_of_value is not None, f"missing type for {self!r}"
         is_packed = (
-            self._type_of_value.resolved_fields
+            self._type_of_value.fields
             and self.value
-            and any(self.value.get(k.ident) for k in self._type_of_value.resolved_fields)
+            and any(self.value.get(k.py_ident) for k in self._type_of_value.fields)
         )
         if is_packed and self.module:
             from bench.language.packer import check_type, pack_value

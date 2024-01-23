@@ -17,6 +17,7 @@ from typing import (
     Collection,
     ForwardRef,
     Iterable,
+    Mapping,
     Optional,
     TypeVar,
     Union,
@@ -80,7 +81,7 @@ from bench.sql.core import (
     IndexType,
     Table,
 )
-from bench.utils.casing import IdentifierType, to_casing, PYTHON_CASING
+from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import (
     check_collections_equal,
@@ -1351,7 +1352,7 @@ class Struct(abc.ABC):
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         # clear node references :NodeReferences
-        scope_tree = scope._local_tree if scope is not None else None
+        scope_tree = scope._tree if scope is not None else None
         for prop in self.__reference_properties__.values():
             if scope_tree is not None:  # if scope is set only clear nodes in scope
                 val = getattr(self, prop.name)
@@ -1558,20 +1559,22 @@ class Node(Struct, _NodeExpressionBase):
         return type(self).__name__
 
     @property
-    def _local_root(self) -> "Node":
+    def _root(self) -> "Node":
+        """Current root of this node. May not be *the* "right" root if detached."""
         parent = self
         while parent.parent is not None:
             parent = parent.parent
         return parent
 
     @property
-    def _local_root_scope(self) -> "ScopeNode":
+    def _root_scope(self) -> "ScopeNode":
         assert self.scope is not None, f"{self!r} has no parent"
-        return self.scope._local_root_scope
+        return self.scope._root_scope
 
     @property
-    def _local_root_tree(self) -> "NodeTreeBase":
-        return self._local_root._local_tree
+    def _root_tree(self) -> "NodeTreeBase":
+        root = self._root
+        return cast("ScopeNode", root)._root_tree
 
     def _assign_id(self, module_id: UUID):
         assert module_id, f"cannot assign id to {self!r} without a module id"
@@ -1582,7 +1585,7 @@ class Node(Struct, _NodeExpressionBase):
     @final
     def __str__(self):  # noqa: we want to override the default __str__ for nodes
         content_str = self.__content_str__()
-        ident_str = self.ident
+        ident_str = self.py_ident
         if ident_str is None:
             ident_str = str(self.id)
         if content_str:
@@ -1590,7 +1593,7 @@ class Node(Struct, _NodeExpressionBase):
         if self.__parent_property__ is None:
             return f"{ident_str}{content_str}"
         else:
-            return f"{self.path}{content_str}"
+            return f"'{self.path}'{content_str}"
 
     @final
     def __repr__(self):
@@ -1612,32 +1615,64 @@ class Node(Struct, _NodeExpressionBase):
         return self.__identifier_type__
 
     @property
-    def ident(self) -> Optional[str]:
+    def bench_ident(self):
+        """The Bench identifier of this node (slug if exists, else name if exists)."""
+        if self.identifier_type is None:
+            return None
+        if self.metatype == NodeType.MODULE:
+            return self.parent.bench_ident
+        if "slug" in self.__properties__:
+            slug = getattr(self, "slug")
+            if slug:  # prefer slug as ident
+                return slug
+        return getattr(self, "name")
+
+    @property
+    def py_ident(self) -> Optional[str]:
+        """The standardized python identifier of this node. Derived from slug or name."""
         identifier_type = self.identifier_type
         if identifier_type is None:
             return None
-        slug = getattr(self, "slug", None)
-        if slug is not None:  # prefer slug
-            return slug
+        if self.metatype == NodeType.MODULE:
+            return self.parent.py_ident
+        if "slug" in self.__properties__:
+            slug = getattr(self, "slug")
+            if slug:  # prefer slug as ident
+                return slug
         name = getattr(self, "name")
         return to_casing(name, PYTHON_CASING[identifier_type])
 
     @property
     def path(self) -> str:
+        """"""
         if self.__parent_property__ is None or not self.__parent_property__.reference_types:
-            return self.ident
+            return self.bench_ident
         elif self.parent is None:
-            return f"<detached>/{self.ident}"
+            return f"<detached>/{self.bench_ident}"
         else:
-            path_segments: list[str] = [self.ident]
-            parent = self.parent
-            while parent is not None and parent.metatype != NodeType.BENCH:
+            path_segments: list[str] = []
+            current = self
+            while True:
                 # skip bench (same path as pkg)
-                path_segments.append(parent.ident)
-                parent = parent.parent
+                path_segments.append(current.bench_ident)
+                next_parent = current.parent
+                has_next = next_parent is not None and next_parent.metatype != NodeType.BENCH
+                if not has_next:
+                    break
+                if current.metatype == NodeType.FIELD:
+                    path_segments.append(".")
+                elif (
+                    current.metatype != NodeType.STATEMENT
+                    and next_parent.metatype == NodeType.STATEMENT
+                ):
+                    path_segments.append(":")
+                else:
+                    path_segments.append("/")
+                current = next_parent
+
             path_segments.reverse()
-            path = ".".join(path_segments)
-            return f"{path}/{self.ident}"
+            path = "".join(path_segments)
+            return path
 
     @property
     def session(self) -> "Session":
@@ -1701,7 +1736,7 @@ class Node(Struct, _NodeExpressionBase):
         candidates = {
             **(self.__tracked_properties__ if self._status == NS.ACTIVE else self.__properties__),
         }
-        candidates.update(self._scopes_by_name)
+        candidates.update(self._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, key)
         raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
@@ -1738,7 +1773,7 @@ class Node(Struct, _NodeExpressionBase):
         # report lookup error with additional info
         candidates = {k: v for k, v in self.__properties__.items() if not k.startswith("_")}
         if isinstance(self, ScopeNode):
-            candidates.update(self._scopes_by_name)
+            candidates.update(self._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
 
@@ -1837,7 +1872,12 @@ class Node(Struct, _NodeExpressionBase):
                 _InterpChange._collect(None, self, changed_nodes, _NC.Attach)._effect(_NC.Attach)
 
         # validate if in session after all init are done
-        if self._status >= NS.INTERP and self._session and self._session is not UNSET:
+        if (
+            self._status >= NS.INTERP
+            and self._new
+            and self._session is not None
+            and self._session is not UNSET
+        ):
             self._validate_self(self.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
     # node has extended set of lifecycle methods
@@ -1891,7 +1931,7 @@ def _make_rec_method(
     @functools.wraps(wraps)
     def rec_method(self: "ScopeNode", *args, **kwargs):
         # tree has only host and inlined nodes, so this ignores out-of-line descendants (like records)
-        descendants = self._local_root_tree.collect_descendants(self, recursive=True)
+        descendants = self._root_tree.collect_descendants(self, recursive=True)
         method_name = method.self
         if custom_kwargs:
             for node in descendants:
@@ -1915,20 +1955,20 @@ class ScopeNode(Node):
     __has_scope__: ClassVar[bool] = True
     last_changed_at: Optional[datetime] = struct_internal(16, default=None)
     issues: NodeList["Issue"] = node_children(NodeType.ISSUE, NRel.CUMULATIVE)
-    # the local tree is maintained at the local root (usually module, maybe a detached root node)
-    _local_tree: Union["NodeTreeBase", None] = struct_runtime(default=None)
+    # the tree is maintained at the highest root node (ideally *the* root node, but may be detached)
+    _tree: Union["NodeTreeBase", None] = struct_runtime(default=None)
 
-    @property
     def scope(self) -> "ScopeNode":
         return self
 
     def _init_inner(self) -> None:
         if self.parent is None:
-            if not isinstance(self, Module):
-                self._local_tree = DetachedNodeTree()
+            # if we don't have a tree, start a new one
+            if self.__root__ == NodeType.BENCH:
+                self._tree = DetachedNodeTree()
             else:
-                self._local_tree = NodeTree()
-            self._local_tree.add(self)
+                self._tree = NodeTree()
+            self._tree.add(self)
 
     def _updated_inner(self, properties: Collection[str]) -> None:
         if "name" in properties:
@@ -1956,64 +1996,46 @@ class ScopeNode(Node):
     _activate_rec = _make_rec_method(_ComponentMethod.activate, Node._activate_self)
     _deactivate_rec = _make_rec_method(_ComponentMethod.deactivate, Node._deactivate_self)
 
-    def _get_scope(self, name: str) -> Union["ScopeNode", None]:
-        return self._scopes_by_ident.get(name)
+    def _get_children_by_ident(self) -> Mapping[str, Node]:
+        seen_by_ident = {}
+        for child in self._root_tree.collect_descendants(self):
+            ident = getattr(child, "ident", None)
+            if ident:
+                seen_by_ident[ident] = child
+        return seen_by_ident
 
-    def _find_scope(self, name: str) -> Union["ScopeNode", None]:
-        scope = self._get_scope(name)
-        if scope is not None:
-            # check that we're not resolving something from an out-of-sync cache
-            assert scope.attached == self.attached, f"{scope!r} isn't in the same tree as {self!r}"
-            return scope
-        if self.parent is not None:
-            return self.parent._find_scope(name)
-        return None
-
-    def _index_inner(self) -> None:
-        for prop in self.__list_properties__.values():
-            if prop.children_flags & NRel.SCOPED:
-                for child in getattr(self, prop.name):
-                    if child.name:
-                        self._add_node_to_scope(child)
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler") -> None:
+        # check for ambiguous node definitions by name/ident
+        children = scope._root_tree.collect_descendants(self)
+        if not children:
+            return  # nothing to index
+        seen_by_ident = {}
+        for child in children:
+            ident = getattr(child, "ident", None)
+            if ident:
+                if ident in seen_by_ident:
+                    on_issue(
+                        type=IssueType.AMBIGUOUS_DEFINITION, subject=child, path=child.node_path
+                    )
+                seen_by_ident[ident] = child
 
     def _walk_rec(self) -> Iterable["Node"]:
         yield self
-        yield from self._local_root_tree.collect_descendants(self, recursive=True)
-
-    def _add_node_to_scope(self, node: "ScopeNode") -> None:
-        """
-        Adds a child node into this scope. Idempotent for the same node.
-        """
-        if node.name in self._scopes_by_ident or node.ident in self._names_by_ident:
-            if node.ident in self._names_by_ident:
-                existing = self._scopes_by_ident[self._names_by_ident[node.ident]]
-            else:
-                existing = self._scopes_by_ident[node.name]
-            if existing.id != node.id:
-                self._on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=node, path=node.path)
-        else:
-            self._scopes_by_ident[node.name] = node
-            self._names_by_ident[node.ident] = node.name
-
-    def _import_scope_tree(self, scope: "ScopeNode") -> None:
-        """Adds the given tree into this scope."""
-        assert isinstance(
-            scope._local_tree, DetachedNodeTree
-        ), f"no tree to import {scope!r} into {self!r}"
-        self._local_root_tree.add_tree(scope._local_tree)
+        yield from self._root_tree.collect_descendants(self, recursive=True)
 
     @property
-    def _local_root_scope(self) -> "ScopeNode":
+    def _root_scope(self) -> "ScopeNode":
         """The root of the 'local' node tree (usually module, but maybe a detached root node)"""
-        if self.parent is None:
-            return self
-        return self.parent._local_root_scope
+        parent = self
+        while parent.parent is not None:
+            parent = parent.parent
+        return parent
 
     @property
-    def _local_root_tree(self) -> Union["NodeTreeBase"]:
-        """The 'local' node tree (see _local_root_scope)"""
-        tree = self._local_root_scope._local_tree
-        assert tree is not None, f"no local tree for {self!r} in {self._local_root_scope!r}"
+    def _root_tree(self) -> Union["NodeTreeBase"]:
+        """The tree at the current node root."""
+        tree = self._root_scope._tree
+        assert tree is not None, f"no local tree for {self!r} in {self._root_scope!r}"
         return tree
 
     def lookup(
@@ -2021,31 +2043,14 @@ class ScopeNode(Node):
         path: Union["BenchPath", UUID, str],
         node_t: NodeType | StatementType | type[NodeT] | None = None,
     ) -> NodeT | None:
-        """
-        Lookup the symbol either by path or id. If path is a string, it can be
-        it can be a name (lookup upwards) or a full relative/absolute path.
-        """
+        """Lookup a node by path. Return None if not found."""
         if isinstance(path, UUID):
-            if self._local_tree is not None:
-                return self._local_tree.get(path)
+            if self._tree is not None:
+                return self._tree.get(path)
             else:
-                return self._local_root_scope.lookup(path, node_t=node_t)
+                return self._root_scope.lookup(path, node_t=node_t)
 
-        if isinstance(path, str):
-            path = parse_node_path(path)
-        if path.path == ".":
-            return self._find_scope(path.name)
-        elif path.path.startswith("."):
-            path = BenchPath(path.path[1:], path.name)
-        parts = path.path.split(".", 2)
-        if len(parts) > 1:
-            first_part, inner_part = parts[0], BenchPath(parts[1], path.name)
-        else:
-            first_part, inner_part = parts[0], path.name
-        scope = self._find_scope(first_part)
-        if scope is None:
-            return None
-        return scope.lookup(inner_part, node_t=node_t)
+        raise NotImplementedError("lookup by path not implemented")
 
     def resolve(
         self,
@@ -2056,15 +2061,6 @@ class ScopeNode(Node):
         if result is None:
             raise LookupError(f"{path} not found in {self!r}")
         return result
-
-    def _get_visible_scopes(self) -> dict[str, "ScopeNode"]:
-        """Returns the scopes visible from this node."""
-        scopes = {**self._scopes_by_ident}
-        if self.parent:
-            for name, child in self.parent._get_visible_scopes().items():
-                if name not in scopes:  # shadowing
-                    scopes[name] = child
-        return scopes
 
     def _on_issue(self, subject: "Node", type: IssueType, message: str = None, **kwargs):
         from bench.language.issue import Issue
@@ -2160,6 +2156,14 @@ class BenchPath(Struct):
             path_str += "." + ".".join(self.field_path)
         return path_str
 
+    @property
+    def is_absolute(self) -> bool:
+        return self.bench_slug is not None
+
+    @property
+    def is_relative(self) -> bool:
+        return self.bench_slug is None
+
     @staticmethod
     def parse(path: str, root_type: NodeType = None) -> "BenchPath":
         """
@@ -2167,7 +2171,7 @@ class BenchPath(Struct):
         """
 
         if not path:
-            raise InvalidBenchPath(f"empty path")
+            raise InvalidBenchPath("empty path")
 
         # tried to use a single regex here, but it's too convoluted to be worth it
         cur_pos = 0
@@ -2272,7 +2276,7 @@ class Link(Node):
     )
 
 
-@node(NodeType.BENCH, in_module=False, identifier=IdentifierType.VARIABLE)
+@node(NodeType.BENCH, in_module=False, identifier=IdentifierType.VARIABLE, root=None)
 class Bench(ScopeNode):
     """
     A Bench contains everything a young and growing AI needs to learn and grow.
@@ -2357,7 +2361,6 @@ class Module(ScopeNode):
     dependencies: dict[str, "Module"] = struct_runtime(default_factory=dict)
     builtins: list["File"] = struct_runtime(default_factory=list)
 
-    _lookup_cache: dict[str, NodeT] = struct_runtime(default_factory=dict)
     _source: Optional[NodeDataTree] = struct_runtime(default=None)
 
     @property
@@ -2377,12 +2380,8 @@ class Module(ScopeNode):
         return self.parent.os_name
 
     @property
-    def _tree(self) -> NodeTree:
-        return cast(NodeTree, self._local_tree)  # module always has a local tree
-
-    @property
     def _nodes(self) -> Collection[Node]:
-        return self._tree.nodes_by_ck.values()
+        return self._root.nodes_by_ck.values()
 
     def __content_str__(self):
         return f"is_snapshot={self.is_snapshot}"
@@ -2393,56 +2392,27 @@ class Module(ScopeNode):
         self.builtins.append(file)
 
     def add_dependency(self, dependency: "Module") -> None:
-        if dependency.ident in self.dependencies:
+        if dependency.py_ident in self.dependencies:
             raise ValueError(
-                f"{self!r} already has dependency {dependency.ident}: {self.dependencies[dependency.ident]}"
+                f"{self!r} already has dependency {dependency.py_ident}: {self.dependencies[dependency.py_ident]}"
             )
-        self.dependencies[dependency.ident] = dependency
+        self.dependencies[dependency.py_ident] = dependency
 
     def lookup(
         self,
         path: Union["BenchPath", UUID, str],
         node_t: NodeType | type[NodeT] | None = None,
     ) -> NodeT | None:
-        if path in self._lookup_cache:
-            return self._lookup_cache[path]
-
         # extended lookup with dependencies, defaults to regular scope lookup
         if isinstance(path, UUID):
-            resolved = self._local_tree.get(path)
+            resolved = self._root_tree.get(path)
             if resolved is None:
                 for dependency in self.dependencies.values():
                     resolved = dependency._tree.get(path)
                     if resolved is not None:
                         break
-        elif isinstance(path, str) and path.startswith("."):
-            resolved = ScopeNode.lookup(self, path, node_t=node_t)
-        else:
-            if isinstance(path, str):
-                path = parse_absolute_node_reference(path)
-            module_name, sub_path = path
-            if module_name == self.name:
-                dependency = self
-            else:
-                dependency = self.dependencies.get(module_name)
-            if dependency is None:
-                resolved = None
-            else:
-                resolved = dependency.lookup(sub_path, node_t=node_t)
-
-        if not resolved:
             return resolved
-        assert resolved.attached, f"resolved {path} to detached {resolved!r} (index out of sync?)"
-        # cache result
-        if self.committed:
-            self._lookup_cache[path] = resolved
-        return resolved
-
-    def _get_visible_scopes(self) -> dict[str, "ScopeNode"]:
-        scopes = {**self._scopes_by_ident}
-        for builtin in self.builtins:
-            scopes.update(builtin._get_visible_scopes())
-        return scopes
+        raise NotImplementedError
 
     def _activate_inner(self, session: "Session"):
         for dependency in self.dependencies.values():
@@ -2454,10 +2424,6 @@ class Module(ScopeNode):
         for dependency in self.dependencies.values():
             if dependency._status == NS.ACTIVE:  # see above
                 dependency._deactivate_rec()
-
-    def _index_inner(self):
-        for builtin in self.builtins:
-            self._add_node_to_scope(builtin)
 
     def _apply_edits(self, edits: list[EditData], old_source: NodeTree | None = None) -> NodeChange:
         """

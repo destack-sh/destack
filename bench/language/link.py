@@ -161,7 +161,7 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
         self._property = property
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} {self._parent.path}->{self._property.name}: {self}>"
+        return f"<{self.__class__.__name__} {self._parent.path}.{self._property.name}: {self}>"
 
     def create(self, *args, _append: bool = True, **kwargs) -> NodeT:
         """Creates a new node in the list."""
@@ -247,7 +247,7 @@ class NodeList(NodeListBase[NodeT]):
     @property
     def _nodes(self) -> tuple[NodeT, ...]:
         """Access the computed nodes"""
-        return self._parent._local_root_tree.collect_descendants(
+        return self._parent._root_tree.collect_descendants(
             self._parent, self._child_node_type, recursive=bool(self._flags & NRel.CUMULATIVE)
         )
 
@@ -301,25 +301,20 @@ class NodeList(NodeListBase[NodeT]):
         if self._parent._session is not None:
             _node._validate_self(_node.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
-        # index node into parent scope
+        # add node to parent tree
         if _node.__has_scope__ and _node._local_tree is not None:
             # subsume if previously detached (ignores out of line nodes)
             added = _node._local_tree.collect_descendants(_node, recursive=True)
             _node._local_tree.update(_node)  # parent changed
-            self._parent._import_scope_tree(_node)
+            self._parent._root_tree.add_tree(_node._local_tree)
             _node._local_tree = None
-        else:  # or just add
+        else:
             added = (_node,)
-            self._parent._local_root_tree.add(_node)
-
-        # register node scope
-        if self._flags & NRel.SCOPED and _node.name:
-            self._parent._add_node_to_scope(_node)
+            self._parent._root_tree.add(_node)
 
         # assign order key to ordered nodes
         if self._flags & NRel.ORDERED and _node.order_key is None:
             _node.order_key = generate_key_between(*self._ok_bounds(after, before))
-        # update affected nodes
         if _trigger:
             # and update every affected node (to list/interp as needed)
             change._effect(_trigger)
@@ -363,7 +358,7 @@ class NodeList(NodeListBase[NodeT]):
         change = _InterpChange._collect(self._parent, None, [_node], _trigger)
         if _delete and self._parent._session:
             self._parent.session.delete(_node)
-        self._parent._local_root_tree.remove(_node)
+        self._parent._root_tree.remove(_node)
         _node.parent = None
         change._effect(_trigger)
 
@@ -381,7 +376,7 @@ class NodeList(NodeListBase[NodeT]):
             raise ValueError(f"cannot get {some_id!r} from {self!r}")
         for child in self._nodes:
             if (self._flags & NRel.KEYED and child.key == some_id) or (
-                self._flags & NRel.NAMED and (child.name == some_id or child.ident == some_id)
+                self._flags & NRel.NAMED and (child.name == some_id or child.py_ident == some_id)
             ):
                 return child
         return None
@@ -491,7 +486,7 @@ class _FieldExpressionBase:
         from bench.language.field import Field
 
         if self._as_field._effective_tag == TypeTag.ENUM and not isinstance(value, Field):
-            value = self.resolved_fields.get(value)
+            value = self.fields.get(value)
         return value
 
     # comparison
@@ -864,7 +859,7 @@ class NodeQuery(Generic[NodeT]):
                 after=after,
                 count=count,
             )
-            response = await session.host.search_nodes(request)
+            await session.host.search_nodes(request)
             # return [wiring.unwrap_some_node(n) for n in response.nodes]
             raise NotImplementedError("nocheckin: NodeQuery._do_fetch GLOBAL_POSTGRES")
         else:

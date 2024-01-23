@@ -69,7 +69,7 @@ class Projection:
             if depth >= max_distance:
                 return
             n._visit_self(visitor)
-            for child in n._local_root_tree.iter_descendants(n):
+            for child in n._root_tree.iter_descendants(n):
                 _walk_node_descendants_dfs(child, depth + 1)
 
         # walk descendants

@@ -5,7 +5,7 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import INTERP_NODE_TYPES, NodeType
-from bench.language.node import UNSET, Node, NRel
+from bench.language.node import UNSET, Node
 from bench.language.text import Text, render_text_simple
 from bench.utils.utils import format_python, omit_empty
 
@@ -94,7 +94,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         value = render_value(
             value,
             node.metatype_of_value,
-            get_k=lambda f: f.ident,
+            get_k=lambda f: f.py_ident,
             filter_v=DEFAULT_VALUE_FILTER,
             ignore_array=True,
         )
@@ -175,13 +175,13 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
             attach_to_prop = first(
                 p for p in node.parent.__list_properties_by_child__[node.metatype]
             )
-            parent_str = f"{node.parent.ident}.{attach_to_prop.name}"
+            parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
             if node.metatype in (NodeType.RECORD, NodeType.TAGGING, NodeType.TRIGGER):
                 op = _Op(parent_str, _OpType.CREATE, [init_node])
             else:
                 op = _Op(parent_str, _OpType.APPEND, [init_node])
         else:
-            op = _Op(node.ident, _OpType.ASSIGN, [init_node])
+            op = _Op(node.py_ident, _OpType.ASSIGN, [init_node])
         ops.append(op)
 
     # merge successive ops (if they can be combined like create/append)
@@ -214,9 +214,9 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
                 from bench.language.packer import render_value
 
                 kwargs_str = _sep(
-                    f"{k}={render_value(v, n.metatype_of_value.resolved_fields.get(k), filter_v=DEFAULT_VALUE_FILTER)}"
+                    f"{k}={render_value(v, n.metatype_of_value.fields.get(k), filter_v=DEFAULT_VALUE_FILTER)}"
                     for k, v in n.value.items()
-                    if v and DEFAULT_VALUE_FILTER(v, n.metatype_of_value.resolved_fields.get(k))
+                    if v and DEFAULT_VALUE_FILTER(v, n.metatype_of_value.fields.get(k))
                 )
                 nodes_strs.append(f"Record.new({_sep(kwargs_str)})")
                 continue

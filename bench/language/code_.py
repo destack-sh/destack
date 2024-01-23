@@ -83,11 +83,7 @@ class HasCode(Node):
         self._cached_exports = None
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
-        self._proxied = self.path in (
-            "symbolx.lib.builtins.send_email",
-            "symbolx.lib.builtins.get_website_html",
-        )
-        self._is_async = "await " in self.code or self._proxied
+        self._is_async = "await " in self.code
         self._statement_references = {}
         self._code_export_references = {}
         for key, reference in self._parse.references.items():
@@ -119,48 +115,6 @@ class HasCode(Node):
     def _code_hash(self) -> str:
         return hashlib.sha256(self.code.encode("utf-8")).hexdigest()
 
-    def _do_import_sync(self, path: str, name: str) -> tuple[Any, ...]:
-        """Import a statement or exported Python object at runtime."""
-        reference = NodePath(path, name)
-        resolved = self.lookup(reference)
-        if resolved is None:
-            # fall back to code object import
-            resolved = self.lookup(reference.path)
-            if resolved is None:
-                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (not found)")
-            if HasCode not in resolved._components or not resolved._export:
-                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
-            ret = resolved()
-            if name not in ret:
-                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (no such export)")
-            return ret[name]
-        return resolved
-
-    async def _do_import_async(self, path: str, name: str) -> tuple[Any, ...]:
-        """Import a statement or exported Python object at runtime."""
-        reference = NodePath(path, name)
-        resolved = self.lookup(reference)
-        if resolved is None:
-            # fall back to code object import
-            resolved = self.lookup(reference.path)
-            if not isinstance(resolved, HasCode) or not resolved._export:
-                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
-            ret = await resolved.to_async()()
-            if name not in ret:
-                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (no such export)")
-            return ret[name]
-        return resolved
-
-    def _import_sync(self, path: str, *names: str) -> tuple[Any, ...]:
-        if len(names) == 1:
-            return self._do_import_sync(path, names[0])
-        return tuple(self._do_import_sync(path, name) for name in names)
-
-    async def _import_async(self, path: str, *names: str) -> tuple[Any, ...]:
-        if len(names) == 1:
-            return await self._do_import_async(path, names[0])
-        return tuple(await self._do_import_async(path, name) for name in names)
-
     def _prep_locals(self) -> dict[str, Any]:
         """Gets the context ('locals') required for the code to run."""
 
@@ -175,7 +129,7 @@ class HasCode(Node):
             "ximport": self._import_sync if not self._is_async else self._import_async,
             "install": _install_package,
             **self._statement_references,
-            **{s.ident: s for s in symbolx_lib.files.builtins.statements},
+            **{s.py_ident: s for s in symbolx_lib.files.builtins.statements},
         }
 
         import bench.language
@@ -196,27 +150,7 @@ class HasCode(Node):
     def _prep_func_body(self) -> tuple[str, int, int]:
         """Prepares the function body of this code with all modifications."""
         func_body_lines = (self.code.strip() if self.code else "").splitlines() + ["pass"]
-        # replace real python x imports with Bench import
-        # e.g. replace `from .utils import a, b` with `a, b = import(".utils", "a", "b")`
-        await_str = "await " if self._is_async else ""
-        for i, x_refs in self._parse.x_imports.items() if self._parse else []:
-            x_paths = list(x_refs.values())
-            path = x_paths[0].path
-            keys_str = ", ".join(repr(k) for k in x_refs)
-            line = f"{', '.join(x_refs)} = {await_str}ximport({path!r}, {keys_str})"
-            func_body_lines[i] = line
-
-        if self._export:
-            # capture all locals at the end of the function
-            # remember locals at the start of the function to exclude them
-            func_body_lines.insert(0, "__locals_start = locals().copy()")
-            func_body_lines.append("__locals_end = locals().copy()")
-            func_body_lines.append(
-                "return {k: v for k, v in __locals_end.items() if k not in __locals_start}"
-            )
-            return "\n".join(func_body_lines), 1, 2
-        else:
-            return "\n".join(func_body_lines), 0, 0
+        return "\n".join(func_body_lines), 0, 0
 
     def _prepare_callable(self) -> None:
         """Creates a callable wrapping this code for execution with the required context."""
@@ -225,9 +159,9 @@ class HasCode(Node):
 
         locals = self._prep_locals()
         func_body, start_offset, end_offset = self._prep_func_body()
-        func_name = f"{self.ident or '_anon'}_{self.id.hex[:6]}"
+        func_name = f"{self.py_ident or '_anon'}_{self.id.hex[:6]}"
         func_params = ", ".join(
-            i.ident + "=None" for i in self.resolved_fields if not (i.flags & TypeFlag.IS_OUTPUT)
+            i.py_ident + "=None" for i in self.fields if not (i.flags & TypeFlag.IS_OUTPUT)
         )
         try:
             method_str = f"def {func_name}({func_params}):\n{textwrap.indent(func_body, ' ' * 4)}"

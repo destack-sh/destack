@@ -32,13 +32,7 @@ from bench.language.expression import (
     S,
 )
 from bench.language.field import TYPE_TAG_BY_TYPE_HINT
-from bench.language.node import (
-    BENCH_CLASS_BY_TYPE,
-    STRUCT_CLASS_BY_TYPE,
-    Node,
-    Property,
-    Struct,
-)
+from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Property, Struct
 from bench.language.run import HasRun
 from bench.os import core as os
 from bench.os.client import get_os_errors, os_client, os_client_sync
@@ -118,10 +112,10 @@ class StructFieldMapper(FieldMapper):
         subfields = {TYPE_DISCRIMINATOR_KEY: os.Field(os.FT.KEYWORD)}
         if isinstance(type.reference, lang.Statement) and type.reference.issues:
             # bail out early if there are issues from a reference
-            # (these don't get reported up to every reference but we still can't map it)
+            # (these don't get reported up to every reference, but we still can't map it)
             return os.Field(os.FT.OBJECT, properties=subfields)
 
-        for f in type.resolved_fields:
+        for f in type.fields:
             if f._effective_tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH:
                 subfields[f._typed_key] = get_mapper(f).to_os_type(f, depth + 1)
             else:
@@ -202,7 +196,7 @@ async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
     # get library mappings
     for node in symbolx_lib._nodes:
         if HasRun in node._components:
-            for field in node.resolved_fields:
+            for field in node.fields:
                 if field.flags & TypeFlag.IS_OUTPUT:
                     outputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
                 else:
@@ -221,11 +215,11 @@ async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
             continue  # ignore nodes with issues
         elif node.type == lang.StatementType.DATABASE:
             # all fields go into Record.value
-            for field in node.resolved_fields:
+            for field in node.fields:
                 value_mappings[field._typed_key] = _map_to_os_field_safe(field)
         elif node.type in RUNNABLE_STATEMENT_TYPES:
             # inputs into Execution.inputs, outputs into Execution.outputs
-            for field in node.resolved_fields:
+            for field in node.fields:
                 if field.flags & TypeFlag.IS_OUTPUT:
                     outputs_mappings[field._typed_key] = _map_to_os_field_safe(field)
                 else:
@@ -594,7 +588,7 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.is_struct:
         return pack_struct(value)
     elif prop.column_type == ColumnType.JSON:
-        return wiring.pack_jsonable(value)
+        return wiring.pack_json(value)
     elif prop.is_enum:
         return wiring.pack_enum(value)
     else:
@@ -609,7 +603,7 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.is_struct:
         return unpack_struct(value)
     elif prop.column_type == ColumnType.JSON:
-        return wiring.unpack_jsonable(value)
+        return wiring.unpack_json(value)
     elif prop.is_enum:
         return wiring.unpack_enum(prop.enum_cls, value)
     else:

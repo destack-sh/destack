@@ -44,7 +44,7 @@ def _without_validation() -> None:
 # real data will be patched in at first runtime start
 # nocheckin: patch in symbolx_bench at runtime start
 symbolx_bench = Bench(
-    name="SymbolX", slug="symbolx", id=uuid5(UUID_NAMESPACE, f"builtin:symbolx.bench")
+    name="SymbolX", slug="symbolx", id=uuid5(UUID_NAMESPACE, "builtin:symbolx.bench")
 )
 symbolx_lib = Module(parent=symbolx_bench, id=uuid5(symbolx_bench.id, VERSION))
 DEFAULT_DEPENDENCIES = {symbolx_bench.slug: symbolx_lib.id}

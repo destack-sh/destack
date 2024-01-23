@@ -20,7 +20,7 @@ from bench.language.const import (
 )
 from bench.language.node import BENCH_CLASS_BY_TYPE, Node, Property, Struct, struct, struct_property
 from bench.sql.core import ColumnType
-from bench.utils.casing import to_casing, Casing
+from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
     from bench.language import Field
@@ -71,7 +71,7 @@ class PropertyPath(Struct):
     )
 
     def __content_str__(self):
-        return f"{'->'.join(str(property) for property in self.properties)}"
+        return f"{'.'.join(str(property) for property in self.properties)}"
 
 
 @struct(StructType.FIELD_PATH)
@@ -109,7 +109,7 @@ class ValueReference(Struct):
     path: FieldPath = struct_property(31, require=True, struct_t=StructType.FIELD_PATH)
 
     def __content_str__(self):
-        return f"{self.node.path}.{self.path}"
+        return f"{self.node.path}.{self.path.__content_str__()}"
 
 
 class QueryEngineError(Exception):
@@ -160,11 +160,11 @@ class Expression(Struct):
             value_str = str(self.value)
             if len(value_str) > 32:
                 value_str = f"{value_str[:24]}...{value_str[-12:]}"
-            return f"{self.target.ident}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
+            return f"{self.target.py_ident}{_CONDITIONAL_OP_SIGN[self.op]}{value_str}"
         elif self.op in ExpressionOps.COND_EXISTENCE:
-            return f"{self.target.ident}{_CONDITIONAL_OP_SIGN[self.op]}"
+            return f"{self.target.py_ident}{_CONDITIONAL_OP_SIGN[self.op]}"
         elif self.op in ExpressionOps.SORT:
-            return f"{'-' if self.op == SortOp.DESCENDING else ''}{self.target.ident}"
+            return f"{'-' if self.op == SortOp.DESCENDING else ''}{self.target.py_ident}"
         return to_casing(self.op.name, Casing.CAMEL)
 
     def __invert__(self):
@@ -357,7 +357,7 @@ def coerce_conditional(
         if field_key in node.__properties__:
             target = node.__properties__[field_key]
         elif isinstance(node, Node) and HasFields in node._components:
-            target = node.resolved_fields.get(field_key)
+            target = node.fields.get(field_key)
         if target is None:
             raise TypeError(f"{node!r} has no field {field_key}")
         _check_field_supports(target._as_field, op)
@@ -414,7 +414,7 @@ def coerce_sort(
             if field_key in node.__properties__:
                 target = node.__properties__[field_key]
             elif isinstance(node, Node) and HasFields in node._components:
-                target = node.resolved_fields.get(field_key)
+                target = node.fields.get(field_key)
             if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")
             if isinstance(target, Property):

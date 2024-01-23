@@ -92,7 +92,7 @@ class Record(HasValue, Node):
             id_kwargs["ck"] = _ck
         if for_parent and for_parent.attached:
             # inline args and check type for instant feedback
-            for field, arg in zip(for_parent.resolved_fields, args):
+            for field, arg in zip(for_parent.fields, args):
                 value[field.name] = arg
             check_type(value, for_parent)
         return Record(value=value, _status=_status, **id_kwargs)
@@ -467,7 +467,7 @@ class RecordQuery:
         # 'serialize' values (probably need a better way here to retain some native types?)
         check_type(value, self._database)
         value = pack_value(
-            value, self._database, ignore_outer=True, map_k=lambda f: (f.ident, f._typed_key)
+            value, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f._typed_key)
         )
         value = pg_wrap_record_value(self._database, value)
         # update values alongside :LocalRecordCru
@@ -568,7 +568,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
             if self._parent._session:
                 self._parent._session.delete(self, node)
             if not self._parent.attached:
-                self._parent._local_root_tree.remove(node)
+                self._parent._root_tree.remove(node)
         node.parent = None
 
     @_auto_async_to_sync

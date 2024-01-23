@@ -22,7 +22,3 @@ class View(Node):
 
     def __content_str__(self):
         return f"{self.node_type}[{self.filter}, {self.sort or '<default sort>'}]"
-
-    @property
-    def path(self) -> str:
-        return f"{self.parent.path}.{self.name}"

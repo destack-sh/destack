@@ -1,6 +1,5 @@
 import asyncio
 import enum
-import os
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
