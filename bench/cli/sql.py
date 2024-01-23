@@ -67,7 +67,7 @@ def regen():
 @app.command(help="generate global AND local SQL migrations")
 @_async_to_sync_blocking
 async def makemigrations(
-    bench: str = typer.Option(default="symbolx.bench", help="the bench to use as local reference"),
+    bench: str = typer.Option(default="symbolx", help="the bench to use as local reference"),
     local_pg_name: Optional[str] = typer.Option(
         default=None, help="the bench to use as local reference (bypass lookup via bench)"
     ),

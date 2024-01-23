@@ -6,7 +6,6 @@ from bench.language.node import (
     NodeList,
     NRel,
     ScopeNode,
-    _Passthrough,
     node,
     node_children,
     node_parent,
@@ -21,7 +20,7 @@ if TYPE_CHECKING:
     from bench.language import Policy, Statement
 
 
-@node(NodeType.FILE, passthrough=(("statements", _Passthrough.Scope),))
+@node(NodeType.FILE)
 class File(ScopeNode, HasTags):
     """
     Files are how a Bench organizes statements. Files can also be folders to other files.

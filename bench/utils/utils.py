@@ -100,17 +100,12 @@ IdentT = IdentifierType
 @cachetools.cached(cache={})
 def to_identifier(name: str, type: IdentifierType) -> str:
     """Turns a string into a valid Python identifier."""
-    if type in (
-        IdentifierType.METHOD,
-        IdentifierType.VARIABLE,
-        IdentifierType.FIELD,
-        IdentifierType.PATH,
-    ):
+    if type in (IdentifierType.METHOD, IdentifierType.VARIABLE, IdentifierType.FIELD):
         # snake_case, turn non-alphanumeric characters into underscores
         name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
         name = _strip_alpha_num(name)
         return name.lower()
-    elif type in (IdentifierType.TYPE,):
+    elif type in (IdentifierType.TYPE, IdentifierType.PATH):
         # if it's already a mix of uppercase and lowercase starting with uppercase, leave it alone
         if re.match(r"^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+", name):
             return name

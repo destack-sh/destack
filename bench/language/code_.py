@@ -6,7 +6,7 @@ import itertools
 import textwrap
 import types
 import typing
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from json import JSONDecodeError
 from random import Random
 from typing import Any, Optional
@@ -18,7 +18,7 @@ from more_itertools import first, last
 
 from bench.language.blob import Blob, BlobStatus
 from bench.language.builtin import symbolx_lib
-from bench.language.const import ConditionalOp, IssueType, NodePath, SortMode, SortOp, TypeFlag
+from bench.language.const import ConditionalOp, IssueType, SortMode, SortOp, TypeFlag
 from bench.language.expression import C
 from bench.language.field import TypedDict
 from bench.language.node import Node, ScopeNode, node_component, struct_runtime
@@ -43,9 +43,7 @@ class CodeTransformation:
 
 @dataclass
 class CodeParse:
-    references: dict[str, NodePath] = field(default_factory=dict)
     is_async: bool = False
-    x_imports: dict[int, dict[str, NodePath]] = field(default_factory=dict)
 
 
 def _install_package(name: str, timeout: int = 300, try_import: str = None) -> None:
@@ -73,26 +71,23 @@ def _install_package(name: str, timeout: int = 300, try_import: str = None) -> N
 @node_component
 class HasCode(Node):
     _is_async: Optional[bool] = struct_runtime(default=None)
-    _parse: Optional[CodeParse] = struct_runtime(default=None)
     _transform: Optional[CodeTransformation] = struct_runtime(default=None)
     _statement_references: dict[str, "Statement"] | None = struct_runtime(default=None)
     _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = struct_runtime(default=None)
     _cached_exports: dict[str, Any] | None = struct_runtime(default=None)
 
     def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
-        self._parse = None
         self._transform = None
         self._statement_references = None
         self._callable_wrapped = None
         self._cached_exports = None
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
-        self._parse = _parse_code(self.code)
         self._proxied = self.path in (
             "symbolx.lib.builtins.send_email",
             "symbolx.lib.builtins.get_website_html",
         )
-        self._is_async = self._parse.is_async or self._proxied
+        self._is_async = "await " in self.code or self._proxied
         self._statement_references = {}
         self._code_export_references = {}
         for key, reference in self._parse.references.items():
@@ -471,200 +466,6 @@ def _do_exec_get_globals(code: str | types.CodeType, globals: dict[str, Any]) ->
     globals_local = {**globals}
     exec(code, globals_local)
     return globals_local
-
-
-def _parse_code(code: str | None) -> "CodeParse":
-    """
-    Extracts references and other info for Bench from the Python code.
-    TODO @Architecture @Cleanup: remove manual code parsing, integrate into LSP/Jedi stuff
-
-    Handles plain references like
-    ```py
-    import asyncio
-    x = 1
-    for y in z:
-        pass
-    ```
-    -> 'z' is an external reference to (".", "z").
-
-    Also handles imported references like
-    ```py
-    from x.symbolx.lib.y import z
-    from x.flotothemoon.test.a import b as c
-    from .x.local import apple
-    from .local import banana
-    ```
-    -> 'z' is an external reference to ("x.symbolx.lib.y", "z")
-    -> 'c' is an external reference to ("x.flotothemoon.test.a", "b")
-    -> 'apple' is a local reference to ("<module>.local", "apple").
-    -> 'banana' is a local reference to ("<module>.local", "banana").
-    """
-    if code is None:
-        return CodeParse()
-
-    class ReferenceExtractor(ast.NodeVisitor):
-        def __init__(self):
-            self.references: dict[str, NodePath] = {}
-            self.local_variables = set()
-            self.imports = set()
-            self.is_async = False
-            self.codelines = code.splitlines()
-            self.x_imports: dict[int, dict[str, NodePath]] = {}
-
-        def visit_Import(self, node):
-            for alias in node.names:
-                self.imports.add(alias.name.split(".")[0])
-            self.generic_visit(node)
-
-        def visit_ImportFrom(self, node):
-            # parse 'x' imports
-            if node.module is not None:
-                # recover module name from source to keep any leading dots
-                sourceline = self.codelines[node.lineno - 1]
-                module = sourceline[node.col_offset : node.end_col_offset].split(" ")[1]
-                if module.startswith("x."):
-                    reference = module.split(".", maxsplit=1)[1]
-                elif module.startswith(".x."):
-                    reference = "." + module.split(".", maxsplit=2)[2]
-                elif module.startswith("."):
-                    reference = module[1:]
-                else:
-                    reference = None
-                if reference is not None:
-                    local_references = {}
-                    for alias in node.names:
-                        local_references[alias.asname or alias.name] = NodePath(
-                            reference, alias.name
-                        )
-                    self.x_imports[node.lineno - 1] = local_references
-                    self.references.update(local_references)
-            for alias in node.names:
-                self.imports.add(alias.name)
-            self.generic_visit(node)
-
-        def visit_FunctionDef(self, node):
-            self.local_variables.add(node.name)
-            self.generic_visit(node)
-
-        def visit_AsyncFunctionDef(self, node):
-            self.local_variables.add(node.name)
-            self.is_async = True
-            self.generic_visit(node)
-
-        def visit_arg(self, node):
-            self.local_variables.add(node.arg)
-            self.generic_visit(node)
-
-        def visit_arguments(self, node):
-            for arg in node.args:
-                self.local_variables.add(arg.arg)
-            self.generic_visit(node)
-
-        def visit_Await(self, node):
-            self.is_async = True
-            self.generic_visit(node)
-
-        def visit_Assign(self, node):
-            if isinstance(node.targets[0], ast.Name):
-                self.local_variables.add(node.targets[0].id)
-            self.generic_visit(node)
-
-        def visit_AnnAssign(self, node):
-            if isinstance(node.target, ast.Name):
-                self.local_variables.add(node.target.id)
-            self.generic_visit(node)
-
-        def visit_Name(self, node):
-            if (
-                node.id not in self.local_variables
-                and node.id not in self.imports
-                and node.id not in _PYTHON_BUILTINS
-                and node.id not in STATIC_BUILTINS
-                and node.id not in DYNAMIC_BUILTINS
-            ):
-                self.references[node.id] = NodePath(".", node.id)
-            self.generic_visit(node)
-
-        def visit_For(self, node):
-            if isinstance(node.target, ast.Name):
-                self.local_variables.add(node.target.id)
-            elif isinstance(node.target, ast.Tuple):
-                for target in node.target.elts:
-                    if isinstance(target, ast.Name):
-                        self.local_variables.add(target.id)
-            self.generic_visit(node)
-
-        def visit_AsyncFor(self, node):
-            if isinstance(node.target, ast.Name):
-                self.local_variables.add(node.target.id)
-            elif isinstance(node.target, ast.Tuple):
-                for target in node.target.elts:
-                    if isinstance(target, ast.Name):
-                        self.local_variables.add(target.id)
-            self.is_async = True
-            self.generic_visit(node)
-
-        def visit_With(self, node):
-            for item in node.items:
-                if isinstance(item.optional_vars, ast.Name):
-                    self.local_variables.add(item.optional_vars.id)
-            self.generic_visit(node)
-
-        def visit_AsyncWith(self, node):
-            for item in node.items:
-                if isinstance(item.optional_vars, ast.Name):
-                    self.local_variables.add(item.optional_vars.id)
-            self.is_async = True
-            self.generic_visit(node)
-
-        def visit_ExceptHandler(self, node):
-            if node.name is not None:
-                self.local_variables.add(node.name)
-            self.generic_visit(node)
-
-        def visit_Lambda(self, node):
-            for arg in node.args.args:
-                if isinstance(arg, ast.Name):
-                    self.local_variables.add(arg.id)
-            self.generic_visit(node)
-
-        def visit_ListComp(self, node) -> Any:
-            for generator in node.generators:
-                if isinstance(generator.target, ast.Name):
-                    self.local_variables.add(generator.target.id)
-            self.generic_visit(node)
-
-        def visit_SetComp(self, node) -> Any:
-            for generator in node.generators:
-                if isinstance(generator.target, ast.Name):
-                    self.local_variables.add(generator.target.id)
-            self.generic_visit(node)
-
-        def visit_DictComp(self, node) -> Any:
-            for generator in node.generators:
-                if isinstance(generator.target, ast.Name):
-                    self.local_variables.add(generator.target.id)
-            self.generic_visit(node)
-
-        def visit_GeneratorExp(self, node) -> Any:
-            for generator in node.generators:
-                if isinstance(generator.target, ast.Name):
-                    self.local_variables.add(generator.target.id)
-            self.generic_visit(node)
-
-    try:
-        tree = ast.parse(code)
-        extractor = ReferenceExtractor()
-        extractor.visit(tree)
-    except (SystemError, SyntaxError) as e:
-        logger.debug("code.parse.error", e=e, excinfo=e)
-        return CodeParse()
-
-    # remove references to builtins
-
-    return CodeParse(
-        references=extractor.references, is_async=extractor.is_async, x_imports=extractor.x_imports
-    )
 
 
 def _to_outputs_dict(code: "HasCode", result: Any) -> TypedDict:

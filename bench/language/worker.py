@@ -25,17 +25,17 @@ class WorkerSet(ScopeNode):
 
     parent: "Bench" = node_parent(4, NodeType.BENCH)
     profile: WorkerProfile = struct_property(31)
-    sleeping: bool = struct_internal(32, protect=True)
-    status: WorkerSetStatus = struct_internal(33, protect=True)
+    sleeping: bool = struct_internal(32, system=True)
+    status: WorkerSetStatus = struct_internal(33, system=True)
     desired_replicas: int = struct_property(34)
-    target_replicas: int = struct_internal(35, protect=True)
-    available_replicas: int = struct_internal(36, protect=True)
-    ready_replicas: int = struct_internal(37, protect=True)
+    target_replicas: int = struct_internal(35, system=True)
+    available_replicas: int = struct_internal(36, system=True)
+    ready_replicas: int = struct_internal(37, system=True)
     last_active_at: Optional[datetime] = struct_internal(
-        38, protect=True, default_factory=utcnow_with_tz
+        38, system=True, default_factory=utcnow_with_tz
     )
     last_bumped_at: Optional[datetime] = struct_internal(
-        39, protect=True, default_factory=utcnow_with_tz
+        39, system=True, default_factory=utcnow_with_tz
     )
 
     workers: list["Worker"] = node_children(NodeType.WORKER)
@@ -44,12 +44,12 @@ class WorkerSet(ScopeNode):
 @node(NodeType.WORKER, in_module=False)
 class Worker(Node):
     parent: "WorkerSet" = node_parent(4, NodeType.WORKER_SET)
-    external_id: str = struct_internal(30, unique=True, protect=True)
+    external_id: str = struct_internal(30, unique=True, system=True)
     profile: WorkerProfile = struct_internal(31)
     image: Optional["WorkerImage"] = struct_internal(32, struct_t=StructType.WORKER_IMAGE)
     version: Optional[str] = struct_internal(33, index_in_pg=True)
     access_token: Optional[str] = struct_internal(
-        34, default=None, protect=True, encrypt=True, defer=True
+        34, default=None, system=True, encrypt=True, defer=True
     )
 
 

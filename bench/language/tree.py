@@ -406,7 +406,6 @@ class DetachedNodeTree(NodeTreeBase[NodeT, UUID]):
 
     def add(self, node: "Node"):
         """Add a node to the tree (error if node already exists)"""
-        assert node.__is_in_module__, f"cannot add non-module node {node!r} to {self!r}"
         if node.ck in self.nodes_by_ck and self.nodes_by_ck[node.ck] is not node:
             raise ValueError(f"node {node!r} (ck={node.ck}) already exists in {self!r}")
         self.nodes_by_ck[node.ck] = node

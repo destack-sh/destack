@@ -18,12 +18,12 @@ class User(ScopeNode):
     """A (global) Bench user."""
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
-    slug: Optional[str] = struct_internal(31, protect=True, unique=True)
+    slug: Optional[str] = struct_internal(31, system=True, unique=True)
     name: Optional[str] = struct_property(32)
-    email: str = struct_internal(33, defer=True, unique=True, protect=True)
-    password_salt: Optional[bytes] = struct_internal(34, defer=True, encrypt=True, protect=True)
-    password_hash: Optional[bytes] = struct_internal(35, defer=True, encrypt=True, protect=True)
-    last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, protect=True)
+    email: str = struct_internal(33, defer=True, unique=True, system=True)
+    password_salt: Optional[bytes] = struct_internal(34, defer=True, encrypt=True, system=True)
+    password_hash: Optional[bytes] = struct_internal(35, defer=True, encrypt=True, system=True)
+    last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, system=True)
 
     @property
     def ident(self):
@@ -35,7 +35,7 @@ class Organization(ScopeNode):
     """A (global) Bench organization."""
 
     handle: Handle = struct_internal(30, require=True, array=False, references=NodeType.HANDLE)
-    slug: Optional[str] = struct_internal(31, protect=True, unique=True)
+    slug: Optional[str] = struct_internal(31, system=True, unique=True)
     name: str = struct_property(32)
 
     @property
@@ -53,7 +53,7 @@ class Client(Node):
     browser_name: Optional[str] = struct_internal(32)
     last_seen_at: datetime = struct_internal(33)
     access_token: Optional[str] = struct_internal(
-        34, default=None, protect=True, defer=True, unique=True
+        34, default=None, system=True, defer=True, unique=True
     )
 
     @property

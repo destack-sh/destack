@@ -12,7 +12,6 @@ from bench.language.const import (
     RESERVED_TYPE_TAGS,
     IssueType,
     NodeType,
-    StatementReference,
     StatementType,
     TypeFlag,
     TypeHint,
@@ -101,7 +100,6 @@ DEFAULT_EMBEDDING_DIMENSION = 768  # currently only support :FixedEmbeddingDimen
 Vector = typing.NewType("Vector", Union[bytes, list[float]])
 Json = typing.NewType("Json", dict)
 Key = typing.NewType("Key", str)
-RichText = typing.NewType("RichText", str)
 
 TYPE_TAG_BY_TYPE_HINT = {
     # string
@@ -230,7 +228,7 @@ class Type:
         return self.replace(_flags=self._flags | TypeFlag.IS_HIDDEN)
 
     @staticmethod
-    def reference(reference: Union["Statement", StatementReference, None]) -> "Type":
+    def reference(reference: Union["Statement", None]) -> "Type":
         return Type(
             _tag=TypeTag.TYPE_REFERENCE, _hint=None, _flags=TypeFlag.ZERO, _reference=reference
         )

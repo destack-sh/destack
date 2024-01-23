@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import enum
-import re
 import typing
 from itertools import chain
-from typing import NamedTuple
 from uuid import UUID
 
 from bench.proto.core import ProtoStrEnum
@@ -16,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.22.2"
+VERSION = "2024.01.23.1"
 
 
 #
@@ -91,9 +89,9 @@ IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.
 
 class StructType(ProtoStrEnum):
     # starts at 100 to avoid collisions with NodeType (BenchType combines both in one metatype)
-    NODE_REFERENCE = "NODE_REFERENCE", 200
-    PROPERTY_REFERENCE = "PROPERTY_REFERENCE", 201
-    NODE_PATH = "NODE_PATH", 202
+    BENCH_PATH = "BENCH_PATH", 200
+    NODE_REFERENCE = "NODE_REFERENCE", 201
+    PROPERTY_REFERENCE = "PROPERTY_REFERENCE", 202
     PROPERTY_PATH = "PROPERTY_PATH", 203
     FIELD_PATH = "FIELD_PATH", 204
     FIELD_PATH_SEGMENT = "FIELD_PATH_SEGMENT", 205
@@ -254,37 +252,6 @@ class NodeStatus(enum.IntEnum):
 
 NS = NodeStatus
 UNSET = object()
-
-ModuleReference = typing.NamedTuple(
-    "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
-)
-NodePath = NamedTuple("NodePath", [("path", str), ("name", str)])
-StatementReference = typing.Union["Statement", NodePath, UUID]
-NodeReference = typing.Union["Node", NodePath, UUID]
-TypedNodeReference = NamedTuple("TypedNodeReference", [("type", NodeType), ("ref", UUID)])
-NODE_REFERENCE_REGEX = re.compile(
-    r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?\.(?P<path>[\w.\- ]+)"
-)
-
-
-def parse_absolute_node_reference(path: str) -> tuple[str, str]:
-    match = NODE_REFERENCE_REGEX.match(path)
-    if not match:
-        raise ValueError(f"invalid absolute node reference: {path}")
-    module_name = match.group("module_owner") + "." + match.group("module_name")
-    localized_path = "." + match.group("path")
-    return module_name, localized_path
-
-
-def parse_node_path(node_path: str) -> "NodePath":
-    if "." not in node_path:
-        return NodePath(".", node_path)
-    path, name = node_path.rsplit(".", 1)
-    return NodePath(path, name)
-
-
-def node_path_as_str(node_path: "NodePath") -> str:
-    return f"{node_path.path}:{node_path.name}"
 
 
 #
@@ -465,6 +432,14 @@ class TypeStorageFormat(ProtoStrEnum):
     KEYWORD = "key", 8
     OBJECT = "obj", 9
     RELATION = "rel", 10
+
+
+class RichTextFlag(enum.IntFlag):
+    NONE = 0
+    BOLD = 2**0
+    ITALIC = 2**1
+    UNDERLINE = 2**2
+    STRIKETHROUGH = 2**3
 
 
 class BlobStatus(ProtoStrEnum):
