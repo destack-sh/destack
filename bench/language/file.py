@@ -14,13 +14,13 @@ from bench.language.node import (
 )
 from bench.language.tagging import HasTags
 from bench.language.validation import validate_is_str, validate_name
-from bench.utils.utils import IdentifierType, to_identifier
+from bench.utils.casing import IdentifierType
 
 if TYPE_CHECKING:
     from bench.language import Policy, Statement
 
 
-@node(NodeType.FILE)
+@node(NodeType.FILE, identifier=IdentifierType.FILE)
 class File(ScopeNode, HasTags):
     """
     Files are how a Bench organizes statements. Files can also be folders to other files.
@@ -38,10 +38,3 @@ class File(ScopeNode, HasTags):
     @staticmethod
     def new(name: str = None, *args, for_parent: Union["File", Module] = None, **kwargs) -> "File":
         return File(name=name, *args, **kwargs)
-
-    @property
-    def ident(self) -> Optional[str]:
-        if self.name is None:
-            return None
-        else:
-            return to_identifier(self.name, IdentifierType.PATH)

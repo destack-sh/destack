@@ -17,7 +17,6 @@ from bench.language.node import (
 )
 from bench.language.validation import ValidationHandler, enum_validator
 from bench.utils.func import dict_minus
-from bench.utils.utils import to_identifier
 
 if TYPE_CHECKING:
     from bench.language.statement import Statement

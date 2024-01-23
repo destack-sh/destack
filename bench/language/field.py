@@ -46,10 +46,10 @@ from bench.language.validation import (
 )
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
+from bench.utils.casing import IdentifierType
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import dict_minus, nextn
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
-from bench.utils.utils import IdentifierType, to_identifier
 
 if typing.TYPE_CHECKING:
     from bench.language import Statement
@@ -293,15 +293,6 @@ class HasType(Node):
     key: str | None = struct_internal(UNSET, default=None)
 
     @property
-    def ident(self) -> Optional[str]:
-        if self.name is None:
-            return None
-        elif self.tag == TypeTag.LITERAL:
-            return to_identifier(self.name, IdentifierType.CONSTANT)
-        else:
-            return to_identifier(self.name, IdentifierType.FIELD)
-
-    @property
     def _storage_format(self) -> TypeStorageFormat:
         if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, Node):
             return self.reference._storage_format
@@ -464,14 +455,18 @@ class Field(HasValue, HasType, _FieldExpressionBase):
     def __content_str__(self):
         return self._type_str
 
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
     def __eq__(self, other):
         if self.tag == TypeTag.LITERAL and isinstance(other, str):
             return self.name == other or self.ident == other
 
         return _FieldExpressionBase.__eq__(self, other)  # override to avoid recursion
+
+    @property
+    def identifier_type(self):
+        if self.tag == TypeTag.LITERAL:
+            return IdentifierType.CONSTANT
+        else:
+            return IdentifierType.PROPERTY
 
     @property
     def _type_of_value(self) -> "HasFields":

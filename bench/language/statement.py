@@ -35,8 +35,8 @@ from bench.language.trigger import HasTriggers
 from bench.language.validation import validate_is_str, validate_name
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
+from bench.utils.casing import IdentifierType
 from bench.utils.func import dict_minus
-from bench.utils.utils import IdentifierType, IdentT, to_identifier
 
 if TYPE_CHECKING:
     from bench.language import File, Policy
@@ -92,6 +92,8 @@ class _StatementDescriptor:
         _STATEMENT_DESCRIPTORS[self.type] = self
 
 
+IdentT = IdentifierType
+
 # :StatementDescriptors
 _s = _StatementDescriptor
 _s(StatementType.BOX, (HasFields,), IdentT.VARIABLE, tag=TypeTag.STRUCT)
@@ -102,15 +104,15 @@ _s(StatementType.BLANK, (), IdentT.VARIABLE)
 _s(StatementType.CLASS, (InstantiableType, HasFields), IdentT.TYPE, tag=TypeTag.STRUCT)
 _s(StatementType.SIGNAL, (InstantiableType, HasFields), IdentT.TYPE, tag=TypeTag.STRUCT)
 _s(StatementType.CHOICE, (InstantiableType, HasFields), IdentT.TYPE, tag=TypeTag.ENUM)
-_s(StatementType.TASK, (HasTask, HasRun, HasFields), IdentT.METHOD, tag=TypeTag.FUNCTION)
+_s(StatementType.TASK, (HasTask, HasRun, HasFields), IdentT.FUNCTION, tag=TypeTag.FUNCTION)
 _s(
     StatementType.CODE,
     (HasCode, HasRun, HasTriggers, HasFields),
-    IdentT.METHOD,
+    IdentT.FUNCTION,
     tag=TypeTag.FUNCTION,
 )
-_s(StatementType.FLOW, (HasRun, HasFields), IdentT.METHOD, tag=TypeTag.FUNCTION)
-_s(StatementType.MODEL, (HasModel, HasRun, HasFields), IdentT.METHOD, tag=TypeTag.FUNCTION)
+_s(StatementType.FLOW, (HasRun, HasFields), IdentT.FUNCTION, tag=TypeTag.FUNCTION)
+_s(StatementType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION, tag=TypeTag.FUNCTION)
 _s(StatementType.VARIABLE, (HasValue, HasFields), IdentT.VARIABLE, tag=TypeTag.STRUCT)
 _s(StatementType.DATABASE, (HasDatabase, HasFields), IdentT.VARIABLE, tag=TypeTag.STRUCT)
 _s(StatementType.VIEW, (HasFields,), IdentT.VARIABLE)
@@ -222,7 +224,7 @@ class Statement(ScopeNode, HasTags):
         return ""
 
     def __repr__(self):  # noqa: we want to override the default repr
-        return f"<Statement.{self.type.camel_name} {self}>"
+        return f"<Block.{self.type.bench_name} {self}>"
 
     def _init_inner(self) -> None:
         # add runtime properties from dynamic components
@@ -245,11 +247,8 @@ class Statement(ScopeNode, HasTags):
         raise NotImplementedError(f"{self!r} does not support morphing yet")
 
     @property
-    def ident(self) -> Optional[str]:
-        if self.name is None:
-            return None
-        else:
-            return to_identifier(self.name, _IDENTIFIER_BY_TYPE[self.type])
+    def identifier_type(self) -> Optional[IdentifierType]:
+        return _IDENTIFIER_BY_TYPE[self.type]
 
 
 # Statement.<type> convenience constructors
