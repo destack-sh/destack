@@ -139,9 +139,6 @@ def map_value(
     mapped = {}
     assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
     for subtype in type.fields:
-        assert (
-            not subtype.flags & TypeFlag.IS_UNION_WITH
-        ), f"unexpected union with {type}->{subtype}"
         if is_output is not None and bool(subtype.flags & TypeFlag.IS_OUTPUT) != is_output:
             continue
         source_k, target_k = map_k(subtype)
@@ -200,9 +197,6 @@ def walk_value(
 
     assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
     for subtype in type.fields:
-        assert (
-            not subtype.flags & TypeFlag.IS_UNION_WITH
-        ), f"unexpected union with {type}->{subtype}"
         if is_output is not None and bool(subtype.flags & TypeFlag.IS_OUTPUT) != is_output:
             continue
         k = get_k(subtype)
@@ -802,9 +796,6 @@ def render_value(
     assert type._status >= NS.INTERP, f"unexpected unresolved type {type}"
     elements = {}
     for subtype in type.fields:
-        assert (
-            not subtype.flags & TypeFlag.IS_UNION_WITH
-        ), f"unexpected union with {type}->{subtype}"
         if is_output is not None and bool(subtype.flags & TypeFlag.IS_OUTPUT) != is_output:
             continue
         if filter_v and not filter_v(value, subtype):

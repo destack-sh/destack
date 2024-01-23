@@ -480,8 +480,6 @@ class BaseTextTaskCompiler(TaskCompiler):
         # inputs
         inputs_strs = []
         for field_ in task.fields:
-            if field_.flags & TypeFlag.IS_OUTPUT or field_.flags & TypeFlag.IS_CONFIG:
-                continue
             field_value = inputs.get(field_.py_ident)
             if field_value is None:
                 continue

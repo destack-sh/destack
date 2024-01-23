@@ -6,7 +6,7 @@ import typer
 from bench.language import Bench
 from bench.server.utils import detached_session
 
-app = typer.Typer(short_help="dev only")
+app = typer.Typer(short_help="local developer helpers")
 
 worker = typer.Typer()
 logger = structlog.get_logger(__name__)

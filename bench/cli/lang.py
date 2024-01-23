@@ -1,12 +1,11 @@
 import structlog
 import typer
 
-from bench.cli import sql
 from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
 from bench.language.node import Bench
 from bench.server.utils import detached_session
 
-app = typer.Typer(short_help="broad language-level utilities (combine other stuff)")
+app = typer.Typer(short_help="some language-level utilities")
 
 logger = structlog.get_logger(__name__)
 
@@ -15,12 +14,6 @@ logger = structlog.get_logger(__name__)
 @_async_to_sync_blocking
 async def check(check_db: bool = False):
     await _check_is_consistent(check_db=check_db)
-
-
-@app.command(help="migrate the Bench SQL databases")
-@_async_to_sync_blocking
-async def migrate(target: str = None, bench: str = None, dry_run: bool = False):
-    await sql.migrate(target=target, bench=bench, dry_run=dry_run)
 
 
 @app.command(help="IPython shell with a global or bench-local session")

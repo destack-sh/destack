@@ -19,7 +19,7 @@ GENERATED_PROTO_FILE = "bench/proto/lang.proto"
 EXTRA_PROTO_FILES = "bench/proto/services.proto"
 
 logger = structlog.get_logger(__name__)
-app = typer.Typer(short_help="proto stuff")
+app = typer.Typer(short_help="proto management")
 
 
 def _generate_proto_schema() -> str:

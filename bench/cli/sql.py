@@ -31,7 +31,7 @@ from bench.sql.migration import (
 from bench.utils.utils import format_python
 
 logger = structlog.get_logger(__name__)
-app = typer.Typer(short_help="pg management")
+app = typer.Typer(short_help="postgres management")
 
 
 def _generate_pg_schema():

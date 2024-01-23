@@ -7,7 +7,7 @@ import typer
 
 from bench.language.const import VERSION
 
-app = typer.Typer(short_help="manage versioning")
+app = typer.Typer(short_help="version management")
 logger = structlog.get_logger(__name__)
 
 

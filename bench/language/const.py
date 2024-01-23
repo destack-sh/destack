@@ -329,7 +329,6 @@ class NotificationStatus(ProtoStrEnum):
 # TODO @Architecture: :SimpleTypes ... TypeTag/TypeHint/TypeFlag/TypeStorageFormat mess
 #  (should probably? just be type + flags as properties on Field + display hint Field)
 #  IS_ARRAYABLE -> real unions of X | list[X] or whatever
-#  IS_UNION_WITH -> inherit? from type (could remain flag, though that's not great)
 
 
 class TypeTag(ProtoStrEnum):
@@ -404,13 +403,9 @@ class TypeFlag(enum.IntFlag):
     IS_OUTPUT = 2**0
     IS_ARRAY = 2**1
     IS_OPTIONAL = 2**2
-    IS_UNION_WITH = 2**3  # nocheckin: move IS_UNION_WITH to Statement properties
     IS_SECRET = 2**4
     IS_STORE_ONLY = 2**5
     IS_ARRAYABLE = 2**6
-    IS_META = 2**7
-    IS_CONFIG = 2**8
-    IS_HIDDEN = 2**9
 
     @property
     def short_name(self) -> str:
@@ -476,20 +471,15 @@ class IssueKind(ProtoStrEnum):
 class IssueType(ProtoStrEnum):
     # errors
     INTERNAL = "INTERNAL", 1
-    UNKNOWN_IMPORT_SOURCE = "UNKNOWN_IMPORT_SOURCE", 2
-    MISSING_REFERENCE = "MISSING_REFERENCE", 3
-    CIRCULAR_ANCESTRY = "CIRCULAR_ANCESTRY", 4
-    CIRCULAR_UNION = "CIRCULAR_UNION", 5
-    MISMATCHED_UNION = "MISMATCHED_UNION", 6
-    INVALID_DATA = "INVALID_DATA", 7
+    MISSING_REFERENCE = "MISSING_REFERENCE", 2
+    CIRCULAR_BASE = "CIRCULAR_BASE", 3
+    MISMATCHED_BASE = "MISMATCHED_BASE", 4
     # warnings
-    AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION", 8
-    CODE_NOT_EXPORTABLE = "CODE_NOT_EXPORTABLE", 9
-    CODE_NOT_CACHEABLE = "CODE_NOT_CACHEABLE", 10
-    CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED", 11
-    TASK_MISSING_IO = "TASK_MISSING_IO", 12
+    AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION", 100
+    TASK_MISSING_IO = "TASK_MISSING_IO", 101
     # notices
-    TASK_IS_STATIC = "TASK_IS_STATIC", 13
+    BAD_NAME = "BAD_NAME", 200
+    TASK_IS_STATIC = "TASK_IS_STATIC", 201
 
 
 class BenchRegion(ProtoStrEnum):
