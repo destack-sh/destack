@@ -7,12 +7,10 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.builtin import symbolx_lib
 from bench.language.const import (
     RESERVED_TYPE_TAGS,
     IssueType,
     NodeType,
-    StatementType,
     TypeFlag,
     TypeHint,
     TypeStorageFormat,
@@ -21,7 +19,6 @@ from bench.language.const import (
 )
 from bench.language.issue import IssueHandler
 from bench.language.node import (
-    NS,
     UNSET,
     Node,
     NodeList,
@@ -47,8 +44,7 @@ from bench.language.validation import (
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 from bench.utils.casing import IdentifierType
-from bench.utils.fractional import generate_n_keys_between
-from bench.utils.func import dict_minus, nextn
+from bench.utils.func import dict_minus
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
 if typing.TYPE_CHECKING:
@@ -221,12 +217,6 @@ class Type:
     def output(self) -> "Type":
         return self.replace(_flags=self._flags | TypeFlag.IS_OUTPUT)
 
-    def config(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IS_CONFIG)
-
-    def hidden(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IS_HIDDEN)
-
     @staticmethod
     def reference(reference: Union["Statement", None]) -> "Type":
         return Type(
@@ -271,10 +261,6 @@ class Type:
             node_str += ".required()"
         if node._flags & TypeFlag.IS_OUTPUT:
             node_str += ".output()"
-        if node._flags & TypeFlag.IS_CONFIG:
-            node_str += ".config()"
-        if node._flags & TypeFlag.IS_HIDDEN:
-            node_str += ".hidden()"
         return node_str
 
 
@@ -414,14 +400,6 @@ class Field(HasValue, HasType, _FieldExpressionBase):
         return Field.new(name=name, text=text, type=TypeTag.LITERAL, *args, **kwargs)
 
     @staticmethod
-    def union(type: Union["Statement", str], *args, **kwargs):
-        return Field.new(type=type, flags=TypeFlag.IS_UNION_WITH, *args, **kwargs)
-
-    @staticmethod
-    def config(name: str, *args, **kwargs) -> "Field":
-        return Field.new(name=name, flags=TypeFlag.IS_CONFIG, *args, **kwargs)
-
-    @staticmethod
     def to_python(
         node: "Field", props: dict, for_parent: "Statement" = None
     ) -> tuple[str, dict, dict]:
@@ -434,9 +412,6 @@ class Field(HasValue, HasType, _FieldExpressionBase):
         if node.tag == TypeTag.LITERAL:
             init_args = {"name": props["name"], "text": props.get("text")}
             init_name = "Field.literal"
-        elif node.flags & TypeFlag.IS_UNION_WITH:
-            init_args = {"type": node.reference}
-            init_name = "Field.union"
         elif not node.flags and node.tag == TypeTag.TYPE_REFERENCE:
             init_args = {"type": node.reference}
             init_name = "Field.new"
@@ -481,14 +456,6 @@ class Field(HasValue, HasType, _FieldExpressionBase):
             tag = TYPE_TAG_BY_TYPE_HINT[self.hint]
             if self.tag != tag:
                 on_invalid(self, f"expected {tag} for {self.hint} ({self.tag})", ["tag", "hint"])
-        if self.flags & TypeFlag.IS_UNION_WITH:
-            if self.tag != TypeTag.TYPE_REFERENCE:
-                on_invalid(
-                    self,
-                    IssueType.INVALID_DATA,
-                    f"expected reference for IsUnionWith ({self.tag})",
-                    ["tag", "reference", "flags"],
-                )
         if self.flags & TypeFlag.IS_SECRET:
             if self.hint != TypeHint.SECRET:
                 on_invalid(
@@ -559,42 +526,7 @@ class HasFields(HasType):
             return
 
         # resolve fields recursively (inlining any valid unions)
-        path = path + [self]
-        resolved_fields: list[Field] = []
-        for field in self.fields:
-            # try to resolve reference or skip this field
-            if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
-                if field._status <= NS.INTERP:  # try to interp field if not already interp-ed
-                    field._interp_self(self, on_issue=on_issue)
-                if not isinstance(field.reference, Node):
-                    continue  # interp error, ignore
-
-            if field.flags & TypeFlag.IS_UNION_WITH:
-                if not isinstance(field.reference, Node):
-                    continue  # validation error, ignore
-                # inline fields from union-ed type to resolved fields
-                field.reference._resolve_fields(path, on_issue)
-                for child in field.reference.fields:
-                    if child.flags & TypeFlag.IS_CONFIG:
-                        continue  # ignore config fields
-                    existing = nextn(f for f in resolved_fields if f.py_ident == child.py_ident)
-                    # check if self is compatible if overlapping
-                    if existing is None:
-                        resolved_fields.append(child)
-                    elif not existing.equals_type(child):
-                        on_issue(self=IssueType.MISMATCHED_UNION, subject=self, other=existing)
-            else:
-                # just a normal field
-                resolved_fields.append(field)
-
-        # add any special inlined fields
-        if self.metatype == NodeType.STATEMENT and self.type == StatementType.TASK:
-            run_config = symbolx_lib.resolve(".reflect.TaskRunConfig")
-            resolved_fields.extend(run_config.fields)
-
-        # maintain resolved field order
-        for i, ok in enumerate(generate_n_keys_between(None, None, len(resolved_fields))):
-            resolved_fields[i].order_key = ok
+        # nocheckin: Field._resolve_fields
         self._did_resolve_fields = True
 
     def _inputs_from_args(self, args, kwargs) -> dict:

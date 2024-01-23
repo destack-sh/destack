@@ -16,35 +16,19 @@ _ISSUE_MESSAGES = {
     # errors
     IssueType.INTERNAL.value: "internal error",
     IssueType.MISSING_REFERENCE.value: "missing reference at {path}",
-    IssueType.CIRCULAR_ANCESTRY.value: "circular ancestry via {path}",
-    IssueType.CIRCULAR_UNION.value: "circular union via {path}",
-    IssueType.MISMATCHED_UNION.value: "mismatched union at {subject} vs {other}",
     # warnings
-    IssueType.CODE_NOT_EXPORTABLE.value: "code {subject} is not exportable",
-    IssueType.CODE_REFERENCE_NOT_EXPORTED.value: "code {path} is not exported",
     IssueType.AMBIGUOUS_DEFINITION.value: "multiple definitions for {path}",
     IssueType.TASK_MISSING_IO.value: "task has no inputs or outputs",
     # notices
+    IssueType.BAD_NAME.value: "name does not follow conventions",
     IssueType.TASK_IS_STATIC.value: "task has no inputs and is not randomized",
 }
 
-ERRORS = [
-    IssueType.INTERNAL,
-    IssueType.UNKNOWN_IMPORT_SOURCE,
-    IssueType.MISSING_REFERENCE,
-    IssueType.CIRCULAR_ANCESTRY,
-    IssueType.CIRCULAR_UNION,
-    IssueType.MISMATCHED_UNION,
-    IssueType.INVALID_DATA,
-]
-WARNINGS = [
-    IssueType.AMBIGUOUS_DEFINITION,
-    IssueType.CODE_NOT_EXPORTABLE,
-    IssueType.CODE_REFERENCE_NOT_EXPORTED,
-    IssueType.CODE_NOT_CACHEABLE,
-    IssueType.TASK_MISSING_IO,
-]
-NOTICES = [IssueType.TASK_IS_STATIC]
+ISSUE_TYPES = tuple(IssueType)
+
+ERRORS: tuple[IssueType, ...] = tuple(t for t in ISSUE_TYPES if t.id < 100)
+WARNINGS: tuple[IssueType, ...] = tuple(t for t in ISSUE_TYPES if 100 <= t.id < 200)
+NOTICES: tuple[IssueType, ...] = tuple(t for t in ISSUE_TYPES if 200 <= t.id < 300)
 _missing_issue_types = set(IssueType) - set(ERRORS) - set(WARNINGS) - set(NOTICES)
 assert not _missing_issue_types, f"missing issue types: {_missing_issue_types}"
 _ISSUE_KIND_BY_TYPE = {
