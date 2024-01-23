@@ -34,7 +34,6 @@ from bench.language.node import (
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
     from bench.language import Session, Statement, Worker
@@ -219,13 +218,7 @@ class RunCodeFrame(Struct):
                         found_start = True
                     elif not found_start:
                         continue  # ignore
-                    frame.filename = to_pyidentifier_multi(
-                        from_statement.file.name or "<unnamed>"
-                        if from_statement.file
-                        else "<detached>",
-                        from_statement.name or "<unnamed>",
-                        type=IdentifierType.PATH,
-                    )
+                    frame.filename = from_statement.path
                     frame.name = from_statement.name or "<unnamed>"
                     frame.lineno = frame.lineno - code._transform.start_offset
                     frame.line = code.code.splitlines()[frame.lineno - 1]

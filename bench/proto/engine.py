@@ -2,8 +2,6 @@ import enum
 from itertools import chain
 from typing import TYPE_CHECKING, Collection, Union
 
-from bench.language.const import NodeType
-from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.proto.core import (
     Enum,
     EnumValue,
@@ -15,7 +13,7 @@ from bench.proto.core import (
     ProtoThing,
 )
 from bench.sql.core import ColumnType
-from bench.utils.utils import to_all_caps, to_snake_case
+from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
     from bench.language import Node, Property, Struct
@@ -106,7 +104,7 @@ def map_bench_enum_to_proto(
         bench_t, (ProtoStrEnum, enum.IntEnum, enum.IntFlag)
     ), f"invalid enum: {bench_t!r}"
     # TODO @Broken: assign static ids to enum values (or use int enums) for proto serialization
-    enum_prefix = to_all_caps(alias or bench_t.__name__) + "_"
+    enum_prefix = to_casing(alias or bench_t.__name__, Casing.ALL_CAPS) + "_"
     if issubclass(bench_t, ProtoStrEnum):
         enum_values = [
             EnumValue(id=member.id, name=enum_prefix + member.name) for member in bench_t
@@ -179,7 +177,7 @@ def generate_proto_schema(
         sub_fields = [
             Field(
                 id=i + 1,
-                name=to_snake_case(t.__name__),
+                name=to_casing(t.__name__, Casing.SNAKE),
                 type=map_bench_type_to_proto(t, proto_types_cache),
             )
             for i, t in enumerate(unioned_types)

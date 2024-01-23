@@ -20,7 +20,7 @@ from bench.language.const import (
 )
 from bench.language.node import BENCH_CLASS_BY_TYPE, Node, Property, Struct, struct, struct_property
 from bench.sql.core import ColumnType
-from bench.utils.utils import to_camel_case
+from bench.utils.casing import to_casing, Casing
 
 if TYPE_CHECKING:
     from bench.language import Field
@@ -149,7 +149,7 @@ class Expression(Struct):
 
     def __content_str__(self):
         if self.op in ExpressionOps.COND_STATIC:
-            return self.op.name.lower()
+            return to_casing(self.op.name, Casing.CAMEL)
         elif self.op in ExpressionOps.COND_LOGICAL:
             return f" {_CONDITIONAL_OP_SIGN[self.op]} ".join(str(q) for q in self.clauses)
         elif (
@@ -165,7 +165,7 @@ class Expression(Struct):
             return f"{self.target.ident}{_CONDITIONAL_OP_SIGN[self.op]}"
         elif self.op in ExpressionOps.SORT:
             return f"{'-' if self.op == SortOp.DESCENDING else ''}{self.target.ident}"
-        return to_camel_case(self.op.name)
+        return to_casing(self.op.name, Casing.CAMEL)
 
     def __invert__(self):
         if self.op == ConditionalOp.TRUE:

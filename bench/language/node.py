@@ -80,6 +80,7 @@ from bench.sql.core import (
     IndexType,
     Table,
 )
+from bench.utils.casing import IdentifierType, to_casing, PYTHON_CASING
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import (
     check_collections_equal,
@@ -1081,6 +1082,7 @@ def node(
     indexes: tuple[Index, ...] = (),
     constraints: tuple[Constraint, ...] = (),
     unique_together: tuple[tuple[str, ...], ...] = (),
+    identifier: IdentifierType | None = None,
 ):
     """Register a class as a concrete node for the given node type."""
 
@@ -1099,6 +1101,7 @@ def node(
         cls.__is_stored_custom__ = stored_custom
         cls.__is_indexed_in_os__ = index_in_os
         cls.__is_local__ = local
+        cls.__identifier_type__ = identifier
 
         extra_indexes: list[Index] = [*indexes]
         extra_constraints: list[Constraint] = [*constraints]
@@ -1322,7 +1325,15 @@ class Struct(abc.ABC):
         return type(self).__name__
 
     def __eq__(self, other):
-        return self is other  # structs have no 'real' identity
+        if self.metatype != other.metatype:
+            return False
+        # compare all wired properties
+        for prop in self.__wired_properties__.values():
+            a_value = getattr(self, prop.name)
+            b_value = getattr(other, prop.name)
+            if a_value != b_value:
+                return False
+        return True
 
     def _set_untracked(self, key, value):
         self.__dict__[key] = value
@@ -1431,6 +1442,7 @@ class Node(Struct, _NodeExpressionBase):
     __static_components__: ClassVar[tuple[type["Node"], ...]] = []
     __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __passthrough_targets__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
+    __identifier_type__: ClassVar[IdentifierType | None] = None
 
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
@@ -1596,8 +1608,19 @@ class Node(Struct, _NodeExpressionBase):
         return self.parent
 
     @property
+    def identifier_type(self) -> Optional[IdentifierType]:
+        return self.__identifier_type__
+
+    @property
     def ident(self) -> Optional[str]:
-        return None
+        identifier_type = self.identifier_type
+        if identifier_type is None:
+            return None
+        slug = getattr(self, "slug", None)
+        if slug is not None:  # prefer slug
+            return slug
+        name = getattr(self, "name")
+        return to_casing(name, PYTHON_CASING[identifier_type])
 
     @property
     def path(self) -> str:
@@ -2066,8 +2089,9 @@ class InvalidBenchPath(ValueError):
     pass
 
 
-class AmbiguousBenchPath(ValueError):
-    pass
+BENCH_SLUG_PATTERN = re.compile(r"^[a-z0-9-]+")
+IDENTIFIER_PATTERN = re.compile(r"[\w ]+")
+RELATIVE_PATTERN = re.compile(r"(\.\.)|(\.)")
 
 
 @struct(StructType.BENCH_PATH)
@@ -2084,23 +2108,34 @@ class BenchPath(Struct):
     flotothemoon/Sandbox/Sales/Pipeline/Scraping/WebsiteSamples/Replit.document.title
     ^ bench      ^ blocks                                              ^ field
 
+    flotothemoon
+    ^ bench
     flotothemoon.name
     ^ bench      ^ field
     flotothemoon-tests/Tests/Databases/TestPopulate.code
     ^ bench            ^ blocks                     ^ field
 
+    .
+    ^ current (ambiguous, default to block level)
+    ..
+    ^ parent (ambiguous)
     ../../Header Screen:Header/Title.theme.primary.color
     ^ blocks           ^ sub-nodes  ^ field
     ../../../../Graphs
-    ^ (ambiguous, requires context: if in block, blocks, else sub nodes)
+    ^ parents (ambiguous)
+
 
     symbolx@2024-01-01/Library/Common/Utils/DateUtils
     ^ bench ^ package  ^ blocks
     symbolx@MyNewFeature:2024-01-01/Applications/Chat/MainScreen:ChatInput/Input.text
     ^ bench ^ branch     ^ package  ^ blocks                     ^ sub-nodes     ^ field
 
+    ''
+    ERROR (invalid, empty path)
+    '../'
+    ERROR (invalid, trailing slash)
     ../../Something/../SomethingElse
-    X (invalid, cannot go up and down in the same path)
+    ERROR (invalid, cannot go up and down in the same path)
 
     The general syntax is:
     [bench-name][@branch-name][:package-name][/[block-name][:sub-node-name]][.field-name]
@@ -2130,13 +2165,95 @@ class BenchPath(Struct):
         """
         Parses a path string into a BenchPath. Uses root type to disambiguate some relative paths.
         """
-        raise NotImplementedError
 
-    def to_absolute(self, root: Optional["Node"] = None) -> "BenchPath":
-        raise NotImplementedError
+        if not path:
+            raise InvalidBenchPath(f"empty path")
+
+        # tried to use a single regex here, but it's too convoluted to be worth it
+        cur_pos = 0
+        bench_slug = BENCH_SLUG_PATTERN.match(path)
+        if bench_slug is not None:
+            cur_pos = bench_slug.end() + 1  # eat '/'
+            bench_slug = bench_slug.group(0)
+
+        block_path: list[str] = []
+        sub_node_path: list[str] | None = None
+        field_path: list[str] | None = None
+        is_all_relative = False
+
+        # relative paths
+        if bench_slug is None:
+            # parse relative segments
+            while cur_pos < len(path):
+                match = RELATIVE_PATTERN.match(path, cur_pos)
+                if match is None:
+                    break
+                cur_pos = match.end() + 1  # eat '/'
+                if cur_pos < len(path) and path[cur_pos - 1] != "/":
+                    raise InvalidBenchPath(
+                        f"bad relative path at {cur_pos}: {path[cur_pos]} in {path}"
+                    )
+                block_path.append(match.group(0))
+                is_all_relative = True
+            if ":" not in path and root_type is not None:
+                # skip straight into sub node mode if ambiguous and given root can't be above block
+                if root_type not in (
+                    NodeType.BENCH,
+                    NodeType.MODULE,
+                    NodeType.FILE,
+                    NodeType.STATEMENT,
+                ):
+                    sub_node_path = []
+
+        # skip straight into field parsing mode
+        cur_char = path[cur_pos - 1] if cur_pos < len(path) else None
+        if not is_all_relative and cur_char is not None and cur_char == ".":
+            field_path = []
+
+        # parse block path, sub block, and field
+        # we use the None-ness of the arrays as our 'state machine'
+        while cur_pos < len(path):
+            match = IDENTIFIER_PATTERN.match(path, cur_pos)
+            if match is None:
+                raise InvalidBenchPath(f"bad path after {cur_pos}: {path[cur_pos:]} in {path}")
+            cur_pos = match.end() + 1
+            cur_char = path[cur_pos - 1] if cur_pos < len(path) else None
+
+            if field_path is not None:
+                if cur_char is not None and cur_char != ".":
+                    raise InvalidBenchPath(f"bad field path at {cur_pos}: {cur_char} in {path}")
+                field_path.append(match.group(0))
+            elif sub_node_path is not None:
+                if cur_char is not None:
+                    if cur_char == ".":
+                        field_path = []
+                    elif cur_char != "/":
+                        raise InvalidBenchPath(f"bad node path at {cur_pos}: {cur_char} in {path}")
+                sub_node_path.append(match.group(0))
+            else:
+                if cur_char is not None:
+                    if cur_char == ".":
+                        field_path = []
+                    elif cur_char == ":":
+                        sub_node_path = []
+                    elif cur_char != "/":
+                        raise InvalidBenchPath(f"bad block path at {cur_pos}: {cur_char} in {path}")
+                block_path.append(match.group(0))
+            is_all_relative = False
+
+        # is_all_relative is a hacky flag since we're not properly eating
+        last_char = path[-1:]
+        if not (re.match(r"\w", last_char) or last_char == "." and is_all_relative):
+            raise InvalidBenchPath(f"cannot end in trailing: {last_char} in {path}")
+
+        return BenchPath(
+            bench_slug=bench_slug,
+            block_path=tuple(block_path) if block_path else None,
+            sub_node_path=tuple(sub_node_path) if sub_node_path else None,
+            field_path=tuple(field_path) if field_path else None,
+        )
 
 
-# all sub-module node types (inside a module)
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt
     for nt in NODE_TYPES
@@ -2155,7 +2272,7 @@ class Link(Node):
     )
 
 
-@node(NodeType.BENCH, in_module=False)
+@node(NodeType.BENCH, in_module=False, identifier=IdentifierType.VARIABLE)
 class Bench(ScopeNode):
     """
     A Bench contains everything a young and growing AI needs to learn and grow.
@@ -2197,10 +2314,6 @@ class Bench(ScopeNode):
     def owner(self) -> Union["Organization", "User", None]:
         return self.organization or self.user
 
-    @property
-    def ident(self) -> str:
-        return self.slug
-
 
 @dataclass
 class NodeChange:
@@ -2230,7 +2343,7 @@ class NodeChange:
         return NodeChange([], [], [], [], [])
 
 
-@node(NodeType.MODULE)
+@node(NodeType.MODULE, identifier=IdentifierType.VARIABLE)
 class Module(ScopeNode):
     """A module is a semi-isolated version of a Bench, containing the actual files and so on."""
 
@@ -2270,10 +2383,6 @@ class Module(ScopeNode):
     @property
     def _nodes(self) -> Collection[Node]:
         return self._tree.nodes_by_ck.values()
-
-    @property
-    def ident(self) -> str:
-        return self.parent.ident
 
     def __content_str__(self):
         return f"is_snapshot={self.is_snapshot}"

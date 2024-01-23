@@ -11,8 +11,8 @@ import structlog
 
 from bench.proto.wire import RpcMetadata
 from bench.server.utils import parse_metadata
+from bench.utils.casing import to_casing, Casing
 from bench.utils.monitoring import Monitored
-from bench.utils.utils import to_snake_case
 
 logger = structlog.get_logger(__name__)
 
@@ -65,8 +65,8 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
     @final
     def _wrap_rpc(self, method: str, handler: grpclib.const.Handler) -> grpclib.const.Handler:
         func, cardinality, request_type, reply_type = handler
-        service_slug = to_snake_case(self.__class__.__name__)
-        method_slug = to_snake_case(method.split("/")[-1])
+        service_slug = to_casing(self.__class__.__name__, Casing.SNAKE)
+        method_slug = to_casing(method.split("/")[-1], Casing.SNAKE)
         rpc_name = f"{service_slug}.{method_slug}"
         func = self._wrap_rpc_func(func, method_slug, handler)
 

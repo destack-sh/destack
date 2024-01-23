@@ -6,8 +6,8 @@ from itertools import chain
 from uuid import UUID
 
 from bench.proto.core import ProtoStrEnum
+from bench.utils.casing import Casing, to_casing
 from bench.utils.func import cyrb53a
-from bench.utils.utils import IdentifierType, to_identifier
 
 if typing.TYPE_CHECKING:
     from bench.language import Node, Statement  # noqa: F401
@@ -76,8 +76,8 @@ class NodeType(ProtoStrEnum):
     # MESSAGE = "MESSAGE", 133
 
     @property
-    def camel_name(self):
-        return BENCH_TYPE_CAMEL_CASE[self]
+    def bench_name(self):
+        return BENCH_TYPE_NAME[self]
 
 
 NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
@@ -119,8 +119,8 @@ class StructType(ProtoStrEnum):
     RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 301
 
     @property
-    def camel_name(self):
-        return BENCH_TYPE_CAMEL_CASE[self]
+    def bench_name(self):
+        return BENCH_TYPE_NAME[self]
 
 
 STRUCT_TYPES: tuple[StructType, ...] = tuple(StructType)
@@ -132,7 +132,7 @@ else:
         "BenchType",
         {bt.name: (bt.name, bt.id) for bt in chain(NodeType, StructType)},
     )
-    BenchType.camel_name = NodeType.camel_name
+    BenchType.bench_name = NodeType.bench_name
 
 
 def to_bench_metatype(_type: typing.Union[BenchType, int]) -> BenchType:
@@ -144,8 +144,8 @@ def to_bench_metatype(_type: typing.Union[BenchType, int]) -> BenchType:
     return _type
 
 
-BENCH_TYPE_CAMEL_CASE: dict[NodeType | StructType, str] = {
-    _type: to_identifier(_type, IdentifierType.TYPE) for _type in chain(NodeType, StructType)
+BENCH_TYPE_NAME: dict[NodeType | StructType, str] = {
+    _type: to_casing(_type, Casing.CAMEL) for _type in chain(NodeType, StructType)
 }
 INTERP_NODE_TYPES = {NodeType.ISSUE}
 
@@ -175,8 +175,8 @@ class StatementType(ProtoStrEnum):
     # IDENTITY = "identity", 41  # define an identity with roles
 
     @property
-    def camel_name(self):
-        return to_identifier(self.name, IdentifierType.TYPE)
+    def bench_name(self):
+        return to_casing(self.name, Casing.CAMEL)
 
 
 RUNNABLE_STATEMENT_TYPES = {

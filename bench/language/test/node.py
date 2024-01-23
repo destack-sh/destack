@@ -1,6 +1,6 @@
 import pytest
 
-from bench.language.node import BenchPath, AmbiguousBenchPath, InvalidBenchPath
+from bench.language.node import BenchPath, InvalidBenchPath
 
 
 @pytest.mark.parametrize(
@@ -8,7 +8,7 @@ from bench.language.node import BenchPath, AmbiguousBenchPath, InvalidBenchPath
     [
         (
             "flotothemoon/Mirror/Notion/Databases/Landscape",
-            BenchPath("flotothemoon", ("Mirror", "Notion", "Databases")),
+            BenchPath("flotothemoon", ("Mirror", "Notion", "Databases", "Landscape")),
         ),
         (
             "flotothemoon/Applications/Birdy/MainScreen:Dashboard/Big Graphs/Graph1.name",
@@ -20,12 +20,17 @@ from bench.language.node import BenchPath, AmbiguousBenchPath, InvalidBenchPath
             ),
         ),
         (
-            "flotothemoon/Sandbox/Sales/Scraping/WebsiteSamples/Replit.value.document.title",
+            "flotothemoon/Private/Sales/Scraping/WebsiteSamples/Replit.value.document.title",
             BenchPath(
                 "flotothemoon",
-                ("Sandbox", "Sales", "Pipeline", "Scraping", "WebsiteSamples"),
-                ("Replit",),
-                ("value", "document", "title"),
+                ("Private", "Sales", "Scraping", "WebsiteSamples", "Replit"),
+                field_path=("value", "document", "title"),
+            ),
+        ),
+        (
+            "flotothemoon",
+            BenchPath(
+                "flotothemoon",
             ),
         ),
         (
@@ -47,14 +52,17 @@ from bench.language.node import BenchPath, AmbiguousBenchPath, InvalidBenchPath
                 ("theme", "primary", "color"),
             ),
         ),
-        (
-            "../../../../Graphs",
-            AmbiguousBenchPath,
-        ),
-        (
-            "../../Something/../SomethingElse",
-            InvalidBenchPath,
-        ),
+        (".", BenchPath(None, (".",))),
+        ("./..", BenchPath(None, (".", ".."))),
+        ("../.././../.", BenchPath(None, ("..", "..", ".", "..", "."))),
+        ("..", BenchPath(None, ("..",))),
+        ("../../../../Graphs", BenchPath(None, ("..", "..", "..", "..", "Graphs"))),
+        ("../../Something/../SomethingElse", InvalidBenchPath),
+        ("../", InvalidBenchPath),
+        ("..//.", InvalidBenchPath),
+        ("flotothemoon.", InvalidBenchPath),
+        ("flotothemoon.name.", InvalidBenchPath),
+        ("", InvalidBenchPath),
     ],
 )
 def test_bench_path(path_str: str, expected: BenchPath | ValueError):
@@ -62,4 +70,5 @@ def test_bench_path(path_str: str, expected: BenchPath | ValueError):
         with pytest.raises(expected):
             BenchPath.parse(path_str)
     else:
-        assert BenchPath.parse(path_str) == expected
+        actual = BenchPath.parse(path_str)
+        assert actual == expected

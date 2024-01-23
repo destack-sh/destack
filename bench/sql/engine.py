@@ -61,9 +61,10 @@ from bench.sql.core import (
     SqlPrimitive,
     Table,
 )
+from bench.utils.casing import Casing, to_casing
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type, to_uuid
-from bench.utils.utils import DEBUG, LOCAL_ENV, to_all_caps
+from bench.utils.utils import DEBUG, LOCAL_ENV
 
 logger = structlog.get_logger(__name__)
 
@@ -1593,9 +1594,9 @@ async def delete_local_pg_database(pg_name: str, pg_username: str) -> None:
 
 TABLE_BY_NODE_TYPE: dict[NodeType, Table] = {
     # read previously generated tables in schema.py
-    node_type: getattr(schema, f"{to_all_caps(node_type.name)}_TABLE")
+    node_type: getattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
     for node_type in NODE_TYPES
-    if hasattr(schema, f"{to_all_caps(node_type.name)}_TABLE")
+    if hasattr(schema, f"{to_casing(node_type.name, Casing.ALL_CAPS)}_TABLE")
 }
 NODE_TABLES: tuple[Table, ...] = tuple(TABLE_BY_NODE_TYPE.values())
 GLOBAL_TABLES: tuple[Table, ...] = DEFAULT_GLOBAL_TABLES + tuple(

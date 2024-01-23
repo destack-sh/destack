@@ -82,103 +82,6 @@ def get_method_source(method) -> str:
     return textwrap.dedent("".join(cleaned_lines))
 
 
-# :IdentifierStrings
-
-
-class IdentifierType(ProtoStrEnum):
-    METHOD = "method", 1
-    TYPE = "type", 2
-    CONSTANT = "constant", 3
-    PATH = "path", 4
-    VARIABLE = "variable", 5
-    FIELD = "field", 6
-
-
-IdentT = IdentifierType
-
-
-@cachetools.cached(cache={})
-def to_identifier(name: str, type: IdentifierType) -> str:
-    """Turns a string into a valid Python identifier."""
-    if type in (IdentifierType.METHOD, IdentifierType.VARIABLE, IdentifierType.FIELD):
-        # snake_case, turn non-alphanumeric characters into underscores
-        name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
-        name = _strip_alpha_num(name)
-        return name.lower()
-    elif type in (IdentifierType.TYPE, IdentifierType.PATH):
-        # if it's already a mix of uppercase and lowercase starting with uppercase, leave it alone
-        if re.match(r"^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+", name):
-            return name
-        # CamelCase, ignore non-alphanumeric characters and capitalize the next character
-        name = re.sub(r"[^a-zA-Z0-9]", " ", name)
-        # split on existing uppercase characters and spaces
-        name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
-        return _strip_alpha_num(name).title().replace(" ", "")
-    elif type in (IdentifierType.CONSTANT,):
-        # ALL_CAPS, ignore non-alphanumeric characters and capitalize the next character
-        name = re.sub(r"[^a-zA-Z0-9]", " ", name)
-        # split on existing uppercase characters and spaces
-        name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
-        return _strip_alpha_num(name).upper().replace(" ", "_")
-    else:
-        raise ValueError(f"unexpected identifier type: {type}")
-
-
-def to_all_caps(name: str) -> str:
-    # transform somethingNice into SOMETHING_NICE
-    # if it's already all caps, leave it alone
-    # ignore non-alphanumeric characters and capitalize the next character
-    name = re.sub(r"[^a-zA-Z0-9]", " ", name)
-    # split on existing uppercase characters and spaces
-    name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
-    name = _strip_alpha_num(name).upper().replace(" ", "_")
-    return name
-
-
-def _strip_alpha_num(name: str) -> str:
-    # remove leading underscores
-    name = re.sub(r"^_+", "", name)
-    # remove trailing underscores
-    name = re.sub(r"_+$", "", name)
-    # remove double underscores
-    name = re.sub(r"__+", "_", name)
-    # remove leading digits
-    name = re.sub(r"^[0-9]+", "", name)
-    return name
-
-
-def to_pyidentifier_multi(*parts: str, type: IdentifierType) -> str:
-    return ".".join(to_identifier(part, type) for part in parts)
-
-
-@cachetools.cached(cache={})
-def to_camel_case(snake_str: str) -> str:
-    components = snake_str.split("_")
-    return components[0] + "".join(x.capitalize() if x else "_" for x in components[1:])
-
-
-@cachetools.cached(cache={})
-def to_snake_case(camel_str: str) -> str:
-    """From camel case to snake case."""
-    # early cancel if already snake case
-    if not re.match("^[a-z0-9_]+$", camel_str):
-        return camel_str
-
-    components = re.split(r"(?<=[a-z])(?=[A-Z0-9])", camel_str)
-    return "_".join(components).lower()
-
-
-TO_KEBAB_CASE_RE = re.compile("((?<=[a-z0-9])[A-Z]|(?!^)[A-Z](?=[a-z]))")
-
-
-def to_kebab_case(name: str) -> str:
-    return TO_KEBAB_CASE_RE.sub(r"-\1", name).lower()
-
-
-def capitalize_first(name: str) -> str:
-    return name[0].upper() + name[1:]
-
-
 def sentry_capture(e: Exception) -> bool:
     sentry_enabled = sentry_sdk.Hub.current is not None
     if sentry_enabled:
@@ -276,10 +179,6 @@ class hybridmethod(typing.Generic[SelfT, P, HybridT]):
             # either bound to the class, or no instance method available
             return self.cls_func.__get__(owner, None)
         return self.instance_func.__get__(instance, owner)
-
-
-def identity(a: Any) -> Any:
-    return a
 
 
 def format_python(code: str):

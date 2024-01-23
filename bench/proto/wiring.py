@@ -27,16 +27,15 @@ from bench.language.tree import NodeDataTree
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
 from bench.sql.core import ColumnType
+from bench.utils.casing import to_casing, Casing
 from bench.utils.func import to_uuid
-from bench.utils.utils import to_snake_case
 
 logger = structlog.get_logger(__name__)
 
-
 PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = {
-    _type: getattr(wire, _type.camel_name + "Data")
+    _type: getattr(wire, _type.bench_name + "Data")
     for _type in BenchType
-    if hasattr(wire, _type.camel_name + "Data")  # may just be creating it
+    if hasattr(wire, _type.bench_name + "Data")  # may just be creating it
 }
 
 
@@ -273,7 +272,7 @@ def unpack_node_inline(
 def wrap_some_node(node: AnyNodeData) -> wire.SomeNodeData:
     """Wraps a concrete node type into a generic node message."""
     wrapper = wire.SomeNodeData()
-    field_name = to_snake_case(node.metatype.name)
+    field_name = to_casing(node.metatype.name, Casing.SNAKE)
     setattr(wrapper, field_name, node)
     return wrapper
 

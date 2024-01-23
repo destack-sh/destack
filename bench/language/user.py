@@ -3,17 +3,19 @@ from typing import Optional
 
 from bench.language.const import NodeType, NotificationKind, NotificationStatus
 from bench.language.node import Node, ScopeNode, node, node_parent, struct_internal, struct_property
-from bench.utils.utils import IdentifierType, to_identifier
+from bench.utils.casing import IdentifierType
 
 
-@node(NodeType.HANDLE, root=None, in_module=False, in_bench=False)
+@node(
+    NodeType.HANDLE, root=None, in_module=False, in_bench=False, identifier=IdentifierType.VARIABLE
+)
 class Handle(Node):
     """A (global) Bench handle."""
 
     slug: str = struct_internal(30, unique=True)
 
 
-@node(NodeType.USER, root=None, in_module=False, in_bench=False)
+@node(NodeType.USER, root=None, in_module=False, in_bench=False, identifier=IdentifierType.VARIABLE)
 class User(ScopeNode):
     """A (global) Bench user."""
 
@@ -25,12 +27,14 @@ class User(ScopeNode):
     password_hash: Optional[bytes] = struct_internal(35, defer=True, encrypt=True, system=True)
     last_logged_in_at: Optional[datetime] = struct_internal(36, default=None, system=True)
 
-    @property
-    def ident(self):
-        return self.slug
 
-
-@node(NodeType.ORGANIZATION, root=None, in_module=False, in_bench=False)
+@node(
+    NodeType.ORGANIZATION,
+    root=None,
+    in_module=False,
+    in_bench=False,
+    identifier=IdentifierType.VARIABLE,
+)
 class Organization(ScopeNode):
     """A (global) Bench organization."""
 
@@ -38,12 +42,14 @@ class Organization(ScopeNode):
     slug: Optional[str] = struct_internal(31, system=True, unique=True)
     name: str = struct_property(32)
 
-    @property
-    def ident(self):
-        return self.slug
 
-
-@node(NodeType.CLIENT, root=NodeType.USER, in_bench=False, in_module=False)
+@node(
+    NodeType.CLIENT,
+    root=NodeType.USER,
+    in_bench=False,
+    in_module=False,
+    identifier=IdentifierType.VARIABLE,
+)
 class Client(Node):
     """A client to this Bench. Can be a user or a worker."""
 
@@ -55,10 +61,6 @@ class Client(Node):
     access_token: Optional[str] = struct_internal(
         34, default=None, system=True, defer=True, unique=True
     )
-
-    @property
-    def ident(self):
-        return to_identifier(self.name, IdentifierType.VARIABLE)
 
     @property
     def user(self) -> User:
