@@ -70,7 +70,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, NodeReferenceData, SomeNodeData
+from bench.proto.wire import EditData, NodeReferenceData, SomeNodeData, AnyNodeData, AnyStructData
 from bench.sql.core import (
     CascadeAction,
     Column,
@@ -386,6 +386,8 @@ class Property(_FieldExpressionBase):
                 self.is_array = info.is_array
             if self.is_required is UNSET:
                 self.is_required = not info.is_optional
+            if not self.is_required and self.default is UNSET and self.default_factory is None:
+                self.default = None
 
         # determine storage type
         if self.column_type is UNSET and (self.is_stored or self.is_wired):
@@ -640,6 +642,7 @@ def node_parent(id: int, *node_type: NodeType):
         reference_types=tuple(node_type),
         is_internal=True,
         is_stored=False,
+        is_array=False,
     )
 
 
@@ -1187,10 +1190,11 @@ def _node_computed_attr(x: str, prop: Property, backup_prop: Property) -> proper
 
     def get(self: NodeT) -> Optional[Any]:
         reference = getattr(self, prop.name)
-        if reference is not None:
-            return getattr(reference, x)
-        reference = getattr(self, backup_prop.name)
-        if reference is not None:
+        if reference is None:
+            reference = getattr(self, backup_prop.name)
+        if prop.is_array:
+            return tuple(getattr(elem, x) for elem in reference or ())
+        elif reference is not None:
             return getattr(reference, x)
         return None
 
@@ -1325,16 +1329,19 @@ class Struct(abc.ABC):
         """Identifier for dynamic components"""
         return type(self).__name__
 
-    def __eq__(self, other):
+    def equals_content(self, other: Any) -> bool:
+        """Checks if all wired properties of the two structs are equal (recursively)."""
         if self.metatype != other.metatype:
             return False
-        # compare all wired properties
         for prop in self.__wired_properties__.values():
             a_value = getattr(self, prop.name)
             b_value = getattr(other, prop.name)
             if a_value != b_value:
                 return False
         return True
+
+    def __eq__(self, other):
+        return self.equals_content(other)
 
     def _set_untracked(self, key, value):
         self.__dict__[key] = value
@@ -1429,6 +1436,12 @@ class Struct(abc.ABC):
     _clear_rec = _make_rec_method(_ComponentMethod.clear, _clear_self)
     _interp_rec = _make_rec_method(_ComponentMethod.interp, _interp_self)
     _visit_rec = _make_rec_method(_ComponentMethod.visit, _visit_self)
+
+    def _to_wire(self) -> AnyNodeData | AnyStructData:
+        """Convert to wire format"""
+        from bench.proto.wiring import pack_struct
+
+        return pack_struct(self)
 
 
 @node_component
@@ -2168,6 +2181,7 @@ class BenchPath(Struct):
     def parse(path: str, root_type: NodeType = None) -> "BenchPath":
         """
         Parses a path string into a BenchPath. Uses root type to disambiguate some relative paths.
+        TODO @Performance: revisit BenchPath.parse
         """
 
         if not path:

@@ -45,9 +45,10 @@ class NodeReference(Struct):
     def from_node(node: Optional[Node]) -> Optional["NodeReference"]:
         if node is None:
             return None
-        if node.__is_in_module__:
+        if "ck" in node.__properties__:
             return NodeReference(type=node.metatype, id=node.id, ck=node.ck)
         else:
+            assert node.id is not None, f"cannot reference node without id: {node!r}"
             return NodeReference(type=node.metatype, id=node.id)
 
 
