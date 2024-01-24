@@ -189,16 +189,16 @@ RUNNABLE_STATEMENT_TYPES = {
 }
 
 
-class NodeSource(enum.IntEnum):
-    PERSISTED = 1
-    INTERP = 2
-    LOCAL = 3
+class NodeSource(ProtoStrEnum):
+    PERSISTED = "PERSISTED", 1
+    INTERP = "INTERP", 2
+    LOCAL = "LOCAL", 3
 
 
-class NodeVisibility(enum.IntEnum):
-    PUBLIC = 1
-    INTERNAL = 2
-    PRIVATE = 4
+class NodeVisibility(ProtoStrEnum):
+    PRIVATE = "PRIVATE", 1
+    INTERNAL = "INTERNAL", 2
+    PUBLIC = "PUBLIC", 3
 
 
 DYNAMIC_NODE_KEY_LENGTH = 8

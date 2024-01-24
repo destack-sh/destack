@@ -35,6 +35,12 @@ PROTO_CLASS_BY_TYPE: dict[BenchType, type[Union[AnyNodeData, AnyStructData]]] = 
     for _type in BenchType
     if hasattr(wire, _type.bench_name + "Data")  # may just be creating it
 }
+BENCH_TYPE_BY_PROTO_CLASS: dict[type[Union[AnyNodeData, AnyStructData]], BenchType] = {
+    cls: bench_type for bench_type, cls in PROTO_CLASS_BY_TYPE.items()
+}
+BENCH_CLASS_BY_PROTO_CLASS: dict[
+    type[Union[AnyNodeData, AnyStructData]], type[Union[Node, Struct]]
+] = {cls: BENCH_CLASS_BY_TYPE[bench_type] for cls, bench_type in BENCH_TYPE_BY_PROTO_CLASS.items()}
 
 
 def copy_struct_data(data: AnyStructData) -> AnyStructData:
