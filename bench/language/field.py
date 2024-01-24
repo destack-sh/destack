@@ -1,25 +1,19 @@
-import dataclasses
 import typing
 from copy import deepcopy
-from dataclasses import dataclass
-from typing import Any, Collection, Optional, Union
-from uuid import UUID
+from typing import Any, Optional, Union
 
 import structlog
 
 from bench.language.const import (
-    RESERVED_TYPE_TAGS,
     IssueType,
     NodeType,
-    TypeFlag,
-    TypeHint,
-    TypeStorageFormat,
-    TypeTag,
     new_dynamic_node_key,
+    BenchType,
+    StructType,
+    FormatHint,
 )
 from bench.language.issue import IssueHandler
 from bench.language.node import (
-    UNSET,
     Node,
     NodeList,
     NRel,
@@ -33,22 +27,20 @@ from bench.language.node import (
     struct_internal,
     struct_property,
     struct_runtime,
+    Struct,
+    struct,
 )
 from bench.language.validation import (
-    ValidationHandler,
-    enum_validator,
-    flag_validator,
     validate_is_str,
     validate_name,
 )
 from bench.language.value import HasValue
 from bench.sql.core import ColumnType
 from bench.utils.casing import IdentifierType
-from bench.utils.func import dict_minus
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
 if typing.TYPE_CHECKING:
-    from bench.language import Statement
+    from bench.language import Statement, Expression
 
 logger = structlog.get_logger(__name__)
 
@@ -85,414 +77,106 @@ class TypeError(TypeError):
         self.suberrors = suberrors or []
 
 
-PRIMITIVE_TYPES = [
-    TypeTag.BOOLEAN,
-    TypeTag.NUMBER,
-    TypeTag.STRING,
-    TypeTag.VECTOR,
-    TypeTag.NODE,
-]
-DEFAULT_EMBEDDING_DIMENSION = 768  # currently only support :FixedEmbeddingDimension
-Vector = typing.NewType("Vector", Union[bytes, list[float]])
-Json = typing.NewType("Json", dict)
-Key = typing.NewType("Key", str)
+@struct(StructType.TYPE_INFO)
+class TypeInfo(Struct):
+    # type identity (must set one of these)
+    base_type: Optional["Statement"] = struct_property(
+        40, array=False, require=False, default=None, references=NodeType.STATEMENT
+    )
+    bench_type: Optional[BenchType] = struct_property(41, default=None)
+    column_type: Optional[ColumnType] = struct_property(42, default=None)
+    # + bonus info/constraints
+    format_hint: Optional[FormatHint] = struct_property(43, default=None)
+    condition: Optional["Expression"] = struct_property(
+        44, require=False, array=False, default=None, struct=StructType.EXPRESSION
+    )
 
-TYPE_TAG_BY_TYPE_HINT = {
-    # string
-    TypeHint.NAME: TypeTag.STRING,
-    TypeHint.UUID: TypeTag.STRING,
-    TypeHint.DATE: TypeTag.STRING,
-    TypeHint.DATETIME: TypeTag.STRING,
-    TypeHint.TIME: TypeTag.STRING,
-    TypeHint.DURATION: TypeTag.STRING,
-    TypeHint.EMAIL: TypeTag.STRING,
-    TypeHint.URL: TypeTag.STRING,
-    TypeHint.MARKDOWN: TypeTag.STRING,
-    TypeHint.RICH_TEXT: TypeTag.STRING,
-    TypeHint.HTML: TypeTag.STRING,
-    TypeHint.CODE: TypeTag.STRING,
-    TypeHint.KEY: TypeTag.STRING,
-    TypeHint.PHONE: TypeTag.STRING,
-    TypeHint.SECRET: TypeTag.STRING,
-    # number
-    TypeHint.INTEGER: TypeTag.NUMBER,
-    TypeHint.FLOAT: TypeTag.NUMBER,
-    TypeHint.SLIDER: TypeTag.NUMBER,
-    TypeHint.RATING: TypeTag.NUMBER,
-    # boolean
-    TypeHint.TOGGLE: TypeTag.BOOLEAN,
-    TypeHint.CHECKBOX: TypeTag.BOOLEAN,
-    TypeHint.THUMBS: TypeTag.BOOLEAN,
-    # node
-    TypeHint.BENCH: TypeTag.NODE,
-    TypeHint.IMAGE: TypeTag.NODE,
-    TypeHint.VIDEO: TypeTag.NODE,
-    TypeHint.AUDIO: TypeTag.NODE,
-    TypeHint.FILE: TypeTag.NODE,
-    TypeHint.STATEMENT: TypeTag.NODE,
-    TypeHint.FIELD: TypeTag.NODE,
-    TypeHint.RUN: TypeTag.NODE,
-    TypeHint.RECORD: TypeTag.NODE,
-    TypeHint.BLOB: TypeTag.NODE,
-    # embedding
-    TypeHint.EMBEDDING: TypeTag.VECTOR,
-}
+    # flags
+    is_array: bool = struct_internal(50, default=False)
+    is_optional: bool = struct_internal(51, default=True)
+    is_output: bool = struct_internal(52, default=False)
+    is_secret: bool = struct_internal(53, default=False)
+    is_literal: bool = struct_internal(54, default=False)
 
-STORAGE_FORMAT_BY_TYPE_TAG = {
-    TypeTag.STRING: TypeStorageFormat.STRING,
-    TypeTag.JSON: TypeStorageFormat.OBJECT,
-    TypeTag.NUMBER: TypeStorageFormat.DOUBLE,
-    TypeTag.BOOLEAN: TypeStorageFormat.BOOLEAN,
-    TypeTag.VECTOR: TypeStorageFormat.VECTOR,
-    TypeTag.STRUCT: TypeStorageFormat.OBJECT,
-    TypeTag.ENUM: TypeStorageFormat.KEYWORD,
-    TypeTag.LITERAL: TypeStorageFormat.KEYWORD,
-    TypeTag.NODE: TypeStorageFormat.RELATION,
-}
-STORAGE_FORMAT_BY_TYPE_HINT = {
-    # for special types that are not the same as their type tag
-    TypeHint.UUID: TypeStorageFormat.KEYWORD,
-    TypeHint.DATE: TypeStorageFormat.DATE,
-    TypeHint.DATETIME: TypeStorageFormat.DATE,
-    TypeHint.TIME: TypeStorageFormat.LONG,
-    TypeHint.DURATION: TypeStorageFormat.DOUBLE,
-    TypeHint.KEY: TypeStorageFormat.KEYWORD,
-    TypeHint.INTEGER: TypeStorageFormat.LONG,
-    TypeHint.FLOAT: TypeStorageFormat.DOUBLE,
-}
-
-
-def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeStorageFormat:
-    # :TypeStorageFormat
-    if flags & TypeFlag.IS_SECRET:
-        return TypeStorageFormat.OBJECT  # stored as secret object
-    if hint in STORAGE_FORMAT_BY_TYPE_HINT:
-        return STORAGE_FORMAT_BY_TYPE_HINT[hint]
-    return STORAGE_FORMAT_BY_TYPE_TAG[tag]
-
-
-def _type_str(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> str:
-    flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if flags & flag)
-    flags_str = f" ({flag_str})" if flag_str else ""
-    if hint:
-        return f"{hint}{flags_str}"
-    else:
-        return f"{tag}{flags_str}"
-
-
-@dataclass
-class Type:
-    """Detached type information. Mostly for convenient Field construction."""
-
-    # private because this Type isn't meant to be used directly, only for construction
-    _tag: TypeTag
-    _hint: Optional[TypeHint]
-    _flags: TypeFlag
-    _reference: Optional["Statement"] = None
-
-    def __str__(self) -> str:
-        return _type_str(self._tag, self._hint, self._flags)
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
-    def replace(self, **kwargs) -> "Type":
-        return dataclasses.replace(self, **kwargs)
-
-    def array(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IS_ARRAY)
-
-    def scalar(self) -> "Type":
-        return self.replace(_flags=self._flags & ~TypeFlag.IS_ARRAY)
-
-    def required(self) -> "Type":
-        return self.replace(_flags=self._flags & ~TypeFlag.IS_OPTIONAL)
-
-    def optional(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IS_OPTIONAL)
-
-    def input(self) -> "Type":
-        return self.replace(_flags=self._flags & ~TypeFlag.IS_OUTPUT)
-
-    def output(self) -> "Type":
-        return self.replace(_flags=self._flags | TypeFlag.IS_OUTPUT)
-
-    @staticmethod
-    def reference(reference: Union["Statement", None]) -> "Type":
-        return Type(
-            _tag=TypeTag.TYPE_REFERENCE, _hint=None, _flags=TypeFlag.ZERO, _reference=reference
-        )
-
-    @staticmethod
-    def from_field(field: "Field") -> "Type":
-        return Type(
-            _tag=field.tag,
-            _hint=field.hint,
-            _flags=field.flags,
-            _reference=field.reference,
-        )
-
-    @staticmethod
-    def from_tag(tag: TypeTag) -> "Type":
-        return Type(_tag=tag, _hint=None, _flags=TypeFlag.ZERO)
-
-    @staticmethod
-    def from_hint(hint: TypeHint) -> "Type":
-        return Type(_tag=TYPE_TAG_BY_TYPE_HINT[hint], _hint=hint, _flags=TypeFlag.ZERO)
-
-    @staticmethod
-    def to_python(node: "Type") -> str:
-        """Reconstruct minimal Python code to create this type."""
-        if node._tag == TypeTag.TYPE_REFERENCE:
-            if isinstance(node._reference, Node):
-                reference_str = node._reference.py_ident
-            elif isinstance(node._reference, UUID):
-                reference_str = f"UUID('{node._reference}')"
-            else:
-                reference_str = repr(node._reference)
-            node_str = f"Type.reference({reference_str})"
+    def __content_str__(self) -> str:
+        if self.base_type is not None:
+            info_str = self.base_type.path
+        elif self.bench_type is not None:
+            info_str = self.bench_type.bench_name
+        elif self.column_type is not None:
+            info_str = self.column_type.name
         else:
-            node_str = f"Type.{node._hint.name if node._hint else node._tag.name}"
-        if node._flags & TypeFlag.IS_ARRAY:
-            node_str += ".array()"
-        if node._flags & TypeFlag.IS_ARRAYABLE:
-            node_str += ".arrayable()"
-        if not (node._flags & TypeFlag.IS_OPTIONAL):
-            node_str += ".required()"
-        if node._flags & TypeFlag.IS_OUTPUT:
-            node_str += ".output()"
-        return node_str
+            raise ValueError(f"no type identity in {self!r}")
+        if self.format_hint:
+            info_str += f" as {self.format_hint}"
+        if self.condition:
+            info_str += f" [{self.condition}]"
 
-
-for tag in TypeTag:
-    if tag in RESERVED_TYPE_TAGS:
-        continue
-    _type = Type(_tag=tag, _hint=None, _flags=TypeFlag.IS_OPTIONAL)
-    setattr(Type, tag.name, _type)
-for hint in TypeHint:
-    _type = Type(_tag=TYPE_TAG_BY_TYPE_HINT[hint], _hint=hint, _flags=TypeFlag.IS_OPTIONAL)
-    setattr(Type, hint.name, _type)
-
-
-@node_component
-class HasType(Node):
-    key: str | None = struct_internal(UNSET, default=None)
-
-    @property
-    def _storage_format(self) -> TypeStorageFormat:
-        if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, Node):
-            return self.reference._storage_format
-        return get_storage_format(self.tag, self.hint, self.flags)
-
-    @property
-    def _effective_type(self) -> Union["HasType", "Statement"]:
-        if isinstance(self.reference, Node):
-            return self.reference
-        else:
-            return self
-
-    @property
-    def _type_str(self) -> str:
-        return _type_str(self.tag, self.hint, self.flags)
-
-    @property
-    def _effective_tag(self) -> TypeTag:
-        return self._effective_type.tag
-
-    @property
-    def _effective_hint(self) -> Optional[TypeHint]:
-        return self._effective_type.hint
-
-    def equals_type(self, other: "HasType") -> bool:
-        return (
-            self._effective_tag == other._effective_tag
-            and self._effective_hint == other._effective_hint
-            and self.flags == other.flags
-            and self.reference == other.reference
+        flags = tuple(
+            f
+            for f in ("is_array", "is_optional", "is_output", "is_secret", "is_literal")
+            if getattr(self, f)
         )
+        if flags:
+            info_str += f" ({', '.join(flags)})"
+        return info_str
+
+    @property
+    def _identity_key(self) -> str:
+        assert self.column_type is not None, f"no column type in {self!r}"
+        key = str(self.column_type.id)
+        if self.is_array:
+            key += "a"
+        if self.is_secret:
+            key += "s"
+        return key
 
 
 @node(NodeType.FIELD)
-class Field(HasValue, HasType, _FieldExpressionBase):
+class Field(HasValue, TypeInfo, _FieldExpressionBase):
     parent: Union["Statement", None] = node_parent(4, NodeType.STATEMENT)
     name: str | None = struct_property(30, default=None, validate=validate_name)
     order_key: str | None = struct_internal(31, default=None)
     text: str | None = struct_property(32, default=None, validate=validate_is_str)
-    tag: TypeTag = struct_property(33, require=True, validate=enum_validator(TypeTag))
-    key: str | None = struct_internal(34, default=None)
+    key: str | None = struct_internal(33, default=None)
     value: Any | None = struct_property(
-        35, default=None, copy=deepcopy, column_type=ColumnType.JSON
+        34, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
-    hint: TypeHint | None = struct_property(36, default=None, validate=enum_validator(TypeHint))
-    flags: TypeFlag = struct_property(37, default=TypeFlag.ZERO, validate=flag_validator(TypeFlag))
-    reference: Optional["Statement"] = struct_internal(
-        38, require=False, array=False, references=NodeType.STATEMENT
-    )
+
+    # type identity
+    # ...TypeInfo
+
+    _derived_type: TypeInfo | None = struct_runtime(default=None)
     _reflected_from: Optional[Property] = struct_runtime(default=None)
 
-    @staticmethod
-    def new(
-        name: str = None,
-        type: Union[TypeTag, TypeHint, "Statement", str, type] = None,
-        text: str = None,
-        flags: TypeFlag = TypeFlag.ZERO,
-        *args,
-        for_parent: "Statement" = None,
-        **kwargs,
-    ) -> "Field":
-        # default to literal or string if no type is specified
-        if type is None:
-            if for_parent and for_parent.tag == TypeTag.ENUM:
-                type = TypeTag.LITERAL
-                if name is None:
-                    name = f"Option {len(for_parent.fields) + 1}"
-            else:
-                type = TypeTag.STRING
-
-        # default to optional if parent is not a function (and not set via Type)
-        if not (for_parent and for_parent.tag == TypeTag.FUNCTION) and not isinstance(type, Type):
-            flags |= TypeFlag.IS_OPTIONAL
-
-        # coerce type
-        if isinstance(type, Type):
-            kwargs["tag"] = type._tag
-            kwargs["hint"] = type._hint
-            flags = type._flags | flags
-            kwargs["reference"] = type._reference
-        elif isinstance(type, TypeTag):
-            kwargs["tag"] = type
-        elif isinstance(type, TypeHint):
-            kwargs["hint"] = type
-            kwargs["tag"] = TYPE_TAG_BY_TYPE_HINT[type]
-        elif type is str:
-            kwargs["tag"] = TypeTag.STRING
-        elif type is int:
-            kwargs["tag"] = TypeTag.NUMBER
-            kwargs["hint"] = TypeHint.INTEGER
-        elif type is float:
-            kwargs["tag"] = TypeTag.NUMBER
-        elif type is bool:
-            kwargs["tag"] = TypeTag.BOOLEAN
-        elif isinstance(type, Node) and type._type == NodeType.STATEMENT or isinstance(type, str):
-            kwargs["tag"] = TypeTag.TYPE_REFERENCE
-            kwargs["reference"] = type
-        else:
-            raise ValueError(f"unexpected type {type!r}")
-        if kwargs.get("hint") == TypeHint.SECRET:
-            flags = flags | TypeFlag.IS_SECRET
-
-        return Field(name=name, text=text, flags=flags, *args, **kwargs)
-
-    input = new  # same as new but more explicit
-
-    @staticmethod
-    def output(
-        name: str,
-        type: Union[TypeTag, TypeHint, "Statement", str, type] = None,
-        text: str = None,
-        *args,
-        **kwargs,
-    ) -> "Field":
-        return Field.new(name=name, type=type, flags=TypeFlag.IS_OUTPUT, text=text, *args, **kwargs)
-
-    @staticmethod
-    def literal(name: str, text: str = None, *args, **kwargs) -> "Field":
-        return Field.new(name=name, text=text, type=TypeTag.LITERAL, *args, **kwargs)
-
-    @staticmethod
-    def to_python(
-        node: "Field", props: dict, for_parent: "Statement" = None
-    ) -> tuple[str, dict, dict]:
-        props = {**props}
-        implicit_optional = (
-            node.flags == TypeFlag.IS_OPTIONAL and for_parent and for_parent.tag != TypeTag.FUNCTION
-        )
-        if "flags" in props and (node.flags == 0 or implicit_optional):
-            del props["flags"]
-        if node.tag == TypeTag.LITERAL:
-            init_args = {"name": props["name"], "text": props.get("text")}
-            init_name = "Field.literal"
-        elif not node.flags and node.tag == TypeTag.TYPE_REFERENCE:
-            init_args = {"type": node.reference}
-            init_name = "Field.new"
-        else:
-            type = Type.from_field(node)
-            init_args = {"name": props["name"], "type": type, "text": props.get("text")}
-            if for_parent and for_parent.tag == TypeTag.FUNCTION:
-                init_name = "Field.output" if node.flags & TypeFlag.IS_OUTPUT else "Field.input"
-                type._flags &= ~TypeFlag.IS_OUTPUT  # ignore flag, already handled
-            else:
-                init_name = "Field.new"
-
-        init_kwargs = dict_minus(props, "name", "flags", "text", "tag", "hint", "reference")
-        return init_name, init_args, init_kwargs
-
-    def __content_str__(self):
-        return self._type_str
-
     def __eq__(self, other):
-        if self.tag == TypeTag.LITERAL and isinstance(other, str):
-            return self.name == other or self.py_ident == other
-
         return _FieldExpressionBase.__eq__(self, other)  # override to avoid recursion
 
     @property
     def identifier_type(self):
-        if self.tag == TypeTag.LITERAL:
+        if self.is_literal:
             return IdentifierType.CONSTANT
         else:
             return IdentifierType.PROPERTY
 
-    @property
-    def _type_of_value(self) -> "HasFields":
-        return None
-
     def _init_inner(self):
         self.key = self.key or new_dynamic_node_key(self.ck)
 
-    def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
-        # yes, the hint/tag/flags system needs a refactor...
-        if self.hint is not None:
-            tag = TYPE_TAG_BY_TYPE_HINT[self.hint]
-            if self.tag != tag:
-                on_invalid(self, f"expected {tag} for {self.hint} ({self.tag})", ["tag", "hint"])
-        if self.flags & TypeFlag.IS_SECRET:
-            if self.hint != TypeHint.SECRET:
-                on_invalid(
-                    self,
-                    IssueType.INVALID_DATA,
-                    f"expected secret hint for IsSecret ({self.hint})",
-                    ["hint", "flags"],
-                )
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
+        pass  # nocheckin: derive/interp Field._derived_type
 
     @property
-    def dimensions(self) -> int:
-        if self.tag != TypeTag.VECTOR:
-            raise ValueError(f"{self} does not have dimensions")
-        return (self.value or {}).get("dimensions", DEFAULT_EMBEDDING_DIMENSION)
+    def derived_type(self) -> TypeInfo:
+        assert self._derived_type is not None, f"derived type not ready in {self!r}"
+        return self._derived_type
 
     @property
-    def _typed_key(self) -> str:
-        is_array = bool(self.flags & TypeFlag.IS_ARRAY or self.flags & TypeFlag.IS_ARRAYABLE)
-        if self._storage_format == TypeStorageFormat.VECTOR:
-            typed_key = f"{self.key}-{self._storage_format.value}{self.dimensions}"
-        else:
-            typed_key = f"{self.key}-{self._storage_format.value}"
-        if is_array:
-            typed_key += "-arr"
-        return typed_key
-
-    @property
-    def _source_key(self) -> str:
-        return "value." + self._typed_key
-
-    @property
-    def _subkey(self) -> str | None:
-        return None  # for FieldQueryOps
+    def _storage_key(self) -> str:
+        return f"{self.key}-{self.derived_type._identity_key}"
 
 
 @node_component
-class HasFields(HasType):
+class HasFields(Node):
     """A node with fields"""
 
     fields: NodeList["Field"] = node_children(
@@ -511,7 +195,7 @@ class HasFields(HasType):
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         self._resolve_fields([], on_issue)
 
-    def _resolve_fields(self: "HasFields", path: list[HasType], on_issue: "IssueHandler") -> None:
+    def _resolve_fields(self: "HasFields", path: list["Node"], on_issue: "IssueHandler") -> None:
         """
         Resolves (and inlines) field references and unions.
         """
@@ -521,17 +205,17 @@ class HasFields(HasType):
         if any(f.id == self.id for f in path):
             # circular panic
             path = "->".join(n.name for n in path + [self])
-            on_issue(type=IssueType.CIRCULAR_UNION, subject=self, path=path)
+            on_issue(type=IssueType.CIRCULAR_BASE, subject=self, path=path)
             self._did_resolve_fields = True
             return
 
         # resolve fields recursively (inlining any valid unions)
-        # nocheckin: Field._resolve_fields
+        # nocheckin: Field._resolve_fields -> resolve bases
         self._did_resolve_fields = True
 
     def _inputs_from_args(self, args, kwargs) -> dict:
         inputs = {**kwargs}
-        input_fields = [f for f in self.fields if not (f.flags & TypeFlag.IS_OUTPUT)]
+        input_fields = [f for f in self.fields if not f.is_output]
         for input_t, input in zip(input_fields, args):
             inputs[input_t.py_ident] = input
         return inputs
@@ -562,9 +246,7 @@ class TypedDict(dict):
             return dict.__getitem__(self, item)
         except KeyError:
             field = self._type.fields.get(item)
-            if field and (
-                self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
-            ):
+            if field and (self._is_output is None or field.is_output == self._is_output):
                 return None
         raise KeyError(f"no key {item!r} on {self._type!r}")
 
@@ -575,9 +257,7 @@ class TypedDict(dict):
             return dict.__getitem__(self, item)
         except KeyError:
             field = self._type.fields.get(item)
-            if field and (
-                self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
-            ):
+            if field and (self._is_output is None or field.is_output == self._is_output):
                 return None
         raise AttributeError(f"no attribute {item!r} on {self._type!r}")
 
@@ -586,9 +266,7 @@ class TypedDict(dict):
             return super().__setattr__(name, value)
 
         field = self._type.fields.get(name)
-        if field and (
-            self._is_output is None or bool(field.flags & TypeFlag.IS_OUTPUT) == self._is_output
-        ):
+        if field and (self._is_output is None or field.is_output == self._is_output):
             return dict.__setitem__(self, name, value)
         raise AttributeError(f"cannot set attribute {name!r} on {self._type!r}")
 

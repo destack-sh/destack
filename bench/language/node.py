@@ -51,8 +51,6 @@ from bench.language.const import (
     NRel,
     StatementType,
     StructType,
-    TypeHint,
-    TypeTag,
 )
 from bench.language.link import (
     _NC,
@@ -252,24 +250,14 @@ class Property(_FieldExpressionBase):
         # derive constant ck for field using ids
         metatype = getattr(self.component, "metatype", None)  # (ABCs don't have a metatype)
         metatype_id = metatype.id if metatype is not None else None
-        if self.column_type == ColumnType.BOOLEAN:
-            tag, hint = TypeTag.BOOLEAN, None
-        elif self.column_type == ColumnType.BIGINT:
-            tag, hint = TypeTag.NUMBER, TypeHint.INTEGER
-        elif self.column_type == ColumnType.FLOAT:
-            tag, hint = TypeTag.NUMBER, None
-        elif self.column_type == ColumnType.STRING:
-            tag, hint = TypeTag.STRING, None
-        elif self.column_type == ColumnType.DATETIME:
-            tag, hint = TypeTag.STRING, TypeHint.DATETIME
-        elif self.column_type == ColumnType.UUID:
-            tag, hint = TypeTag.STRING, TypeHint.UUID
-        elif self.column_type == ColumnType.JSON:
-            tag, hint = TypeTag.JSON, None
-        else:
-            raise ValueError(f"unexpected column type in {self!r}: {self.column_type}")
         field_ck = uuid.uuid5(UUID_NAMESPACE, f"{metatype_id}.{self.id}")
-        field = Field(name=self.name, ck=field_ck, tag=tag, hint=hint, _reflected_from=self)
+        field = Field(
+            name=self.name,
+            ck=field_ck,
+            column_type=self.column_type,
+            is_optional=not self.is_required,
+            _reflected_from=self,
+        )
         return field
 
     @functools.cached_property
@@ -451,7 +439,7 @@ class Property(_FieldExpressionBase):
                 id=self.id,  # re-use id, self is not stored
                 name=self.name + "_ptr",
                 component=self.component,
-                py_type_raw=NodeReferenceData,
+                py_type_raw="NodeReference",
                 reference_kind=self.reference_kind,
                 reference_types=self.reference_types,
                 reference_source=self,
@@ -552,7 +540,7 @@ def struct_property(
     array: bool = UNSET,
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
-    struct_t: StructType = None,
+    struct: StructType = None,
     column_type: ColumnType = UNSET,
 ):
     """Standard user facing struct/node property."""
@@ -568,7 +556,7 @@ def struct_property(
         ignore_conflicts_with=ignore_conflicts_with,
         reference_kind=NodeReferenceKind.REGULAR if references else None,
         reference_types=try_tuple(references),
-        struct_type=struct_t,
+        struct_type=struct,
         column_type=column_type,
         is_unique=unique,
         is_array=array,

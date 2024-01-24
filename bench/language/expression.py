@@ -14,9 +14,6 @@ from bench.language.const import (
     SortMode,
     SortOp,
     StructType,
-    TypeHint,
-    TypeStorageFormat,
-    TypeTag,
 )
 from bench.language.node import BENCH_CLASS_BY_TYPE, Node, Property, Struct, struct, struct_property
 from bench.sql.core import ColumnType
@@ -68,7 +65,7 @@ class PropertyPath(Struct):
     """A path of Node/Struct properties."""
 
     properties: list[PropertyReference] = struct_property(
-        30, require=True, array=True, struct_t=StructType.PROPERTY_REFERENCE
+        30, require=True, array=True, struct=StructType.PROPERTY_REFERENCE
     )
 
     def __content_str__(self):
@@ -80,7 +77,7 @@ class FieldPath(Struct):
     """A path of built-in Node/Struct properties and user-defined Fields."""
 
     segments: list["FieldPathSegment"] = struct_property(
-        30, require=True, array=True, struct_t=StructType.FIELD_PATH_SEGMENT
+        30, require=True, array=True, struct=StructType.FIELD_PATH_SEGMENT
     )
 
     def __content_str__(self):
@@ -92,7 +89,7 @@ class FieldPathSegment(Struct):
     """A single segment of a FieldPath."""
 
     property: PropertyReference = struct_property(
-        30, require=True, struct_t=StructType.PROPERTY_REFERENCE
+        30, require=True, struct=StructType.PROPERTY_REFERENCE
     )
     field: Optional["Field"] = struct_property(
         31, require=False, array=False, references=NodeType.FIELD
@@ -107,7 +104,7 @@ class ValueReference(Struct):
     """Reference a value at a path of a Node."""
 
     node: Node = struct_property(30, require=True, array=False, references=(NodeType.STATEMENT,))
-    path: FieldPath = struct_property(31, require=True, struct_t=StructType.FIELD_PATH)
+    path: FieldPath = struct_property(31, require=True, struct=StructType.FIELD_PATH)
 
     def __content_str__(self):
         return f"{self.node.path}.{self.path.__content_str__()}"
@@ -133,10 +130,10 @@ class Expression(Struct):
         31, require=False, array=False, references=NodeType.FIELD
     )
     property_ptr: Optional[PropertyReference] = struct_property(
-        32, default=None, struct_t=StructType.PROPERTY_REFERENCE
+        32, default=None, struct=StructType.PROPERTY_REFERENCE
     )
     clauses: list["Expression"] | None = struct_property(
-        35, default=None, struct_t=StructType.EXPRESSION
+        35, default=None, struct=StructType.EXPRESSION
     )
     value: Any = struct_property(36, default=None, column_type=ColumnType.JSON)
     mode: Optional[SortMode] = struct_property(37, default=None)
@@ -279,19 +276,9 @@ class ExpressionOps:  # :ExpressionOps
 
 
 EXPRESSION_OPS_BY_KIND: dict[ExpressionKind, set[ExpressionOp]] = {
-    ExpressionKind.CONDITIONAL: {
-        *ExpressionOps.COND_STATIC,
-        *ExpressionOps.COND_LOGICAL,
-        *ExpressionOps.COND_EXACT,
-        *ExpressionOps.COND_SET,
-        *ExpressionOps.COND_RANGE,
-        *ExpressionOps.COND_EXISTENCE,
-        *ExpressionOps.COND_VECTOR,
-        *ExpressionOps.COND_COMPARISON,
-        *ExpressionOps.COND_STRING,
-    },
-    ExpressionKind.AGGREGATION: {*ExpressionOps.AGG_SCALAR, *ExpressionOps.AGG_BUCKET},
-    ExpressionKind.SORT: {*ExpressionOps.SORT},
+    ExpressionKind.CONDITIONAL: {*ConditionalOp},
+    ExpressionKind.AGGREGATION: {*AggregationOp},
+    ExpressionKind.SORT: {*SortOp},
 }
 EXPRESSION_KIND_BY_OP: dict[ExpressionOp, ExpressionKind] = {
     op: kind for kind, ops in EXPRESSION_OPS_BY_KIND.items() for op in ops
@@ -318,7 +305,7 @@ class Aggregation(Struct):
     exists: Optional[bool] = struct_property(31, default=False)
     scalar: Optional[float] = struct_property(32, default=None)
     buckets: list["AggregationBucket"] | None = struct_property(
-        33, default=None, array=True, struct_t=StructType.AGGREGATION_BUCKET
+        33, default=None, array=True, struct=StructType.AGGREGATION_BUCKET
     )
 
 
@@ -463,32 +450,29 @@ def _check_field_supports(field: "Field", op: ExpressionOp):
     """Asserts that the field supports the given expression operator."""
     if op in SortOp:
         return field._storage_format in (
-            TypeStorageFormat.DATE,
-            TypeStorageFormat.DOUBLE,
-            TypeStorageFormat.LONG,
-            TypeStorageFormat.KEYWORD,
+            ColumnType.DATETIME,
+            ColumnType.FLOAT,
+            ColumnType.INT,
+            ColumnType.BIGINT,
         )
     else:
-        if (
-            op not in ExprOps.COND_EXISTENCE
-            and op not in SUPPORTED_OPS_BY_TYPE.get(field._storage_format, _EMPTY_SET)
-            and op not in SUPPORTED_OPS_BY_TYPE.get(field._effective_tag, _EMPTY_SET)
-            and op not in SUPPORTED_OPS_BY_TYPE.get(field._effective_hint, _EMPTY_SET)
+        if op not in ExprOps.COND_EXISTENCE and op not in SUPPORTED_OPS_BY_TYPE.get(
+            field.column_type or field.derived_type.column_type, _EMPTY_SET
         ):
             raise UnsupportedExpressionError(field, op)
 
 
 ExprOps = ExpressionOps  # alias
-SUPPORTED_OPS_BY_TYPE: dict[TypeTag | TypeHint | TypeStorageFormat, set[ConditionalOp]] = {
+SUPPORTED_OPS_BY_TYPE: dict[ColumnType, set[ConditionalOp]] = {
     # cumulative supported query ops by type
-    TypeStorageFormat.LONG: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
-    TypeStorageFormat.DOUBLE: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
-    TypeStorageFormat.BOOLEAN: ExprOps.COND_EXACT,
-    TypeStorageFormat.DATE: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
-    TypeStorageFormat.KEYWORD: ExprOps.COND_EXACT,
-    TypeStorageFormat.VECTOR: ExprOps.COND_VECTOR,
-    TypeStorageFormat.RELATION: ExprOps.COND_EXACT,
-    TypeTag.STRING: ExprOps.COND_EXACT | ExprOps.COND_RANGE | {ConditionalOp.MATCHES},
-    TypeHint.NAME: {ConditionalOp.STARTS_WITH},
+    ColumnType.INT: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
+    ColumnType.BIGINT: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
+    ColumnType.FLOAT: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
+    ColumnType.BOOLEAN: ExprOps.COND_EXACT,
+    ColumnType.DATETIME: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
+    ColumnType.VECTOR: ExprOps.COND_VECTOR,
+    ColumnType.STRING: ExprOps.COND_EXACT
+    | ExprOps.COND_RANGE
+    | {ConditionalOp.MATCHES, ConditionalOp.STARTS_WITH, ConditionalOp.REGEX},
 }
 _EMPTY_SET = set()

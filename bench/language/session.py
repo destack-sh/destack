@@ -30,8 +30,6 @@ from bench.language.const import (
     RunStatus,
     StructType,
     TriggerType,
-    TypeFlag,
-    TypeTag,
 )
 from bench.language.node import (
     _NC,
@@ -210,7 +208,7 @@ class Session(ScopeNode):
             return self.local_pg_cursor
         if module.pg_name not in self._other_local_pg_cursors:
             logger.debug("session.open_foreign_pg", module=module)
-            pg_pool = get_pg_connection_pool(module.pg_name)
+            pg_pool = await get_pg_connection_pool(module.pg_name)
             pg_connection = await pg_pool.getconn(timeout=3)
             self._other_local_pg_cursors[module.pg_name] = pg_connection.cursor()
         return self._other_local_pg_cursors[module.pg_name]
@@ -253,7 +251,7 @@ class Session(ScopeNode):
 
         # prepare local postgres
         if self._local_pg_cursor is None:
-            pg_pool = get_pg_connection_pool(self.module.pg_name)
+            pg_pool = await get_pg_connection_pool(self.module.pg_name)
             pg_connection = await pg_pool.getconn(timeout=2)
             self._local_pg_cursor = pg_connection.cursor()
 
@@ -269,12 +267,12 @@ class Session(ScopeNode):
         # close postgres connections
         if self._local_pg_cursor:
             await self.local_pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
-            pg_pool = get_pg_connection_pool(self.module.pg_name)
+            pg_pool = await get_pg_connection_pool(self.module.pg_name)
             await pg_pool.putconn(self._local_pg_cursor.connection)
             self._local_pg_cursor = None
         for pg_name, pg_cursor in self._other_local_pg_cursors.items():
             await pg_cursor.connection.rollback()
-            pg_pool = get_pg_connection_pool(pg_name)
+            pg_pool = await get_pg_connection_pool(pg_name)
             await pg_pool.putconn(pg_cursor.connection)
 
         # close session

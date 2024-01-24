@@ -206,7 +206,7 @@ def render_text_simple(text_spans: list[TextSpan]) -> str:
 @struct(StructType.RICH_TEXT)
 class RichText(Struct):
     spans: list["RichTextSpan"] = struct_property(
-        30, default_factory=list, struct_t=StructType.RICH_TEXT
+        30, default_factory=list, struct=StructType.RICH_TEXT
     )
     plain_text: str | None = struct_internal(31, default=None)
 

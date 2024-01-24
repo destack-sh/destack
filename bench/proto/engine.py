@@ -115,7 +115,7 @@ def map_bench_enum_to_proto(
             EnumValue(id=name, name=enum_prefix + id_) for id_, name in bench_t.__members__.items()
         ]
     else:
-        raise TypeError(f"invalid type: {bench_t!r}")
+        raise TypeError(f"invalid enum type: {bench_t!r}")
     # add unset if not already present
     if not any(v.id == 0 for v in enum_values):
         enum_values = [EnumValue(id=0, name=enum_prefix + "UNSPECIFIED"), *enum_values]
@@ -140,7 +140,7 @@ def map_bench_type_to_proto(
     elif issubclass(bench_t, enum.Enum):
         ret = map_bench_enum_to_proto(bench_t, cache, alias=alias)
     else:
-        raise TypeError(f"invalid type: {bench_t!r}")
+        raise TypeError(f"invalid bench type: {bench_t!r}")
     cache[bench_t] = ret
     return ret
 

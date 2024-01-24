@@ -467,7 +467,7 @@ class RecordQuery:
         # 'serialize' values (probably need a better way here to retain some native types?)
         check_type(value, self._database)
         value = pack_value(
-            value, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f._typed_key)
+            value, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f._storage_key)
         )
         value = pg_wrap_record_value(self._database, value)
         # update values alongside :LocalRecordCru
