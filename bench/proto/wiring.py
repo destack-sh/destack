@@ -1,21 +1,19 @@
 import enum
 from collections import OrderedDict
 from copy import copy
-from typing import Any, Union
+from typing import Any, Union, cast
 from uuid import UUID
 
 import betterproto
 import structlog
 from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
-from bench.language.const import BenchType, NodeType, StructType
+from bench.language.const import BenchType, NodeType
 from bench.language.node import (
     BENCH_CLASS_BY_TYPE,
     METATYPE_PROPERTY,
     NODE_CLASS_BY_TYPE,
-    STRUCT_CLASS_BY_TYPE,
     Node,
-    NodeReferenceKind,
     NodeStatus,
     NodeTree,
     Property,
@@ -84,11 +82,12 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return pack_struct(value)
     elif prop.is_enum:
         return pack_enum(prop.py_type_stripped, value)
-    elif prop.reference_kind in (NodeReferenceKind.PARENT, NodeReferenceKind.ANCESTOR):
-        return NodeReferenceData(metatype=wire.BenchType.NODE_REFERENCE, id=str(value.id))
-    elif prop.reference_kind == NodeReferenceKind.REGULAR:
+    elif prop.reference_kind is not None:
         return NodeReferenceData(
-            metatype=wire.BenchType.NODE_REFERENCE, id=str(value.id), ck=str(value.ck)
+            metatype=wire.BenchType.NODE_REFERENCE,
+            type=pack_enum(BenchType, value.type),
+            id=str(value.id),
+            ck=str(value.ck) if value.ck is not None else None,
         )
     elif prop.column_type == ColumnType.UUID:
         return str(value)  # uuids are wired as strings
@@ -107,6 +106,8 @@ def pack_enum(enum_cls: type[enum.Enum], value: Any) -> Any:
 
 
 def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
+    from bench.language.expression import NodeReference
+
     try:
         if value is None:
             return None
@@ -116,6 +117,12 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
             return unpack_struct(value)
         elif prop.is_enum:
             return unpack_enum(prop.py_type_stripped, value)
+        elif prop.reference_kind is not None:
+            return NodeReference(
+                type=unpack_enum(NodeType, value.type),
+                id=to_uuid(value.id),
+                ck=to_uuid(value.ck) if value.ck else None,
+            )
         elif prop.column_type == ColumnType.UUID:
             return to_uuid(value)  # uuids are wired as strings
         elif prop.column_type == ColumnType.JSON:
@@ -177,7 +184,7 @@ def unpack_struct_maybe(struct_data: AnyStructData | None) -> Struct | None:
 
 
 def pack_node(node: Node) -> AnyNodeData:
-    return pack_struct(node)
+    return cast(AnyNodeData, pack_struct(node))
 
 
 def pack_node_maybe(node: Node | None) -> AnyNodeData | None:

@@ -9,9 +9,9 @@ from uuid import UUID
 import pytest
 import pytz
 
-from bench.language import Struct, Node
-from bench.language.const import BenchType, BENCH_TYPES, StructType
-from bench.language.node import BENCH_CLASS_BY_TYPE, Property
+from bench.language import Struct, Node, NodeReference
+from bench.language.const import BenchType, BENCH_TYPES, StructType, NODE_TYPES
+from bench.language.node import BENCH_CLASS_BY_TYPE, Property, NODE_CLASS_BY_TYPE
 from bench.proto import wiring
 from bench.proto.wire import NodeReferenceData
 from bench.sql.core import ColumnType
@@ -47,18 +47,33 @@ def fabricate_prop_scalar(prop: Property, path: tuple[BenchType, ...]) -> any:
 
 def fabricate(bench_type: BenchType, path: tuple[BenchType, ...]) -> Node | Struct:
     path = path + (bench_type,)
-    kwargs = {}
-    bench_cls = BENCH_CLASS_BY_TYPE[bench_type]
-    for prop in bench_cls.__properties__.values():
-        if not prop.is_runtime or prop.is_computed:
-            continue  # ignore
-        elif prop.struct_type in path:  # prevent circles
-            kwargs[prop.name] = () if prop.is_array else None
-        elif prop.is_array:
-            kwargs[prop.name] = [fabricate_prop_scalar(prop, path) for _ in range(3)]
+
+    # special cases for semantic correctness
+    if bench_type == StructType.NODE_REFERENCE:
+        type = random.choice(NODE_TYPES)
+        id = uuid.uuid4()
+        if "ck" in NODE_CLASS_BY_TYPE[type].__properties__:
+            ck = uuid.uuid4()
         else:
-            kwargs[prop.name] = fabricate_prop_scalar(prop, path)
-    return bench_cls(**kwargs)
+            ck = None
+        return NodeReference(type=type, id=id, ck=ck)
+    elif bench_type == StructType.PROPERTY_REFERENCE:
+        type = random.choice(NODE_TYPES)
+        prop = random.choice(tuple(NODE_CLASS_BY_TYPE[type].__properties__.values()))
+        return prop.ptr
+    else:  # default random and unconstrained jumble of properties
+        kwargs = {}
+        bench_cls = BENCH_CLASS_BY_TYPE[bench_type]
+        for prop in bench_cls.__runtime_properties__.values():
+            if prop.is_runtime_only or prop.is_computed:
+                continue
+            elif prop.struct_type in path:  # prevent circles
+                kwargs[prop.name] = [] if prop.is_array else None
+            elif prop.is_array:
+                kwargs[prop.name] = [fabricate_prop_scalar(prop, path) for _ in range(3)]
+            else:
+                kwargs[prop.name] = fabricate_prop_scalar(prop, path)
+        return bench_cls(**kwargs)
 
 
 BENCH_OBJECTS = [fabricate(t, ()) for t in BENCH_TYPES]

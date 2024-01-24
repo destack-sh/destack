@@ -39,7 +39,7 @@ class NodeReference(Struct):
     ck: Optional[UUID] = struct_property(32, default=None)
 
     def __content_str__(self):
-        return f"{self.type.name}:[id={self.id}, ck={self.ck}]"
+        return f"{self.type.bench_name}:[id={self.id}, ck={self.ck}]"
 
     @staticmethod
     def from_node(node: Optional[Node]) -> Optional["NodeReference"]:
@@ -60,7 +60,7 @@ class PropertyReference(Struct):
     references_type: Optional[NodeType] = struct_property(32)
 
     def __content_str__(self):
-        return f"{self.type.name}:{self.id}"
+        return f"{self.type.bench_name}.[id={self.id}]"
 
 
 @struct(StructType.PROPERTY_PATH)

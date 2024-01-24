@@ -524,14 +524,20 @@ class _FieldExpressionBase:
         return _to_conditional(ConditionalOp.LESS_THAN_OR_EQUALS, self, value=value)
 
     def __eq__(self, other):
+        from bench.language.node import Node
+
         if isinstance(self, Node) and isinstance(other, Node):
             return Node.__eq__(self, other)  # imitate Field equality
-        return self.equals(other)
+        else:
+            return self.equals(other)
 
     def __ne__(self, other):
+        from bench.language.node import Node
+
         if isinstance(self, Node) and isinstance(other, Node):
             return Node.__ne__(self, other)
-        return self.not_equal(other)
+        else:
+            return self.not_equal(other)
 
     __gt__ = greater_than
     __ge__ = greater_than_or_equals

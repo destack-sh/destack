@@ -1,6 +1,7 @@
 """
 Patch code for betterproto to make it behave like we want.
 Auto-pasted into the generated wire files.
+nocheckin: somehow monkeying breaks repeated deserialization
 """
 
 import dataclasses
@@ -14,9 +15,7 @@ from betterproto.lib.google.protobuf import Struct as BetterprotoStruct
 
 from bench.utils.utils import frozendict
 
-# monkey-patch default generator to initialize all *optional* fields as None
-# (including nested messages, primitives, and repeated fields - proto3 can only 'optional' primitives,
-#  which is a newer addition for field presence tracking)
+# monkey-patch default generator to initialize
 
 _default_gen_none = type(None)
 
@@ -28,26 +27,23 @@ def _default_gen_dict() -> dict:
 
 
 def _get_field_default_gen(cls: type["betterproto.Message"], field: dataclasses.Field) -> Any:
+    # adapted from betterproto source
     t = cls._type_hint(field.name)
 
     if hasattr(t, "__origin__"):
-        if t.__origin__ is dict:  # map (make const since we never modify it directly)
-            return _default_gen_dict
-        elif t.__origin__ is list:  # repeated field (also make const)
-            return tuple
+        if t.__origin__ is dict:
+            return dict
+        elif t.__origin__ is list:
+            return list
         elif t.__origin__ is Union and t.__args__[1] is type(None):
             return _default_gen_none
         else:
             return t
     elif issubclass(t, betterproto.Enum):
-        # Enums always default to zero.
-        return _default_gen_none
+        return _default_gen_none  # default to None instead of UNSPECIFIED
     elif t is datetime:
-        # Offsets are relative to 1970-01-01T00:00:00Z
         return _default_gen_none
     else:
-        # This is either a primitive scalar or another message type. Calling
-        # it should result in its zero value.
         return t
 
 
