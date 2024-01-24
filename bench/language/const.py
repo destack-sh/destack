@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.24.0"
+VERSION = "2024.01.24.1"
 
 
 #
@@ -98,6 +98,7 @@ class StructType(ProtoStrEnum):
     VALUE_REFERENCE = "VALUE_REFERENCE", 206
 
     BLOB = "BLOB", 210
+    TYPE_INFO = "TYPE_INFO", 211
 
     POLICY = "POLICY", 220
     POLICY_RULE = "POLICY_RULE", 221
@@ -117,6 +118,9 @@ class StructType(ProtoStrEnum):
 
     RICH_TEXT = "RICH_TEXT", 300
     RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 301
+
+    # workspace
+    # SPACE = "SPACE", 400 # should be a node?
 
     @property
     def bench_name(self):
@@ -328,107 +332,27 @@ class NotificationStatus(ProtoStrEnum):
     EXPIRED = "EXPIRED", 3
 
 
-# TODO @Architecture: :SimpleTypes ... TypeTag/TypeHint/TypeFlag/TypeStorageFormat mess
-#  (should probably? just be type + flags as properties on Field + display hint Field)
-#  IS_ARRAYABLE -> real unions of X | list[X] or whatever
-
-
-class TypeTag(ProtoStrEnum):
-    """The Bench primitive type of a field/type."""
-
-    STRING = "string", 1
-    NUMBER = "number", 2
-    BOOLEAN = "boolean", 3
-    VECTOR = "vector", 4
-    JSON = "json", 7  # == ANY
-    LITERAL = "literal", 10
-    NODE = "node", 11
-    STRUCT = "struct", 6
-    FUNCTION = "function", 8
-    ENUM = "enum", 9
-    TYPE_REFERENCE = "ref", 13
-
-
-RESERVED_TYPE_TAGS = (TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.STRUCT)
-
-
-class TypeHint(ProtoStrEnum):
-    """Extra representation/semantics of a field/type."""
+class FormatHint(ProtoStrEnum):
+    """Extra semantic hint for types."""
 
     # string
     NAME = "name", 1
     UUID = "uuid", 2
-    DATE = "date", 3
-    DATETIME = "datetime", 4
-    TIME = "time", 5
-    DURATION = "duration", 6
-    EMAIL = "email", 7
-    URL = "url", 8
-    MARKDOWN = "markdown", 9
-    RICH_TEXT = "rich_text", 10
-    HTML = "html", 11
-    CODE = "code", 12
-    KEY = "key", 13
+    EMAIL = "email", 3
+    URL = "url", 4
+    MARKDOWN = "markdown", 5
+    CODE = "code", 6
     # number
-    INTEGER = "integer", 14
-    FLOAT = "float", 15
-    SLIDER = "slider", 16
-    PHONE = "phone", 17
-    RATING = "rating", 18
+    PHONE = "phone", 10
+    RATING = "rating", 11
     # boolean
-    TOGGLE = "toggle", 19
-    CHECKBOX = "checkbox", 20
-    THUMBS = "thumbs", 21
-    # vector
-    EMBEDDING = "embedding", 22
-    # node (relation)
-    BENCH = "bench", 30  # not used yet
-    # MODULE = "module", 31  # not used yet
-    FILE = "file", 32
-    STATEMENT = "statement", 33
-    RECORD = "record", 34
-    FIELD = "field", 35
-    SECRET = "secret", 36
-    BLOB = "blob", 37
-    RUN = "run", 38  # not used yet
-    # blob nodes
-    IMAGE = "image", 50
-    VIDEO = "video", 51
-    AUDIO = "audio", 52
-
-
-class TypeFlag(enum.IntFlag):
-    """Extra information for fields"""
-
-    # :TypeFlags
-    ZERO = 0
-    IS_OUTPUT = 2**0
-    IS_ARRAY = 2**1
-    IS_OPTIONAL = 2**2
-    IS_SECRET = 2**4
-    IS_STORE_ONLY = 2**5
-    IS_ARRAYABLE = 2**6
-
-    @property
-    def short_name(self) -> str:
-        return self.name.replace("Is", "")
-
-
-class TypeStorageFormat(ProtoStrEnum):
-    """
-    The fundamental form of a field/type.:TypeStorageFormat
-    """
-
-    STRING = "str", 1
-    DOUBLE = "f64", 2
-    LONG = "s64", 3
-    VECTOR = "vec", 4
-    BINARY = "bin", 5
-    BOOLEAN = "bool", 6
-    DATE = "date", 7
-    KEYWORD = "key", 8
-    OBJECT = "obj", 9
-    RELATION = "rel", 10
+    TOGGLE = "toggle", 20
+    CHECKBOX = "checkbox", 21
+    THUMBS = "thumbs", 22
+    # files
+    IMAGE = "image", 30
+    VIDEO = "video", 31
+    AUDIO = "audio", 32
 
 
 class RichTextFlag(enum.IntFlag):
@@ -562,25 +486,26 @@ class ConditionalOp(ProtoStrEnum):
     AND = "AND", 4
     OR = "OR", 5
     # comparison
-    EQUALS = "EQUALS", 6
-    NOT_EQUALS = "NOT_EQUALS", 7
-    GREATER_THAN = "GREATER_THAN", 8
-    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS", 9
-    LESS_THAN = "LESS_THAN", 10
-    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS", 11
+    EQUALS = "EQUALS", 10
+    NOT_EQUALS = "NOT_EQUALS", 11
+    GREATER_THAN = "GREATER_THAN", 12
+    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS", 13
+    LESS_THAN = "LESS_THAN", 14
+    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS", 15
     # string comparison
-    MATCHES = "MATCHES", 12
-    STARTS_WITH = "STARTS_WITH", 13
+    MATCHES = "MATCHES", 20
+    STARTS_WITH = "STARTS_WITH", 21
+    REGEX = "REGEX", 22
     # containment
-    CONTAINS = "CONTAINS", 14
-    NOT_CONTAINS = "NOT_CONTAINS", 15
-    IN = "IN", 16
-    NOT_IN = "NOT_IN", 17
+    CONTAINS = "CONTAINS", 30
+    NOT_CONTAINS = "NOT_CONTAINS", 31
+    IN = "IN", 32
+    NOT_IN = "NOT_IN", 33
     # existence
-    EXISTS = "EXISTS", 18
-    NOT_EXISTS = "DOES_NOT_EXIST", 19
+    EXISTS = "EXISTS", 40
+    NOT_EXISTS = "DOES_NOT_EXIST", 41
     # vector
-    NEAR = "NEAR", 20
+    NEAR = "NEAR", 50
 
 
 _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
@@ -598,6 +523,7 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
     # string comparison
     ConditionalOp.MATCHES: "~=",
     ConditionalOp.STARTS_WITH: "^=",
+    ConditionalOp.REGEX: "$re=",
     # containment
     ConditionalOp.CONTAINS: "∋",
     ConditionalOp.NOT_CONTAINS: "!∋",
@@ -612,19 +538,19 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 
 
 class AggregationOp(ProtoStrEnum):
-    EXISTS = "EXISTS", 51
-    COUNT = "COUNT", 52
-    SUM = "SUM", 53
-    AVERAGE = "AVERAGE", 54
-    MIN = "MIN", 55
-    MAX = "MAX", 56
-    MEDIAN = "MEDIAN", 57
-    HISTOGRAM = "HISTOGRAM", 58
+    EXISTS = "EXISTS", 101
+    COUNT = "COUNT", 102
+    SUM = "SUM", 103
+    AVERAGE = "AVERAGE", 104
+    MIN = "MIN", 105
+    MAX = "MAX", 106
+    MEDIAN = "MEDIAN", 107
+    HISTOGRAM = "HISTOGRAM", 108
 
 
 class SortOp(ProtoStrEnum):
-    ASCENDING = "ASCENDING", 101
-    DESCENDING = "DESCENDING", 102
+    ASCENDING = "ASCENDING", 201
+    DESCENDING = "DESCENDING", 202
 
 
 class QueryEngine(ProtoStrEnum):

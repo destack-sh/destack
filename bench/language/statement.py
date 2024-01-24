@@ -9,8 +9,6 @@ from bench.language.const import (
     NodeVisibility,
     StatementType,
     StructType,
-    TypeFlag,
-    TypeTag,
 )
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
@@ -43,7 +41,7 @@ if TYPE_CHECKING:
 
 
 @node_component
-class InstantiableType(Node):
+class IsInstantiable(Node):
     def prune(self, *args, **kwargs) -> Any:
         from bench.language.packer import check_type
 
@@ -84,7 +82,6 @@ class _StatementDescriptor:
     type: StatementType
     dynamic_components: tuple[typing.Type[Node], ...]
     identifier: IdentifierType
-    tag: Optional[TypeTag] = None
 
     def __post_init__(self):
         if self.type in _STATEMENT_DESCRIPTORS:
@@ -96,25 +93,20 @@ IdentT = IdentifierType
 
 # :StatementDescriptors
 _s = _StatementDescriptor
-_s(StatementType.BOX, (HasFields,), IdentT.VARIABLE, tag=TypeTag.STRUCT)
-_s(StatementType.TAG, (HasFields,), IdentT.VARIABLE, tag=TypeTag.STRUCT)
+_s(StatementType.BOX, (HasFields,), IdentT.VARIABLE)
+_s(StatementType.TAG, (HasFields,), IdentT.VARIABLE)
 _s(StatementType.TEXT, (), IdentT.VARIABLE)
 _s(StatementType.LINK, (), IdentT.VARIABLE)
 _s(StatementType.BLANK, (), IdentT.VARIABLE)
-_s(StatementType.CLASS, (InstantiableType, HasFields), IdentT.TYPE, tag=TypeTag.STRUCT)
-_s(StatementType.SIGNAL, (InstantiableType, HasFields), IdentT.TYPE, tag=TypeTag.STRUCT)
-_s(StatementType.CHOICE, (InstantiableType, HasFields), IdentT.TYPE, tag=TypeTag.ENUM)
-_s(StatementType.TASK, (HasTask, HasRun, HasFields), IdentT.FUNCTION, tag=TypeTag.FUNCTION)
-_s(
-    StatementType.CODE,
-    (HasCode, HasRun, HasTriggers, HasFields),
-    IdentT.FUNCTION,
-    tag=TypeTag.FUNCTION,
-)
-_s(StatementType.FLOW, (HasRun, HasFields), IdentT.FUNCTION, tag=TypeTag.FUNCTION)
-_s(StatementType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION, tag=TypeTag.FUNCTION)
-_s(StatementType.VARIABLE, (HasValue, HasFields), IdentT.VARIABLE, tag=TypeTag.STRUCT)
-_s(StatementType.DATABASE, (HasDatabase, HasFields), IdentT.VARIABLE, tag=TypeTag.STRUCT)
+_s(StatementType.CLASS, (IsInstantiable, HasFields), IdentT.TYPE)
+_s(StatementType.SIGNAL, (IsInstantiable, HasFields), IdentT.TYPE)
+_s(StatementType.CHOICE, (IsInstantiable, HasFields), IdentT.TYPE)
+_s(StatementType.TASK, (HasTask, HasRun, HasFields), IdentT.FUNCTION)
+_s(StatementType.CODE, (HasCode, HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
+_s(StatementType.FLOW, (HasRun, HasFields), IdentT.FUNCTION)
+_s(StatementType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION)
+_s(StatementType.VARIABLE, (HasValue, HasFields), IdentT.VARIABLE)
+_s(StatementType.DATABASE, (HasDatabase, HasFields), IdentT.VARIABLE)
 _s(StatementType.VIEW, (HasFields,), IdentT.VARIABLE)
 _s(StatementType.SCREEN, (), IdentT.VARIABLE)
 
@@ -232,11 +224,6 @@ class Statement(ScopeNode, HasTags):
             for prop in component.__properties__.values():
                 if prop.is_runtime_only and prop.name not in self.__dict__:
                     setattr(self, prop.name, prop.new())
-
-        # IsTyped
-        setattr(self, "tag", _STATEMENT_DESCRIPTORS[self.type].tag)
-        setattr(self, "flags", TypeFlag.ZERO)
-        setattr(self, "hint", None)
 
     def morph(self, to_type: StatementType):
         self.type = to_type

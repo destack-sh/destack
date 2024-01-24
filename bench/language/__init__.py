@@ -13,13 +13,11 @@ from .const import (
     SortOp,
     StatementType,
     TriggerType,
-    TypeFlag,
-    TypeHint,
-    TypeTag,
+    FormatHint,
 )
 from .database import Record
 from .expression import A, C, E, Expression, S, PropertyReference, NodeReference
-from .field import Field, Type, TypeStorageFormat
+from .field import Field, HasFields
 from .file import File
 from .issue import Issue
 from .node import (
@@ -43,6 +41,7 @@ from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .view import View
 from .worker import Dependency, Worker, WorkerImage, WorkerSet
+from ..sql.core import ColumnType
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
@@ -53,27 +52,31 @@ __all__ = [
     "Blob",
     "C",
     "Client",
+    "ColumnType",
     "ConditionalOp",
     "Dependency",
     "E",
     "Expression",
     "Field",
     "File",
-    "Pause",
+    "FormatHint",
     "Handle",
+    "HasFields",
     "Issue",
     "IssueType",
     "Link",
     "LogEntry",
     "Module",
     "Node",
-    "NodeVisitor",
     "NodeReference",
+    "NodeVisitor",
     "Organization",
+    "Pause",
     "Policy",
     "PolicyEffect",
     "PolicyRule",
     "Property",
+    "PropertyReference",
     "QueryEngine",
     "Record",
     "render",
@@ -94,19 +97,14 @@ __all__ = [
     "Tagging",
     "Trigger",
     "TriggerType",
-    "Type",
-    "TypeFlag",
-    "TypeHint",
-    "TypeStorageFormat",
-    "TypeTag",
     "User",
-    "PropertyReference",
-    "View",
     "VERSION",
+    "View",
+    "Worker",
     "WorkerImage",
     "WorkerSet",
-    "Worker",
 ]
+
 
 # after all the imports, we can finalize
 _complete_bench_setup()

@@ -27,7 +27,9 @@ class HasValue(Node):
             from bench.language.packer import check_type
 
             try:
-                get_k = lambda f: f.py_ident if self._status == NS.ACTIVE else f._typed_key  # noqa
+                get_k = (
+                    lambda f: f.py_ident if self._status == NS.ACTIVE else f._storage_key
+                )  # noqa
                 check_type(self.value or {}, self._type_of_value, get_k=get_k)
             except TypeError as e:
                 on_invalid(self, f"invalid value: {e}", ["value"])

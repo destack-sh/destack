@@ -23,6 +23,10 @@ LOCAL_PG_PORT = get_from_env("LOCAL_PG_PORT", default=5432, type_cast=int, alt="
 LOCAL_PG_USERNAME = get_from_env("LOCAL_PG_USERNAME", alt="USER_PG_USERNAME")
 LOCAL_PG_PASSWORD = get_from_env("LOCAL_PG_PASSWORD", alt="USER_PG_PASSWORD")
 
+# TODO @Robustness: figure out how to fix the psycopg pool warning
+#  (what we're doing should be fine according to docs and the warning)
+AsyncConnectionPool._warn_open_async = lambda *args, **kwargs: None  # type: ignore
+
 
 @functools.cache
 def _get_pg_connection_str(local_pg_name: str | None) -> str:
@@ -40,9 +44,9 @@ def _get_pg_connection_str(local_pg_name: str | None) -> str:
 _connection_pools: dict[str, AsyncConnectionPool] = {}
 
 
-def get_pg_connection_pool(local_pg_name: str | None) -> AsyncConnectionPool:
+async def get_pg_connection_pool(local_pg_name: str | None) -> AsyncConnectionPool:
     if local_pg_name not in _connection_pools:
-        _connection_pools[local_pg_name] = AsyncConnectionPool(
+        pool = AsyncConnectionPool(
             _get_pg_connection_str(local_pg_name),
             min_size=1,
             max_size=4,
@@ -51,6 +55,8 @@ def get_pg_connection_pool(local_pg_name: str | None) -> AsyncConnectionPool:
             connection_class=psycopg.AsyncConnection,
             kwargs={"row_factory": dict_row},
         )
+        await pool.open()
+        _connection_pools[local_pg_name] = pool
     return _connection_pools[local_pg_name]
 
 
@@ -59,7 +65,7 @@ async def async_pg_connection(
     local_pg_name: str | None = None, autocommit: bool = False
 ) -> psycopg.AsyncConnection[dict[str, Any]]:
     """Gets a psycopg cursor to the given database"""
-    pool = get_pg_connection_pool(local_pg_name)
+    pool = await get_pg_connection_pool(local_pg_name)
     async with pool.connection() as conn:
         if conn.autocommit != autocommit:
             await conn.set_autocommit(autocommit)

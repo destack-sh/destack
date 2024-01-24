@@ -15,9 +15,9 @@ class View(Node):
     name: str | None = struct_property(30, default=None)
     order_key: str | None = struct_property(31, default=None)
     node_type: NodeType = struct_property(32)
-    filter: Optional[Expression] = struct_property(33, default=None, struct_t=StructType.EXPRESSION)
+    filter: Optional[Expression] = struct_property(33, default=None, struct=StructType.EXPRESSION)
     sort: Optional[list[Expression]] = struct_property(
-        34, default=None, struct_t=StructType.EXPRESSION
+        34, default=None, struct=StructType.EXPRESSION
     )
 
     def __content_str__(self):

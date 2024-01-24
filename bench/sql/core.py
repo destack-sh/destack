@@ -11,6 +11,8 @@ from uuid import UUID
 #  see https://github.com/MagicStack/asyncpg
 from more_itertools import first
 
+from bench.proto.core import ProtoStrEnum
+
 
 def stable_hash(*args) -> int:
     """
@@ -153,39 +155,40 @@ class TableObject(Object):
         return dataclasses.replace(self, _table=None)
 
 
-class ColumnType(enum.StrEnum):
+class ColumnType(ProtoStrEnum):
     """
-    Generic SQL column types (akin to Prisma/SQLAlchemy).
+    Fundamental column / storage types we support (subset of SQL types).
+    NOTE: the ids here are used in encode/decode pipelines, take extra care.
     """
 
-    STRING = "String"
-    BOOLEAN = "Boolean"
-    INT = "Int"  # range: -2147483648 to 2147483647
-    BIGINT = "BigInt"  # range: -9223372036854775808 to 9223372036854775807
-    FLOAT = "Float"
-    DECIMAL = "Decimal"
-    DATETIME = "DateTime"
-    JSON = "Json"
-    BINARY = "Binary"
-    VECTOR = "Vector"
-    UUID = "UUID"
-    BYTES = "Bytes"
+    STRING = "String", 1
+    BOOLEAN = "Boolean", 2
+    INT = "Int", 3  # range: -2147483648 to 2147483647
+    BIGINT = "BigInt", 4  # range: -9223372036854775808 to 9223372036854775807
+    FLOAT = "Float", 5
+    DATETIME = "DateTime", 6
+    INTERVAL = "Interval", 7
+    JSON = "Json", 8
+    BINARY = "Binary", 9
+    VECTOR = "Vector", 10
+    UUID = "UUID", 11
+    BYTES = "Bytes", 12
 
 
 SqlPrimitiveSingle = Union[str, int, float, bool, datetime, UUID, bytes, type(None)]
 SqlPrimitive = Union[SqlPrimitiveSingle, list[SqlPrimitiveSingle], dict[str, SqlPrimitiveSingle]]
 
 
-class CascadeAction(enum.StrEnum):
+class CascadeAction(ProtoStrEnum):
     """
     A SQL cascade action.
     """
 
-    RESTRICT = "RESTRICT"
-    CASCADE = "CASCADE"
-    SET_NULL = "SET NULL"
-    NO_ACTION = "NO ACTION"
-    SET_DEFAULT = "SET DEFAULT"
+    RESTRICT = "RESTRICT", 1
+    CASCADE = "CASCADE", 2
+    SET_NULL = "SET NULL", 3
+    NO_ACTION = "NO ACTION", 4
+    SET_DEFAULT = "SET DEFAULT", 5
 
 
 @dataclass
@@ -514,6 +517,7 @@ POSTGRES_TYPE_BY_UDT: dict[str, PostgresColumnType] = {
     "float8": PostgresColumnType.DOUBLE_PRECISION,
     "timestamptz": PostgresColumnType.TIMESTAMP,
     "timestamp": PostgresColumnType.TIMESTAMP,
+    "interval": PostgresColumnType.INTERVAL,
     "jsonb": PostgresColumnType.JSONB,
     "bytea": PostgresColumnType.BYTEA,
     "text": PostgresColumnType.TEXT,
@@ -527,8 +531,8 @@ POSTGRES_TYPE_BY_COLUMN_TYPE: dict[ColumnType, PostgresColumnType] = {
     ColumnType.INT: PostgresColumnType.INTEGER,
     ColumnType.BIGINT: PostgresColumnType.BIGINT,
     ColumnType.FLOAT: PostgresColumnType.REAL,
-    ColumnType.DECIMAL: PostgresColumnType.NUMERIC,
     ColumnType.DATETIME: PostgresColumnType.TIMESTAMP,
+    ColumnType.INTERVAL: PostgresColumnType.INTERVAL,
     ColumnType.JSON: PostgresColumnType.JSONB,
     ColumnType.BINARY: PostgresColumnType.BYTEA,
     ColumnType.VECTOR: PostgresColumnType.BYTEA,

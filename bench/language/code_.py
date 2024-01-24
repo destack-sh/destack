@@ -18,7 +18,7 @@ from more_itertools import first, last
 
 from bench.language.blob import Blob, BlobStatus
 from bench.language.builtin import symbolx_lib
-from bench.language.const import ConditionalOp, IssueType, SortMode, SortOp, TypeFlag
+from bench.language.const import ConditionalOp, IssueType, SortMode, SortOp
 from bench.language.expression import C
 from bench.language.field import TypedDict
 from bench.language.node import Node, ScopeNode, node_component, struct_runtime
@@ -160,9 +160,7 @@ class HasCode(Node):
         locals = self._prep_locals()
         func_body, start_offset, end_offset = self._prep_func_body()
         func_name = f"{self.py_ident or '_anon'}_{self.id.hex[:6]}"
-        func_params = ", ".join(
-            i.py_ident + "=None" for i in self.fields if not (i.flags & TypeFlag.IS_OUTPUT)
-        )
+        func_params = ", ".join(f.py_ident + "=None" for f in self.fields if not f.is_output)
         try:
             method_str = f"def {func_name}({func_params}):\n{textwrap.indent(func_body, ' ' * 4)}"
             if self._parse.is_async:

@@ -658,7 +658,7 @@ def unpack_value(
     return map_value(
         value=value,
         type=type,
-        map_k=map_k or (lambda f: (f._typed_key, f.py_ident)),
+        map_k=map_k or (lambda f: (f._storage_key, f.py_ident)),
         map_v=partial(unpack_value_flat, scope=scope, session=session),
         ignore_array=ignore_array,
         ignore_outer=ignore_outer,
@@ -692,7 +692,7 @@ def pack_value(
     return map_value(
         value=value,
         type=type,
-        map_k=map_k or (lambda f: (f.py_ident, f._typed_key)),
+        map_k=map_k or (lambda f: (f.py_ident, f._storage_key)),
         map_v=map_v,
         ignore_array=ignore_array,
         ignore_outer=ignore_outer,
@@ -710,7 +710,7 @@ def key_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
             return value
 
     return map_value(
-        value, type, map_k=lambda f: (f.py_ident, f._typed_key), map_v=map_v, is_output=is_output
+        value, type, map_k=lambda f: (f.py_ident, f._storage_key), map_v=map_v, is_output=is_output
     )
 
 
@@ -722,7 +722,7 @@ def unkey_value(value: Any, type: "Statement", is_output: bool = None) -> Any:
             return value
 
     return map_value(
-        value, type, map_k=lambda f: (f._typed_key, f.py_ident), map_v=map_v, is_output=is_output
+        value, type, map_k=lambda f: (f._storage_key, f.py_ident), map_v=map_v, is_output=is_output
     )
 
 

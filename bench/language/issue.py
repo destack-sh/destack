@@ -51,7 +51,7 @@ class Issue(Node):
     kind: IssueKind = struct_property(31, default=None, validate=enum_validator(IssueKind))
     message: str = struct_property(32, default=None)
     path: Optional[FieldPath] = struct_property(
-        34, default=None, require=False, array=False, struct_t=StructType.FIELD_PATH
+        34, default=None, require=False, array=False, struct=StructType.FIELD_PATH
     )
     properties: Optional[list[int]] = struct_property(35, default=None)
 

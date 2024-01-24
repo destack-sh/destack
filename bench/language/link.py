@@ -28,7 +28,6 @@ from bench.language.const import (
     NRel,
     QueryEngine,
     SortOp,
-    TypeTag,
 )
 from bench.language.validation import on_invalid_raise
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -483,10 +482,6 @@ class _FieldExpressionBase:
         # basic support checks
 
     def _coerce_value(self: "Field", value: Any) -> Any:
-        from bench.language.field import Field
-
-        if self._as_field._effective_tag == TypeTag.ENUM and not isinstance(value, Field):
-            value = self.fields.get(value)
         return value
 
     # comparison

@@ -10,15 +10,7 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import structlog
 
-from bench.language.const import (
-    IssueType,
-    NodeType,
-    RunErrorKind,
-    RunStatus,
-    TypeFlag,
-    TypeHint,
-    TypeTag,
-)
+from bench.language.const import IssueType, NodeType, RunErrorKind, RunStatus
 from bench.language.field import Field, TypedDict
 from bench.language.model import HasModel
 from bench.language.node import Node, ScopeNode, node_component, struct_runtime
@@ -331,13 +323,6 @@ class JsonSchemaElement:
                 yield from p.visit()
         if self.items:
             yield from self.items.visit()
-
-
-_PARAM_TYPE_BY_TAG = {
-    TypeTag.STRING: JsonSchemaElementType.string,
-    TypeTag.NUMBER: JsonSchemaElementType.number,
-    TypeTag.BOOLEAN: JsonSchemaElementType.boolean,
-}
 
 
 def _type_to_json_schema(
