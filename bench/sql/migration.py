@@ -566,6 +566,20 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
     return method_body
 
 
+async def apply_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) -> None:
+    """Directly apply the given migration ops (for testing)."""
+    logger.info("apply_migration_ops", ops=ops)
+    method_body = _render_migration_body(ops)
+    method_body = format_python(method_body)
+
+    # turn it into an async callable
+    method = f"async def _apply_inline(cur):\n{indent(method_body, '    ')}"
+    method_locals: dict[str, any] = {}
+    exec(method, method_locals)
+    _apply_inline = method_locals["_apply_inline"]
+    await _apply_inline(cur)
+
+
 def add_migration_to_fs(migration: Migration, code: str, *, overwrite: bool = False):
     """Writes the Python migration file."""
     migration_path = (

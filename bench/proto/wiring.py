@@ -46,7 +46,7 @@ def copy_struct_data(data: AnyStructData) -> AnyStructData:
     data_kwargs = {}
     try:
         for prop in bench_cls.__wired_properties__.values():
-            if prop.is_computed and prop.id != METATYPE_PROPERTY.id and prop.name != "parent_id":
+            if prop.is_computed and prop.id != METATYPE_PROPERTY.id:
                 continue
             value = getattr(data, prop.name)
             if value is None or value == "" and not prop.is_required:
@@ -67,11 +67,11 @@ def copy_struct_data(data: AnyStructData) -> AnyStructData:
     return data_cls(**data_kwargs)
 
 
-def pack_json(value: dict) -> BetterprotoStruct:
+def pack_json_value(value: dict) -> BetterprotoStruct:
     return BetterprotoStruct.from_dict(value)
 
 
-def unpack_json(value: BetterprotoStruct) -> dict:
+def unpack_json_value(value: BetterprotoStruct) -> dict:
     return value.to_dict()
 
 
@@ -85,9 +85,11 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
     elif prop.is_enum:
         return pack_enum(prop.py_type_stripped, value)
     elif prop.reference_kind in (NodeReferenceKind.PARENT, NodeReferenceKind.ANCESTOR):
-        return NodeReferenceData(metatype=value.metatype, id=value.id)
+        return NodeReferenceData(metatype=wire.BenchType.NODE_REFERENCE, id=str(value.id))
     elif prop.reference_kind == NodeReferenceKind.REGULAR:
-        return NodeReferenceData(metatype=value.metatype, id=value.id, ck=value.ck)
+        return NodeReferenceData(
+            metatype=wire.BenchType.NODE_REFERENCE, id=str(value.id), ck=str(value.ck)
+        )
     elif prop.column_type == ColumnType.UUID:
         return str(value)  # uuids are wired as strings
     elif prop.column_type == ColumnType.JSON:
@@ -155,7 +157,7 @@ def pack_struct_maybe(struct: Struct | None) -> AnyStructData | None:
 
 def unpack_struct(struct_data: AnyStructData) -> Struct:
     """Unpack a struct and any contained structs."""
-    struct_cls = STRUCT_CLASS_BY_TYPE[StructType(struct_data.metatype.name)]
+    struct_cls = BENCH_CLASS_BY_TYPE[BenchType(struct_data.metatype.name)]
     struct_kwargs = {}
     try:
         for prop in struct_cls.__wired_properties__.values():

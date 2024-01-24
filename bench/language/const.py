@@ -134,6 +134,8 @@ else:
     )
     BenchType.bench_name = NodeType.bench_name
 
+BENCH_TYPES: tuple[BenchType, ...] = tuple(BenchType)
+
 
 def to_bench_metatype(_type: typing.Union[BenchType, int]) -> BenchType:
     from bench.proto.wire import BenchType as WireBenchType

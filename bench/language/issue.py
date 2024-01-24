@@ -57,7 +57,7 @@ class Issue(Node):
 
     def _init_inner(self):
         # make message
-        message = _ISSUE_MESSAGES[self.type.value]
+        message = _ISSUE_MESSAGES.get(self.type.value) or self.type.value
         kwargs = {}
         if "subject" in message:
             kwargs["subject"] = self.subject or self.parent

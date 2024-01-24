@@ -838,7 +838,7 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     elif prop.column_type == ColumnType.UUID:
         return to_uuid(value)
     elif prop.column_type == ColumnType.JSON:
-        return wiring.unpack_json(value)
+        return wiring.unpack_json_value(value)
     elif prop.is_enum:
         return value.value
     else:
@@ -856,7 +856,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.column_type == ColumnType.UUID:
         return str(value)
     elif prop.column_type == ColumnType.JSON:
-        return wiring.pack_json(value)
+        return wiring.pack_json_value(value)
     elif prop.is_enum:
         return prop.py_type_stripped(value)
     else:
