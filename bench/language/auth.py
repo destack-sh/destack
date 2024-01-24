@@ -39,6 +39,9 @@ class Policy(Struct):
         32, default=False, description="Hide this policy and its effects from the denied."
     )
 
+    def __content_str__(self) -> str:
+        return f"{self.name or '<unnamed>'} ({len(self.rules)} rules, {'hidden' if self.hidden else 'visible'})"
+
 
 @struct(StructType.POLICY_RULE)
 class PolicyRule(Struct):

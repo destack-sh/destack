@@ -3,6 +3,7 @@ import dataclasses
 import enum
 import functools
 import inspect
+import math
 import re
 import uuid
 from collections import defaultdict
@@ -104,6 +105,7 @@ if TYPE_CHECKING:
         Session,
         User,
         WorkerSet,
+        NodeReference,
         symbolx_lib,
     )
     from bench.language.issue import IssueHandler
@@ -152,7 +154,6 @@ class Property(_FieldExpressionBase):
     is_system: bool = False  # = only editable by system
     is_reflected: bool = UNSET  # eventually all properties should be reflected, for now only some
     is_computed: bool = False
-    is_runtime_only: bool = False
     is_runtime: bool = UNSET  # exists on runtime instance?
     is_wired: bool = UNSET  # serialized onto wire?
     is_stored: bool = UNSET  # stored in DB?
@@ -183,8 +184,6 @@ class Property(_FieldExpressionBase):
     def __post_init__(self):
         if self.reference_kind is not None and self.default is UNSET:
             self.default = None
-        if self.is_runtime_only and self.default is UNSET and self.default_factory is None:
-            raise ValueError(f"missing default for {self!r}")
 
     def __str__(self):
         if self.component is None:
@@ -201,10 +200,12 @@ class Property(_FieldExpressionBase):
             "alias",
             "is_array",
             "is_required",
+            "is_runtime",
+            "is_wired",
+            "is_stored",
+            "is_computed",
             "is_internal",
             "is_system",
-            "is_runtime_only",
-            "is_computed",
             "is_reflected",
             "is_ancestor_nearest",
             "is_ancestor_self",
@@ -312,12 +313,12 @@ class Property(_FieldExpressionBase):
             yield from self.reference_stored_ptrs
 
     @property
-    def is_static(self):
-        return not self.is_runtime_only
-
-    @property
     def is_struct(self) -> bool:
         return self.struct_type is not None
+
+    @property
+    def is_runtime_only(self):
+        return self.is_runtime and not self.is_stored and not self.is_wired
 
     @property
     def is_optional(self) -> bool:
@@ -349,9 +350,7 @@ class Property(_FieldExpressionBase):
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
         # store/wire property by default if not runtime (and not marked as _not_ store)
-        if self.column_type is UNSET and (
-            self.is_tree_relation or self.is_runtime_only or self.reference_types
-        ):
+        if self.column_type is UNSET and (self.is_tree_relation or self.reference_types):
             if self.is_stored is UNSET:
                 self.is_stored = False
             self.column_type = None
@@ -421,6 +420,7 @@ class Property(_FieldExpressionBase):
             is_required = False
             is_array = False
             is_computed = False
+            is_internal = True
             on_delete = CascadeAction.CASCADE
         elif self.reference_kind == NodeReferenceKind.ANCESTOR:
             assert self.is_wired is not UNSET, f"must set is_wired on {self!r}"
@@ -430,6 +430,7 @@ class Property(_FieldExpressionBase):
             is_required = self.is_required
             is_array = False
             is_computed = True
+            is_internal = True
             on_delete = CascadeAction.CASCADE
         elif self.reference_kind == NodeReferenceKind.REGULAR:
             assert self.is_required is not UNSET, f"must set is_required on {self!r}"
@@ -437,8 +438,9 @@ class Property(_FieldExpressionBase):
             is_wired = True
             is_stored = True
             is_required = False
-            is_computed = False
             is_array = self.is_array
+            is_computed = False
+            is_internal = False
             on_delete = CascadeAction.SET_NULL
         else:
             raise ValueError(f"unexpected reference kind {self.reference_kind!r} for {self!r}")
@@ -459,6 +461,8 @@ class Property(_FieldExpressionBase):
                 is_computed=is_computed,
                 is_array=is_array,
                 is_required=is_required,
+                is_internal=is_internal,
+                default=None,
                 column_type=None,
             )
         if is_stored:
@@ -486,6 +490,7 @@ class Property(_FieldExpressionBase):
                     is_runtime=False,
                     is_wired=False,
                     is_stored=True,
+                    is_internal=is_internal,
                     is_array=is_array,
                     is_required=is_required,
                     column_type=ColumnType.UUID,
@@ -625,7 +630,9 @@ def struct_runtime(
     """Internal runtime-only struct/node property (not persisted)."""
     return Property(
         is_internal=True,
-        is_runtime_only=True,
+        is_runtime=True,
+        is_wired=False,
+        is_computed=False,
         is_required=False,
         is_stored=False,
         default=default,
@@ -796,7 +803,9 @@ def _process_struct_base_cls(
     is_final: bool = False,
 ) -> tuple[type["Node"], dict[str, Property]]:
     """Process a struct base class and return the processed class and its properties."""
-    properties_by_name: dict[str, Property] = {METATYPE_PROPERTY.name: METATYPE_PROPERTY}
+    metatype = METATYPE_PROPERTY.clone()
+    metatype.component = cls
+    properties_by_name: dict[str, Property] = {METATYPE_PROPERTY.name: metatype}
     static_components: list[type["Node"] | type["Struct"]] = [cls]
 
     # check that no forbidden methods are defined in non-base classes
@@ -863,9 +872,9 @@ def _process_struct_base_cls(
     cls.__own_properties__ = frozendict(properties_by_name)  # remember 'own' properties
 
     # collect properties from all components (static and dynamic, least to most specific)
-    is_node = cls.__name__ != "Struct" and (
-        cls.__name__ in ("Node", "ScopeNode") or issubclass(cls, Node)
-    )
+    is_node_base = cls.__name__ in ("Node", "ScopeNode")
+    is_struct_base = cls.__name__ == "Struct"
+    is_node = not is_struct_base and (is_node_base or issubclass(cls, Node))
     cls.__properties__ = {**properties_by_name}  # start with own properties
     reserved_properties: set[str | int] = set(reserved or ())
     for component in chain(reversed(static_components), reversed(dynamic_components)):
@@ -873,7 +882,7 @@ def _process_struct_base_cls(
             existing = properties_by_name.get(name, None)
             # override parent & id with more specific values
             if existing is None or name.startswith("parent") or existing.id is UNSET:
-                if prop.is_static or component not in dynamic_components:
+                if prop.is_runtime_only or component not in dynamic_components:
                     prop = prop.clone()
                     prop.component = cls
                     properties_by_name[name] = prop
@@ -891,27 +900,28 @@ def _process_struct_base_cls(
     # create class (map to dataclass)
     # TODO @Cleanup: the ck/module/bench property removal is a bit hacky & confusing
     for name, prop in list(properties_by_name.items()):
-        # map property to class attribute or dataclass field
+        # remove 'bench'/'module' ancestor property if not actually a descendant :MagicNodeProps
         if ((not is_in_bench or cls.__name__ == "Bench") and prop.name == "bench") or (
             (not is_in_module or cls.__name__ == "Module") and prop.name == "module"
         ):
-            # remove 'bench'/'module' ancestor property if not actually a descendant :MagicNodeProps
             attr = None
             del properties_by_name[name]
             # remove contributed reference keys too
             for key in prop.reference_ptrs:
                 del properties_by_name[key.name]
+        # remove node ck (is == id if outside a module) :MagicNodeProps
         elif prop.name == "ck" and is_node and (not is_in_module or cls.__name__ == "Module"):
-            # remove node ck (is == id if outside a module) :MagicNodeProps
             attr = _node_ck_from_id_prop(prop)
             del properties_by_name[name]
+
+        # map property to class attribute or dataclass field
         elif not is_final:
             attr = None  # only set attributes in final class
-        elif prop.reference_kind == NodeReferenceKind.ANCESTOR and cls.__name__ not in (
-            "ScopeNode",
-            "Node",
-        ):
-            attr = _node_computed_ancestor_prop(prop)
+        elif prop.reference_kind == NodeReferenceKind.ANCESTOR and not is_node_base:
+            if prop.reference_source is None:  # actual ancestor property
+                attr = _node_computed_ancestor_prop(prop)
+            else:  # wired pointer to ancestor property
+                attr = _node_computed_ancestor_ptr_prop(prop)
         elif prop.is_computed or not prop.is_runtime:
             attr = UNSET
         elif prop.default is not UNSET:
@@ -1185,6 +1195,22 @@ def _node_computed_ancestor_prop(prop: Property) -> property:
     return property(get, set)
 
 
+def _node_computed_ancestor_ptr_prop(prop: Property) -> property:
+    def get_ancestor_ptr(self: NodeT) -> Optional["NodeReference"]:
+        from bench.language.expression import NodeReference
+
+        ancestor = getattr(self, prop.reference_source.name)
+        if ancestor is None:
+            return None
+        else:
+            return NodeReference.from_node(ancestor)
+
+    def set(self: NodeT, value: "NodeReference"):
+        raise NotImplementedError(f"cannot set computed property {prop!r}: {value!r}")
+
+    return property(get_ancestor_ptr, set)
+
+
 def _node_computed_attr(x: str, prop: Property, backup_prop: Property) -> property:
     """Computed value from another property. If prop is not set, use backup prop."""
 
@@ -1280,6 +1306,7 @@ class Struct(abc.ABC):
     __struct_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
+    __runtime_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
     __is_indexed_in_os__: ClassVar[bool] = False  # stored in local OS (only for logs really)
 
@@ -1293,13 +1320,14 @@ class Struct(abc.ABC):
             self._status = NS.INTERP if _active_session.get() else NS.SOURCE
         self._init_self()
 
+    def __content_str__(self) -> str:
+        return ""
+
     @final
     def __str__(self):
         return self.__content_str__()
 
-    def __content_str__(self) -> str:
-        return ""
-
+    @final
     def __repr__(self):
         return f"<{self.__class__.__name__} {str(self)}>"
 
@@ -1334,9 +1362,12 @@ class Struct(abc.ABC):
         if self.metatype != other.metatype:
             return False
         for prop in self.__wired_properties__.values():
-            a_value = getattr(self, prop.name)
-            b_value = getattr(other, prop.name)
-            if a_value != b_value:
+            self_value = getattr(self, prop.name)
+            other_value = getattr(other, prop.name)
+            if self_value != other_value and (
+                prop.py_type_stripped != float
+                or math.isclose(self_value, other_value, rel_tol=1e-9)
+            ):
                 return False
         return True
 
@@ -1470,6 +1501,7 @@ class Node(Struct, _NodeExpressionBase):
     __struct_properties__: ClassVar[dict[str, Property]] = {}
     __stored_properties__: ClassVar[dict[str, Property]] = {}
     __wired_properties__: ClassVar[dict[str, Property]] = {}
+    __runtime_properties__: ClassVar[dict[str, Property]] = {}
     __reserved_properties__: ClassVar[set[int | str]] = set()
     __parent_property__: ClassVar[Property] = None
 
@@ -1490,7 +1522,7 @@ class Node(Struct, _NodeExpressionBase):
     # NOTE: ck/module/branch/bench only exist if __is_in_module__/__is_in_bench__ :MagicNodeProps
     ck: UUID = struct_internal(3, default=None, require=True, system=True)
     parent: Optional["Node"] = node_parent(4)
-    # prototype/template: Optional["Node"] = node_template(5)
+    # template: Optional["Node"] = node_template(5)
     module: "Module" = node_ancestor(6, NodeType.MODULE, require=True, store=True, wire=True)
     # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, require=True, store=True, wire=True)
     bench: "Bench" = node_ancestor(8, NodeType.BENCH, require=True, store=False, wire=False)
@@ -1604,7 +1636,7 @@ class Node(Struct, _NodeExpressionBase):
         if content_str:
             content_str = f" ({content_str})"
         if self.__parent_property__ is None:
-            return f"{ident_str}{content_str}"
+            return f"'{ident_str}'{content_str}"
         else:
             return f"'{self.path}'{content_str}"
 
@@ -1784,7 +1816,7 @@ class Node(Struct, _NodeExpressionBase):
                 return attr
 
         # report lookup error with additional info
-        candidates = {k: v for k, v in self.__properties__.items() if not k.startswith("_")}
+        candidates = {k: v for k, v in self.__runtime_properties__.items() if not k.startswith("_")}
         if isinstance(self, ScopeNode):
             candidates.update(self._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, item)
@@ -1852,19 +1884,21 @@ class Node(Struct, _NodeExpressionBase):
 
     # final :ComponentMethods
 
+    @final
     def _init_self(self):
         # init lists
-        existing_lists: dict[str, Any] | None = None
-        for name, prop in self.__list_properties__.items():
-            existing = getattr(self, name, None)
-            node_list = prop.list_type(self, prop)
-            setattr(self, name, node_list)
-            if prop.alias:
-                setattr(self, prop.alias, node_list)
-            if existing and not isinstance(existing, NodeList):
-                if existing_lists is None:
-                    existing_lists = {}
-                existing_lists[name] = existing
+        if self.__has_scope__:
+            existing_lists: dict[str, Any] | None = None
+            for name, prop in self.__list_properties__.items():
+                existing = getattr(self, name, None)
+                node_list = prop.list_type(self, prop)
+                setattr(self, name, node_list)
+                if prop.alias:
+                    setattr(self, prop.alias, node_list)
+                if existing and not isinstance(existing, NodeList):
+                    if existing_lists is None:
+                        existing_lists = {}
+                    existing_lists[name] = existing
 
         # run actual init methods
         for meth in _get_component_methods(
@@ -1873,7 +1907,7 @@ class Node(Struct, _NodeExpressionBase):
             meth(self)
 
         # keep manually set node lists if passed in
-        if existing_lists:
+        if self.__has_scope__ and existing_lists:
             changed_nodes: list[NodeT] = []
             was_interp = self._status >= NS.INTERP
             detach_trigger = _NC.Detach if was_interp else _NC.Ignore
@@ -1907,6 +1941,7 @@ class Node(Struct, _NodeExpressionBase):
     _detached_self = _make_self_method(_ComponentMethod.detached, _detached_inner)
     _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
 
+    @final
     def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "Node":
         """
         Copies this node without any descendants.
@@ -2293,7 +2328,7 @@ class Link(Node):
 @node(NodeType.BENCH, in_module=False, identifier=IdentifierType.VARIABLE, root=None)
 class Bench(ScopeNode):
     """
-    A Bench contains everything a young and growing AI needs to learn and grow.
+    A Bench is the AI-native operating system for a new generation of fully integrated apps.
     """
 
     parent: None = node_parent(4)
@@ -2567,7 +2602,7 @@ def _complete_bench_setup():
             prop._finalize_type()
 
             # set properties (that exist at runtime) on class
-            if prop.is_runtime:
+            if prop.is_runtime and not prop.is_runtime_only and not prop.is_computed:
                 setattr(cls, name, prop)
 
             # ensure the reflected field works (and cache it)
@@ -2598,6 +2633,9 @@ def _complete_bench_setup():
         )
         cls.__wired_properties__ = frozendict(
             {p.name: p for p in cls.__properties__.values() if p.is_wired is True}
+        )
+        cls.__runtime_properties__ = frozendict(
+            {p.name: p for p in cls.__properties__.values() if p.is_runtime is True}
         )
 
     # set tables

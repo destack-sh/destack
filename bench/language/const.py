@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.23.2"
+VERSION = "2024.01.24.0"
 
 
 #
@@ -43,7 +43,7 @@ class NodeType(ProtoStrEnum):
     VIEW = "VIEW", 27
     # TILE = "TILE", 28
     # STEP = "STEP", 29
-    ISSUE = "ISSUE", 20
+    ISSUE = "ISSUE", 30
     LINK = "LINK", 31
 
     # session (all local)
@@ -612,19 +612,19 @@ _CONDITIONAL_OP_SIGN: dict[ConditionalOp, str] = {
 
 
 class AggregationOp(ProtoStrEnum):
-    EXISTS = "EXISTS", 1
-    COUNT = "COUNT", 2
-    SUM = "SUM", 3
-    AVERAGE = "AVERAGE", 4
-    MIN = "MIN", 5
-    MAX = "MAX", 6
-    MEDIAN = "MEDIAN", 7
-    HISTOGRAM = "HISTOGRAM", 8
+    EXISTS = "EXISTS", 51
+    COUNT = "COUNT", 52
+    SUM = "SUM", 53
+    AVERAGE = "AVERAGE", 54
+    MIN = "MIN", 55
+    MAX = "MAX", 56
+    MEDIAN = "MEDIAN", 57
+    HISTOGRAM = "HISTOGRAM", 58
 
 
 class SortOp(ProtoStrEnum):
-    ASCENDING = "ASCENDING", 1
-    DESCENDING = "DESCENDING", 2
+    ASCENDING = "ASCENDING", 101
+    DESCENDING = "DESCENDING", 102
 
 
 class QueryEngine(ProtoStrEnum):

@@ -4,6 +4,8 @@ import textwrap
 from dataclasses import dataclass
 from typing import ClassVar, Union
 
+from more_itertools import first
+
 
 class ProtoStrEnum(enum.StrEnum):
     """
@@ -22,6 +24,8 @@ class ProtoStrEnum(enum.StrEnum):
         obj._value_ = value
         assert id > 0 or value == "UNSPECIFIED" and id == 0, f"invalid id {id} for {value}"
         obj.id = id
+        existing = first((v for v in cls if v.id == id), None)
+        assert existing is None, f"{cls} has duplicate id {id} for {value} and {existing}"
         return obj
 
 

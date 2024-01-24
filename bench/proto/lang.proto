@@ -28,14 +28,14 @@ enum ActionKind {
 
 enum AggregationOp {
   AGGREGATION_OP_UNSPECIFIED = 0;
-  AGGREGATION_OP_EXISTS = 1;
-  AGGREGATION_OP_COUNT = 2;
-  AGGREGATION_OP_SUM = 3;
-  AGGREGATION_OP_AVERAGE = 4;
-  AGGREGATION_OP_MIN = 5;
-  AGGREGATION_OP_MAX = 6;
-  AGGREGATION_OP_MEDIAN = 7;
-  AGGREGATION_OP_HISTOGRAM = 8;
+  AGGREGATION_OP_EXISTS = 51;
+  AGGREGATION_OP_COUNT = 52;
+  AGGREGATION_OP_SUM = 53;
+  AGGREGATION_OP_AVERAGE = 54;
+  AGGREGATION_OP_MIN = 55;
+  AGGREGATION_OP_MAX = 56;
+  AGGREGATION_OP_MEDIAN = 57;
+  AGGREGATION_OP_HISTOGRAM = 58;
 }
 
 enum BadgeType {
@@ -59,7 +59,6 @@ enum BenchStatus {
 }
 
 enum BenchType {
-  option allow_alias = true;
   BENCH_TYPE_UNSPECIFIED = 0;
   BENCH_TYPE_BENCH = 1;
   BENCH_TYPE_MODULE = 20;
@@ -70,7 +69,7 @@ enum BenchType {
   BENCH_TYPE_FIELD = 25;
   BENCH_TYPE_RECORD = 26;
   BENCH_TYPE_VIEW = 27;
-  BENCH_TYPE_ISSUE = 20;
+  BENCH_TYPE_ISSUE = 30;
   BENCH_TYPE_LINK = 31;
   BENCH_TYPE_SESSION = 50;
   BENCH_TYPE_RUN = 51;
@@ -168,7 +167,6 @@ enum ExpressionKind {
 }
 
 enum ExpressionOp {
-  option allow_alias = true;
   EXPRESSION_OP_UNSPECIFIED = 0;
   EXPRESSION_OP_TRUE = 1;
   EXPRESSION_OP_FALSE = 2;
@@ -187,18 +185,18 @@ enum ExpressionOp {
   EXPRESSION_OP_NOT_CONTAINS = 15;
   EXPRESSION_OP_IN = 16;
   EXPRESSION_OP_NOT_IN = 17;
-  EXPRESSION_OP_EXISTS = 1;
+  EXPRESSION_OP_EXISTS = 51;
   EXPRESSION_OP_NOT_EXISTS = 19;
   EXPRESSION_OP_NEAR = 20;
-  EXPRESSION_OP_COUNT = 2;
-  EXPRESSION_OP_SUM = 3;
-  EXPRESSION_OP_AVERAGE = 4;
-  EXPRESSION_OP_MIN = 5;
-  EXPRESSION_OP_MAX = 6;
-  EXPRESSION_OP_MEDIAN = 7;
-  EXPRESSION_OP_HISTOGRAM = 8;
-  EXPRESSION_OP_ASCENDING = 1;
-  EXPRESSION_OP_DESCENDING = 2;
+  EXPRESSION_OP_COUNT = 52;
+  EXPRESSION_OP_SUM = 53;
+  EXPRESSION_OP_AVERAGE = 54;
+  EXPRESSION_OP_MIN = 55;
+  EXPRESSION_OP_MAX = 56;
+  EXPRESSION_OP_MEDIAN = 57;
+  EXPRESSION_OP_HISTOGRAM = 58;
+  EXPRESSION_OP_ASCENDING = 101;
+  EXPRESSION_OP_DESCENDING = 102;
 }
 
 enum IssueKind {
@@ -211,18 +209,13 @@ enum IssueKind {
 enum IssueType {
   ISSUE_TYPE_UNSPECIFIED = 0;
   ISSUE_TYPE_INTERNAL = 1;
-  ISSUE_TYPE_UNKNOWN_IMPORT_SOURCE = 2;
-  ISSUE_TYPE_MISSING_REFERENCE = 3;
-  ISSUE_TYPE_CIRCULAR_ANCESTRY = 4;
-  ISSUE_TYPE_CIRCULAR_UNION = 5;
-  ISSUE_TYPE_MISMATCHED_UNION = 6;
-  ISSUE_TYPE_INVALID_DATA = 7;
-  ISSUE_TYPE_AMBIGUOUS_DEFINITION = 8;
-  ISSUE_TYPE_CODE_NOT_EXPORTABLE = 9;
-  ISSUE_TYPE_CODE_NOT_CACHEABLE = 10;
-  ISSUE_TYPE_CODE_REFERENCE_NOT_EXPORTED = 11;
-  ISSUE_TYPE_TASK_MISSING_IO = 12;
-  ISSUE_TYPE_TASK_IS_STATIC = 13;
+  ISSUE_TYPE_MISSING_REFERENCE = 2;
+  ISSUE_TYPE_CIRCULAR_BASE = 3;
+  ISSUE_TYPE_MISMATCHED_BASE = 4;
+  ISSUE_TYPE_AMBIGUOUS_DEFINITION = 100;
+  ISSUE_TYPE_TASK_MISSING_IO = 101;
+  ISSUE_TYPE_BAD_NAME = 200;
+  ISSUE_TYPE_TASK_IS_STATIC = 201;
 }
 
 // // Parent relation between node and descendants.
@@ -257,7 +250,6 @@ enum NodeTrackingLevel {
 }
 
 enum NodeType {
-  option allow_alias = true;
   NODE_TYPE_UNSPECIFIED = 0;
   NODE_TYPE_BENCH = 1;
   NODE_TYPE_MODULE = 20;
@@ -268,7 +260,7 @@ enum NodeType {
   NODE_TYPE_FIELD = 25;
   NODE_TYPE_RECORD = 26;
   NODE_TYPE_VIEW = 27;
-  NODE_TYPE_ISSUE = 20;
+  NODE_TYPE_ISSUE = 30;
   NODE_TYPE_LINK = 31;
   NODE_TYPE_SESSION = 50;
   NODE_TYPE_RUN = 51;
@@ -395,8 +387,8 @@ enum SortMode {
 
 enum SortOp {
   SORT_OP_UNSPECIFIED = 0;
-  SORT_OP_ASCENDING = 1;
-  SORT_OP_DESCENDING = 2;
+  SORT_OP_ASCENDING = 101;
+  SORT_OP_DESCENDING = 102;
 }
 
 enum StatementType {
@@ -462,13 +454,9 @@ enum TypeFlag {
   TYPE_FLAG_IS_OUTPUT = 1;
   TYPE_FLAG_IS_ARRAY = 2;
   TYPE_FLAG_IS_OPTIONAL = 4;
-  TYPE_FLAG_IS_UNION_WITH = 8;
   TYPE_FLAG_IS_SECRET = 16;
   TYPE_FLAG_IS_STORE_ONLY = 32;
   TYPE_FLAG_IS_ARRAYABLE = 64;
-  TYPE_FLAG_IS_META = 128;
-  TYPE_FLAG_IS_CONFIG = 256;
-  TYPE_FLAG_IS_HIDDEN = 512;
 }
 
 // // Extra representation/semantics of a field/type.
@@ -756,10 +744,10 @@ message RichTextSpanData {
   optional NodeReferenceData reference_ptr = 32;
 }
 
-// // RunCodeFrame(filename: str = <factory>, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, _status: bench.language.const.NodeStatus = None)
+// // RunCodeFrame(node: bench.language.node.Node = None, lineno: int = <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None, line: str = <factory>, node_ptr: bench.proto.wire.NodeReferenceData = None, _status: bench.language.const.NodeStatus = None)
 message RunCodeFrameData {
   BenchType metatype = 1;
-  string filename = 30;
+  optional NodeReferenceData node_ptr = 30;
   int64 lineno = 31;
   string name = 32;
   optional google.protobuf.Struct locals = 33;
@@ -816,7 +804,7 @@ message BadgeData {
   optional string key_value_digest = 51;
 }
 
-// // A Bench contains everything a young and growing AI needs to learn and grow.
+// // A Bench is the AI-native operating system for a new generation of fully integrated apps.
 message BenchData {
   BenchType metatype = 1;
   string id = 2;
@@ -1292,30 +1280,30 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    LinkData link = 1;
-    FileData file = 2;
-    RecordData record = 3;
-    TaggingData tagging = 4;
-    ViewData view = 5;
-    BadgeData badge = 6;
-    WorkerData worker = 7;
-    TriggerData trigger = 8;
-    UserData user = 9;
-    OrganizationData organization = 10;
-    BucketObjectData bucket_object = 11;
-    HandleData handle = 12;
-    NotificationData notification = 13;
-    RunData run = 14;
-    WorkerSetData worker_set = 15;
-    PauseData pause = 16;
-    IssueData issue = 17;
-    SignalData signal = 18;
-    StatementData statement = 19;
-    ClientData client = 20;
-    BenchData bench = 21;
-    FieldData field = 22;
-    SessionData session = 23;
-    ModuleData module = 24;
+    ModuleData module = 1;
+    SessionData session = 2;
+    ViewData view = 3;
+    RecordData record = 4;
+    BadgeData badge = 5;
+    SignalData signal = 6;
+    BenchData bench = 7;
+    HandleData handle = 8;
+    FieldData field = 9;
+    ClientData client = 10;
+    UserData user = 11;
+    FileData file = 12;
+    WorkerSetData worker_set = 13;
+    BucketObjectData bucket_object = 14;
+    IssueData issue = 15;
+    OrganizationData organization = 16;
+    StatementData statement = 17;
+    WorkerData worker = 18;
+    LinkData link = 19;
+    PauseData pause = 20;
+    TriggerData trigger = 21;
+    NotificationData notification = 22;
+    TaggingData tagging = 23;
+    RunData run = 24;
   };
 }
 
