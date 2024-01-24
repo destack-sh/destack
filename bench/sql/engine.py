@@ -834,7 +834,8 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     elif prop.is_array and not ignore_array:
         return [_pack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
-        raise NotImplementedError("nocheckin: pg_pack_struct_prop (JSONB? for queryable?)")
+        value = value.to_robust_dict(prop.struct_type)
+        return wiring.pack_json_value(value)
     elif prop.column_type == ColumnType.UUID:
         return to_uuid(value)
     elif prop.column_type == ColumnType.JSON:
@@ -851,8 +852,9 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
     elif prop.is_array and not ignore_array:
         return [_unpack_struct_data_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
-        PROTO_CLASS_BY_TYPE[prop.struct_type]
-        raise NotImplementedError("see pg_unpack_struct_prop")
+        proto_cls = PROTO_CLASS_BY_TYPE[prop.struct_type]
+        value = wiring.unpack_json_value(value)
+        return proto_cls().from_robust_dict(value, prop.struct_type)
     elif prop.column_type == ColumnType.UUID:
         return str(value)
     elif prop.column_type == ColumnType.JSON:
@@ -1276,11 +1278,10 @@ MAX_RECORD_FIELD_VALUE_SIZE = 32 * 1024  # 32 KiB
 def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
     """Packs a record into a row for Postgres (flattened for ephemeral)."""
     # check size
-    # TODO @Performance: measure record value size more efficiently (than msgpack, also see below)
-    msgpack_size = len(msgpack.packb(record.value))
-    if msgpack_size > MAX_RECORD_TOTAL_VALUE_SIZE:
+    record_len_bytes = len(record)
+    if record_len_bytes > MAX_RECORD_TOTAL_VALUE_SIZE:
         raise ValueError(
-            f"record {record.id} is too large: {msgpack_size} > {MAX_RECORD_TOTAL_VALUE_SIZE} bytes (consider storing large values in a Blob instead)"
+            f"record {record.id} is too large: {record_len_bytes} > {MAX_RECORD_TOTAL_VALUE_SIZE} bytes (consider storing large values in a Blob instead)"
         )
 
     # pack it up

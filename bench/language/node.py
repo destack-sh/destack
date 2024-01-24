@@ -455,6 +455,7 @@ class Property(_FieldExpressionBase):
                 reference_kind=self.reference_kind,
                 reference_types=self.reference_types,
                 reference_source=self,
+                struct_type=StructType.NODE_REFERENCE,
                 is_runtime=True,
                 is_wired=True,
                 is_stored=False,
@@ -1359,7 +1360,7 @@ class Struct(abc.ABC):
 
     def equals_content(self, other: Any) -> bool:
         """Checks if all wired properties of the two structs are equal (recursively)."""
-        if self.metatype != other.metatype:
+        if other is None or self.metatype != other.metatype:
             return False
         for prop in self.__wired_properties__.values():
             self_value = getattr(self, prop.name)
@@ -1664,7 +1665,7 @@ class Node(Struct, _NodeExpressionBase):
         """The Bench identifier of this node (slug if exists, else name if exists)."""
         if self.identifier_type is None:
             return None
-        if self.metatype == NodeType.MODULE:
+        if self.metatype == NodeType.MODULE and self.parent is not None:
             return self.parent.bench_ident
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
@@ -1678,13 +1679,15 @@ class Node(Struct, _NodeExpressionBase):
         identifier_type = self.identifier_type
         if identifier_type is None:
             return None
-        if self.metatype == NodeType.MODULE:
+        if self.metatype == NodeType.MODULE and self.parent is not None:
             return self.parent.py_ident
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
             if slug:  # prefer slug as ident
                 return slug
         name = getattr(self, "name")
+        if name is None:
+            return None
         return to_casing(name, PYTHON_CASING[identifier_type])
 
     @property
@@ -2414,7 +2417,7 @@ class Module(ScopeNode):
 
     @property
     def name(self):
-        return self.parent.name
+        return self.parent.name if self.parent is not None else None
 
     @property
     def is_active(self):

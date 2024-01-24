@@ -184,7 +184,7 @@ STATEMENT_TABLE = Table(
         Column("archived_at", ColumnType.DATETIME, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME),
         Column("last_changed_at", ColumnType.DATETIME, is_nullable=True),
-        Column("visibility", ColumnType.BIGINT, default="1"),
+        Column("visibility", ColumnType.STRING, default="'PUBLIC'::character varying"),
         Column("policies", ColumnType.BYTES, is_array=True, is_nullable=True),
         Column("type", ColumnType.STRING, default="'blank'::character varying"),
         Column("bases_statement_ck", ColumnType.UUID, is_array=True, is_nullable=True),
