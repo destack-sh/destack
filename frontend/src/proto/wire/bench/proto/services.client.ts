@@ -23,10 +23,10 @@ import type { WatchLogsResponse } from "./services";
 import type { WatchLogsRequest } from "./services";
 import type { SearchLogsResponse } from "./services";
 import type { SearchLogsRequest } from "./services";
-import type { DownloadBlobsResponse } from "./services";
-import type { DownloadBlobsRequest } from "./services";
-import type { UploadBlobsResponse } from "./services";
-import type { UploadBlobsRequest } from "./services";
+import type { DownloadFilesResponse } from "./services";
+import type { DownloadFilesRequest } from "./services";
+import type { UploadFilesResponse } from "./services";
+import type { UploadFilesRequest } from "./services";
 import type { SnapshotPackageResponse } from "./services";
 import type { SnapshotPackageRequest } from "./services";
 import type { PasteNodesResponse } from "./services";
@@ -339,21 +339,21 @@ export interface IPackageHostClient {
      */
     snapshot(input: SnapshotPackageRequest, options?: RpcOptions): UnaryCall<SnapshotPackageRequest, SnapshotPackageResponse>;
     // 
-    // Blobs
+    // Files
     // 
 
     /**
-     * Get a signed URL to upload a blob.
+     * Get a signed URL to upload a file.
      *
-     * @generated from protobuf rpc: UploadBlobs(symbolx.bench.UploadBlobsRequest) returns (symbolx.bench.UploadBlobsResponse);
+     * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
      */
-    uploadBlobs(input: UploadBlobsRequest, options?: RpcOptions): UnaryCall<UploadBlobsRequest, UploadBlobsResponse>;
+    uploadFiles(input: UploadFilesRequest, options?: RpcOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse>;
     /**
-     * Get a signed URL to download a blob.
+     * Get a signed URL to download a file.
      *
-     * @generated from protobuf rpc: DownloadBlobs(symbolx.bench.DownloadBlobsRequest) returns (symbolx.bench.DownloadBlobsResponse);
+     * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
      */
-    downloadBlobs(input: DownloadBlobsRequest, options?: RpcOptions): UnaryCall<DownloadBlobsRequest, DownloadBlobsResponse>;
+    downloadFiles(input: DownloadFilesRequest, options?: RpcOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse>;
     // 
     // Logs
     // 
@@ -494,26 +494,26 @@ export class PackageHostClient implements IPackageHostClient, ServiceInfo {
         return stackIntercept<SnapshotPackageRequest, SnapshotPackageResponse>("unary", this._transport, method, opt, input);
     }
     // 
-    // Blobs
+    // Files
     // 
 
     /**
-     * Get a signed URL to upload a blob.
+     * Get a signed URL to upload a file.
      *
-     * @generated from protobuf rpc: UploadBlobs(symbolx.bench.UploadBlobsRequest) returns (symbolx.bench.UploadBlobsResponse);
+     * @generated from protobuf rpc: UploadFiles(symbolx.bench.UploadFilesRequest) returns (symbolx.bench.UploadFilesResponse);
      */
-    uploadBlobs(input: UploadBlobsRequest, options?: RpcOptions): UnaryCall<UploadBlobsRequest, UploadBlobsResponse> {
+    uploadFiles(input: UploadFilesRequest, options?: RpcOptions): UnaryCall<UploadFilesRequest, UploadFilesResponse> {
         const method = this.methods[8], opt = this._transport.mergeOptions(options);
-        return stackIntercept<UploadBlobsRequest, UploadBlobsResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<UploadFilesRequest, UploadFilesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Get a signed URL to download a blob.
+     * Get a signed URL to download a file.
      *
-     * @generated from protobuf rpc: DownloadBlobs(symbolx.bench.DownloadBlobsRequest) returns (symbolx.bench.DownloadBlobsResponse);
+     * @generated from protobuf rpc: DownloadFiles(symbolx.bench.DownloadFilesRequest) returns (symbolx.bench.DownloadFilesResponse);
      */
-    downloadBlobs(input: DownloadBlobsRequest, options?: RpcOptions): UnaryCall<DownloadBlobsRequest, DownloadBlobsResponse> {
+    downloadFiles(input: DownloadFilesRequest, options?: RpcOptions): UnaryCall<DownloadFilesRequest, DownloadFilesResponse> {
         const method = this.methods[9], opt = this._transport.mergeOptions(options);
-        return stackIntercept<DownloadBlobsRequest, DownloadBlobsResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<DownloadFilesRequest, DownloadFilesResponse>("unary", this._transport, method, opt, input);
     }
     // 
     // Logs

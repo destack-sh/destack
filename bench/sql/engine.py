@@ -1260,7 +1260,7 @@ def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) ->
     record_len_bytes = len(record)
     if record_len_bytes > MAX_RECORD_TOTAL_VALUE_SIZE:
         raise ValueError(
-            f"record {record.id} is too large: {record_len_bytes} > {MAX_RECORD_TOTAL_VALUE_SIZE} bytes (consider storing large values in a Blob instead)"
+            f"record {record.id} is too large: {record_len_bytes} > {MAX_RECORD_TOTAL_VALUE_SIZE} bytes (consider storing large values in a File instead)"
         )
 
     # pack it up
@@ -1304,7 +1304,7 @@ def pg_wrap_record_field_value(
         if len(value_str) > 256:
             value_str = value_str[:196] + "..." + value_str[-56:]
         raise ValueError(
-            f"{record_str} field value '{field.py_ident}' is too large: {record_len_bytes} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a Blob instead)\nValue (truncated): {value_str}"
+            f"{record_str} field value '{field.py_ident}' is too large: {record_len_bytes} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a File instead)\nValue (truncated): {value_str}"
         )
     if field._storage_format == ColumnType.JSON:
         return Jsonb(value)

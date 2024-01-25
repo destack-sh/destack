@@ -1,5 +1,5 @@
 from .auth import Badge, Policy, PolicyRule
-from .blob import Blob
+from .file import File
 from .const import (
     VERSION,
     ActionKind,
@@ -47,7 +47,7 @@ __all__ = [
     "ActionKind",
     "Badge",
     "Bench",
-    "Blob",
+    "File",
     "Block",
     "BlockType",
     "C",

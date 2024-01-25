@@ -221,18 +221,18 @@ message SnapshotPackageResponse {
 }
 
 
-message UploadBlobsRequest {
-  repeated BlobData blobs = 1;
+message UploadFilesRequest {
+  repeated FileData files = 1;
 }
-message UploadBlobsResponse {
+message UploadFilesResponse {
   repeated string post_urls = 1;
   google.protobuf.Timestamp expires_at = 2;
 }
 
-message DownloadBlobsRequest {
-  repeated BlobData blobs = 1;
+message DownloadFilesRequest {
+  repeated FileData files = 1;
 }
-message DownloadBlobsResponse {
+message DownloadFilesResponse {
   repeated string get_urls = 1;
   google.protobuf.Timestamp expires_at = 2;
 }
@@ -311,13 +311,13 @@ service PackageHost {
   rpc Snapshot(SnapshotPackageRequest) returns (SnapshotPackageResponse);
 
   //
-  // Blobs
+  // Files
   //
 
-  // Get a signed URL to upload a blob.
-  rpc UploadBlobs(UploadBlobsRequest) returns (UploadBlobsResponse);
-  // Get a signed URL to download a blob.
-  rpc DownloadBlobs(DownloadBlobsRequest) returns (DownloadBlobsResponse);
+  // Get a signed URL to upload a file.
+  rpc UploadFiles(UploadFilesRequest) returns (UploadFilesResponse);
+  // Get a signed URL to download a file.
+  rpc DownloadFiles(DownloadFilesRequest) returns (DownloadFilesResponse);
 
   //
   // Logs

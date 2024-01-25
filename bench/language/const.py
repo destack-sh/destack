@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.25.2"
+VERSION = "2024.01.25.3"
 
 
 #
@@ -97,7 +97,7 @@ class StructType(ProtoStrEnum):
     FIELD_PATH_SEGMENT = "FIELD_PATH_SEGMENT", 205
     VALUE_REFERENCE = "VALUE_REFERENCE", 206
 
-    BLOB = "BLOB", 210  # nocheckin: rename Blob -> File
+    FILE = "FILE", 210
     TYPE_INFO = "TYPE_INFO", 211
 
     POLICY = "POLICY", 220
@@ -381,7 +381,7 @@ class RichTextFlag(enum.IntFlag):
     STRIKETHROUGH = 2**3
 
 
-class BlobStatus(ProtoStrEnum):
+class FileStatus(ProtoStrEnum):
     PENDING = "PENDING", 1
     UPLOADING = "UPLOADING", 2
     AVAILABLE = "AVAILABLE", 3
