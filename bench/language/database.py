@@ -58,14 +58,14 @@ class Record(HasValue, Node):
 
     # :RecordSchema
     parent: "Statement" = node_parent(4, NodeType.STATEMENT)
-    value: typing.Any | None = struct_property(
+    value_packed: typing.Any | None = struct_property(
         30,
         default_factory=dict,
         copy=deepcopy,
         column_type=ColumnType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
-    # could also have Record.secret_value as in Block (no materialization needed?)
+    # could also have Record.secret_value_packed as in Block (no materialization needed?)
 
     @staticmethod
     def new(
@@ -101,12 +101,9 @@ class Record(HasValue, Node):
     def __content_str__(self):
         return f"{describe_type(self.value) or '<empty>'}"
 
-    def __repr__(self):
-        return f"<Record {self}>"
-
     @property
-    def _type_of_value(self) -> Optional["Statement"]:
-        return self.parent
+    def _type(self) -> Optional["Statement"]:
+        return self.parent._as_type_info
 
     @property
     def keys(self):

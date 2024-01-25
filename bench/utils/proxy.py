@@ -7,15 +7,14 @@ def _curry_path(onfn: Callable[[str], None], key: str) -> Callable[[str], Any]:
 
 def proxy_value(
     value: Any,
-    onread: Callable[[str], None],
     onwrite: Callable[[str], None],
     default_none: bool = False,
 ) -> Any:
     """Recursively proxy the given value, calling onread/onwrite when a key is accessed."""
     if isinstance(value, dict):
-        return ProxyDict(value, onread, onwrite, default_none=default_none)
+        return ProxyDict(value, onwrite, default_none=default_none)
     elif isinstance(value, list):
-        return ProxyList(value, onread, onwrite)
+        return ProxyList(value, onwrite)
     else:
         return value
 
@@ -36,12 +35,10 @@ class ProxyDict(Mapping):
     def __init__(
         self,
         inner: dict,
-        onread: Callable[[str], None],
         onwrite: Callable[[str], None],
         default_none: bool = False,
     ):
         self._inner = inner
-        self._onread = onread
         self._onwrite = onwrite
         self._default_none = default_none
 
@@ -52,19 +49,15 @@ class ProxyDict(Mapping):
         return f"<ProxyDict {self._inner}>"
 
     def items(self):
-        self._onread("")
         return self._inner.items()
 
     def keys(self):
-        self._onread("")
         return self._inner.keys()
 
     def values(self):
-        self._onread("")
         return self._inner.values()
 
     def __getitem__(self, key: str) -> Any:
-        self._onread(key)
         return self._inner[key]
 
     def update(self, other: dict) -> None:
@@ -72,7 +65,7 @@ class ProxyDict(Mapping):
             self[key] = value
 
     def __setitem__(self, key: str, value: Any) -> None:
-        value = proxy_value(value, _curry_path(self._onread, key), _curry_path(self._onwrite, key))
+        value = proxy_value(value, _curry_path(self._onwrite, key))
         self._inner[key] = value
         self._onwrite(key)
 

@@ -31,6 +31,7 @@ from bench.language.const import (
     StructType,
     TriggerType,
 )
+from bench.language.field import TypeInfo
 from bench.language.node import (
     _NC,
     UNSET,
@@ -174,11 +175,10 @@ class Session(ScopeNode):
         else:
             status = "pending"
         return (
-            f" ({status}, "
+            f"{status}, "
             f"{len(self._local_edits)} local edits, "
             f"{len(self._global_edits)} global edits, "
             f"{len(self._runs_by_id) if self._runs_by_id is not None else 0} runs"
-            f")"
         )
 
     @property
@@ -692,7 +692,7 @@ class Session(ScopeNode):
             run = self._pop_stacktrace()
             assert run.node == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
             run.terminated_at = utcnow_with_tz()
-            run.outputs = _pack_and_truncate_value(
+            run.outputs_packed = _pack_and_truncate_value(
                 outputs, statement, is_output=True, none_if_invalid=True
             )
             run.status = RunStatus.COMPLETED
@@ -727,10 +727,10 @@ class Session(ScopeNode):
         assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
         run = self._create_run(statement=statement, trace=True)
         run.terminated_at = utcnow_with_tz()
-        run.inputs = _pack_and_truncate_value(
+        run.inputs_packed = _pack_and_truncate_value(
             inputs, statement, is_output=False, none_if_invalid=True
         )
-        run.outputs = _pack_and_truncate_value(
+        run.outputs_packed = _pack_and_truncate_value(
             outputs, statement, is_output=True, none_if_invalid=True
         )
         run.status = RunStatus.COMPLETED
@@ -939,20 +939,19 @@ def _pack_and_truncate_value(
 ) -> Any:
     from bench.language.value import map_value, pack_value_flat
 
-    def _is_type_truncated(type: "HasFields") -> bool:
-        return type.tag in (TypeTag.VECTOR,)
-
-    def _truncate_value(value: Any, type: "HasFields", *args, **kwargs) -> Any:
-        if _is_type_truncated(type):
-            if type.flags & TypeFlag.IS_ARRAYABLE or type.flags & TypeFlag.IS_ARRAY:
+    def _truncate_value(value: Any, type: "TypeInfo", *args, **kwargs) -> Any:
+        if type.column_type == ColumnType.VECTOR:
+            if type.is_array:
                 return []
-            return None
-        return value
+            else:
+                return None
+        else:
+            return value
 
     return map_value(
         value=value,
         type=type,
-        map_k=lambda f: (f.py_ident, f.metatyped_key),
+        map_k=lambda f: (f.py_ident, f.identity_key),
         map_v=pack_value_flat,
         premap_v=_truncate_value,
         ignore_array=ignore_array,

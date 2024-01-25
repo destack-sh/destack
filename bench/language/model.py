@@ -82,7 +82,7 @@ class HasModel(HasFields, Node):
                 try:
                     inference = MiniRun.from_json_bytes(cached_inference)
                     outputs = unpack_value(
-                        inference.outputs, self, ignore_outer=True, is_output=True
+                        inference.outputs_packed, self, ignore_outer=True, is_output=True
                     )
                     log.debug("inference.cache.hit", output=describe_type(outputs))
                     check_type(outputs, self, is_output=True)

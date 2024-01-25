@@ -1337,28 +1337,30 @@ def pg_unwrap_record_field_value(database: "HasDatabase", field: "Field", value:
         return value
 
 
-def pg_wrap_record_value(database: "HasDatabase", value: dict) -> dict:
-    assert isinstance(value, dict), f"record value not a dict: {value}"
-    if TYPE_DISCRIMINATOR_KEY in value:  # not stored in database (implicit in statement_key)
-        del value[TYPE_DISCRIMINATOR_KEY]
-    if database.ephemeral:  # lift into generic 'value' JSONB column
-        value = {"value": sql.SQL("value || {}").format(sql.Literal(Jsonb(value)))}
+def pg_wrap_record_value(database: "HasDatabase", value_packed: dict) -> dict:
+    assert isinstance(value_packed, dict), f"record value not a dict: {value_packed}"
+    if TYPE_DISCRIMINATOR_KEY in value_packed:  # not stored in database (implicit in statement_key)
+        del value_packed[TYPE_DISCRIMINATOR_KEY]
+    if database.ephemeral:  # lift into generic 'value_packed' JSONB column
+        value_packed = {
+            "value_packed": sql.SQL("value_packed || {}").format(sql.Literal(Jsonb(value_packed)))
+        }
     else:  # remap typed keys to column names
         value_columnized = {}
         for field in database.fields:
-            v = value.get(field._storage_key, UNSET)
+            v = value_packed.get(field._storage_key, UNSET)
             if v is not UNSET:
                 column_name = get_field_column_name(field)
                 value_columnized[column_name] = pg_wrap_record_field_value(database, None, field, v)
-        value = value_columnized
-    return value
+        value_packed = value_columnized
+    return value_packed
 
 
 def pg_unpack_record_data_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
     if database.ephemeral:
-        value = row["value"]
+        value_packed = row["value_packed"]
     else:
-        value = {
+        value_packed = {
             f._storage_key: pg_unwrap_record_field_value(database, f, row[get_field_column_name(f)])
             for f in database.fields
         }
@@ -1372,7 +1374,7 @@ def pg_unpack_record_data_row(database: "HasDatabase", row: RowOut) -> wire.Reco
         last_changed_at=row["last_edited_at"],
         revision=row["revision"],
         parent_id=database.id,
-        value=value,
+        value=value_packed,
     )
 
 

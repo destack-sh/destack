@@ -437,10 +437,11 @@ enum StatementType {
   STATEMENT_TYPE_BLANK = 2;
   STATEMENT_TYPE_TEXT = 3;
   STATEMENT_TYPE_VARIABLE = 4;
-  STATEMENT_TYPE_LINK = 5;
-  STATEMENT_TYPE_TAG = 10;
-  STATEMENT_TYPE_CLASS = 11;
-  STATEMENT_TYPE_CHOICE = 12;
+  STATEMENT_TYPE_MULTI_VARIABLE = 5;
+  STATEMENT_TYPE_LINK = 6;
+  STATEMENT_TYPE_CLASS = 10;
+  STATEMENT_TYPE_CHOICE = 11;
+  STATEMENT_TYPE_TAG = 12;
   STATEMENT_TYPE_SIGNAL = 13;
   STATEMENT_TYPE_TASK = 20;
   STATEMENT_TYPE_CODE = 21;
@@ -646,12 +647,13 @@ message LogEntryData {
   optional google.protobuf.Struct value = 40;
 }
 
-// NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus = None)
+// NodeReference(type: bench.language.const.NodeType = <factory>, id: Optional[uuid.UUID] = None, ck: Optional[uuid.UUID] = None, base_ck: Optional[uuid.UUID] = None, _status: bench.language.const.NodeStatus = None)
 message NodeReferenceData {
   BenchType metatype = 1;
   NodeType type = 30;
   optional string id = 31;
   optional string ck = 32;
+  optional string base_ck = 33;
 }
 
 // A policy regulating access to nodes within its scope.
@@ -725,7 +727,7 @@ message RunErrorData {
   repeated RunCodeFrameData traceback = 34;
 }
 
-// TypeInfo(base_type: Optional[ForwardRef('Statement')] = None, bench_type: Optional[bench.language.const.BenchType] = None, column_type: Optional[bench.language.const.ColumnType] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, is_array: bool = False, is_optional: bool = True, is_output: bool = False, is_secret: bool = False, is_literal: bool = False, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
+// A type is a kind of value that can go somewhere, typically a field.
 message TypeInfoData {
   BenchType metatype = 1;
   optional NodeReferenceData base_type_ptr = 40;
@@ -842,7 +844,7 @@ message ClientData {
   optional string access_token = 34;
 }
 
-// Field(base_type: Optional[ForwardRef('Statement')] = None, bench_type: Optional[bench.language.const.BenchType] = None, column_type: Optional[bench.language.const.ColumnType] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, is_array: bool = False, is_optional: bool = True, is_output: bool = False, is_secret: bool = False, is_literal: bool = False, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, text: str | None = None, dynamic_key: str | None = None, value: typing.Any | None = None, _derived_type: bench.language.field.TypeInfo | None = None, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference' = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// Field(base_type: Optional[ForwardRef('Statement')] = None, bench_type: Optional[bench.language.const.BenchType] = None, column_type: Optional[bench.language.const.ColumnType] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, is_array: bool = False, is_optional: bool = True, is_output: bool = False, is_secret: bool = False, is_literal: bool = False, _fields: tuple['Field', ...] | None = None, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, dynamic_key: str | None = None, text: str | None = None, value_packed: typing.Any | None = None, _derived_type: bench.language.field.TypeInfo | None = None, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference' = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None, value: typing.Any | None = None)
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
@@ -857,9 +859,9 @@ message FieldData {
   google.protobuf.Timestamp last_edited_at = 15;
   optional string name = 30;
   optional string order_key = 31;
-  optional string text = 32;
-  optional string dynamic_key = 33;
-  optional google.protobuf.Struct value = 34;
+  optional string dynamic_key = 32;
+  optional string text = 33;
+  optional google.protobuf.Struct value_packed = 34;
   optional NodeReferenceData base_type_ptr = 40;
   optional BenchType bench_type = 41;
   optional ColumnType column_type = 42;
@@ -1035,7 +1037,7 @@ message RecordData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional google.protobuf.Struct value = 30;
+  optional google.protobuf.Struct value_packed = 30;
 }
 
 // A 'run' of a statement (in a session).
@@ -1064,10 +1066,10 @@ message RunData {
   optional TriggerType trigger_type = 39;
   optional string trigger_id = 40;
   RunStatus status = 42;
-  optional google.protobuf.Struct inputs = 43;
-  optional google.protobuf.Struct outputs = 44;
-  optional google.protobuf.Struct error = 45;
-  optional google.protobuf.Struct value = 46;
+  optional google.protobuf.Struct inputs_packed = 43;
+  optional google.protobuf.Struct outputs_packed = 44;
+  optional google.protobuf.Struct value_packed = 45;
+  optional google.protobuf.Struct error = 46;
 }
 
 // A managed context for running a Bench module (in a worker).
@@ -1107,7 +1109,7 @@ message SignalData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional NodeReferenceData type_ptr = 30;
-  optional google.protobuf.Struct value = 31;
+  optional google.protobuf.Struct value_packed = 31;
 }
 
 // A Bench building block, the core building block containing logic, schemas, data and AI stuff.
@@ -1128,16 +1130,16 @@ message StatementData {
   repeated PolicyData policies = 21;
   StatementType type = 30;
   repeated NodeReferenceData bases_ptr = 31;
-  optional string name = 32;
-  optional string order_key = 33;
-  optional string text = 34;
-  optional string dynamic_key = 35;
-  optional string code = 36;
-  optional google.protobuf.Struct value = 37;
-  optional google.protobuf.Struct secret_value = 38;
-  optional NodeReferenceData reference_ptr = 39;
-  bool is_inline = 40;
-  bool shared = 41;
+  optional TypeInfoData builtin_base = 32;
+  bool is_inline = 33;
+  optional string name = 40;
+  optional string order_key = 41;
+  optional string dynamic_key = 42;
+  optional string text = 43;
+  optional google.protobuf.Struct value_packed = 44;
+  optional google.protobuf.Struct secret_value_packed = 45;
+  optional string code = 50;
+  optional NodeReferenceData reference_ptr = 51;
 }
 
 // An association between a tag and a statement (with optional value).
@@ -1153,7 +1155,7 @@ message TaggingData {
   optional google.protobuf.Timestamp deleted_at = 13;
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
-  optional google.protobuf.Struct value = 31;
+  optional google.protobuf.Struct value_packed = 31;
   optional NodeReferenceData reference_ptr = 32;
 }
 
@@ -1262,30 +1264,30 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    BenchData bench = 1;
-    HandleData handle = 2;
-    SignalData signal = 3;
-    WorkerSetData worker_set = 4;
+    LinkData link = 1;
+    RunData run = 2;
+    OrganizationData organization = 3;
+    NotificationData notification = 4;
     ViewData view = 5;
-    SessionData session = 6;
-    IssueData issue = 7;
-    StatementData statement = 8;
-    LinkData link = 9;
-    RunData run = 10;
-    BadgeData badge = 11;
-    TriggerData trigger = 12;
-    FieldData field = 13;
-    ModuleData module = 14;
-    BucketObjectData bucket_object = 15;
-    FileData file = 16;
-    UserData user = 17;
-    OrganizationData organization = 18;
-    ClientData client = 19;
-    NotificationData notification = 20;
-    TaggingData tagging = 21;
-    WorkerData worker = 22;
-    RecordData record = 23;
-    PauseData pause = 24;
+    BadgeData badge = 6;
+    FieldData field = 7;
+    TaggingData tagging = 8;
+    ModuleData module = 9;
+    FileData file = 10;
+    StatementData statement = 11;
+    BucketObjectData bucket_object = 12;
+    PauseData pause = 13;
+    IssueData issue = 14;
+    SessionData session = 15;
+    ClientData client = 16;
+    TriggerData trigger = 17;
+    BenchData bench = 18;
+    HandleData handle = 19;
+    RecordData record = 20;
+    UserData user = 21;
+    WorkerSetData worker_set = 22;
+    SignalData signal = 23;
+    WorkerData worker = 24;
   };
 }
 

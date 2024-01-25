@@ -239,7 +239,7 @@ class HasCode(Node):
                 from .run import CachedRun
 
                 run = CachedRun.from_json_bytes(cached_run)
-                outputs = unpack_value(run.outputs, self, ignore_outer=True, is_output=True)
+                outputs = unpack_value(run.outputs_packed, self, ignore_outer=True, is_output=True)
                 check_type(outputs, self, is_output=True)
                 self.session._run_cached(
                     statement=self,

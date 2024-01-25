@@ -1,12 +1,12 @@
 import enum
-from typing import Any, Collection, Generator, Mapping, NamedTuple, Optional
+from typing import Any, Collection, Generator, Mapping, NamedTuple, Optional, Callable
 from uuid import UUID
 
 from more_itertools import first
 
 from bench.language.const import INTERP_NODE_TYPES, NodeType
+from bench.language.field import TypeInfo, Field
 from bench.language.node import UNSET, Node
-from bench.language.text import Text, render_text_simple
 from bench.utils.utils import format_python, omit_empty
 
 
@@ -51,20 +51,19 @@ def render(
         raise ValueError(f"cannot render to {target}")
 
 
-def DEFAULT_VALUE_FILTER(f):
+def DEFAULT_VALUE_FILTER(f):  # noqa
     return True
 
 
-def _render_prop(node: Node, name: str, value: Any) -> str:
+def render_prop(node: Node, name: str, value: Any) -> str:
     """
     Render a non-relational prop (may be a reference, but not a parent/child relation).
     TODO @Broken: _render_prop recursively with all nodes/structs (blobs, secrets, etc. see typing)
     """
-    from bench.language.value import render_value
     from bench.language.value import HasValue
 
     if value is None:
-        return "None"
+        return repr(None)
     elif isinstance(value, UUID):
         return f'UUID("{value}")'
     elif isinstance(value, (enum.StrEnum, enum.IntEnum)):
@@ -76,12 +75,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         return f"'{value.name}'"  # this isn't quite right, may be shadowed/scoped
     elif isinstance(value, (int, float, bool)):
         return repr(value)
-    elif isinstance(value, (str, Text)):
-        # render text into simple form
-        if isinstance(value, Text):
-            value = render_text_simple(value.spans)
-        elif name == "text" and value and node._text_spans:
-            value = render_text_simple(node._text_spans)
+    elif isinstance(value, str):
         # if it contains newlines transform into multiline string
         # and escape any multiline strings inside
         if "\n" in value:
@@ -103,6 +97,74 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         return type(value).to_python(value)
     else:
         raise ValueError(f"cannot render {value!r} (for {node!r}->{name})")
+
+
+def render_value_flat(value: Any, type: "TypeInfo", *args, **kwargs) -> str:
+    """Renders the given value as a string."""
+    raise NotImplementedError
+
+
+def _render_array(elements: Collection[str]) -> str:
+    """Renders the given elements as a Python list."""
+    return f"[{', '.join(elements)}]" if elements else "[]"
+
+
+def _render_dict(elements: Mapping[str, str]) -> str:
+    """Renders the given elements as a Python dict."""
+    elements_str = ", ".join(f'"{k}": {v}' for k, v in elements.items())
+    return f"{{{elements_str}}}" if elements else "{}"
+
+
+def render_value(
+    value: Any,
+    type: "TypeInfo",
+    get_k: Callable[[Field], str] = None,
+    filter_v: Callable[[Any, Field], bool] = None,
+    ignore_array: bool = False,
+    ignore_empty: bool = True,
+) -> str:
+    """Renders the given value as a Python string."""
+    get_k = get_k or (lambda f: f.py_ident)
+
+    if type.is_array and not ignore_array:
+        if not isinstance(value, Collection) or isinstance(value, str):
+            return repr(value)  # not sure what to do here?
+        elements = [
+            render_value(
+                item,
+                type,
+                get_k=get_k,
+                filter_v=filter_v,
+                ignore_array=True,
+                ignore_empty=ignore_empty,
+            )
+            for item in value
+            if filter_v is None or filter_v(item, type)
+        ]
+        return _render_array(elements)
+    elif not type.fields:
+        assert filter_v is None or filter_v(value, type), f"unexpected filtered value {value}"
+        return render_value_flat(value, type, filter_k=filter_v)
+    else:
+        # map struct-like types into a dict
+        elements = {}
+        for subtype in type.fields:
+            if filter_v and not filter_v(value, subtype):
+                continue
+            k = get_k(subtype)
+            if k not in value:
+                if ignore_empty:
+                    continue
+                elements[k] = "None"
+            else:
+                elements[k] = render_value(
+                    value[k],
+                    subtype,
+                    get_k=get_k,
+                    filter_v=filter_v,
+                    ignore_empty=ignore_empty,
+                )
+        return _render_dict(elements)
 
 
 def _sep(*strs) -> str:
@@ -198,7 +260,7 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
         if op == "=":
             n, init_name, init_args, init_kwargs = nodes[0]
             init_kwargs = {**init_args, **init_kwargs}
-            kwargs_str = _sep(f"{k}={_render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
+            kwargs_str = _sep(f"{k}={render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
             if target:
                 lines.append(f"{target} = {init_name}({kwargs_str})")
             else:  # isn't this an error case?
@@ -211,8 +273,6 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
             n, init_name, init_args, init_kwargs = node
             # inline record value (see Record.new)
             if n.metatype == NodeType.RECORD:
-                from bench.language.value import render_value
-
                 kwargs_str = _sep(
                     f"{k}={render_value(v, n.metatype_of_value.fields.get(k), filter_v=DEFAULT_VALUE_FILTER)}"
                     for k, v in n.value.items()
@@ -230,9 +290,9 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
             args_strs = []
             for k, v in reversed(init_args.items()):
                 if v or args_strs:
-                    args_strs.append(_render_prop(n, k, v))
+                    args_strs.append(render_prop(n, k, v))
             args_str = _sep(*reversed(args_strs))
-            kwargs_str = _sep(f"{k}={_render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
+            kwargs_str = _sep(f"{k}={render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
             if op == _OpType.CREATE and len(nodes) == 1:
                 nodes_strs.append(f"{_sep(args_str, kwargs_str)}")
             else:

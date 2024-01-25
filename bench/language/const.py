@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.24.1"
+VERSION = "2024.01.25.0"
 
 
 #
@@ -160,12 +160,13 @@ class StatementType(ProtoStrEnum):
     BOX = "box", 1  # group of blocks
     BLANK = "blank", 2  # placeholder/spacer
     TEXT = "text", 3  # define a 'paragraph' of text/comment/instruction/etc.
-    VARIABLE = "variable", 4  # define a single- or multi-field variable
-    LINK = "link", 5  # an explicit link to another block/node
+    SINGLE_VARIABLE = "single_variable", 4  # define a single-value variable
+    MULTI_VARIABLE = "multi_variable", 5  # define a variable with (multiple) fields
+    LINK = "link", 6  # an explicit link to another block/node
 
-    TAG = "tag", 10  # define a tag with fields
-    CLASS = "class", 11  # define a single- or multi-field class type
-    CHOICE = "choice", 12  # define a choice type with fields
+    CLASS = "class", 10  # define a class type with fields
+    CHOICE = "choice", 11  # define a choice type with fields
+    TAG = "tag", 12  # define a tag with fields
     SIGNAL = "signal", 13  # define a signal type with fields
 
     TASK = "task", 20  # define a task with fields
@@ -173,7 +174,7 @@ class StatementType(ProtoStrEnum):
     FLOW = "flow", 22  # define a flow with steps and fields
     MODEL = "model", 23  # define a model 'function' with fields
 
-    VIEW = "view", 30  # define a view (or multiple views)
+    VIEW = "view", 30  # define a set of views
     DATABASE = "database", 31  # define a database with views
     SCREEN = "screen", 32  # define a screen with tiles
 
@@ -251,9 +252,8 @@ NRel = NodeRelationType
 
 class NodeStatus(enum.IntEnum):
     SOURCE = 0
-    INDEX = 1
-    INTERP = 2
-    ACTIVE = 3
+    INTERP = 1
+    ACTIVE = 2
 
 
 NS = NodeStatus

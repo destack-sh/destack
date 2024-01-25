@@ -37,7 +37,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language import File, Policy
+    from bench.language import File, Policy, TypeInfo
 
 
 @node_component
@@ -105,7 +105,8 @@ _s(StatementType.TASK, (HasTask, HasRun, HasFields), IdentT.FUNCTION)
 _s(StatementType.CODE, (HasCode, HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
 _s(StatementType.FLOW, (HasRun, HasFields), IdentT.FUNCTION)
 _s(StatementType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION)
-_s(StatementType.VARIABLE, (HasValue, HasFields), IdentT.VARIABLE)
+_s(StatementType.SINGLE_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
+_s(StatementType.MULTI_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
 _s(StatementType.DATABASE, (HasDatabase, HasFields), IdentT.VARIABLE)
 _s(StatementType.VIEW, (HasFields,), IdentT.VARIABLE)
 _s(StatementType.SCREEN, (), IdentT.VARIABLE)
@@ -145,22 +146,28 @@ class Statement(ScopeNode, HasTags):
     bases: list["Statement"] | None = struct_internal(
         31, default=None, require=False, array=True, references=NodeType.STATEMENT
     )
-    name: str | None = struct_property(32, default=None, validate=validate_name)
-    order_key: str | None = struct_internal(33, default=None)
-    text: str | None = struct_property(34, default=None, validate=validate_is_str)
-    dynamic_key: str | None = struct_internal(35, default=None)
-    code: str | None = struct_property(36, default=None, validate=validate_is_str)
-    value: Any | None = struct_property(
-        37, default=None, copy=deepcopy, column_type=ColumnType.JSON
+    builtin_base: Optional["TypeInfo"] = struct_internal(
+        32, default=None, struct_t=StructType.TYPE_INFO
     )
-    secret_value: Any | None = struct_internal(
-        38, default=None, encrypt=True, defer=True, copy=deepcopy, column_type=ColumnType.JSON
+    is_inline: bool = struct_internal(33, default=True)
+
+    # shared
+    name: str | None = struct_property(40, default=None, validate=validate_name)
+    order_key: str | None = struct_internal(41, default=None)
+    dynamic_key: str | None = struct_internal(42, default=None)
+    text: str | None = struct_property(43, default=None, validate=validate_is_str)
+    value_packed: Any | None = struct_property(
+        44, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
+    secret_value_packed: Any | None = struct_internal(
+        45, default=None, encrypt=True, defer=True, copy=deepcopy, column_type=ColumnType.JSON
+    )
+
+    # specific
+    code: str | None = struct_property(50, default=None, validate=validate_is_str)
     reference: Optional["Statement"] = struct_internal(
-        39, require=False, array=False, references=NodeType.STATEMENT
+        51, require=False, array=False, references=NodeType.STATEMENT
     )
-    is_inline: bool = struct_internal(40, default=True)
-    shared: bool = struct_internal(41, default=True)
 
     @staticmethod
     def new(

@@ -34,6 +34,7 @@ class NodeReference(Struct):
     type: NodeType = struct_property(30, require=True)
     id: Optional[UUID] = struct_property(31, default=None)
     ck: Optional[UUID] = struct_property(32, default=None)
+    base_ck: Optional[UUID] = struct_property(33, default=None)
 
     def __content_str__(self):
         return f"{self.type.bench_name}:[id={self.id}, ck={self.ck}]"
@@ -43,7 +44,12 @@ class NodeReference(Struct):
         if node is None:
             return None
         if "ck" in node.__properties__:
-            return NodeReference(type=node.metatype, id=node.id, ck=node.ck)
+            if node.metatype == NodeType.RECORD:
+                return NodeReference(
+                    type=node.metatype, id=node.id, ck=node.ck, base_ck=node.parent_ck
+                )
+            else:
+                return NodeReference(type=node.metatype, id=node.id, ck=node.ck)
         else:
             assert node.id is not None, f"cannot reference node without id: {node!r}"
             return NodeReference(type=node.metatype, id=node.id)

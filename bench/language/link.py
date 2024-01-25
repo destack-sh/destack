@@ -104,21 +104,17 @@ class _InterpChange:
         """Applies the effect of a trigger to update the affected nodes."""
         if level & _NC.Detach:
             for _node in self.affected:
-                if _node._session and _node._status == NS.ACTIVE:
+                if _node._session is not None and _node._status == NS.ACTIVE:
                     _node._deactivate_self()
-                    _node._detached_self()
             for _node in self.affected:
                 _node._clear_self(_node.scope)
 
         if level & _NC.Attach:
             for _node in self.affected:
-                _node._index_self()
-            for _node in self.affected:
                 _node._interp_self(
                     _node.scope, on_issue=_node.scope._on_issue if _node.scope else on_issue_raise
                 )
-                if self.prev_session and self.prev_status == NS.ACTIVE:
-                    _node._attached_self()
+                if self.prev_session is not None and self.prev_status == NS.ACTIVE:
                     _node._activate_self(self.prev_session)
 
 

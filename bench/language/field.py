@@ -11,6 +11,7 @@ from bench.language.const import (
     BenchType,
     StructType,
     FormatHint,
+    StatementType,
 )
 from bench.language.issue import IssueHandler
 from bench.language.node import (
@@ -79,9 +80,9 @@ class TypeError(TypeError):
 
 @struct(StructType.TYPE_INFO)
 class TypeInfo(Struct):
-    """"""
+    """A type is a kind of value that can go somewhere, typically a field."""
 
-    # type identity (must set one of these)
+    # type identity (must set at least one of these)
     base_type: Optional["Statement"] = struct_property(
         40, array=False, require=False, default=None, references=NodeType.STATEMENT
     )
@@ -140,8 +141,11 @@ class TypeInfo(Struct):
         return key
 
     @property
-    def (self):
-        return
+    def base_type_type(self) -> Optional[StatementType]:
+        if self.base_type:
+            return self.base_type.type
+        else:
+            return None
 
     @property
     def fields(self) -> NodeList["Field"] | tuple["Field", ...] | None:
@@ -158,9 +162,9 @@ class Field(HasValue, TypeInfo, _FieldExpressionBase):
     parent: Union["Statement", None] = node_parent(4, NodeType.STATEMENT)
     name: str | None = struct_property(30, default=None, validate=validate_name)
     order_key: str | None = struct_internal(31, default=None)
-    text: str | None = struct_property(32, default=None, validate=validate_is_str)
-    dynamic_key: str | None = struct_internal(33, default=None)
-    value: Any | None = struct_property(
+    dynamic_key: str | None = struct_internal(32, default=None)
+    text: str | None = struct_property(33, default=None, validate=validate_is_str)
+    value_packed: Any | None = struct_property(
         34, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
 
@@ -206,6 +210,10 @@ class HasFields(Node):
 
     _did_resolve_fields: bool = struct_runtime(default=False)
     _as_type_info: TypeInfo | None = struct_runtime(default=None)
+
+    @property
+    def _type(self):
+        return self._as_type_info
 
     def _init_inner(self):
         if self.dynamic_key is None:
@@ -253,7 +261,7 @@ class TypedDict(dict):
 
     _PROPS = ("_type", "_is_output")
 
-    def __init__(self, d: dict, type: "HasFields", is_output: bool = None):
+    def __init__(self, d: dict, type: "TypeInfo", is_output: bool = None):
         super().__init__(**d)
         self._type = type
         self._is_output = is_output
@@ -263,7 +271,7 @@ class TypedDict(dict):
 
     def __repr__(self):
         kwargs_str = ", ".join(f"{k}={v!r}" for k, v in self.items())
-        return f"{self._type.py_ident}({kwargs_str})"
+        return f"{self._type.base_type.py_ident}({kwargs_str})"
 
     def __getitem__(self, item):
         try:
