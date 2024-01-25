@@ -231,6 +231,7 @@ enum FormatHint {
   FORMAT_HINT_CODE = 6;
   FORMAT_HINT_PHONE = 10;
   FORMAT_HINT_RATING = 11;
+  FORMAT_HINT_SLIDER = 12;
   FORMAT_HINT_TOGGLE = 20;
   FORMAT_HINT_CHECKBOX = 21;
   FORMAT_HINT_THUMBS = 22;
@@ -278,9 +279,8 @@ enum NodeSource {
 
 enum NodeStatus {
   NODE_STATUS_SOURCE = 0;
-  NODE_STATUS_INDEX = 1;
-  NODE_STATUS_INTERP = 2;
-  NODE_STATUS_ACTIVE = 3;
+  NODE_STATUS_INTERP = 1;
+  NODE_STATUS_ACTIVE = 2;
 }
 
 enum NodeTrackingLevel {
@@ -436,9 +436,10 @@ enum StatementType {
   STATEMENT_TYPE_BOX = 1;
   STATEMENT_TYPE_BLANK = 2;
   STATEMENT_TYPE_TEXT = 3;
-  STATEMENT_TYPE_VARIABLE = 4;
+  STATEMENT_TYPE_SINGLE_VARIABLE = 4;
   STATEMENT_TYPE_MULTI_VARIABLE = 5;
   STATEMENT_TYPE_LINK = 6;
+  STATEMENT_TYPE_ALIAS = 7;
   STATEMENT_TYPE_CLASS = 10;
   STATEMENT_TYPE_CHOICE = 11;
   STATEMENT_TYPE_TAG = 12;
@@ -728,11 +729,31 @@ message RunErrorData {
 }
 
 // A type is a kind of value that can go somewhere, typically a field.
+// 
+//     A type is either:
+//        1. built-in type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+//        2. struct type (value is 'robust json', like Expression, Blob, BenchPath, RichText, ...)
+//        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+//        4. reference to a block (value is NodeReference that is an 'instance' of the block)
+//            if node type is Record and reference ~ Database, values must be Records in that database
+//            if node type is Run and reference ~ Block, values must be Runs of that block
+//            if node type is Field and reference ~ Block, values must be a Field in that block
+//            if node type is Signal and reference ~ Block, values must be Signals of that block type
+//            if node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
+//            if node type is Block and reference is None, values must be instances of the combined newtype
+//             ...
+// 
+//     Types may also specify:
+//        - a format hint (which may impact the unpacked/instantiated Python representation, like for Image)
+//        - an additional condition instances must satisfy
+//        - combination flags for arrays, optionals, ...
+// 
+//     Type checking is done in ./value.py. You'll note that we can only check some things without querying.
 message TypeInfoData {
   BenchType metatype = 1;
-  optional NodeReferenceData base_type_ptr = 40;
+  optional ColumnType column_type = 40;
   optional BenchType bench_type = 41;
-  optional ColumnType column_type = 42;
+  optional NodeReferenceData base_type_ptr = 42;
   optional FormatHint format_hint = 43;
   optional ExpressionData condition = 44;
   bool is_array = 50;
@@ -844,7 +865,7 @@ message ClientData {
   optional string access_token = 34;
 }
 
-// Field(base_type: Optional[ForwardRef('Statement')] = None, bench_type: Optional[bench.language.const.BenchType] = None, column_type: Optional[bench.language.const.ColumnType] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, is_array: bool = False, is_optional: bool = True, is_output: bool = False, is_secret: bool = False, is_literal: bool = False, _fields: tuple['Field', ...] | None = None, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, dynamic_key: str | None = None, text: str | None = None, value_packed: typing.Any | None = None, _derived_type: bench.language.field.TypeInfo | None = None, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference' = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None, value: typing.Any | None = None)
+// Field(column_type: Optional[bench.language.const.ColumnType] = None, bench_type: Optional[bench.language.const.BenchType] = None, base_type: Optional[ForwardRef('Statement')] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, is_array: bool = False, is_optional: bool = True, is_output: bool = False, is_secret: bool = False, is_literal: bool = False, _fields: tuple['Field', ...] | None = None, _derived_type: Optional[ForwardRef('TypeInfo')] = None, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, parent: Optional[ForwardRef('Statement')] = None, name: str | None = None, order_key: str | None = None, dynamic_key: str | None = None, text: str | None = None, value_packed: typing.Any | None = None, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference' = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None, value: typing.Any | None = None)
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
@@ -862,9 +883,9 @@ message FieldData {
   optional string dynamic_key = 32;
   optional string text = 33;
   optional google.protobuf.Struct value_packed = 34;
-  optional NodeReferenceData base_type_ptr = 40;
+  optional ColumnType column_type = 40;
   optional BenchType bench_type = 41;
-  optional ColumnType column_type = 42;
+  optional NodeReferenceData base_type_ptr = 42;
   optional FormatHint format_hint = 43;
   optional ExpressionData condition = 44;
   bool is_array = 50;
@@ -908,7 +929,7 @@ message HandleData {
   string slug = 30;
 }
 
-// Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[int]] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None, type: bench.language.const.IssueType = <factory>, kind: bench.language.const.IssueKind = None, message: str = None, path: Optional[bench.language.expression.FieldPath] = None, properties: Optional[list[int]] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message IssueData {
   BenchType metatype = 1;
   string id = 2;
@@ -1201,7 +1222,7 @@ message UserData {
   optional google.protobuf.Timestamp last_logged_in_at = 36;
 }
 
-// View(parent: ForwardRef('Statement') = None, name: str | None = None, order_key: str | None = None, node_type: bench.language.const.NodeType = <factory>, filter: Optional[bench.language.expression.Expression] = None, sort: Optional[list[bench.language.expression.Expression]] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// View(parent: ForwardRef('Statement') = None, name: str | None = None, order_key: str | None = None, node_type: bench.language.const.NodeType = <factory>, filter: Optional[bench.language.expression.Expression] = None, sort: Optional[list[bench.language.expression.Expression]] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message ViewData {
   BenchType metatype = 1;
   string id = 2;
@@ -1221,7 +1242,7 @@ message ViewData {
   repeated ExpressionData sort = 34;
 }
 
-// Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
+// Worker(parent: 'WorkerSet' = None, external_id: str = <factory>, profile: bench.language.const.WorkerProfile = <factory>, image: Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] = <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None)
 message WorkerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1264,30 +1285,30 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    LinkData link = 1;
-    RunData run = 2;
-    OrganizationData organization = 3;
-    NotificationData notification = 4;
-    ViewData view = 5;
+    SessionData session = 1;
+    WorkerSetData worker_set = 2;
+    ViewData view = 3;
+    RecordData record = 4;
+    OrganizationData organization = 5;
     BadgeData badge = 6;
-    FieldData field = 7;
-    TaggingData tagging = 8;
-    ModuleData module = 9;
+    UserData user = 7;
+    ModuleData module = 8;
+    SignalData signal = 9;
     FileData file = 10;
-    StatementData statement = 11;
-    BucketObjectData bucket_object = 12;
-    PauseData pause = 13;
-    IssueData issue = 14;
-    SessionData session = 15;
-    ClientData client = 16;
-    TriggerData trigger = 17;
-    BenchData bench = 18;
-    HandleData handle = 19;
-    RecordData record = 20;
-    UserData user = 21;
-    WorkerSetData worker_set = 22;
-    SignalData signal = 23;
-    WorkerData worker = 24;
+    BenchData bench = 11;
+    FieldData field = 12;
+    RunData run = 13;
+    TriggerData trigger = 14;
+    PauseData pause = 15;
+    HandleData handle = 16;
+    NotificationData notification = 17;
+    IssueData issue = 18;
+    ClientData client = 19;
+    TaggingData tagging = 20;
+    StatementData statement = 21;
+    LinkData link = 22;
+    WorkerData worker = 23;
+    BucketObjectData bucket_object = 24;
   };
 }
 

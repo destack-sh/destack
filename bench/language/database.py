@@ -465,7 +465,7 @@ class RecordQuery:
         # 'serialize' values (probably need a better way here to retain some native types?)
         check_type(value, self._database)
         value = pack_value(
-            value, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f._storage_key)
+            value, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f.storage_key)
         )
         value = pg_wrap_record_value(self._database, value)
         # update values alongside :LocalRecordCru
@@ -606,7 +606,7 @@ class HasDatabase(Node):
     def _init_inner(self):
         # this runs before HasFields because of the ordering in
         #  (which is necessary because HasFields also sets key)
-        if self.dynamic_key is None:
+        if self._is_new and self.dynamic_key is None:
             self.dynamic_key = self._derive_dynamic_key()
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None) -> None:

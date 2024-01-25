@@ -42,9 +42,7 @@ class HasValue(Node):
         # type may not be ready if not attached (e.g. Record in a Database)
         if "value" in properties and self._type is not None:
             try:
-                get_k = (
-                    lambda f: f.py_ident if self._status == NS.ACTIVE else f._storage_key
-                )  # noqa
+                get_k = lambda f: f.py_ident if self._status == NS.ACTIVE else f.storage_key  # noqa
                 check_type(self.value or {}, self._type, get_k=get_k)
             except TypeError as e:
                 on_invalid(self, f"invalid value: {e}", ["value"])
@@ -279,7 +277,7 @@ def unpack_value(
     return map_value(
         value=value,
         type=type,
-        map_k=map_k or (lambda f: (f._storage_key, f.py_ident)),
+        map_k=map_k or (lambda f: (f.storage_key, f.py_ident)),
         map_v=partial(unpack_value_flat, scope=scope, session=session),
         ignore_array=ignore_array,
         ignore_outer=ignore_outer,
@@ -311,7 +309,7 @@ def pack_value(
     return map_value(
         value=value,
         type=type,
-        map_k=map_k or (lambda f: (f.py_ident, f._storage_key)),
+        map_k=map_k or (lambda f: (f.py_ident, f.storage_key)),
         map_v=map_v,
         ignore_array=ignore_array,
         ignore_outer=ignore_outer,

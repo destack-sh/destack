@@ -117,10 +117,10 @@ class StructFieldMapper(FieldMapper):
 
         for f in type.fields:
             if f._effective_tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH:
-                subfields[f._storage_key] = get_mapper(f).to_os_type(f, depth + 1)
+                subfields[f.storage_key] = get_mapper(f).to_os_type(f, depth + 1)
             else:
                 # treat as json (but not as flattened yet.. :BadJsonMapping)
-                subfields[f._storage_key] = os.Field(os.FT.OBJECT, dynamic=True, enabled=False)
+                subfields[f.storage_key] = os.Field(os.FT.OBJECT, dynamic=True, enabled=False)
         return os.Field(os.FT.OBJECT, properties=subfields)
 
 
@@ -198,9 +198,9 @@ async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
         if HasRun in node._components:
             for field in node.fields:
                 if field.flags & TypeFlag.IS_OUTPUT:
-                    outputs_mappings[field._storage_key] = _map_to_os_field_safe(field)
+                    outputs_mappings[field.storage_key] = _map_to_os_field_safe(field)
                 else:
-                    inputs_mappings[field._storage_key] = _map_to_os_field_safe(field)
+                    inputs_mappings[field.storage_key] = _map_to_os_field_safe(field)
     # ensure library vectors are not indexed (would be pointless waste of resources)
     for field in (*inputs_mappings.values(), *outputs_mappings.values()):
         for f in field.walk():
@@ -216,14 +216,14 @@ async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
         elif node.type == lang.StatementType.DATABASE:
             # all fields go into Record.value
             for field in node.fields:
-                value_mappings[field._storage_key] = _map_to_os_field_safe(field)
+                value_mappings[field.storage_key] = _map_to_os_field_safe(field)
         elif node.type in RUNNABLE_STATEMENT_TYPES:
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in node.fields:
                 if field.flags & TypeFlag.IS_OUTPUT:
-                    outputs_mappings[field._storage_key] = _map_to_os_field_safe(field)
+                    outputs_mappings[field.storage_key] = _map_to_os_field_safe(field)
                 else:
-                    inputs_mappings[field._storage_key] = _map_to_os_field_safe(field)
+                    inputs_mappings[field.storage_key] = _map_to_os_field_safe(field)
 
     # actually update mappings
     mappings = {}

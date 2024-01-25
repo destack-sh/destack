@@ -14,7 +14,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.25.0"
+VERSION = "2024.01.25.1"
 
 
 #
@@ -163,6 +163,7 @@ class StatementType(ProtoStrEnum):
     SINGLE_VARIABLE = "single_variable", 4  # define a single-value variable
     MULTI_VARIABLE = "multi_variable", 5  # define a variable with (multiple) fields
     LINK = "link", 6  # an explicit link to another block/node
+    ALIAS = "alias", 7  # extend an existing non-class block (kind of like a 'newtype')
 
     CLASS = "class", 10  # define a class type with fields
     CHOICE = "choice", 11  # define a choice type with fields
@@ -366,6 +367,7 @@ class FormatHint(ProtoStrEnum):
     # number
     PHONE = "phone", 10
     RATING = "rating", 11
+    SLIDER = "slider", 12
     # boolean
     TOGGLE = "toggle", 20
     CHECKBOX = "checkbox", 21

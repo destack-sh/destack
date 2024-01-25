@@ -274,7 +274,7 @@ class Property(_FieldExpressionBase):
         )
 
     @property
-    def ident(self) -> str:
+    def py_ident(self) -> str:
         return self.name
 
     @property
@@ -728,12 +728,7 @@ NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
 STRUCT_CLASS_BY_TYPE: dict[StructType, type["Struct"]] = {}
 BENCH_CLASS_BY_TYPE: dict[BenchType, type["Node"] | type["Struct"]] = {}
 _COMPONENT_METHODS: dict[[_ComponentMethod, type["Node"]], Any] = {}
-_COMPONENT_CALL_ORDER: list[str] = [
-    "Node",
-    "ScopeNode",
-    "HasFields",  # for resolved_fields
-    # the rest
-]
+_COMPONENT_CALL_ORDER: list[str] = ["Node", "ScopeNode"]  # ... the rest
 
 
 @cached(cache={})
@@ -1539,7 +1534,7 @@ class Node(Struct, _NodeExpressionBase):
     _session: Optional["Session"] = struct_runtime(default=None)
     _status: NodeStatus = struct_runtime(default=None)
     _track: NodeTrackingLevel = struct_runtime(default=NodeTrackingLevel.FULL)
-    _new: bool = struct_runtime(default=False)
+    _is_new: bool = struct_runtime(default=False)
     _deferred_properties: tuple[str, ...] | None = struct_runtime(default=None)
 
     def __post_init__(self):
@@ -1547,12 +1542,12 @@ class Node(Struct, _NodeExpressionBase):
         if self.__is_in_module__:
             if self.ck is None:
                 self.ck = uuid4()
-                self._new = True
+                self._is_new = True
             if self.id is None and self.attached:
                 self._assign_id(self.module.id)
         elif self.id is None:
             self.id = uuid4()
-            self._new = True
+            self._is_new = True
         # init tracking
         if self.created_at is None:
             # init cru timestamps
@@ -1566,7 +1561,7 @@ class Node(Struct, _NodeExpressionBase):
             from bench.language.builtin import _active_session
 
             self._session = _active_session.get()
-        if self._session and self._session is not UNSET and self._new and not self.parent:
+        if self._session and self._session is not UNSET and self._is_new and not self.parent:
             self._session._dangling_nodes_by_ck[self.ck] = self
         # init status
         if self._status is None:
@@ -1910,7 +1905,7 @@ class Node(Struct, _NodeExpressionBase):
         # validate if in session after all init are done
         if (
             self._status >= NS.INTERP
-            and self._new
+            and self._is_new
             and self._session is not None
             and self._session is not UNSET
         ):
