@@ -51,14 +51,14 @@ class ActionKind(betterproto.Enum):
 
 class AggregationOp(betterproto.Enum):
     UNSPECIFIED = 0
-    EXISTS = 51
-    COUNT = 52
-    SUM = 53
-    AVERAGE = 54
-    MIN = 55
-    MAX = 56
-    MEDIAN = 57
-    HISTOGRAM = 58
+    EXISTS = 101
+    COUNT = 102
+    SUM = 103
+    AVERAGE = 104
+    MIN = 105
+    MAX = 106
+    MEDIAN = 107
+    HISTOGRAM = 108
 
 
 class BadgeType(betterproto.Enum):
@@ -115,6 +115,7 @@ class BenchType(betterproto.Enum):
     FIELD_PATH_SEGMENT = 205
     VALUE_REFERENCE = 206
     BLOB = 210
+    TYPE_INFO = 211
     POLICY = 220
     POLICY_RULE = 221
     CONTEXT = 222
@@ -144,6 +145,27 @@ class Casing(betterproto.Enum):
     ALL_CAPS = 3
 
 
+class ColumnType(betterproto.Enum):
+    """
+    // Fundamental column / storage types we support (subset of SQL types).
+    NOTE: the ids here are used in encode/decode pipelines, take extra care.
+    """
+
+    UNSPECIFIED = 0
+    STRING = 1
+    BOOLEAN = 2
+    INT = 3
+    BIGINT = 4
+    FLOAT = 5
+    DATETIME = 6
+    INTERVAL = 7
+    JSON = 8
+    BINARY = 9
+    VECTOR = 10
+    UUID = 11
+    BYTES = 12
+
+
 class ConditionalOp(betterproto.Enum):
     UNSPECIFIED = 0
     TRUE = 1
@@ -151,21 +173,22 @@ class ConditionalOp(betterproto.Enum):
     NOT = 3
     AND = 4
     OR = 5
-    EQUALS = 6
-    NOT_EQUALS = 7
-    GREATER_THAN = 8
-    GREATER_THAN_OR_EQUALS = 9
-    LESS_THAN = 10
-    LESS_THAN_OR_EQUALS = 11
-    MATCHES = 12
-    STARTS_WITH = 13
-    CONTAINS = 14
-    NOT_CONTAINS = 15
-    IN = 16
-    NOT_IN = 17
-    EXISTS = 18
-    NOT_EXISTS = 19
-    NEAR = 20
+    EQUALS = 10
+    NOT_EQUALS = 11
+    GREATER_THAN = 12
+    GREATER_THAN_OR_EQUALS = 13
+    LESS_THAN = 14
+    LESS_THAN_OR_EQUALS = 15
+    MATCHES = 20
+    STARTS_WITH = 21
+    REGEX = 22
+    CONTAINS = 30
+    NOT_CONTAINS = 31
+    IN = 32
+    NOT_IN = 33
+    EXISTS = 40
+    NOT_EXISTS = 41
+    NEAR = 50
 
 
 class EditKind(betterproto.Enum):
@@ -196,30 +219,51 @@ class ExpressionOp(betterproto.Enum):
     NOT = 3
     AND = 4
     OR = 5
-    EQUALS = 6
-    NOT_EQUALS = 7
-    GREATER_THAN = 8
-    GREATER_THAN_OR_EQUALS = 9
-    LESS_THAN = 10
-    LESS_THAN_OR_EQUALS = 11
-    MATCHES = 12
-    STARTS_WITH = 13
-    CONTAINS = 14
-    NOT_CONTAINS = 15
-    IN = 16
-    NOT_IN = 17
-    EXISTS = 51
-    NOT_EXISTS = 19
-    NEAR = 20
-    COUNT = 52
-    SUM = 53
-    AVERAGE = 54
-    MIN = 55
-    MAX = 56
-    MEDIAN = 57
-    HISTOGRAM = 58
-    ASCENDING = 101
-    DESCENDING = 102
+    EQUALS = 10
+    NOT_EQUALS = 11
+    GREATER_THAN = 12
+    GREATER_THAN_OR_EQUALS = 13
+    LESS_THAN = 14
+    LESS_THAN_OR_EQUALS = 15
+    MATCHES = 20
+    STARTS_WITH = 21
+    REGEX = 22
+    CONTAINS = 30
+    NOT_CONTAINS = 31
+    IN = 32
+    NOT_IN = 33
+    EXISTS = 101
+    NOT_EXISTS = 41
+    NEAR = 50
+    COUNT = 102
+    SUM = 103
+    AVERAGE = 104
+    MIN = 105
+    MAX = 106
+    MEDIAN = 107
+    HISTOGRAM = 108
+    ASCENDING = 201
+    DESCENDING = 202
+
+
+class FormatHint(betterproto.Enum):
+    """// Extra semantic hint for types."""
+
+    UNSPECIFIED = 0
+    NAME = 1
+    UUID = 2
+    EMAIL = 3
+    URL = 4
+    MARKDOWN = 5
+    CODE = 6
+    PHONE = 10
+    RATING = 11
+    TOGGLE = 20
+    CHECKBOX = 21
+    THUMBS = 22
+    IMAGE = 30
+    VIDEO = 31
+    AUDIO = 32
 
 
 class IssueKind(betterproto.Enum):
@@ -415,8 +459,8 @@ class SortMode(betterproto.Enum):
 
 class SortOp(betterproto.Enum):
     UNSPECIFIED = 0
-    ASCENDING = 101
-    DESCENDING = 102
+    ASCENDING = 201
+    DESCENDING = 202
 
 
 class StatementType(betterproto.Enum):
@@ -449,6 +493,7 @@ class StructType(betterproto.Enum):
     FIELD_PATH_SEGMENT = 205
     VALUE_REFERENCE = 206
     BLOB = 210
+    TYPE_INFO = 211
     POLICY = 220
     POLICY_RULE = 221
     CONTEXT = 222
@@ -477,90 +522,6 @@ class TriggerType(betterproto.Enum):
     MESSAGE = 5
     USER = 6
     API = 7
-
-
-class TypeFlag(betterproto.Enum):
-    """// Extra information for fields"""
-
-    ZERO = 0
-    IS_OUTPUT = 1
-    IS_ARRAY = 2
-    IS_OPTIONAL = 4
-    IS_SECRET = 16
-    IS_STORE_ONLY = 32
-    IS_ARRAYABLE = 64
-
-
-class TypeHint(betterproto.Enum):
-    """// Extra representation/semantics of a field/type."""
-
-    UNSPECIFIED = 0
-    NAME = 1
-    UUID = 2
-    DATE = 3
-    DATETIME = 4
-    TIME = 5
-    DURATION = 6
-    EMAIL = 7
-    URL = 8
-    MARKDOWN = 9
-    RICH_TEXT = 10
-    HTML = 11
-    CODE = 12
-    KEY = 13
-    INTEGER = 14
-    FLOAT = 15
-    SLIDER = 16
-    PHONE = 17
-    RATING = 18
-    TOGGLE = 19
-    CHECKBOX = 20
-    THUMBS = 21
-    EMBEDDING = 22
-    BENCH = 30
-    FILE = 32
-    STATEMENT = 33
-    RECORD = 34
-    FIELD = 35
-    SECRET = 36
-    BLOB = 37
-    RUN = 38
-    IMAGE = 50
-    VIDEO = 51
-    AUDIO = 52
-
-
-class TypeStorageFormat(betterproto.Enum):
-    """// The fundamental form of a field/type.:TypeStorageFormat"""
-
-    UNSPECIFIED = 0
-    STRING = 1
-    DOUBLE = 2
-    LONG = 3
-    VECTOR = 4
-    BINARY = 5
-    BOOLEAN = 6
-    DATE = 7
-    KEYWORD = 8
-    OBJECT = 9
-    RELATION = 10
-
-
-class TypeTag(betterproto.Enum):
-    """// The Bench primitive type of a field/type."""
-
-    UNSPECIFIED = 0
-    STRING = 1
-    NUMBER = 2
-    BOOLEAN = 3
-    VECTOR = 4
-    JSON = 7
-    LITERAL = 10
-    NODE = 11
-    STRUCT = 6
-    FUNCTION = 8
-    ENUM = 9
-    TYPE_REFERENCE = 13
 
 
 class WorkerProfile(betterproto.Enum):
@@ -829,7 +790,7 @@ class RichTextSpanData(betterproto.Message):
     """
     // RichTextSpan(text: str = '', flags: bench.language.const.RichTextFlag =
     <RichTextFlag.NONE: 0>, reference: bench.language.node.Node | None = None,
-    reference_ptr: bench.proto.wire.NodeReferenceData = None, _status:
+    reference_ptr: 'NodeReference' = None, _status:
     bench.language.const.NodeStatus = None)
     """
 
@@ -844,8 +805,8 @@ class RunCodeFrameData(betterproto.Message):
     """
     // RunCodeFrame(node: bench.language.node.Node = None, lineno: int =
     <factory>, name: str = <factory>, locals: Optional[dict[str, Any]] = None,
-    line: str = <factory>, node_ptr: bench.proto.wire.NodeReferenceData = None,
-    _status: bench.language.const.NodeStatus = None)
+    line: str = <factory>, node_ptr: 'NodeReference' = None, _status:
+    bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -865,8 +826,7 @@ class RunErrorData(betterproto.Message):
     = <factory>, message: Optional[str] = None, node:
     Optional[ForwardRef('Node')] = None, traceback:
     list[bench.language.run.RunCodeFrame] = <factory>, node_ptr:
-    bench.proto.wire.NodeReferenceData = None, _status:
-    bench.language.const.NodeStatus = None)
+    'NodeReference' = None, _status: bench.language.const.NodeStatus = None)
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -875,6 +835,32 @@ class RunErrorData(betterproto.Message):
     message: Optional[str] = betterproto.string_field(32, optional=True)
     node_ptr: Optional["NodeReferenceData"] = betterproto.message_field(33, optional=True)
     traceback: List["RunCodeFrameData"] = betterproto.message_field(34)
+
+
+@dataclass(eq=False, repr=False)
+class TypeInfoData(betterproto.Message):
+    """
+    // TypeInfo(base_type: Optional[ForwardRef('Statement')] = None,
+    bench_type: Optional[bench.language.const.BenchType] = None, column_type:
+    Optional[bench.language.const.ColumnType] = None, format_hint:
+    Optional[bench.language.const.FormatHint] = None, condition:
+    Optional[ForwardRef('Expression')] = None, is_array: bool = False,
+    is_optional: bool = True, is_output: bool = False, is_secret: bool = False,
+    is_literal: bool = False, base_type_ptr: 'NodeReference' = None, _status:
+    bench.language.const.NodeStatus = None)
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
+    column_type: Optional["ColumnType"] = betterproto.enum_field(42, optional=True)
+    format_hint: Optional["FormatHint"] = betterproto.enum_field(43, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(44, optional=True)
+    is_array: bool = betterproto.bool_field(50)
+    is_optional: bool = betterproto.bool_field(51)
+    is_output: bool = betterproto.bool_field(52)
+    is_secret: bool = betterproto.bool_field(53)
+    is_literal: bool = betterproto.bool_field(54)
 
 
 @dataclass(eq=False, repr=False)
@@ -903,7 +889,7 @@ class WorkerImageData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class BadgeData(betterproto.Message):
-    """// A badge for a non-member to access parts of this Bench."""
+    """// A badge for an unknown identity to access (parts of) this Bench."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1004,21 +990,24 @@ class ClientData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class FieldData(betterproto.Message):
     """
-    // Field(parent: Optional[ForwardRef('Statement')] = None, name: str | None
-    = None, order_key: str | None = None, text: str | None = None, tag:
-    bench.language.const.TypeTag = <factory>, key: str | None = None, value:
-    typing.Any | None = None, hint: bench.language.const.TypeHint | None =
-    None, flags: bench.language.const.TypeFlag = <TypeFlag.ZERO: 0>, reference:
-    Optional[ForwardRef('Statement')] = None, _reflected_from:
-    Optional[bench.language.node.Property] = None, parent_ptr:
-    bench.proto.wire.NodeReferenceData = None, reference_ptr:
-    bench.proto.wire.NodeReferenceData = None, _status:
-    bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
-    = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
-    'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
-    updated_at: datetime.datetime = None, deleted_at:
-    Optional[datetime.datetime] = None, archived_at:
-    Optional[datetime.datetime] = None, last_edited_at:
+    // Field(base_type: Optional[ForwardRef('Statement')] = None, bench_type:
+    Optional[bench.language.const.BenchType] = None, column_type:
+    Optional[bench.language.const.ColumnType] = None, format_hint:
+    Optional[bench.language.const.FormatHint] = None, condition:
+    Optional[ForwardRef('Expression')] = None, is_array: bool = False,
+    is_optional: bool = True, is_output: bool = False, is_secret: bool = False,
+    is_literal: bool = False, base_type_ptr: 'NodeReference' = None, _status:
+    bench.language.const.NodeStatus = None, parent:
+    Optional[ForwardRef('Statement')] = None, name: str | None = None,
+    order_key: str | None = None, text: str | None = None, key: str | None =
+    None, value: typing.Any | None = None, _derived_type:
+    bench.language.field.TypeInfo | None = None, _reflected_from:
+    Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference'
+    = None, id: uuid.UUID = None, ck: uuid.UUID = None, source:
+    bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>,
+    revision: int = 0, created_at: datetime.datetime = None, updated_at:
+    datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None,
+    archived_at: Optional[datetime.datetime] = None, last_edited_at:
     Optional[datetime.datetime] = None, _session:
     Optional[ForwardRef('Session')] = None, _track:
     bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
@@ -1039,14 +1028,20 @@ class FieldData(betterproto.Message):
     name: Optional[str] = betterproto.string_field(30, optional=True)
     order_key: Optional[str] = betterproto.string_field(31, optional=True)
     text: Optional[str] = betterproto.string_field(32, optional=True)
-    tag: "TypeTag" = betterproto.enum_field(33)
-    key: Optional[str] = betterproto.string_field(34, optional=True)
+    key: Optional[str] = betterproto.string_field(33, optional=True)
     value: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        35, optional=True
+        34, optional=True
     )
-    hint: Optional["TypeHint"] = betterproto.enum_field(36, optional=True)
-    flags: int = betterproto.int64_field(37)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
+    base_type_ptr: Optional["NodeReferenceData"] = betterproto.message_field(40, optional=True)
+    bench_type: Optional["BenchType"] = betterproto.enum_field(41, optional=True)
+    column_type: Optional["ColumnType"] = betterproto.enum_field(42, optional=True)
+    format_hint: Optional["FormatHint"] = betterproto.enum_field(43, optional=True)
+    condition: Optional["ExpressionData"] = betterproto.message_field(44, optional=True)
+    is_array: bool = betterproto.bool_field(50)
+    is_optional: bool = betterproto.bool_field(51)
+    is_output: bool = betterproto.bool_field(52)
+    is_secret: bool = betterproto.bool_field(53)
+    is_literal: bool = betterproto.bool_field(54)
 
 
 @dataclass(eq=False, repr=False)
@@ -1097,11 +1092,11 @@ class IssueData(betterproto.Message):
     type: bench.language.const.IssueType = <factory>, kind:
     bench.language.const.IssueKind = None, message: str = None, path:
     Optional[bench.language.expression.FieldPath] = None, properties:
-    Optional[list[int]] = None, parent_ptr: bench.proto.wire.NodeReferenceData
-    = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID =
-    None, ck: uuid.UUID = None, source: bench.language.const.NodeSource =
-    <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at:
-    datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at:
+    Optional[list[int]] = None, parent_ptr: 'NodeReference' = None, _status:
+    bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
+    = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
+    'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
+    updated_at: datetime.datetime = None, deleted_at:
     Optional[datetime.datetime] = None, archived_at:
     Optional[datetime.datetime] = None, last_edited_at:
     Optional[datetime.datetime] = None, _session:
@@ -1474,7 +1469,7 @@ class ViewData(betterproto.Message):
     order_key: str | None = None, node_type: bench.language.const.NodeType =
     <factory>, filter: Optional[bench.language.expression.Expression] = None,
     sort: Optional[list[bench.language.expression.Expression]] = None,
-    parent_ptr: bench.proto.wire.NodeReferenceData = None, _status:
+    parent_ptr: 'NodeReference' = None, _status:
     bench.language.const.NodeStatus = None, id: uuid.UUID = None, ck: uuid.UUID
     = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
     'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
@@ -1511,13 +1506,13 @@ class WorkerData(betterproto.Message):
     // Worker(parent: 'WorkerSet' = None, external_id: str = <factory>,
     profile: bench.language.const.WorkerProfile = <factory>, image:
     Optional[ForwardRef('WorkerImage')] = <factory>, version: Optional[str] =
-    <factory>, access_token: Optional[str] = None, parent_ptr:
-    bench.proto.wire.NodeReferenceData = None, _status:
-    bench.language.const.NodeStatus = None, id: uuid.UUID = None, source:
-    bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>,
-    revision: int = 0, created_at: datetime.datetime = None, updated_at:
-    datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None,
-    archived_at: Optional[datetime.datetime] = None, last_edited_at:
+    <factory>, access_token: Optional[str] = None, parent_ptr: 'NodeReference'
+    = None, _status: bench.language.const.NodeStatus = None, id: uuid.UUID =
+    None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED:
+    'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None,
+    updated_at: datetime.datetime = None, deleted_at:
+    Optional[datetime.datetime] = None, archived_at:
+    Optional[datetime.datetime] = None, last_edited_at:
     Optional[datetime.datetime] = None, _session:
     Optional[ForwardRef('Session')] = None, _track:
     bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _new:
@@ -1567,30 +1562,30 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    tagging: "TaggingData" = betterproto.message_field(1, group="node")
-    worker: "WorkerData" = betterproto.message_field(2, group="node")
-    issue: "IssueData" = betterproto.message_field(3, group="node")
-    badge: "BadgeData" = betterproto.message_field(4, group="node")
-    file: "FileData" = betterproto.message_field(5, group="node")
-    statement: "StatementData" = betterproto.message_field(6, group="node")
-    module: "ModuleData" = betterproto.message_field(7, group="node")
-    client: "ClientData" = betterproto.message_field(8, group="node")
-    view: "ViewData" = betterproto.message_field(9, group="node")
-    pause: "PauseData" = betterproto.message_field(10, group="node")
-    user: "UserData" = betterproto.message_field(11, group="node")
-    session: "SessionData" = betterproto.message_field(12, group="node")
-    bench: "BenchData" = betterproto.message_field(13, group="node")
-    notification: "NotificationData" = betterproto.message_field(14, group="node")
-    handle: "HandleData" = betterproto.message_field(15, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(16, group="node")
-    field: "FieldData" = betterproto.message_field(17, group="node")
-    run: "RunData" = betterproto.message_field(18, group="node")
-    record: "RecordData" = betterproto.message_field(19, group="node")
-    signal: "SignalData" = betterproto.message_field(20, group="node")
-    organization: "OrganizationData" = betterproto.message_field(21, group="node")
-    trigger: "TriggerData" = betterproto.message_field(22, group="node")
-    link: "LinkData" = betterproto.message_field(23, group="node")
-    bucket_object: "BucketObjectData" = betterproto.message_field(24, group="node")
+    pause: "PauseData" = betterproto.message_field(1, group="node")
+    module: "ModuleData" = betterproto.message_field(2, group="node")
+    view: "ViewData" = betterproto.message_field(3, group="node")
+    user: "UserData" = betterproto.message_field(4, group="node")
+    session: "SessionData" = betterproto.message_field(5, group="node")
+    handle: "HandleData" = betterproto.message_field(6, group="node")
+    bench: "BenchData" = betterproto.message_field(7, group="node")
+    file: "FileData" = betterproto.message_field(8, group="node")
+    field: "FieldData" = betterproto.message_field(9, group="node")
+    run: "RunData" = betterproto.message_field(10, group="node")
+    trigger: "TriggerData" = betterproto.message_field(11, group="node")
+    issue: "IssueData" = betterproto.message_field(12, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(13, group="node")
+    worker: "WorkerData" = betterproto.message_field(14, group="node")
+    link: "LinkData" = betterproto.message_field(15, group="node")
+    bucket_object: "BucketObjectData" = betterproto.message_field(16, group="node")
+    tagging: "TaggingData" = betterproto.message_field(17, group="node")
+    notification: "NotificationData" = betterproto.message_field(18, group="node")
+    client: "ClientData" = betterproto.message_field(19, group="node")
+    statement: "StatementData" = betterproto.message_field(20, group="node")
+    signal: "SignalData" = betterproto.message_field(21, group="node")
+    badge: "BadgeData" = betterproto.message_field(22, group="node")
+    organization: "OrganizationData" = betterproto.message_field(23, group="node")
+    record: "RecordData" = betterproto.message_field(24, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -3119,53 +3114,54 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    TaggingData,
-    WorkerData,
-    IssueData,
-    BadgeData,
-    FileData,
-    StatementData,
-    ModuleData,
-    ClientData,
-    ViewData,
     PauseData,
+    ModuleData,
+    ViewData,
     UserData,
     SessionData,
-    BenchData,
-    NotificationData,
     HandleData,
-    WorkerSetData,
+    BenchData,
+    FileData,
     FieldData,
     RunData,
-    RecordData,
-    SignalData,
-    OrganizationData,
     TriggerData,
+    IssueData,
+    WorkerSetData,
+    WorkerData,
     LinkData,
     BucketObjectData,
+    TaggingData,
+    NotificationData,
+    ClientData,
+    StatementData,
+    SignalData,
+    BadgeData,
+    OrganizationData,
+    RecordData,
 ]
 AnyStructData = Union[
-    BenchPathData,
-    NodeReferenceData,
-    ValueReferenceData,
-    PolicyData,
-    WorkerImageData,
+    FieldPathData,
     BlobData,
-    AggregationData,
-    ExpressionData,
-    RichTextData,
-    ContextData,
-    LogEntryData,
-    RunErrorData,
     AggregationBucketData,
-    PropertyPathData,
-    PropertyReferenceData,
+    RunErrorData,
+    FieldPathSegmentData,
+    PolicyData,
+    ContextData,
+    RichTextData,
+    NodeReferenceData,
+    RunCodeFrameData,
+    ValueReferenceData,
+    LogEntryData,
     DependencyData,
     PolicyRuleData,
-    FieldPathData,
-    RunCodeFrameData,
+    ExpressionData,
     RichTextSpanData,
-    FieldPathSegmentData,
+    TypeInfoData,
+    PropertyPathData,
+    PropertyReferenceData,
+    WorkerImageData,
+    BenchPathData,
+    AggregationData,
 ]
 
-VERSION = "2024.01.24.0"
+VERSION = "2024.01.24.1"

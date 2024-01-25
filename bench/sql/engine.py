@@ -9,7 +9,6 @@ from typing import Any, Collection, Mapping, Optional, Sequence, cast
 from uuid import UUID, uuid4
 
 import cachetools
-import msgpack
 import psycopg
 import structlog
 from psycopg import sql
@@ -208,16 +207,12 @@ def get_field_column_name(field: lang.Field) -> str:
 
 
 def map_field_to_pg_column(field: lang.Field) -> Column:
-    """Gets a column from a field. Later, there may be more than one column per field (?)."""
-    column_type = COLUMN_TYPE_BY_STORAGE_FORMAT[field._storage_format]
-    is_array = (
-        field.flags & lang.TypeFlag.IS_ARRAY or field.flags & lang.TypeFlag.IS_ARRAYABLE
-    ) and column_type != ColumnType.JSON
+    """Gets a column from a Field (1:1 mapping for now)."""
     return Column(
         _source=str(field.ck),
         name=get_field_column_name(field),
-        type=column_type,
-        is_array=is_array,
+        type=field.derived_type.column_type,
+        is_array=field.derived_type.is_array,
         is_nullable=True,
     )
 
@@ -886,9 +881,18 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
             else:  # ravel reference from per-type columns
                 assert prop.is_array is False, f"array property not supported (yet) {prop!r}"
                 if prop.name.endswith("_ck"):
-                    ptr = NodeReferenceData(type=prop.reference_types[0], ck=value)
+                    ptr = NodeReferenceData(
+                        metatype=wire.StructType.NODE_REFERENCE,
+                        type=prop.reference_types[0],
+                        ck=value,
+                    )
                 else:
-                    ptr = NodeReferenceData(type=prop.reference_types[0], id=value)
+                    ptr = NodeReferenceData(
+                        metatype=wire.StructType.NODE_REFERENCE,
+                        type=prop.reference_types[0],
+                        id=value,
+                    )
+                assert prop.reference_source is not None, f"no reference source for {prop!r}"
                 setattr(data, prop.reference_source.reference_wired_ptr.name, ptr)
         return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
@@ -1297,18 +1301,18 @@ def pg_wrap_record_field_value(
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
     if value is None:
         return None
-    msgpack_size = len(msgpack.packb(value))
-    if msgpack_size > MAX_RECORD_FIELD_VALUE_SIZE:
+    record_len_bytes = len(record)
+    if record_len_bytes > MAX_RECORD_FIELD_VALUE_SIZE:
         record_str = f"record {record.id}" if record else "record"
         value_str = repr(value)
         if len(value_str) > 256:
             value_str = value_str[:196] + "..." + value_str[-56:]
         raise ValueError(
-            f"{record_str} field value '{field.py_ident}' is too large: {msgpack_size} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a Blob instead)\nValue (truncated): {value_str}"
+            f"{record_str} field value '{field.py_ident}' is too large: {record_len_bytes} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a Blob instead)\nValue (truncated): {value_str}"
         )
-    if field._storage_format == StorageFormat.OBJECT:
+    if field._storage_format == ColumnType.JSON:
         return Jsonb(value)
-    elif field._storage_format == StorageFormat.VECTOR:
+    elif field._storage_format == ColumnType.VECTOR:
         if isinstance(value, bytes):
             return value
         elif not isinstance(value, list):
@@ -1324,9 +1328,9 @@ def pg_unwrap_record_field_value(database: "HasDatabase", field: "Field", value:
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
     if value is None:
         return None
-    elif field._storage_format == StorageFormat.OBJECT:
+    elif field._storage_format == ColumnType.JSON:
         return value
-    elif field._storage_format == StorageFormat.VECTOR:
+    elif field._storage_format == ColumnType.VECTOR:
         # turn bytea into [-128, 127]
         return [v - 128 for v in value]
     else:

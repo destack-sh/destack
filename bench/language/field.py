@@ -138,7 +138,7 @@ class Field(HasValue, TypeInfo, _FieldExpressionBase):
     name: str | None = struct_property(30, default=None, validate=validate_name)
     order_key: str | None = struct_internal(31, default=None)
     text: str | None = struct_property(32, default=None, validate=validate_is_str)
-    key: str | None = struct_internal(33, default=None)
+    key: str | None = struct_internal(33, default=None)  # nocheckin: rename -> dynamic key
     value: Any | None = struct_property(
         34, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )

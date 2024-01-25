@@ -17,24 +17,18 @@ from uuid import UUID
 import pytz
 import structlog
 
-from bench.language.const import TypeFlag, TypeHint, TypeTag
 from bench.language.expression import TYPE_DISCRIMINATOR_KEY
 from bench.language.field import (
-    PRIMITIVE_TYPES,
-    TYPE_TAG_BY_TYPE_HINT,
     Field,
     HasFields,
-    HasType,
-    Key,
     TypedDict,
     TypeError,
-    Vector,
 )
 from bench.language.node import NS, Node, ScopeNode
 from bench.language.session import Session
 from bench.language.statement import Statement
 from bench.language.text import Text, parse_text_multi, render_text_html, render_text_simple
-from bench.utils.func import strip_py_type, try_to_uuid
+from bench.utils.func import try_to_uuid
 
 logger = structlog.get_logger(__name__)
 
@@ -360,18 +354,6 @@ def get_type_mapper_by_type(type: HasType) -> TypeMapper:
     if mapping is not None:
         return mapping
     raise LookupError(f"no mapping found for {type}")
-
-
-def _strip_py_type(py_type: type) -> tuple[type, TypeFlag]:
-    py_type, info = strip_py_type(py_type)
-    flags = TypeFlag.ZERO
-    if info.is_optional:
-        flags |= TypeFlag.IS_OPTIONAL
-    if info.is_arrayable:
-        flags |= TypeFlag.IS_ARRAYABLE
-    if info.is_array:
-        flags |= TypeFlag.IS_ARRAY
-    return py_type, flags
 
 
 @dataclass

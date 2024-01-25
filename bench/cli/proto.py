@@ -8,7 +8,7 @@ import typer
 
 from bench.cli.utils import _shell
 from bench.language import VERSION
-from bench.language.node import BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES, Node
+from bench.language.node import FINAL_BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES, Node
 from bench.proto.core import Field, Message
 from bench.proto.engine import generate_proto_schema
 
@@ -26,7 +26,7 @@ def _generate_proto_schema() -> str:
     """Generate the .proto schema (as a string) describing the current Bench types."""
     proto = generate_proto_schema(
         name="symbolx.bench",
-        bench_classes=[*BENCH_CLASSES, Node],
+        bench_classes=[*FINAL_BENCH_CLASSES, Node],
         aliases={Node: "BaseNode"},
         unions={"SomeNode": ("node", NODE_CLASSES)},
         extras=[

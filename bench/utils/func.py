@@ -198,34 +198,50 @@ def describe_type(obj: Any) -> str:
         return type(obj).__name__
 
 
-TypeInfo = typing.NamedTuple(
-    "TypeInfo", [("is_optional", bool), ("is_arrayable", bool), ("is_array", bool)]
+TypeAnnotation = typing.NamedTuple(
+    "TypeInfo", [("type", type), ("is_union", bool), ("is_optional", bool), ("is_array", bool)]
 )
 
 
-def strip_py_type(py_type: type) -> tuple[type, TypeInfo]:
+def _resolve_py_type(py_type: type | str | typing.ForwardRef, type_map: dict[str, type]) -> type:
+    """Resolves the py type if it's a forward ref"""
+    if isinstance(py_type, str):
+        return type_map[py_type]
+    elif isinstance(py_type, typing.ForwardRef):
+        return type_map[py_type.__forward_arg__]
+    else:
+        return py_type
+
+
+def parse_py_type(
+    py_type: type | str | typing.ForwardRef, type_map: dict[str, type]
+) -> TypeAnnotation:
+    """Parses the type information from a given py type. Uses type map to resolve forward refs."""
+    is_union = False
     is_optional = False
-    is_arrayable = False
     is_array = False
+    if not isinstance(py_type, type):
+        py_type = _resolve_py_type(py_type, type_map)
     # strip optional
     if typing.get_origin(py_type) in (typing.Union, types.UnionType):
-        args = typing.get_args(py_type)
-        if len(args) == 2 and args[1] == type(None):  # noqa: E721
-            py_type = args[0]
-            is_optional = True
-        # convert x | list[x] as isarrayable
-        elif len(args) == 2 and typing.get_origin(args[1]) is list:
-            if args[0] != typing.get_args(args[1])[0]:
-                raise ValueError(f"cannot map generic union types: {py_type}")
-            py_type = args[0]
-            is_arrayable = True
+        union_types = typing.get_args(py_type)
+        # it's a true union if there's a non-None type
+        actual_types = tuple(t for t in union_types if t is not type(None))
+        is_union = len(actual_types) > 1
+        is_optional = len(actual_types) < len(union_types)
+        # reconstitute type annotation
+        if is_union:
+            actual_types = tuple(_resolve_py_type(t, type_map) for t in actual_types)
+            py_type = typing.Union[actual_types]
         else:
-            raise ValueError(f"cannot map generic union types: {py_type}")
+            py_type = actual_types[0]
+            py_type = _resolve_py_type(py_type, type_map)
     # strip list
     if typing.get_origin(py_type) is list or typing.get_origin(py_type) is tuple:
         py_type = typing.get_args(py_type)[0]
+        py_type = _resolve_py_type(py_type, type_map)
         is_array = True
-    return py_type, TypeInfo(is_optional, is_arrayable, is_array)
+    return TypeAnnotation(py_type, is_union, is_optional, is_array)
 
 
 def levenshtein_distance(s1: str, s2: str) -> int:

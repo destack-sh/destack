@@ -1,6 +1,6 @@
 from datetime import datetime
 from os import urandom
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import (
@@ -24,7 +24,7 @@ from bench.language.node import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Expression, User
+    from bench.language import Expression, User, Statement
 
 
 @struct(StructType.POLICY)
@@ -107,9 +107,9 @@ class Context(Struct):
 
 @node(NodeType.BADGE)
 class Badge(Node):
-    """A badge for a non-member to access parts of this Bench."""
+    """A badge for an unknown identity to access (parts of) this Bench."""
 
-    parent: Module = node_parent(4, NodeType.MODULE)
+    parent: Union[Module, "Statement"] = node_parent(4, NodeType.MODULE, NodeType.STATEMENT)
     type: BadgeType = struct_internal(30)
     name: Optional[str] = struct_internal(31)
     policy: Policy = struct_internal(32, struct_t=StructType.POLICY)
