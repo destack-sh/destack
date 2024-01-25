@@ -92,7 +92,7 @@ class _BlockTypeDescriptor:
 IdentT = IdentifierType
 
 _block = _BlockTypeDescriptor
-_block(BlockType.BOX, (HasFields,), IdentT.VARIABLE)
+_block(BlockType.PAGE, (HasFields,), IdentT.VARIABLE)
 _block(BlockType.TAG, (HasFields,), IdentT.VARIABLE)
 _block(BlockType.TEXT, (), IdentT.VARIABLE)
 _block(BlockType.LINK, (), IdentT.VARIABLE)
@@ -149,7 +149,7 @@ class Block(ScopeNode, HasTags):
     builtin_base: Optional["TypeInfo"] = struct_internal(
         32, default=None, struct_t=StructType.TYPE_INFO
     )
-    is_inline: bool = struct_internal(33, default=True)
+    is_page: bool = struct_internal(33, default=False)
 
     # shared
     name: str | None = struct_property(40, default=None, validate=validate_name)

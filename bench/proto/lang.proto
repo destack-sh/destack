@@ -116,7 +116,7 @@ enum BlobStatus {
 
 enum BlockType {
   BLOCK_TYPE_UNSPECIFIED = 0;
-  BLOCK_TYPE_BOX = 1;
+  BLOCK_TYPE_PAGE = 1;
   BLOCK_TYPE_BLANK = 2;
   BLOCK_TYPE_TEXT = 3;
   BLOCK_TYPE_SINGLE_VARIABLE = 4;
@@ -847,7 +847,7 @@ message BlockData {
   BlockType type = 30;
   repeated NodeReferenceData bases_ptr = 31;
   optional TypeInfoData builtin_base = 32;
-  bool is_inline = 33;
+  bool is_page = 33;
   optional string name = 40;
   optional string order_key = 41;
   optional string dynamic_key = 42;
@@ -1263,29 +1263,29 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    PauseData pause = 1;
-    OrganizationData organization = 2;
-    BlockData block = 3;
-    BucketObjectData bucket_object = 4;
-    PackageData package = 5;
-    TaggingData tagging = 6;
-    ViewData view = 7;
-    ClientData client = 8;
-    SignalData signal = 9;
-    TriggerData trigger = 10;
-    BenchData bench = 11;
-    FieldData field = 12;
-    WorkerData worker = 13;
-    SessionData session = 14;
-    IssueData issue = 15;
-    HandleData handle = 16;
-    RunData run = 17;
-    BadgeData badge = 18;
-    RecordData record = 19;
-    LinkData link = 20;
-    NotificationData notification = 21;
-    WorkerSetData worker_set = 22;
-    UserData user = 23;
+    ClientData client = 1;
+    BenchData bench = 2;
+    RunData run = 3;
+    NotificationData notification = 4;
+    TaggingData tagging = 5;
+    TriggerData trigger = 6;
+    WorkerData worker = 7;
+    BucketObjectData bucket_object = 8;
+    PauseData pause = 9;
+    SessionData session = 10;
+    BadgeData badge = 11;
+    LinkData link = 12;
+    RecordData record = 13;
+    UserData user = 14;
+    ViewData view = 15;
+    OrganizationData organization = 16;
+    IssueData issue = 17;
+    FieldData field = 18;
+    BlockData block = 19;
+    PackageData package = 20;
+    WorkerSetData worker_set = 21;
+    SignalData signal = 22;
+    HandleData handle = 23;
   };
 }
 

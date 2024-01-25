@@ -139,7 +139,7 @@ BLOCK_TABLE = Table(
         Column("type", ColumnType.STRING, default="'blank'::character varying"),
         Column("bases_block_ck", ColumnType.UUID, is_array=True, is_nullable=True),
         Column("builtin_base", ColumnType.BYTES, is_nullable=True),
-        Column("is_inline", ColumnType.BOOLEAN, default="true"),
+        Column("is_page", ColumnType.BOOLEAN, default="false"),
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("order_key", ColumnType.STRING, is_nullable=True),
         Column("dynamic_key", ColumnType.STRING, is_nullable=True),

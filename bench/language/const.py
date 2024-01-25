@@ -157,7 +157,7 @@ INTERP_NODE_TYPES = {NodeType.ISSUE}
 
 
 class BlockType(ProtoStrEnum):
-    BOX = "box", 1  # group of blocks
+    PAGE = "page", 1  # group of blocks
     BLANK = "blank", 2  # placeholder/spacer
     TEXT = "text", 3  # define a 'paragraph' of text/comment/instruction/etc.
     SINGLE_VARIABLE = "single_variable", 4  # define a single-value variable
