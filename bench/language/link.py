@@ -151,6 +151,8 @@ class NodeListBase(abc.ABC, Collection, Generic[NodeT]):
     This is the primary way of adding, removing and accessing regular node relations.
     """
 
+    __slots__ = ("_parent", "_property")
+
     def __init__(self, parent: "ScopeNode", property: "Property"):
         self._parent = parent
         self._property = property

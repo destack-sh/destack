@@ -463,7 +463,7 @@ def _check_field_supports(field: "Field", op: ExpressionOp):
         )
     else:
         if op not in ExprOps.COND_EXISTENCE and op not in SUPPORTED_OPS_BY_TYPE.get(
-            field.column_type or field.derived_type.column_type, _EMPTY_SET
+            field.derived_column_type, _EMPTY_SET
         ):
             raise UnsupportedExpressionError(field, op)
 

@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.25.0"
+VERSION = "2024.01.25.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -339,9 +339,9 @@ FIELD_TABLE = Table(
         Column("dynamic_key", ColumnType.STRING, is_nullable=True),
         Column("text", ColumnType.STRING, is_nullable=True),
         Column("value_packed", ColumnType.JSON, is_nullable=True),
-        Column("base_type_statement_ck", ColumnType.UUID, is_nullable=True),
-        Column("bench_type", ColumnType.STRING, is_nullable=True),
         Column("column_type", ColumnType.STRING, is_nullable=True),
+        Column("bench_type", ColumnType.STRING, is_nullable=True),
+        Column("base_type_statement_ck", ColumnType.UUID, is_nullable=True),
         Column("format_hint", ColumnType.STRING, is_nullable=True),
         Column("condition", ColumnType.BYTES, is_nullable=True),
         Column("is_array", ColumnType.BOOLEAN, default="false"),

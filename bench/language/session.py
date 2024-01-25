@@ -195,12 +195,12 @@ class Session(ScopeNode):
 
     @property
     def global_pg_cursor(self) -> psycopg.AsyncCursor:
-        assert self._global_pg_cursor is not None, "global_pg_cursor is unavailable"
+        assert self._global_pg_cursor is not None, f"global_pg_cursor is unavailable in {self!r}"
         return self._global_pg_cursor
 
     @property
     def local_pg_cursor(self) -> psycopg.AsyncCursor:
-        assert self._local_pg_cursor is not None, "local_pg_cursor is unavailable"
+        assert self._local_pg_cursor is not None, f"local_pg_cursor is unavailable in {self!r}"
         return self._local_pg_cursor
 
     async def pg_cursor_to_local(self, module: Module) -> psycopg.AsyncCursor:
@@ -223,7 +223,7 @@ class Session(ScopeNode):
         self._log.debug("session.open")
 
         # flush loop
-        assert session_flush_interval > 0.05, f"flush_interval {session_flush_interval} < 0.05s"
+        assert session_flush_interval > 0.025, f"flush_interval {session_flush_interval} < 0.025s"
 
         async def _flush_session_loop():
             while True:

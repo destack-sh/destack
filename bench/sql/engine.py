@@ -197,13 +197,9 @@ CAST_TYPE_BY_STORAGE_FORMAT: dict[ColumnType, str] = {
 }
 
 
-def get_value_column_name(typed_key: str) -> str:
-    typed_key = typed_key.replace(".", "_").replace("-", "_").lower()
-    return f"value_{typed_key}"
-
-
 def get_field_column_name(field: lang.Field) -> str:
-    return get_value_column_name(field._storage_key)
+    storage_key = field.storage_key.replace(".", "_").replace("-", "_").lower()
+    return f"value_{storage_key}"
 
 
 def map_field_to_pg_column(field: lang.Field) -> Column:
@@ -360,7 +356,7 @@ def _compile_expression_ref(
     elif expr.field is not None:
         assert expr.field._reflected_from is None, f"cannot use reflected: {expr!r}->{expr.field!r}"
         if isinstance(node, Statement) and node.ephemeral:
-            return SqlJsonPath(sql.Identifier("value"), [expr.field._storage_key])
+            return SqlJsonPath(sql.Identifier("value"), [expr.field.storage_key])
         else:
             return sql.Identifier(get_field_column_name(expr.field))
     else:
@@ -1163,7 +1159,7 @@ async def pg_write_record_edits(
                 row = {"id": record.id}
                 for field in database.fields:  # all 'value' fields are considered changed
                     column_name = get_field_column_name(field)
-                    value = record.value.get(field._storage_key)
+                    value = record.value.get(field.storage_key)
                     row[column_name] = pg_wrap_record_field_value(database, record, field, value)
                 row_values.append(row)
             # and update cru info :LocalRecordCru
@@ -1287,7 +1283,7 @@ def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) ->
     else:
         for field in database.fields:
             column_name = get_field_column_name(field)
-            value = record.value.get(field._storage_key)
+            value = record.value.get(field.storage_key)
             row[column_name] = pg_wrap_record_field_value(database, record, field, value)
     assert len(row) == len(
         database._table.columns
@@ -1348,7 +1344,7 @@ def pg_wrap_record_value(database: "HasDatabase", value_packed: dict) -> dict:
     else:  # remap typed keys to column names
         value_columnized = {}
         for field in database.fields:
-            v = value_packed.get(field._storage_key, UNSET)
+            v = value_packed.get(field.storage_key, UNSET)
             if v is not UNSET:
                 column_name = get_field_column_name(field)
                 value_columnized[column_name] = pg_wrap_record_field_value(database, None, field, v)
@@ -1361,7 +1357,7 @@ def pg_unpack_record_data_row(database: "HasDatabase", row: RowOut) -> wire.Reco
         value_packed = row["value_packed"]
     else:
         value_packed = {
-            f._storage_key: pg_unwrap_record_field_value(database, f, row[get_field_column_name(f)])
+            f.storage_key: pg_unwrap_record_field_value(database, f, row[get_field_column_name(f)])
             for f in database.fields
         }
     return wire.RecordData(

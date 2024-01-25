@@ -13,7 +13,6 @@ from bench.language.const import (
     FormatHint,
     StatementType,
 )
-from bench.language.issue import IssueHandler
 from bench.language.node import (
     Node,
     NodeList,
@@ -42,6 +41,7 @@ from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
 if typing.TYPE_CHECKING:
     from bench.language import Statement, Expression
+    from bench.language.issue import IssueHandler
 
 logger = structlog.get_logger(__name__)
 
@@ -50,7 +50,7 @@ class TypeError(TypeError):
     def __init__(
         self,
         value: Any,
-        expected: "HasType",
+        expected: "TypeInfo",
         message: str = None,
         suberrors: list["TypeError"] = None,
     ):
@@ -80,19 +80,42 @@ class TypeError(TypeError):
 
 @struct(StructType.TYPE_INFO)
 class TypeInfo(Struct):
-    """A type is a kind of value that can go somewhere, typically a field."""
+    """
+    A type is a kind of value that can go somewhere, typically a field.
+
+    A type is either:
+       1. built-in type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+       2. struct type (value is 'robust json', like Expression, Blob, BenchPath, RichText, ...)
+       3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
+       4. reference to a block (value is NodeReference that is an 'instance' of the block)
+           if node type is Record and reference ~ Database, values must be Records in that database
+           if node type is Run and reference ~ Block, values must be Runs of that block
+           if node type is Field and reference ~ Block, values must be a Field in that block
+           if node type is Signal and reference ~ Block, values must be Signals of that block type
+           if node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
+           if node type is Block and reference is None, values must be instances of the combined newtype
+            ...
+
+    Types may also specify:
+       - a format hint (which may impact the unpacked/instantiated Python representation, like for Image)
+       - an additional condition instances must satisfy
+       - combination flags for arrays, optionals, ...
+
+    Type checking is done in ./value.py. You'll note that we can only check some things without querying.
+    """
 
     # type identity (must set at least one of these)
-    base_type: Optional["Statement"] = struct_property(
-        40, array=False, require=False, default=None, references=NodeType.STATEMENT
-    )
+    column_type: Optional[ColumnType] = struct_property(40, default=None)
     bench_type: Optional[BenchType] = struct_property(41, default=None)
-    column_type: Optional[ColumnType] = struct_property(42, default=None)
+    base_type: Optional["Statement"] = struct_property(
+        42, array=False, require=False, default=None, references=NodeType.STATEMENT
+    )
     # + bonus info/constraints
     format_hint: Optional[FormatHint] = struct_property(43, default=None)
     condition: Optional["Expression"] = struct_property(
         44, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
+    # visibility: NodeVisibility = ...?
 
     # flags
     is_array: bool = struct_internal(50, default=False)
@@ -103,6 +126,7 @@ class TypeInfo(Struct):
 
     # separate _fields for restricting base type to a subset of fields (e.g., only inputs)
     _fields: tuple["Field", ...] | None = struct_runtime(default=None)
+    _derived_type: Optional["TypeInfo"] = struct_runtime(default=None)
 
     def __content_str__(self) -> str:
         if self.base_type is not None:
@@ -126,6 +150,36 @@ class TypeInfo(Struct):
         if flags:
             info_str += f" ({', '.join(flags)})"
         return info_str
+
+    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
+        # NOTE: TypeInfo.interp / derivation probably isn't quite right yet
+        if self.base_type is not None:
+            if self.base_type_type == StatementType.ALIAS:  # newtype
+                raise NotImplementedError("newtypes are not supported yet")
+            elif self.base_type_type == StatementType.CHOICE and self.bench_type == NodeType.FIELD:
+                self._derived_type = self.extend(column_type=ColumnType.STRING)
+            else:
+                self._derived_type = self.extend(column_type=ColumnType.UUID)
+        else:
+            self._derived_type = self
+
+    def extend(self, **kwargs) -> "TypeInfo":
+        """Returns a new type that is the same as this one, but with the given properties overridden."""
+        combined_kwargs = {
+            prop.name: getattr(self, prop.name) for prop in TypeInfo.__runtime_properties__.values()
+        }
+        for k, v in kwargs.items():
+            combined_kwargs[k] = v
+        return TypeInfo(**combined_kwargs)
+
+    @property
+    def derived_type(self) -> "TypeInfo":
+        assert self._derived_type is not None, f"derived type not ready in {self!r}"
+        return self._derived_type
+
+    @property
+    def derived_column_type(self) -> ColumnType:
+        return self.column_type or self.derived_type.column_type
 
     @property
     def identity_key(self) -> str:
@@ -171,8 +225,11 @@ class Field(HasValue, TypeInfo, _FieldExpressionBase):
     # type identity
     # ...TypeInfo
 
-    _derived_type: TypeInfo | None = struct_runtime(default=None)
     _reflected_from: Optional[Property] = struct_runtime(default=None)
+
+    def _init_inner(self):
+        if self._is_new:
+            self.dynamic_key = self.dynamic_key or new_dynamic_node_key(self.ck)
 
     def __eq__(self, other):
         return _FieldExpressionBase.__eq__(self, other)  # override to avoid recursion
@@ -184,19 +241,8 @@ class Field(HasValue, TypeInfo, _FieldExpressionBase):
         else:
             return IdentifierType.PROPERTY
 
-    def _init_inner(self):
-        self.dynamic_key = self.dynamic_key or new_dynamic_node_key(self.ck)
-
-    def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
-        pass  # nocheckin: derive/interp Field._derived_type
-
     @property
-    def derived_type(self) -> TypeInfo:
-        assert self._derived_type is not None, f"derived type not ready in {self!r}"
-        return self._derived_type
-
-    @property
-    def _storage_key(self) -> str:
+    def storage_key(self) -> str:
         return f"{self.dynamic_key}-{self.derived_type.identity_key}"
 
 
@@ -208,7 +254,7 @@ class HasFields(Node):
         NodeType.FIELD, NRel.NAMED | NRel.SCOPED | NRel.ORDERED
     )
 
-    _did_resolve_fields: bool = struct_runtime(default=False)
+    _did_resolve_bases: bool = struct_runtime(default=False)
     _as_type_info: TypeInfo | None = struct_runtime(default=None)
 
     @property
@@ -216,11 +262,11 @@ class HasFields(Node):
         return self._as_type_info
 
     def _init_inner(self):
-        if self.dynamic_key is None:
+        if self._is_new and self.dynamic_key is None:
             self.dynamic_key = new_dynamic_node_key(self.ck)
 
     def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
-        self._did_resolve_fields = False
+        self._did_resolve_bases = False
         self._as_type_info = None
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
@@ -231,19 +277,19 @@ class HasFields(Node):
         """
         Resolves (and inlines) field references and unions.
         """
-        if self._did_resolve_fields:
+        if self._did_resolve_bases:
             return  # already resolved
 
         if any(f.id == self.id for f in path):
             # circular panic
             path = "->".join(n.name for n in path + [self])
             on_issue(type=IssueType.CIRCULAR_BASE, subject=self, path=path)
-            self._did_resolve_fields = True
+            self._did_resolve_bases = True
             return
 
         # resolve fields recursively (inlining any valid unions)
         # nocheckin: Field._resolve_fields -> resolve bases
-        self._did_resolve_fields = True
+        self._did_resolve_bases = True
 
     def _inputs_from_args(self, args, kwargs) -> dict:
         inputs = {**kwargs}
