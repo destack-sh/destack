@@ -36,7 +36,7 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
 
     @property
     def metadata(self) -> RpcMetadata:
-        """The metadata of the current gRPC call."""
+        """The received metadata in the current gRPC request stream."""
         return self._metadata.get()
 
     async def start_quick(self) -> None:

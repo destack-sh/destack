@@ -90,7 +90,7 @@ enum BenchType {
   BENCH_TYPE_FIELD_PATH = 204;
   BENCH_TYPE_FIELD_PATH_SEGMENT = 205;
   BENCH_TYPE_VALUE_REFERENCE = 206;
-  BENCH_TYPE_BLOB = 210;
+  BENCH_TYPE_FILE = 210;
   BENCH_TYPE_TYPE_INFO = 211;
   BENCH_TYPE_POLICY = 220;
   BENCH_TYPE_POLICY_RULE = 221;
@@ -105,13 +105,6 @@ enum BenchType {
   BENCH_TYPE_DEPENDENCY = 281;
   BENCH_TYPE_RICH_TEXT = 300;
   BENCH_TYPE_RICH_TEXT_SPAN = 301;
-}
-
-enum BlobStatus {
-  BLOB_STATUS_UNSPECIFIED = 0;
-  BLOB_STATUS_PENDING = 1;
-  BLOB_STATUS_UPLOADING = 2;
-  BLOB_STATUS_AVAILABLE = 3;
 }
 
 enum BlockType {
@@ -239,6 +232,13 @@ enum ExpressionOp {
   EXPRESSION_OP_HISTOGRAM = 108;
   EXPRESSION_OP_ASCENDING = 201;
   EXPRESSION_OP_DESCENDING = 202;
+}
+
+enum FileStatus {
+  FILE_STATUS_UNSPECIFIED = 0;
+  FILE_STATUS_PENDING = 1;
+  FILE_STATUS_UPLOADING = 2;
+  FILE_STATUS_AVAILABLE = 3;
 }
 
 // Extra semantic hint for types.
@@ -460,7 +460,7 @@ enum StructType {
   STRUCT_TYPE_FIELD_PATH = 204;
   STRUCT_TYPE_FIELD_PATH_SEGMENT = 205;
   STRUCT_TYPE_VALUE_REFERENCE = 206;
-  STRUCT_TYPE_BLOB = 210;
+  STRUCT_TYPE_FILE = 210;
   STRUCT_TYPE_TYPE_INFO = 211;
   STRUCT_TYPE_POLICY = 220;
   STRUCT_TYPE_POLICY_RULE = 221;
@@ -576,17 +576,6 @@ message BenchPathData {
   optional string package_slug = 35;
 }
 
-// A reference to a file stored somewhere.
-message BlobData {
-  BenchType metatype = 1;
-  optional string sha512 = 30;
-  optional int64 content_length = 31;
-  optional string content_type = 32;
-  string name = 33;
-  optional NodeReferenceData object_ptr = 34;
-  BlobStatus status = 35;
-}
-
 // The context of a request for evaluating a policy.
 message ContextData {
   BenchType metatype = 1;
@@ -629,6 +618,17 @@ message FieldPathSegmentData {
   BenchType metatype = 1;
   PropertyReferenceData property = 30;
   optional NodeReferenceData field_ptr = 31;
+}
+
+// A reference to a file stored somewhere.
+message FileData {
+  BenchType metatype = 1;
+  optional string sha512 = 30;
+  optional int64 content_length = 31;
+  optional string content_type = 32;
+  string name = 33;
+  optional NodeReferenceData object_ptr = 34;
+  FileStatus status = 35;
 }
 
 // An entry. In a log.
@@ -730,7 +730,7 @@ message RunErrorData {
 // 
 //     A type is either:
 //        1. built-in type (= column type, value is scalar, like int32, string, bool, datetime, ...)
-//        2. struct type (value is 'robust json', like Expression, Blob, BenchPath, RichText, ...)
+//        2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
 //        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
 //        4. reference to a block (value is NodeReference that is an 'instance' of the block)
 //            if node type is Record and reference ~ Database, values must be Records in that database
@@ -872,7 +872,7 @@ message BucketObjectData {
   string sha512 = 30;
   int64 content_length = 31;
   string content_type = 32;
-  BlobStatus status = 33;
+  FileStatus status = 33;
 }
 
 // A client to this Bench. Can be a user or a worker.
@@ -1263,29 +1263,29 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    ClientData client = 1;
-    BenchData bench = 2;
-    RunData run = 3;
-    NotificationData notification = 4;
-    TaggingData tagging = 5;
-    TriggerData trigger = 6;
-    WorkerData worker = 7;
-    BucketObjectData bucket_object = 8;
-    PauseData pause = 9;
-    SessionData session = 10;
-    BadgeData badge = 11;
-    LinkData link = 12;
+    FieldData field = 1;
+    ClientData client = 2;
+    TriggerData trigger = 3;
+    PackageData package = 4;
+    BucketObjectData bucket_object = 5;
+    HandleData handle = 6;
+    UserData user = 7;
+    TaggingData tagging = 8;
+    WorkerSetData worker_set = 9;
+    WorkerData worker = 10;
+    SignalData signal = 11;
+    BenchData bench = 12;
     RecordData record = 13;
-    UserData user = 14;
-    ViewData view = 15;
+    IssueData issue = 14;
+    SessionData session = 15;
     OrganizationData organization = 16;
-    IssueData issue = 17;
-    FieldData field = 18;
-    BlockData block = 19;
-    PackageData package = 20;
-    WorkerSetData worker_set = 21;
-    SignalData signal = 22;
-    HandleData handle = 23;
+    RunData run = 17;
+    NotificationData notification = 18;
+    ViewData view = 19;
+    BadgeData badge = 20;
+    PauseData pause = 21;
+    LinkData link = 22;
+    BlockData block = 23;
   };
 }
 

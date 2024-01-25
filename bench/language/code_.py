@@ -10,22 +10,20 @@ from dataclasses import dataclass
 from json import JSONDecodeError
 from random import Random
 from typing import Any, Optional
-from uuid import UUID
 
 import more_itertools
 import structlog
 from more_itertools import first, last
 
-from bench.language.blob import Blob, BlobStatus
-from bench.language.const import ConditionalOp, IssueType, SortMode, SortOp
-from bench.language.expression import C
+from bench.language.builtin import symbolx_package
+from bench.language.const import IssueType
 from bench.language.field import TypedDict
 from bench.language.node import Node, ScopeNode, node_component, struct_runtime
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language import Block, symbolx_lib
+    from bench.language import Block
     from bench.language.issue import IssueHandler
 
 logger = structlog.get_logger(__name__)
@@ -100,15 +98,15 @@ class HasCode(Node):
 
     @property
     def _cache(self) -> bool:
-        return symbolx_lib.resolve(".builtins.cache") in self.tags
+        return symbolx_package.resolve(".builtins.cache") in self.tags
 
     @property
     def _export(self) -> bool:
-        return symbolx_lib.resolve(".builtins.export") in self.tags
+        return symbolx_package.resolve(".builtins.export") in self.tags
 
     @property
     def _test(self) -> bool:
-        return symbolx_lib.resolve(".builtins.test") in self.tags
+        return symbolx_package.resolve(".builtins.test") in self.tags
 
     @property
     def _code_hash(self) -> str:
@@ -122,12 +120,10 @@ class HasCode(Node):
             "package": self.package,
             "session": self.session,
             "cache": self.session._cache,
-            "blobs": self.session._blobs,
             "random": Random(self.id.hex.encode()),
-            "ximport": self._import_sync if not self._is_async else self._import_async,
             "install": _install_package,
             **self._block_references,
-            **{s.py_ident: s for s in symbolx_lib.files.builtins.blocks},
+            **{s.py_ident: s for s in symbolx_package.files.builtins.blocks},
         }
 
         import bench.language
@@ -365,27 +361,13 @@ AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
 SyncCodeCallable = typing.Callable[..., Any]
 
 STATIC_BUILTINS: dict[str, Any] = {
-    # primitive types
-    "string": str,
-    "text": str,
-    "number": float,
-    "boolean": bool,
-    # querying
-    "Q": C,
-    "ConditionalOp": ConditionalOp,
-    "SortOp": SortOp,
-    "SortMode": SortMode,
-    # remote
-    "Blob": Blob,
-    "BlobSatus": BlobStatus,
     # functional builtins
     "first": first,
     "last": last,
     "batched": more_itertools.batched,
     "chain": itertools.chain,
-    "UUID": UUID,
 }
-DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "storage", "blobs", "cache", "random", "self"}
+DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "cache", "random", "self"}
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 
 

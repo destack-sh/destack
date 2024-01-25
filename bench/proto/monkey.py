@@ -71,7 +71,6 @@ betterproto.ProtoClassMetadata._get_default_gen = _PatchedProtoClassMetadata._ge
 
 
 class _PatchedMessage(BetterprotoMessage):
-    # nocheckin
     def to_robust_dict(self):
         """Patched betterproto.Message.to_dict that handles RobustJson for Structs."""
 

@@ -22,7 +22,7 @@ import { WorkerData } from "./lang";
 import { Struct } from "../../google/protobuf/struct";
 import { BenchPathData } from "./lang";
 import { Timestamp } from "../../google/protobuf/timestamp";
-import { BlobData } from "./lang";
+import { FileData } from "./lang";
 import { LogEntryData } from "./lang";
 import { WorkerSetData } from "./lang";
 import { EditData } from "./common";
@@ -510,18 +510,18 @@ export interface SnapshotPackageResponse {
     snapshotProjectVersionId: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.UploadBlobsRequest
+ * @generated from protobuf message symbolx.bench.UploadFilesRequest
  */
-export interface UploadBlobsRequest {
+export interface UploadFilesRequest {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.BlobData blobs = 1;
+     * @generated from protobuf field: repeated symbolx.bench.FileData files = 1;
      */
-    blobs: BlobData[];
+    files: FileData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.UploadBlobsResponse
+ * @generated from protobuf message symbolx.bench.UploadFilesResponse
  */
-export interface UploadBlobsResponse {
+export interface UploadFilesResponse {
     /**
      * @generated from protobuf field: repeated string post_urls = 1;
      */
@@ -532,18 +532,18 @@ export interface UploadBlobsResponse {
     expiresAt?: Timestamp;
 }
 /**
- * @generated from protobuf message symbolx.bench.DownloadBlobsRequest
+ * @generated from protobuf message symbolx.bench.DownloadFilesRequest
  */
-export interface DownloadBlobsRequest {
+export interface DownloadFilesRequest {
     /**
-     * @generated from protobuf field: repeated symbolx.bench.BlobData blobs = 1;
+     * @generated from protobuf field: repeated symbolx.bench.FileData files = 1;
      */
-    blobs: BlobData[];
+    files: FileData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.DownloadBlobsResponse
+ * @generated from protobuf message symbolx.bench.DownloadFilesResponse
  */
-export interface DownloadBlobsResponse {
+export interface DownloadFilesResponse {
     /**
      * @generated from protobuf field: repeated string get_urls = 1;
      */
@@ -2635,26 +2635,26 @@ class SnapshotPackageResponse$Type extends MessageType<SnapshotPackageResponse> 
  */
 export const SnapshotPackageResponse = new SnapshotPackageResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class UploadBlobsRequest$Type extends MessageType<UploadBlobsRequest> {
+class UploadFilesRequest$Type extends MessageType<UploadFilesRequest> {
     constructor() {
-        super("symbolx.bench.UploadBlobsRequest", [
-            { no: 1, name: "blobs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BlobData }
+        super("symbolx.bench.UploadFilesRequest", [
+            { no: 1, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileData }
         ]);
     }
-    create(value?: PartialMessage<UploadBlobsRequest>): UploadBlobsRequest {
+    create(value?: PartialMessage<UploadFilesRequest>): UploadFilesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.blobs = [];
+        message.files = [];
         if (value !== undefined)
-            reflectionMergePartial<UploadBlobsRequest>(this, message, value);
+            reflectionMergePartial<UploadFilesRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UploadBlobsRequest): UploadBlobsRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UploadFilesRequest): UploadFilesRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.BlobData blobs */ 1:
-                    message.blobs.push(BlobData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.FileData files */ 1:
+                    message.files.push(FileData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2667,10 +2667,10 @@ class UploadBlobsRequest$Type extends MessageType<UploadBlobsRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: UploadBlobsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.BlobData blobs = 1; */
-        for (let i = 0; i < message.blobs.length; i++)
-            BlobData.internalBinaryWrite(message.blobs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: UploadFilesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.FileData files = 1; */
+        for (let i = 0; i < message.files.length; i++)
+            FileData.internalBinaryWrite(message.files[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2678,25 +2678,25 @@ class UploadBlobsRequest$Type extends MessageType<UploadBlobsRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.UploadBlobsRequest
+ * @generated MessageType for protobuf message symbolx.bench.UploadFilesRequest
  */
-export const UploadBlobsRequest = new UploadBlobsRequest$Type();
+export const UploadFilesRequest = new UploadFilesRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class UploadBlobsResponse$Type extends MessageType<UploadBlobsResponse> {
+class UploadFilesResponse$Type extends MessageType<UploadFilesResponse> {
     constructor() {
-        super("symbolx.bench.UploadBlobsResponse", [
+        super("symbolx.bench.UploadFilesResponse", [
             { no: 1, name: "post_urls", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "expires_at", kind: "message", T: () => Timestamp }
         ]);
     }
-    create(value?: PartialMessage<UploadBlobsResponse>): UploadBlobsResponse {
+    create(value?: PartialMessage<UploadFilesResponse>): UploadFilesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.postUrls = [];
         if (value !== undefined)
-            reflectionMergePartial<UploadBlobsResponse>(this, message, value);
+            reflectionMergePartial<UploadFilesResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UploadBlobsResponse): UploadBlobsResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UploadFilesResponse): UploadFilesResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2718,7 +2718,7 @@ class UploadBlobsResponse$Type extends MessageType<UploadBlobsResponse> {
         }
         return message;
     }
-    internalBinaryWrite(message: UploadBlobsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: UploadFilesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* repeated string post_urls = 1; */
         for (let i = 0; i < message.postUrls.length; i++)
             writer.tag(1, WireType.LengthDelimited).string(message.postUrls[i]);
@@ -2732,30 +2732,30 @@ class UploadBlobsResponse$Type extends MessageType<UploadBlobsResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.UploadBlobsResponse
+ * @generated MessageType for protobuf message symbolx.bench.UploadFilesResponse
  */
-export const UploadBlobsResponse = new UploadBlobsResponse$Type();
+export const UploadFilesResponse = new UploadFilesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class DownloadBlobsRequest$Type extends MessageType<DownloadBlobsRequest> {
+class DownloadFilesRequest$Type extends MessageType<DownloadFilesRequest> {
     constructor() {
-        super("symbolx.bench.DownloadBlobsRequest", [
-            { no: 1, name: "blobs", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => BlobData }
+        super("symbolx.bench.DownloadFilesRequest", [
+            { no: 1, name: "files", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => FileData }
         ]);
     }
-    create(value?: PartialMessage<DownloadBlobsRequest>): DownloadBlobsRequest {
+    create(value?: PartialMessage<DownloadFilesRequest>): DownloadFilesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.blobs = [];
+        message.files = [];
         if (value !== undefined)
-            reflectionMergePartial<DownloadBlobsRequest>(this, message, value);
+            reflectionMergePartial<DownloadFilesRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DownloadBlobsRequest): DownloadBlobsRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DownloadFilesRequest): DownloadFilesRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* repeated symbolx.bench.BlobData blobs */ 1:
-                    message.blobs.push(BlobData.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbolx.bench.FileData files */ 1:
+                    message.files.push(FileData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -2768,10 +2768,10 @@ class DownloadBlobsRequest$Type extends MessageType<DownloadBlobsRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: DownloadBlobsRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* repeated symbolx.bench.BlobData blobs = 1; */
-        for (let i = 0; i < message.blobs.length; i++)
-            BlobData.internalBinaryWrite(message.blobs[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+    internalBinaryWrite(message: DownloadFilesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated symbolx.bench.FileData files = 1; */
+        for (let i = 0; i < message.files.length; i++)
+            FileData.internalBinaryWrite(message.files[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -2779,25 +2779,25 @@ class DownloadBlobsRequest$Type extends MessageType<DownloadBlobsRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.DownloadBlobsRequest
+ * @generated MessageType for protobuf message symbolx.bench.DownloadFilesRequest
  */
-export const DownloadBlobsRequest = new DownloadBlobsRequest$Type();
+export const DownloadFilesRequest = new DownloadFilesRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class DownloadBlobsResponse$Type extends MessageType<DownloadBlobsResponse> {
+class DownloadFilesResponse$Type extends MessageType<DownloadFilesResponse> {
     constructor() {
-        super("symbolx.bench.DownloadBlobsResponse", [
+        super("symbolx.bench.DownloadFilesResponse", [
             { no: 1, name: "get_urls", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "expires_at", kind: "message", T: () => Timestamp }
         ]);
     }
-    create(value?: PartialMessage<DownloadBlobsResponse>): DownloadBlobsResponse {
+    create(value?: PartialMessage<DownloadFilesResponse>): DownloadFilesResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.getUrls = [];
         if (value !== undefined)
-            reflectionMergePartial<DownloadBlobsResponse>(this, message, value);
+            reflectionMergePartial<DownloadFilesResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DownloadBlobsResponse): DownloadBlobsResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: DownloadFilesResponse): DownloadFilesResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2819,7 +2819,7 @@ class DownloadBlobsResponse$Type extends MessageType<DownloadBlobsResponse> {
         }
         return message;
     }
-    internalBinaryWrite(message: DownloadBlobsResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: DownloadFilesResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* repeated string get_urls = 1; */
         for (let i = 0; i < message.getUrls.length; i++)
             writer.tag(1, WireType.LengthDelimited).string(message.getUrls[i]);
@@ -2833,9 +2833,9 @@ class DownloadBlobsResponse$Type extends MessageType<DownloadBlobsResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.DownloadBlobsResponse
+ * @generated MessageType for protobuf message symbolx.bench.DownloadFilesResponse
  */
-export const DownloadBlobsResponse = new DownloadBlobsResponse$Type();
+export const DownloadFilesResponse = new DownloadFilesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SearchLogsRequest$Type extends MessageType<SearchLogsRequest> {
     constructor() {
@@ -3603,8 +3603,8 @@ export const PackageHost = new ServiceType("symbolx.bench.PackageHost", [
     { name: "PushEdits", options: {}, I: PushEditsRequest, O: PushEditsResponse },
     { name: "PasteNodes", options: {}, I: PasteNodesRequest, O: PasteNodesResponse },
     { name: "Snapshot", options: {}, I: SnapshotPackageRequest, O: SnapshotPackageResponse },
-    { name: "UploadBlobs", options: {}, I: UploadBlobsRequest, O: UploadBlobsResponse },
-    { name: "DownloadBlobs", options: {}, I: DownloadBlobsRequest, O: DownloadBlobsResponse },
+    { name: "UploadFiles", options: {}, I: UploadFilesRequest, O: UploadFilesResponse },
+    { name: "DownloadFiles", options: {}, I: DownloadFilesRequest, O: DownloadFilesResponse },
     { name: "SearchLogs", options: {}, I: SearchLogsRequest, O: SearchLogsResponse },
     { name: "WatchLogs", serverStreaming: true, options: {}, I: WatchLogsRequest, O: WatchLogsResponse },
     { name: "PushWorkerLogs", options: {}, I: PushWorkerLogsRequest, O: Empty },

@@ -113,7 +113,7 @@ class BenchType(betterproto.Enum):
     FIELD_PATH = 204
     FIELD_PATH_SEGMENT = 205
     VALUE_REFERENCE = 206
-    BLOB = 210
+    FILE = 210
     TYPE_INFO = 211
     POLICY = 220
     POLICY_RULE = 221
@@ -128,13 +128,6 @@ class BenchType(betterproto.Enum):
     DEPENDENCY = 281
     RICH_TEXT = 300
     RICH_TEXT_SPAN = 301
-
-
-class BlobStatus(betterproto.Enum):
-    UNSPECIFIED = 0
-    PENDING = 1
-    UPLOADING = 2
-    AVAILABLE = 3
 
 
 class BlockType(betterproto.Enum):
@@ -265,6 +258,13 @@ class ExpressionOp(betterproto.Enum):
     HISTOGRAM = 108
     ASCENDING = 201
     DESCENDING = 202
+
+
+class FileStatus(betterproto.Enum):
+    UNSPECIFIED = 0
+    PENDING = 1
+    UPLOADING = 2
+    AVAILABLE = 3
 
 
 class FormatHint(betterproto.Enum):
@@ -492,7 +492,7 @@ class StructType(betterproto.Enum):
     FIELD_PATH = 204
     FIELD_PATH_SEGMENT = 205
     VALUE_REFERENCE = 206
-    BLOB = 210
+    FILE = 210
     TYPE_INFO = 211
     POLICY = 220
     POLICY_RULE = 221
@@ -615,19 +615,6 @@ class BenchPathData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class BlobData(betterproto.Message):
-    """A reference to a file stored somewhere."""
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    sha512: Optional[str] = betterproto.string_field(30, optional=True)
-    content_length: Optional[int] = betterproto.int64_field(31, optional=True)
-    content_type: Optional[str] = betterproto.string_field(32, optional=True)
-    name: str = betterproto.string_field(33)
-    object_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
-    status: "BlobStatus" = betterproto.enum_field(35)
-
-
-@dataclass(eq=False, repr=False)
 class ContextData(betterproto.Message):
     """The context of a request for evaluating a policy."""
 
@@ -682,6 +669,19 @@ class FieldPathSegmentData(betterproto.Message):
     metatype: "BenchType" = betterproto.enum_field(1)
     property: "PropertyReferenceData" = betterproto.message_field(30)
     field_ptr: Optional["NodeReferenceData"] = betterproto.message_field(31, optional=True)
+
+
+@dataclass(eq=False, repr=False)
+class FileData(betterproto.Message):
+    """A reference to a file stored somewhere."""
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    sha512: Optional[str] = betterproto.string_field(30, optional=True)
+    content_length: Optional[int] = betterproto.int64_field(31, optional=True)
+    content_type: Optional[str] = betterproto.string_field(32, optional=True)
+    name: str = betterproto.string_field(33)
+    object_ptr: Optional["NodeReferenceData"] = betterproto.message_field(34, optional=True)
+    status: "FileStatus" = betterproto.enum_field(35)
 
 
 @dataclass(eq=False, repr=False)
@@ -841,7 +841,7 @@ class TypeInfoData(betterproto.Message):
     A type is a kind of value that can go somewhere, typically a field.      A
     type is either:        1. built-in type (= column type, value is scalar,
     like int32, string, bool, datetime, ...)        2. struct type (value is
-    'robust json', like Expression, Blob, BenchPath, RichText, ...)        3.
+    'robust json', like Expression, File, BenchPath, RichText, ...)        3.
     node type (value is NodeReference, like Package, Block, Field, Record, Run,
     Signal, ...)        4. reference to a block (value is NodeReference that is
     an 'instance' of the block)            if node type is Record and reference
@@ -1013,7 +1013,7 @@ class BucketObjectData(betterproto.Message):
     sha512: str = betterproto.string_field(30)
     content_length: int = betterproto.int64_field(31)
     content_type: str = betterproto.string_field(32)
-    status: "BlobStatus" = betterproto.enum_field(33)
+    status: "FileStatus" = betterproto.enum_field(33)
 
 
 @dataclass(eq=False, repr=False)
@@ -1546,29 +1546,29 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    client: "ClientData" = betterproto.message_field(1, group="node")
-    bench: "BenchData" = betterproto.message_field(2, group="node")
-    run: "RunData" = betterproto.message_field(3, group="node")
-    notification: "NotificationData" = betterproto.message_field(4, group="node")
-    tagging: "TaggingData" = betterproto.message_field(5, group="node")
-    trigger: "TriggerData" = betterproto.message_field(6, group="node")
-    worker: "WorkerData" = betterproto.message_field(7, group="node")
-    bucket_object: "BucketObjectData" = betterproto.message_field(8, group="node")
-    pause: "PauseData" = betterproto.message_field(9, group="node")
-    session: "SessionData" = betterproto.message_field(10, group="node")
-    badge: "BadgeData" = betterproto.message_field(11, group="node")
-    link: "LinkData" = betterproto.message_field(12, group="node")
+    field: "FieldData" = betterproto.message_field(1, group="node")
+    client: "ClientData" = betterproto.message_field(2, group="node")
+    trigger: "TriggerData" = betterproto.message_field(3, group="node")
+    package: "PackageData" = betterproto.message_field(4, group="node")
+    bucket_object: "BucketObjectData" = betterproto.message_field(5, group="node")
+    handle: "HandleData" = betterproto.message_field(6, group="node")
+    user: "UserData" = betterproto.message_field(7, group="node")
+    tagging: "TaggingData" = betterproto.message_field(8, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(9, group="node")
+    worker: "WorkerData" = betterproto.message_field(10, group="node")
+    signal: "SignalData" = betterproto.message_field(11, group="node")
+    bench: "BenchData" = betterproto.message_field(12, group="node")
     record: "RecordData" = betterproto.message_field(13, group="node")
-    user: "UserData" = betterproto.message_field(14, group="node")
-    view: "ViewData" = betterproto.message_field(15, group="node")
+    issue: "IssueData" = betterproto.message_field(14, group="node")
+    session: "SessionData" = betterproto.message_field(15, group="node")
     organization: "OrganizationData" = betterproto.message_field(16, group="node")
-    issue: "IssueData" = betterproto.message_field(17, group="node")
-    field: "FieldData" = betterproto.message_field(18, group="node")
-    block: "BlockData" = betterproto.message_field(19, group="node")
-    package: "PackageData" = betterproto.message_field(20, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(21, group="node")
-    signal: "SignalData" = betterproto.message_field(22, group="node")
-    handle: "HandleData" = betterproto.message_field(23, group="node")
+    run: "RunData" = betterproto.message_field(17, group="node")
+    notification: "NotificationData" = betterproto.message_field(18, group="node")
+    view: "ViewData" = betterproto.message_field(19, group="node")
+    badge: "BadgeData" = betterproto.message_field(20, group="node")
+    pause: "PauseData" = betterproto.message_field(21, group="node")
+    link: "LinkData" = betterproto.message_field(22, group="node")
+    block: "BlockData" = betterproto.message_field(23, group="node")
 
 
 @dataclass(eq=False, repr=False)
@@ -1838,23 +1838,23 @@ class SnapshotPackageResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class UploadBlobsRequest(betterproto.Message):
-    blobs: List["BlobData"] = betterproto.message_field(1)
+class UploadFilesRequest(betterproto.Message):
+    files: List["FileData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class UploadBlobsResponse(betterproto.Message):
+class UploadFilesResponse(betterproto.Message):
     post_urls: List[str] = betterproto.string_field(1)
     expires_at: datetime = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
-class DownloadBlobsRequest(betterproto.Message):
-    blobs: List["BlobData"] = betterproto.message_field(1)
+class DownloadFilesRequest(betterproto.Message):
+    files: List["FileData"] = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
-class DownloadBlobsResponse(betterproto.Message):
+class DownloadFilesResponse(betterproto.Message):
     get_urls: List[str] = betterproto.string_field(1)
     expires_at: datetime = betterproto.message_field(2)
 
@@ -2276,35 +2276,35 @@ class PackageHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def upload_blobs(
+    async def upload_files(
         self,
-        upload_blobs_request: "UploadBlobsRequest",
+        upload_files_request: "UploadFilesRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "UploadBlobsResponse":
+    ) -> "UploadFilesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/UploadBlobs",
-            upload_blobs_request,
-            UploadBlobsResponse,
+            "/symbolx.bench.PackageHost/UploadFiles",
+            upload_files_request,
+            UploadFilesResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
         )
 
-    async def download_blobs(
+    async def download_files(
         self,
-        download_blobs_request: "DownloadBlobsRequest",
+        download_files_request: "DownloadFilesRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "DownloadBlobsResponse":
+    ) -> "DownloadFilesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.PackageHost/DownloadBlobs",
-            download_blobs_request,
-            DownloadBlobsResponse,
+            "/symbolx.bench.PackageHost/DownloadFiles",
+            download_files_request,
+            DownloadFilesResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2742,14 +2742,14 @@ class PackageHostBase(ServiceBase):
     ) -> "SnapshotPackageResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def upload_blobs(
-        self, upload_blobs_request: "UploadBlobsRequest"
-    ) -> "UploadBlobsResponse":
+    async def upload_files(
+        self, upload_files_request: "UploadFilesRequest"
+    ) -> "UploadFilesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def download_blobs(
-        self, download_blobs_request: "DownloadBlobsRequest"
-    ) -> "DownloadBlobsResponse":
+    async def download_files(
+        self, download_files_request: "DownloadFilesRequest"
+    ) -> "DownloadFilesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def search_logs(self, search_logs_request: "SearchLogsRequest") -> "SearchLogsResponse":
@@ -2838,19 +2838,19 @@ class PackageHostBase(ServiceBase):
         response = await self.snapshot(request)
         await stream.send_message(response)
 
-    async def __rpc_upload_blobs(
-        self, stream: "grpclib.server.Stream[UploadBlobsRequest, UploadBlobsResponse]"
+    async def __rpc_upload_files(
+        self, stream: "grpclib.server.Stream[UploadFilesRequest, UploadFilesResponse]"
     ) -> None:
         request = await stream.recv_message()
-        response = await self.upload_blobs(request)
+        response = await self.upload_files(request)
         await stream.send_message(response)
 
-    async def __rpc_download_blobs(
+    async def __rpc_download_files(
         self,
-        stream: "grpclib.server.Stream[DownloadBlobsRequest, DownloadBlobsResponse]",
+        stream: "grpclib.server.Stream[DownloadFilesRequest, DownloadFilesResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.download_blobs(request)
+        response = await self.download_files(request)
         await stream.send_message(response)
 
     async def __rpc_search_logs(
@@ -2950,17 +2950,17 @@ class PackageHostBase(ServiceBase):
                 SnapshotPackageRequest,
                 SnapshotPackageResponse,
             ),
-            "/symbolx.bench.PackageHost/UploadBlobs": grpclib.const.Handler(
-                self.__rpc_upload_blobs,
+            "/symbolx.bench.PackageHost/UploadFiles": grpclib.const.Handler(
+                self.__rpc_upload_files,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                UploadBlobsRequest,
-                UploadBlobsResponse,
+                UploadFilesRequest,
+                UploadFilesResponse,
             ),
-            "/symbolx.bench.PackageHost/DownloadBlobs": grpclib.const.Handler(
-                self.__rpc_download_blobs,
+            "/symbolx.bench.PackageHost/DownloadFiles": grpclib.const.Handler(
+                self.__rpc_download_files,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                DownloadBlobsRequest,
-                DownloadBlobsResponse,
+                DownloadFilesRequest,
+                DownloadFilesResponse,
             ),
             "/symbolx.bench.PackageHost/SearchLogs": grpclib.const.Handler(
                 self.__rpc_search_logs,
@@ -3098,53 +3098,53 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union  # noqa
 
 AnyNodeData = Union[
+    FieldData,
     ClientData,
+    TriggerData,
+    PackageData,
+    BucketObjectData,
+    HandleData,
+    UserData,
+    TaggingData,
+    WorkerSetData,
+    WorkerData,
+    SignalData,
     BenchData,
+    RecordData,
+    IssueData,
+    SessionData,
+    OrganizationData,
     RunData,
     NotificationData,
-    TaggingData,
-    TriggerData,
-    WorkerData,
-    BucketObjectData,
-    PauseData,
-    SessionData,
-    BadgeData,
-    LinkData,
-    RecordData,
-    UserData,
     ViewData,
-    OrganizationData,
-    IssueData,
-    FieldData,
+    BadgeData,
+    PauseData,
+    LinkData,
     BlockData,
-    PackageData,
-    WorkerSetData,
-    SignalData,
-    HandleData,
 ]
 AnyStructData = Union[
-    PolicyRuleData,
-    FieldPathSegmentData,
-    DependencyData,
-    FieldPathData,
-    AggregationData,
-    TypeInfoData,
     RunErrorData,
-    PropertyReferenceData,
-    BlobData,
     BenchPathData,
     AggregationBucketData,
     ContextData,
     PropertyPathData,
-    RichTextData,
     PolicyData,
-    WorkerImageData,
     ValueReferenceData,
-    LogEntryData,
-    RichTextSpanData,
+    FileData,
     ExpressionData,
+    PropertyReferenceData,
     NodeReferenceData,
+    LogEntryData,
     RunCodeFrameData,
+    WorkerImageData,
+    PolicyRuleData,
+    DependencyData,
+    RichTextData,
+    FieldPathSegmentData,
+    TypeInfoData,
+    FieldPathData,
+    AggregationData,
+    RichTextSpanData,
 ]
 
-VERSION = "2024.01.25.2"
+VERSION = "2024.01.25.3"

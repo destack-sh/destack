@@ -85,7 +85,7 @@ class TypeInfo(Struct):
 
     A type is either:
        1. built-in type (= column type, value is scalar, like int32, string, bool, datetime, ...)
-       2. struct type (value is 'robust json', like Expression, Blob, BenchPath, RichText, ...)
+       2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
        4. reference to a block (value is NodeReference that is an 'instance' of the block)
            if node type is Record and reference ~ Database, values must be Records in that database

@@ -22,8 +22,8 @@ from bench.proto.wire import (
     AnyNodeData,
     CommitEditsRequest,
     CommitEditsResponse,
-    DownloadBlobsRequest,
-    DownloadBlobsResponse,
+    DownloadFilesRequest,
+    DownloadFilesResponse,
     KillRunRequest,
     KillRunResponse,
     PasteNodesRequest,
@@ -41,8 +41,8 @@ from bench.proto.wire import (
     SearchNodesResponse,
     StartRunRequest,
     StartRunResponse,
-    UploadBlobsRequest,
-    UploadBlobsResponse,
+    UploadFilesRequest,
+    UploadFilesResponse,
     WatchEditsRequest,
     WatchEditsResponse,
     WatchLogsRequest,
@@ -230,19 +230,19 @@ class PackageHost(BenchServiceBase, PackageHostBase):
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
-    # Blobs
+    # Files
     #
 
-    async def upload_blobs(
-        self, upload_blobs_request: "UploadBlobsRequest"
-    ) -> "UploadBlobsResponse":
-        validate_bench_data_many(*upload_blobs_request.blobs, in_bench=self.bench_id)
+    async def upload_files(
+        self, upload_files_request: "UploadFilesRequest"
+    ) -> "UploadFilesResponse":
+        validate_bench_data_many(*upload_files_request.files, in_bench=self.bench_id)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
-        for blob in upload_blobs_request.blobs:
+        for file in upload_files_request.files:
             presigned = get_s3_client().generate_presigned_post(
                 Bucket=GLOBAL_PROJECT_BUCKET_NAME,
-                Key=f"{blob.id}/{blob.name}",
+                Key=f"{file.id}/{file.name}",
                 ExpiresIn=expires_in,  # 1 hour
                 Fields={},
             )
@@ -253,26 +253,26 @@ class PackageHost(BenchServiceBase, PackageHostBase):
             encoded_url = f"{presigned['url']}?{encoded_params}"
             presigned_urls.append(encoded_url)
         expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-        return UploadBlobsResponse(post_urls=presigned_urls, expires_at=expires_at)
+        return UploadFilesResponse(post_urls=presigned_urls, expires_at=expires_at)
 
-    async def download_blobs(
-        self, download_blobs_request: "DownloadBlobsRequest"
-    ) -> "DownloadBlobsResponse":
-        validate_bench_data_many(*download_blobs_request.blobs, in_bench=self.bench_id)
+    async def download_files(
+        self, download_files_request: "DownloadFilesRequest"
+    ) -> "DownloadFilesResponse":
+        validate_bench_data_many(*download_files_request.files, in_bench=self.bench_id)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
-        for blob in download_blobs_request.blobs:
+        for file in download_files_request.files:
             get_url = get_s3_client().generate_presigned_url(
                 ClientMethod="get_object",
                 Params={
                     "Bucket": GLOBAL_PROJECT_BUCKET_NAME,
-                    "Key": f"{blob.id}/{blob.name}",
+                    "Key": f"{file.id}/{file.name}",
                 },
                 ExpiresIn=expires_in,
             )
             presigned_urls.append(get_url)
         expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
-        return DownloadBlobsResponse(get_urls=presigned_urls, expires_at=expires_at)
+        return DownloadFilesResponse(get_urls=presigned_urls, expires_at=expires_at)
 
     #
     # Logs
