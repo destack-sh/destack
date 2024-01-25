@@ -77,7 +77,7 @@ def validate_name(value: str, on_issue: PropertyValidationHandler):
 
 MAX_TEXT_LENGTH = 2048
 
-# not used in modules right now?
+# not used in packages right now?
 MAX_DESCRIPTION_LENGTH = 512
 
 

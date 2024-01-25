@@ -53,7 +53,7 @@ class Object:
         _source: int | str | None  # 'source' of this object (if mapped)
 
     def sql(self) -> str:
-        """Turns this object into a SQL statement."""
+        """Turns this object into a SQL block."""
         raise NotImplementedError
 
     def source_repr(self) -> str:
@@ -553,35 +553,35 @@ RECORD_BASE_TABLE = Table(
         Column("created_by_id", ColumnType.UUID, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME, default="now()", _source=16),
         Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
-        Column("statement_key", ColumnType.STRING, _source=20),
+        Column("block_key", ColumnType.STRING, _source=20),
     ),
     indexes=(
         # for fetching all records of a database
         Index(
-            "bench_idx_statement_key_deleted_at",
+            "bench_idx_block_key_deleted_at",
             IndexType.BTREE,
-            columns=("statement_key", "deleted_at"),
+            columns=("block_key", "deleted_at"),
         ),
         Index(
-            "bench_idx_statement_key_archive_at",
+            "bench_idx_block_key_archive_at",
             IndexType.BTREE,
-            columns=("statement_key", "archived_at"),
+            columns=("block_key", "archived_at"),
         ),
-        # control the unique index for the ck/statement_key
-        # ck + statement_key must be unique (order is deliberate to get ck_ and statement_key_ indices)
+        # control the unique index for the ck/block_key
+        # ck + block_key must be unique (order is deliberate to get ck_ and block_key_ indices)
         Index(
-            "bench_idx_ck_statement_key",
+            "bench_idx_ck_block_key",
             IndexType.BTREE,
             is_unique=True,
-            columns=("ck", "statement_key"),
+            columns=("ck", "block_key"),
         ),
     ),
     constraints=(
         Constraint(
-            "bench_idx_ck_statement_key",
+            "bench_idx_ck_block_key",
             ConstraintType.UNIQUE,
-            columns=("ck", "statement_key"),
-            index="bench_idx_ck_statement_key",
+            columns=("ck", "block_key"),
+            index="bench_idx_ck_block_key",
         ),
     ),
 )
@@ -590,8 +590,8 @@ RECORD_EPHEMERAL_TABLE = Table(
     "bench_record_ephemeral",
     columns=(
         *(c.clone() for c in RECORD_BASE_TABLE.columns),
-        Column("statement_ck", ColumnType.UUID, _source=21),
-        Column("statement_id", ColumnType.UUID, _source=22),
+        Column("block_ck", ColumnType.UUID, _source=21),
+        Column("block_id", ColumnType.UUID, _source=22),
         Column("value_packed", ColumnType.JSON, is_nullable=True, _source=30),
     ),
     indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes),),

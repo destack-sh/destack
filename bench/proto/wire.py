@@ -84,16 +84,15 @@ class BenchStatus(betterproto.Enum):
 class BenchType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    MODULE = 20
-    FILE = 21
-    STATEMENT = 22
-    TRIGGER = 23
-    TAGGING = 24
-    FIELD = 25
-    RECORD = 26
-    VIEW = 27
-    ISSUE = 30
-    LINK = 31
+    PACKAGE = 20
+    BLOCK = 21
+    TRIGGER = 22
+    TAGGING = 23
+    FIELD = 24
+    RECORD = 25
+    VIEW = 26
+    ISSUE = 29
+    LINK = 30
     SESSION = 50
     RUN = 51
     PAUSE = 52
@@ -136,6 +135,28 @@ class BlobStatus(betterproto.Enum):
     PENDING = 1
     UPLOADING = 2
     AVAILABLE = 3
+
+
+class BlockType(betterproto.Enum):
+    UNSPECIFIED = 0
+    BOX = 1
+    BLANK = 2
+    TEXT = 3
+    SINGLE_VARIABLE = 4
+    MULTI_VARIABLE = 5
+    LINK = 6
+    ALIAS = 7
+    CLASS = 10
+    CHOICE = 11
+    TAG = 12
+    SIGNAL = 13
+    TASK = 20
+    CODE = 21
+    FLOW = 22
+    MODEL = 23
+    VIEW = 30
+    DATABASE = 31
+    SCREEN = 32
 
 
 class Casing(betterproto.Enum):
@@ -320,16 +341,15 @@ class NodeTrackingLevel(betterproto.Enum):
 class NodeType(betterproto.Enum):
     UNSPECIFIED = 0
     BENCH = 1
-    MODULE = 20
-    FILE = 21
-    STATEMENT = 22
-    TRIGGER = 23
-    TAGGING = 24
-    FIELD = 25
-    RECORD = 26
-    VIEW = 27
-    ISSUE = 30
-    LINK = 31
+    PACKAGE = 20
+    BLOCK = 21
+    TRIGGER = 22
+    TAGGING = 23
+    FIELD = 24
+    RECORD = 25
+    VIEW = 26
+    ISSUE = 29
+    LINK = 30
     SESSION = 50
     RUN = 51
     PAUSE = 52
@@ -434,7 +454,7 @@ class RunStatus(betterproto.Enum):
 
 
 class ScheduleType(betterproto.Enum):
-    """Schedules for statements."""
+    """Schedules for blocks."""
 
     UNSPECIFIED = 0
     INTERVAL = 1
@@ -461,28 +481,6 @@ class SortOp(betterproto.Enum):
     UNSPECIFIED = 0
     ASCENDING = 201
     DESCENDING = 202
-
-
-class StatementType(betterproto.Enum):
-    UNSPECIFIED = 0
-    BOX = 1
-    BLANK = 2
-    TEXT = 3
-    SINGLE_VARIABLE = 4
-    MULTI_VARIABLE = 5
-    LINK = 6
-    ALIAS = 7
-    CLASS = 10
-    CHOICE = 11
-    TAG = 12
-    SIGNAL = 13
-    TASK = 20
-    CODE = 21
-    FLOW = 22
-    MODEL = 23
-    VIEW = 30
-    DATABASE = 31
-    SCREEN = 32
 
 
 class StructType(betterproto.Enum):
@@ -512,9 +510,7 @@ class StructType(betterproto.Enum):
 
 
 class TriggerType(betterproto.Enum):
-    """
-    Triggers for statements (for both actual runs and pre-defined triggers).
-    """
+    """Triggers for blocks (for both actual runs and pre-defined triggers)."""
 
     UNSPECIFIED = 0
     INVOKE = 1
@@ -615,7 +611,7 @@ class BenchPathData(betterproto.Message):
     sub_node_path: List[str] = betterproto.string_field(32)
     field_path: List[str] = betterproto.string_field(33)
     branch_slug: Optional[str] = betterproto.string_field(34, optional=True)
-    module_slug: Optional[str] = betterproto.string_field(35, optional=True)
+    package_slug: Optional[str] = betterproto.string_field(35, optional=True)
 
 
 @dataclass(eq=False, repr=False)
@@ -699,7 +695,7 @@ class LogEntryData(betterproto.Message):
     session_ptr: List["NodeReferenceData"] = betterproto.message_field(34)
     level: Optional[str] = betterproto.string_field(35, optional=True)
     logger: Optional[str] = betterproto.string_field(36, optional=True)
-    statement_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
+    block_ptr: Optional["NodeReferenceData"] = betterproto.message_field(37, optional=True)
     run_ptr: Optional["NodeReferenceData"] = betterproto.message_field(38, optional=True)
     message: Optional[str] = betterproto.string_field(39, optional=True)
     value: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
@@ -909,7 +905,7 @@ class BadgeData(betterproto.Message):
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -960,6 +956,45 @@ class BenchData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class BlockData(betterproto.Message):
+    """
+    A Bench building block, the core building block containing logic, schemas,
+    data and AI stuff.
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    ck: str = betterproto.string_field(3)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    last_edited_at: datetime = betterproto.message_field(15)
+    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
+    visibility: "NodeVisibility" = betterproto.enum_field(20)
+    policies: List["PolicyData"] = betterproto.message_field(21)
+    type: "BlockType" = betterproto.enum_field(30)
+    bases_ptr: List["NodeReferenceData"] = betterproto.message_field(31)
+    builtin_base: Optional["TypeInfoData"] = betterproto.message_field(32, optional=True)
+    is_inline: bool = betterproto.bool_field(33)
+    name: Optional[str] = betterproto.string_field(40, optional=True)
+    order_key: Optional[str] = betterproto.string_field(41, optional=True)
+    dynamic_key: Optional[str] = betterproto.string_field(42, optional=True)
+    text: Optional[str] = betterproto.string_field(43, optional=True)
+    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
+        44, optional=True
+    )
+    secret_value_packed: Optional[
+        "betterproto_lib_google_protobuf.Struct"
+    ] = betterproto.message_field(45, optional=True)
+    code: Optional[str] = betterproto.string_field(50, optional=True)
+    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
+
+
+@dataclass(eq=False, repr=False)
 class BucketObjectData(betterproto.Message):
     """
     The actual file resource ('object') stored in a bucket somewhere. De-duped
@@ -1006,14 +1041,14 @@ class FieldData(betterproto.Message):
     """
     Field(column_type: Optional[bench.language.const.ColumnType] = None,
     bench_type: Optional[bench.language.const.BenchType] = None, base_type:
-    Optional[ForwardRef('Statement')] = None, format_hint:
+    Optional[ForwardRef('Block')] = None, format_hint:
     Optional[bench.language.const.FormatHint] = None, condition:
     Optional[ForwardRef('Expression')] = None, is_array: bool = False,
     is_optional: bool = True, is_output: bool = False, is_secret: bool = False,
     is_literal: bool = False, _fields: tuple['Field', ...] | None = None,
     _derived_type: Optional[ForwardRef('TypeInfo')] = None, base_type_ptr:
     'NodeReference' = None, _status: bench.language.const.NodeStatus = None,
-    parent: Optional[ForwardRef('Statement')] = None, name: str | None = None,
+    parent: Optional[ForwardRef('Block')] = None, name: str | None = None,
     order_key: str | None = None, dynamic_key: str | None = None, text: str |
     None = None, value_packed: typing.Any | None = None, _reflected_from:
     Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference'
@@ -1033,7 +1068,7 @@ class FieldData(betterproto.Message):
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1060,31 +1095,6 @@ class FieldData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class FileData(betterproto.Message):
-    """
-    Files are how a Bench organizes statements. Files can also be folders to
-    other files.
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_edited_at: datetime = betterproto.message_field(15)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(20)
-    name: Optional[str] = betterproto.string_field(30, optional=True)
-    order_key: Optional[str] = betterproto.string_field(31, optional=True)
-    text: Optional[str] = betterproto.string_field(32, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class HandleData(betterproto.Message):
     """A (global) Bench handle."""
 
@@ -1103,7 +1113,7 @@ class HandleData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class IssueData(betterproto.Message):
     """
-    Issue(parent: Union[ForwardRef('Statement'), ForwardRef('File')] = None,
+    Issue(parent: Union[ForwardRef('Block'), ForwardRef('Package')] = None,
     type: bench.language.const.IssueType = <factory>, kind:
     bench.language.const.IssueKind = None, message: str = None, path:
     Optional[bench.language.expression.FieldPath] = None, properties:
@@ -1124,7 +1134,7 @@ class IssueData(betterproto.Message):
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1149,7 +1159,7 @@ class LinkData(betterproto.Message):
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1160,33 +1170,12 @@ class LinkData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ModuleData(betterproto.Message):
-    """
-    A module is a semi-isolated version of a Bench, containing the actual files
-    and so on.
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_edited_at: datetime = betterproto.message_field(15)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    policies: List["PolicyData"] = betterproto.message_field(20)
-    is_snapshot: bool = betterproto.bool_field(32)
-
-
-@dataclass(eq=False, repr=False)
 class BaseNodeData(betterproto.Message):
     """
-    A node in a Bench module tree - basically struct + identity, so it can
+    A node in a Bench package tree - basically struct + identity, so it can
     relate nodes.     A node has a per-version unique id (id) and a constant
-    identifier key (ck).     The id is derived from the module id, so it's only
-    assigned when the node is attached.
+    identifier key (ck).     The id is derived from the package id, so it's
+    only assigned when the node is attached.
     """
 
     metatype: "BenchType" = betterproto.enum_field(1)
@@ -1239,14 +1228,35 @@ class OrganizationData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class PackageData(betterproto.Message):
+    """
+    A package is a semi-isolated version of a Bench, containing the actual
+    blocks and so on.
+    """
+
+    metatype: "BenchType" = betterproto.enum_field(1)
+    id: str = betterproto.string_field(2)
+    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
+    revision: int = betterproto.int64_field(10)
+    created_at: datetime = betterproto.message_field(11)
+    updated_at: datetime = betterproto.message_field(12)
+    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
+    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
+    last_edited_at: datetime = betterproto.message_field(15)
+    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
+    policies: List["PolicyData"] = betterproto.message_field(20)
+    is_snapshot: bool = betterproto.bool_field(32)
+
+
+@dataclass(eq=False, repr=False)
 class PauseData(betterproto.Message):
-    """A resumable interruption in the execution (Run) of a statement."""
+    """A resumable interruption in the execution (Run) of a block."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1266,7 +1276,7 @@ class RecordData(betterproto.Message):
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1280,13 +1290,13 @@ class RecordData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class RunData(betterproto.Message):
-    """A 'run' of a statement (in a session)."""
+    """A 'run' of a block (in a session)."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1322,13 +1332,13 @@ class RunData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SessionData(betterproto.Message):
-    """A managed context for running a Bench module (in a worker)."""
+    """A managed context for running a Bench package (in a worker)."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1356,7 +1366,7 @@ class SignalData(betterproto.Message):
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1370,53 +1380,14 @@ class SignalData(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class StatementData(betterproto.Message):
-    """
-    A Bench building block, the core building block containing logic, schemas,
-    data and AI stuff.
-    """
-
-    metatype: "BenchType" = betterproto.enum_field(1)
-    id: str = betterproto.string_field(2)
-    ck: str = betterproto.string_field(3)
-    parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
-    revision: int = betterproto.int64_field(10)
-    created_at: datetime = betterproto.message_field(11)
-    updated_at: datetime = betterproto.message_field(12)
-    deleted_at: Optional[datetime] = betterproto.message_field(13, optional=True)
-    archived_at: Optional[datetime] = betterproto.message_field(14, optional=True)
-    last_edited_at: datetime = betterproto.message_field(15)
-    last_changed_at: Optional[datetime] = betterproto.message_field(16, optional=True)
-    visibility: "NodeVisibility" = betterproto.enum_field(20)
-    policies: List["PolicyData"] = betterproto.message_field(21)
-    type: "StatementType" = betterproto.enum_field(30)
-    bases_ptr: List["NodeReferenceData"] = betterproto.message_field(31)
-    builtin_base: Optional["TypeInfoData"] = betterproto.message_field(32, optional=True)
-    is_inline: bool = betterproto.bool_field(33)
-    name: Optional[str] = betterproto.string_field(40, optional=True)
-    order_key: Optional[str] = betterproto.string_field(41, optional=True)
-    dynamic_key: Optional[str] = betterproto.string_field(42, optional=True)
-    text: Optional[str] = betterproto.string_field(43, optional=True)
-    value_packed: Optional["betterproto_lib_google_protobuf.Struct"] = betterproto.message_field(
-        44, optional=True
-    )
-    secret_value_packed: Optional[
-        "betterproto_lib_google_protobuf.Struct"
-    ] = betterproto.message_field(45, optional=True)
-    code: Optional[str] = betterproto.string_field(50, optional=True)
-    reference_ptr: Optional["NodeReferenceData"] = betterproto.message_field(51, optional=True)
-
-
-@dataclass(eq=False, repr=False)
 class TaggingData(betterproto.Message):
-    """An association between a tag and a statement (with optional value)."""
+    """An association between a tag and a node (with optional value)."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1437,7 +1408,7 @@ class TriggerData(betterproto.Message):
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1478,7 +1449,7 @@ class UserData(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ViewData(betterproto.Message):
     """
-    View(parent: ForwardRef('Statement') = None, name: str | None = None,
+    View(parent: ForwardRef('Block') = None, name: str | None = None,
     order_key: str | None = None, node_type: bench.language.const.NodeType =
     <factory>, filter: Optional[bench.language.expression.Expression] = None,
     sort: Optional[list[bench.language.expression.Expression]] = None,
@@ -1499,7 +1470,7 @@ class ViewData(betterproto.Message):
     id: str = betterproto.string_field(2)
     ck: str = betterproto.string_field(3)
     parent_ptr: Optional["NodeReferenceData"] = betterproto.message_field(4, optional=True)
-    module_ptr: "NodeReferenceData" = betterproto.message_field(6)
+    package_ptr: "NodeReferenceData" = betterproto.message_field(6)
     revision: int = betterproto.int64_field(10)
     created_at: datetime = betterproto.message_field(11)
     updated_at: datetime = betterproto.message_field(12)
@@ -1550,7 +1521,7 @@ class WorkerData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WorkerSetData(betterproto.Message):
-    """Set of workers to run a Bench's modules."""
+    """Set of workers to run a Bench's packages."""
 
     metatype: "BenchType" = betterproto.enum_field(1)
     id: str = betterproto.string_field(2)
@@ -1575,35 +1546,34 @@ class WorkerSetData(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class SomeNodeData(betterproto.Message):
-    session: "SessionData" = betterproto.message_field(1, group="node")
-    worker_set: "WorkerSetData" = betterproto.message_field(2, group="node")
-    view: "ViewData" = betterproto.message_field(3, group="node")
-    record: "RecordData" = betterproto.message_field(4, group="node")
-    organization: "OrganizationData" = betterproto.message_field(5, group="node")
-    badge: "BadgeData" = betterproto.message_field(6, group="node")
-    user: "UserData" = betterproto.message_field(7, group="node")
-    module: "ModuleData" = betterproto.message_field(8, group="node")
+    pause: "PauseData" = betterproto.message_field(1, group="node")
+    organization: "OrganizationData" = betterproto.message_field(2, group="node")
+    block: "BlockData" = betterproto.message_field(3, group="node")
+    bucket_object: "BucketObjectData" = betterproto.message_field(4, group="node")
+    package: "PackageData" = betterproto.message_field(5, group="node")
+    tagging: "TaggingData" = betterproto.message_field(6, group="node")
+    view: "ViewData" = betterproto.message_field(7, group="node")
+    client: "ClientData" = betterproto.message_field(8, group="node")
     signal: "SignalData" = betterproto.message_field(9, group="node")
-    file: "FileData" = betterproto.message_field(10, group="node")
+    trigger: "TriggerData" = betterproto.message_field(10, group="node")
     bench: "BenchData" = betterproto.message_field(11, group="node")
     field: "FieldData" = betterproto.message_field(12, group="node")
-    run: "RunData" = betterproto.message_field(13, group="node")
-    trigger: "TriggerData" = betterproto.message_field(14, group="node")
-    pause: "PauseData" = betterproto.message_field(15, group="node")
+    worker: "WorkerData" = betterproto.message_field(13, group="node")
+    session: "SessionData" = betterproto.message_field(14, group="node")
+    issue: "IssueData" = betterproto.message_field(15, group="node")
     handle: "HandleData" = betterproto.message_field(16, group="node")
-    notification: "NotificationData" = betterproto.message_field(17, group="node")
-    issue: "IssueData" = betterproto.message_field(18, group="node")
-    client: "ClientData" = betterproto.message_field(19, group="node")
-    tagging: "TaggingData" = betterproto.message_field(20, group="node")
-    statement: "StatementData" = betterproto.message_field(21, group="node")
-    link: "LinkData" = betterproto.message_field(22, group="node")
-    worker: "WorkerData" = betterproto.message_field(23, group="node")
-    bucket_object: "BucketObjectData" = betterproto.message_field(24, group="node")
+    run: "RunData" = betterproto.message_field(17, group="node")
+    badge: "BadgeData" = betterproto.message_field(18, group="node")
+    record: "RecordData" = betterproto.message_field(19, group="node")
+    link: "LinkData" = betterproto.message_field(20, group="node")
+    notification: "NotificationData" = betterproto.message_field(21, group="node")
+    worker_set: "WorkerSetData" = betterproto.message_field(22, group="node")
+    user: "UserData" = betterproto.message_field(23, group="node")
 
 
 @dataclass(eq=False, repr=False)
-class ModuleTreeData(betterproto.Message):
-    module: "ModuleData" = betterproto.message_field(1)
+class PackageTreeData(betterproto.Message):
+    package: "PackageData" = betterproto.message_field(1)
     nodes: List["SomeNodeData"] = betterproto.message_field(2)
 
 
@@ -1834,7 +1804,7 @@ class GetLogsResponse(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class PasteNodesRequest(betterproto.Message):
-    source_module_id: str = betterproto.string_field(1)
+    source_package_id: str = betterproto.string_field(1)
     source_nodes: List["NodeReferenceData"] = betterproto.message_field(2)
     target_ids: Dict[str, str] = betterproto.map_field(
         3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
@@ -1856,14 +1826,14 @@ class PasteNodesResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class SnapshotModuleRequest(betterproto.Message):
+class SnapshotPackageRequest(betterproto.Message):
     name: str = betterproto.string_field(1)
     tag: str = betterproto.string_field(2)
     description: str = betterproto.string_field(3)
 
 
 @dataclass(eq=False, repr=False)
-class SnapshotModuleResponse(betterproto.Message):
+class SnapshotPackageResponse(betterproto.Message):
     snapshot_project_version_id: str = betterproto.string_field(1)
 
 
@@ -1925,16 +1895,17 @@ class PushWorkerLogsResponse(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class RunProxyStatementRequest(betterproto.Message):
-    statement: str = betterproto.string_field(1)
-    inputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
-    timeout_ms: int = betterproto.int32_field(3)
-    run_id: str = betterproto.string_field(4)
-    run_ck: str = betterproto.string_field(5)
+class RunProxyBlockRequest(betterproto.Message):
+    path: "BenchPathData" = betterproto.message_field(1, group="block")
+    reference: "NodeReferenceData" = betterproto.message_field(2, group="block")
+    inputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(3)
+    timeout_ms: int = betterproto.int32_field(4)
+    run_id: str = betterproto.string_field(5)
+    run_ck: str = betterproto.string_field(6)
 
 
 @dataclass(eq=False, repr=False)
-class RunProxyStatementResponse(betterproto.Message):
+class RunProxyBlockResponse(betterproto.Message):
     outputs: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(1)
     error: "betterproto_lib_google_protobuf.Struct" = betterproto.message_field(2)
 
@@ -2167,7 +2138,7 @@ class GlobalSupervisorStub(betterproto.ServiceStub):
         )
 
 
-class ModuleHostStub(betterproto.ServiceStub):
+class PackageHostStub(betterproto.ServiceStub):
     async def read_nodes(
         self,
         read_nodes_request: "ReadNodesRequest",
@@ -2177,7 +2148,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "ReadNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/ReadNodes",
+            "/symbolx.bench.PackageHost/ReadNodes",
             read_nodes_request,
             ReadNodesResponse,
             timeout=timeout,
@@ -2194,7 +2165,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "SearchNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/SearchNodes",
+            "/symbolx.bench.PackageHost/SearchNodes",
             search_nodes_request,
             SearchNodesResponse,
             timeout=timeout,
@@ -2211,7 +2182,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "AggregateNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/AggregateNodes",
+            "/symbolx.bench.PackageHost/AggregateNodes",
             aggregate_nodes_request,
             AggregateNodesResponse,
             timeout=timeout,
@@ -2228,7 +2199,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "CommitEditsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/CommitEdits",
+            "/symbolx.bench.PackageHost/CommitEdits",
             commit_edits_request,
             CommitEditsResponse,
             timeout=timeout,
@@ -2245,7 +2216,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> AsyncIterator["WatchEditsResponse"]:
         async for response in self._unary_stream(
-            "/symbolx.bench.ModuleHost/WatchEdits",
+            "/symbolx.bench.PackageHost/WatchEdits",
             watch_edits_request,
             WatchEditsResponse,
             timeout=timeout,
@@ -2263,7 +2234,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "PushEditsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/PushEdits",
+            "/symbolx.bench.PackageHost/PushEdits",
             push_edits_request,
             PushEditsResponse,
             timeout=timeout,
@@ -2280,7 +2251,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "PasteNodesResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/PasteNodes",
+            "/symbolx.bench.PackageHost/PasteNodes",
             paste_nodes_request,
             PasteNodesResponse,
             timeout=timeout,
@@ -2290,16 +2261,16 @@ class ModuleHostStub(betterproto.ServiceStub):
 
     async def snapshot(
         self,
-        snapshot_module_request: "SnapshotModuleRequest",
+        snapshot_package_request: "SnapshotPackageRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "SnapshotModuleResponse":
+    ) -> "SnapshotPackageResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/Snapshot",
-            snapshot_module_request,
-            SnapshotModuleResponse,
+            "/symbolx.bench.PackageHost/Snapshot",
+            snapshot_package_request,
+            SnapshotPackageResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2314,7 +2285,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "UploadBlobsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/UploadBlobs",
+            "/symbolx.bench.PackageHost/UploadBlobs",
             upload_blobs_request,
             UploadBlobsResponse,
             timeout=timeout,
@@ -2331,7 +2302,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "DownloadBlobsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/DownloadBlobs",
+            "/symbolx.bench.PackageHost/DownloadBlobs",
             download_blobs_request,
             DownloadBlobsResponse,
             timeout=timeout,
@@ -2348,7 +2319,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "SearchLogsResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/SearchLogs",
+            "/symbolx.bench.PackageHost/SearchLogs",
             search_logs_request,
             SearchLogsResponse,
             timeout=timeout,
@@ -2365,7 +2336,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> AsyncIterator["WatchLogsResponse"]:
         async for response in self._unary_stream(
-            "/symbolx.bench.ModuleHost/WatchLogs",
+            "/symbolx.bench.PackageHost/WatchLogs",
             watch_logs_request,
             WatchLogsResponse,
             timeout=timeout,
@@ -2383,7 +2354,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "betterproto_lib_google_protobuf.Empty":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/PushWorkerLogs",
+            "/symbolx.bench.PackageHost/PushWorkerLogs",
             push_worker_logs_request,
             betterproto_lib_google_protobuf.Empty,
             timeout=timeout,
@@ -2400,7 +2371,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "StartRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/StartRun",
+            "/symbolx.bench.PackageHost/StartRun",
             start_run_request,
             StartRunResponse,
             timeout=timeout,
@@ -2417,7 +2388,7 @@ class ModuleHostStub(betterproto.ServiceStub):
         metadata: Optional["MetadataLike"] = None
     ) -> "KillRunResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/KillRun",
+            "/symbolx.bench.PackageHost/KillRun",
             kill_run_request,
             KillRunResponse,
             timeout=timeout,
@@ -2425,18 +2396,18 @@ class ModuleHostStub(betterproto.ServiceStub):
             metadata=metadata,
         )
 
-    async def run_proxy_statement(
+    async def run_proxy_block(
         self,
-        run_proxy_statement_request: "RunProxyStatementRequest",
+        run_proxy_block_request: "RunProxyBlockRequest",
         *,
         timeout: Optional[float] = None,
         deadline: Optional["Deadline"] = None,
         metadata: Optional["MetadataLike"] = None
-    ) -> "RunProxyStatementResponse":
+    ) -> "RunProxyBlockResponse":
         return await self._unary_unary(
-            "/symbolx.bench.ModuleHost/RunProxyStatement",
-            run_proxy_statement_request,
-            RunProxyStatementResponse,
+            "/symbolx.bench.PackageHost/RunProxyBlock",
+            run_proxy_block_request,
+            RunProxyBlockResponse,
             timeout=timeout,
             deadline=deadline,
             metadata=metadata,
@@ -2735,7 +2706,7 @@ class GlobalSupervisorBase(ServiceBase):
         }
 
 
-class ModuleHostBase(ServiceBase):
+class PackageHostBase(ServiceBase):
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
@@ -2767,8 +2738,8 @@ class ModuleHostBase(ServiceBase):
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def snapshot(
-        self, snapshot_module_request: "SnapshotModuleRequest"
-    ) -> "SnapshotModuleResponse":
+        self, snapshot_package_request: "SnapshotPackageRequest"
+    ) -> "SnapshotPackageResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def upload_blobs(
@@ -2801,9 +2772,9 @@ class ModuleHostBase(ServiceBase):
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
-    async def run_proxy_statement(
-        self, run_proxy_statement_request: "RunProxyStatementRequest"
-    ) -> "RunProxyStatementResponse":
+    async def run_proxy_block(
+        self, run_proxy_block_request: "RunProxyBlockRequest"
+    ) -> "RunProxyBlockResponse":
         raise grpclib.GRPCError(grpclib.const.Status.UNIMPLEMENTED)
 
     async def __rpc_read_nodes(
@@ -2861,7 +2832,7 @@ class ModuleHostBase(ServiceBase):
 
     async def __rpc_snapshot(
         self,
-        stream: "grpclib.server.Stream[SnapshotModuleRequest, SnapshotModuleResponse]",
+        stream: "grpclib.server.Stream[SnapshotPackageRequest, SnapshotPackageResponse]",
     ) -> None:
         request = await stream.recv_message()
         response = await self.snapshot(request)
@@ -2921,111 +2892,111 @@ class ModuleHostBase(ServiceBase):
         response = await self.kill_run(request)
         await stream.send_message(response)
 
-    async def __rpc_run_proxy_statement(
+    async def __rpc_run_proxy_block(
         self,
-        stream: "grpclib.server.Stream[RunProxyStatementRequest, RunProxyStatementResponse]",
+        stream: "grpclib.server.Stream[RunProxyBlockRequest, RunProxyBlockResponse]",
     ) -> None:
         request = await stream.recv_message()
-        response = await self.run_proxy_statement(request)
+        response = await self.run_proxy_block(request)
         await stream.send_message(response)
 
     def __mapping__(self) -> Dict[str, grpclib.const.Handler]:
         return {
-            "/symbolx.bench.ModuleHost/ReadNodes": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/ReadNodes": grpclib.const.Handler(
                 self.__rpc_read_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 ReadNodesRequest,
                 ReadNodesResponse,
             ),
-            "/symbolx.bench.ModuleHost/SearchNodes": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/SearchNodes": grpclib.const.Handler(
                 self.__rpc_search_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchNodesRequest,
                 SearchNodesResponse,
             ),
-            "/symbolx.bench.ModuleHost/AggregateNodes": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/AggregateNodes": grpclib.const.Handler(
                 self.__rpc_aggregate_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 AggregateNodesRequest,
                 AggregateNodesResponse,
             ),
-            "/symbolx.bench.ModuleHost/CommitEdits": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/CommitEdits": grpclib.const.Handler(
                 self.__rpc_commit_edits,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 CommitEditsRequest,
                 CommitEditsResponse,
             ),
-            "/symbolx.bench.ModuleHost/WatchEdits": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/WatchEdits": grpclib.const.Handler(
                 self.__rpc_watch_edits,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 WatchEditsRequest,
                 WatchEditsResponse,
             ),
-            "/symbolx.bench.ModuleHost/PushEdits": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/PushEdits": grpclib.const.Handler(
                 self.__rpc_push_edits,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PushEditsRequest,
                 PushEditsResponse,
             ),
-            "/symbolx.bench.ModuleHost/PasteNodes": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/PasteNodes": grpclib.const.Handler(
                 self.__rpc_paste_nodes,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PasteNodesRequest,
                 PasteNodesResponse,
             ),
-            "/symbolx.bench.ModuleHost/Snapshot": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/Snapshot": grpclib.const.Handler(
                 self.__rpc_snapshot,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                SnapshotModuleRequest,
-                SnapshotModuleResponse,
+                SnapshotPackageRequest,
+                SnapshotPackageResponse,
             ),
-            "/symbolx.bench.ModuleHost/UploadBlobs": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/UploadBlobs": grpclib.const.Handler(
                 self.__rpc_upload_blobs,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 UploadBlobsRequest,
                 UploadBlobsResponse,
             ),
-            "/symbolx.bench.ModuleHost/DownloadBlobs": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/DownloadBlobs": grpclib.const.Handler(
                 self.__rpc_download_blobs,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 DownloadBlobsRequest,
                 DownloadBlobsResponse,
             ),
-            "/symbolx.bench.ModuleHost/SearchLogs": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/SearchLogs": grpclib.const.Handler(
                 self.__rpc_search_logs,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 SearchLogsRequest,
                 SearchLogsResponse,
             ),
-            "/symbolx.bench.ModuleHost/WatchLogs": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/WatchLogs": grpclib.const.Handler(
                 self.__rpc_watch_logs,
                 grpclib.const.Cardinality.UNARY_STREAM,
                 WatchLogsRequest,
                 WatchLogsResponse,
             ),
-            "/symbolx.bench.ModuleHost/PushWorkerLogs": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/PushWorkerLogs": grpclib.const.Handler(
                 self.__rpc_push_worker_logs,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 PushWorkerLogsRequest,
                 betterproto_lib_google_protobuf.Empty,
             ),
-            "/symbolx.bench.ModuleHost/StartRun": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/StartRun": grpclib.const.Handler(
                 self.__rpc_start_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 StartRunRequest,
                 StartRunResponse,
             ),
-            "/symbolx.bench.ModuleHost/KillRun": grpclib.const.Handler(
+            "/symbolx.bench.PackageHost/KillRun": grpclib.const.Handler(
                 self.__rpc_kill_run,
                 grpclib.const.Cardinality.UNARY_UNARY,
                 KillRunRequest,
                 KillRunResponse,
             ),
-            "/symbolx.bench.ModuleHost/RunProxyStatement": grpclib.const.Handler(
-                self.__rpc_run_proxy_statement,
+            "/symbolx.bench.PackageHost/RunProxyBlock": grpclib.const.Handler(
+                self.__rpc_run_proxy_block,
                 grpclib.const.Cardinality.UNARY_UNARY,
-                RunProxyStatementRequest,
-                RunProxyStatementResponse,
+                RunProxyBlockRequest,
+                RunProxyBlockResponse,
             ),
         }
 
@@ -3127,54 +3098,53 @@ class WorkerProcessBase(ServiceBase):
 from typing import Union  # noqa
 
 AnyNodeData = Union[
-    SessionData,
-    WorkerSetData,
-    ViewData,
-    RecordData,
+    PauseData,
     OrganizationData,
-    BadgeData,
-    UserData,
-    ModuleData,
+    BlockData,
+    BucketObjectData,
+    PackageData,
+    TaggingData,
+    ViewData,
+    ClientData,
     SignalData,
-    FileData,
+    TriggerData,
     BenchData,
     FieldData,
-    RunData,
-    TriggerData,
-    PauseData,
-    HandleData,
-    NotificationData,
-    IssueData,
-    ClientData,
-    TaggingData,
-    StatementData,
-    LinkData,
     WorkerData,
-    BucketObjectData,
+    SessionData,
+    IssueData,
+    HandleData,
+    RunData,
+    BadgeData,
+    RecordData,
+    LinkData,
+    NotificationData,
+    WorkerSetData,
+    UserData,
 ]
 AnyStructData = Union[
     BenchPathData,
-    WorkerImageData,
+    AggregationBucketData,
+    BlobData,
+    ContextData,
+    PropertyPathData,
+    PolicyData,
+    RunErrorData,
     DependencyData,
     RichTextData,
-    AggregationBucketData,
-    PropertyPathData,
-    RunCodeFrameData,
-    PolicyData,
     ValueReferenceData,
-    RichTextSpanData,
+    WorkerImageData,
     TypeInfoData,
-    LogEntryData,
     ExpressionData,
     NodeReferenceData,
-    ContextData,
-    RunErrorData,
+    RichTextSpanData,
     PolicyRuleData,
     FieldPathSegmentData,
+    RunCodeFrameData,
+    LogEntryData,
     FieldPathData,
-    BlobData,
     AggregationData,
     PropertyReferenceData,
 ]
 
-VERSION = "2024.01.25.1"
+VERSION = "2024.01.25.2"

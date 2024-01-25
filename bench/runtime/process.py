@@ -13,7 +13,7 @@ logger = structlog.get_logger(__name__)
 
 
 class WorkerProcess:
-    """Worker process to run one 'thread' for a Bench module. *May* 1:1 with actual OS processes."""
+    """Worker process to run one 'thread' for a Bench package. *May* 1:1 with actual OS processes."""
 
     async def run(self):
         raise NotImplementedError("nocheckin: worker_process.run")

@@ -36,27 +36,27 @@ from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.language import Session, Statement, Worker
+    from bench.language import Session, Block, Worker
 
 
 @node_component
 class HasRun(Node):
-    """A statement statement"""
+    """A block block"""
 
     @property
     def _is_async(self) -> Optional[bool]:  # set in supporting components e.g. HasCode
-        """Whether this statement is async."""
+        """Whether this block is async."""
         return None
 
     @property
     def cache(self):
         from bench.language.cache import Cache
 
-        return Cache(self.module, subkey=self.ck.hex)
+        return Cache(self.package, subkey=self.ck.hex)
 
     @property
     def current_run(self):
-        return self.module.session.current_run
+        return self.package.session.current_run
 
     def _call_inner(self, *args, **kwargs):
         assert (
@@ -95,12 +95,12 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
 @node(NodeType.RUN, index_in_os=True, local=True)
 class Run(ScopeNode, HasValue):
     """
-    A 'run' of a statement (in a session).
+    A 'run' of a block (in a session).
     """
 
     # NOTE we don't 'activate' runs in sessions yet
     #  (because we don't edit them outside of the source session,
-    #   and because it's unclear how run/session edits should interact with 'regular' module edits)
+    #   and because it's unclear how run/session edits should interact with 'regular' package edits)
 
     parent: Union["Session", "Run"] = node_parent(4, NodeType.SESSION, NodeType.RUN)
     session: "Session" = node_ancestor(
@@ -120,8 +120,8 @@ class Run(ScopeNode, HasValue):
         32, index_in_pg=True, require=False, array=False, references=NodeType.WORKER
     )
     worker_process_id: Optional[UUID] = struct_internal(33)
-    node: Optional["Statement"] = struct_internal(
-        34, references=NodeType.STATEMENT, require=False, array=False, index_in_pg=True
+    node: Optional["Block"] = struct_internal(
+        34, references=NodeType.BLOCK, require=False, array=False, index_in_pg=True
     )
     node_path: Optional[str] = struct_internal(35, default=None)
     scheduled_at: Optional[datetime] = struct_internal(36, default=None)
@@ -157,10 +157,6 @@ class Run(ScopeNode, HasValue):
             self.status = RunStatus.ABORTED if self.started_at else RunStatus.CANCELLED
 
     @property
-    def statement_ck(self) -> Optional[UUID]:
-        return self.node.ck if self.node else None
-
-    @property
     def active(self) -> bool:
         return self.status not in TERMINAL_RUN_STATUSES
 
@@ -182,7 +178,7 @@ _IGNORED_PACKAGE_PATHS = tuple(package.replace(".", "/") for package in _IGNORED
 
 @struct(StructType.RUN_CODE_FRAME)
 class RunCodeFrame(Struct):
-    node: Node = struct_internal(30, array=False, require=True, references=NodeType.STATEMENT)
+    node: Node = struct_internal(30, array=False, require=True, references=NodeType.BLOCK)
     lineno: int = struct_internal(31)
     name: str = struct_internal(32)
     locals: Optional[dict[str, Any]] = struct_internal(
@@ -192,19 +188,19 @@ class RunCodeFrame(Struct):
 
     @staticmethod
     def clean(
-        stack: list["RunCodeFrame"], from_statement: "Statement", session: "Session"
+        stack: list["RunCodeFrame"], from_block: "Block", session: "Session"
     ) -> list["RunCodeFrame"]:
         from bench.language.code_ import HasCode
-        from bench.language.statement import Statement
+        from bench.language.block import Block
 
         code_by_method: dict[str, HasCode] = {
             node._transform.method_name: node
-            for node in list(session.module._nodes)
-            if isinstance(node, Statement) and getattr(node, "_transform", None)
+            for node in list(session.package._nodes)
+            if isinstance(node, Block) and getattr(node, "_transform", None)
         }
-        if getattr(from_statement, "_transform", None):
-            # from statement may not be in module (e.g. if detached when running anonymous code)
-            code_by_method[from_statement._transform.method_name] = from_statement
+        if getattr(from_block, "_transform", None):
+            # from block may not be in package (e.g. if detached when running anonymous code)
+            code_by_method[from_block._transform.method_name] = from_block
 
         found_start = False
         cleaned_stack = []
@@ -215,20 +211,20 @@ class RunCodeFrame(Struct):
                 # impute bench source info into instantiated code callables
                 code = code_by_method.get(frame.name)
                 if code is not None:
-                    if code == from_statement:
+                    if code == from_block:
                         found_start = True
                     elif not found_start:
                         continue  # ignore
-                    frame.node = from_statement
-                    frame.name = from_statement.name or "<unnamed>"
+                    frame.node = from_block
+                    frame.name = from_block.name or "<unnamed>"
                     frame.lineno = frame.lineno - code._transform.start_offset
                     frame.line = code.code.splitlines()[frame.lineno - 1]
                     frame.locals = frame.locals or {}
-                    for ident, var in code._statement_references.items():
-                        if ident not in frame.locals and var.id in session.module._tree:
-                            frame.locals[ident] = repr(session.module._tree[var.id])
+                    for ident, var in code._block_references.items():
+                        if ident not in frame.locals and var.id in session.package._tree:
+                            frame.locals[ident] = repr(session.package._tree[var.id])
             if found_start:
-                # trim file path for python modules
+                # trim file path for python packages
                 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
                 if python_version in frame.node:
                     frame.node = frame.node.split(python_version)[-1][1:]  # skip slash
@@ -242,18 +238,18 @@ class RunError(Struct, Exception):
     type: str = struct_internal(31)
     message: Optional[str] = struct_internal(32, default=None)
     node: Optional["Node"] = struct_internal(
-        33, require=False, array=False, references=NodeType.STATEMENT
+        33, require=False, array=False, references=NodeType.BLOCK
     )
     traceback: list[RunCodeFrame] = struct_internal(
         34, default_factory=list, struct_t=StructType.RUN_CODE_FRAME
     )
 
     @staticmethod
-    def from_exception(e: BaseException, statement: Optional["Statement"]) -> "RunError":
+    def from_exception(e: BaseException, block: Optional["Block"]) -> "RunError":
         if isinstance(e, RunError):
             return e
         stack = RunCodeFrame.from_stack(traceback.extract_tb(e.__traceback__))
-        stack = RunCodeFrame.clean(stack, statement, statement.session)
+        stack = RunCodeFrame.clean(stack, block, block.session)
         if isinstance(e, SyntaxError):  # ignore (..., line x) because it's not useful
             err_str = e.msg
         else:
@@ -262,14 +258,14 @@ class RunError(Struct, Exception):
             kind=RunErrorKind.Runtime,
             type=type(e).__name__,
             message=err_str,
-            statement=statement,
+            block=block,
             traceback=stack,
         )
 
 
 @node(NodeType.PAUSE, local=True)
 class Pause(Node):
-    """A resumable interruption in the execution (Run) of a statement."""
+    """A resumable interruption in the execution (Run) of a block."""
 
     parent: "Run" = node_parent(4, NodeType.RUN)
     session: "Session" = node_ancestor(30, NodeType.SESSION, require=True, store=True)

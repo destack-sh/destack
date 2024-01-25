@@ -37,7 +37,7 @@ from bench.utils.func import _auto_async_to_sync, describe_type
 from bench.utils.utils import flatten
 
 if typing.TYPE_CHECKING:
-    from bench.language import Field, Statement, View
+    from bench.language import Field, Block, View
     from bench.proto.wire import RecordData  # noqa: F401
 
 logger = structlog.get_logger(__name__)
@@ -57,7 +57,7 @@ class Record(HasValue, Node):
     """A record in a database. The containing table is usually a real Postgres table."""
 
     # :RecordSchema
-    parent: "Statement" = node_parent(4, NodeType.STATEMENT)
+    parent: "Block" = node_parent(4, NodeType.BLOCK)
     value_packed: typing.Any | None = struct_property(
         30,
         default_factory=dict,
@@ -70,7 +70,7 @@ class Record(HasValue, Node):
     @staticmethod
     def new(
         *args,
-        for_parent: "Statement" = None,
+        for_parent: "Block" = None,
         _status: NS = None,
         _id: UUID = None,
         _ck: UUID = None,
@@ -102,7 +102,7 @@ class Record(HasValue, Node):
         return f"{describe_type(self.value) or '<empty>'}"
 
     @property
-    def _type(self) -> Optional["Statement"]:
+    def _type(self) -> Optional["Block"]:
         return self.parent._as_type_info
 
     @property
@@ -177,7 +177,7 @@ class RecordQuery:
         """Combines the custom with the default filter for this database."""
         return Expression.and_if_set(
             self._filter,
-            C(ConditionalOp.EQUALS, field_key="statement_key", value=self._database.dynamic_key),
+            C(ConditionalOp.EQUALS, field_key="block_key", value=self._database.dynamic_key),
             ~C(ConditionalOp.EXISTS, field_key="deleted_at"),
         )
 
@@ -368,7 +368,7 @@ class RecordQuery:
         logger.debug("record.query", query=self, where=where, limit=first, engine=target_engine)
         if target_engine == QueryEngine.LOCAL_OPENSEARCH:
             os_results = await os_search(
-                os_name=self._database.module.os_name,
+                os_name=self._database.package.os_name,
                 metatype=NodeType.RECORD,
                 filter=where,
                 limit=first,
@@ -496,7 +496,7 @@ class RecordQuery:
             await session.flush_local()
         where = Expression.and_if_set(
             self._filter,
-            C(ConditionalOp.EQUALS, field_key="statement_key", value=self._database.dynamic_key),
+            C(ConditionalOp.EQUALS, field_key="block_key", value=self._database.dynamic_key),
         )
         deleted_rows = await pg_delete(
             cur=await self._database._get_pg_cursor(),
@@ -530,7 +530,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
         assert isinstance(node, Record), f"cannot append {node!r} to {self!r}"
         node.parent = self._parent
         if node.id is None and self._parent.attached:
-            node._assign_id(self._parent.module.id)
+            node._assign_id(self._parent.package.id)
         # 'create' node
         if _create and not self._parent.attached:
             raise RuntimeError(f"cannot create {node!r} in detached {self!r}")
@@ -621,7 +621,7 @@ class HasDatabase(Node):
             self._table = map_database_to_pg_table(self)
 
     async def _get_pg_cursor(self) -> psycopg.AsyncCursor:
-        return await self.session.pg_cursor_to_local(module=self.module)
+        return await self.session.pg_cursor_to_local(package=self.package)
 
     @property
     def is_materialized(self):

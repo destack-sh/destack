@@ -13,15 +13,13 @@ from bench import language as lang
 from bench.language import (
     C,
     ConditionalOp,
-    Module,
+    Package,
     QueryEngine,
     SortMode,
     SortOp,
-    TypeHint,
-    TypeTag,
     symbolx_lib,
 )
-from bench.language.const import RUNNABLE_STATEMENT_TYPES, BenchType, EditKind, TypeFlag
+from bench.language.const import RUNNABLE_BLOCK_TYPES, BenchType, EditKind
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -31,7 +29,6 @@ from bench.language.expression import (
     QueryEngineIncapableError,
     S,
 )
-from bench.language.field import TYPE_TAG_BY_TYPE_HINT
 from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Property, Struct
 from bench.language.run import HasRun
 from bench.os import core as os
@@ -57,7 +54,7 @@ class FieldMapper:
     Don't bother with lists and optional here.
     """
 
-    def to_os_type(self, type: Union[lang.Field, lang.Statement], depth: int) -> os.Field:
+    def to_os_type(self, type: Union[lang.Field, lang.Block], depth: int) -> os.Field:
         raise NotImplementedError
 
 
@@ -84,8 +81,8 @@ def register_mapper(
         field_mappers[TypeSignature(tag, hint)] = mapper
 
 
-def get_mapper(type: Union[lang.Field, lang.Statement]) -> FieldMapper:
-    if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Statement):
+def get_mapper(type: Union[lang.Field, lang.Block]) -> FieldMapper:
+    if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Block):
         return get_mapper(type.reference)  # skip the reference
     exact_signature = TypeSignature(type.tag, type.hint)
     mapping = field_mappers.get(exact_signature)
@@ -110,7 +107,7 @@ class StaticFieldMapper(FieldMapper):
 class StructFieldMapper(FieldMapper):
     def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
         subfields = {TYPE_DISCRIMINATOR_KEY: os.Field(os.FT.KEYWORD)}
-        if isinstance(type.reference, lang.Statement) and type.reference.issues:
+        if isinstance(type.reference, lang.Block) and type.reference.issues:
             # bail out early if there are issues from a reference
             # (these don't get reported up to every reference, but we still can't map it)
             return os.Field(os.FT.OBJECT, properties=subfields)
@@ -176,9 +173,9 @@ def map_to_os_field(field: lang.Field) -> os.Field:
     return os_field
 
 
-async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
+async def update_os_schema(package: Package, dynamic: str = "strict") -> None:
     """
-    Updates *all* OpenSearch field mappings for a module
+    Updates *all* OpenSearch field mappings for a package
     TODO @Performance: update OS field mappings more efficiently on field edit
       (especially for library/dependency mappings)
     """
@@ -208,16 +205,16 @@ async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
                 f.index = False
 
     # add dynamic user mappings
-    for node in module._nodes:
-        if not isinstance(node, lang.Statement):
+    for node in package._nodes:
+        if not isinstance(node, lang.Block):
             continue
         if node.self_errors:
             continue  # ignore nodes with issues
-        elif node.type == lang.StatementType.DATABASE:
+        elif node.type == lang.BlockType.DATABASE:
             # all fields go into Record.value
             for field in node.fields:
                 value_mappings[field.storage_key] = _map_to_os_field_safe(field)
-        elif node.type in RUNNABLE_STATEMENT_TYPES:
+        elif node.type in RUNNABLE_BLOCK_TYPES:
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in node.fields:
                 if field.flags & TypeFlag.IS_OUTPUT:
@@ -235,10 +232,10 @@ async def update_os_schema(module: Module, dynamic: str = "strict") -> None:
         sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items() if v is not None}
         mappings[key] = {"type": "object", "dynamic": dynamic, "properties": sub_mappings}
 
-    await os_client.indices.put_mapping(index=module.os_name, body={"properties": mappings})
+    await os_client.indices.put_mapping(index=package.os_name, body={"properties": mappings})
     logger.info(
         "os.update_mappings.done",
-        module=module,
+        package=package,
         value_mappings=len(value_mappings),
         inputs_mappings=len(inputs_mappings),
         outputs_mappings=len(outputs_mappings),
@@ -636,7 +633,7 @@ def unpack_struct(source: dict) -> wire.AnyNodeData | wire.AnyStructData:
 
 
 async def sync_pg_databases_to_os(
-    module: Module,
+    package: Package,
     pg_cursor: psycopg.AsyncCursor,
     record_ids_by_db: list[tuple["HasDatabase", set[UUID] | None]],
 ) -> None:
@@ -648,7 +645,7 @@ async def sync_pg_databases_to_os(
         pg_unpack_record_data_row,
     )
 
-    log = logger.bind(module=module, databases=[r[0] for r in record_ids_by_db])
+    log = logger.bind(package=package, databases=[r[0] for r in record_ids_by_db])
     log.debug("os.sync_pg_databases_to_os")
     os_name = module.os_name
     ops: list[dict[str, Any]] = []
@@ -667,7 +664,7 @@ async def sync_pg_databases_to_os(
             records_data = [pg_unpack_record_data_row(database, row) for row in records_data]
             # delete table by query
             await os_client.delete_by_query(
-                index=os_name, body={"query": {"term": {"statement_key": database.dynamic_key}}}
+                index=os_name, body={"query": {"term": {"block_key": database.dynamic_key}}}
             )
         else:
             if not record_ids:
@@ -925,7 +922,7 @@ def create_local_os_index(
     log.info("os.create_user.done", username=os_username)
 
 
-async def os_write_edits(module: Module, edits: list[EditData], *, refresh: bool = False) -> None:
+async def os_write_edits(module: Package, edits: list[EditData], *, refresh: bool = False) -> None:
     """
     Writes/mirrors any relevant edit to OpenSearch.
     All regular DB edit come this way.
@@ -973,7 +970,7 @@ async def os_write_edits(module: Module, edits: list[EditData], *, refresh: bool
     await _flush()  # flush all remaining edits
 
 
-async def os_sync_databases(module: Module, databases: list[HasDatabase]) -> None:
+async def os_sync_databases(module: Package, databases: list[HasDatabase]) -> None:
     """
     Mirrors the given databases to OpenSearch, replacing any existing data.
     Obviously not scalable yet because it just selects everything in one go (no streaming).
@@ -986,9 +983,9 @@ async def os_sync_databases(module: Module, databases: list[HasDatabase]) -> Non
     all_records: list[wire.RecordData] = []
     async with async_pg_cursor(module.pg_name) as cur:
         for database in databases:
-            where = C(
-                ConditionalOp.EQUALS, field_key="statement_key", value=database.dynamic_key
-            ) & ~C(ConditionalOp.EXISTS, field_key="deleted_at")
+            where = C(ConditionalOp.EQUALS, field_key="block_key", value=database.dynamic_key) & ~C(
+                ConditionalOp.EXISTS, field_key="deleted_at"
+            )
             records_data, _, _ = await pg_select_records_data(cur, database, where=where)
             all_records.extend(records_data)
 
@@ -996,13 +993,13 @@ async def os_sync_databases(module: Module, databases: list[HasDatabase]) -> Non
     # wipe all databases by query
     filter = [
         {"term": {TYPE_DISCRIMINATOR_KEY: BenchType.RECORD}},
-        {"terms": {"statement_key": [d.key for d in databases]}},
+        {"terms": {"block_key": [d.key for d in databases]}},
     ]
     await os_client.delete_by_query(module.os_name, body={"query": {"bool": {"filter": filter}}})
     await os_write_records(module, all_records)
 
 
-async def os_write_records(module: Module, records: list[wire.RecordData]) -> None:
+async def os_write_records(module: Package, records: list[wire.RecordData]) -> None:
     if not records:
         return
     ops: list[dict] = []

@@ -11,8 +11,8 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language.const import NodeType, IN_MODULE_NODE_TYPES
-from bench.language.node import Bench, Module
+from bench.language.const import NodeType, IN_PACKAGE_NODE_TYPES
+from bench.language.node import Bench, Package
 from bench.language.tree import NodeTree
 from bench.proto import wire
 from bench.proto.services import BenchServiceBase
@@ -26,7 +26,6 @@ from bench.proto.wire import (
     DownloadBlobsResponse,
     KillRunRequest,
     KillRunResponse,
-    ModuleHostBase,
     PasteNodesRequest,
     PasteNodesResponse,
     PushEditsRequest,
@@ -34,14 +33,12 @@ from bench.proto.wire import (
     PushWorkerLogsRequest,
     ReadNodesRequest,
     ReadNodesResponse,
-    RunProxyStatementRequest,
-    RunProxyStatementResponse,
+    RunProxyBlockRequest,
+    RunProxyBlockResponse,
     SearchLogsRequest,
     SearchLogsResponse,
     SearchNodesRequest,
     SearchNodesResponse,
-    SnapshotModuleRequest,
-    SnapshotModuleResponse,
     StartRunRequest,
     StartRunResponse,
     UploadBlobsRequest,
@@ -50,6 +47,7 @@ from bench.proto.wire import (
     WatchEditsResponse,
     WatchLogsRequest,
     WatchLogsResponse,
+    PackageHostBase,
 )
 from bench.server.utils import (
     check_authenticated,
@@ -66,26 +64,26 @@ logger = structlog.get_logger(__name__)
 
 LOADED_SOURCE_TYPES: tuple[NodeType, ...] = tuple(
     nt
-    for nt in IN_MODULE_NODE_TYPES
+    for nt in IN_PACKAGE_NODE_TYPES
     if nt.id < NodeType.SESSION.id and nt not in (NodeType.RECORD,)
 )
 
 
-class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
+class PackageHostMultiplexer(BenchServiceBase):
     """
-    Multiplexes requests per module to a ModuleHost using gRPC metadata ('bench-id' and 'module-id').
-    Hosts are loaded for all active modules; new ones 'ping' the multiplexer to add themselves.
+    Multiplexes requests per package to a PackageHost using gRPC metadata ('bench-id' and 'package-id').
+    Hosts are loaded for all active packages; new ones 'ping' the multiplexer to add themselves.
     """
 
     def __init__(self):
         super().__init__()
-        self._hosts_by_module_id: dict[UUID, "ModuleHost"] = {}
+        self._hosts_by_package_id: dict[UUID, "PackageHost"] = {}
 
     def __str__(self):
-        return "shards=all"
+        return "shards=*"
 
     def __repr__(self):
-        return f"<ModuleHostMultiplexer {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     async def start_quick(self) -> None:
         async with detached_session():
@@ -93,14 +91,14 @@ class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
         await asyncio.gather(*(self._start_host(bench.id, bench.head_id) for bench in benches))
 
     def close(self) -> None:
-        for host in self._hosts_by_module_id.values():
+        for host in self._hosts_by_package_id.values():
             host.close()
 
     async def wait_closed(self) -> None:
-        await asyncio.gather(*[host.wait_closed() for host in self._hosts_by_module_id.values()])
+        await asyncio.gather(*[host.wait_closed() for host in self._hosts_by_package_id.values()])
 
-    async def _start_host(self, bench_id: UUID, module_id: UUID) -> "ModuleHost":
-        host = ModuleHost(bench_id, module_id)
+    async def _start_host(self, bench_id: UUID, package_id: UUID) -> "PackageHost":
+        host = PackageHost(bench_id, package_id)
         await host.start_quick()
         return host
 
@@ -110,13 +108,13 @@ class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
         @functools.wraps(func)
         async def proxied_method(stream: grpclib.server.Stream) -> None:
             bench_id = to_uuid(self.metadata.bench_id)
-            module_id = to_uuid(self.metadata.module_id)
+            package_id = to_uuid(self.metadata.package_id)
 
-            # get module host
-            host = self._hosts_by_module_id.get(module_id)
+            # get package host
+            host = self._hosts_by_package_id.get(package_id)
             if host is None:
-                host = await self._start_host(bench_id, module_id)
-                self._hosts_by_module_id[module_id] = host
+                host = await self._start_host(bench_id, package_id)
+                self._hosts_by_package_id[package_id] = host
 
             # forward to host
             host._stream.set(stream)
@@ -126,28 +124,28 @@ class ModuleHostMultiplexer(BenchServiceBase, ModuleHostBase):
         return proxied_method
 
 
-class ModuleHost(BenchServiceBase, ModuleHostBase):
+class PackageHost(BenchServiceBase, PackageHostBase):
     """
-    Host for an (active) Bench module. Manages basically everything that's not actually running it.
-    Frontend and worker connects to this to do anything with the module.
+    Host for an (active) Bench package. Manages basically everything that's not actually running it.
+    Frontend and worker connects to this to do anything with the package.
     """
 
-    def __init__(self, bench_id: UUID, module_id: UUID):
+    def __init__(self, bench_id: UUID, package_id: UUID):
         super().__init__()
         self.bench_id = bench_id
-        self.module_id = module_id
+        self.package_id = package_id
         self._bench: Bench | None = None
-        self._module: Module | None = None
+        self._package: Package | None = None
 
     def __str__(self):
-        return f"{self._module or self.module_id}"
+        return f"{self._package or self.package_id}"
 
     def __repr__(self):
-        return f"<ModuleHost {self}>"
+        return f"<PackageHost {self}>"
 
     @property
-    def module_source(self) -> NodeTree[AnyNodeData]:
-        return self.module._source
+    def package_source(self) -> NodeTree[AnyNodeData]:
+        return self.package._source
 
     @property
     def bench(self) -> Bench:
@@ -155,9 +153,9 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
         return self._bench
 
     @property
-    def module(self) -> Module:
-        assert self._module is not None, f"module not loaded in {self}"
-        return self._module
+    def package(self) -> Package:
+        assert self._package is not None, f"package not loaded in {self}"
+        return self._package
 
     async def start_quick(self) -> None:
         async with detached_session() as session:
@@ -167,16 +165,16 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
                 root_id=self.bench_id,
                 descendant_types=(NodeType.BADGE,),
             )
-            self._module: Module = await pg_read_node(
+            self._package: Package = await pg_read_node(
                 session=session,
-                root_type=NodeType.MODULE,
-                root_id=self.module_id,
+                root_type=NodeType.PACKAGE,
+                root_id=self.package_id,
                 descendant_types=LOADED_SOURCE_TYPES,
                 parent=self.bench,
             )
 
     #
-    # General Bench IO for this module and global nodes :BenchIO
+    # General Bench IO for this package and global nodes :BenchIO
     #
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
@@ -216,7 +214,7 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
-    # Module-specific stuff
+    # Package-specific stuff
     #
 
     async def push_edits(self, push_edits_request: "PushEditsRequest") -> "PushEditsResponse":
@@ -227,8 +225,8 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def snapshot(
-        self, snapshot_module_request: "SnapshotModuleRequest"
-    ) -> "SnapshotModuleResponse":
+        self, snapshot_package_request: "SnapshotPackageRequest"
+    ) -> "SnapshotPackageResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     #
@@ -305,7 +303,7 @@ class ModuleHost(BenchServiceBase, ModuleHostBase):
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
     async def run_proxy_statement(
-        self, run_proxy_statement_request: "RunProxyStatementRequest"
-    ) -> "RunProxyStatementResponse":
+        self, run_proxy_statement_request: "RunProxyBlockRequest"
+    ) -> "RunProxyBlockResponse":
         _ = await check_authenticated_worker(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

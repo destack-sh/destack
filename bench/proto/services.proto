@@ -165,7 +165,7 @@ service GlobalSupervisor {
   rpc CreateBench(CreateBenchRequest) returns (CreateBenchResponse);
 
   //
-  // General Bench IO for global nodes (should match ModuleHost)  :BenchIO
+  // General Bench IO for global nodes (should match PackageHost)  :BenchIO
   //
 
   // Get global nodes.
@@ -190,7 +190,7 @@ service GlobalSupervisor {
 }
 
 //
-// Module host
+// Package host
 //
 
 message GetLogsRequest {}
@@ -200,7 +200,7 @@ message GetLogsResponse {
 
 
 message PasteNodesRequest {
-  string source_module_id = 1;
+  string source_package_id = 1;
   repeated NodeReferenceData source_nodes = 2;
   map<string, string> target_ids = 3;
   map<string, string> target_cks = 4;
@@ -211,12 +211,12 @@ message PasteNodesResponse {
   repeated SomeNodeData pasted_nodes = 1;
 }
 
-message SnapshotModuleRequest {
+message SnapshotPackageRequest {
   string name = 1;
   string tag = 2;
   string description = 3;
 }
-message SnapshotModuleResponse {
+message SnapshotPackageResponse {
   string snapshot_project_version_id = 1;
 }
 
@@ -262,27 +262,30 @@ message PushWorkerLogsRequest {
 message PushWorkerLogsResponse {
 }
 
-message RunProxyStatementRequest {
-  string statement = 1;
-  google.protobuf.Struct inputs = 2;
-  int32 timeout_ms = 3;
-  string run_id = 4;
-  string run_ck = 5;
+message RunProxyBlockRequest {
+  oneof block {
+    BenchPathData path = 1;
+    NodeReferenceData reference = 2;
+  }
+  google.protobuf.Struct inputs = 3;
+  int32 timeout_ms = 4;
+  string run_id = 5;
+  string run_ck = 6;
 }
 
-message RunProxyStatementResponse {
+message RunProxyBlockResponse {
   google.protobuf.Struct outputs = 1;
   google.protobuf.Struct error = 2;
 }
 
 
-// The Bench host for a specific module.
-// Service is scoped to bench_id/module_id.
+// The Bench host for a specific package.
+// Service is scoped to bench_id/package_id.
 // Frontend connects to this directly.
-// Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
-service ModuleHost {
+// Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
+service PackageHost {
   //
-  // General Bench IO for this module and global nodes (should match GlobalSupervisor) :BenchIO
+  // General Bench IO for this package and global nodes (should match GlobalSupervisor) :BenchIO
   //
 
   // Reads local or global nodes.
@@ -291,21 +294,21 @@ service ModuleHost {
   rpc SearchNodes(SearchNodesRequest) returns (SearchNodesResponse);
   // Aggregate nodes into statistics.
   rpc AggregateNodes(AggregateNodesRequest) returns (AggregateNodesResponse);
-  // Commits a set of edits to the module. Optionally forward locally bypassed edits.
+  // Commits a set of edits to the package. Optionally forward locally bypassed edits.
   rpc CommitEdits(CommitEditsRequest) returns (CommitEditsResponse);
-  // Receive any relevant edits to this module.
+  // Receive any relevant edits to this package.
   rpc WatchEdits(WatchEditsRequest) returns (stream WatchEditsResponse);
 
   //
-  // Special Module IO
+  // Special Package IO
   //
 
-  // Pushes locally bypassed edits to the module subscribers.
+  // Pushes locally bypassed edits to the package subscribers.
   rpc PushEdits(PushEditsRequest) returns (PushEditsResponse);
-  // Paste specific inline nodes (and only those nodes) from this or another module.
+  // Paste specific inline nodes (and only those nodes) from this or another package.
   rpc PasteNodes(PasteNodesRequest) returns (PasteNodesResponse);
-  // Create a full snapshot of this Bench module (copy to a new Bench module as specified).
-  rpc Snapshot(SnapshotModuleRequest) returns (SnapshotModuleResponse);
+  // Create a full snapshot of this Bench package (copy to a new Bench package as specified).
+  rpc Snapshot(SnapshotPackageRequest) returns (SnapshotPackageResponse);
 
   //
   // Blobs
@@ -335,8 +338,8 @@ service ModuleHost {
   rpc StartRun(StartRunRequest) returns (StartRunResponse);
   // Kills a run in the appropriate worker (same request/response as for WorkerNode).
   rpc KillRun(KillRunRequest) returns (KillRunResponse);
-  // Runs a well-known internal statement in the host with our credentials.
-  rpc RunProxyStatement(RunProxyStatementRequest) returns (RunProxyStatementResponse);
+  // Runs a well-known internal block in the host with our credentials.
+  rpc RunProxyBlock(RunProxyBlockRequest) returns (RunProxyBlockResponse);
 
 }
 

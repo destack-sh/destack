@@ -2,14 +2,14 @@ import uuid
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
+from bench.language.node import Package
 from bench.language.const import IssueKind, IssueType, NodeType, StructType
 from bench.language.expression import FieldPath
 from bench.language.node import Node, node, node_parent, struct_property
 from bench.language.validation import enum_validator
 
 if TYPE_CHECKING:
-    from bench.language.file import File
-    from bench.language.statement import Statement
+    from bench.language.block import Block
 
 # separate from enum so that it's a simple StrEnum
 _ISSUE_MESSAGES = {
@@ -46,7 +46,7 @@ class BenchError(ValueError):
 
 @node(NodeType.ISSUE)
 class Issue(Node):
-    parent: Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
+    parent: Union["Block", "Package"] = node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
     type: IssueType = struct_property(30, validate=enum_validator(IssueType))
     kind: IssueKind = struct_property(31, default=None, validate=enum_validator(IssueKind))
     message: str = struct_property(32, default=None)
@@ -86,12 +86,10 @@ class Issue(Node):
         path: Optional[FieldPath] = None,
         properties: Optional[list[str]] = None,
     ) -> "Issue":
-        from bench.language import File, Statement
-
         assert isinstance(subject, Node), f"invalid subject: {subject!r}"
         issue_ck = uuid.uuid5(subject.id, (type.value + (message or "")))
         issue_id = issue_ck  # not sure?
-        if not isinstance(subject, (Statement, File)):
+        if subject.metatype not in (NodeType.BLOCK, NodeType.PACKAGE):
             subject = subject.parent  # fields don't have issues (yet)
         issue = Issue(
             id=issue_id,

@@ -17,7 +17,6 @@ import structlog
 from more_itertools import first, last
 
 from bench.language.blob import Blob, BlobStatus
-from bench.language.builtin import symbolx_lib
 from bench.language.const import ConditionalOp, IssueType, SortMode, SortOp
 from bench.language.expression import C
 from bench.language.field import TypedDict
@@ -26,7 +25,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language import Statement
+    from bench.language import Block, symbolx_lib
     from bench.language.issue import IssueHandler
 
 logger = structlog.get_logger(__name__)
@@ -72,24 +71,24 @@ def _install_package(name: str, timeout: int = 300, try_import: str = None) -> N
 class HasCode(Node):
     _is_async: Optional[bool] = struct_runtime(default=None)
     _transform: Optional[CodeTransformation] = struct_runtime(default=None)
-    _statement_references: dict[str, "Statement"] | None = struct_runtime(default=None)
+    _block_references: dict[str, "Block"] | None = struct_runtime(default=None)
     _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = struct_runtime(default=None)
     _cached_exports: dict[str, Any] | None = struct_runtime(default=None)
 
     def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
         self._transform = None
-        self._statement_references = None
+        self._block_references = None
         self._callable_wrapped = None
         self._cached_exports = None
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         self._is_async = "await " in self.code
-        self._statement_references = {}
+        self._block_references = {}
         self._code_export_references = {}
         for key, reference in self._parse.references.items():
             resolved = scope.lookup(reference)
             if resolved is not None:
-                self._statement_references[key] = resolved
+                self._block_references[key] = resolved
 
         # check if code is exportable if marked as such
         if self._export:
@@ -120,16 +119,15 @@ class HasCode(Node):
 
         dynamic_context = {
             "self": self,
-            "file": self.file,
-            "module": self.module,
+            "package": self.package,
             "session": self.session,
             "cache": self.session._cache,
             "blobs": self.session._blobs,
             "random": Random(self.id.hex.encode()),
             "ximport": self._import_sync if not self._is_async else self._import_async,
             "install": _install_package,
-            **self._statement_references,
-            **{s.py_ident: s for s in symbolx_lib.files.builtins.statements},
+            **self._block_references,
+            **{s.py_ident: s for s in symbolx_lib.files.builtins.blocks},
         }
 
         import bench.language
@@ -220,7 +218,7 @@ class HasCode(Node):
             inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer=True)
             try:
                 logger.debug("code.proxy", code=self, inputs=inputs_raw)
-                outputs = await self.session.host.run_proxy_statement(self, inputs_raw)
+                outputs = await self.session.host.run_proxy_block(self, inputs_raw)
                 outputs = unpack_value(outputs, self, is_output=True)
                 return TypedDict(outputs, self, is_output=True)
             except BaseException as e:
@@ -242,7 +240,7 @@ class HasCode(Node):
                 outputs = unpack_value(run.outputs_packed, self, ignore_outer=True, is_output=True)
                 check_type(outputs, self, is_output=True)
                 self.session._run_cached(
-                    statement=self,
+                    block=self,
                     inputs=inputs,
                     outputs=outputs,
                     generated_at=run.generated_at,

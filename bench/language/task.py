@@ -23,7 +23,7 @@ from bench.utils.utils import format_python, omit_empty
 
 if TYPE_CHECKING:
     from bench.language.issue import IssueHandler
-    from bench.language.statement import Statement
+    from bench.language.block import Block
 
 logger = structlog.get_logger(__name__)
 
@@ -42,7 +42,7 @@ class HasTask(Node):
         self._randomize = False
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
-        from bench.language.builtin import symbolx_lib
+        from . import symbolx_lib
 
         randomize_tag = symbolx_lib.resolve(".builtins.randomize")
         self._randomize = randomize_tag in self.tags
@@ -50,7 +50,7 @@ class HasTask(Node):
         if not any(f.flags & TypeFlag.IS_OUTPUT for f in self.fields):
             on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task feasibility
-        #  - check if task is possible given the fields, models & available statements
+        #  - check if task is possible given the fields, models & available blocks
 
     async def _call_inner_async(
         self,
@@ -70,11 +70,11 @@ class HasTask(Node):
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
-            builtin_model: "Statement" = self.session.module.resolve(
+            builtin_model: "Block" = self.session.package.resolve(
                 "huggingface.lib.text.llm-embedder"
             )
         elif self.path == "symbolx.lib.builtins.transcribe":
-            builtin_model: "Statement" = self.session.module.resolve("deepgram.lib.audio.nova-2")
+            builtin_model: "Block" = self.session.package.resolve("deepgram.lib.audio.nova-2")
         else:
             builtin_model = None
             if mode == "auto":
@@ -83,10 +83,10 @@ class HasTask(Node):
                 models = ["gpt3-turbo"]
             else:
                 models = ["gpt4-turbo"]
-            models = [self.session.module.resolve(m) for m in models]
+            models = [self.session.package.resolve(m) for m in models]
 
         # do task
-        projection = Projection(self.module)
+        projection = Projection(self.package)
         seen_from_node = projection.view_node(self, ancestors_up_to=NodeType.FILE, max_distance=5)
         await projection.view_records(seen_from_node.values(), limit=10)
         seen_from_value = projection.view_value(inputs, self, is_output=False)
@@ -157,7 +157,7 @@ async def run_task(
     projection: Projection,
     inputs: dict,
     nonce: Optional[str],
-    models: list["Statement"] = None,
+    models: list["Block"] = None,
 ) -> dict:
     from bench.language.value import check_type, unpack_value
 
@@ -239,21 +239,21 @@ class TaskError(RunError):
     def __init__(
         self,
         type: TaskErrorType,
-        statement: "Statement",
+        block: "Block",
         message: str = None,
         path: str = None,
     ):
         super().__init__(
             kind=RunErrorKind.Runtime,
             type=type.name,
-            statement=statement,
+            block=block,
             message=f"{type.value}: {message}",
         )
         self.type = type
         self.path = path
 
     @staticmethod
-    def from_exception(task: "Statement", e: Exception, path: str = None) -> "TaskError":
+    def from_exception(task: "Block", e: Exception, path: str = None) -> "TaskError":
         if isinstance(e, TaskError):
             return e
         elif isinstance(e, ValueError):
@@ -290,10 +290,10 @@ class TaskCompiler(abc.ABC):
     ) -> CompiledInput:
         raise NotImplementedError
 
-    def can_run(self, model: "Statement", input: CompiledInput) -> bool:
+    def can_run(self, model: "Block", input: CompiledInput) -> bool:
         raise NotImplementedError
 
-    async def run(self, model: "Statement", input: CompiledInput) -> dict:
+    async def run(self, model: "Block", input: CompiledInput) -> dict:
         raise NotImplementedError
 
 
@@ -326,7 +326,7 @@ class JsonSchemaElement:
 
 
 def _type_to_json_schema(
-    type: Union[Field, "Statement"], ignore_array: bool = False, is_output: bool = None
+    type: Union[Field, "Block"], ignore_array: bool = False, is_output: bool = None
 ) -> JsonSchemaElement:
     """Convert a Bench type to a JSON schema element."""
     fields = [
@@ -390,14 +390,12 @@ class BaseTextTaskCompiler(TaskCompiler):
         " When given examples to consider, don't copy them directly unless explicitly asked."
     )
 
-    def _render_value_flat(
-        self, value: Any, type: Union[Field, "Statement"], *args, **kwargs
-    ) -> Any:
+    def _render_value_flat(self, value: Any, type: Union[Field, "Block"], *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
         raise NotImplementedError
 
     async def _render_context(
-        self, task: "Statement", projection: Projection, *, exclude_output: bool
+        self, task: "Block", projection: Projection, *, exclude_output: bool
     ) -> str:
         """Model-friendly string describing the entire task context."""
         rendered = render(*projection.nodes, recursive=False)
@@ -431,7 +429,7 @@ class BaseTextTaskCompiler(TaskCompiler):
 
     async def _prepare_text_prompt(
         self,
-        task: "Statement",
+        task: "Block",
         projection: Projection,
         inputs: dict,
         previous_results: list[Union[TaskError, "Run"]],
@@ -445,7 +443,7 @@ class BaseTextTaskCompiler(TaskCompiler):
             f"Your main task is '{task.name}'.",
         ]
 
-        # module context
+        # package context
         context_str = await self._render_context(task, projection, exclude_output=True)
         if context_str:
             messages.append(
@@ -503,7 +501,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         return prompt
 
     @staticmethod
-    def _parse_text_completion(model: "Statement", task: "Statement", completion: str) -> dict:
+    def _parse_text_completion(model: "Block", task: "Block", completion: str) -> dict:
         try:
             # strip everything up to COMPLETE or PANIC
             completion = re.sub(r"^.*?(COMPLETE|PANIC)", r"\1", completion, flags=re.DOTALL)
@@ -557,7 +555,7 @@ class BaseTextTaskCompiler(TaskCompiler):
 # class OpenAITextCompiler(BaseTextTaskCompiler):
 #     async def compile(
 #         self,
-#         task: Statement,
+#         task: Block,
 #         projection: Projection,
 #         inputs: dict,
 #         previous_results: list[Union[TaskError, "Run"]],
@@ -574,10 +572,10 @@ class BaseTextTaskCompiler(TaskCompiler):
 #             settings=settings,
 #             messages=messages,
 #             functions=None,
-#             statements_by_name={},
+#             blocks_by_name={},
 #         )
 #
-#     def can_run(self, model: "Statement", input: OpenAIChatInput) -> bool:
+#     def can_run(self, model: "Block", input: OpenAIChatInput) -> bool:
 #         context_window: int = {
 #             "gpt3-turbo": 16 * 1024,
 #             "gpt4-turbo": 128 * 1024,

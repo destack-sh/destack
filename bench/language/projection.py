@@ -6,7 +6,7 @@ from bench.language.expression import S
 from bench.language.node import Node, ScopeNode
 
 if TYPE_CHECKING:
-    from bench.language.statement import IsTyped
+    from bench.language.block import IsTyped
 
 
 class NodeVisitor:
@@ -29,7 +29,7 @@ class NodeVisitor:
 
 class Projection:
     """
-    A projection into the module (with inline nodes and out-of-line as needed).
+    A projection into the package (with inline nodes and out-of-line as needed).
     'Projecting' is not quite right / complete yet, consider:
      - How do we filter and LoD this?
      - When do we inline out-of-line descendants (like Comments or local Records)?
@@ -92,7 +92,7 @@ class Projection:
 
         seen_by_ck: dict[UUID, Node] = {}
         for node in nodes:
-            if node.metatype != NodeType.STATEMENT or HasDatabase not in node._components:
+            if node.metatype != NodeType.BLOCK or HasDatabase not in node._components:
                 continue
             # sort by ck for consistency
             records = (

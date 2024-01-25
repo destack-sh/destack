@@ -52,7 +52,7 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
         super().__init__()
 
     def __str__(self):
-        return "shards=all"
+        return "shards=*"
 
     def __repr__(self):
         return f"<GlobalSupervisor {self}>"
@@ -121,7 +121,7 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
         for root in read_nodes_request.roots:
             node_type = to_bench_metatype(root.type)
             node_cls = NODE_CLASS_BY_TYPE[node_type]
-            if node_cls.__is_in_module__:
+            if node_cls.__is_in_package__:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid root node type")
 
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)

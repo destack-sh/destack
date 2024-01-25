@@ -7,7 +7,7 @@ from bench.language.code_ import HasCode
 from bench.language.const import (
     NodeType,
     NodeVisibility,
-    StatementType,
+    BlockType,
     StructType,
 )
 from bench.language.database import HasDatabase
@@ -37,7 +37,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language import File, Policy, TypeInfo
+    from bench.language import Policy, TypeInfo, Package
 
 
 @node_component
@@ -45,7 +45,7 @@ class IsInstantiable(Node):
     def prune(self, *args, **kwargs) -> Any:
         from bench.language.value import check_type
 
-        assert self.type == StatementType.CLASS, f"{self!r} is not a class"
+        assert self.type == BlockType.CLASS, f"{self!r} is not a class"
         combined = {}
         for field, arg in zip(self.fields, args):
             combined[field.py_ident] = arg
@@ -58,13 +58,13 @@ class IsInstantiable(Node):
         return TypedDict(combined, self)
 
     def _call_inner(self, *args, **kwargs) -> Any:
-        if self.type == StatementType.CLASS:
+        if self.type == BlockType.CLASS:
             from bench.language.value import check_type
 
             inputs = self._inputs_from_args(args, kwargs)
             check_type(inputs, self)
             return TypedDict(inputs, self)
-        elif self.type == StatementType.CHOICE:
+        elif self.type == BlockType.CHOICE:
             assert len(args) == 1, f"{self!r} must be called with a single argument"
             resolved = self.fields.get(args[0])
             if resolved is None:
@@ -74,78 +74,77 @@ class IsInstantiable(Node):
             raise RuntimeError(f"cannot call instantiate on {self!r}")
 
 
-_STATEMENT_DESCRIPTORS: dict[StatementType, "_StatementDescriptor"] = {}
+_BLOCK_DESCRIPTORS: dict[BlockType, "_BlockTypeDescriptor"] = {}
 
 
 @dataclass(slots=True)
-class _StatementDescriptor:
-    type: StatementType
+class _BlockTypeDescriptor:
+    type: BlockType
     dynamic_components: tuple[typing.Type[Node], ...]
     identifier: IdentifierType
 
     def __post_init__(self):
-        if self.type in _STATEMENT_DESCRIPTORS:
-            raise ValueError(f"statement descriptor for {self.type} already exists")
-        _STATEMENT_DESCRIPTORS[self.type] = self
+        if self.type in _BLOCK_DESCRIPTORS:
+            raise ValueError(f"block descriptor for {self.type} already exists")
+        _BLOCK_DESCRIPTORS[self.type] = self
 
 
 IdentT = IdentifierType
 
-# :StatementDescriptors
-_s = _StatementDescriptor
-_s(StatementType.BOX, (HasFields,), IdentT.VARIABLE)
-_s(StatementType.TAG, (HasFields,), IdentT.VARIABLE)
-_s(StatementType.TEXT, (), IdentT.VARIABLE)
-_s(StatementType.LINK, (), IdentT.VARIABLE)
-_s(StatementType.BLANK, (), IdentT.VARIABLE)
-_s(StatementType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
-_s(StatementType.CLASS, (IsInstantiable, HasFields), IdentT.TYPE)
-_s(StatementType.SIGNAL, (IsInstantiable, HasFields), IdentT.TYPE)
-_s(StatementType.CHOICE, (IsInstantiable, HasFields), IdentT.TYPE)
-_s(StatementType.TASK, (HasTask, HasRun, HasFields), IdentT.FUNCTION)
-_s(StatementType.CODE, (HasCode, HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
-_s(StatementType.FLOW, (HasRun, HasFields), IdentT.FUNCTION)
-_s(StatementType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION)
-_s(StatementType.SINGLE_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
-_s(StatementType.MULTI_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
-_s(StatementType.DATABASE, (HasDatabase, HasFields), IdentT.VARIABLE)
-_s(StatementType.VIEW, (HasFields,), IdentT.VARIABLE)
-_s(StatementType.SCREEN, (), IdentT.VARIABLE)
+_block = _BlockTypeDescriptor
+_block(BlockType.BOX, (HasFields,), IdentT.VARIABLE)
+_block(BlockType.TAG, (HasFields,), IdentT.VARIABLE)
+_block(BlockType.TEXT, (), IdentT.VARIABLE)
+_block(BlockType.LINK, (), IdentT.VARIABLE)
+_block(BlockType.BLANK, (), IdentT.VARIABLE)
+_block(BlockType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
+_block(BlockType.CLASS, (IsInstantiable, HasFields), IdentT.TYPE)
+_block(BlockType.SIGNAL, (IsInstantiable, HasFields), IdentT.TYPE)
+_block(BlockType.CHOICE, (IsInstantiable, HasFields), IdentT.TYPE)
+_block(BlockType.TASK, (HasTask, HasRun, HasFields), IdentT.FUNCTION)
+_block(BlockType.CODE, (HasCode, HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
+_block(BlockType.FLOW, (HasRun, HasFields), IdentT.FUNCTION)
+_block(BlockType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION)
+_block(BlockType.SINGLE_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
+_block(BlockType.MULTI_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
+_block(BlockType.DATABASE, (HasDatabase, HasFields), IdentT.VARIABLE)
+_block(BlockType.VIEW, (HasFields,), IdentT.VARIABLE)
+_block(BlockType.SCREEN, (), IdentT.VARIABLE)
 
-assert len(_STATEMENT_DESCRIPTORS) == len(StatementType), "missing statement descriptors"
-del _s
+assert len(_BLOCK_DESCRIPTORS) == len(BlockType), "missing block descriptors"
+del _block
 
-_IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
-    t.type: t.identifier for t in _STATEMENT_DESCRIPTORS.values()
+_IDENTIFIER_BY_TYPE: dict[BlockType, IdentifierType] = {
+    t.type: t.identifier for t in _BLOCK_DESCRIPTORS.values()
 }
-_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node], ...]] = {
-    t.type: t.dynamic_components for t in _STATEMENT_DESCRIPTORS.values()
+_DYNAMIC_COMPONENTS_BY_TYPE: dict[BlockType, tuple[typing.Type[Node], ...]] = {
+    t.type: t.dynamic_components for t in _BLOCK_DESCRIPTORS.values()
 }
 _ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node], ...] = tuple(
-    c for t in _STATEMENT_DESCRIPTORS.values() for c in t.dynamic_components
+    c for t in _BLOCK_DESCRIPTORS.values() for c in t.dynamic_components
 )
 
 
 @node(
-    NodeType.STATEMENT,
+    NodeType.BLOCK,
     passthrough=(("value", _Passthrough.Full),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
-class Statement(ScopeNode, HasTags):
+class Block(ScopeNode, HasTags):
     """A Bench building block, the core building block containing logic, schemas, data and AI stuff."""
 
-    parent: Union["Statement", "File"] = node_parent(4, NodeType.STATEMENT, NodeType.FILE)
-    children: NodeList["Statement"] = node_children(
-        NodeType.STATEMENT, NRel.ORDERED | NRel.NAMED | NRel.SCOPED
+    parent: Union["Block", "Package"] = node_parent(4, NodeType.BLOCK, NodeType.PACKAGE)
+    children: NodeList["Block"] = node_children(
+        NodeType.BLOCK, NRel.ORDERED | NRel.NAMED | NRel.SCOPED
     )
 
     visibility: NodeVisibility = struct_internal(20, default=NodeVisibility.PUBLIC)
     policies: Optional[list["Policy"]] = struct_internal(
         21, default_factory=list, struct_t=StructType.POLICY
     )
-    type: StatementType = struct_internal(30, default=StatementType.BLANK)
-    bases: list["Statement"] | None = struct_internal(
-        31, default=None, require=False, array=True, references=NodeType.STATEMENT
+    type: BlockType = struct_internal(30, default=BlockType.BLANK)
+    bases: list["Block"] | None = struct_internal(
+        31, default=None, require=False, array=True, references=NodeType.BLOCK
     )
     builtin_base: Optional["TypeInfo"] = struct_internal(
         32, default=None, struct_t=StructType.TYPE_INFO
@@ -166,40 +165,40 @@ class Statement(ScopeNode, HasTags):
 
     # specific
     code: str | None = struct_property(50, default=None, validate=validate_is_str)
-    reference: Optional["Statement"] = struct_internal(
-        51, require=False, array=False, references=NodeType.STATEMENT
+    reference: Optional["Block"] = struct_internal(
+        51, require=False, array=False, references=NodeType.BLOCK
     )
 
     @staticmethod
     def new(
-        type: Union[str, StatementType] = None,
+        type: Union[str, BlockType] = None,
         name: str = None,
         *args,
-        for_parent: Union["Statement", "File", None] = None,
+        for_parent: Union["Block", "Package", None] = None,
         **kwargs,
-    ) -> "Statement":
+    ) -> "Block":
         if type is None:
             raise ValueError("type must be specified")
-        if not isinstance(type, StatementType):
-            type = StatementType(type.lower())
-        return Statement(type=type, name=name, *args, **kwargs)
+        if not isinstance(type, BlockType):
+            type = BlockType(type.lower())
+        return Block(type=type, name=name, *args, **kwargs)
 
     @staticmethod
     def text_(text: str, *args, **kwargs):
-        return Statement.new(type=StatementType.TEXT, text=text, *args, **kwargs)
+        return Block.new(type=BlockType.TEXT, text=text, *args, **kwargs)
 
     # the others are defined after the class
 
     @staticmethod
     def to_python(
-        node: "Statement", props: dict, for_parent: Union["Statement", "File", None] = None
+        node: "Block", props: dict, for_parent: Union["Block", "Package", None] = None
     ) -> tuple[str, dict, dict]:
-        init_name = f"{node.type.lower()}Statement"
-        if init_name == "Statement.class":
-            init_name = "Statement.class_"
-        if node.type == StatementType.BLANK:
+        init_name = f"{node.type.lower()}Block"
+        if init_name == "Block.class":
+            init_name = "Block.class_"
+        if node.type == BlockType.BLANK:
             init_args = {}
-        elif node.type == StatementType.TEXT:
+        elif node.type == BlockType.TEXT:
             init_args = {"text": node.text}
             if node.name:
                 init_args = {"name": node.name, **init_args}
@@ -233,9 +232,9 @@ class Statement(ScopeNode, HasTags):
                 if prop.is_runtime_only and prop.name not in self.__dict__:
                     setattr(self, prop.name, prop.new())
 
-    def morph(self, to_type: StatementType):
+    def morph(self, to_type: BlockType):
         self.type = to_type
-        Statement._init_inner(self)
+        Block._init_inner(self)
         if self.attached:
             self._session.update(self, ["type"])
         # what else to do? trigger global reinterp? flush local PG edits?
@@ -246,21 +245,19 @@ class Statement(ScopeNode, HasTags):
         return _IDENTIFIER_BY_TYPE[self.type]
 
 
-# Statement.<type> convenience constructors
-Statement.text = Statement.text_
-for _type in StatementType:
-    if _type == StatementType.TEXT:
+# Block.<type> convenience constructors
+Block.text = Block.text_
+for _type in BlockType:
+    if _type == BlockType.TEXT:
         continue
     method = staticmethod(
-        lambda name=None, _type=_type, *args, **kwargs: Statement.new(
-            _type, name=name, *args, **kwargs
-        )
+        lambda name=None, _type=_type, *args, **kwargs: Block.new(_type, name=name, *args, **kwargs)
     )
     method_name = _type.lower()
     if method_name in ("type", "class"):
         method_name += "_"
-    setattr(Statement, method_name, method)
+    setattr(Block, method_name, method)
 
-_ALL_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node]]] = {
-    t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Statement.__static_components__ for t in StatementType
+_ALL_COMPONENTS_BY_TYPE: dict[BlockType, tuple[typing.Type[Node]]] = {
+    t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Block.__static_components__ for t in BlockType
 }

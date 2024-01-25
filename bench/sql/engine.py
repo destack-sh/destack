@@ -15,7 +15,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 import bench.language as lang
-from bench.language import ConditionalOp, Field, Module, QueryEngine, Session, Statement
+from bench.language import ConditionalOp, Field, Package, QueryEngine, Session, Block
 from bench.language.const import NODE_TYPES, EditKind, NodeType, to_bench_metatype
 from bench.language.database import HasDatabase
 from bench.language.expression import (
@@ -152,16 +152,16 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
         )
         constraints.append(constraint)
 
-    # index [module] + deleted_at/archived_at if applicable
+    # index [package] + deleted_at/archived_at if applicable
     for prop_name in ("deleted_at", "archived_at"):
         prop = node.__properties__.get(prop_name)
         if prop is None:
             continue
-        if node.__is_in_module__ and "module_id" in node.__properties__:
+        if node.__is_in_package__ and "package_id" in node.__properties__:
             index = Index(
-                f"bench_idx_module_{prop_name}",
+                f"bench_idx_package_{prop_name}",
                 type=IndexType.BTREE,
-                columns=("module_id", prop_name),
+                columns=("package_id", prop_name),
                 _source=prop.id,
             )
         else:
@@ -213,7 +213,7 @@ def map_field_to_pg_column(field: lang.Field) -> Column:
     )
 
 
-def map_database_to_pg_table(statement: lang.Statement) -> Table:
+def map_database_to_pg_table(statement: lang.Block) -> Table:
     """Gets the full table with all specific fields of a database and general record stuff."""
     columns = [map_field_to_pg_column(f) for f in statement.fields]
     indexes = []
@@ -228,13 +228,13 @@ def map_database_to_pg_table(statement: lang.Statement) -> Table:
     )
 
 
-async def update_dynamic_local_pg_schema(pg_name: str, module: Module) -> None:
-    """Updates the dynamic local record Postgres tables for a module's databases."""
-    log = logger.bind(pg_name=pg_name, module=module)
-    databases: list[lang.Statement] = [
-        cast(lang.Statement, s)
-        for s in module._nodes
-        if s.metatype == NodeType.STATEMENT and HasDatabase in s._components and not s.ephemeral
+async def update_dynamic_local_pg_schema(pg_name: str, package: Package) -> None:
+    """Updates the dynamic local record Postgres tables for a package's databases."""
+    log = logger.bind(pg_name=pg_name, package=package)
+    databases: list[lang.Block] = [
+        cast(lang.Block, s)
+        for s in package._nodes
+        if s.metatype == NodeType.BLOCK and HasDatabase in s._components and not s.ephemeral
     ]
     tables: list[Table] = [d._table for d in databases]
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))
@@ -355,7 +355,7 @@ def _compile_expression_ref(
         return sql.Identifier(expr._stored_property_resolved.name)
     elif expr.field is not None:
         assert expr.field._reflected_from is None, f"cannot use reflected: {expr!r}->{expr.field!r}"
-        if isinstance(node, Statement) and node.ephemeral:
+        if isinstance(node, Block) and node.ephemeral:
             return SqlJsonPath(sql.Identifier("value"), [expr.field.storage_key])
         else:
             return sql.Identifier(get_field_column_name(expr.field))
@@ -1104,7 +1104,7 @@ async def pg_read_node(
 
 async def pg_write_regular_edits(
     cur: psycopg.AsyncCursor,
-    module: Module,
+    package: Package,
     edits: list[EditData],
     *,
     return_nodes: bool = False,
@@ -1116,7 +1116,7 @@ async def pg_write_regular_edits(
 
 async def pg_write_record_edits(
     cur: psycopg.AsyncCursor,
-    module: Module,
+    module: Package,
     edits: list[EditData],
     *,
     return_nodes: bool = False,

@@ -22,7 +22,7 @@ async def imitate_worker(bench: str):
         "WORKER_SET_ID": str(bench.worker_set.id),
         "WORKER_ID": "local",
         "BENCH_ID": str(bench.id),
-        "MODULE_ID": str(bench.head_id),
+        "PACKAGE_ID": str(bench.head_id),
         "LOCAL_PG_NAME": bench.pg_name,
         "LOCAL_PG_USERNAME": bench.pg_username,
         "LOCAL_PG_PASSWORD": bench.pg_password,

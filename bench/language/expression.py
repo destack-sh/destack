@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 #
-# Expression language. Primarily for module, search and storage (database).
+# Expression language. Primarily for package, search and storage (database).
 #
 
 
@@ -109,7 +109,7 @@ class FieldPathSegment(Struct):
 class ValueReference(Struct):
     """Reference a value at a path of a Node."""
 
-    node: Node = struct_property(30, require=True, array=False, references=(NodeType.STATEMENT,))
+    node: Node = struct_property(30, require=True, array=False, references=(NodeType.BLOCK,))
     path: FieldPath = struct_property(31, require=True, struct=StructType.FIELD_PATH)
 
     def __content_str__(self):

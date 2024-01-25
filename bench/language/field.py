@@ -11,7 +11,7 @@ from bench.language.const import (
     BenchType,
     StructType,
     FormatHint,
-    StatementType,
+    BlockType,
 )
 from bench.language.node import (
     Node,
@@ -40,7 +40,7 @@ from bench.utils.casing import IdentifierType
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
 if typing.TYPE_CHECKING:
-    from bench.language import Statement, Expression
+    from bench.language import Block, Expression
     from bench.language.issue import IssueHandler
 
 logger = structlog.get_logger(__name__)
@@ -107,8 +107,8 @@ class TypeInfo(Struct):
     # type identity (must set at least one of these)
     column_type: Optional[ColumnType] = struct_property(40, default=None)
     bench_type: Optional[BenchType] = struct_property(41, default=None)
-    base_type: Optional["Statement"] = struct_property(
-        42, array=False, require=False, default=None, references=NodeType.STATEMENT
+    base_type: Optional["Block"] = struct_property(
+        42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
     # + bonus info/constraints
     format_hint: Optional[FormatHint] = struct_property(43, default=None)
@@ -154,9 +154,9 @@ class TypeInfo(Struct):
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
         # NOTE: TypeInfo.interp / derivation probably isn't quite right yet
         if self.base_type is not None:
-            if self.base_type_type == StatementType.ALIAS:  # newtype
+            if self.base_type_type == BlockType.ALIAS:  # newtype
                 raise NotImplementedError("newtypes are not supported yet")
-            elif self.base_type_type == StatementType.CHOICE and self.bench_type == NodeType.FIELD:
+            elif self.base_type_type == BlockType.CHOICE and self.bench_type == NodeType.FIELD:
                 self._derived_type = self.extend(column_type=ColumnType.STRING)
             else:
                 self._derived_type = self.extend(column_type=ColumnType.UUID)
@@ -195,7 +195,7 @@ class TypeInfo(Struct):
         return key
 
     @property
-    def base_type_type(self) -> Optional[StatementType]:
+    def base_type_type(self) -> Optional[BlockType]:
         if self.base_type:
             return self.base_type.type
         else:
@@ -213,7 +213,7 @@ class TypeInfo(Struct):
 
 @node(NodeType.FIELD)
 class Field(HasValue, TypeInfo, _FieldExpressionBase):
-    parent: Union["Statement", None] = node_parent(4, NodeType.STATEMENT)
+    parent: Union["Block", None] = node_parent(4, NodeType.BLOCK)
     name: str | None = struct_property(30, default=None, validate=validate_name)
     order_key: str | None = struct_internal(31, default=None)
     dynamic_key: str | None = struct_internal(32, default=None)

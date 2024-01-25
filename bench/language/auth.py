@@ -20,11 +20,11 @@ from bench.language.node import (
     struct,
     struct_internal,
     struct_runtime,
-    Module,
+    Package,
 )
 
 if TYPE_CHECKING:
-    from bench.language import Expression, User, Statement
+    from bench.language import Expression, User, Block
 
 
 @struct(StructType.POLICY)
@@ -109,7 +109,7 @@ class Context(Struct):
 class Badge(Node):
     """A badge for an unknown identity to access (parts of) this Bench."""
 
-    parent: Union[Module, "Statement"] = node_parent(4, NodeType.MODULE, NodeType.STATEMENT)
+    parent: Union[Package, "Block"] = node_parent(4, NodeType.PACKAGE, NodeType.BLOCK)
     type: BadgeType = struct_internal(30)
     name: Optional[str] = struct_internal(31)
     policy: Policy = struct_internal(32, struct_t=StructType.POLICY)

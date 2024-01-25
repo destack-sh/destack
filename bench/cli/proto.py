@@ -31,9 +31,9 @@ def _generate_proto_schema() -> str:
         unions={"SomeNode": ("node", NODE_CLASSES)},
         extras=[
             Message(
-                name="ModuleTreeData",
+                name="PackageTreeData",
                 fields=[
-                    Field(id=1, name="module", type="ModuleData"),
+                    Field(id=1, name="package", type="PackageData"),
                     Field(id=2, name="nodes", type="SomeNodeData", repeated=True),
                 ],
             ),

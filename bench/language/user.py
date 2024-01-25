@@ -7,7 +7,7 @@ from bench.utils.casing import IdentifierType
 
 
 @node(
-    NodeType.HANDLE, root=None, in_module=False, in_bench=False, identifier=IdentifierType.VARIABLE
+    NodeType.HANDLE, root=None, in_package=False, in_bench=False, identifier=IdentifierType.VARIABLE
 )
 class Handle(Node):
     """A (global) Bench handle."""
@@ -15,7 +15,9 @@ class Handle(Node):
     slug: str = struct_internal(30, unique=True)
 
 
-@node(NodeType.USER, root=None, in_module=False, in_bench=False, identifier=IdentifierType.VARIABLE)
+@node(
+    NodeType.USER, root=None, in_package=False, in_bench=False, identifier=IdentifierType.VARIABLE
+)
 class User(ScopeNode):
     """A (global) Bench user."""
 
@@ -35,7 +37,7 @@ class User(ScopeNode):
 @node(
     NodeType.ORGANIZATION,
     root=None,
-    in_module=False,
+    in_package=False,
     in_bench=False,
     identifier=IdentifierType.VARIABLE,
 )
@@ -51,7 +53,7 @@ class Organization(ScopeNode):
     NodeType.CLIENT,
     root=NodeType.USER,
     in_bench=False,
-    in_module=False,
+    in_package=False,
     identifier=IdentifierType.VARIABLE,
 )
 class Client(Node):
@@ -71,7 +73,7 @@ class Client(Node):
         return self.parent
 
 
-@node(NodeType.NOTIFICATION, root=NodeType.USER, in_bench=False, in_module=False)
+@node(NodeType.NOTIFICATION, root=NodeType.USER, in_bench=False, in_package=False)
 class Notification(Node):
     """A notification for a user."""
 
