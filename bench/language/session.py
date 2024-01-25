@@ -652,7 +652,7 @@ class Session(ScopeNode):
     def _run_enter(self, statement: "Statement", inputs):
         # we set invalid values to none here unlike in other packing places because
         #  these values may be written even if invalid
-        from bench.language.packer import check_type, pack_value
+        from bench.language.value import check_type, pack_value
 
         assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
 
@@ -677,7 +677,7 @@ class Session(ScopeNode):
             raise e
 
     def _run_exit(self, statement: "Statement", outputs):
-        from bench.language.packer import check_type
+        from bench.language.value import check_type
 
         assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
 
@@ -937,7 +937,7 @@ def _pack_and_truncate_value(
     none_if_invalid: bool = False,
     is_output: bool = None,
 ) -> Any:
-    from bench.language.packer import map_value, pack_value_flat
+    from bench.language.value import map_value, pack_value_flat
 
     def _is_type_truncated(type: "HasFields") -> bool:
         return type.tag in (TypeTag.VECTOR,)

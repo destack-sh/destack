@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 @node_component
 class IsInstantiable(Node):
     def prune(self, *args, **kwargs) -> Any:
-        from bench.language.packer import check_type
+        from bench.language.value import check_type
 
         assert self.type == StatementType.CLASS, f"{self!r} is not a class"
         combined = {}
@@ -59,7 +59,7 @@ class IsInstantiable(Node):
 
     def _call_inner(self, *args, **kwargs) -> Any:
         if self.type == StatementType.CLASS:
-            from bench.language.packer import check_type
+            from bench.language.value import check_type
 
             inputs = self._inputs_from_args(args, kwargs)
             check_type(inputs, self)
@@ -148,7 +148,7 @@ class Statement(ScopeNode, HasTags):
     name: str | None = struct_property(32, default=None, validate=validate_name)
     order_key: str | None = struct_internal(33, default=None)
     text: str | None = struct_property(34, default=None, validate=validate_is_str)
-    key: str | None = struct_internal(35, default=None)
+    dynamic_key: str | None = struct_internal(35, default=None)
     code: str | None = struct_property(36, default=None, validate=validate_is_str)
     value: Any | None = struct_property(
         37, default=None, copy=deepcopy, column_type=ColumnType.JSON

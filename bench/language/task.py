@@ -159,7 +159,7 @@ async def run_task(
     nonce: Optional[str],
     models: list["Statement"] = None,
 ) -> dict:
-    from bench.language.packer import check_type, unpack_value
+    from bench.language.value import check_type, unpack_value
 
     total_attempts = 0
     model_attempts = 0
@@ -394,7 +394,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         self, value: Any, type: Union[Field, "Statement"], *args, **kwargs
     ) -> Any:
         """Model-friendly rendering of instantiated value."""
-        from bench.language.packer import pack_value_flat
+        from bench.language.value import pack_value_flat
 
         if type._effective_tag == TypeTag.ENUM:
             return type.fields.get(value).name
@@ -422,7 +422,7 @@ class BaseTextTaskCompiler(TaskCompiler):
             return f"{error.type}: {error.message}"
 
     def _compile_run_text(self, run: Run) -> str:
-        from bench.language.packer import map_value
+        from bench.language.value import map_value
 
         if run.status == RunStatus.FAILED:
             return self._compile_error_text(run)
@@ -446,7 +446,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],
     ) -> str:
-        from bench.language.packer import render_value
+        from bench.language.value import render_value
 
         # system wrapper
         messages: list[str] = [

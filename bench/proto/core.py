@@ -92,7 +92,7 @@ class Message(ProtoObject):
             source += f"{textwrap.indent(field.to_proto_source(), '  ')};\n"
         source += "}"
         if self.comment:
-            source = f"// {_to_multi_line_comment(self.comment)}\n" + source
+            source = f"{_to_multi_line_comment(self.comment)}\n" + source
         return source
 
 
@@ -138,7 +138,7 @@ class Enum(ProtoObject):
             source += f"  {value.to_proto_source()};\n"
         source += "}"
         if self.comment:
-            source = f"// {_to_multi_line_comment(self.comment)}\n" + source
+            source = f"{_to_multi_line_comment(self.comment)}\n" + source
         return source
 
 

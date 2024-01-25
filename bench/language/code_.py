@@ -214,7 +214,7 @@ class HasCode(Node):
         """
 
         async def _proxied_async(*args, **kwargs):
-            from bench.language.packer import pack_value, unpack_value
+            from bench.language.value import pack_value, unpack_value
 
             inputs = self._inputs_from_args(args, kwargs)
             inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer=True)
@@ -231,7 +231,7 @@ class HasCode(Node):
 
     def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
         """Wraps a callable with caching for #cache tag."""
-        from bench.language.packer import check_type, pack_value, unpack_value
+        from bench.language.value import check_type, pack_value, unpack_value
         from bench.language.run import CachedRun, get_run_cache_subkey
 
         def _get_cached_output(inputs: dict, cached_run: bytes) -> Optional[dict]:

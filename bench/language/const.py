@@ -332,6 +332,7 @@ class NotificationStatus(ProtoStrEnum):
     EXPIRED = "EXPIRED", 3
 
 
+# ColumnType is pulled out from sql/core because it's also used in our type system
 class ColumnType(ProtoStrEnum):
     """
     Fundamental column / storage types we support (subset of SQL types).

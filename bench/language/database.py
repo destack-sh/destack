@@ -9,7 +9,7 @@ import structlog
 from asgiref.sync import async_to_sync
 from psycopg import sql
 
-from bench.language.const import ConditionalOp, NodeType, QueryEngine, new_dynamic_node_key
+from bench.language.const import ConditionalOp, NodeType, QueryEngine, new_dynamic_node_key, UNSET
 from bench.language.expression import C, Expression, ExpressionOps, coerce_conditional, coerce_sort
 from bench.language.issue import IssueHandler
 from bench.language.node import (
@@ -28,6 +28,7 @@ from bench.language.node import (
     node_parent,
     struct_property,
     struct_runtime,
+    struct_internal,
 )
 from bench.language.value import HasValue
 from bench.sql.core import RECORD_EPHEMERAL_TABLE, ColumnType, Table
@@ -75,7 +76,7 @@ class Record(HasValue, Node):
         _ck: UUID = None,
         **kwargs,
     ) -> "Record":
-        from bench.language.packer import check_type
+        from bench.language.value import check_type
 
         if not for_parent and args:
             raise TypeError(f"cannot create record with args {args} without for_parent")
@@ -179,7 +180,7 @@ class RecordQuery:
         """Combines the custom with the default filter for this database."""
         return Expression.and_if_set(
             self._filter,
-            C(ConditionalOp.EQUALS, field_key="statement_key", value=self._database.key),
+            C(ConditionalOp.EQUALS, field_key="statement_key", value=self._database.dynamic_key),
             ~C(ConditionalOp.EXISTS, field_key="deleted_at"),
         )
 
@@ -453,7 +454,7 @@ class RecordQuery:
     @_auto_async_to_sync
     async def update(self, **value) -> int:
         """Updates all results with the given values."""
-        from bench.language.packer import check_type, pack_value
+        from bench.language.value import check_type, pack_value
         from bench.sql.engine import compile_pg_conditional, pg_update_static, pg_wrap_record_value
 
         self._require_engine(QueryEngine.LOCAL_POSTGRES)
@@ -498,7 +499,7 @@ class RecordQuery:
             await session.flush_local()
         where = Expression.and_if_set(
             self._filter,
-            C(ConditionalOp.EQUALS, field_key="statement_key", value=self._database.key),
+            C(ConditionalOp.EQUALS, field_key="statement_key", value=self._database.dynamic_key),
         )
         deleted_rows = await pg_delete(
             cur=await self._database._get_pg_cursor(),
@@ -598,8 +599,9 @@ class RecordList(NodeListBase[Record], RecordQuery):
 
 @node_component
 class HasDatabase(Node):
+    dynamic_key: str | None = struct_internal(UNSET, default=None)
     views: NodeList["View"] = node_children(NodeType.VIEW, NRel.NAMED | NRel.ORDERED)
-    records: NodeList[Record] = node_children(
+    records: RecordList[Record] = node_children(
         NodeType.RECORD, NRel.STORED_CUSTOM, custom_list=RecordList
     )
     _table: Optional[Table] = struct_runtime(default=None)
@@ -607,8 +609,8 @@ class HasDatabase(Node):
     def _init_inner(self):
         # this runs before HasFields because of the ordering in
         #  (which is necessary because HasFields also sets key)
-        if self.key is None:
-            self.key = self._derive_key()
+        if self.dynamic_key is None:
+            self.dynamic_key = self._derive_dynamic_key()
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None) -> None:
         self._table = None
@@ -625,12 +627,16 @@ class HasDatabase(Node):
         return await self.session.pg_cursor_to_local(module=self.module)
 
     @property
+    def is_materialized(self):
+        # should this database be a real database table
+        return True
+
+    @property
     def ephemeral(self) -> bool:
-        # basically whether this should be 1:1 a real database table or just virtual (ephemeral)
-        return False
+        return not self.is_materialized
 
     @staticmethod
-    def _derive_key(instance: "HasDatabase") -> str | None:
+    def _derive_dynamic_key(instance: "HasDatabase") -> str | None:
         if not instance.shared:
             if instance.id is not None:
                 return new_dynamic_node_key(instance.id)

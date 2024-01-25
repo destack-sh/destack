@@ -2132,8 +2132,8 @@ RELATIVE_PATTERN = re.compile(r"(\.\.)|(\.)")
 class BenchPath(Struct):
     """
     A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
-    Path are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
-    Sub-nodes inside a block are prefixed by a ':', fields are accessed (and separated) by '.'.
+    Paths are case-insensitive, support alphanum + spaces and use '/' as a primary separator.
+    Sub-nodes inside a block are prefixed by a ':'; any node's fields are accessed with '.'.
 
     flotothemoon/Mirror/Notion/Databases/Landscape
     ^ bench      ^ blocks
