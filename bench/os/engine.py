@@ -667,7 +667,7 @@ async def sync_pg_databases_to_os(
             records_data = [pg_unpack_record_data_row(database, row) for row in records_data]
             # delete table by query
             await os_client.delete_by_query(
-                index=os_name, body={"query": {"term": {"statement_key": database.key}}}
+                index=os_name, body={"query": {"term": {"statement_key": database.dynamic_key}}}
             )
         else:
             if not record_ids:
@@ -986,9 +986,9 @@ async def os_sync_databases(module: Module, databases: list[HasDatabase]) -> Non
     all_records: list[wire.RecordData] = []
     async with async_pg_cursor(module.pg_name) as cur:
         for database in databases:
-            where = C(ConditionalOp.EQUALS, field_key="statement_key", value=database.key) & ~C(
-                ConditionalOp.EXISTS, field_key="deleted_at"
-            )
+            where = C(
+                ConditionalOp.EQUALS, field_key="statement_key", value=database.dynamic_key
+            ) & ~C(ConditionalOp.EXISTS, field_key="deleted_at")
             records_data, _, _ = await pg_select_records_data(cur, database, where=where)
             all_records.extend(records_data)
 

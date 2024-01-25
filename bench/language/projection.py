@@ -105,7 +105,7 @@ class Projection:
         return seen_by_ck
 
     def view_value(self, value: dict, type: "IsTyped", is_output: bool = None) -> dict[UUID, Node]:
-        from bench.language.packer import walk_value
+        from bench.language.value import walk_value
         from bench.language.text import Text
 
         seen_by_ck: dict[UUID, Node] = {}

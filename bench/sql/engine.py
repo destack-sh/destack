@@ -1278,7 +1278,7 @@ def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) ->
         "last_edited_at": record.last_edited_at,
         "last_edited_by_id": None,
         "revision": record.revision,
-        "statement_key": database.key,
+        "statement_key": database.dynamic_key,
     }
     if database.ephemeral:
         row["statement_ck"] = database.ck
@@ -1440,7 +1440,7 @@ async def pg_duplicate_records(
 
     # TODO @Performance: duplicate records within same database directly in postgres
     where = where & lang.C(
-        ConditionalOp.EQUALS, field_key="statement_key", value=source_database.key
+        ConditionalOp.EQUALS, field_key="statement_key", value=source_database.dynamic_key
     )
     log = logger.bind(source=source_database, target=target_database, where=where)
     log.debug("pg.duplicate_records", copy_revisions=copy_revisions, keep_cks=keep_cks)
@@ -1452,7 +1452,7 @@ async def pg_duplicate_records(
             if not keep_cks:
                 record_row["ck"] = uuid4()
             record_row["id"] = get_node_id(target_module_id, ck=record_row["ck"])
-            record_row["statement_key"] = target_database.key
+            record_row["statement_key"] = target_database.dynamic_key
             if not copy_revisions:
                 record_row["revision"] = 0
         await pg_insert(cur=target_cur, table=target_table, rows=record_rows)

@@ -388,8 +388,8 @@ class NodeList(NodeListBase[NodeT]):
 
     def __contains__(self, obj: object) -> bool:
         # special case to unwrap key (e.g. for tagging/tag objects)
-        if self._flags & NRel.KEYED and hasattr(obj, "key"):
-            obj = obj.key
+        if self._flags & NRel.KEYED and hasattr(obj, "dynamic_key"):
+            obj = obj.dynamic_key
         if isinstance(obj, str) and (self._flags & NRel.KEYED or self._flags & NRel.NAMED):
             return self.get(obj) is not None
         elif isinstance(obj, Node):

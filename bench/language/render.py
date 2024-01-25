@@ -60,7 +60,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
     Render a non-relational prop (may be a reference, but not a parent/child relation).
     TODO @Broken: _render_prop recursively with all nodes/structs (blobs, secrets, etc. see typing)
     """
-    from bench.language.packer import render_value
+    from bench.language.value import render_value
     from bench.language.value import HasValue
 
     if value is None:
@@ -158,7 +158,7 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
             if not prop.is_runtime_only
             and not prop.is_tree_relation
             and prop.id >= 30
-            and prop.name not in ("id", "ck", "parent", "order_key", "key")
+            and prop.name not in ("id", "ck", "parent", "order_key", "dynamic_key")
             and getattr(node, prop.name, UNSET) is not prop.default
         }
 
@@ -211,7 +211,7 @@ def render_as_python(nodes: Collection[Node]) -> Optional[str]:
             n, init_name, init_args, init_kwargs = node
             # inline record value (see Record.new)
             if n.metatype == NodeType.RECORD:
-                from bench.language.packer import render_value
+                from bench.language.value import render_value
 
                 kwargs_str = _sep(
                     f"{k}={render_value(v, n.metatype_of_value.fields.get(k), filter_v=DEFAULT_VALUE_FILTER)}"

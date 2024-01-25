@@ -65,7 +65,7 @@ class HasModel(HasFields, Node):
         return True
 
     async def _call_inner_async(self, timeout: int = None, cache: bool = None, **inputs):
-        from bench.language.packer import check_type, pack_value, unpack_value
+        from bench.language.value import check_type, pack_value, unpack_value
         from bench.language.run import get_run_cache_subkey
 
         if cache is None:
@@ -160,7 +160,7 @@ class HasModel(HasFields, Node):
         Runs inference on the given endpoint without timeout.
         This should be asyncio.shield-ed to ensure we write the result to cache (if enabled).
         """
-        from bench.language.packer import pack_value
+        from bench.language.value import pack_value
 
         started_at = utcnow_with_tz()
         log.debug("inference.enter")

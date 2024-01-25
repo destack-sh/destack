@@ -79,6 +79,8 @@ class TypeError(TypeError):
 
 @struct(StructType.TYPE_INFO)
 class TypeInfo(Struct):
+    """"""
+
     # type identity (must set one of these)
     base_type: Optional["Statement"] = struct_property(
         40, array=False, require=False, default=None, references=NodeType.STATEMENT
@@ -97,6 +99,9 @@ class TypeInfo(Struct):
     is_output: bool = struct_internal(52, default=False)
     is_secret: bool = struct_internal(53, default=False)
     is_literal: bool = struct_internal(54, default=False)
+
+    # separate _fields for restricting base type to a subset of fields (e.g., only inputs)
+    _fields: tuple["Field", ...] | None = struct_runtime(default=None)
 
     def __content_str__(self) -> str:
         if self.base_type is not None:
@@ -122,14 +127,30 @@ class TypeInfo(Struct):
         return info_str
 
     @property
-    def _identity_key(self) -> str:
+    def identity_key(self) -> str:
+        """The identity of this type for storing. Different keys mean you won't get the value back out."""
         assert self.column_type is not None, f"no column type in {self!r}"
         key = str(self.column_type.id)
         if self.is_array:
             key += "a"
         if self.is_secret:
             key += "s"
+        if self.base_type:
+            key += "-" + self.base_type.dynamic_key
         return key
+
+    @property
+    def (self):
+        return
+
+    @property
+    def fields(self) -> NodeList["Field"] | tuple["Field", ...] | None:
+        if self._fields is not None:
+            return self._fields
+        elif self.base_type and HasFields in self.base_type._components:
+            return self.base_type.fields
+        else:
+            return None
 
 
 @node(NodeType.FIELD)
@@ -138,7 +159,7 @@ class Field(HasValue, TypeInfo, _FieldExpressionBase):
     name: str | None = struct_property(30, default=None, validate=validate_name)
     order_key: str | None = struct_internal(31, default=None)
     text: str | None = struct_property(32, default=None, validate=validate_is_str)
-    key: str | None = struct_internal(33, default=None)  # nocheckin: rename -> dynamic key
+    dynamic_key: str | None = struct_internal(33, default=None)
     value: Any | None = struct_property(
         34, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
@@ -160,7 +181,7 @@ class Field(HasValue, TypeInfo, _FieldExpressionBase):
             return IdentifierType.PROPERTY
 
     def _init_inner(self):
-        self.key = self.key or new_dynamic_node_key(self.ck)
+        self.dynamic_key = self.dynamic_key or new_dynamic_node_key(self.ck)
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
         pass  # nocheckin: derive/interp Field._derived_type
@@ -172,7 +193,7 @@ class Field(HasValue, TypeInfo, _FieldExpressionBase):
 
     @property
     def _storage_key(self) -> str:
-        return f"{self.key}-{self.derived_type._identity_key}"
+        return f"{self.dynamic_key}-{self.derived_type.identity_key}"
 
 
 @node_component
@@ -184,16 +205,19 @@ class HasFields(Node):
     )
 
     _did_resolve_fields: bool = struct_runtime(default=False)
+    _as_type_info: TypeInfo | None = struct_runtime(default=None)
 
     def _init_inner(self):
-        if self.key is None:
-            self.key = new_dynamic_node_key(self.ck)
+        if self.dynamic_key is None:
+            self.dynamic_key = new_dynamic_node_key(self.ck)
 
     def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
         self._did_resolve_fields = False
+        self._as_type_info = None
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         self._resolve_fields([], on_issue)
+        self._as_type_info = TypeInfo(base_type=self)
 
     def _resolve_fields(self: "HasFields", path: list["Node"], on_issue: "IssueHandler") -> None:
         """
