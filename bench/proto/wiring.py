@@ -178,7 +178,7 @@ def unpack_struct(struct_data: AnyStructData) -> Struct:
                 continue
             value = getattr(struct_data, prop.name)
             struct_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
-        return struct_cls(**struct_kwargs)
+        return struct_cls(**struct_kwargs, _status=NodeStatus.SOURCE)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {struct_data.metatype.name}: {struct_data!r}") from e
 
@@ -208,7 +208,7 @@ def unpack_node(node_data: AnyNodeData, parent: Node | None, session: Session | 
                 continue
             value = getattr(node_data, prop.name)
             node_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
-        return node_cls(**node_kwargs, parent=parent, _session=session)
+        return node_cls(**node_kwargs, parent=parent, _session=session, _status=NodeStatus.SOURCE)
     except (AttributeError, TypeError, ValueError, KeyError) as e:
         raise ValueError(f"could not unpack {node_data.metatype.name}: {node_data!r}") from e
 
@@ -274,12 +274,6 @@ def unpack_node_inline(
         real_root._root_tree.set(unpacked_tree.nodes)
     for node in unpacked_tree.nodes_by_id.values():
         node._status = NodeStatus.SOURCE  # status is auto-set to interpreted if a session is active
-    if isinstance(real_root, ScopeNode):
-        real_root._index_rec()
-    elif isinstance(real_root, Node):
-        real_root._index_self()
-    else:
-        raise ValueError(f"unexpected root {real_root} ({type(real_root)})")
 
     return real_root
 

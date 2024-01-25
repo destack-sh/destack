@@ -394,16 +394,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         self, value: Any, type: Union[Field, "Statement"], *args, **kwargs
     ) -> Any:
         """Model-friendly rendering of instantiated value."""
-        from bench.language.value import pack_value_flat
-
-        if type._effective_tag == TypeTag.ENUM:
-            return type.fields.get(value).name
-        elif type.hint == TypeHint.RICH_TEXT and isinstance(value, Text):
-            return render_text_simple(value.spans)
-        elif type.hint in (TypeHint.STATEMENT, TypeHint.FIELD):
-            return value.py_ident
-        else:
-            return pack_value_flat(value, type, *args, **kwargs)
+        raise NotImplementedError
 
     async def _render_context(
         self, task: "Statement", projection: Projection, *, exclude_output: bool
@@ -428,10 +419,10 @@ class BaseTextTaskCompiler(TaskCompiler):
             return self._compile_error_text(run)
         else:
             run_inputs_str = json.dumps(
-                map_value(run.inputs, run.node, map_v=self._render_value_flat), indent=2
+                map_value(run.inputs_packed, run.node, map_v=self._render_value_flat), indent=2
             )
             run_outputs_str = json.dumps(
-                map_value(run.outputs, run.node, map_v=self._render_value_flat), indent=2
+                map_value(run.outputs_packed, run.node, map_v=self._render_value_flat), indent=2
             )
             return f"Previous result for '{run.node.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
 

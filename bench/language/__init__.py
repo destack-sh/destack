@@ -17,7 +17,7 @@ from .const import (
 )
 from .database import Record
 from .expression import A, C, E, Expression, S, PropertyReference, NodeReference
-from .field import Field, HasFields
+from .field import Field, HasFields, TypeInfo
 from .file import File
 from .issue import Issue
 from .node import (
@@ -97,6 +97,7 @@ __all__ = [
     "Tagging",
     "Trigger",
     "TriggerType",
+    "TypeInfo",
     "User",
     "VERSION",
     "View",

@@ -691,14 +691,11 @@ class _ComponentMethod(enum.Enum):
     init = "init"
     walk = "walk"
     clear = "clear"
-    index = "index"
     interp = "interp"
     visit = "visit"
     validate = "validate"
     activate = "activate"
     deactivate = "deactivate"
-    attached = "attached"
-    detached = "detached"
     updated = "updated"
     call = "call"
     iter = "iter"
@@ -1228,14 +1225,14 @@ def _make_self_method(
 
     @functools.wraps(wraps)
     def self_method(self: "Struct", *args, _coerce: bool = True, _ignore: bool = False, **kwargs):
-        if from_status is not None and self._status != from_status:
+        if self._status == to_status:
+            return
+        elif from_status is not None and self._status != from_status:
+            # auto coerce the node into the desired to_status if allowed and feasible
             if not _coerce:
                 raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
-            # auto coerce the node into the desired to_status if allowed and feasible
-            if isinstance(self, Node):
-                if self._status == NS.SOURCE and to_status > NS.INDEX:
-                    self._index_self()
-                if self._status == NS.INDEX and to_status > NS.INTERP:
+            elif isinstance(self, Node):
+                if self._status == NS.SOURCE and to_status > NS.INTERP:
                     self._interp_self(self, on_issue=self.scope._on_issue)
             else:  # Struct
                 if self._status == NS.SOURCE and to_status > NS.INTERP:
@@ -1390,11 +1387,11 @@ class Struct(abc.ABC):
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
         # resolve node references :NodeReferences
         for prop in self.__reference_properties__.values():
-            if getattr(self, prop.name, None) is not None:
+            if prop.is_wired or prop.is_stored or getattr(self, prop.name, None) is not None:
                 continue  # already resolved
             ptr = getattr(self, prop.reference_wired_ptr.name)
             if ptr is not None:
-                resolved = scope.resolve(ptr.id or ptr.ck)
+                resolved = scope.lookup(ptr.id or ptr.ck)
                 if resolved is None:
                     on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=prop.name)
                 setattr(self, prop.name, resolved)
@@ -1564,7 +1561,7 @@ class Node(Struct, _NodeExpressionBase):
             self.updated_at = now
             self.last_edited_at = now
             self.last_changed_at = now
-        # get session
+        # init session context
         if self._session is None and self._session is not UNSET:
             from bench.language.builtin import _active_session
 
@@ -1576,6 +1573,7 @@ class Node(Struct, _NodeExpressionBase):
             self._status = NS.INTERP if self._session is not None else NS.SOURCE
         self._init_self()
         if self._status == NS.INTERP and self._session is not None:
+            self._interp_self(self, on_issue=self.scope._on_issue)
             self._activate_self(self._session)
 
     @property
@@ -1689,7 +1687,7 @@ class Node(Struct, _NodeExpressionBase):
             current = self
             while True:
                 # skip bench (same path as pkg)
-                path_segments.append(current.bench_ident)
+                path_segments.append(current.bench_ident or "<unnamed>")
                 next_parent = current.parent
                 has_next = next_parent is not None and next_parent.metatype != NodeType.BENCH
                 if not has_next:
@@ -1815,14 +1813,15 @@ class Node(Struct, _NodeExpressionBase):
     def _walk_structs(self) -> Iterable["Struct"]:
         for prop in self.__struct_properties__.values():
             value = getattr(self, prop.name)
-            if value is not None:
+            if value is None:
+                continue
+            elif not prop.is_array:
                 yield from value._walk_self()
+            elif len(value) > 0:
+                for item in value:
+                    yield from item._walk_self()
 
     # abstract :ComponentMethods in addition to Struct
-
-    def _index_inner(self) -> None:
-        """Index this node."""
-        pass
 
     def _clear_inner(self, scope: Optional["ScopeNode"] = None):
         """Clear this node."""
@@ -1918,7 +1917,6 @@ class Node(Struct, _NodeExpressionBase):
             self._validate_self(self.__tracked_properties__.keys(), on_invalid=on_invalid_raise)
 
     # node has extended set of lifecycle methods
-    _index_self = _make_self_method(_ComponentMethod.index, _index_inner, NS.SOURCE, NS.INDEX)
     _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
     _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
     _activate_self = _make_self_method(
@@ -1927,8 +1925,6 @@ class Node(Struct, _NodeExpressionBase):
     _deactivate_self = _make_self_method(
         _ComponentMethod.deactivate, _deactivate_inner, NS.ACTIVE, NS.INTERP
     )
-    _attached_self = _make_self_method(_ComponentMethod.attached, _attached_inner)
-    _detached_self = _make_self_method(_ComponentMethod.detached, _detached_inner)
     _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
 
     @final
@@ -1996,6 +1992,7 @@ class ScopeNode(Node):
     # the tree is maintained at the highest root node (ideally *the* root node, but may be detached)
     _tree: Union["NodeTreeBase", None] = struct_runtime(default=None)
 
+    @property
     def scope(self) -> "ScopeNode":
         return self
 
@@ -2015,7 +2012,6 @@ class ScopeNode(Node):
     _clear_rec = _make_rec_method(
         _ComponentMethod.clear, Node._clear_self, custom_kwargs=lambda n: dict(scope=n.scope)
     )
-    _index_rec = _make_rec_method(_ComponentMethod.index, Node._index_self)
     _interp_rec = _make_rec_method(
         _ComponentMethod.interp,
         Node._interp_self,

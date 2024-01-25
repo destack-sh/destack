@@ -592,7 +592,7 @@ RECORD_EPHEMERAL_TABLE = Table(
         *(c.clone() for c in RECORD_BASE_TABLE.columns),
         Column("statement_ck", ColumnType.UUID, _source=21),
         Column("statement_id", ColumnType.UUID, _source=22),
-        Column("value", ColumnType.JSON, is_nullable=True, _source=30),
+        Column("value_packed", ColumnType.JSON, is_nullable=True, _source=30),
     ),
     indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes),),
     constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),

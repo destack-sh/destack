@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.24.1"
+VERSION = "2024.01.25.0"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -188,16 +188,16 @@ STATEMENT_TABLE = Table(
         Column("policies", ColumnType.BYTES, is_array=True, is_nullable=True),
         Column("type", ColumnType.STRING, default="'blank'::character varying"),
         Column("bases_statement_ck", ColumnType.UUID, is_array=True, is_nullable=True),
+        Column("builtin_base", ColumnType.BYTES, is_nullable=True),
+        Column("is_inline", ColumnType.BOOLEAN, default="true"),
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("order_key", ColumnType.STRING, is_nullable=True),
-        Column("text", ColumnType.STRING, is_nullable=True),
         Column("dynamic_key", ColumnType.STRING, is_nullable=True),
+        Column("text", ColumnType.STRING, is_nullable=True),
+        Column("value_packed", ColumnType.JSON, is_nullable=True),
+        Column("secret_value_packed", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
         Column("code", ColumnType.STRING, is_nullable=True),
-        Column("value", ColumnType.JSON, is_nullable=True),
-        Column("secret_value", ColumnType.BYTES, is_nullable=True, is_encrypted=True),
         Column("reference_statement_ck", ColumnType.UUID, is_nullable=True),
-        Column("is_inline", ColumnType.BOOLEAN, default="true"),
-        Column("shared", ColumnType.BOOLEAN, default="true"),
     ),
     indexes=(
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
@@ -294,7 +294,7 @@ TAGGING_TABLE = Table(
         Column("deleted_at", ColumnType.DATETIME, is_nullable=True),
         Column("archived_at", ColumnType.DATETIME, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME),
-        Column("value", ColumnType.JSON, is_nullable=True),
+        Column("value_packed", ColumnType.JSON, is_nullable=True),
         Column("reference_statement_ck", ColumnType.UUID, is_nullable=True),
     ),
     indexes=(
@@ -336,9 +336,9 @@ FIELD_TABLE = Table(
         Column("last_edited_at", ColumnType.DATETIME),
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("order_key", ColumnType.STRING, is_nullable=True),
-        Column("text", ColumnType.STRING, is_nullable=True),
         Column("dynamic_key", ColumnType.STRING, is_nullable=True),
-        Column("value", ColumnType.JSON, is_nullable=True),
+        Column("text", ColumnType.STRING, is_nullable=True),
+        Column("value_packed", ColumnType.JSON, is_nullable=True),
         Column("base_type_statement_ck", ColumnType.UUID, is_nullable=True),
         Column("bench_type", ColumnType.STRING, is_nullable=True),
         Column("column_type", ColumnType.STRING, is_nullable=True),
@@ -601,10 +601,10 @@ RUN_TABLE = Table(
         Column("trigger_type", ColumnType.STRING, is_nullable=True),
         Column("trigger_id", ColumnType.UUID, is_nullable=True),
         Column("status", ColumnType.STRING),
-        Column("inputs", ColumnType.JSON, is_nullable=True),
-        Column("outputs", ColumnType.JSON, is_nullable=True),
+        Column("inputs_packed", ColumnType.JSON, is_nullable=True),
+        Column("outputs_packed", ColumnType.JSON, is_nullable=True),
+        Column("value_packed", ColumnType.JSON, is_nullable=True),
         Column("error", ColumnType.JSON, is_nullable=True),
-        Column("value", ColumnType.JSON, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_session_id", IndexType.BTREE, ("session_id",)),
@@ -675,7 +675,7 @@ SIGNAL_TABLE = Table(
         Column("archived_at", ColumnType.DATETIME, is_nullable=True),
         Column("last_edited_at", ColumnType.DATETIME),
         Column("type_statement_ck", ColumnType.UUID, is_nullable=True),
-        Column("value", ColumnType.JSON, is_nullable=True),
+        Column("value_packed", ColumnType.JSON, is_nullable=True),
     ),
     indexes=(
         Index("bench_idx_type_statement_ck", IndexType.BTREE, ("type_statement_ck",)),

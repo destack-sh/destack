@@ -130,20 +130,21 @@ class Run(ScopeNode, HasValue):
     trigger_type: Optional[TriggerType] = struct_internal(39, default=None)
     trigger_id: Optional[UUID] = struct_internal(40, default=None)
     status: RunStatus = struct_internal(42, index_in_pg=True)
-    inputs: Optional[dict[str, Any]] = struct_internal(
+    # NOTE ideally we should generalize HasValue for inputs/outputs as well (not needed yet, see note above)
+    inputs_packed: Optional[dict[str, Any]] = struct_internal(
         43, default=None, column_type=ColumnType.JSON
     )
-    outputs: Optional[dict[str, Any]] = struct_internal(
+    outputs_packed: Optional[dict[str, Any]] = struct_internal(
         44, default=None, column_type=ColumnType.JSON
     )
-    error: Optional["RunError"] = struct_internal(45, default=None, column_type=ColumnType.JSON)
-    value: Any | None = struct_internal(
-        46,
+    value_packed: Any | None = struct_internal(
+        45,
         default=None,
         copy=deepcopy,
         column_type=ColumnType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
+    error: Optional["RunError"] = struct_internal(46, default=None, column_type=ColumnType.JSON)
     runs: list["Run"] = node_children(NodeType.RUN)
 
     def __content_str__(self):
