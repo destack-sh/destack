@@ -32,7 +32,7 @@ from cachetools import cached
 
 from bench.language.const import (
     IN_BENCH_NODE_TYPES,
-    IN_MODULE_NODE_TYPES,
+    IN_PACKAGE_NODE_TYPES,
     INTERP_NODE_TYPES,
     NODE_TYPES,
     NS,
@@ -48,8 +48,9 @@ from bench.language.const import (
     NodeTrackingLevel,
     NodeType,
     NRel,
-    StatementType,
+    BlockType,
     StructType,
+    _active_session,
 )
 from bench.language.link import (
     _NC,
@@ -93,7 +94,7 @@ from bench.utils.utils import frozendict, required_field
 if TYPE_CHECKING:
     from bench.language import (
         Field,
-        File,
+        Block,
         Issue,
         NodeVisitor,
         Organization,
@@ -103,16 +104,15 @@ if TYPE_CHECKING:
         User,
         WorkerSet,
         NodeReference,
-        symbolx_lib,
     )
     from bench.language.issue import IssueHandler
 
 logger = structlog.get_logger(__name__)
 
 
-def get_node_id(module_id: UUID, ck: UUID):
+def get_node_id(package_id: UUID, ck: UUID):
     """Derive the version-specific node id from its constant key"""
-    return uuid.uuid5(module_id, str(ck))
+    return uuid.uuid5(package_id, str(ck))
 
 
 PROPERTY_COLUMN_TYPE_BY_PY_TYPE: dict[type, ColumnType] = {
@@ -135,7 +135,7 @@ class NodeReferenceKind(enum.StrEnum):
 
 @dataclass
 class Property(_FieldExpressionBase):
-    """A property of a module node or struct."""
+    """A property of a package node or struct."""
 
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
     name: str | None = None  # name from LHS of assignment
@@ -458,8 +458,8 @@ class Property(_FieldExpressionBase):
             for ref_type in self.reference_types:
                 store_as_id = (
                     self.reference_kind in (NodeReferenceKind.PARENT, NodeReferenceKind.ANCESTOR)
-                    or ref_type not in IN_MODULE_NODE_TYPES
-                    or ref_type == NodeType.MODULE
+                    or ref_type not in IN_PACKAGE_NODE_TYPES
+                    or ref_type == NodeType.PACKAGE
                 )
                 prop_postfix = "id" if store_as_id else "ck"
                 if self.name == ref_type.name.lower():  # reduce clutter if type is unambiguous
@@ -778,7 +778,7 @@ def _process_struct_base_cls(
     cls: Union[type["Node"], type["Struct"]],
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] = None,
-    is_in_module: bool = False,
+    is_in_package: bool = False,
     is_in_bench: bool = False,
     is_final: bool = False,
 ) -> tuple[type["Node"], dict[str, Property]]:
@@ -878,19 +878,19 @@ def _process_struct_base_cls(
     cls.__reserved_properties__ = frozenset(reserved_properties)
 
     # create class (map to dataclass)
-    # TODO @Cleanup: the ck/module/bench property removal is a bit hacky & confusing
+    # TODO @Cleanup: the ck/package/bench property removal is a bit hacky & confusing
     for name, prop in list(properties_by_name.items()):
-        # remove 'bench'/'module' ancestor property if not actually a descendant :MagicNodeProps
+        # remove 'bench'/'package' ancestor property if not actually a descendant :MagicNodeProps
         if ((not is_in_bench or cls.__name__ == "Bench") and prop.name == "bench") or (
-            (not is_in_module or cls.__name__ == "Module") and prop.name == "module"
+            (not is_in_package or cls.__name__ == "Package") and prop.name == "package"
         ):
             attr = None
             del properties_by_name[name]
             # remove contributed reference keys too
             for key in prop.reference_ptrs:
                 del properties_by_name[key.name]
-        # remove node ck (is == id if outside a module) :MagicNodeProps
-        elif prop.name == "ck" and is_node and (not is_in_module or cls.__name__ == "Module"):
+        # remove node ck (is == id if outside a package) :MagicNodeProps
+        elif prop.name == "ck" and is_node and (not is_in_package or cls.__name__ == "Package"):
             attr = _node_ck_from_id_prop(prop)
             del properties_by_name[name]
 
@@ -1004,7 +1004,7 @@ def node_component(
     passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
     reserved: set[str | int] = None,
-    is_in_module: bool = False,
+    is_in_package: bool = False,
     is_in_bench: bool = False,
     is_final: bool = False,
 ):
@@ -1017,7 +1017,7 @@ def node_component(
             cls=cls,
             dynamic_components=dynamic_components,
             reserved=reserved,
-            is_in_module=is_in_module,
+            is_in_package=is_in_package,
             is_in_bench=is_in_bench,
             is_final=is_final,
         )
@@ -1070,7 +1070,7 @@ def node(
     index_in_os: bool = False,
     local: bool = False,
     root: NodeType | None = NodeType.BENCH,
-    in_module: bool = True,
+    in_package: bool = True,
     in_bench: bool = True,
     reserved: set[str | int] = None,
     indexes: tuple[Index, ...] = (),
@@ -1087,7 +1087,7 @@ def node(
             passthrough=passthrough,
             dynamic_components=dynamic_components,
             reserved=reserved,
-            is_in_module=in_module,
+            is_in_package=in_package,
             is_in_bench=in_bench,
             is_final=True,
         )
@@ -1119,7 +1119,7 @@ def node(
             raise ValueError(f"node {cls} has no parent property")
         cls.__parent_property__ = parent_property
         cls.__root__ = root
-        cls.__is_in_module__ = in_module
+        cls.__is_in_package__ = in_package
         cls.__is_in_bench__ = in_bench
 
         return cls
@@ -1294,8 +1294,6 @@ class Struct(abc.ABC):
 
     def __post_init__(self):
         if self._status is None:
-            from bench.language.session import _active_session
-
             # not sure if this is totally right... where do we get :StructScope?
             self._status = NS.INTERP if _active_session.get() else NS.SOURCE
         self._init_self()
@@ -1400,7 +1398,7 @@ class Struct(abc.ABC):
 
     def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
         """Validate cross-property constraints given the modified properties."""
-        # since this is the root module, we also validate the properties directly
+        # since this is the root package, we also validate the properties directly
         for name in properties:
             prop = self.__properties__.get(name)
             assert prop is not None, f"unknown property '{name}' on {self!r}"
@@ -1458,9 +1456,9 @@ class Struct(abc.ABC):
 @node_component
 class Node(Struct, _NodeExpressionBase):
     """
-    A node in a Bench module tree - basically struct + identity, so it can relate nodes.
+    A node in a Bench package tree - basically struct + identity, so it can relate nodes.
     A node has a per-version unique id (id) and a constant identifier key (ck).
-    The id is derived from the module id, so it's only assigned when the node is attached.
+    The id is derived from the package id, so it's only assigned when the node is attached.
     """
 
     metatype: ClassVar[NodeType]
@@ -1487,7 +1485,7 @@ class Node(Struct, _NodeExpressionBase):
 
     __has_scope__: ClassVar[bool] = False  # can have node children
     __root__: ClassVar[NodeType | None] = UNSET
-    __is_in_module__: ClassVar[bool] = UNSET  # part of a Module
+    __is_in_package__: ClassVar[bool] = UNSET  # part of a Package
     __is_in_bench__: ClassVar[bool] = UNSET  # part of a Bench
     __is_stored__: ClassVar[bool] = False  # stored in PG (runtime or local)
     __is_stored_custom__: ClassVar[bool] = False  # custom PG storage logic (for records)
@@ -1499,11 +1497,11 @@ class Node(Struct, _NodeExpressionBase):
 
     # 1-9: reserved for node identity
     id: UUID = struct_internal(2, default=None, require=True, system=True)
-    # NOTE: ck/module/branch/bench only exist if __is_in_module__/__is_in_bench__ :MagicNodeProps
+    # NOTE: ck/package/branch/bench only exist if __is_in_package__/__is_in_bench__ :MagicNodeProps
     ck: UUID = struct_internal(3, default=None, require=True, system=True)
     parent: Optional["Node"] = node_parent(4)
     # template: Optional["Node"] = node_template(5)
-    module: "Module" = node_ancestor(6, NodeType.MODULE, require=True, store=True, wire=True)
+    package: "Package" = node_ancestor(6, NodeType.PACKAGE, require=True, store=True, wire=True)
     # branch: Optional["Branch"] = node_ancestor(7, NodeType.BRANCH, require=True, store=True, wire=True)
     bench: "Bench" = node_ancestor(8, NodeType.BENCH, require=True, store=False, wire=False)
     source: NodeSource = struct_internal(
@@ -1539,12 +1537,12 @@ class Node(Struct, _NodeExpressionBase):
 
     def __post_init__(self):
         # init ck/id
-        if self.__is_in_module__:
+        if self.__is_in_package__:
             if self.ck is None:
                 self.ck = uuid4()
                 self._is_new = True
             if self.id is None and self.attached:
-                self._assign_id(self.module.id)
+                self._assign_id(self.package.id)
         elif self.id is None:
             self.id = uuid4()
             self._is_new = True
@@ -1558,8 +1556,6 @@ class Node(Struct, _NodeExpressionBase):
             self.last_changed_at = now
         # init session context
         if self._session is None and self._session is not UNSET:
-            from bench.language.builtin import _active_session
-
             self._session = _active_session.get()
         if self._session and self._session is not UNSET and self._is_new and not self.parent:
             self._session._dangling_nodes_by_ck[self.ck] = self
@@ -1602,11 +1598,11 @@ class Node(Struct, _NodeExpressionBase):
         root = self._root
         return cast("ScopeNode", root)._root_tree
 
-    def _assign_id(self, module_id: UUID):
-        assert module_id, f"cannot assign id to {self!r} without a module id"
+    def _assign_id(self, package_id: UUID):
+        assert package_id, f"cannot assign id to {self!r} without a package id"
         assert self.id is None, f"cannot assign id to {self!r} twice"
         assert self.ck is not None, f"cannot assign id to {self!r} without ck"
-        self.id = get_node_id(module_id, self.ck)
+        self.id = get_node_id(package_id, self.ck)
 
     @final
     def __str__(self):  # noqa: we want to override the default __str__ for nodes
@@ -1627,8 +1623,8 @@ class Node(Struct, _NodeExpressionBase):
 
     @property
     def attached(self) -> bool:
-        if self.__is_in_module__:
-            return self.parent is not None and self.module is not None
+        if self.__is_in_package__:
+            return self.parent is not None and self.package is not None
         elif self.__is_in_bench__:
             return self.parent is not None and self.bench is not None
 
@@ -1645,7 +1641,7 @@ class Node(Struct, _NodeExpressionBase):
         """The Bench identifier of this node (slug if exists, else name if exists)."""
         if self.identifier_type is None:
             return None
-        if self.metatype == NodeType.MODULE and self.parent is not None:
+        if self.metatype == NodeType.PACKAGE and self.parent is not None:
             return self.parent.bench_ident
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
@@ -1659,7 +1655,7 @@ class Node(Struct, _NodeExpressionBase):
         identifier_type = self.identifier_type
         if identifier_type is None:
             return None
-        if self.metatype == NodeType.MODULE and self.parent is not None:
+        if self.metatype == NodeType.PACKAGE and self.parent is not None:
             return self.parent.py_ident
         if "slug" in self.__properties__:
             slug = getattr(self, "slug")
@@ -1689,10 +1685,7 @@ class Node(Struct, _NodeExpressionBase):
                     break
                 if current.metatype == NodeType.FIELD:
                     path_segments.append(".")
-                elif (
-                    current.metatype != NodeType.STATEMENT
-                    and next_parent.metatype == NodeType.STATEMENT
-                ):
+                elif current.metatype != NodeType.BLOCK and next_parent.metatype == NodeType.BLOCK:
                     path_segments.append(":")
                 else:
                     path_segments.append("/")
@@ -1840,11 +1833,11 @@ class Node(Struct, _NodeExpressionBase):
         self._session = None
 
     def _attached_inner(self) -> None:
-        """Called when this node is attached to a module."""
+        """Called when this node is attached to a package."""
         pass
 
     def _detached_inner(self) -> None:
-        """Called when this node is detached from a module."""
+        """Called when this node is detached from a package."""
         pass
 
     def _updated_inner(self, properties: Collection[str]) -> None:
@@ -2054,7 +2047,7 @@ class ScopeNode(Node):
 
     @property
     def _root_scope(self) -> "ScopeNode":
-        """The root of the 'local' node tree (usually module, but maybe a detached root node)"""
+        """The root of the 'local' node tree (usually package, but maybe a detached root node)"""
         parent = self
         while parent.parent is not None:
             parent = parent.parent
@@ -2070,7 +2063,7 @@ class ScopeNode(Node):
     def lookup(
         self,
         path: Union["BenchPath", UUID, str],
-        node_t: NodeType | StatementType | type[NodeT] | None = None,
+        node_t: NodeType | BlockType | type[NodeT] | None = None,
     ) -> NodeT | None:
         """Lookup a node by path. Return None if not found."""
         if isinstance(path, UUID):
@@ -2173,7 +2166,7 @@ class BenchPath(Struct):
     field_path: tuple[str, ...] | None = struct_property(33, default=None)
 
     branch_slug: Optional[str] = struct_property(34, default=None)  # (not yet supported)
-    module_slug: Optional[str] = struct_property(35, default=None)  # (not yet supported)
+    package_slug: Optional[str] = struct_property(35, default=None)  # (not yet supported)
 
     def __content_str__(self) -> str:
         path_str = self.bench_slug or ""
@@ -2231,12 +2224,7 @@ class BenchPath(Struct):
                 is_all_relative = True
             if ":" not in path and root_type is not None:
                 # skip straight into sub node mode if ambiguous and given root can't be above block
-                if root_type not in (
-                    NodeType.BENCH,
-                    NodeType.MODULE,
-                    NodeType.FILE,
-                    NodeType.STATEMENT,
-                ):
+                if root_type not in (NodeType.BENCH, NodeType.PACKAGE, NodeType.BLOCK):
                     sub_node_path = []
 
         # skip straight into field parsing mode
@@ -2291,9 +2279,9 @@ class BenchPath(Struct):
 LINK_TARGET_NODE_TYPES: tuple[NodeType, ...] = tuple(
     nt
     for nt in NODE_TYPES
-    if NodeType.MODULE.id < nt.id < NodeType.SESSION.id and nt != NodeType.LINK
+    if NodeType.PACKAGE.id < nt.id < NodeType.SESSION.id and nt != NodeType.LINK
 )
-LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.MODULE, NodeType.FILE, NodeType.STATEMENT)
+LINK_PARENT_NODE_TYPES: tuple[NodeType, ...] = (NodeType.PACKAGE, NodeType.BLOCK)
 
 
 @node(NodeType.LINK)
@@ -2306,7 +2294,7 @@ class Link(Node):
     )
 
 
-@node(NodeType.BENCH, in_module=False, identifier=IdentifierType.VARIABLE, root=None)
+@node(NodeType.BENCH, in_package=False, identifier=IdentifierType.VARIABLE, root=None)
 class Bench(ScopeNode):
     """
     A Bench is the AI-native operating system for a new generation of fully integrated apps.
@@ -2328,7 +2316,7 @@ class Bench(ScopeNode):
     # status: BenchStatus = struct_internal(35, system=True)
 
     # *per* environment/.../? stuff (will be moved there later)
-    head = struct_internal(40, system=True, require=False, array=False, references=NodeType.MODULE)
+    head = struct_internal(40, system=True, require=False, array=False, references=NodeType.PACKAGE)
     pg_name: Optional[str] = struct_internal(41, system=True, default=None)
     pg_username: Optional[str] = struct_internal(42, system=True, default=None, defer=True)
     pg_password: Optional[str] = struct_internal(
@@ -2342,7 +2330,7 @@ class Bench(ScopeNode):
 
     worker_sets: NodeList["WorkerSet"] = node_children(NodeType.WORKER_SET)
 
-    # versions: NodeList["Module"] = node_children(NodeType.MODULE, NRel.Remote)
+    # versions: NodeList["Package"] = node_children(NodeType.PACKAGE, NRel.Remote)
 
     @property
     def owner(self) -> Union["Organization", "User", None]:
@@ -2356,16 +2344,16 @@ class NodeChange:
     added: list[Node]
     updated: list[Node]
     removed: list[Node]
-    touched_types: set[NodeType | StatementType] = dataclasses.field(init=False)
+    touched_types: set[NodeType | BlockType] = dataclasses.field(init=False)
     all_edits: list[EditData] = dataclasses.field(init=False)
 
     def __post_init__(self):
         self.touched_types = {n.metatype for n in self.touched} | {
-            n.type for n in self.touched if n.metatype == NodeType.STATEMENT
+            n.type for n in self.touched if n.metatype == NodeType.BLOCK
         }
         self.all_edits = self.source_edits + self.interp_edits
 
-    def includes(self, *node_types: NodeType | StatementType) -> bool:
+    def includes(self, *node_types: NodeType | BlockType) -> bool:
         return any(nt in self.touched_types for nt in node_types)
 
     @property
@@ -2377,9 +2365,9 @@ class NodeChange:
         return NodeChange([], [], [], [], [])
 
 
-@node(NodeType.MODULE, identifier=IdentifierType.VARIABLE)
-class Module(ScopeNode):
-    """A module is a semi-isolated version of a Bench, containing the actual files and so on."""
+@node(NodeType.PACKAGE, identifier=IdentifierType.VARIABLE)
+class Package(ScopeNode):
+    """A package is a semi-isolated version of a Bench, containing the actual blocks and so on."""
 
     parent: Bench = node_parent(4, NodeType.BENCH)
     policies: Optional[list["Policy"]] = struct_internal(
@@ -2387,9 +2375,8 @@ class Module(ScopeNode):
     )
     is_snapshot: bool = struct_internal(32, system=True, default=False)  # snapshot or head?
 
-    files: NodeList["File"] = node_children(NodeType.FILE, NRel.NAMED | NRel.SCOPED)
-    dependencies: dict[str, "Module"] = struct_runtime(default_factory=dict)
-    builtins: list["File"] = struct_runtime(default_factory=list)
+    dependencies: dict[str, "Package"] = struct_runtime(default_factory=dict)
+    builtins: list["Block"] = struct_runtime(default_factory=list)
 
     _source: Optional[NodeDataTree] = struct_runtime(default=None)
 
@@ -2416,12 +2403,12 @@ class Module(ScopeNode):
     def __content_str__(self):
         return f"is_snapshot={self.is_snapshot}"
 
-    def add_builtin(self, file: "File") -> None:
-        if not any(dep == file.module for dep in self.dependencies.values()):
-            raise ValueError(f"cannot add builtin {file!r} to {self!r} without {file.module!r}")
-        self.builtins.append(file)
+    def add_builtin(self, block: "Block") -> None:
+        if not any(dep == block.package for dep in self.dependencies.values()):
+            raise ValueError(f"cannot add builtin {block!r} to {self!r} without {block.package!r}")
+        self.builtins.append(block)
 
-    def add_dependency(self, dependency: "Module") -> None:
+    def add_dependency(self, dependency: "Package") -> None:
         if dependency.py_ident in self.dependencies:
             raise ValueError(
                 f"{self!r} already has dependency {dependency.py_ident}: {self.dependencies[dependency.py_ident]}"
@@ -2447,7 +2434,7 @@ class Module(ScopeNode):
     def _activate_inner(self, session: "Session"):
         for dependency in self.dependencies.values():
             if dependency._status != NS.ACTIVE:
-                # multiple modules can depend on the same module, only activate once
+                # multiple packages can depend on the same package, only activate once
                 dependency._activate_rec(session)
 
     def _deactivate_inner(self) -> None:
@@ -2457,7 +2444,7 @@ class Module(ScopeNode):
 
     def _apply_edits(self, edits: list[EditData], old_source: NodeTree | None = None) -> NodeChange:
         """
-        Applies the given external edits to the module.
+        Applies the given external edits to the package.
         TODO @Performance @UX: :HotReload patch edits directly?
         """
         assert self._source is not None, f"cannot apply edits to {self!r} without source"
@@ -2479,25 +2466,25 @@ class Module(ScopeNode):
         return change
 
     def _reset_from_source(self, source: Optional["NodeTree"] = None):
-        """Resets the module completely from the source."""
+        """Resets the package completely from the source."""
         from bench.proto.wiring import unpack_node_inline
 
         if source is not None:
             self._source = source
         assert self._source and self.id in self._source, f"cannot reset {self!r} without source"
 
-        prev_session = self.module._session
+        prev_session = self.package._session
         if prev_session:
-            self.module._deactivate_self()
+            self.package._deactivate_self()
 
-        if self.module._tree.nodes:  # may be force-reset (_rec methods wouldn't work)
-            self.module._clear_rec()
-        self.module._tree.clear()
+        if self.package._tree.nodes:  # may be force-reset (_rec methods wouldn't work)
+            self.package._clear_rec()
+        self.package._tree.clear()
         _ = unpack_node_inline(self._source, parent=self, exclude=INTERP_NODE_TYPES)
-        self.module._interp_rec()
+        self.package._interp_rec()
 
         if prev_session:
-            self.module._activate_rec(prev_session)
+            self.package._activate_rec(prev_session)
 
     def _apply_edits_to_source(self, edits: list[EditData]) -> None:
         """Applies the edits directly to the source without any interp."""
@@ -2509,32 +2496,33 @@ class Module(ScopeNode):
         source_edits: list[EditData],
         old_source: NodeTree,
     ) -> NodeChange:
-        """Computes the change between the old and new module state."""
+        """Computes the change between the old and new package state."""
         raise NotImplementedError("nocheckin: _compute_change")
 
     @staticmethod
-    def make(source: list["SomeNodeData"]) -> "Module":
-        """Create an interpreted Module from a source module node tree."""
+    def make(source: list["SomeNodeData"]) -> "Package":
+        """Create an interpreted Package from a source package node tree."""
         from bench.proto import wiring
+        from bench.language.builtin import symbolx_package
 
         source = [wiring.unwrap_some_node(s) for s in source]
         source = NodeTree(source)
         root: Bench = wiring.unpack_node_inline(source, parent=None, exclude=INTERP_NODE_TYPES)
-        module: Module = root.resolve()  # ???
-        assert isinstance(module, Module), f"unexpected module: {module!r}"
-        module._source = source
-        old_source = module._source.copy()
+        package: Package = root.resolve()  # ???
+        assert isinstance(package, Package), f"unexpected package: {package!r}"
+        package._source = source
+        old_source = package._source.copy()
 
-        module.add_dependency(symbolx_lib)
-        module.add_builtin(symbolx_lib.files.get("builtins"))
-        module._interp_rec()
+        package.add_dependency(symbolx_package)
+        package.add_builtin(symbolx_package.files.get("builtins"))
+        package._interp_rec()
 
         # update source with interp edits (doesn't have them)
-        change = module._compute_change([], old_source)
+        change = package._compute_change([], old_source)
         if change.interp_edits:
-            module._apply_edits_to_source(change.interp_edits)
+            package._apply_edits_to_source(change.interp_edits)
 
-        return module
+        return package
 
 
 # quick access to all the classes
@@ -2669,27 +2657,27 @@ def _complete_bench_setup():
         CHILD_NODE_TYPES[node_type] = tuple(child_types[node_type])
         FERTILE_CHILD_NODE_TYPES[node_type] = tuple(fertile_child_types[node_type])
 
-    # check that is_in_module/is_in_bench was declared correctly
+    # check that is_in_package/is_in_bench was declared correctly
     #  (need to set that in @node upfront because traversing parents can only happen in finalization)
     for node_cls in NODE_CLASS_BY_TYPE.values():
         in_bench = (
             node_cls.metatype == NodeType.BENCH
             or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.BENCH]
         )
-        in_module = (
-            node_cls.metatype == NodeType.MODULE
-            or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.MODULE]
+        in_package = (
+            node_cls.metatype == NodeType.PACKAGE
+            or node_cls.metatype in DESCENDANT_NODE_TYPES[NodeType.PACKAGE]
         )
-        if in_bench != node_cls.__is_in_bench__ or in_module != node_cls.__is_in_module__:
+        if in_bench != node_cls.__is_in_bench__ or in_package != node_cls.__is_in_package__:
             raise ValueError(
-                f"{node_cls!r} parent types are inconsistent: root={node_cls.__root__} implies in_bench={in_bench} and in_module={in_module}, but got in_bench={node_cls.__is_in_bench__} and in_module={node_cls.__is_in_module__}"
+                f"{node_cls!r} parent types are inconsistent: root={node_cls.__root__} implies in_bench={in_bench} and in_package={in_package}, but got in_bench={node_cls.__is_in_bench__} and in_package={node_cls.__is_in_package__}"
             )
     check_collections_equal(
         IN_BENCH_NODE_TYPES, [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_bench__]
     )
     check_collections_equal(
-        IN_MODULE_NODE_TYPES,
-        [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_module__],
+        IN_PACKAGE_NODE_TYPES,
+        [t.metatype for t in NODE_CLASS_BY_TYPE.values() if t.__is_in_package__],
     )
 
     # check that all enum types are valid proto-able enums

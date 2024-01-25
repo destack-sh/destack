@@ -103,7 +103,7 @@ class NodeTreeBase(abc.ABC, Generic[SomeNodeT, IdT]):
 
 class NodeTree(NodeTreeBase[NodeT, UUID]):
     """
-    An indexed tree of module nodes (UUIDs for ids, parent_ids).
+    An indexed tree of package nodes (UUIDs for ids, parent_ids).
     This is the backing tree to most live nodes, so we optimize access a bit.
     """
 

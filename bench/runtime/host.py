@@ -1,5 +1,5 @@
-from bench.language.session import ModuleHost
+from bench.language.session import PackageHost
 
 
-class RemoteModuleHost(ModuleHost):
+class RemotePackageHost(PackageHost):
     pass

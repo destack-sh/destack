@@ -20,6 +20,7 @@ import { MessageType } from "@protobuf-ts/runtime";
 import { RunData } from "./lang";
 import { WorkerData } from "./lang";
 import { Struct } from "../../google/protobuf/struct";
+import { BenchPathData } from "./lang";
 import { Timestamp } from "../../google/protobuf/timestamp";
 import { BlobData } from "./lang";
 import { LogEntryData } from "./lang";
@@ -419,7 +420,7 @@ export interface PingWorkerSetResponse {
     workerSets: WorkerSetData[];
 }
 // 
-// Module host
+// Package host
 // 
 
 /**
@@ -441,9 +442,9 @@ export interface GetLogsResponse {
  */
 export interface PasteNodesRequest {
     /**
-     * @generated from protobuf field: string source_module_id = 1;
+     * @generated from protobuf field: string source_package_id = 1;
      */
-    sourceModuleId: string;
+    sourcePackageId: string;
     /**
      * @generated from protobuf field: repeated symbolx.bench.NodeReferenceData source_nodes = 2;
      */
@@ -483,9 +484,9 @@ export interface PasteNodesResponse {
     pastedNodes: SomeNodeData[];
 }
 /**
- * @generated from protobuf message symbolx.bench.SnapshotModuleRequest
+ * @generated from protobuf message symbolx.bench.SnapshotPackageRequest
  */
-export interface SnapshotModuleRequest {
+export interface SnapshotPackageRequest {
     /**
      * @generated from protobuf field: string name = 1;
      */
@@ -500,9 +501,9 @@ export interface SnapshotModuleRequest {
     description: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.SnapshotModuleResponse
+ * @generated from protobuf message symbolx.bench.SnapshotPackageResponse
  */
-export interface SnapshotModuleResponse {
+export interface SnapshotPackageResponse {
     /**
      * @generated from protobuf field: string snapshot_project_version_id = 1;
      */
@@ -619,34 +620,48 @@ export interface PushWorkerLogsRequest {
 export interface PushWorkerLogsResponse {
 }
 /**
- * @generated from protobuf message symbolx.bench.RunProxyStatementRequest
+ * @generated from protobuf message symbolx.bench.RunProxyBlockRequest
  */
-export interface RunProxyStatementRequest {
+export interface RunProxyBlockRequest {
     /**
-     * @generated from protobuf field: string statement = 1;
+     * @generated from protobuf oneof: block
      */
-    statement: string;
+    block: {
+        oneofKind: "path";
+        /**
+         * @generated from protobuf field: symbolx.bench.BenchPathData path = 1;
+         */
+        path: BenchPathData;
+    } | {
+        oneofKind: "reference";
+        /**
+         * @generated from protobuf field: symbolx.bench.NodeReferenceData reference = 2;
+         */
+        reference: NodeReferenceData;
+    } | {
+        oneofKind: undefined;
+    };
     /**
-     * @generated from protobuf field: google.protobuf.Struct inputs = 2;
+     * @generated from protobuf field: google.protobuf.Struct inputs = 3;
      */
     inputs?: Struct;
     /**
-     * @generated from protobuf field: int32 timeout_ms = 3;
+     * @generated from protobuf field: int32 timeout_ms = 4;
      */
     timeoutMs: number;
     /**
-     * @generated from protobuf field: string run_id = 4;
+     * @generated from protobuf field: string run_id = 5;
      */
     runId: string;
     /**
-     * @generated from protobuf field: string run_ck = 5;
+     * @generated from protobuf field: string run_ck = 6;
      */
     runCk: string;
 }
 /**
- * @generated from protobuf message symbolx.bench.RunProxyStatementResponse
+ * @generated from protobuf message symbolx.bench.RunProxyBlockResponse
  */
-export interface RunProxyStatementResponse {
+export interface RunProxyBlockResponse {
     /**
      * @generated from protobuf field: google.protobuf.Struct outputs = 1;
      */
@@ -2315,7 +2330,7 @@ export const GetLogsResponse = new GetLogsResponse$Type();
 class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
     constructor() {
         super("symbolx.bench.PasteNodesRequest", [
-            { no: 1, name: "source_module_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 1, name: "source_package_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "source_nodes", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => NodeReferenceData },
             { no: 3, name: "target_ids", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
             { no: 4, name: "target_cks", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "scalar", T: 9 /*ScalarType.STRING*/ } },
@@ -2325,7 +2340,7 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
     }
     create(value?: PartialMessage<PasteNodesRequest>): PasteNodesRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.sourceModuleId = "";
+        message.sourcePackageId = "";
         message.sourceNodes = [];
         message.targetIds = {};
         message.targetCks = {};
@@ -2340,8 +2355,8 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string source_module_id */ 1:
-                    message.sourceModuleId = reader.string();
+                case /* string source_package_id */ 1:
+                    message.sourcePackageId = reader.string();
                     break;
                 case /* repeated symbolx.bench.NodeReferenceData source_nodes */ 2:
                     message.sourceNodes.push(NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options));
@@ -2434,9 +2449,9 @@ class PasteNodesRequest$Type extends MessageType<PasteNodesRequest> {
         map[key ?? ""] = val ?? "";
     }
     internalBinaryWrite(message: PasteNodesRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string source_module_id = 1; */
-        if (message.sourceModuleId !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.sourceModuleId);
+        /* string source_package_id = 1; */
+        if (message.sourcePackageId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.sourcePackageId);
         /* repeated symbolx.bench.NodeReferenceData source_nodes = 2; */
         for (let i = 0; i < message.sourceNodes.length; i++)
             NodeReferenceData.internalBinaryWrite(message.sourceNodes[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
@@ -2510,24 +2525,24 @@ class PasteNodesResponse$Type extends MessageType<PasteNodesResponse> {
  */
 export const PasteNodesResponse = new PasteNodesResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SnapshotModuleRequest$Type extends MessageType<SnapshotModuleRequest> {
+class SnapshotPackageRequest$Type extends MessageType<SnapshotPackageRequest> {
     constructor() {
-        super("symbolx.bench.SnapshotModuleRequest", [
+        super("symbolx.bench.SnapshotPackageRequest", [
             { no: 1, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 2, name: "tag", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "description", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<SnapshotModuleRequest>): SnapshotModuleRequest {
+    create(value?: PartialMessage<SnapshotPackageRequest>): SnapshotPackageRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.name = "";
         message.tag = "";
         message.description = "";
         if (value !== undefined)
-            reflectionMergePartial<SnapshotModuleRequest>(this, message, value);
+            reflectionMergePartial<SnapshotPackageRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotModuleRequest): SnapshotModuleRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotPackageRequest): SnapshotPackageRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2552,7 +2567,7 @@ class SnapshotModuleRequest$Type extends MessageType<SnapshotModuleRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: SnapshotModuleRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: SnapshotPackageRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* string name = 1; */
         if (message.name !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.name);
@@ -2569,24 +2584,24 @@ class SnapshotModuleRequest$Type extends MessageType<SnapshotModuleRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.SnapshotModuleRequest
+ * @generated MessageType for protobuf message symbolx.bench.SnapshotPackageRequest
  */
-export const SnapshotModuleRequest = new SnapshotModuleRequest$Type();
+export const SnapshotPackageRequest = new SnapshotPackageRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SnapshotModuleResponse$Type extends MessageType<SnapshotModuleResponse> {
+class SnapshotPackageResponse$Type extends MessageType<SnapshotPackageResponse> {
     constructor() {
-        super("symbolx.bench.SnapshotModuleResponse", [
+        super("symbolx.bench.SnapshotPackageResponse", [
             { no: 1, name: "snapshot_project_version_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<SnapshotModuleResponse>): SnapshotModuleResponse {
+    create(value?: PartialMessage<SnapshotPackageResponse>): SnapshotPackageResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.snapshotProjectVersionId = "";
         if (value !== undefined)
-            reflectionMergePartial<SnapshotModuleResponse>(this, message, value);
+            reflectionMergePartial<SnapshotPackageResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotModuleResponse): SnapshotModuleResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SnapshotPackageResponse): SnapshotPackageResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -2605,7 +2620,7 @@ class SnapshotModuleResponse$Type extends MessageType<SnapshotModuleResponse> {
         }
         return message;
     }
-    internalBinaryWrite(message: SnapshotModuleResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: SnapshotPackageResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* string snapshot_project_version_id = 1; */
         if (message.snapshotProjectVersionId !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.snapshotProjectVersionId);
@@ -2616,9 +2631,9 @@ class SnapshotModuleResponse$Type extends MessageType<SnapshotModuleResponse> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.SnapshotModuleResponse
+ * @generated MessageType for protobuf message symbolx.bench.SnapshotPackageResponse
  */
-export const SnapshotModuleResponse = new SnapshotModuleResponse$Type();
+export const SnapshotPackageResponse = new SnapshotPackageResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class UploadBlobsRequest$Type extends MessageType<UploadBlobsRequest> {
     constructor() {
@@ -3099,44 +3114,54 @@ class PushWorkerLogsResponse$Type extends MessageType<PushWorkerLogsResponse> {
  */
 export const PushWorkerLogsResponse = new PushWorkerLogsResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunProxyStatementRequest$Type extends MessageType<RunProxyStatementRequest> {
+class RunProxyBlockRequest$Type extends MessageType<RunProxyBlockRequest> {
     constructor() {
-        super("symbolx.bench.RunProxyStatementRequest", [
-            { no: 1, name: "statement", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "inputs", kind: "message", T: () => Struct },
-            { no: 3, name: "timeout_ms", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
-            { no: 4, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 5, name: "run_ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        super("symbolx.bench.RunProxyBlockRequest", [
+            { no: 1, name: "path", kind: "message", oneof: "block", T: () => BenchPathData },
+            { no: 2, name: "reference", kind: "message", oneof: "block", T: () => NodeReferenceData },
+            { no: 3, name: "inputs", kind: "message", T: () => Struct },
+            { no: 4, name: "timeout_ms", kind: "scalar", T: 5 /*ScalarType.INT32*/ },
+            { no: 5, name: "run_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 6, name: "run_ck", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
-    create(value?: PartialMessage<RunProxyStatementRequest>): RunProxyStatementRequest {
+    create(value?: PartialMessage<RunProxyBlockRequest>): RunProxyBlockRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
-        message.statement = "";
+        message.block = { oneofKind: undefined };
         message.timeoutMs = 0;
         message.runId = "";
         message.runCk = "";
         if (value !== undefined)
-            reflectionMergePartial<RunProxyStatementRequest>(this, message, value);
+            reflectionMergePartial<RunProxyBlockRequest>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunProxyStatementRequest): RunProxyStatementRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunProxyBlockRequest): RunProxyBlockRequest {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
             switch (fieldNo) {
-                case /* string statement */ 1:
-                    message.statement = reader.string();
+                case /* symbolx.bench.BenchPathData path */ 1:
+                    message.block = {
+                        oneofKind: "path",
+                        path: BenchPathData.internalBinaryRead(reader, reader.uint32(), options, (message.block as any).path)
+                    };
                     break;
-                case /* google.protobuf.Struct inputs */ 2:
+                case /* symbolx.bench.NodeReferenceData reference */ 2:
+                    message.block = {
+                        oneofKind: "reference",
+                        reference: NodeReferenceData.internalBinaryRead(reader, reader.uint32(), options, (message.block as any).reference)
+                    };
+                    break;
+                case /* google.protobuf.Struct inputs */ 3:
                     message.inputs = Struct.internalBinaryRead(reader, reader.uint32(), options, message.inputs);
                     break;
-                case /* int32 timeout_ms */ 3:
+                case /* int32 timeout_ms */ 4:
                     message.timeoutMs = reader.int32();
                     break;
-                case /* string run_id */ 4:
+                case /* string run_id */ 5:
                     message.runId = reader.string();
                     break;
-                case /* string run_ck */ 5:
+                case /* string run_ck */ 6:
                     message.runCk = reader.string();
                     break;
                 default:
@@ -3150,22 +3175,25 @@ class RunProxyStatementRequest$Type extends MessageType<RunProxyStatementRequest
         }
         return message;
     }
-    internalBinaryWrite(message: RunProxyStatementRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* string statement = 1; */
-        if (message.statement !== "")
-            writer.tag(1, WireType.LengthDelimited).string(message.statement);
-        /* google.protobuf.Struct inputs = 2; */
+    internalBinaryWrite(message: RunProxyBlockRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbolx.bench.BenchPathData path = 1; */
+        if (message.block.oneofKind === "path")
+            BenchPathData.internalBinaryWrite(message.block.path, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* symbolx.bench.NodeReferenceData reference = 2; */
+        if (message.block.oneofKind === "reference")
+            NodeReferenceData.internalBinaryWrite(message.block.reference, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Struct inputs = 3; */
         if (message.inputs)
-            Struct.internalBinaryWrite(message.inputs, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
-        /* int32 timeout_ms = 3; */
+            Struct.internalBinaryWrite(message.inputs, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* int32 timeout_ms = 4; */
         if (message.timeoutMs !== 0)
-            writer.tag(3, WireType.Varint).int32(message.timeoutMs);
-        /* string run_id = 4; */
+            writer.tag(4, WireType.Varint).int32(message.timeoutMs);
+        /* string run_id = 5; */
         if (message.runId !== "")
-            writer.tag(4, WireType.LengthDelimited).string(message.runId);
-        /* string run_ck = 5; */
+            writer.tag(5, WireType.LengthDelimited).string(message.runId);
+        /* string run_ck = 6; */
         if (message.runCk !== "")
-            writer.tag(5, WireType.LengthDelimited).string(message.runCk);
+            writer.tag(6, WireType.LengthDelimited).string(message.runCk);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -3173,24 +3201,24 @@ class RunProxyStatementRequest$Type extends MessageType<RunProxyStatementRequest
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RunProxyStatementRequest
+ * @generated MessageType for protobuf message symbolx.bench.RunProxyBlockRequest
  */
-export const RunProxyStatementRequest = new RunProxyStatementRequest$Type();
+export const RunProxyBlockRequest = new RunProxyBlockRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class RunProxyStatementResponse$Type extends MessageType<RunProxyStatementResponse> {
+class RunProxyBlockResponse$Type extends MessageType<RunProxyBlockResponse> {
     constructor() {
-        super("symbolx.bench.RunProxyStatementResponse", [
+        super("symbolx.bench.RunProxyBlockResponse", [
             { no: 1, name: "outputs", kind: "message", T: () => Struct },
             { no: 2, name: "error", kind: "message", T: () => Struct }
         ]);
     }
-    create(value?: PartialMessage<RunProxyStatementResponse>): RunProxyStatementResponse {
+    create(value?: PartialMessage<RunProxyBlockResponse>): RunProxyBlockResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         if (value !== undefined)
-            reflectionMergePartial<RunProxyStatementResponse>(this, message, value);
+            reflectionMergePartial<RunProxyBlockResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunProxyStatementResponse): RunProxyStatementResponse {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RunProxyBlockResponse): RunProxyBlockResponse {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -3212,7 +3240,7 @@ class RunProxyStatementResponse$Type extends MessageType<RunProxyStatementRespon
         }
         return message;
     }
-    internalBinaryWrite(message: RunProxyStatementResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: RunProxyBlockResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* google.protobuf.Struct outputs = 1; */
         if (message.outputs)
             Struct.internalBinaryWrite(message.outputs, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
@@ -3226,9 +3254,9 @@ class RunProxyStatementResponse$Type extends MessageType<RunProxyStatementRespon
     }
 }
 /**
- * @generated MessageType for protobuf message symbolx.bench.RunProxyStatementResponse
+ * @generated MessageType for protobuf message symbolx.bench.RunProxyBlockResponse
  */
-export const RunProxyStatementResponse = new RunProxyStatementResponse$Type();
+export const RunProxyBlockResponse = new RunProxyBlockResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RestartWorkerRequest$Type extends MessageType<RestartWorkerRequest> {
     constructor() {
@@ -3564,9 +3592,9 @@ export const GlobalSupervisor = new ServiceType("symbolx.bench.GlobalSupervisor"
     { name: "PingWorkerSet", options: {}, I: PingWorkerSetRequest, O: PingWorkerSetResponse }
 ]);
 /**
- * @generated ServiceType for protobuf service symbolx.bench.ModuleHost
+ * @generated ServiceType for protobuf service symbolx.bench.PackageHost
  */
-export const ModuleHost = new ServiceType("symbolx.bench.ModuleHost", [
+export const PackageHost = new ServiceType("symbolx.bench.PackageHost", [
     { name: "ReadNodes", options: {}, I: ReadNodesRequest, O: ReadNodesResponse },
     { name: "SearchNodes", options: {}, I: SearchNodesRequest, O: SearchNodesResponse },
     { name: "AggregateNodes", options: {}, I: AggregateNodesRequest, O: AggregateNodesResponse },
@@ -3574,7 +3602,7 @@ export const ModuleHost = new ServiceType("symbolx.bench.ModuleHost", [
     { name: "WatchEdits", serverStreaming: true, options: {}, I: WatchEditsRequest, O: WatchEditsResponse },
     { name: "PushEdits", options: {}, I: PushEditsRequest, O: PushEditsResponse },
     { name: "PasteNodes", options: {}, I: PasteNodesRequest, O: PasteNodesResponse },
-    { name: "Snapshot", options: {}, I: SnapshotModuleRequest, O: SnapshotModuleResponse },
+    { name: "Snapshot", options: {}, I: SnapshotPackageRequest, O: SnapshotPackageResponse },
     { name: "UploadBlobs", options: {}, I: UploadBlobsRequest, O: UploadBlobsResponse },
     { name: "DownloadBlobs", options: {}, I: DownloadBlobsRequest, O: DownloadBlobsResponse },
     { name: "SearchLogs", options: {}, I: SearchLogsRequest, O: SearchLogsResponse },
@@ -3582,7 +3610,7 @@ export const ModuleHost = new ServiceType("symbolx.bench.ModuleHost", [
     { name: "PushWorkerLogs", options: {}, I: PushWorkerLogsRequest, O: Empty },
     { name: "StartRun", options: {}, I: StartRunRequest, O: StartRunResponse },
     { name: "KillRun", options: {}, I: KillRunRequest, O: KillRunResponse },
-    { name: "RunProxyStatement", options: {}, I: RunProxyStatementRequest, O: RunProxyStatementResponse }
+    { name: "RunProxyBlock", options: {}, I: RunProxyBlockRequest, O: RunProxyBlockResponse }
 ]);
 /**
  * @generated ServiceType for protobuf service symbolx.bench.Worker

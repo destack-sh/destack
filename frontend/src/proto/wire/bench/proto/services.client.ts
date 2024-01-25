@@ -10,9 +10,9 @@ import { WorkerProcess } from "./services";
 import { Worker } from "./services";
 import type { WorkerSetData } from "./lang";
 import type { RestartWorkerRequest } from "./services";
-import { ModuleHost } from "./services";
-import type { RunProxyStatementResponse } from "./services";
-import type { RunProxyStatementRequest } from "./services";
+import { PackageHost } from "./services";
+import type { RunProxyBlockResponse } from "./services";
+import type { RunProxyBlockRequest } from "./services";
 import type { KillRunResponse } from "./services";
 import type { KillRunRequest } from "./services";
 import type { StartRunResponse } from "./services";
@@ -27,8 +27,8 @@ import type { DownloadBlobsResponse } from "./services";
 import type { DownloadBlobsRequest } from "./services";
 import type { UploadBlobsResponse } from "./services";
 import type { UploadBlobsRequest } from "./services";
-import type { SnapshotModuleResponse } from "./services";
-import type { SnapshotModuleRequest } from "./services";
+import type { SnapshotPackageResponse } from "./services";
+import type { SnapshotPackageRequest } from "./services";
 import type { PasteNodesResponse } from "./services";
 import type { PasteNodesRequest } from "./services";
 import type { PushEditsResponse } from "./services";
@@ -98,7 +98,7 @@ export interface IGlobalSupervisorClient {
      */
     createBench(input: CreateBenchRequest, options?: RpcOptions): UnaryCall<CreateBenchRequest, CreateBenchResponse>;
     // 
-    // General Bench IO for global nodes (should match ModuleHost)  :BenchIO
+    // General Bench IO for global nodes (should match PackageHost)  :BenchIO
     // 
 
     /**
@@ -202,7 +202,7 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
         return stackIntercept<CreateBenchRequest, CreateBenchResponse>("unary", this._transport, method, opt, input);
     }
     // 
-    // General Bench IO for global nodes (should match ModuleHost)  :BenchIO
+    // General Bench IO for global nodes (should match PackageHost)  :BenchIO
     // 
 
     /**
@@ -274,18 +274,18 @@ export class GlobalSupervisorClient implements IGlobalSupervisorClient, ServiceI
     }
 }
 /**
- * The Bench host for a specific module.
- * Service is scoped to bench_id/module_id.
+ * The Bench host for a specific package.
+ * Service is scoped to bench_id/package_id.
  * Frontend connects to this directly.
- * Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
+ * Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
  *
  *
- * General Bench IO for this module and global nodes (should match GlobalSupervisor) :BenchIO
+ * General Bench IO for this package and global nodes (should match GlobalSupervisor) :BenchIO
  *
  *
- * @generated from protobuf service symbolx.bench.ModuleHost
+ * @generated from protobuf service symbolx.bench.PackageHost
  */
-export interface IModuleHostClient {
+export interface IPackageHostClient {
     /**
      * Reads local or global nodes.
      *
@@ -305,39 +305,39 @@ export interface IModuleHostClient {
      */
     aggregateNodes(input: AggregateNodesRequest, options?: RpcOptions): UnaryCall<AggregateNodesRequest, AggregateNodesResponse>;
     /**
-     * Commits a set of edits to the module. Optionally forward locally bypassed edits.
+     * Commits a set of edits to the package. Optionally forward locally bypassed edits.
      *
      * @generated from protobuf rpc: CommitEdits(symbolx.bench.CommitEditsRequest) returns (symbolx.bench.CommitEditsResponse);
      */
     commitEdits(input: CommitEditsRequest, options?: RpcOptions): UnaryCall<CommitEditsRequest, CommitEditsResponse>;
     /**
-     * Receive any relevant edits to this module.
+     * Receive any relevant edits to this package.
      *
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
     watchEdits(input: WatchEditsRequest, options?: RpcOptions): ServerStreamingCall<WatchEditsRequest, WatchEditsResponse>;
     // 
-    // Special Module IO
+    // Special Package IO
     // 
 
     /**
-     * Pushes locally bypassed edits to the module subscribers.
+     * Pushes locally bypassed edits to the package subscribers.
      *
      * @generated from protobuf rpc: PushEdits(symbolx.bench.PushEditsRequest) returns (symbolx.bench.PushEditsResponse);
      */
     pushEdits(input: PushEditsRequest, options?: RpcOptions): UnaryCall<PushEditsRequest, PushEditsResponse>;
     /**
-     * Paste specific inline nodes (and only those nodes) from this or another module.
+     * Paste specific inline nodes (and only those nodes) from this or another package.
      *
      * @generated from protobuf rpc: PasteNodes(symbolx.bench.PasteNodesRequest) returns (symbolx.bench.PasteNodesResponse);
      */
     pasteNodes(input: PasteNodesRequest, options?: RpcOptions): UnaryCall<PasteNodesRequest, PasteNodesResponse>;
     /**
-     * Create a full snapshot of this Bench module (copy to a new Bench module as specified).
+     * Create a full snapshot of this Bench package (copy to a new Bench package as specified).
      *
-     * @generated from protobuf rpc: Snapshot(symbolx.bench.SnapshotModuleRequest) returns (symbolx.bench.SnapshotModuleResponse);
+     * @generated from protobuf rpc: Snapshot(symbolx.bench.SnapshotPackageRequest) returns (symbolx.bench.SnapshotPackageResponse);
      */
-    snapshot(input: SnapshotModuleRequest, options?: RpcOptions): UnaryCall<SnapshotModuleRequest, SnapshotModuleResponse>;
+    snapshot(input: SnapshotPackageRequest, options?: RpcOptions): UnaryCall<SnapshotPackageRequest, SnapshotPackageResponse>;
     // 
     // Blobs
     // 
@@ -393,28 +393,28 @@ export interface IModuleHostClient {
      */
     killRun(input: KillRunRequest, options?: RpcOptions): UnaryCall<KillRunRequest, KillRunResponse>;
     /**
-     * Runs a well-known internal statement in the host with our credentials.
+     * Runs a well-known internal block in the host with our credentials.
      *
-     * @generated from protobuf rpc: RunProxyStatement(symbolx.bench.RunProxyStatementRequest) returns (symbolx.bench.RunProxyStatementResponse);
+     * @generated from protobuf rpc: RunProxyBlock(symbolx.bench.RunProxyBlockRequest) returns (symbolx.bench.RunProxyBlockResponse);
      */
-    runProxyStatement(input: RunProxyStatementRequest, options?: RpcOptions): UnaryCall<RunProxyStatementRequest, RunProxyStatementResponse>;
+    runProxyBlock(input: RunProxyBlockRequest, options?: RpcOptions): UnaryCall<RunProxyBlockRequest, RunProxyBlockResponse>;
 }
 /**
- * The Bench host for a specific module.
- * Service is scoped to bench_id/module_id.
+ * The Bench host for a specific package.
+ * Service is scoped to bench_id/package_id.
  * Frontend connects to this directly.
- * Not sure yet how branching will work here (maybe 'virtual' modules on top of main/env modules).
+ * Not sure yet how branching will work here (maybe 'virtual' packages on top of main/env packages).
  *
  *
- * General Bench IO for this module and global nodes (should match GlobalSupervisor) :BenchIO
+ * General Bench IO for this package and global nodes (should match GlobalSupervisor) :BenchIO
  *
  *
- * @generated from protobuf service symbolx.bench.ModuleHost
+ * @generated from protobuf service symbolx.bench.PackageHost
  */
-export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
-    typeName = ModuleHost.typeName;
-    methods = ModuleHost.methods;
-    options = ModuleHost.options;
+export class PackageHostClient implements IPackageHostClient, ServiceInfo {
+    typeName = PackageHost.typeName;
+    methods = PackageHost.methods;
+    options = PackageHost.options;
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
@@ -445,7 +445,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<AggregateNodesRequest, AggregateNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Commits a set of edits to the module. Optionally forward locally bypassed edits.
+     * Commits a set of edits to the package. Optionally forward locally bypassed edits.
      *
      * @generated from protobuf rpc: CommitEdits(symbolx.bench.CommitEditsRequest) returns (symbolx.bench.CommitEditsResponse);
      */
@@ -454,7 +454,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<CommitEditsRequest, CommitEditsResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Receive any relevant edits to this module.
+     * Receive any relevant edits to this package.
      *
      * @generated from protobuf rpc: WatchEdits(symbolx.bench.WatchEditsRequest) returns (stream symbolx.bench.WatchEditsResponse);
      */
@@ -463,11 +463,11 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<WatchEditsRequest, WatchEditsResponse>("serverStreaming", this._transport, method, opt, input);
     }
     // 
-    // Special Module IO
+    // Special Package IO
     // 
 
     /**
-     * Pushes locally bypassed edits to the module subscribers.
+     * Pushes locally bypassed edits to the package subscribers.
      *
      * @generated from protobuf rpc: PushEdits(symbolx.bench.PushEditsRequest) returns (symbolx.bench.PushEditsResponse);
      */
@@ -476,7 +476,7 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<PushEditsRequest, PushEditsResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Paste specific inline nodes (and only those nodes) from this or another module.
+     * Paste specific inline nodes (and only those nodes) from this or another package.
      *
      * @generated from protobuf rpc: PasteNodes(symbolx.bench.PasteNodesRequest) returns (symbolx.bench.PasteNodesResponse);
      */
@@ -485,13 +485,13 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<PasteNodesRequest, PasteNodesResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Create a full snapshot of this Bench module (copy to a new Bench module as specified).
+     * Create a full snapshot of this Bench package (copy to a new Bench package as specified).
      *
-     * @generated from protobuf rpc: Snapshot(symbolx.bench.SnapshotModuleRequest) returns (symbolx.bench.SnapshotModuleResponse);
+     * @generated from protobuf rpc: Snapshot(symbolx.bench.SnapshotPackageRequest) returns (symbolx.bench.SnapshotPackageResponse);
      */
-    snapshot(input: SnapshotModuleRequest, options?: RpcOptions): UnaryCall<SnapshotModuleRequest, SnapshotModuleResponse> {
+    snapshot(input: SnapshotPackageRequest, options?: RpcOptions): UnaryCall<SnapshotPackageRequest, SnapshotPackageResponse> {
         const method = this.methods[7], opt = this._transport.mergeOptions(options);
-        return stackIntercept<SnapshotModuleRequest, SnapshotModuleResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<SnapshotPackageRequest, SnapshotPackageResponse>("unary", this._transport, method, opt, input);
     }
     // 
     // Blobs
@@ -569,13 +569,13 @@ export class ModuleHostClient implements IModuleHostClient, ServiceInfo {
         return stackIntercept<KillRunRequest, KillRunResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Runs a well-known internal statement in the host with our credentials.
+     * Runs a well-known internal block in the host with our credentials.
      *
-     * @generated from protobuf rpc: RunProxyStatement(symbolx.bench.RunProxyStatementRequest) returns (symbolx.bench.RunProxyStatementResponse);
+     * @generated from protobuf rpc: RunProxyBlock(symbolx.bench.RunProxyBlockRequest) returns (symbolx.bench.RunProxyBlockResponse);
      */
-    runProxyStatement(input: RunProxyStatementRequest, options?: RpcOptions): UnaryCall<RunProxyStatementRequest, RunProxyStatementResponse> {
+    runProxyBlock(input: RunProxyBlockRequest, options?: RpcOptions): UnaryCall<RunProxyBlockRequest, RunProxyBlockResponse> {
         const method = this.methods[15], opt = this._transport.mergeOptions(options);
-        return stackIntercept<RunProxyStatementRequest, RunProxyStatementResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<RunProxyBlockRequest, RunProxyBlockResponse>("unary", this._transport, method, opt, input);
     }
 }
 /**

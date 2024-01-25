@@ -6,12 +6,12 @@ from bench.language.expression import Expression
 from bench.language.node import Node, node, node_parent, struct_property
 
 if typing.TYPE_CHECKING:
-    from bench.language import Statement
+    from bench.language import Block
 
 
 @node(NodeType.VIEW)
 class View(Node):
-    parent: typing.Union["Statement"] = node_parent(4, NodeType.STATEMENT)
+    parent: typing.Union["Block"] = node_parent(4, NodeType.BLOCK)
     name: str | None = struct_property(30, default=None)
     order_key: str | None = struct_property(31, default=None)
     node_type: NodeType = struct_property(32)

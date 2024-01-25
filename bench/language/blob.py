@@ -9,8 +9,7 @@ import aiohttp
 import requests
 import structlog
 
-from bench.language.builtin import active_session
-from bench.language.const import BlobStatus, NodeType, StructType
+from bench.language.const import BlobStatus, NodeType, StructType, active_session
 from bench.language.node import (
     Bench,
     Node,
@@ -35,7 +34,7 @@ BLOB_MAX_SIZE = 1024 * 1024 * 1024  # 1GB
 BLOB_MAX_NAME_LENGTH = 256
 
 
-@node(NodeType.BUCKET_OBJECT, in_module=False)
+@node(NodeType.BUCKET_OBJECT, in_package=False)
 class BucketObject(Node):
     """The actual file resource ('object') stored in a bucket somewhere. De-duped to 1 per sha512."""
 
@@ -153,11 +152,6 @@ class Blob(Struct):
         await Blob._mark_uploaded(self)
         logger.debug("blob.do_upload.done", blob=self)
 
-    def _assign_id_and_ck(self, module_ck: UUID):
-        # derive ck from module ck and sha512 (and id==ck because detached)
-        self._set_untracked("ck", uuid5(module_ck, self.sha512))
-        self._set_untracked("id", self.ck)
-
     @staticmethod
     @_auto_async_to_sync
     async def from_url(url: str, name: str = None, timeout: int = None) -> "Blob":
@@ -177,7 +171,7 @@ class Blob(Struct):
             content_type=response.headers["Content-Type"],
             name=name or response.url.split("/")[-1],
         )
-        obj._assign_id_and_ck(session.module.ck)
+        obj._assign_id_and_ck(session.package.ck)
         obj._validate_self(["name", "content_type", "content_length"], on_invalid=on_invalid_raise)
         await obj._do_upload(response.content)
         return obj
@@ -204,7 +198,7 @@ class Blob(Struct):
             name=name,
             _session=None,
         )
-        obj._assign_id_and_ck(session.module.ck)
+        obj._assign_id_and_ck(session.package.ck)
         obj._validate_self(["name", "content_type", "content_length"], on_invalid=on_invalid_raise)
         await obj._do_upload(content)
         return obj

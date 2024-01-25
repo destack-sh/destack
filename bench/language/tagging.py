@@ -2,8 +2,7 @@ import typing
 from copy import deepcopy
 from typing import Optional, Union
 
-from bench.language.builtin import symbolx_lib
-from bench.language.const import NodeType, StatementType
+from bench.language.const import NodeType, BlockType
 from bench.language.node import (
     Node,
     NodeList,
@@ -20,40 +19,38 @@ from bench.sql.core import ColumnType
 from bench.utils.func import dict_minus
 
 if typing.TYPE_CHECKING:
-    from bench.language import Field, File, HasFields, Statement
+    from bench.language import Field, HasFields, Block, symbolx_lib
 
 
 @node(NodeType.TAGGING)
 class Tagging(HasValue, Node):
-    """An association between a tag and a statement (with optional value)."""
+    """An association between a tag and a node (with optional value)."""
 
-    parent: Union["File", "Statement", "Field"] | None = node_parent(
-        4, NodeType.FILE, NodeType.STATEMENT, NodeType.FIELD
-    )
+    parent: Union["Block", "Field"] | None = node_parent(4, NodeType.BLOCK, NodeType.FIELD)
     value_packed: typing.Any | None = struct_property(
         31, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
-    reference: Optional["Statement"] = struct_internal(
-        32, require=False, array=False, references=NodeType.STATEMENT
+    reference: Optional["Block"] = struct_internal(
+        32, require=False, array=False, references=NodeType.BLOCK
     )
 
     @staticmethod
     def new(
-        reference: Union["Statement", "Tagging", str],
+        reference: Union["Block", "Tagging", str],
         *args,
-        for_parent: Union["File", "Statement", "Field"] = None,
+        for_parent: Union["Block", "Field"] = None,
         **kwargs,
     ) -> "Tagging":
-        from bench.language import Statement
+        from bench.language import Block
 
         if isinstance(reference, Tagging):
             reference = reference.reference
-        elif isinstance(reference, Statement):
-            if reference.type != StatementType.TAG:
+        elif isinstance(reference, Block):
+            if reference.type != BlockType.TAG:
                 raise TypeError(f"cannot use {reference!r} as a tag")
         elif isinstance(reference, str):
-            module = (for_parent.module if for_parent else None) or symbolx_lib
-            resolved = symbolx_lib.lookup(".builtins." + reference) or module.lookup(reference)
+            package = (for_parent.package if for_parent else None) or symbolx_lib
+            resolved = symbolx_lib.lookup(".builtins." + reference) or package.lookup(reference)
             if resolved is None:
                 raise ValueError(f"cannot find tag {reference!r}")
             reference = resolved
@@ -64,10 +61,10 @@ class Tagging(HasValue, Node):
 
     @staticmethod
     def to_python(
-        node: "Tagging", props: dict, for_parent: Union["File", "Statement", "Field"] = None
+        node: "Tagging", props: dict, for_parent: Union["Block", "Field"] = None
     ) -> tuple[str, dict, dict]:
         assert node.reference is not None, f"missing reference for {node!r}"
-        if isinstance(node.reference, Node) and node.reference._type == NodeType.STATEMENT:
+        if isinstance(node.reference, Node) and node.reference._type == NodeType.BLOCK:
             reference = node.reference.name
         else:
             reference = node.reference

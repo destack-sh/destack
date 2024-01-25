@@ -19,7 +19,7 @@ from bench.utils.utils import get_from_env, omit_empty
 
 if TYPE_CHECKING:
     from bench.language.issue import IssueHandler
-    from bench.language.statement import Statement
+    from bench.language.block import Block
 
 logger = structlog.get_logger(__name__)
 
@@ -87,7 +87,7 @@ class HasModel(HasFields, Node):
                     log.debug("inference.cache.hit", output=describe_type(outputs))
                     check_type(outputs, self, is_output=True)
                     self.session._run_cached(
-                        statement=self,
+                        block=self,
                         inputs=inputs,
                         outputs=outputs,
                         generated_at=inference.generated_at,
@@ -189,14 +189,14 @@ class ModelError(RunError):
     def __init__(
         self,
         type: ModelErrorType,
-        statement: "Statement",
+        block: "Block",
         message: str = None,
         path: str = None,
     ):
         super().__init__(
             kind=RunErrorKind.Runtime,
             type=type.name,
-            statement=statement,
+            block=block,
             message=f"{type.value}: {message}",
         )
         self.type = type
@@ -245,7 +245,7 @@ class OpenAIChatCompletionModel(HasModel):
         return OpenAITextCompiler()
 
 
-def _map_openai_error(model: "Statement", e: Exception) -> ModelError:
+def _map_openai_error(model: "Block", e: Exception) -> ModelError:
     if isinstance(e, openai.InvalidRequestError):
         return ModelError(ModelErrorType.InvalidRequest, model, str(e))
     return ModelError(ModelErrorType.Unavailable, model, str(e))

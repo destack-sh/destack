@@ -19,7 +19,7 @@ from bench.language.validation import ValidationHandler, enum_validator
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language.statement import Statement
+    from bench.language.block import Block
 
 # :TriggerSchedule
 TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
@@ -33,7 +33,7 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 class Trigger(Node):
     """A trigger for a statement to run."""
 
-    parent: "Statement" = node_parent(4, NodeType.STATEMENT)
+    parent: "Block" = node_parent(4, NodeType.BLOCK)
     type: TriggerType = struct_property(30, require=True, validate=enum_validator(TriggerType))
     # name: str | None = struct_property(31, default=None)
     active: bool = struct_property(32, default=True)
@@ -46,7 +46,7 @@ class Trigger(Node):
 
     @staticmethod
     def new(
-        type: TriggerType = TriggerType.TIME, *args, for_parent: "Statement" = None, **kwargs
+        type: TriggerType = TriggerType.TIME, *args, for_parent: "Block" = None, **kwargs
     ) -> "Trigger":
         if type == TriggerType.TIME:
             return Trigger.time(*args, **kwargs)
@@ -71,7 +71,7 @@ class Trigger(Node):
 
     @staticmethod
     def to_python(
-        node: "Trigger", props: dict, for_parent: "Statement" = None
+        node: "Trigger", props: dict, for_parent: "Block" = None
     ) -> tuple[str, dict, dict]:
         if node.type == TriggerType.TIME:
             return (

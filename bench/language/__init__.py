@@ -1,6 +1,5 @@
 from .auth import Badge, Policy, PolicyRule
 from .blob import Blob
-from .builtin import symbolx_bench, symbolx_lib
 from .const import (
     VERSION,
     ActionKind,
@@ -11,19 +10,18 @@ from .const import (
     ScheduleType,
     SortMode,
     SortOp,
-    StatementType,
+    BlockType,
     TriggerType,
     FormatHint,
 )
 from .database import Record
 from .expression import A, C, E, Expression, S, PropertyReference, NodeReference
 from .field import Field, HasFields, TypeInfo
-from .file import File
 from .issue import Issue
 from .node import (
     Bench,
     Link,
-    Module,
+    Package,
     Node,
     Property,
     ScopeNode,
@@ -35,7 +33,7 @@ from .render import render
 from .run import Pause, Run, RunError
 from .session import LogEntry, Session
 from .signal import Signal
-from .statement import Statement
+from .block import Block
 from .tagging import Tagging
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
@@ -50,15 +48,15 @@ __all__ = [
     "Badge",
     "Bench",
     "Blob",
+    "Block",
+    "BlockType",
     "C",
     "Client",
     "ColumnType",
     "ConditionalOp",
     "Dependency",
-    "E",
     "Expression",
     "Field",
-    "File",
     "FormatHint",
     "Handle",
     "HasFields",
@@ -66,11 +64,11 @@ __all__ = [
     "IssueType",
     "Link",
     "LogEntry",
-    "Module",
     "Node",
     "NodeReference",
     "NodeVisitor",
     "Organization",
+    "Package",
     "Pause",
     "Policy",
     "PolicyEffect",
@@ -89,11 +87,7 @@ __all__ = [
     "Signal",
     "SortMode",
     "SortOp",
-    "Statement",
-    "StatementType",
     "Struct",
-    "symbolx_bench",
-    "symbolx_lib",
     "Tagging",
     "Trigger",
     "TriggerType",
@@ -105,7 +99,6 @@ __all__ = [
     "WorkerImage",
     "WorkerSet",
 ]
-
 
 # after all the imports, we can finalize
 _complete_bench_setup()

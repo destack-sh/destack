@@ -7,7 +7,7 @@ import typer
 from bench.cli.utils import _async_to_sync_blocking, _check_is_consistent
 from bench.proto.services import BenchServer
 from bench.runtime.node import Worker
-from bench.server.host import ModuleHostMultiplexer
+from bench.server.host import PackageHostMultiplexer
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.monitoring import restart_on_file_changes
 from bench.utils.utils import get_from_env, DEBUG
@@ -24,7 +24,7 @@ async def server(host: str, port: int, watch: bool = False):
     """
     await _check_is_consistent(check_db=True)
     logger.info("serve.server", host=host, port=port)
-    services = [GlobalSupervisor(), ModuleHostMultiplexer()]
+    services = [GlobalSupervisor(), PackageHostMultiplexer()]
     server = BenchServer(services)
     if DEBUG and watch:
         asyncio.create_task(restart_on_file_changes())
@@ -45,7 +45,7 @@ async def worker(host: str, port: int, watch: bool = False):
         worker_set_id=get_from_env("WORKER_SET_ID", default=None),
         worker_id=get_from_env("WORKER_ID", default=None),
         bench_id=get_from_env("BENCH_ID", default=None),
-        module_id=get_from_env("MODULE_ID", default=None),
+        package_id=get_from_env("package_ID", default=None),
     )
     services = [worker]
     server = BenchServer(services)

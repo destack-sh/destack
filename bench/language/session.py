@@ -21,7 +21,6 @@ from uuid import UUID, uuid4
 import psycopg
 import structlog
 
-from bench.language.builtin import _active_session
 from bench.language.const import (
     NTL,
     EditKind,
@@ -30,12 +29,13 @@ from bench.language.const import (
     RunStatus,
     StructType,
     TriggerType,
+    _active_session,
 )
 from bench.language.field import TypeInfo
 from bench.language.node import (
     _NC,
     UNSET,
-    Module,
+    Package,
     Node,
     ScopeNode,
     Struct,
@@ -49,7 +49,7 @@ from bench.language.node import (
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
 from bench.os.client import get_os_errors, os_client
-from bench.proto.wire import EditData, ModuleHostStub
+from bench.proto.wire import EditData
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
@@ -58,7 +58,7 @@ from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Policy, Statement, Trigger, Worker
+    from bench.language import Policy, Block, Trigger, Worker
     from bench.language.cache import Cache
 
 logger = structlog.get_logger(__name__)
@@ -69,15 +69,15 @@ class LogEntry(Struct):
     """An entry. In a log."""
 
     id: UUID = struct_internal(2, default_factory=uuid4)
-    module: Module = struct_internal(5, require=True, array=False, references=NodeType.MODULE)
-    bench: Module = struct_internal(6, require=True, array=False, references=NodeType.BENCH)
+    package: Package = struct_internal(5, require=True, array=False, references=NodeType.PACKAGE)
+    bench: Package = struct_internal(6, require=True, array=False, references=NodeType.BENCH)
     created_at: datetime = struct_internal(32, default_factory=utcnow_with_tz)
     stream: str = struct_internal(33)
     session: "Session" = struct_internal(34, require=False, array=True, references=NodeType.SESSION)
     level: Optional[str] = struct_internal(35, default=None)
     logger: Optional[str] = struct_internal(36, default=None)
-    statement: Optional["Statement"] = struct_internal(
-        37, require=False, array=False, references=NodeType.STATEMENT
+    block: Optional["Block"] = struct_internal(
+        37, require=False, array=False, references=NodeType.BLOCK
     )
     run: Optional["Run"] = struct_internal(38, require=False, array=False, references=NodeType.RUN)
     message: Optional[str] = struct_internal(39, default=None)
@@ -119,10 +119,10 @@ _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
 @node(NodeType.SESSION, local=True, index_in_os=True)
 class Session(ScopeNode):
     """
-    A managed context for running a Bench module (in a worker).
+    A managed context for running a Bench package (in a worker).
     """
 
-    parent: Module = node_parent(4, NodeType.MODULE)
+    parent: Package = node_parent(4, NodeType.PACKAGE)
     policies: list["Policy"] | None = struct_internal(30, default=None, struct_t=StructType.POLICY)
     worker: Optional["Worker"] = struct_internal(
         31, require=False, array=False, references=NodeType.WORKER
@@ -133,7 +133,7 @@ class Session(ScopeNode):
     opened_at: Optional[datetime] = struct_internal(35, default=None)
     closed_at: Optional[datetime] = struct_internal(36, default=None)
 
-    _host: ModuleHostStub | None = struct_runtime(default=None)
+    _host: Optional["PackageHostStub"] = struct_runtime(default=None)
     _root_run_ck: UUID | None = struct_runtime(default=None)
     _root_run_value: dict | None = struct_runtime(default=None)
     _init_run_value: dict | None = struct_runtime(default=None)
@@ -154,7 +154,7 @@ class Session(ScopeNode):
     _changed_record_ids_by_db_id: dict[UUID, set[UUID]] = struct_runtime(
         default_factory=lambda: defaultdict(set)
     )
-    _touched_databases_by_id: dict[UUID, "Statement"] = struct_runtime(default_factory=dict)
+    _touched_databases_by_id: dict[UUID, "Block"] = struct_runtime(default_factory=dict)
     _schema_changed: bool = struct_runtime(default=False)
 
     _cached_logs: deque[LogEntry] | None = struct_runtime(default=None)
@@ -182,7 +182,7 @@ class Session(ScopeNode):
         )
 
     @property
-    def host(self) -> ModuleHostStub:
+    def host(self) -> "PackageHostStub":
         assert self._host is not None, f"host not available in {self!r}"
         return self._host
 
@@ -203,15 +203,15 @@ class Session(ScopeNode):
         assert self._local_pg_cursor is not None, f"local_pg_cursor is unavailable in {self!r}"
         return self._local_pg_cursor
 
-    async def pg_cursor_to_local(self, module: Module) -> psycopg.AsyncCursor:
-        if module == self.module:
+    async def pg_cursor_to_local(self, package: Package) -> psycopg.AsyncCursor:
+        if package == self.package:
             return self.local_pg_cursor
-        if module.pg_name not in self._other_local_pg_cursors:
-            logger.debug("session.open_foreign_pg", module=module)
-            pg_pool = await get_pg_connection_pool(module.pg_name)
+        if package.pg_name not in self._other_local_pg_cursors:
+            logger.debug("session.open_foreign_pg", package=package)
+            pg_pool = await get_pg_connection_pool(package.pg_name)
             pg_connection = await pg_pool.getconn(timeout=3)
-            self._other_local_pg_cursors[module.pg_name] = pg_connection.cursor()
-        return self._other_local_pg_cursors[module.pg_name]
+            self._other_local_pg_cursors[package.pg_name] = pg_connection.cursor()
+        return self._other_local_pg_cursors[package.pg_name]
 
     async def open(self, session_flush_interval: float = 0.1):
         """Opens the session for regular business."""
@@ -242,7 +242,7 @@ class Session(ScopeNode):
         self._active_nodes_by_ck = {}
         self._stacktrace = []
         self._active_nodes_by_ck = {}
-        self._cache = Cache(self.module)
+        self._cache = Cache(self.package)
         self._log = logger.bind(session=self)
         self._stdout_collector = LogCollector(self._track_log, "stdout", self)
         self._stderr_collector = LogCollector(self._track_log, "stderr", self)
@@ -251,7 +251,7 @@ class Session(ScopeNode):
 
         # prepare local postgres
         if self._local_pg_cursor is None:
-            pg_pool = await get_pg_connection_pool(self.module.pg_name)
+            pg_pool = await get_pg_connection_pool(self.package.pg_name)
             pg_connection = await pg_pool.getconn(timeout=2)
             self._local_pg_cursor = pg_connection.cursor()
 
@@ -267,7 +267,7 @@ class Session(ScopeNode):
         # close postgres connections
         if self._local_pg_cursor:
             await self.local_pg_cursor.connection.rollback()  # any DB operation starts a tx in psycopg
-            pg_pool = await get_pg_connection_pool(self.module.pg_name)
+            pg_pool = await get_pg_connection_pool(self.package.pg_name)
             await pg_pool.putconn(self._local_pg_cursor.connection)
             self._local_pg_cursor = None
         for pg_name, pg_cursor in self._other_local_pg_cursors.items():
@@ -302,11 +302,11 @@ class Session(ScopeNode):
 
         # if the schema changed, also flush PG schema
         if self._schema_changed:
-            await update_dynamic_local_pg_schema(self.module.pg_name, self.module)
+            await update_dynamic_local_pg_schema(self.package.pg_name, self.package)
             self._schema_changed = False
 
         edits = self._eat_edits(local=True)
-        await pg_write_record_edits(self.local_pg_cursor, self.module, edits.local_edits)
+        await pg_write_record_edits(self.local_pg_cursor, self.package, edits.local_edits)
 
     @_auto_async_to_sync
     async def flush_session(self, force: bool = False, kill_pending_runs: bool = False) -> None:
@@ -328,7 +328,7 @@ class Session(ScopeNode):
             return
         self._log.debug("session.write_logs", logs=len(logs))
         ops: list[dict] = []
-        os_name = self.module.os_name
+        os_name = self.package.os_name
         logs = [wiring.pack_struct(log) for log in logs]
         for log in logs:
             ops.append({"index": {"_index": os_name, "_id": str(log.id)}})
@@ -341,7 +341,7 @@ class Session(ScopeNode):
 
     @_auto_async_to_sync
     async def commit(self):
-        """Commits module edits and syncs committed local edits to OS."""
+        """Commits package edits and syncs committed local edits to OS."""
         from bench.os.engine import sync_pg_databases_to_os
         from bench.sql.engine import pg_write_record_edits
 
@@ -365,15 +365,15 @@ class Session(ScopeNode):
             if edits.local_edits or edits.session_edits:
                 await pg_write_record_edits(
                     cur=self.local_pg_cursor,
-                    module=self.module,
+                    package=self.package,
                     edits=[*(edits.local_edits or ()), *(edits.session_edits or ())],
                     old_databases_by_id=touched_databases_by_id,
                 )
             await self._local_pg_cursor.connection.commit()
-            self.module._apply_edits_to_source(edits.global_edits)
+            self.package._apply_edits_to_source(edits.global_edits)
             log.debug("session.commit.done")
         except Exception as e:
-            # 'unwind' module state, mark session as broken
+            # 'unwind' package state, mark session as broken
             log.exception("session.commit.failed", exc_info=True)
             self.module._reset_from_source()
             self._failed_commit = True
@@ -387,7 +387,7 @@ class Session(ScopeNode):
             # TODO @Robustness: repair index in case of local PG/OS sync failures
             # sync local edits to index
             log.debug("session.commit.index")
-            changed_records: list[tuple["Statement", set[UUID]]] = [
+            changed_records: list[tuple["Block", set[UUID]]] = [
                 (self._touched_databases_by_id[db_id], record_ids)
                 for db_id, record_ids in self._changed_record_ids_by_db_id.items()
             ]
@@ -489,12 +489,10 @@ class Session(ScopeNode):
     def _check_not_active(self, node: Node):
         """Checks if the node or any of its ancestors are active."""
         if node.ck in self._active_nodes_by_ck:
-            statement = self._active_nodes_by_ck[node.ck]
-            raise RuntimeError(
-                f"cannot delete ancestor {node!r} of running statement: {statement!r}"
-            )
+            block = self._active_nodes_by_ck[node.ck]
+            raise RuntimeError(f"cannot delete ancestor {node!r} of running block: {block!r}")
 
-    def _records_changed(self, database: "Statement", record_ids: Collection[UUID]):
+    def _records_changed(self, database: "Block", record_ids: Collection[UUID]):
         self._touched_databases_by_id[database.id] = database
         self._changed_record_ids_by_db_id[database.id].update(record_ids)
 
@@ -649,16 +647,16 @@ class Session(ScopeNode):
                 self._active_nodes_by_ck[parent.ck] = run.node
                 parent = parent.parent
 
-    def _run_enter(self, statement: "Statement", inputs):
+    def _run_enter(self, block: "Block", inputs):
         # we set invalid values to none here unlike in other packing places because
         #  these values may be written even if invalid
         from bench.language.value import check_type, pack_value
 
-        assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
+        assert not self.session.closed_at, f"cannot run {block!r} in session {self.session!r}"
 
         run = self._create_run(
-            statement=statement,
-            inputs=pack_value(inputs, statement, is_output=False, none_if_invalid=True),
+            block=block,
+            inputs=pack_value(inputs, block, is_output=False, none_if_invalid=True),
         )
         with self._tracing_lock:
             self._stacktrace.append(run)
@@ -671,42 +669,42 @@ class Session(ScopeNode):
         try:
             if len(self.stacktrace) >= MAX_STACK_DEPTH:
                 raise RecursionError(f"maximum stack depth exceeded: {MAX_STACK_DEPTH}")
-            check_type(inputs, statement, is_output=False)
+            check_type(inputs, block, is_output=False)
         except BaseException as e:
-            self._run_exception(statement, e)
+            self._run_exception(block, e)
             raise e
 
-    def _run_exit(self, statement: "Statement", outputs):
+    def _run_exit(self, block: "Block", outputs):
         from bench.language.value import check_type
 
-        assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
+        assert not self.session.closed_at, f"cannot run {block!r} in session {self.session!r}"
 
         # post-run validation
         try:
-            check_type(outputs, statement, is_output=True)
+            check_type(outputs, block, is_output=True)
         except BaseException as e:
-            self._run_exception(statement, e)
+            self._run_exception(block, e)
             raise e
 
         with self._tracing_lock:
             run = self._pop_stacktrace()
-            assert run.node == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
+            assert run.node == block, f"bad stack in {self!r}: {run!r} got {block!r}"
             run.terminated_at = utcnow_with_tz()
             run.outputs_packed = _pack_and_truncate_value(
-                outputs, statement, is_output=True, none_if_invalid=True
+                outputs, block, is_output=True, none_if_invalid=True
             )
             run.status = RunStatus.COMPLETED
             self._track_run(run)
             _clear_active_run(run)
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
 
-    def _run_exception(self, statement: "Statement", exception: BaseException):
-        assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
+    def _run_exception(self, block: "Block", exception: BaseException):
+        assert not self.session.closed_at, f"cannot run {block!r} in session {self.session!r}"
         with self._tracing_lock:
             run = self._pop_stacktrace()
-            assert run.node == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
+            assert run.node == block, f"bad stack in {self!r}: {run!r} got {block!r}"
             run.terminated_at = utcnow_with_tz()
-            run.error = RunError.from_exception(exception, statement)
+            run.error = RunError.from_exception(exception, block)
             if isinstance(exception, asyncio.CancelledError):
                 run.status = RunStatus.ABORTED
             else:
@@ -717,21 +715,21 @@ class Session(ScopeNode):
 
     def _run_cached(
         self,
-        statement: "Statement",
+        block: "Block",
         inputs,
         outputs,
         generated_at: datetime,
         generated_in: UUID,
         duration: float,
     ):
-        assert not self.session.closed_at, f"cannot run {statement!r} in session {self.session!r}"
-        run = self._create_run(statement=statement, trace=True)
+        assert not self.session.closed_at, f"cannot run {block!r} in session {self.session!r}"
+        run = self._create_run(block=block, trace=True)
         run.terminated_at = utcnow_with_tz()
         run.inputs_packed = _pack_and_truncate_value(
-            inputs, statement, is_output=False, none_if_invalid=True
+            inputs, block, is_output=False, none_if_invalid=True
         )
         run.outputs_packed = _pack_and_truncate_value(
-            outputs, statement, is_output=True, none_if_invalid=True
+            outputs, block, is_output=True, none_if_invalid=True
         )
         run.status = RunStatus.COMPLETED
         run.value.cached_at = generated_at
@@ -756,7 +754,7 @@ class Session(ScopeNode):
 
     def _create_run(
         self,
-        statement: Optional["Statement"] = None,
+        block: Optional["Block"] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
@@ -784,7 +782,7 @@ class Session(ScopeNode):
             bench_id=self.session.module.bench_id,
             worker=self.session.worker_id,
             worker_process_id=self.session.worker_process_id,
-            statement=statement,
+            block=block,
             trigger_type=trigger_type,
             trigger_id=trigger.id if not isinstance(trigger, UUID) else trigger,
             started_at=utcnow_with_tz(),
@@ -856,10 +854,10 @@ class LogCollector:
     def _track(self, message: str) -> None:
         active_run = _get_active_run()
         if active_run:
-            statement = active_run.node
+            block = active_run.node
             run = active_run
         else:
-            statement = None
+            block = None
             run = None
         module = self.session.module
         log_entry = LogEntry(
@@ -869,7 +867,7 @@ class LogCollector:
             created_at=utcnow_with_tz(),
             stream=self.stream,
             session=self.session,
-            statement=statement,
+            block=block,
             run=run,
             message=message,
         )
@@ -931,7 +929,7 @@ def _set_active_run(run: Run):
 
 def _pack_and_truncate_value(
     value: Any,
-    type: "Statement",
+    type: "Block",
     ignore_array: bool = False,
     ignore_outer: bool = False,
     none_if_invalid: bool = False,

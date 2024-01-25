@@ -17,10 +17,10 @@ from bench.language.node import (
 from bench.utils.dt import utcnow_with_tz
 
 
-@node(NodeType.WORKER_SET, in_module=False)
+@node(NodeType.WORKER_SET, in_package=False)
 class WorkerSet(ScopeNode):
     """
-    Set of workers to run a Bench's modules.
+    Set of workers to run a Bench's packages.
     """
 
     parent: "Bench" = node_parent(4, NodeType.BENCH)
@@ -41,7 +41,7 @@ class WorkerSet(ScopeNode):
     workers: list["Worker"] = node_children(NodeType.WORKER)
 
 
-@node(NodeType.WORKER, in_module=False)
+@node(NodeType.WORKER, in_package=False)
 class Worker(Node):
     parent: "WorkerSet" = node_parent(4, NodeType.WORKER_SET)
     external_id: str = struct_internal(30, unique=True, system=True)

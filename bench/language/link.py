@@ -28,6 +28,7 @@ from bench.language.const import (
     NRel,
     QueryEngine,
     SortOp,
+    active_session,
 )
 from bench.language.validation import on_invalid_raise
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -285,12 +286,12 @@ class NodeList(NodeListBase[NodeT]):
         if _node.parent is not None:
             raise ValueError(f"cannot attach {_node!r} to {self!r}: attached to {_node.parent!r}")
 
-        # assign ids if newly attached to the module (ids are derived from ck + module)
+        # assign ids if newly attached to the package (ids are derived from ck + package)
         if not _node.attached and self._parent.attached:
-            module_id = self._parent.module.id
+            package_id = self._parent.package.id
             for n in _node._walk_rec():
                 if n.id is None:
-                    n._assign_id(module_id)
+                    n._assign_id(package_id)
         change = _InterpChange._collect(None, self._parent, (_node,), _trigger)
         # update parent after updating ids (the above walks tree, which is changed here)
         _node.parent = self._parent
@@ -797,7 +798,6 @@ class NodeQuery(Generic[NodeT]):
             raise TypeError(f"expected slice or index into {self!r}, got {type(item)}: {item}")
 
     async def _fetch(self) -> list[NodeT]:
-        from bench.language.builtin import active_session
         from bench.proto import wiring
 
         session = active_session()
@@ -867,7 +867,6 @@ class NodeQuery(Generic[NodeT]):
     @_auto_async_to_sync
     async def count(self, filter: "Expression" = None, **kwargs) -> int:
         """Returns the number of results. May refine the query."""
-        from bench.language.builtin import active_session
         from bench.language.expression import coerce_conditional
         from bench.proto import wire, wiring
         from bench.sql.engine import compile_pg_conditional, pg_count
@@ -900,7 +899,6 @@ class NodeQuery(Generic[NodeT]):
     @_auto_async_to_sync
     async def exists(self, filter: "Expression" = None, **kwargs) -> bool:
         """Whether any results exist. May refine the query."""
-        from bench.language.builtin import active_session
         from bench.language.expression import coerce_conditional
         from bench.proto import wire, wiring
         from bench.sql.engine import compile_pg_conditional, pg_exists

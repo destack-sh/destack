@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import contextvars
 import enum
 import typing
 from itertools import chain
+from typing import Optional
 from uuid import UUID
 
 from bench.proto.core import ProtoStrEnum
@@ -10,11 +12,11 @@ from bench.utils.casing import Casing, to_casing
 from bench.utils.func import cyrb53a
 
 if typing.TYPE_CHECKING:
-    from bench.language import Node, Statement  # noqa: F401
+    from bench.language import Node, Block, Session, Bench, Package  # noqa: F401
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.25.1"
+VERSION = "2024.01.25.2"
 
 
 #
@@ -32,19 +34,17 @@ class NodeType(ProtoStrEnum):
     # UPGRADE = "UPGRADE", 6
 
     # source
-    # nocheckin: rename module->package, file->block, statement->block (and blob->file)
-    MODULE = "MODULE", 20
-    FILE = "FILE", 21
-    STATEMENT = "STATEMENT", 22
-    TRIGGER = "TRIGGER", 23
-    TAGGING = "TAGGING", 24
-    FIELD = "FIELD", 25
-    RECORD = "RECORD", 26  # (local)
-    VIEW = "VIEW", 27
-    # TILE = "TILE", 28
-    # STEP = "STEP", 29
-    ISSUE = "ISSUE", 30
-    LINK = "LINK", 31
+    PACKAGE = "PACKAGE", 20
+    BLOCK = "BLOCK", 21
+    TRIGGER = "TRIGGER", 22
+    TAGGING = "TAGGING", 23
+    FIELD = "FIELD", 24
+    RECORD = "RECORD", 25  # (local)
+    VIEW = "VIEW", 26
+    # TILE = "TILE", 27
+    # STEP = "STEP", 28
+    ISSUE = "ISSUE", 29
+    LINK = "LINK", 30
 
     # session (all local)
     SESSION = "SESSION", 50
@@ -81,9 +81,9 @@ class NodeType(ProtoStrEnum):
 
 
 NODE_TYPES: tuple[NodeType, ...] = tuple(NodeType)
-# (we duplicate in-module/in-bench info here to access it while initialising the node classes,
+# (we duplicate in-package/in-bench info here to access it while initialising the node classes,
 #  but we check for consistency during finalization)
-IN_MODULE_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80)
+IN_PACKAGE_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if 20 <= nt.id < 80)
 IN_BENCH_NODE_TYPES: tuple[NodeType, ...] = tuple(nt for nt in NODE_TYPES if nt.id < 100)
 
 
@@ -97,7 +97,7 @@ class StructType(ProtoStrEnum):
     FIELD_PATH_SEGMENT = "FIELD_PATH_SEGMENT", 205
     VALUE_REFERENCE = "VALUE_REFERENCE", 206
 
-    BLOB = "BLOB", 210
+    BLOB = "BLOB", 210  # nocheckin: rename Blob -> File
     TYPE_INFO = "TYPE_INFO", 211
 
     POLICY = "POLICY", 220
@@ -156,7 +156,7 @@ BENCH_TYPE_NAME: dict[NodeType | StructType, str] = {
 INTERP_NODE_TYPES = {NodeType.ISSUE}
 
 
-class StatementType(ProtoStrEnum):
+class BlockType(ProtoStrEnum):
     BOX = "box", 1  # group of blocks
     BLANK = "blank", 2  # placeholder/spacer
     TEXT = "text", 3  # define a 'paragraph' of text/comment/instruction/etc.
@@ -187,12 +187,7 @@ class StatementType(ProtoStrEnum):
         return to_casing(self.name, Casing.CAMEL)
 
 
-RUNNABLE_STATEMENT_TYPES = {
-    StatementType.CODE,
-    StatementType.MODEL,
-    StatementType.TASK,
-    StatementType.FLOW,
-}
+RUNNABLE_BLOCK_TYPES = {BlockType.CODE, BlockType.MODEL, BlockType.TASK, BlockType.FLOW}
 
 
 class NodeSource(ProtoStrEnum):
@@ -240,12 +235,12 @@ class NodeRelationType(enum.IntEnum):
     """Parent relation between node and descendants."""
 
     DEFAULT = 0  # default inline relation
-    STORED_CUSTOM = 2**0  # not inline: Statement->Record, ...
-    CUMULATIVE = 2**1  # sum of descendants: Module->Issue, File->Issue, ...
-    NAMED = 2**2  # indexed by name: Module->File, File->Statement, ...
-    SCOPED = 2**3  # scoped by name: Module->File, File->Statement, ...
-    KEYED = 2**4  # indexed by key: File->Tagging, Statement->Tagging, ...
-    ORDERED = 2**5  # ordered: File->Statement, Statement->Field, ...
+    STORED_CUSTOM = 2**0  # not inline: Block->Record, ...
+    CUMULATIVE = 2**1  # sum of descendants: Package->Issue, Block->Issue, ...
+    NAMED = 2**2  # indexed by name: Package->Block, Block->Block, ...
+    SCOPED = 2**3  # scoped by name: Package->Block, Block->Block, ...
+    KEYED = 2**4  # indexed by key: Block->Tagging, Block->Tagging, ...
+    ORDERED = 2**5  # ordered: Block->Block, Block->Field, ...
 
 
 NRel = NodeRelationType
@@ -393,7 +388,7 @@ class BlobStatus(ProtoStrEnum):
 
 
 class TriggerType(ProtoStrEnum):
-    """Triggers for statements (for both actual runs and pre-defined triggers)."""
+    """Triggers for blocks (for both actual runs and pre-defined triggers)."""
 
     INVOKE = "invoke", 1
     TIME = "time", 2
@@ -405,7 +400,7 @@ class TriggerType(ProtoStrEnum):
 
 
 class ScheduleType(ProtoStrEnum):
-    """Schedules for statements."""
+    """Schedules for blocks."""
 
     INTERVAL = "interval", 1
     CRON = "cron", 2
@@ -599,3 +594,16 @@ else:
         "ExpressionOp",
         {op.name: (op.name, op.id) for op in chain(ConditionalOp, AggregationOp, SortOp)},
     )
+
+_active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
+    "active_session", default=None
+)
+_no_validation: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_no_validation", default=False
+)
+
+
+def active_session() -> "Session":
+    session = _active_session.get()
+    assert session is not None, "no active session"
+    return session

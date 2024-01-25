@@ -1,7 +1,7 @@
 from typing import Optional
 from uuid import UUID
 
-from bench.language.node import Module
+from bench.language.node import Package
 from bench.utils.cache import redis
 from bench.utils.func import _auto_async_to_sync
 
@@ -31,18 +31,18 @@ def _get_usage_key(bench_id: UUID) -> str:
 class Cache:
     """Cache for a Bench (async)."""
 
-    def __init__(self, module: Optional[Module], subkey: str = None, bench_id: UUID = None):
-        self.module = module
-        if module is None and bench_id is None:
-            raise ValueError("bench_id must be provided if module is None")
-        self.bench_id = bench_id or module.bench_id
+    def __init__(self, package: Optional[Package], subkey: str = None, bench_id: UUID = None):
+        self.package = package
+        if package is None and bench_id is None:
+            raise ValueError("bench_id must be provided if package is None")
+        self.bench_id = bench_id or package.bench_id
         self.scope_key = _get_scope_key(self.bench_id)
         if subkey is not None:
             self.scope_key = f"{self.scope_key}.{subkey}"
         self.usage_key = _get_usage_key(self.bench_id)
 
     def __str__(self):
-        return f"{self.module} cache"
+        return f"{self.package} cache"
 
     def __repr__(self):
         return f"<Cache {self}>"

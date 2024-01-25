@@ -180,7 +180,7 @@ class Deployment:
         namespace = settings.KUBERNETES_WORKER_NAMESPACE
         env_vars: dict[str, str] = {
             "WORKER_BENCH_ID": str(self.bench_id),
-            "WORKER_MODULE_ID": str(bench.head_id),
+            "WORKER_package_ID": str(bench.head_id),
             "WORKER_SET_ID": str(self.worker_set_id),
             # local opensearch auth
             "LOCAL_OS_HOST": get_from_env("GLOBAL_OS_HOST"),

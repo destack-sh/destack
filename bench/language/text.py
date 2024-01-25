@@ -94,8 +94,8 @@ def parse_text_html(text_raw: str) -> list[TextSpan]:
     Spans are represented as span with data-reference attributes.
     :TextFormat
 
-    e.g. "Hello <span data-reference-ck="02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a" data-reference-type="Statement" data-reference-path="a.b.c"></span>!"
-     -> [text("Hello "), Mention("02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a", "Statement", "a.b.c"), TextSpan("!")]
+    e.g. "Hello <span data-reference-ck="02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a" data-reference-type="Block" data-reference-path="a.b.c"></span>!"
+     -> [text("Hello "), Mention("02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a", "Block", "a.b.c"), TextSpan("!")]
     """
     spans = []
     last_end = 0
@@ -175,7 +175,7 @@ def parse_text_multi(text_raw: str) -> list[TextSpan]:
             spans.append(TextPlain(text=text_raw[last_end : match.start()]))
 
         ident = match.group("ident") or UUID(match.group("ck"))
-        node_type = match.group("type") or NodeType.STATEMENT
+        node_type = match.group("type") or NodeType.BLOCK
         spans.append(
             TextMention(reference=TypedNodeReference(node_type, ident), reference_path=None)
         )
