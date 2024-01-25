@@ -16,7 +16,6 @@ from typing import (
     Callable,
     ClassVar,
     Collection,
-    ForwardRef,
     Iterable,
     Mapping,
     Optional,
@@ -69,7 +68,7 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, NodeReferenceData, SomeNodeData, AnyNodeData, AnyStructData
+from bench.proto.wire import EditData, SomeNodeData, AnyNodeData, AnyStructData
 from bench.sql.core import (
     CascadeAction,
     Column,
@@ -86,7 +85,7 @@ from bench.utils.func import (
     check_collections_equal,
     did_you_mean_str,
     get_subclasses,
-    strip_py_type,
+    parse_py_type,
     try_tuple,
 )
 from bench.utils.utils import frozendict, required_field
@@ -337,7 +336,7 @@ class Property(_FieldExpressionBase):
     def _finalize_type(self) -> None:
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
-        # store/wire property by default if not runtime (and not marked as _not_ store)
+        # store/wire property by default if not runtime (and not indicated otherwise)
         if self.column_type is UNSET and (self.is_tree_relation or self.reference_types):
             if self.is_stored is UNSET:
                 self.is_stored = False
@@ -355,42 +354,40 @@ class Property(_FieldExpressionBase):
                 self.is_reflected = False  # can't deal with that yet
 
         # resolve py type
-        if self.is_runtime_only or self.reference_kind:
+        if self.is_runtime_only or self.reference_kind == NodeReferenceKind.CHILD:
             # can't resolve these because they point to non-Bench types
             self.py_type_stripped = self.py_type_raw
-            py_type = self.py_type_raw
-        else:
-            py_type, info = strip_py_type(self.py_type_raw)
-            # resolve manually if needed
-            if isinstance(py_type, (str, ForwardRef)):
-                py_type = py_type.__forward_arg__ if not isinstance(py_type, str) else py_type
-                if py_type not in _BENCH_CLASSES_BY_NAME:
-                    raise ValueError(f"cannot resolve type for {self!r}: {py_type!r}")
-                py_type = _BENCH_CLASSES_BY_NAME[py_type]
-            self.py_type_stripped = py_type
-            # update info from annotation
-            if self.is_array is UNSET:
-                self.is_array = info.is_array
-            if self.is_required is UNSET:
-                self.is_required = not info.is_optional
-            if not self.is_required and self.default is UNSET and self.default_factory is None:
-                self.default = None
+            return
+
+        # get py type
+        annotation = parse_py_type(self.py_type_raw, _BENCH_CLASSES_BY_NAME)
+        # resolve manually if needed
+        self.py_type_stripped = annotation.type
+        # update info from annotation
+        if self.is_array is UNSET:
+            self.is_array = annotation.is_array
+        if self.is_required is UNSET:
+            self.is_required = not annotation.is_optional
+        if not self.is_required and self.default is UNSET and self.default_factory is None:
+            self.default = None
 
         # determine storage type
         if self.column_type is UNSET and (self.is_stored or self.is_wired):
+            if annotation.is_union:
+                raise ValueError(f"cannot store union {self!r}")
             # map to column type
-            assert isinstance(py_type, type), f"invalid type {py_type!r} for {self!r}"
-            if issubclass(py_type, enum.StrEnum):
+            assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
+            if issubclass(annotation.type, enum.StrEnum):
                 self.column_type = ColumnType.STRING
-            elif issubclass(py_type, (enum.IntFlag, enum.IntEnum)):
+            elif issubclass(annotation.type, (enum.IntFlag, enum.IntEnum)):
                 self.column_type = ColumnType.BIGINT
-            elif issubclass(py_type, Struct):
+            elif issubclass(annotation.type, Struct):
                 assert self.struct_type is not None, f"missing struct type for {self!r}"
                 self.column_type = ColumnType.BYTES
-            elif issubclass(py_type, Node):
+            elif issubclass(annotation.type, Node):
                 raise ValueError(f"cannot store node directly: {self!r}")
             else:
-                column_type = PROPERTY_COLUMN_TYPE_BY_PY_TYPE.get(py_type)
+                column_type = PROPERTY_COLUMN_TYPE_BY_PY_TYPE.get(annotation.type)
                 if column_type is None:
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
                 self.column_type = column_type
@@ -398,8 +395,10 @@ class Property(_FieldExpressionBase):
     def _contribute_ptrs(self) -> tuple["Property", ...]:
         """
         Contribute the wired and stored pointer properties required by this property..
-        NOTE: contribute mutates this property
+        NOTE: contribute mutates this property, so can only be called once.
         """
+
+        assert self.reference_stored_ptrs is None, f"already contributed {self!r}"
 
         # wired/stored pointer settings for each reference kind
         if self.reference_kind == NodeReferenceKind.PARENT:
@@ -2548,6 +2547,8 @@ class Module(ScopeNode):
 
 
 # quick access to all the classes
+_FINAL_BENCH_CLASSES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
+FINAL_BENCH_CLASSES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
 _BENCH_CLASSES_BY_NAME: dict[str, type[Node | Struct | enum.Enum]] = {}
 BENCH_CLASSES: frozenset[type[Node | Struct | enum.Enum]] = frozenset()
 NODE_CLASSES: frozenset[type[Node]] = frozenset()
@@ -2564,18 +2565,19 @@ DESCENDANT_NODE_TYPES: dict[NodeType, tuple[NodeType, ...]] = {}
 
 def _complete_bench_setup():
     """Finalize setup of all language constructs after everything is imported."""
-    global BENCH_CLASSES
-    global NODE_CLASSES
-    global STRUCT_CLASSES
+    global FINAL_BENCH_CLASSES, BENCH_CLASSES, NODE_CLASSES, STRUCT_CLASSES
     from bench.language import const
 
     # populate known types
     for bench_t in chain(NODE_CLASS_BY_TYPE.values(), STRUCT_CLASS_BY_TYPE.values()):
-        _BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
-    for maybe_bench_t in const.__dict__.values():
-        if isinstance(maybe_bench_t, type) and issubclass(maybe_bench_t, enum.Enum):
-            _BENCH_CLASSES_BY_NAME[maybe_bench_t.__name__] = maybe_bench_t
-    BENCH_CLASSES = frozenset(_BENCH_CLASSES_BY_NAME.values())
+        _FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
+    for bench_t in const.__dict__.values():
+        if isinstance(bench_t, type) and issubclass(bench_t, enum.Enum):
+            _FINAL_BENCH_CLASSES_BY_NAME[bench_t.__name__] = bench_t
+    FINAL_BENCH_CLASSES = frozenset(_FINAL_BENCH_CLASSES_BY_NAME.values())
+    BENCH_CLASSES = frozenset(chain(_FINAL_BENCH_CLASSES_BY_NAME.values(), get_subclasses(Struct)))
+    for cls in BENCH_CLASSES:
+        _BENCH_CLASSES_BY_NAME[cls.__name__] = cls
     for node_t in NODE_TYPES:
         BENCH_CLASS_BY_TYPE[node_t] = NODE_CLASS_BY_TYPE[node_t]
     for struct_t in STRUCT_TYPES:
@@ -2589,7 +2591,7 @@ def _complete_bench_setup():
         is_node = issubclass(cls, Node)
         for name, prop in cls.__properties__.items():
             prop: Property
-            # determine final storage type
+            # finalize type info
             prop._finalize_type()
 
             # set properties (that exist at runtime) on class

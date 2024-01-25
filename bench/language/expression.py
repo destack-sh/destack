@@ -462,9 +462,11 @@ def _check_field_supports(field: "Field", op: ExpressionOp):
             raise UnsupportedExpressionError(field, op)
 
 
+# should probably make this per query engine?
 ExprOps = ExpressionOps  # alias
 SUPPORTED_OPS_BY_TYPE: dict[ColumnType, set[ConditionalOp]] = {
     # cumulative supported query ops by type
+    ColumnType.UUID: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
     ColumnType.INT: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
     ColumnType.BIGINT: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
     ColumnType.FLOAT: ExprOps.COND_RANGE | ExprOps.COND_EXACT,

@@ -332,6 +332,26 @@ class NotificationStatus(ProtoStrEnum):
     EXPIRED = "EXPIRED", 3
 
 
+class ColumnType(ProtoStrEnum):
+    """
+    Fundamental column / storage types we support (subset of SQL types).
+    NOTE: the ids here are used in encode/decode pipelines, take extra care.
+    """
+
+    STRING = "String", 1
+    BOOLEAN = "Boolean", 2
+    INT = "Int", 3  # range: -2147483648 to 2147483647
+    BIGINT = "BigInt", 4  # range: -9223372036854775808 to 9223372036854775807
+    FLOAT = "Float", 5
+    DATETIME = "DateTime", 6
+    INTERVAL = "Interval", 7
+    JSON = "Json", 8
+    BINARY = "Binary", 9
+    VECTOR = "Vector", 10
+    UUID = "UUID", 11
+    BYTES = "Bytes", 12
+
+
 class FormatHint(ProtoStrEnum):
     """Extra semantic hint for types."""
 
@@ -554,7 +574,7 @@ class SortOp(ProtoStrEnum):
 
 
 class QueryEngine(ProtoStrEnum):
-    MEMORY = "MEMORY", 1
+    IN_MEMORY = "IN_MEMORY", 1
     GLOBAL_POSTGRES = "GLOBAL_PG", 2
     GLOBAL_OPENSEARCH = "GLOBAL_OS", 3
     LOCAL_POSTGRES = "LOCAL_PG", 4

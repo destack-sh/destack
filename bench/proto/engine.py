@@ -10,7 +10,7 @@ from bench.proto.core import (
     Message,
     ProtoSchema,
     ProtoStrEnum,
-    ProtoThing,
+    ProtoObject,
 )
 from bench.sql.core import ColumnType
 from bench.utils.casing import Casing, to_casing
@@ -38,7 +38,7 @@ PROTO_FIELD_TYPE_BY_COLUMN_TYPE: dict[ColumnType, FieldType] = {
 _BenchType = type[Union["Node", "Struct", "Property", enum.StrEnum, enum.IntFlag]]
 
 
-def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoThing]) -> Field:
+def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoObject]) -> Field:
     assert not prop.is_runtime_only, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
@@ -73,31 +73,31 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoT
 
 
 def map_bench_struct_to_proto(
-    node: type["Struct"], cache: dict[_BenchType, ProtoThing], alias: str = None
+    struct: type["Struct"], cache: dict[_BenchType, ProtoObject], alias: str = None
 ) -> Message:
-    struct = Message(name=alias or node.__name__, reserved_names=[], reserved_ids=[], fields=[])
-    assert struct.__doc__, f"missing docstring for {node!r}"
-    struct.comment = node.__doc__.strip()
-    cache[node] = struct  # to solve recursive references
-    for prop in node.__properties__.values():
+    message = Message(name=alias or struct.__name__, reserved_names=[], reserved_ids=[], fields=[])
+    assert struct.__doc__, f"missing docstring for {struct!r}"
+    message.comment = struct.__doc__.strip()
+    cache[struct] = message  # to solve recursive references
+    for prop in struct.__properties__.values():
         if not prop.is_wired:
             continue
         field = map_bench_property_to_proto(prop, cache)
-        struct.fields.append(field)
-    for reserved in node.__reserved_properties__:
+        message.fields.append(field)
+    for reserved in struct.__reserved_properties__:
         if isinstance(reserved, str):
-            struct.reserved_names.append(reserved)
+            message.reserved_names.append(reserved)
         elif isinstance(reserved, int):
-            struct.reserved_ids.append(reserved)
+            message.reserved_ids.append(reserved)
         else:
             raise TypeError(f"invalid reserved property: {reserved!r}")
-    struct.fields.sort(key=lambda f: f.id)
-    return struct
+    message.fields.sort(key=lambda f: f.id)
+    return message
 
 
 def map_bench_enum_to_proto(
     bench_t: type[ProtoStrEnum] | type[enum.IntEnum] | type[enum.IntFlag],
-    cache: dict[_BenchType, ProtoThing],
+    cache: dict[_BenchType, ProtoObject],
     alias: str = None,
 ) -> Enum:
     assert issubclass(
@@ -127,8 +127,8 @@ def map_bench_enum_to_proto(
 
 
 def map_bench_type_to_proto(
-    bench_t: _BenchType, cache: dict[_BenchType, ProtoThing], alias: str = None
-) -> ProtoThing:
+    bench_t: _BenchType, cache: dict[_BenchType, ProtoObject], alias: str = None
+) -> ProtoObject:
     """Maps a Bench type to a Proto type. If not yet mapped, adds it to the cache."""
     from bench.language import Node, Struct
 
@@ -155,11 +155,10 @@ def generate_proto_schema(
 ) -> ProtoSchema:
     from bench.language import Node, Struct
 
-    proto_types_cache: dict[type[_BenchType], ProtoThing] = {}
+    proto_types_cache: dict[type[_BenchType], ProtoObject] = {}
     for thing in bench_classes:
         _ = map_bench_type_to_proto(thing, proto_types_cache, alias=aliases.get(thing))
 
-    # collect proto types
     collected_enums: list[type[enum.Enum]] = [t for t in bench_classes if issubclass(t, enum.Enum)]
     collected_structs: list[type["Struct"]] = [
         t for t in bench_classes if issubclass(t, Struct) and not issubclass(t, Node)

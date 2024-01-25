@@ -11,6 +11,7 @@ from uuid import UUID
 #  see https://github.com/MagicStack/asyncpg
 from more_itertools import first
 
+from bench.language.const import ColumnType
 from bench.proto.core import ProtoStrEnum
 
 
@@ -153,26 +154,6 @@ class TableObject(Object):
     def clone(self) -> "TableObject":
         """Deep copy this table object without the table reference."""
         return dataclasses.replace(self, _table=None)
-
-
-class ColumnType(ProtoStrEnum):
-    """
-    Fundamental column / storage types we support (subset of SQL types).
-    NOTE: the ids here are used in encode/decode pipelines, take extra care.
-    """
-
-    STRING = "String", 1
-    BOOLEAN = "Boolean", 2
-    INT = "Int", 3  # range: -2147483648 to 2147483647
-    BIGINT = "BigInt", 4  # range: -9223372036854775808 to 9223372036854775807
-    FLOAT = "Float", 5
-    DATETIME = "DateTime", 6
-    INTERVAL = "Interval", 7
-    JSON = "Json", 8
-    BINARY = "Binary", 9
-    VECTOR = "Vector", 10
-    UUID = "UUID", 11
-    BYTES = "Bytes", 12
 
 
 SqlPrimitiveSingle = Union[str, int, float, bool, datetime, UUID, bytes, type(None)]

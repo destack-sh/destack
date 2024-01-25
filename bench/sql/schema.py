@@ -11,7 +11,7 @@ from bench.sql.core import (
     IndexType,
 )
 
-VERSION = "2024.01.24.0"
+VERSION = "2024.01.24.1"
 
 BENCH_TABLE = Table(
     "bench_bench",
@@ -337,12 +337,18 @@ FIELD_TABLE = Table(
         Column("name", ColumnType.STRING, is_nullable=True),
         Column("order_key", ColumnType.STRING, is_nullable=True),
         Column("text", ColumnType.STRING, is_nullable=True),
-        Column("tag", ColumnType.STRING),
         Column("key", ColumnType.STRING, is_nullable=True),
         Column("value", ColumnType.JSON, is_nullable=True),
-        Column("hint", ColumnType.STRING, is_nullable=True),
-        Column("flags", ColumnType.BIGINT, default="0"),
-        Column("reference_statement_ck", ColumnType.UUID, is_nullable=True),
+        Column("base_type_statement_ck", ColumnType.UUID, is_nullable=True),
+        Column("bench_type", ColumnType.STRING, is_nullable=True),
+        Column("column_type", ColumnType.STRING, is_nullable=True),
+        Column("format_hint", ColumnType.STRING, is_nullable=True),
+        Column("condition", ColumnType.BYTES, is_nullable=True),
+        Column("is_array", ColumnType.BOOLEAN, default="false"),
+        Column("is_optional", ColumnType.BOOLEAN, default="true"),
+        Column("is_output", ColumnType.BOOLEAN, default="false"),
+        Column("is_secret", ColumnType.BOOLEAN, default="false"),
+        Column("is_literal", ColumnType.BOOLEAN, default="false"),
     ),
     indexes=(
         Index("bench_idx_module_deleted_at", IndexType.BTREE, ("module_id", "deleted_at")),
@@ -698,6 +704,13 @@ BADGE_TABLE = Table(
             is_nullable=True,
         ),
         Column(
+            "parent_statement_id",
+            ColumnType.UUID,
+            is_foreign_key_to="bench_statement",
+            on_delete=CascadeAction.CASCADE,
+            is_nullable=True,
+        ),
+        Column(
             "module_id",
             ColumnType.UUID,
             is_foreign_key_to="bench_module",
@@ -727,7 +740,7 @@ BADGE_TABLE = Table(
         Constraint(
             "bench_check_one_parent",
             ConstraintType.CHECK,
-            condition="(parent_module_id IS NOT NULL)",
+            condition="(parent_module_id IS NOT NULL) OR (parent_statement_id IS NOT NULL)",
         ),
     ),
 )

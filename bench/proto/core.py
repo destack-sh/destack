@@ -29,7 +29,7 @@ class ProtoStrEnum(enum.StrEnum):
         return obj
 
 
-class ProtoThing:
+class ProtoObject:
     """Proto thing."""
 
     def to_proto_source(self) -> str:
@@ -38,7 +38,7 @@ class ProtoThing:
 
 
 @dataclass
-class ProtoSchema(ProtoThing):
+class ProtoSchema(ProtoObject):
     """Proto file."""
 
     name: str
@@ -72,7 +72,7 @@ def _to_multi_line_comment(comment: str) -> str:
 
 
 @dataclass
-class Message(ProtoThing):
+class Message(ProtoObject):
     """Proto message."""
 
     name: str
@@ -121,7 +121,7 @@ class FieldType(enum.StrEnum):
 
 
 @dataclass
-class Enum(ProtoThing):
+class Enum(ProtoObject):
     """Proto enum."""
 
     name: str
@@ -143,7 +143,7 @@ class Enum(ProtoThing):
 
 
 @dataclass
-class EnumValue(ProtoThing):
+class EnumValue(ProtoObject):
     """Proto enum value."""
 
     id: int
@@ -155,7 +155,7 @@ class EnumValue(ProtoThing):
 
 
 @dataclass
-class Field(ProtoThing):
+class Field(ProtoObject):
     id: int | None
     name: str
     type: FieldType | Enum | Message | str
