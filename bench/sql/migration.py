@@ -16,9 +16,9 @@ from more_itertools import first
 from psycopg import sql
 
 from bench.sql.core import (
-    COLUMN_TYPE_BY_POSTGRES_TYPE,
     MIGRATION_TABLE,
     POSTGRES_TYPE_BY_UDT,
+    PRIMITIVE_TYPE_BY_POSTGRES_TYPE,
     CascadeAction,
     Column,
     Constraint,
@@ -567,7 +567,7 @@ def _render_migration_body(ops: list[MigrationOp] | None) -> str:
 
 
 async def apply_migration_ops(cur: psycopg.AsyncCursor, ops: list[MigrationOp]) -> None:
-    """Directly apply the given migration ops (for testing)."""
+    """Directly apply the given migration ops."""
     logger.info("apply_migration_ops", ops=ops)
     method_body = _render_migration_body(ops)
     method_body = format_python(method_body)
@@ -804,7 +804,7 @@ GROUP BY
             postgres_type = POSTGRES_TYPE_BY_UDT[udt_name]
             if postgres_type == PostgresColumnType.TEXT:
                 postgres_type = PostgresColumnType.CHARACTER_VARYING  # we don't do TEXT
-            column_type = COLUMN_TYPE_BY_POSTGRES_TYPE[postgres_type]
+            primitive_type = PRIMITIVE_TYPE_BY_POSTGRES_TYPE[postgres_type]
             is_foreign_key_to = (
                 row["target_table_names"]
                 if "FOREIGN KEY" in (row["constraint_types"] or "")
@@ -837,7 +837,7 @@ GROUP BY
 
             column = Column(
                 name=row["column_name"],
-                type=column_type,
+                type=primitive_type,
                 is_primary_key="PRIMARY KEY" in constraint_types,
                 is_foreign_key_to=is_foreign_key_to,
                 on_delete=cascade_action,

@@ -16,11 +16,11 @@ from bench.language.const import (
     StructType,
 )
 from bench.language.node import BENCH_CLASS_BY_TYPE, Node, Property, Struct, struct, struct_property
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
-    from bench.language import Field
+    from bench.language import Field, TypeInfo
     from bench.language.field import HasFields
 
 
@@ -141,7 +141,7 @@ class Expression(Struct):
     clauses: list["Expression"] | None = struct_property(
         35, default=None, struct=StructType.EXPRESSION
     )
-    value: Any = struct_property(36, default=None, column_type=ColumnType.JSON)
+    value: Any = struct_property(36, default=None, primitive_type=PrimitiveType.JSON)
     mode: Optional[SortMode] = struct_property(37, default=None)
 
     @property
@@ -319,7 +319,7 @@ class Aggregation(Struct):
 class AggregationBucket(Struct):
     """One bucket of an aggregation histogram."""
 
-    key: Any = struct_property(30, require=True, column_type=ColumnType.JSON)
+    key: Any = struct_property(30, require=True, primitive_type=PrimitiveType.JSON)
     count: int = struct_property(31, require=True)
 
 
@@ -354,7 +354,7 @@ def coerce_conditional(
             target = node.fields.get(field_key)
         if target is None:
             raise TypeError(f"{node!r} has no field {field_key}")
-        _check_field_supports(target._as_field, op)
+        _check_field_supports(target._as_type, op)
         if isinstance(target, Property):
             field, property = None, target.ptr
         else:
@@ -416,7 +416,7 @@ def coerce_sort(
             else:
                 field, property = target, None
             item = S(op, field=field, property_ptr=property)
-            _check_field_supports(target._as_field, op)
+            _check_field_supports(target._as_type, op)
         if not isinstance(item, Expression) or item.kind != ExpressionKind.SORT:
             raise TypeError(f"expected Sort or str, got {item!r}")
         coerced.append(item)
@@ -452,35 +452,36 @@ class UnsupportedExpressionError(ValueError):
         super().__init__(f"{repr(field)} does not support {thing}")
 
 
-def _check_field_supports(field: "Field", op: ExpressionOp):
+def _check_field_supports(type: "TypeInfo", op: ExpressionOp):
     """Asserts that the field supports the given expression operator."""
     if op in SortOp:
-        return field._storage_format in (
-            ColumnType.DATETIME,
-            ColumnType.FLOAT,
-            ColumnType.INT,
-            ColumnType.BIGINT,
+        return type.primitive_type in (
+            PrimitiveType.DATETIME,
+            PrimitiveType.FLOAT32,
+            PrimitiveType.INT32,
+            PrimitiveType.INT64,
         )
     else:
-        if op not in ExprOps.COND_EXISTENCE and op not in SUPPORTED_OPS_BY_TYPE.get(
-            field.derived_column_type, _EMPTY_SET
+        if op not in _ExprOps.COND_EXISTENCE and op not in SUPPORTED_OPS_BY_TYPE.get(
+            type.primitive_type, _EMPTY_SET
         ):
             raise UnsupportedExpressionError(field, op)
 
 
-# should probably make this per query engine?
-ExprOps = ExpressionOps  # alias
-SUPPORTED_OPS_BY_TYPE: dict[ColumnType, set[ConditionalOp]] = {
+# should probably also have expression support per query engine?
+_ExprOps = ExpressionOps  # alias
+SUPPORTED_OPS_BY_TYPE: dict[PrimitiveType, set[ConditionalOp]] = {
     # cumulative supported query ops by type
-    ColumnType.UUID: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
-    ColumnType.INT: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
-    ColumnType.BIGINT: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
-    ColumnType.FLOAT: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
-    ColumnType.BOOLEAN: ExprOps.COND_EXACT,
-    ColumnType.DATETIME: ExprOps.COND_RANGE | ExprOps.COND_EXACT,
-    ColumnType.VECTOR: ExprOps.COND_VECTOR,
-    ColumnType.STRING: ExprOps.COND_EXACT
-    | ExprOps.COND_RANGE
+    PrimitiveType.UUID: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
+    PrimitiveType.INT32: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
+    PrimitiveType.INT64: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
+    PrimitiveType.FLOAT32: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
+    PrimitiveType.FLOAT64: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
+    PrimitiveType.BOOLEAN: _ExprOps.COND_EXACT,
+    PrimitiveType.DATETIME: _ExprOps.COND_RANGE | _ExprOps.COND_EXACT,
+    PrimitiveType.VECTOR: _ExprOps.COND_VECTOR,
+    PrimitiveType.STRING: _ExprOps.COND_EXACT
+    | _ExprOps.COND_RANGE
     | {ConditionalOp.MATCHES, ConditionalOp.STARTS_WITH, ConditionalOp.REGEX},
 }
 _EMPTY_SET = set()

@@ -1,20 +1,20 @@
-from datetime import datetime
 import enum
 import random
 import string
-from typing import cast
 import uuid
+from datetime import datetime
+from typing import cast
 from uuid import UUID
 
 import pytest
 import pytz
 
-from bench.language import Struct, Node, NodeReference
-from bench.language.const import BenchType, BENCH_TYPES, StructType, NODE_TYPES
-from bench.language.node import BENCH_CLASS_BY_TYPE, Property, NODE_CLASS_BY_TYPE
+from bench.language import Node, NodeReference, Struct
+from bench.language.const import BENCH_TYPES, NODE_TYPES, BenchType, StructType
+from bench.language.node import BENCH_CLASS_BY_TYPE, NODE_CLASS_BY_TYPE, Property
 from bench.proto import wiring
 from bench.proto.wire import NodeReferenceData
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 
 random = random.Random(42)
 
@@ -37,7 +37,7 @@ def fabricate_prop_scalar(prop: Property, path: tuple[BenchType, ...]) -> any:
         return fabricate(prop.struct_type, path)
     elif prop.py_type_stripped == NodeReferenceData:
         return fabricate(StructType.NODE_REFERENCE, path)
-    elif prop.column_type == ColumnType.JSON:
+    elif prop.primitive_type == PrimitiveType.JSON:
         return {
             DEFAULT_GENERATORS[str](): DEFAULT_GENERATORS[str](),
             DEFAULT_GENERATORS[str](): DEFAULT_GENERATORS[int](),

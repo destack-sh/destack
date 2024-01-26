@@ -12,11 +12,11 @@ from bench.utils.casing import Casing, to_casing
 from bench.utils.func import cyrb53a
 
 if typing.TYPE_CHECKING:
-    from bench.language import Node, Block, Session, Bench, Package  # noqa: F401
+    from bench.language import Bench, Block, Node, Package, Session  # noqa: F401
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.26.0"
+VERSION = "2024.01.26.2"
 
 
 #
@@ -160,24 +160,24 @@ class BlockType(ProtoStrEnum):
     PAGE = "page", 1  # group of blocks
     BLANK = "blank", 2  # placeholder/spacer
     TEXT = "text", 3  # define a 'paragraph' of text/comment/instruction/etc.
-    SINGLE_VARIABLE = "single_variable", 4  # define a single-value variable
-    MULTI_VARIABLE = "multi_variable", 5  # define a variable with (multiple) fields
-    LINK = "link", 6  # an explicit link to another block/node
-    ALIAS = "alias", 7  # extend an existing non-class block (kind of like a 'newtype')
+    ALIAS = "alias", 4  # refer to / extend an existing block or builtin (like a 'newtype')
 
     CLASS = "class", 10  # define a class type with fields
     CHOICE = "choice", 11  # define a choice type with fields
     TAG = "tag", 12  # define a tag with fields
     SIGNAL = "signal", 13  # define a signal type with fields
 
-    TASK = "task", 20  # define a task with fields
-    CODE = "code", 21  # define a code block / function with fields
-    FLOW = "flow", 22  # define a flow with steps and fields
-    MODEL = "model", 23  # define a model 'function' with fields
+    SINGLE_VARIABLE = "single_variable", 20  # define a single-value variable
+    MULTI_VARIABLE = "multi_variable", 22  # define a variable with (multiple) fields
 
-    VIEW = "view", 30  # define a set of views
-    DATABASE = "database", 31  # define a database with views
-    SCREEN = "screen", 32  # define a screen with tiles
+    TASK = "task", 30  # define a task with fields
+    CODE = "code", 31  # define a code procedure or function with fields
+    FLOW = "flow", 32  # define a flow with steps and fields
+    MODEL = "model", 33  # define a model 'function' with fields
+
+    VIEW = "view", 40  # define a set of views
+    DATABASE = "database", 41  # define a database with views
+    SCREEN = "screen", 42  # define a screen with tiles
 
     # ROLE = "role", 40  # define a role with policies
     # IDENTITY = "identity", 41  # define an identity with roles
@@ -187,7 +187,12 @@ class BlockType(ProtoStrEnum):
         return to_casing(self.name, Casing.CAMEL)
 
 
-RUNNABLE_BLOCK_TYPES = {BlockType.CODE, BlockType.MODEL, BlockType.TASK, BlockType.FLOW}
+RUNNABLE_BLOCK_TYPES: tuple[BlockType, ...] = (
+    BlockType.CODE,
+    BlockType.MODEL,
+    BlockType.TASK,
+    BlockType.FLOW,
+)
 
 
 class NodeSource(ProtoStrEnum):
@@ -209,7 +214,7 @@ def new_dynamic_node_key(ck_or_id: UUID) -> str:
     """
     Gets a 'random' alphabetic key as a persistent key for a node.
     Also used for dynamic database identities (versioned/un-versioned).
-    (short key length alphabetic characters) :FieldKeys
+    (short key length alphabetic characters)
     """
     hash_value = cyrb53a(str(ck_or_id))
     key = ""
@@ -328,37 +333,36 @@ class NotificationStatus(ProtoStrEnum):
     EXPIRED = "EXPIRED", 3
 
 
-# ColumnType is pulled out from sql/core because it's also used in our type system
-class ColumnType(ProtoStrEnum):
+class PrimitiveType(ProtoStrEnum):
     """
-    Fundamental column / storage types we support (subset of SQL types).
+    Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
     NOTE: the ids here are used in encode/decode pipelines, take extra care.
     """
 
-    STRING = "String", 1
-    BOOLEAN = "Boolean", 2
-    INT = "Int", 3  # range: -2147483648 to 2147483647
-    BIGINT = "BigInt", 4  # range: -9223372036854775808 to 9223372036854775807
-    FLOAT = "Float", 5
-    DATETIME = "DateTime", 6
-    INTERVAL = "Interval", 7
-    JSON = "Json", 8
-    BINARY = "Binary", 9
-    VECTOR = "Vector", 10
-    UUID = "UUID", 11
-    BYTES = "Bytes", 12
+    BOOLEAN = "Boolean", 1
+    INT32 = "Int32", 2  # range: -2147483648 to 2147483647
+    INT64 = "Int64", 3  # range: -9223372036854775808 to 9223372036854775807
+    FLOAT32 = "Float32", 4
+    FLOAT64 = "Float64", 5
+    DECIMAL = "Decimal", 6
+    STRING = "String", 7
+    DATETIME = "DateTime", 8
+    INTERVAL = "Interval", 9
+    JSON = "Json", 10
+    BYTES = "Bytes", 11
+    VECTOR = "Vector", 12
+    UUID = "UUID", 13
 
 
 class FormatHint(ProtoStrEnum):
     """Extra semantic hint for types."""
 
     # string
-    NAME = "name", 1
-    UUID = "uuid", 2
-    EMAIL = "email", 3
-    URL = "url", 4
-    MARKDOWN = "markdown", 5
-    CODE = "code", 6
+    TITLE = "title", 1
+    EMAIL = "email", 2
+    URL = "url", 3
+    MARKDOWN = "markdown", 4
+    CODE = "code", 5
     # number
     PHONE = "phone", 10
     RATING = "rating", 11

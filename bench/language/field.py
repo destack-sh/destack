@@ -5,13 +5,15 @@ from typing import Any, Optional, Union
 import structlog
 
 from bench.language.const import (
+    NODE_TYPES,
+    STRUCT_TYPES,
+    BenchType,
+    BlockType,
+    FormatHint,
     IssueType,
     NodeType,
-    new_dynamic_node_key,
-    BenchType,
     StructType,
-    FormatHint,
-    BlockType,
+    new_dynamic_node_key,
 )
 from bench.language.node import (
     Node,
@@ -19,23 +21,20 @@ from bench.language.node import (
     NRel,
     Property,
     ScopeNode,
-    _FieldExpressionBase,
+    Struct,
+    _TypeExpressionBase,
     node,
     node_children,
     node_component,
     node_parent,
+    struct,
     struct_internal,
     struct_property,
     struct_runtime,
-    Struct,
-    struct,
 )
-from bench.language.validation import (
-    validate_is_str,
-    validate_name,
-)
+from bench.language.validation import validate_is_str, validate_name
 from bench.language.value import HasValue
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 
@@ -84,17 +83,17 @@ class TypeInfo(Struct):
     A type is a kind of value that can go somewhere, typically a field.
 
     A type is either:
-       1. built-in type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+       1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
        2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
        4. reference to a block (value is NodeReference that is an 'instance' of the block)
-           if node type is Record and reference ~ Database, values must be Records in that database
-           if node type is Run and reference ~ Block, values must be Runs of that block
-           if node type is Field and reference ~ Block, values must be a Field in that block
-           if node type is Signal and reference ~ Block, values must be Signals of that block type
-           if node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
+           node type is Record and reference ~ Database, values must be Records in that database
+           node type is Run and reference ~ Block, values must be Runs of that block
+           node type is Field and reference ~ Block, values must be a Field in that block
+           node type is Signal and reference ~ Block, values must be Signals of that block type
+           node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
             (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
-           if node type is Block and reference is None, values must be instances of the combined newtype
+           node type is Block and reference is None, values must be instances of the combined newtype
             ...
 
     Types may also specify:
@@ -106,36 +105,41 @@ class TypeInfo(Struct):
     """
 
     # type identity (must set at least one of these)
-    column_type: Optional[ColumnType] = struct_property(40, default=None)
+    primitive_type: Optional[PrimitiveType] = struct_property(40, default=None)
     bench_type: Optional[BenchType] = struct_property(41, default=None)
     base_type: Optional["Block"] = struct_property(
         42, array=False, require=False, default=None, references=NodeType.BLOCK
     )
     # + bonus info/constraints
-    format_hint: Optional[FormatHint] = struct_property(43, default=None)
+    # visibility: NodeVisibility = struct_property(43, default=NodeVisibility.PUBLIC)
+    format_hint: Optional[FormatHint] = struct_property(44, default=None)
     condition: Optional["Expression"] = struct_property(
-        44, require=False, array=False, default=None, struct=StructType.EXPRESSION
+        45, require=False, array=False, default=None, struct=StructType.EXPRESSION
     )
-    # visibility: NodeVisibility = ...?
+    length: Optional[int] = struct_property(46, require=False, default=None)
+    precision: Optional[int] = struct_property(47, require=False, default=None)
+    scale: Optional[int] = struct_property(48, require=False, default=None)
+    # default for this type :GeneralizeHasValue
+    # default: Optional[Any] = struct_property(
+    #     49, require=False, default=None, primitive_type=PrimitiveType.JSON
+    # )
 
     # flags
     is_array: bool = struct_internal(50, default=False)
-    is_optional: bool = struct_internal(51, default=True)
-    is_output: bool = struct_internal(52, default=False)
-    is_secret: bool = struct_internal(53, default=False)
-    is_literal: bool = struct_internal(54, default=False)
+    is_required: bool = struct_internal(51, default=False)
+    is_secret: bool = struct_internal(52, default=False)
 
     # separate _fields for restricting base type to a subset of fields (e.g., only inputs)
     _fields: tuple["Field", ...] | None = struct_runtime(default=None)
-    _derived_type: Optional["TypeInfo"] = struct_runtime(default=None)
+    _resolved_type: Optional["TypeInfo"] = struct_runtime(default=None)
 
     def __content_str__(self) -> str:
         if self.base_type is not None:
             info_str = self.base_type.path
         elif self.bench_type is not None:
             info_str = self.bench_type.bench_name
-        elif self.column_type is not None:
-            info_str = self.column_type.name
+        elif self.primitive_type is not None:
+            info_str = self.primitive_type.name
         else:
             raise ValueError(f"no type identity in {self!r}")
         if self.format_hint:
@@ -153,16 +157,10 @@ class TypeInfo(Struct):
         return info_str
 
     def _interp_inner(self, scope: "ScopeNode", on_issue: "IssueHandler"):
-        # NOTE: TypeInfo.interp / derivation probably isn't quite right yet
-        if self.base_type is not None:
-            if self.base_type_type == BlockType.ALIAS:  # newtype
-                raise NotImplementedError("newtypes are not supported yet")
-            elif self.base_type_type == BlockType.CHOICE and self.bench_type == NodeType.FIELD:
-                self._derived_type = self.extend(column_type=ColumnType.STRING)
-            else:
-                self._derived_type = self.extend(column_type=ColumnType.UUID)
+        if self.base_type is not None and self.base_type.type == BlockType.ALIAS:
+            raise NotImplementedError(f"aliases not yet supported for {self!r}")
         else:
-            self._derived_type = self
+            self._resolved_type = self
 
     def extend(self, **kwargs) -> "TypeInfo":
         """Returns a new type that is the same as this one, but with the given properties overridden."""
@@ -174,23 +172,29 @@ class TypeInfo(Struct):
         return TypeInfo(**combined_kwargs)
 
     @property
-    def derived_type(self) -> "TypeInfo":
-        assert self._derived_type is not None, f"derived type not ready in {self!r}"
-        return self._derived_type
-
-    @property
-    def derived_column_type(self) -> ColumnType:
-        return self.column_type or self.derived_type.column_type
+    def resolved_type(self) -> "TypeInfo":
+        """
+        The complete type of this field including any bases.
+        The resolved type is generally the same except when we have aliases.
+        """
+        assert self._resolved_type is not None, f"resolved type not ready in {self!r}"
+        return self._resolved_type
 
     @property
     def identity_key(self) -> str:
         """The identity of this type for storing. Different keys mean you won't get the value back out."""
-        assert self.column_type is not None, f"no column type in {self!r}"
-        key = str(self.column_type.id)
+        assert self.primitive_type is not None, f"no column type in {self!r}"
+        key = str(self.primitive_type.id)
         if self.is_array:
             key += "a"
         if self.is_secret:
             key += "s"
+        if self.length:
+            key += f"l{self.length}"
+        if self.precision:
+            key += f"p{self.precision}"
+        if self.scale:
+            key += f"s{self.scale}"
         if self.base_type:
             key += "-" + self.base_type.dynamic_key
         return key
@@ -203,6 +207,26 @@ class TypeInfo(Struct):
             return None
 
     @property
+    def is_reference(self) -> bool:
+        """Whether this is a"""
+        return self.bench_type in NODE_TYPES
+
+    @property
+    def is_struct(self):
+        """Whether this is a built-in struct type."""
+        return self.bench_type in STRUCT_TYPES
+
+    @property
+    def is_nested(self) -> bool:
+        """Whether the value of this type has fields."""
+        if self._fields is not None:
+            return True
+        elif self.base_type and HasFields in self.base_type._components:
+            return True
+        else:
+            return False
+
+    @property
     def fields(self) -> NodeList["Field"] | tuple["Field", ...] | None:
         if self._fields is not None:
             return self._fields
@@ -213,38 +237,47 @@ class TypeInfo(Struct):
 
 
 @node(NodeType.FIELD)
-class Field(HasValue, TypeInfo, _FieldExpressionBase):
+class Field(HasValue, TypeInfo, _TypeExpressionBase):
     parent: Union["Block", None] = node_parent(4, NodeType.BLOCK)
     name: str | None = struct_property(30, default=None, validate=validate_name)
     order_key: str | None = struct_internal(31, default=None)
     dynamic_key: str | None = struct_internal(32, default=None)
     text: str | None = struct_property(33, default=None, validate=validate_is_str)
     value_packed: Any | None = struct_property(
-        34, default=None, copy=deepcopy, column_type=ColumnType.JSON
+        34, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
 
     # type identity
     # ...TypeInfo
 
+    # field-only flags
+    is_output: bool = struct_internal(60, default=False)
+    is_option: bool = struct_internal(61, default=False)  # a 'literal' option (for Choice types)
+    # is_indexed: bool = struct_internal(62, default=False)
+    # is_unique: bool = struct_internal(63, default=False)
+
     _reflected_from: Optional[Property] = struct_runtime(default=None)
+
+    def _as_type(self) -> "TypeInfo":
+        return self._resolved_type
 
     def _init_inner(self):
         if self._is_new:
             self.dynamic_key = self.dynamic_key or new_dynamic_node_key(self.ck)
 
     def __eq__(self, other):
-        return _FieldExpressionBase.__eq__(self, other)  # override to avoid recursion
+        return _TypeExpressionBase.__eq__(self, other)  # override to avoid recursion
 
     @property
     def identifier_type(self):
-        if self.is_literal:
+        if self.is_option:
             return IdentifierType.CONSTANT
         else:
             return IdentifierType.PROPERTY
 
     @property
     def storage_key(self) -> str:
-        return f"{self.dynamic_key}-{self.derived_type.identity_key}"
+        return f"{self.dynamic_key}-{self.resolved_type.identity_key}"
 
 
 @node_component
@@ -256,11 +289,11 @@ class HasFields(Node):
     )
 
     _did_resolve_bases: bool = struct_runtime(default=False)
-    _as_type_info: TypeInfo | None = struct_runtime(default=None)
+    _as_type: TypeInfo | None = struct_runtime(default=None)
 
     @property
     def _type(self):
-        return self._as_type_info
+        return self._as_type
 
     def _init_inner(self):
         if self._is_new and self.dynamic_key is None:
@@ -268,11 +301,11 @@ class HasFields(Node):
 
     def _clear_inner(self, scope: Optional[ScopeNode] = None) -> None:
         self._did_resolve_bases = False
-        self._as_type_info = None
+        self._as_type = None
 
     def _interp_inner(self, scope: ScopeNode, on_issue: "IssueHandler") -> None:
         self._resolve_fields([], on_issue)
-        self._as_type_info = TypeInfo(base_type=self)
+        self._as_type = TypeInfo(base_type=self)
 
     def _resolve_fields(self: "HasFields", path: list["Node"], on_issue: "IssueHandler") -> None:
         """
@@ -289,7 +322,7 @@ class HasFields(Node):
             return
 
         # resolve fields recursively (inlining any valid unions)
-        # nocheckin: Field._resolve_fields -> resolve bases
+        # nocheckin: Field._resolve_fields (-> resolve bases?)
         self._did_resolve_bases = True
 
     def _inputs_from_args(self, args, kwargs) -> dict:

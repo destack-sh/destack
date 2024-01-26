@@ -12,12 +12,12 @@ from asgiref.sync import async_to_sync, sync_to_async
 
 from bench.language.const import (
     TERMINAL_RUN_STATUSES,
+    BenchError,
     NodeType,
     RunErrorKind,
     RunStatus,
     StructType,
     TriggerType,
-    BenchError,
 )
 from bench.language.node import (
     NS,
@@ -33,11 +33,11 @@ from bench.language.node import (
     struct_internal,
 )
 from bench.language.value import HasValue
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.language import Session, Block, Worker
+    from bench.language import Block, Session, Worker
 
 
 @node_component
@@ -131,21 +131,23 @@ class Run(ScopeNode, HasValue):
     trigger_type: Optional[TriggerType] = struct_internal(39, default=None)
     trigger_id: Optional[UUID] = struct_internal(40, default=None)
     status: RunStatus = struct_internal(42, index_in_pg=True)
-    # NOTE ideally we should generalize HasValue for inputs/outputs as well (not needed yet, see note above)
+    # NOTE ideally we should :GeneralizeHasValue for inputs/outputs as well (not needed yet, see note above)
     inputs_packed: Optional[dict[str, Any]] = struct_internal(
-        43, default=None, column_type=ColumnType.JSON
+        43, default=None, primitive_type=PrimitiveType.JSON
     )
     outputs_packed: Optional[dict[str, Any]] = struct_internal(
-        44, default=None, column_type=ColumnType.JSON
+        44, default=None, primitive_type=PrimitiveType.JSON
     )
     value_packed: Any | None = struct_internal(
         45,
         default=None,
         copy=deepcopy,
-        column_type=ColumnType.JSON,
+        primitive_type=PrimitiveType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
-    error: Optional["RunError"] = struct_internal(46, default=None, column_type=ColumnType.JSON)
+    error: Optional["RunError"] = struct_internal(
+        46, default=None, primitive_type=PrimitiveType.JSON
+    )
     runs: list["Run"] = node_children(NodeType.RUN)
 
     def __content_str__(self):
@@ -183,7 +185,7 @@ class RunCodeFrame(Struct):
     lineno: int = struct_internal(31)
     name: str = struct_internal(32)
     locals: Optional[dict[str, Any]] = struct_internal(
-        33, default=None, column_type=ColumnType.JSON
+        33, default=None, primitive_type=PrimitiveType.JSON
     )
     line: str = struct_internal(34)
 
@@ -191,8 +193,8 @@ class RunCodeFrame(Struct):
     def clean(
         stack: list["RunCodeFrame"], from_block: "Block", session: "Session"
     ) -> list["RunCodeFrame"]:
-        from bench.language.code_ import HasCode
         from bench.language.block import Block
+        from bench.language.code_ import HasCode
 
         code_by_method: dict[str, HasCode] = {
             node._transform.method_name: node

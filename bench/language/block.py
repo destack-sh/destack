@@ -4,12 +4,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.language.code_ import HasCode
-from bench.language.const import (
-    NodeType,
-    NodeVisibility,
-    BlockType,
-    StructType,
-)
+from bench.language.const import BlockType, NodeType, NodeVisibility, StructType
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
 from bench.language.model import HasModel
@@ -32,12 +27,12 @@ from bench.language.task import HasTask
 from bench.language.trigger import HasTriggers
 from bench.language.validation import validate_is_str, validate_name
 from bench.language.value import HasValue
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 from bench.utils.casing import IdentifierType
 from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
-    from bench.language import Policy, TypeInfo, Package
+    from bench.language import Package, Policy, TypeInfo
 
 
 @node_component
@@ -95,7 +90,6 @@ _block = _BlockTypeDescriptor
 _block(BlockType.PAGE, (HasFields,), IdentT.VARIABLE)
 _block(BlockType.TAG, (HasFields,), IdentT.VARIABLE)
 _block(BlockType.TEXT, (), IdentT.VARIABLE)
-_block(BlockType.LINK, (), IdentT.VARIABLE)
 _block(BlockType.BLANK, (), IdentT.VARIABLE)
 _block(BlockType.ALIAS, (IsInstantiable,), IdentT.VARIABLE)
 _block(BlockType.CLASS, (IsInstantiable, HasFields), IdentT.TYPE)
@@ -157,10 +151,10 @@ class Block(ScopeNode, HasTags):
     dynamic_key: str | None = struct_internal(42, default=None)
     text: str | None = struct_property(43, default=None, validate=validate_is_str)
     value_packed: Any | None = struct_property(
-        44, default=None, copy=deepcopy, column_type=ColumnType.JSON
+        44, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
     secret_value_packed: Any | None = struct_internal(
-        45, default=None, encrypt=True, defer=True, copy=deepcopy, column_type=ColumnType.JSON
+        45, default=None, encrypt=True, defer=True, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
 
     # specific

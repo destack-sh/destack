@@ -38,9 +38,8 @@ from bench.language.const import (
     NS,
     STRUCT_TYPES,
     UNSET,
-    UUID_NAMESPACE,
     BenchType,
-    IssueKind,
+    BlockType,
     IssueType,
     NodeRelationType,
     NodeSource,
@@ -48,7 +47,6 @@ from bench.language.const import (
     NodeTrackingLevel,
     NodeType,
     NRel,
-    BlockType,
     StructType,
     _active_session,
 )
@@ -56,9 +54,9 @@ from bench.language.link import (
     _NC,
     NodeList,
     NodeListBase,
-    _FieldExpressionBase,
     _InterpChange,
     _NodeExpressionBase,
+    _TypeExpressionBase,
     on_issue_raise,
 )
 from bench.language.tree import DetachedNodeTree, NodeDataTree, NodeTree, NodeTreeBase
@@ -69,15 +67,15 @@ from bench.language.validation import (
     on_invalid_raise,
 )
 from bench.proto.core import ProtoStrEnum
-from bench.proto.wire import EditData, SomeNodeData, AnyNodeData, AnyStructData
+from bench.proto.wire import AnyNodeData, AnyStructData, EditData, SomeNodeData
 from bench.sql.core import (
     CascadeAction,
     Column,
-    ColumnType,
     Constraint,
     ConstraintType,
     Index,
     IndexType,
+    PrimitiveType,
     Table,
 )
 from bench.utils.casing import PYTHON_CASING, IdentifierType, to_casing
@@ -93,17 +91,17 @@ from bench.utils.utils import frozendict, required_field
 
 if TYPE_CHECKING:
     from bench.language import (
-        Field,
         Block,
         Issue,
+        NodeReference,
         NodeVisitor,
         Organization,
         Policy,
         PropertyReference,
         Session,
+        TypeInfo,
         User,
         WorkerSet,
-        NodeReference,
     )
     from bench.language.issue import IssueHandler
 
@@ -115,14 +113,14 @@ def get_node_id(package_id: UUID, ck: UUID):
     return uuid.uuid5(package_id, str(ck))
 
 
-PROPERTY_COLUMN_TYPE_BY_PY_TYPE: dict[type, ColumnType] = {
-    bool: ColumnType.BOOLEAN,
-    int: ColumnType.BIGINT,
-    float: ColumnType.FLOAT,
-    str: ColumnType.STRING,
-    bytes: ColumnType.BYTES,
-    datetime: ColumnType.DATETIME,
-    UUID: ColumnType.UUID,
+PROPERTY_PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
+    bool: PrimitiveType.BOOLEAN,
+    int: PrimitiveType.INT64,
+    float: PrimitiveType.FLOAT64,
+    str: PrimitiveType.STRING,
+    bytes: PrimitiveType.BYTES,
+    datetime: PrimitiveType.DATETIME,
+    UUID: PrimitiveType.UUID,
 }
 
 
@@ -134,7 +132,7 @@ class NodeReferenceKind(enum.StrEnum):
 
 
 @dataclass
-class Property(_FieldExpressionBase):
+class Property(_TypeExpressionBase):
     """A property of a package node or struct."""
 
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
@@ -170,7 +168,7 @@ class Property(_FieldExpressionBase):
     children_flags: NodeRelationType = NodeRelationType.DEFAULT
 
     struct_type: StructType | None = None  # for struct properties
-    column_type: ColumnType | None = UNSET
+    primitive_type: PrimitiveType | None = UNSET
     default: Any = UNSET
     default_factory: Callable[[], Any] | None = None
     list_type: type["NodeListBase"] | None = None
@@ -241,23 +239,28 @@ class Property(_FieldExpressionBase):
         return dataclasses.replace(self, component=None)
 
     @functools.cached_property
-    def _as_field(self) -> "Field":
+    def _as_type(self) -> "TypeInfo":
         assert self.is_reflected is True, f"{self!r} is not reflected"
+        from bench.language.field import TypeInfo
 
-        from bench.language.field import Field
-
-        # derive constant ck for field using ids
-        metatype = getattr(self.component, "metatype", None)  # (ABCs don't have a metatype)
-        metatype_id = metatype.id if metatype is not None else None
-        field_ck = uuid.uuid5(UUID_NAMESPACE, f"{metatype_id}.{self.id}")
-        field = Field(
-            name=self.name,
-            ck=field_ck,
-            column_type=self.column_type,
-            is_optional=not self.is_required,
-            _reflected_from=self,
-        )
-        return field
+        if self.reference_kind:
+            return TypeInfo(
+                bench_type=self.reference_types[0],  # don't have unions yet, doesn't matter
+                is_array=self.is_array,
+                is_required=self.is_required,
+            )
+        elif self.is_struct:
+            return TypeInfo(
+                bench_type=self.struct_type, is_array=self.is_array, is_required=self.is_required
+            )
+        elif self.primitive_type:
+            return TypeInfo(
+                primitive_type=self.primitive_type,
+                is_array=self.is_array,
+                is_required=self.is_required,
+            )
+        else:
+            raise ValueError(f"cannot determine type info for {self!r}")
 
     @functools.cached_property
     def ptr(self) -> "PropertyReference":
@@ -337,10 +340,10 @@ class Property(_FieldExpressionBase):
         """Analyzes the final type and configures storage options. Must run after all class defs."""
 
         # store/wire property by default if not runtime (and not indicated otherwise)
-        if self.column_type is UNSET and (self.is_tree_relation or self.reference_types):
+        if self.primitive_type is UNSET and (self.is_tree_relation or self.reference_types):
             if self.is_stored is UNSET:
                 self.is_stored = False
-            self.column_type = None
+            self.primitive_type = None
         elif self.is_stored is UNSET:
             self.is_stored = True
         if self.is_wired is UNSET:
@@ -372,25 +375,25 @@ class Property(_FieldExpressionBase):
             self.default = None
 
         # determine storage type
-        if self.column_type is UNSET and (self.is_stored or self.is_wired):
+        if self.primitive_type is UNSET and (self.is_stored or self.is_wired):
             if annotation.is_union:
                 raise ValueError(f"cannot store union {self!r}")
             # map to column type
             assert isinstance(annotation.type, type), f"invalid type {annotation!r} for {self!r}"
             if issubclass(annotation.type, enum.StrEnum):
-                self.column_type = ColumnType.STRING
+                self.primitive_type = PrimitiveType.STRING
             elif issubclass(annotation.type, (enum.IntFlag, enum.IntEnum)):
-                self.column_type = ColumnType.BIGINT
+                self.primitive_type = PrimitiveType.INT64
             elif issubclass(annotation.type, Struct):
                 assert self.struct_type is not None, f"missing struct type for {self!r}"
-                self.column_type = ColumnType.BYTES
+                self.primitive_type = PrimitiveType.BYTES
             elif issubclass(annotation.type, Node):
                 raise ValueError(f"cannot store node directly: {self!r}")
             else:
-                column_type = PROPERTY_COLUMN_TYPE_BY_PY_TYPE.get(annotation.type)
-                if column_type is None:
+                primitive_type = PROPERTY_PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
+                if primitive_type is None:
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
-                self.column_type = column_type
+                self.primitive_type = primitive_type
 
     def _contribute_ptrs(self) -> tuple["Property", ...]:
         """
@@ -451,7 +454,7 @@ class Property(_FieldExpressionBase):
                 is_required=is_required,
                 is_internal=is_internal,
                 default=None,
-                column_type=None,
+                primitive_type=None,
             )
         if is_stored:
             stored_ptr_props = []
@@ -481,7 +484,7 @@ class Property(_FieldExpressionBase):
                     is_internal=is_internal,
                     is_array=is_array,
                     is_required=is_required,
-                    column_type=ColumnType.UUID,
+                    primitive_type=PrimitiveType.UUID,
                     is_indexed_in_pg=self.is_indexed_in_pg,
                 )
                 stored_ptr_props.append(stored_prop)
@@ -540,7 +543,7 @@ def struct_property(
     ignore_conflicts_with: tuple[type["Node"], ...] = None,
     references: tuple[NodeType, ...] | NodeType = None,
     struct: StructType = None,
-    column_type: ColumnType = UNSET,
+    primitive_type: PrimitiveType = UNSET,
 ):
     """Standard user facing struct/node property."""
     return Property(
@@ -556,7 +559,7 @@ def struct_property(
         reference_kind=NodeReferenceKind.REGULAR if references else None,
         reference_types=try_tuple(references),
         struct_type=struct,
-        column_type=column_type,
+        primitive_type=primitive_type,
         is_unique=unique,
         is_array=array,
         is_encrypted=encrypt,
@@ -576,7 +579,7 @@ def struct_internal(
     references: tuple[NodeType, ...] | NodeType = None,
     struct_t: StructType = None,
     store: bool = UNSET,
-    column_type: ColumnType = UNSET,
+    primitive_type: PrimitiveType = UNSET,
     index_in_pg: bool = False,
     array: bool = UNSET,
     defer: bool = False,
@@ -600,7 +603,7 @@ def struct_internal(
         ignore_conflicts_with=ignore_conflicts_with,
         is_stored=store,
         struct_type=struct_t,
-        column_type=column_type,
+        primitive_type=primitive_type,
         is_array=array,
         is_deferred=defer,
         is_encrypted=encrypt,
@@ -770,7 +773,7 @@ METATYPE_PROPERTY = Property(
     is_runtime=False,
     is_wired=True,
     is_stored=False,
-    column_type=ColumnType.STRING,
+    primitive_type=PrimitiveType.STRING,
 )
 
 
@@ -2093,16 +2096,6 @@ class ScopeNode(Node):
         issue = Issue.from_subject(subject, type, message, **kwargs)
         issue.subject.issues.append(issue, _trigger=_NC.Ignore)
 
-    @property
-    def errors(self) -> list["Issue"]:
-        if self.issues is None:
-            return []
-        return [i for i in self.issues or [] if i.kind == IssueKind.ERROR]
-
-    @property
-    def self_errors(self):
-        return [i for i in self.errors or [] if i.parent == self]
-
 
 class InvalidBenchPath(ValueError):
     pass
@@ -2503,8 +2496,8 @@ class Package(ScopeNode):
     @staticmethod
     def make(source: list["SomeNodeData"]) -> "Package":
         """Create an interpreted Package from a source package node tree."""
-        from bench.proto import wiring
         from bench.language.builtin import symbolx_package
+        from bench.proto import wiring
 
         source = [wiring.unwrap_some_node(s) for s in source]
         source = NodeTree(source)
@@ -2580,7 +2573,7 @@ def _complete_bench_setup():
 
             # ensure the reflected field works (and cache it)
             if prop.is_reflected:
-                prop._as_field  # noqa
+                prop._as_type  # noqa
 
             # check deferred/encrypted properties
             if prop.is_deferred and not prop.is_stored:

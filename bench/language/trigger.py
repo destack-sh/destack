@@ -31,7 +31,7 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 @node(NodeType.TRIGGER)
 class Trigger(Node):
-    """A trigger for a statement to run."""
+    """A trigger for a block to run."""
 
     parent: "Block" = node_parent(4, NodeType.BLOCK)
     type: TriggerType = struct_property(30, require=True, validate=enum_validator(TriggerType))
@@ -92,7 +92,7 @@ class Trigger(Node):
             content_str = None
         return f"{self.type} {content_str or '<none>'}"
 
-    # ignore scope and statement for now
+    # ignore scope and block for now
 
     def _validate_inner(self, properties: Collection[str], on_invalid: "ValidationHandler") -> None:
         if self.type == TriggerType.TIME:

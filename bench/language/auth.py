@@ -5,26 +5,26 @@ from uuid import UUID
 from bench.language.const import (
     ActionKind,
     BadgeType,
+    BenchError,
     BenchType,
     NodeType,
     PolicyEffect,
     StructType,
-    BenchError,
 )
 from bench.language.expression import PropertyReference
 from bench.language.node import (
     Node,
+    Package,
     Struct,
     node,
     node_parent,
     struct,
     struct_internal,
     struct_runtime,
-    Package,
 )
 
 if TYPE_CHECKING:
-    from bench.language import Expression, User, Block
+    from bench.language import Block, Expression, User
 
 
 @struct(StructType.POLICY)
@@ -123,7 +123,7 @@ class Badge(Node):
     key_value_digest: Optional[str] = struct_internal(51, default=None, encrypt=True)
 
 
-class AuthError(BenchError, ValueError):
+class AccessError(BenchError, ValueError):
     def __init__(
         self,
         node: Node,

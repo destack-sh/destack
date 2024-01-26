@@ -81,7 +81,7 @@ async def _check_is_consistent(*, check_db: bool, check_db_bench: str = "symbolx
     )
     migration_ops = generate_migration_ops(NODE_TABLES, new_tables)
     if migration_ops:
-        logger.error("lang.check_consistency.schema.diff", delta=migration_ops)
+        logger.error("lang.check_consistency.schema.diff", diff=migration_ops)
         raise InconsistencyError(f"SQL schema is out of sync: {migration_ops!r}")
 
     # and diff DB state

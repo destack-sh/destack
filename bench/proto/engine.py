@@ -8,11 +8,11 @@ from bench.proto.core import (
     Field,
     FieldType,
     Message,
+    ProtoObject,
     ProtoSchema,
     ProtoStrEnum,
-    ProtoObject,
 )
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 
 if TYPE_CHECKING:
@@ -23,16 +23,17 @@ if TYPE_CHECKING:
 # We map and walk at the same type for simplicity (using the cache)
 #
 
-PROTO_FIELD_TYPE_BY_COLUMN_TYPE: dict[ColumnType, FieldType] = {
-    ColumnType.BOOLEAN: FieldType.BOOL,
-    ColumnType.INT: FieldType.INT32,
-    ColumnType.BIGINT: FieldType.INT64,
-    ColumnType.FLOAT: FieldType.FLOAT,
-    ColumnType.STRING: FieldType.STRING,
-    ColumnType.BYTES: FieldType.BYTES,
-    ColumnType.DATETIME: FieldType.TIMESTAMP,
-    ColumnType.UUID: FieldType.STRING,  # see https://stackoverflow.com/q/36344826/3375858
-    ColumnType.JSON: FieldType.STRUCT,
+PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, FieldType] = {
+    PrimitiveType.BOOLEAN: FieldType.BOOL,
+    PrimitiveType.INT32: FieldType.INT32,
+    PrimitiveType.INT64: FieldType.INT64,
+    PrimitiveType.FLOAT32: FieldType.FLOAT,
+    PrimitiveType.FLOAT64: FieldType.DOUBLE,
+    PrimitiveType.STRING: FieldType.STRING,
+    PrimitiveType.BYTES: FieldType.BYTES,
+    PrimitiveType.DATETIME: FieldType.TIMESTAMP,
+    PrimitiveType.UUID: FieldType.STRING,  # see https://stackoverflow.com/q/36344826/3375858
+    PrimitiveType.JSON: FieldType.STRUCT,
 }
 
 _BenchType = type[Union["Node", "Struct", "Property", enum.StrEnum, enum.IntFlag]]
@@ -42,7 +43,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
     assert not prop.is_runtime_only, f"shouldn't map runtime property: {prop!r}"
     assert isinstance(prop.id, int), f"stored properties need an id: {prop!r}"
     # store typed enum/struct references (except for int/flag enums, which proto doesn't have)
-    if prop.is_struct or prop.is_enum and prop.column_type == ColumnType.STRING:
+    if prop.is_struct or prop.is_enum and prop.primitive_type == PrimitiveType.STRING:
         proto_t = map_bench_type_to_proto(prop.py_type_stripped, cache)
         return Field(
             id=prop.id,
@@ -51,8 +52,8 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
             optional=prop.is_optional or prop.is_deferred,
             repeated=prop.is_array,
         )
-    elif prop.column_type in PROTO_FIELD_TYPE_BY_COLUMN_TYPE:
-        field_type = PROTO_FIELD_TYPE_BY_COLUMN_TYPE[prop.column_type]
+    elif prop.primitive_type in PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE:
+        field_type = PROTO_FIELD_TYPE_BY_PRIMITIVE_TYPE[prop.primitive_type]
         return Field(
             id=prop.id,
             name=prop.name,
@@ -69,7 +70,7 @@ def map_bench_property_to_proto(prop: "Property", cache: dict[_BenchType, ProtoO
             repeated=prop.is_array,
         )
     else:
-        raise TypeError(f"cannot map {prop.column_type} to proto type: {prop!r}")
+        raise TypeError(f"cannot map {prop.primitive_type} to proto type: {prop!r}")
 
 
 def map_bench_struct_to_proto(

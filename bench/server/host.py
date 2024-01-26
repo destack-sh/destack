@@ -11,7 +11,7 @@ import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language.const import NodeType, IN_PACKAGE_NODE_TYPES
+from bench.language.const import IN_PACKAGE_NODE_TYPES, NodeType
 from bench.language.node import Bench, Package
 from bench.language.tree import NodeDataTree
 from bench.proto import wire
@@ -25,6 +25,7 @@ from bench.proto.wire import (
     DownloadFilesResponse,
     KillRunRequest,
     KillRunResponse,
+    PackageHostBase,
     PasteNodesRequest,
     PasteNodesResponse,
     PushEditsRequest,
@@ -38,6 +39,8 @@ from bench.proto.wire import (
     SearchLogsResponse,
     SearchNodesRequest,
     SearchNodesResponse,
+    SnapshotPackageRequest,
+    SnapshotPackageResponse,
     StartRunRequest,
     StartRunResponse,
     UploadFilesRequest,
@@ -46,16 +49,13 @@ from bench.proto.wire import (
     WatchEditsResponse,
     WatchLogsRequest,
     WatchLogsResponse,
-    PackageHostBase,
-    SnapshotPackageRequest,
-    SnapshotPackageResponse,
 )
 from bench.server.utils import (
     check_authenticated,
     check_authenticated_worker,
+    detached_session,
     get_s3_client,
     validate_bench_data_many,
-    detached_session,
 )
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 from bench.sql.engine import pg_read_node
@@ -304,8 +304,8 @@ class PackageHost(BenchServiceBase, PackageHostBase):
     async def kill_run(self, kill_run_request: "KillRunRequest") -> "KillRunResponse":
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)
 
-    async def run_proxy_statement(
-        self, run_proxy_statement_request: "RunProxyBlockRequest"
+    async def run_proxy_block(
+        self, run_proxy_block_request: "RunProxyBlockRequest"
     ) -> "RunProxyBlockResponse":
         _ = await check_authenticated_worker(self.metadata)
         raise GRPCError(GRPCStatus.UNIMPLEMENTED)

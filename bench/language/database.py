@@ -9,7 +9,7 @@ import structlog
 from asgiref.sync import async_to_sync
 from psycopg import sql
 
-from bench.language.const import ConditionalOp, NodeType, QueryEngine, new_dynamic_node_key, UNSET
+from bench.language.const import UNSET, ConditionalOp, NodeType, QueryEngine, new_dynamic_node_key
 from bench.language.expression import C, Expression, ExpressionOps, coerce_conditional, coerce_sort
 from bench.language.issue import IssueHandler
 from bench.language.node import (
@@ -26,18 +26,18 @@ from bench.language.node import (
     node_children,
     node_component,
     node_parent,
+    struct_internal,
     struct_property,
     struct_runtime,
-    struct_internal,
 )
 from bench.language.value import HasValue
-from bench.sql.core import RECORD_EPHEMERAL_TABLE, ColumnType, Table
+from bench.sql.core import RECORD_EPHEMERAL_TABLE, PrimitiveType, Table
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import _auto_async_to_sync, describe_type
 from bench.utils.utils import flatten
 
 if typing.TYPE_CHECKING:
-    from bench.language import Field, Block, View
+    from bench.language import Block, Field, View
     from bench.proto.wire import RecordData  # noqa: F401
 
 logger = structlog.get_logger(__name__)
@@ -50,7 +50,8 @@ RECORD_UNSPECIFIED_BATCH_SIZE = 500
     NodeType.RECORD,
     passthrough=(("value", _Passthrough.Full),),
     local=True,
-    stored_custom=True,  # records can be materialized, that's why we have the local PG database
+    stored_custom=True,
+    # records can be materialized, that's why we added the local PG database
     index_in_os=True,
 )
 class Record(HasValue, Node):
@@ -62,7 +63,7 @@ class Record(HasValue, Node):
         30,
         default_factory=dict,
         copy=deepcopy,
-        column_type=ColumnType.JSON,
+        primitive_type=PrimitiveType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
     # could also have Record.secret_value_packed as in Block (no materialization needed?)
@@ -103,7 +104,7 @@ class Record(HasValue, Node):
 
     @property
     def _type(self) -> Optional["Block"]:
-        return self.parent._as_type_info
+        return self.parent._as_type
 
     @property
     def keys(self):

@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING, Any, Optional
 from bench.language.const import NodeType
 from bench.language.node import (
     Package,
+    _Passthrough,
     node,
     node_parent,
     struct_internal,
     struct_property,
-    _Passthrough,
 )
 from bench.language.value import HasValue
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 
 if TYPE_CHECKING:
     from bench.language import Block
@@ -26,7 +26,7 @@ class Signal(HasValue):
         30, require=False, array=False, references=NodeType.BLOCK, index_in_pg=True
     )
     value_packed: Any | None = struct_property(
-        31, default=None, copy=deepcopy, column_type=ColumnType.JSON
+        31, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
     # sender_run: Optional["Run"] = struct_internal(32, require=False, array=False, references=NodeType.RUN)
     # sender_block: Optional["Block"] = struct_internal(

@@ -1,28 +1,30 @@
+from ..sql.core import PrimitiveType
 from .auth import Badge, Policy, PolicyRule
-from .file import File
+from .block import Block
 from .const import (
     VERSION,
     ActionKind,
+    BlockType,
     ConditionalOp,
+    FormatHint,
     IssueType,
     PolicyEffect,
     QueryEngine,
     ScheduleType,
     SortMode,
     SortOp,
-    BlockType,
     TriggerType,
-    FormatHint,
 )
 from .database import Record
-from .expression import A, C, E, Expression, S, PropertyReference, NodeReference
+from .expression import A, C, E, Expression, NodeReference, PropertyReference, S
 from .field import Field, HasFields, TypeInfo
+from .file import File
 from .issue import Issue
 from .node import (
     Bench,
     Link,
-    Package,
     Node,
+    Package,
     Property,
     ScopeNode,
     Struct,
@@ -33,13 +35,11 @@ from .render import render
 from .run import Pause, Run, RunError
 from .session import LogEntry, Session
 from .signal import Signal
-from .block import Block
 from .tagging import Tagging
 from .trigger import Trigger
 from .user import Client, Handle, Organization, User
 from .view import View
 from .worker import Dependency, Worker, WorkerImage, WorkerSet
-from ..sql.core import ColumnType
 
 # NOTE! *All* these imports are auto-imported as prelude in user code.
 __all__ = [
@@ -52,7 +52,7 @@ __all__ = [
     "BlockType",
     "C",
     "Client",
-    "ColumnType",
+    "PrimitiveType",
     "ConditionalOp",
     "Dependency",
     "Expression",
