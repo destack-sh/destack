@@ -950,6 +950,9 @@ def _process_struct_base_cls(
             properties_by_id[prop.id] = prop
     props = properties_by_name.values()
     cls.__properties_by_id__ = frozendict(properties_by_id)
+    cls.__properties_name_by_id__ = frozendict(
+        {p.id: p.name for p in properties_by_id.values() if p.id is not None}
+    )
     cls.__tracked_properties__ = frozendict({p.name: p for p in props if not p.is_internal})
     cls.__internal_properties__ = frozendict({p.name: p for p in props if p.is_internal})
     cls.__reference_properties__ = frozendict({p.name: p for p in props if p.reference_types})
@@ -1283,6 +1286,7 @@ class Struct(abc.ABC):
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
+    __properties_name_by_id__: ClassVar[dict[int, str]] = {}
     __tracked_properties__: ClassVar[dict[str, Property]] = {}
     __internal_properties__: ClassVar[dict[str, Property]] = {}
     __reference_properties__: ClassVar[dict[str, Property]] = {}
@@ -1473,6 +1477,7 @@ class Node(Struct, _NodeExpressionBase):
     __properties__: ClassVar[dict[str, Property]] = {}
     __own_properties__: ClassVar[dict[str, Property]] = {}
     __properties_by_id__: ClassVar[dict[int, Property]] = {}
+    __properties_name_by_id__: ClassVar[dict[int, str]] = {}
     __ancestor_properties__: ClassVar[dict[str, Property]] = {}
     __list_properties__: ClassVar[dict[str, Property]] = {}
     __list_properties_by_child__: ClassVar[dict[NodeType, tuple[Property, ...]]] = defaultdict(list)
@@ -1520,14 +1525,14 @@ class Node(Struct, _NodeExpressionBase):
     last_edited_at: Optional[datetime] = struct_internal(
         15, default=None, require=True, system=True
     )
-    # only scope nodes can have 'inner' changes
+    # only some nodes have some of these properties:
     # last_changed_at: datetime = struct_internal(16, default=None)
     # created_by: ... = struct_internal(17, default=None)
     # last_edited_by: ... = struct_internal(18, default=None)
     # last_changed_by: ... = struct_internal(19, default=None)
-    # only some nodes have further constraints
-    # visibility: ... = struct_internal(20, default=None)
-    # policies: ... = struct_internal(21, default=None, struct_t=StructType.POLICY)
+    # visibility: ... = struct_internal(23, default=None)
+    # policies: ... = struct_internal(24, default=None, struct_t=StructType.POLICY)
+    # icon: ... = struct_internal(25, default=None)
 
     # 30+ for 'user' node/struct properties
     # <... defined in concrete type ...>
@@ -1622,7 +1627,7 @@ class Node(Struct, _NodeExpressionBase):
             return f"'{self.path}'{content_str}"
 
     @final
-    def __repr__(self):
+    def __repr__(self):  # noqa: we want to override the default __repr__ for nodes
         return f"<{self.__class__.__name__} {str(self)}>"
 
     @property
@@ -1676,7 +1681,7 @@ class Node(Struct, _NodeExpressionBase):
         if self.__parent_property__ is None or not self.__parent_property__.reference_types:
             return self.bench_ident
         elif self.parent is None:
-            return f"<detached>/{self.bench_ident}"
+            return f"<detached>/{self.bench_ident or '<unnamed>'}"
         else:
             path_segments: list[str] = []
             current = self
@@ -2296,7 +2301,7 @@ class Bench(ScopeNode):
 
     parent: None = node_parent(4)
     policies: Optional[list["Policy"]] = struct_internal(
-        20, default_factory=list, struct_t=StructType.POLICY
+        24, default_factory=list, struct_t=StructType.POLICY
     )
     slug: str = struct_internal(30, system=True, unique=True)
     name: str = struct_property(31)
@@ -2365,7 +2370,7 @@ class Package(ScopeNode):
 
     parent: Bench = node_parent(4, NodeType.BENCH)
     policies: Optional[list["Policy"]] = struct_internal(
-        20, default_factory=list, struct_t=StructType.POLICY
+        24, default_factory=list, struct_t=StructType.POLICY
     )
     is_snapshot: bool = struct_internal(32, system=True, default=False)  # snapshot or head?
 

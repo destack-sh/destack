@@ -14,12 +14,13 @@ enum ActionKind {
   ACTION_KIND_UPSERT = 21;
   ACTION_KIND_UPDATE = 22;
   ACTION_KIND_MOVE = 23;
-  ACTION_KIND_BUMP = 24;
-  ACTION_KIND_SOFT_DELETE = 25;
-  ACTION_KIND_RESTORE = 26;
-  ACTION_KIND_ARCHIVE = 27;
-  ACTION_KIND_UNARCHIVE = 28;
-  ACTION_KIND_DELETE = 29;
+  ACTION_KIND_SOFT_DELETE = 24;
+  ACTION_KIND_RESTORE = 25;
+  ACTION_KIND_ARCHIVE = 26;
+  ACTION_KIND_UNARCHIVE = 27;
+  ACTION_KIND_DELETE = 28;
+  ACTION_KIND_BUMP_CHANGED = 29;
+  ACTION_KIND_BUMP_ACTIVE = 30;
   ACTION_KIND_START = 40;
   ACTION_KIND_PAUSE = 41;
   ACTION_KIND_RESUME = 42;
@@ -166,12 +167,13 @@ enum EditKind {
   EDIT_KIND_UPSERT = 21;
   EDIT_KIND_UPDATE = 22;
   EDIT_KIND_MOVE = 23;
-  EDIT_KIND_BUMP = 24;
-  EDIT_KIND_SOFT_DELETE = 25;
-  EDIT_KIND_RESTORE = 26;
-  EDIT_KIND_ARCHIVE = 27;
-  EDIT_KIND_UNARCHIVE = 28;
-  EDIT_KIND_DELETE = 29;
+  EDIT_KIND_SOFT_DELETE = 24;
+  EDIT_KIND_RESTORE = 25;
+  EDIT_KIND_ARCHIVE = 26;
+  EDIT_KIND_UNARCHIVE = 27;
+  EDIT_KIND_DELETE = 28;
+  EDIT_KIND_BUMP_CHANGED = 29;
+  EDIT_KIND_BUMP_ACTIVE = 30;
 }
 
 enum ExpressionKind {
@@ -814,7 +816,7 @@ message BenchData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  repeated PolicyData policies = 20;
+  repeated PolicyData policies = 24;
   string slug = 30;
   string name = 31;
   optional string description = 32;
@@ -844,7 +846,7 @@ message BlockData {
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
   NodeVisibility visibility = 20;
-  repeated PolicyData policies = 21;
+  repeated PolicyData policies = 24;
   BlockType type = 30;
   repeated NodeReferenceData bases_ptr = 31;
   optional TypeInfoData builtin_base = 32;
@@ -894,7 +896,7 @@ message ClientData {
   optional string access_token = 34;
 }
 
-// Field(primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.language.const.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, parent: Optional[ForwardRef('Block')] = None, name: str | None = None, order_key: str | None = None, dynamic_key: str | None = None, text: str | None = None, value_packed: typing.Any | None = None, is_output: bool = False, is_option: bool = False, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference' = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None, value: typing.Any | None = None)
+// Field(primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.language.const.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, parent: Optional[ForwardRef('Block')] = None, name: str | None = None, order_key: str | None = None, dynamic_key: str | None = None, text: str | None = None, value_packed: typing.Any | None = None, is_output: bool = False, is_option: bool = False, is_config: bool = False, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference' = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None, value: typing.Any | None = None)
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
@@ -925,6 +927,7 @@ message FieldData {
   bool is_secret = 52;
   bool is_output = 60;
   bool is_option = 61;
+  bool is_config = 64;
 }
 
 // A (global) Bench handle.
@@ -1038,7 +1041,7 @@ message PackageData {
   optional google.protobuf.Timestamp archived_at = 14;
   google.protobuf.Timestamp last_edited_at = 15;
   optional google.protobuf.Timestamp last_changed_at = 16;
-  repeated PolicyData policies = 20;
+  repeated PolicyData policies = 24;
   bool is_snapshot = 32;
 }
 
@@ -1267,29 +1270,29 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    LinkData link = 1;
-    IssueData issue = 2;
-    TriggerData trigger = 3;
-    NotificationData notification = 4;
-    BucketObjectData bucket_object = 5;
-    PackageData package = 6;
-    WorkerData worker = 7;
-    RunData run = 8;
-    UserData user = 9;
-    PauseData pause = 10;
-    OrganizationData organization = 11;
-    WorkerSetData worker_set = 12;
-    HandleData handle = 13;
-    SignalData signal = 14;
-    BenchData bench = 15;
-    ViewData view = 16;
-    FieldData field = 17;
-    SessionData session = 18;
+    ViewData view = 1;
+    WorkerSetData worker_set = 2;
+    TaggingData tagging = 3;
+    UserData user = 4;
+    BenchData bench = 5;
+    BucketObjectData bucket_object = 6;
+    SignalData signal = 7;
+    NotificationData notification = 8;
+    PauseData pause = 9;
+    SessionData session = 10;
+    BadgeData badge = 11;
+    LinkData link = 12;
+    FieldData field = 13;
+    ClientData client = 14;
+    OrganizationData organization = 15;
+    RunData run = 16;
+    TriggerData trigger = 17;
+    RecordData record = 18;
     BlockData block = 19;
-    TaggingData tagging = 20;
-    ClientData client = 21;
-    RecordData record = 22;
-    BadgeData badge = 23;
+    PackageData package = 20;
+    WorkerData worker = 21;
+    IssueData issue = 22;
+    HandleData handle = 23;
   };
 }
 

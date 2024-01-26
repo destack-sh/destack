@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.26.2"
+VERSION = "2024.01.26.3"
 
 
 #
@@ -32,6 +32,7 @@ class NodeType(ProtoStrEnum):
     # BRANCH = "BRANCH", 4
     # DEPENDENCY = "DEPENDENCY", 5
     # UPGRADE = "UPGRADE", 6
+    # SPACE = "SPACE", 7
 
     # source
     PACKAGE = "PACKAGE", 20
@@ -97,12 +98,14 @@ class StructType(ProtoStrEnum):
     FIELD_PATH_SEGMENT = "FIELD_PATH_SEGMENT", 205
     VALUE_REFERENCE = "VALUE_REFERENCE", 206
 
-    FILE = "FILE", 210
-    TYPE_INFO = "TYPE_INFO", 211
+    TYPE_INFO = "TYPE_INFO", 210
 
-    POLICY = "POLICY", 220
-    POLICY_RULE = "POLICY_RULE", 221
-    CONTEXT = "CONTEXT", 222
+    FILE = "FILE", 220
+    ICON = "ICON", 221
+
+    POLICY = "POLICY", 230
+    POLICY_RULE = "POLICY_RULE", 231
+    CONTEXT = "CONTEXT", 232
 
     EXPRESSION = "EXPRESSION", 240
     AGGREGATION = "AGGREGATION", 241
@@ -111,7 +114,7 @@ class StructType(ProtoStrEnum):
     LOG_ENTRY = "LOG_ENTRY", 260
     RUN_CODE_FRAME = "RUN_CODE_FRAME", 261
     RUN_ERROR = "RUN_ERROR", 262
-    # CURSOR = "CURSOR", 264
+    # CURSOR = "CURSOR", 263
 
     WORKER_IMAGE = "WORKER_IMAGE", 280
     DEPENDENCY = "DEPENDENCY", 281
@@ -120,7 +123,6 @@ class StructType(ProtoStrEnum):
     RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 301
 
     # workspace
-    # SPACE = "SPACE", 400 # should be a node?
 
     @property
     def bench_name(self):
@@ -170,17 +172,18 @@ class BlockType(ProtoStrEnum):
     SINGLE_VARIABLE = "single_variable", 20  # define a single-value variable
     MULTI_VARIABLE = "multi_variable", 22  # define a variable with (multiple) fields
 
-    TASK = "task", 30  # define a task with fields
-    CODE = "code", 31  # define a code procedure or function with fields
-    FLOW = "flow", 32  # define a flow with steps and fields
-    MODEL = "model", 33  # define a model 'function' with fields
+    TASK = "task", 30  # define a task function with fields (incl. input/output)
+    ROUTINE = "routine", 31  # define a code function with input/output fields (incl. input/output)
+    SCRIPT = "script", 32  # define a code script with fields
+    FLOW = "flow", 33  # define a flow with steps and fields (optionally incl. input/output)
+    MODEL = "model", 34  # define a model 'function' with input/output fields (incl. input/output)
 
     VIEW = "view", 40  # define a set of views
     DATABASE = "database", 41  # define a database with views
     SCREEN = "screen", 42  # define a screen with tiles
 
-    # ROLE = "role", 40  # define a role with policies
-    # IDENTITY = "identity", 41  # define an identity with roles
+    # ROLE = "role", 50  # define a role with policies
+    # IDENTITY = "identity", 51  # define an identity with roles
 
     @property
     def bench_name(self):
@@ -188,7 +191,8 @@ class BlockType(ProtoStrEnum):
 
 
 RUNNABLE_BLOCK_TYPES: tuple[BlockType, ...] = (
-    BlockType.CODE,
+    BlockType.ROUTINE,
+    BlockType.SCRIPT,
     BlockType.MODEL,
     BlockType.TASK,
     BlockType.FLOW,
@@ -271,18 +275,27 @@ class ReadKind(ProtoStrEnum):
     LIST = "LIST", 2  # list, search, filter, etc.
     AGGREGATE = "AGGREGATE", 3  # count, sum, group, min, etc.
 
+    @property
+    def bench_name(self):
+        return to_casing(self.name, Casing.CAMEL)
+
 
 class EditKind(ProtoStrEnum):
     CREATE = "CREATE", 20  # start at 20, so we can have read 'actions' as well
     UPSERT = "UPSERT", 21
     UPDATE = "UPDATE", 22
     MOVE = "MOVE", 23
-    BUMP = "BUMP", 24
-    SOFT_DELETE = "SOFT_DELETE", 25
-    RESTORE = "RESTORE", 26
-    ARCHIVE = "ARCHIVE", 27
-    UNARCHIVE = "UNARCHIVE", 28
-    DELETE = "DELETE", 29
+    SOFT_DELETE = "SOFT_DELETE", 24
+    RESTORE = "RESTORE", 25
+    ARCHIVE = "ARCHIVE", 26
+    UNARCHIVE = "UNARCHIVE", 27
+    DELETE = "DELETE", 28
+    BUMP_CHANGED = "BUMP_CHANGED", 29
+    BUMP_ACTIVE = "BUMP_ACTIVE", 30
+
+    @property
+    def bench_name(self):
+        return to_casing(self.name, Casing.CAMEL)
 
 
 class RunKind(ProtoStrEnum):
@@ -290,6 +303,10 @@ class RunKind(ProtoStrEnum):
     PAUSE = "PAUSE", 41
     RESUME = "RESUME", 42
     KILL = "KILL", 43
+
+    @property
+    def bench_name(self):
+        return to_casing(self.name, Casing.CAMEL)
 
 
 if typing.TYPE_CHECKING:
@@ -299,6 +316,7 @@ else:
         "ActionKind",
         {ak.name: (ak.name, ak.id) for ak in chain(ReadKind, EditKind, RunKind)},
     )
+    ActionKind.bench_name = ReadKind.bench_name
 
 
 #

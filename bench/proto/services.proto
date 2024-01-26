@@ -113,8 +113,6 @@ message AggregateNodesResponse {
 
 message CommitEditsRequest {
   repeated EditData edits = 1;
-  // 'bypassed' edits for workers passing along local edits
-  repeated EditData bypassed_edits = 2;
 }
 message CommitEditsResponse {
   repeated SomeNodeData changed_nodes = 1;

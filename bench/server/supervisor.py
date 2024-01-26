@@ -33,6 +33,7 @@ from bench.proto.wire import (
     SignupUserResponse,
     WatchEditsRequest,
     WatchEditsResponse,
+    GlobalSupervisorStub,
 )
 from bench.server.auth import generate_salt, hash_password, generate_access_token, check_password
 from bench.server.utils import (
@@ -47,7 +48,10 @@ WORKER_SET_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
 WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
-class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
+class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorBase):
+    def __init__(self):
+        super().__init__(loopback_stub_to=GlobalSupervisorStub)
+
     def __str__(self):
         return "shards=*"
 
@@ -76,7 +80,7 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
             user.handle = Handle(slug=user.slug)
             client = wiring.unpack_node(signup_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
-            session.create_many(user, user.handle, client)
+            session.create_many(user.handle, user, client)
         return SignupUserResponse(user=wiring.pack_node(user), access_token=client.token)
 
     async def login_user(self, login_user_request: "LoginUserRequest") -> "LoginUserResponse":

@@ -1,9 +1,10 @@
 import asyncio
 import contextvars
 import functools
-from typing import TYPE_CHECKING, Callable, Collection, Mapping, TypeVar, final
+from typing import TYPE_CHECKING, Callable, Collection, Mapping, TypeVar, final, Generic
 
 import grpclib.server
+from grpclib.testing import ChannelFor
 import structlog
 from betterproto import ServiceStub
 from grpclib import GRPCError
@@ -22,17 +23,19 @@ from bench.utils.utils import DEBUG, TEST, sentry_capture
 ServiceStubT = TypeVar("ServiceStubT", bound=ServiceStub)
 
 logger = structlog.get_logger(__name__)
+StubT = TypeVar("StubT", bound=ServiceStub)
 
 
-class BenchServiceBase(IServable if TYPE_CHECKING else object):
+class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic[StubT]):
     """gRPC service with some extra stuff for custom loops, auth, logging, metadata, ..."""
 
-    def __init__(self):
+    def __init__(self, loopback_stub_to: type[StubT] | None = None):
         self._stream: contextvars.ContextVar[grpclib.server.Stream] = contextvars.ContextVar(
             "stream"
         )
         self._metadata: contextvars.ContextVar[RpcMetadata] = contextvars.ContextVar("metadata")
-        self._log = structlog.get_logger(self.__class__.__name__)
+        self._loopback_stub: type[StubT] | None = None
+        self._needs_loopback_stub = loopback_stub_to
 
     @property
     def stream(self) -> grpclib.server.Stream:
@@ -44,9 +47,22 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
         """The received metadata in the current gRPC request stream."""
         return self._metadata.get()
 
+    @property
+    def loopback(self) -> StubT:
+        if self._loopback_stub is not None:
+            return self._loopback_stub
+        elif self._needs_loopback_stub is None:
+            raise RuntimeError(f"loopback stub not configured for {self!r}")
+        else:
+            raise RuntimeError(f"loopback stub not ready for {self!r}")
+
     async def start_quick(self) -> None:
         """Start the service. Should be ready for service when returning."""
-        pass
+        if self._needs_loopback_stub:
+            # create a loopback like the one used for testing
+            channel = ChannelFor([self])
+            await channel.__aenter__()
+            self._loopback_stub = self._loopback_stub(channel)
 
     def close(self) -> None:
         """Close the service.."""
@@ -54,7 +70,8 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
 
     async def wait_closed(self) -> None:
         """Wait for the service to be fully closed."""
-        pass
+        if self._needs_loopback_stub:
+            await self.loopback.channel.__aexit__(None, None, None)
 
     def __mapping__(self) -> Mapping[str, grpclib.const.Handler]:
         # combine mappings from non-overlapping superclasses

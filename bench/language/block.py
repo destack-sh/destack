@@ -96,7 +96,8 @@ _block(BlockType.CLASS, (IsInstantiable, HasFields), IdentT.TYPE)
 _block(BlockType.SIGNAL, (IsInstantiable, HasFields), IdentT.TYPE)
 _block(BlockType.CHOICE, (IsInstantiable, HasFields), IdentT.TYPE)
 _block(BlockType.TASK, (HasTask, HasRun, HasFields), IdentT.FUNCTION)
-_block(BlockType.CODE, (HasCode, HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
+_block(BlockType.ROUTINE, (HasCode, HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
+_block(BlockType.SCRIPT, (HasCode, HasRun, HasTriggers, HasFields), IdentT.FUNCTION)
 _block(BlockType.FLOW, (HasRun, HasFields), IdentT.FUNCTION)
 _block(BlockType.MODEL, (HasModel, HasRun, HasFields), IdentT.FUNCTION)
 _block(BlockType.SINGLE_VARIABLE, (HasFields, HasValue), IdentT.VARIABLE)
@@ -134,7 +135,7 @@ class Block(ScopeNode, HasTags):
 
     visibility: NodeVisibility = struct_internal(20, default=NodeVisibility.PUBLIC)
     policies: Optional[list["Policy"]] = struct_internal(
-        21, default_factory=list, struct_t=StructType.POLICY
+        24, default_factory=list, struct_t=StructType.POLICY
     )
     type: BlockType = struct_internal(30, default=BlockType.BLANK)
     bases: list["Block"] | None = struct_internal(
