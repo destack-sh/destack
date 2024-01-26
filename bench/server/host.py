@@ -13,13 +13,12 @@ from grpclib import Status as GRPCStatus
 
 from bench.language.const import NodeType, IN_PACKAGE_NODE_TYPES
 from bench.language.node import Bench, Package
-from bench.language.tree import NodeTree
+from bench.language.tree import NodeDataTree
 from bench.proto import wire
 from bench.proto.services import BenchServiceBase
 from bench.proto.wire import (
     AggregateNodesRequest,
     AggregateNodesResponse,
-    AnyNodeData,
     CommitEditsRequest,
     CommitEditsResponse,
     DownloadFilesRequest,
@@ -48,6 +47,8 @@ from bench.proto.wire import (
     WatchLogsRequest,
     WatchLogsResponse,
     PackageHostBase,
+    SnapshotPackageRequest,
+    SnapshotPackageResponse,
 )
 from bench.server.utils import (
     check_authenticated,
@@ -60,7 +61,7 @@ from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 from bench.sql.engine import pg_read_node
 from bench.utils.func import to_uuid
 
-logger = structlog.get_logger(__name__)
+logger = structlog.get_logger("package_host")
 
 LOADED_SOURCE_TYPES: tuple[NodeType, ...] = tuple(
     nt
@@ -69,7 +70,7 @@ LOADED_SOURCE_TYPES: tuple[NodeType, ...] = tuple(
 )
 
 
-class PackageHostMultiplexer(BenchServiceBase):
+class PackageHostMultiplexer(BenchServiceBase, PackageHostBase):
     """
     Multiplexes requests per package to a PackageHost using gRPC metadata ('bench-id' and 'package-id').
     Hosts are loaded for all active packages; new ones 'ping' the multiplexer to add themselves.
@@ -144,8 +145,9 @@ class PackageHost(BenchServiceBase, PackageHostBase):
         return f"<PackageHost {self}>"
 
     @property
-    def package_source(self) -> NodeTree[AnyNodeData]:
-        return self.package._source
+    def package_source(self) -> NodeDataTree:
+        assert self._package is not None, f"package not loaded in {self}"
+        return self._package._source
 
     @property
     def bench(self) -> Bench:
@@ -236,7 +238,7 @@ class PackageHost(BenchServiceBase, PackageHostBase):
     async def upload_files(
         self, upload_files_request: "UploadFilesRequest"
     ) -> "UploadFilesResponse":
-        validate_bench_data_many(*upload_files_request.files, in_bench=self.bench_id)
+        validate_bench_data_many(*upload_files_request.files)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
         for file in upload_files_request.files:
@@ -258,7 +260,7 @@ class PackageHost(BenchServiceBase, PackageHostBase):
     async def download_files(
         self, download_files_request: "DownloadFilesRequest"
     ) -> "DownloadFilesResponse":
-        validate_bench_data_many(*download_files_request.files, in_bench=self.bench_id)
+        validate_bench_data_many(*download_files_request.files)
         expires_in = 60 * 60  # 1 hour
         presigned_urls: list[str] = []
         for file in download_files_request.files:

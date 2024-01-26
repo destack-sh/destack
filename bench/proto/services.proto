@@ -42,7 +42,7 @@ message SignupUserResponse {
 message LoginUserRequest {
   oneof user {
     string user_id = 1;
-    string username = 2;
+    string slug = 2;
     string email = 3;
   }
   string password = 4;

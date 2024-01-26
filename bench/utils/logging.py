@@ -62,7 +62,7 @@ LOGGING = {
 }
 
 
-def configure_logging(apply_logging: bool, apply_structlog: bool):
+def configure_logging(apply_logging: bool = True, apply_structlog: bool = True):
     if apply_logging:
         logging.config.dictConfig(LOGGING)
     if apply_structlog:

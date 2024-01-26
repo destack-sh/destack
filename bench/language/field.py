@@ -93,6 +93,7 @@ class TypeInfo(Struct):
            if node type is Field and reference ~ Block, values must be a Field in that block
            if node type is Signal and reference ~ Block, values must be Signals of that block type
            if node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
+            (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
            if node type is Block and reference is None, values must be instances of the combined newtype
             ...
 

@@ -4,11 +4,13 @@ from typing import TYPE_CHECKING
 
 import cachetools
 
+from bench.language.const import BenchError
+
 if TYPE_CHECKING:
     from bench.language.node import Struct, Node, Property
 
 
-class ValidationError(ValueError):
+class ValidationError(BenchError, ValueError):
     def __init__(
         self,
         subject: "Struct",

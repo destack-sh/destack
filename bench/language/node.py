@@ -1564,7 +1564,8 @@ class Node(Struct, _NodeExpressionBase):
             self._status = NS.INTERP if self._session is not None else NS.SOURCE
         self._init_self()
         if self._status == NS.INTERP and self._session is not None:
-            self._interp_self(self, on_issue=self.scope._on_issue)
+            on_issue = on_issue_raise if self.scope is None else self.scope._on_issue
+            self._interp_self(self, on_issue=on_issue)
             self._activate_self(self._session)
 
     @property
@@ -1728,9 +1729,9 @@ class Node(Struct, _NodeExpressionBase):
                 self.__dict__[key] = value
                 try:
                     self._validate_self([key], on_invalid=on_invalid_raise)
-                except ValidationError as e:  # reset on error
+                except ValidationError:  # reset on error
                     self.__dict__[key] = prev
-                    raise e
+                    raise
                 if prop.reference_wired_ptr:  # update reference pointer  :NodeReferences
                     from bench.language.expression import NodeReference
 

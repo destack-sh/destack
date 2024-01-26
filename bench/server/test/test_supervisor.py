@@ -2,13 +2,16 @@ from grpclib.testing import ChannelFor
 import pytest
 
 from bench.language import User, Client
-from bench.proto.wire import GlobalSupervisorStub, SignupUserRequest
+from bench.proto.wire import (
+    GlobalSupervisorStub,
+    SignupUserRequest,
+)
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.dt import utcnow_with_tz
 
 
 @pytest.fixture(scope="module")
-async def supervisor() -> GlobalSupervisorStub:
+async def supervisor(event_loop) -> GlobalSupervisorStub:
     service = GlobalSupervisor()
     await service.start_quick()
     try:
@@ -20,9 +23,10 @@ async def supervisor() -> GlobalSupervisorStub:
         await service.wait_closed()
 
 
-async def test_user_signup_flow(supervisor: GlobalSupervisorStub):
+async def test_user_signup_flow(supervisor: GlobalSupervisorStub, event_loop):
     user = User(slug="test", email="test@symbolx.com")
     client = Client(parent=user, name="test", device_name="pytest", last_seen_at=utcnow_with_tz())
-    signup_rep = await supervisor.signup_user(
-        SignupUserRequest(user=user._to_wire(), client=client._to_wire(), password="Password123!")
+    signup_req = SignupUserRequest(
+        user=user._to_wire(), client=client._to_wire(), password="Password123!"
     )
+    signup_rep = await supervisor.signup_user(signup_req)

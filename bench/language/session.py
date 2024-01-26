@@ -49,7 +49,7 @@ from bench.language.node import (
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
 from bench.os.client import get_os_errors, os_client
-from bench.proto.wire import EditData
+from bench.proto.wire import EditData, PackageHostStub
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import ColumnType
 from bench.utils.dt import utcnow_with_tz
@@ -181,10 +181,8 @@ class Session(ScopeNode):
             f"{len(self._runs_by_id) if self._runs_by_id is not None else 0} runs"
         )
 
-    @property
-    def host(self) -> "PackageHostStub":
-        assert self._host is not None, f"host not available in {self!r}"
-        return self._host
+    def _init_inner(self) -> None:
+        self._session = self
 
     @property
     def dangling(self) -> tuple[Node, ...]:
@@ -194,12 +192,20 @@ class Session(ScopeNode):
         return tuple(n for n in self.dangling if isinstance(n, type_))
 
     @property
+    def host(self) -> "PackageHostStub":
+        """The remote host."""
+        assert self._host is not None, f"host not available in {self!r}"
+        return self._host
+
+    @property
     def global_pg_cursor(self) -> psycopg.AsyncCursor:
+        """Cursor to the global DB. Only available in trusted server code."""
         assert self._global_pg_cursor is not None, f"global_pg_cursor is unavailable in {self!r}"
         return self._global_pg_cursor
 
     @property
     def local_pg_cursor(self) -> psycopg.AsyncCursor:
+        """Cursor to the local DB. Available locally in this Bench (if there is one)."""
         assert self._local_pg_cursor is not None, f"local_pg_cursor is unavailable in {self!r}"
         return self._local_pg_cursor
 
@@ -360,6 +366,7 @@ class Session(ScopeNode):
 
         # commit
         try:
+            # nocheckin: use global pg cursor if available? (and inject test pg cursor globally somewhere?)
             if edits.global_edits:
                 await self._host.commit_edits(edits.global_edits)
             if edits.local_edits or edits.session_edits:
@@ -504,7 +511,7 @@ class Session(ScopeNode):
         if node.metatype == NodeType.FIELD:
             self._schema_changed = True
         edit = _Edit(kind=kind, node=node, properties=properties)
-        assert not self.session.closed_at, f"cannot {edit!r} in closed session {self.session!r}"
+        assert not self.closed_at, f"cannot {edit!r} in closed session {self.session!r}"
         edits = self._local_edits if node.__is_local__ else self._global_edits
 
         if kind == EditKind.CREATE:

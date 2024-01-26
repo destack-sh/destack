@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.node import Package
-from bench.language.const import IssueKind, IssueType, NodeType, StructType
+from bench.language.const import IssueKind, IssueType, NodeType, StructType, BenchError
 from bench.language.expression import FieldPath
 from bench.language.node import Node, node, node_parent, struct_property
 from bench.language.validation import enum_validator
@@ -38,10 +38,11 @@ _ISSUE_KIND_BY_TYPE = {
 }
 
 
-class BenchError(ValueError):
-    def __init__(self, issue: "Issue", **kwargs):
-        super().__init__(issue.message.format(**kwargs))
+class IssueError(BenchError, ValueError):
+    def __init__(self, issue: "Issue", cause: Exception | None = None):
+        super().__init__(f"{issue!r}: {issue.message}")
         self.issue = issue
+        self.cause = cause
 
 
 @node(NodeType.ISSUE)
@@ -75,9 +76,6 @@ class Issue(Node):
     def subject_id(self) -> UUID | None:
         return self.parent.id if self.parent is not None else None
 
-    def to_error(self) -> BenchError:
-        return BenchError(self)
-
     @staticmethod
     def from_subject(
         subject: Node,
@@ -87,7 +85,7 @@ class Issue(Node):
         properties: Optional[list[str]] = None,
     ) -> "Issue":
         assert isinstance(subject, Node), f"invalid subject: {subject!r}"
-        issue_ck = uuid.uuid5(subject.id, (type.value + (message or "")))
+        issue_ck = uuid.uuid5(subject.id, (type.value + path + properties))
         issue_id = issue_ck  # not sure?
         if subject.metatype not in (NodeType.BLOCK, NodeType.PACKAGE):
             subject = subject.parent  # fields don't have issues (yet)
@@ -101,7 +99,6 @@ class Issue(Node):
             properties=properties,
             message=message,
         )
-        # don't set parent yet because it would append it to the issues list
         return issue
 
 

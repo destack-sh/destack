@@ -6,7 +6,6 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Handle, User
-from bench.language.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.language.const import to_bench_metatype
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.proto import wiring
@@ -35,22 +34,20 @@ from bench.proto.wire import (
     WatchEditsRequest,
     WatchEditsResponse,
 )
+from bench.server.auth import generate_salt, hash_password, generate_access_token, check_password
 from bench.server.utils import (
     check_authenticated_client,
     validate_bench_data_many,
     detached_session,
 )
 
-logger = structlog.get_logger(__name__)
+logger = structlog.get_logger("global_supervisor")
 
 WORKER_SET_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
 WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
 class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
-    def __init__(self):
-        super().__init__()
-
     def __str__(self):
         return "shards=*"
 
@@ -76,7 +73,7 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
             user = wiring.unpack_node(signup_user_request.user, parent=None, session=session)
             user.password_salt = generate_salt()
             user.password_hash = hash_password(signup_user_request.password, user.password_salt)
-            user.handle = Handle(slug=user.username)
+            user.handle = Handle(slug=user.slug)
             client = wiring.unpack_node(signup_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.create_many(user, user.handle, client)
@@ -86,13 +83,13 @@ class GlobalSupervisor(BenchServiceBase, GlobalSupervisorBase):
         async with detached_session(commit=True) as session:
             if login_user_request.id:
                 user = await User.get(id=login_user_request.id)
-            elif login_user_request.username:
-                user = await User.get(username=login_user_request.username)
+            elif login_user_request.slug:
+                user = await User.get(slug=login_user_request.slug)
             elif login_user_request.email:
                 user = await User.get(email=login_user_request.email)
             else:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
-            if not check_password(
+            if not await check_password(
                 login_user_request.password, user.password_salt, user.password_hash
             ):
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid password")

@@ -58,28 +58,22 @@ def parse_metadata(metadata: MultiDict) -> RpcMetadata:
 
 def validate_bench_data(
     data: AnyNodeData | AnyStructData,
-    in_bench: UUID | str | None = None,
     in_package: UUID | str | None = None,
 ) -> None:
-    """Check that the data structs have all the required fields. Raises gRPC errors."""
-    in_bench = uuid_to_str(in_bench)
+    """Check that BenchData structs have valid data. Raises gRPC errors."""
     in_package = uuid_to_str(in_package)
-    if in_bench is not None and hasattr(data, "bench_id") and data.bench_id != in_bench:
-        raise GRPCError(
-            GRPCStatus.INVALID_ARGUMENT, f"wrong bench_id: {data.bench_id} != {in_bench}"
-        )
     if in_package is not None and hasattr(data, "package_id") and data.package_id != in_package:
         raise GRPCError(
             GRPCStatus.INVALID_ARGUMENT, f"wrong package_id: {data.package_id} != {in_package}"
         )
-    raise NotImplementedError("nocheckin: check_data")
+    # TODO @Robustness!: complete validate_bench_data?
 
 
 def validate_bench_data_many(
-    *data: AnyNodeData | AnyStructData, in_bench: UUID | None = None, in_package: UUID | None = None
+    *data: AnyNodeData | AnyStructData, in_package: UUID | None = None
 ) -> None:
     for d in data:
-        validate_bench_data(d, in_bench=in_bench, in_package=in_package)
+        validate_bench_data(d, in_package=in_package)
 
 
 async def check_authenticated(metadata: RpcMetadata) -> Client | Worker:

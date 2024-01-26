@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.25.3"
+VERSION = "2024.01.26.0"
 
 
 #
@@ -594,6 +594,13 @@ else:
         "ExpressionOp",
         {op.name: (op.name, op.id) for op in chain(ConditionalOp, AggregationOp, SortOp)},
     )
+
+
+class BenchError(Exception):
+    """Common base class for any regular errors."""
+
+    pass
+
 
 _active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
