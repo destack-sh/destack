@@ -2,7 +2,7 @@ import typing
 from copy import deepcopy
 from typing import Optional, Union
 
-from bench.language.const import NodeType, BlockType
+from bench.language.const import BlockType, NodeType
 from bench.language.node import (
     Node,
     NodeList,
@@ -15,11 +15,11 @@ from bench.language.node import (
     struct_property,
 )
 from bench.language.value import HasValue
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 from bench.utils.func import dict_minus
 
 if typing.TYPE_CHECKING:
-    from bench.language import Field, HasFields, Block, symbolx_lib
+    from bench.language import Block, Field, HasFields, symbolx_lib
 
 
 @node(NodeType.TAGGING)
@@ -28,7 +28,7 @@ class Tagging(HasValue, Node):
 
     parent: Union["Block", "Field"] | None = node_parent(4, NodeType.BLOCK, NodeType.FIELD)
     value_packed: typing.Any | None = struct_property(
-        31, default=None, copy=deepcopy, column_type=ColumnType.JSON
+        31, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
     reference: Optional["Block"] = struct_internal(
         32, require=False, array=False, references=NodeType.BLOCK

@@ -11,7 +11,7 @@ from uuid import UUID
 #  see https://github.com/MagicStack/asyncpg
 from more_itertools import first
 
-from bench.language.const import ColumnType
+from bench.language.const import PrimitiveType
 from bench.proto.core import ProtoStrEnum
 
 
@@ -194,7 +194,7 @@ class Column(TableObject):
     kind: ClassVar[ObjectKind] = ObjectKind.COLUMN
 
     name: str
-    type: ColumnType
+    type: PrimitiveType
     is_array: bool = False
     is_primary_key: bool = False
     is_foreign_key_to: str | None = None
@@ -203,6 +203,8 @@ class Column(TableObject):
     is_nullable: bool = False
     is_encrypted: bool = False
     length: int | None = None
+    precision: int | None = None
+    scale: int | None = None
     default: str | None = None
     _source: str | int | None = None
     _table: Union["Table", None] = None
@@ -228,10 +230,12 @@ class Column(TableObject):
         return f"<Column {self}>"
 
     def type_sql(self) -> str:
-        if self.type == ColumnType.STRING and self.length is not None:
+        if self.type == PrimitiveType.STRING and self.length is not None:
             pg_type = f"VARCHAR({self.length})"
+        elif self.type == PrimitiveType.DECIMAL:
+            pg_type = f"NUMERIC({self.precision}, {self.scale})"
         else:
-            pg_type = POSTGRES_TYPE_BY_COLUMN_TYPE[self.type]
+            pg_type = POSTGRES_TYPE_BY_PRIMITIVE_TYPE[self.type]
         if self.is_array:
             pg_type += "[]"
         return pg_type
@@ -506,21 +510,20 @@ POSTGRES_TYPE_BY_UDT: dict[str, PostgresColumnType] = {
 }
 
 # our column types
-POSTGRES_TYPE_BY_COLUMN_TYPE: dict[ColumnType, PostgresColumnType] = {
-    ColumnType.STRING: PostgresColumnType.CHARACTER_VARYING,
-    ColumnType.BOOLEAN: PostgresColumnType.BOOLEAN,
-    ColumnType.INT: PostgresColumnType.INTEGER,
-    ColumnType.BIGINT: PostgresColumnType.BIGINT,
-    ColumnType.FLOAT: PostgresColumnType.REAL,
-    ColumnType.DATETIME: PostgresColumnType.TIMESTAMP,
-    ColumnType.INTERVAL: PostgresColumnType.INTERVAL,
-    ColumnType.JSON: PostgresColumnType.JSONB,
-    ColumnType.BINARY: PostgresColumnType.BYTEA,
-    ColumnType.VECTOR: PostgresColumnType.BYTEA,
-    ColumnType.UUID: PostgresColumnType.UUID,
-    ColumnType.BYTES: PostgresColumnType.BYTEA,
+POSTGRES_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, PostgresColumnType] = {
+    PrimitiveType.STRING: PostgresColumnType.CHARACTER_VARYING,
+    PrimitiveType.BOOLEAN: PostgresColumnType.BOOLEAN,
+    PrimitiveType.INT32: PostgresColumnType.INTEGER,
+    PrimitiveType.INT64: PostgresColumnType.BIGINT,
+    PrimitiveType.FLOAT32: PostgresColumnType.REAL,
+    PrimitiveType.DATETIME: PostgresColumnType.TIMESTAMP,
+    PrimitiveType.INTERVAL: PostgresColumnType.INTERVAL,
+    PrimitiveType.JSON: PostgresColumnType.JSONB,
+    PrimitiveType.VECTOR: PostgresColumnType.BYTEA,
+    PrimitiveType.UUID: PostgresColumnType.UUID,
+    PrimitiveType.BYTES: PostgresColumnType.BYTEA,
 }
-COLUMN_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_COLUMN_TYPE.items()}
+PRIMITIVE_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_PRIMITIVE_TYPE.items()}
 
 #
 # Default tables
@@ -530,11 +533,11 @@ COLUMN_TYPE_BY_POSTGRES_TYPE = {v: k for k, v in POSTGRES_TYPE_BY_COLUMN_TYPE.it
 MIGRATION_TABLE = Table(  # see bench/sql/migration.py
     "bench_migration",
     columns=(
-        Column("id", ColumnType.INT, is_primary_key=True, _source=2),
-        Column("version", ColumnType.STRING, is_unique=True, _source=30),
-        Column("has_global", ColumnType.BOOLEAN, _source=31),
-        Column("has_local", ColumnType.BOOLEAN, _source=32),
-        Column("applied_at", ColumnType.DATETIME, is_nullable=True, _source=33),
+        Column("id", PrimitiveType.INT32, is_primary_key=True, _source=2),
+        Column("version", PrimitiveType.STRING, is_unique=True, _source=30),
+        Column("has_global", PrimitiveType.BOOLEAN, _source=31),
+        Column("has_local", PrimitiveType.BOOLEAN, _source=32),
+        Column("applied_at", PrimitiveType.DATETIME, is_nullable=True, _source=33),
     ),
 )
 
@@ -543,17 +546,17 @@ RECORD_BASE_TABLE = Table(
     "bench_record_base",
     columns=(
         # ids should match with Node/RecordData property ids for clarity
-        Column("id", ColumnType.UUID, is_primary_key=True, _source=2),
-        Column("ck", ColumnType.UUID, _source=3),
-        Column("revision", ColumnType.BIGINT, default="0", _source=10),
-        Column("created_at", ColumnType.DATETIME, default="now()", _source=11),
-        Column("updated_at", ColumnType.DATETIME, default="now()", _source=12),
-        Column("deleted_at", ColumnType.DATETIME, is_nullable=True, _source=13),
-        Column("archived_at", ColumnType.DATETIME, is_nullable=True, _source=14),
-        Column("created_by_id", ColumnType.UUID, is_nullable=True),
-        Column("last_edited_at", ColumnType.DATETIME, default="now()", _source=16),
-        Column("last_edited_by_id", ColumnType.UUID, is_nullable=True),
-        Column("block_key", ColumnType.STRING, _source=20),
+        Column("id", PrimitiveType.UUID, is_primary_key=True, _source=2),
+        Column("ck", PrimitiveType.UUID, _source=3),
+        Column("revision", PrimitiveType.INT64, default="0", _source=10),
+        Column("created_at", PrimitiveType.DATETIME, default="now()", _source=11),
+        Column("updated_at", PrimitiveType.DATETIME, default="now()", _source=12),
+        Column("deleted_at", PrimitiveType.DATETIME, is_nullable=True, _source=13),
+        Column("archived_at", PrimitiveType.DATETIME, is_nullable=True, _source=14),
+        Column("created_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("last_edited_at", PrimitiveType.DATETIME, default="now()", _source=16),
+        Column("last_edited_by_id", PrimitiveType.UUID, is_nullable=True),
+        Column("block_key", PrimitiveType.STRING, _source=20),
     ),
     indexes=(
         # for fetching all records of a database
@@ -590,9 +593,9 @@ RECORD_EPHEMERAL_TABLE = Table(
     "bench_record_ephemeral",
     columns=(
         *(c.clone() for c in RECORD_BASE_TABLE.columns),
-        Column("block_ck", ColumnType.UUID, _source=21),
-        Column("block_id", ColumnType.UUID, _source=22),
-        Column("value_packed", ColumnType.JSON, is_nullable=True, _source=30),
+        Column("block_ck", PrimitiveType.UUID, _source=21),
+        Column("block_id", PrimitiveType.UUID, _source=22),
+        Column("value_packed", PrimitiveType.JSON, is_nullable=True, _source=30),
     ),
     indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes),),
     constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints),),

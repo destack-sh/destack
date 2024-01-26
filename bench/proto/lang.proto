@@ -112,21 +112,20 @@ enum BlockType {
   BLOCK_TYPE_PAGE = 1;
   BLOCK_TYPE_BLANK = 2;
   BLOCK_TYPE_TEXT = 3;
-  BLOCK_TYPE_SINGLE_VARIABLE = 4;
-  BLOCK_TYPE_MULTI_VARIABLE = 5;
-  BLOCK_TYPE_LINK = 6;
-  BLOCK_TYPE_ALIAS = 7;
+  BLOCK_TYPE_ALIAS = 4;
   BLOCK_TYPE_CLASS = 10;
   BLOCK_TYPE_CHOICE = 11;
   BLOCK_TYPE_TAG = 12;
   BLOCK_TYPE_SIGNAL = 13;
-  BLOCK_TYPE_TASK = 20;
-  BLOCK_TYPE_CODE = 21;
-  BLOCK_TYPE_FLOW = 22;
-  BLOCK_TYPE_MODEL = 23;
-  BLOCK_TYPE_VIEW = 30;
-  BLOCK_TYPE_DATABASE = 31;
-  BLOCK_TYPE_SCREEN = 32;
+  BLOCK_TYPE_SINGLE_VARIABLE = 20;
+  BLOCK_TYPE_MULTI_VARIABLE = 22;
+  BLOCK_TYPE_TASK = 30;
+  BLOCK_TYPE_CODE = 31;
+  BLOCK_TYPE_FLOW = 32;
+  BLOCK_TYPE_MODEL = 33;
+  BLOCK_TYPE_VIEW = 40;
+  BLOCK_TYPE_DATABASE = 41;
+  BLOCK_TYPE_SCREEN = 42;
 }
 
 enum Casing {
@@ -134,24 +133,6 @@ enum Casing {
   CASING_SNAKE = 1;
   CASING_CAMEL = 2;
   CASING_ALL_CAPS = 3;
-}
-
-// Fundamental column / storage types we support (subset of SQL types).
-//     NOTE: the ids here are used in encode/decode pipelines, take extra care.
-enum ColumnType {
-  COLUMN_TYPE_UNSPECIFIED = 0;
-  COLUMN_TYPE_STRING = 1;
-  COLUMN_TYPE_BOOLEAN = 2;
-  COLUMN_TYPE_INT = 3;
-  COLUMN_TYPE_BIGINT = 4;
-  COLUMN_TYPE_FLOAT = 5;
-  COLUMN_TYPE_DATETIME = 6;
-  COLUMN_TYPE_INTERVAL = 7;
-  COLUMN_TYPE_JSON = 8;
-  COLUMN_TYPE_BINARY = 9;
-  COLUMN_TYPE_VECTOR = 10;
-  COLUMN_TYPE_UUID = 11;
-  COLUMN_TYPE_BYTES = 12;
 }
 
 enum ConditionalOp {
@@ -244,12 +225,11 @@ enum FileStatus {
 // Extra semantic hint for types.
 enum FormatHint {
   FORMAT_HINT_UNSPECIFIED = 0;
-  FORMAT_HINT_NAME = 1;
-  FORMAT_HINT_UUID = 2;
-  FORMAT_HINT_EMAIL = 3;
-  FORMAT_HINT_URL = 4;
-  FORMAT_HINT_MARKDOWN = 5;
-  FORMAT_HINT_CODE = 6;
+  FORMAT_HINT_TITLE = 1;
+  FORMAT_HINT_EMAIL = 2;
+  FORMAT_HINT_URL = 3;
+  FORMAT_HINT_MARKDOWN = 4;
+  FORMAT_HINT_CODE = 5;
   FORMAT_HINT_PHONE = 10;
   FORMAT_HINT_RATING = 11;
   FORMAT_HINT_SLIDER = 12;
@@ -359,6 +339,25 @@ enum PolicyEffect {
   POLICY_EFFECT_UNSPECIFIED = 0;
   POLICY_EFFECT_ALLOW = 1;
   POLICY_EFFECT_DENY = 2;
+}
+
+// Fundamental column / storage types we support (subset of SQL types, used directly in sql/core).
+//     NOTE: the ids here are used in encode/decode pipelines, take extra care.
+enum PrimitiveType {
+  PRIMITIVE_TYPE_UNSPECIFIED = 0;
+  PRIMITIVE_TYPE_BOOLEAN = 1;
+  PRIMITIVE_TYPE_INT32 = 2;
+  PRIMITIVE_TYPE_INT64 = 3;
+  PRIMITIVE_TYPE_FLOAT32 = 4;
+  PRIMITIVE_TYPE_FLOAT64 = 5;
+  PRIMITIVE_TYPE_DECIMAL = 6;
+  PRIMITIVE_TYPE_STRING = 7;
+  PRIMITIVE_TYPE_DATETIME = 8;
+  PRIMITIVE_TYPE_INTERVAL = 9;
+  PRIMITIVE_TYPE_JSON = 10;
+  PRIMITIVE_TYPE_BYTES = 11;
+  PRIMITIVE_TYPE_VECTOR = 12;
+  PRIMITIVE_TYPE_UUID = 13;
 }
 
 // enum.StrEnum with an additional id per value.
@@ -512,7 +511,7 @@ message AggregationData {
   BenchType metatype = 1;
   AggregationOp op = 30;
   optional bool exists = 31;
-  optional float scalar = 32;
+  optional double scalar = 32;
   repeated AggregationBucketData buckets = 33;
 }
 
@@ -729,17 +728,17 @@ message RunErrorData {
 // A type is a kind of value that can go somewhere, typically a field.
 // 
 //     A type is either:
-//        1. built-in type (= column type, value is scalar, like int32, string, bool, datetime, ...)
+//        1. primitive type (= column type, value is scalar, like int32, string, bool, datetime, ...)
 //        2. struct type (value is 'robust json', like Expression, File, BenchPath, RichText, ...)
 //        3. node type (value is NodeReference, like Package, Block, Field, Record, Run, Signal, ...)
 //        4. reference to a block (value is NodeReference that is an 'instance' of the block)
-//            if node type is Record and reference ~ Database, values must be Records in that database
-//            if node type is Run and reference ~ Block, values must be Runs of that block
-//            if node type is Field and reference ~ Block, values must be a Field in that block
-//            if node type is Signal and reference ~ Block, values must be Signals of that block type
-//            if node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
+//            node type is Record and reference ~ Database, values must be Records in that database
+//            node type is Run and reference ~ Block, values must be Runs of that block
+//            node type is Field and reference ~ Block, values must be a Field in that block
+//            node type is Signal and reference ~ Block, values must be Signals of that block type
+//            node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
 //             (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
-//            if node type is Block and reference is None, values must be instances of the combined newtype
+//            node type is Block and reference is None, values must be instances of the combined newtype
 //             ...
 // 
 //     Types may also specify:
@@ -750,16 +749,17 @@ message RunErrorData {
 //     Type checking is done in ./value.py. You'll note that we can only check some things without querying.
 message TypeInfoData {
   BenchType metatype = 1;
-  optional ColumnType column_type = 40;
+  optional PrimitiveType primitive_type = 40;
   optional BenchType bench_type = 41;
   optional NodeReferenceData base_type_ptr = 42;
-  optional FormatHint format_hint = 43;
-  optional ExpressionData condition = 44;
+  optional FormatHint format_hint = 44;
+  optional ExpressionData condition = 45;
+  optional int64 length = 46;
+  optional int64 precision = 47;
+  optional int64 scale = 48;
   bool is_array = 50;
-  bool is_optional = 51;
-  bool is_output = 52;
-  bool is_secret = 53;
-  bool is_literal = 54;
+  bool is_required = 51;
+  bool is_secret = 52;
 }
 
 // Reference a value at a path of a Node.
@@ -894,7 +894,7 @@ message ClientData {
   optional string access_token = 34;
 }
 
-// Field(column_type: Optional[bench.language.const.ColumnType] = None, bench_type: Optional[bench.language.const.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, is_array: bool = False, is_optional: bool = True, is_output: bool = False, is_secret: bool = False, is_literal: bool = False, _fields: tuple['Field', ...] | None = None, _derived_type: Optional[ForwardRef('TypeInfo')] = None, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, parent: Optional[ForwardRef('Block')] = None, name: str | None = None, order_key: str | None = None, dynamic_key: str | None = None, text: str | None = None, value_packed: typing.Any | None = None, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference' = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None, value: typing.Any | None = None)
+// Field(primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.language.const.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, parent: Optional[ForwardRef('Block')] = None, name: str | None = None, order_key: str | None = None, dynamic_key: str | None = None, text: str | None = None, value_packed: typing.Any | None = None, is_output: bool = False, is_option: bool = False, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference' = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None, value: typing.Any | None = None)
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
@@ -912,16 +912,19 @@ message FieldData {
   optional string dynamic_key = 32;
   optional string text = 33;
   optional google.protobuf.Struct value_packed = 34;
-  optional ColumnType column_type = 40;
+  optional PrimitiveType primitive_type = 40;
   optional BenchType bench_type = 41;
   optional NodeReferenceData base_type_ptr = 42;
-  optional FormatHint format_hint = 43;
-  optional ExpressionData condition = 44;
+  optional FormatHint format_hint = 44;
+  optional ExpressionData condition = 45;
+  optional int64 length = 46;
+  optional int64 precision = 47;
+  optional int64 scale = 48;
   bool is_array = 50;
-  bool is_optional = 51;
-  bool is_output = 52;
-  bool is_secret = 53;
-  bool is_literal = 54;
+  bool is_required = 51;
+  bool is_secret = 52;
+  bool is_output = 60;
+  bool is_option = 61;
 }
 
 // A (global) Bench handle.
@@ -1159,7 +1162,7 @@ message TaggingData {
   optional NodeReferenceData reference_ptr = 32;
 }
 
-// A trigger for a statement to run.
+// A trigger for a block to run.
 message TriggerData {
   BenchType metatype = 1;
   string id = 2;
@@ -1264,29 +1267,29 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    RecordData record = 1;
-    RunData run = 2;
+    LinkData link = 1;
+    IssueData issue = 2;
     TriggerData trigger = 3;
-    PauseData pause = 4;
-    TaggingData tagging = 5;
-    WorkerData worker = 6;
-    PackageData package = 7;
-    ViewData view = 8;
-    HandleData handle = 9;
-    WorkerSetData worker_set = 10;
+    NotificationData notification = 4;
+    BucketObjectData bucket_object = 5;
+    PackageData package = 6;
+    WorkerData worker = 7;
+    RunData run = 8;
+    UserData user = 9;
+    PauseData pause = 10;
     OrganizationData organization = 11;
-    SessionData session = 12;
-    NotificationData notification = 13;
-    BenchData bench = 14;
-    UserData user = 15;
-    BadgeData badge = 16;
+    WorkerSetData worker_set = 12;
+    HandleData handle = 13;
+    SignalData signal = 14;
+    BenchData bench = 15;
+    ViewData view = 16;
     FieldData field = 17;
-    BucketObjectData bucket_object = 18;
-    IssueData issue = 19;
-    LinkData link = 20;
-    BlockData block = 21;
-    ClientData client = 22;
-    SignalData signal = 23;
+    SessionData session = 18;
+    BlockData block = 19;
+    TaggingData tagging = 20;
+    ClientData client = 21;
+    RecordData record = 22;
+    BadgeData badge = 23;
   };
 }
 

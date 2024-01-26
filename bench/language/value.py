@@ -1,6 +1,6 @@
 from copy import deepcopy
 from functools import partial
-from typing import TYPE_CHECKING, Any, Collection, Optional, Callable, Mapping, Iterable
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Optional
 
 import structlog
 
@@ -9,27 +9,31 @@ from bench.language.node import (
     NS,
     UNSET,
     Node,
+    ScopeNode,
     node_component,
     struct_property,
-    ScopeNode,
     struct_runtime,
 )
 from bench.language.text import Text
 from bench.language.validation import ValidationHandler
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 from bench.utils.proxy import proxy_value, unproxy_value
 
 if TYPE_CHECKING:
     from bench.language import NodeVisitor, Session
-    from bench.language.field import TypeInfo, Field, TypedDict
+    from bench.language.field import Field, TypedDict, TypeInfo
 
 logger = structlog.get_logger(__name__)
+
+
+# TODO @Cleanup: HasValue should somehow be a mixin per property :GeneralizeHasValue
+#  e.g. in Run we want typed 'value' behaviour on 'value','inputs','outputs', in Field on 'default'
 
 
 @node_component
 class HasValue(Node):
     value_packed: Any | None = struct_property(
-        UNSET, default=None, copy=deepcopy, column_type=ColumnType.JSON
+        UNSET, default=None, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
     # optional secret_value_packed (soon)
     value: Any | None = struct_runtime(default=None)
@@ -134,7 +138,7 @@ def map_value(
             )
             for item in value
         ]
-    elif type.fields:  # nested type
+    elif type.is_nested:
         if not isinstance(value, Mapping):
             return None if none_if_invalid else value
         mapped = {}
@@ -159,7 +163,7 @@ def map_value(
         if not ignore_outer:
             mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
         return mapped
-    elif type.column_type == ColumnType.JSON:
+    elif type.primitive_type == PrimitiveType.JSON:
         return value  # nothing to do ?
     else:  # scalar
         return map_v(value=value, type=type, ignore_array=ignore_array)
@@ -180,7 +184,7 @@ def walk_value(
         for item in value:
             yield from walk_value(item, type, get_k=get_k, ignore_array=True)
         return
-    elif type.fields:
+    elif type.is_nested:
         if not isinstance(value, Mapping):
             return
         for subtype in type.fields:
@@ -212,7 +216,7 @@ def check_type(
         return valid
 
     # optional / list types
-    if type.is_optional and value is None:
+    if not type.is_required and value is None:
         return
     elif type.is_array and not ignore_array:
         if _check(isinstance(value, Collection)):

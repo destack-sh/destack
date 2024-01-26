@@ -1,11 +1,11 @@
 import enum
-from typing import Any, Collection, Generator, Mapping, NamedTuple, Optional, Callable
+from typing import Any, Callable, Collection, Generator, Mapping, NamedTuple, Optional
 from uuid import UUID
 
 from more_itertools import first
 
 from bench.language.const import INTERP_NODE_TYPES, NodeType
-from bench.language.field import TypeInfo, Field
+from bench.language.field import Field, TypeInfo
 from bench.language.node import UNSET, Node
 from bench.utils.utils import format_python, omit_empty
 
@@ -142,7 +142,7 @@ def render_value(
             if filter_v is None or filter_v(item, type)
         ]
         return _render_array(elements)
-    elif not type.fields:
+    elif not type.is_nested:
         assert filter_v is None or filter_v(value, type), f"unexpected filtered value {value}"
         return render_value_flat(value, type, filter_k=filter_v)
     else:

@@ -20,6 +20,7 @@ from asgiref.sync import async_to_sync
 
 from bench.language.const import (
     NS,
+    BenchError,
     ConditionalOp,
     ExpressionOp,
     IssueType,
@@ -29,7 +30,6 @@ from bench.language.const import (
     QueryEngine,
     SortOp,
     active_session,
-    BenchError,
 )
 from bench.language.validation import on_invalid_raise
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -37,7 +37,7 @@ from bench.utils.func import _auto_async_to_sync, nextn
 from bench.utils.utils import flatten
 
 if TYPE_CHECKING:
-    from bench.language import Expression, Field, Node, Property, ScopeNode, Session
+    from bench.language import Expression, Field, Node, Property, ScopeNode, Session, TypeInfo
 
 NodeT = TypeVar("NodeT", bound="Node")
 
@@ -436,10 +436,10 @@ class NodeList(NodeListBase[NodeT]):
 def _require_expression_op(op: ExpressionOp):
     def decorator(func):
         @functools.wraps(func)
-        def wrapper(self: "_FieldExpressionBase", *args, **kwargs):
+        def wrapper(self: "_TypeExpressionBase", *args, **kwargs):
             from bench.language.expression import _check_field_supports
 
-            _check_field_supports(self._as_field, op)
+            _check_field_supports(self._as_type, op)
             return func(self, *args, **kwargs)
 
         return wrapper
@@ -467,22 +467,17 @@ def _to_sort(op: SortOp, target: Union["Field", "Property"]):
     return S(op, field=field, property_ptr=property)
 
 
-class _FieldExpressionBase:
+class _TypeExpressionBase:
     """
     Base for field-like expressions on a field-like class.
     We define this here to use it for Property and Field.
     """
 
     @property
-    def _as_field(self) -> "Field":
-        from bench.language.field import Field
+    def _as_type(self) -> "TypeInfo":
+        raise NotImplementedError(f"{self!r} does not implement type")
 
-        assert isinstance(self, Field), f"{self!r} is not a Field"
-        return self
-
-        # basic support checks
-
-    def _coerce_value(self: "Field", value: Any) -> Any:
+    def _coerce_value(self: "TypeInfo", value: Any) -> Any:
         return value
 
     # comparison

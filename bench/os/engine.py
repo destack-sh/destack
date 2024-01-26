@@ -2,16 +2,15 @@ import base64
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, NamedTuple, Optional, Union
+from typing import Any, Collection, Iterable, Optional
 from uuid import UUID
 
 import psycopg
 import structlog
 from psycopg import sql
 
-from bench import language as lang
-from bench.language import C, ConditionalOp, Package, QueryEngine, SortMode, SortOp
-from bench.language.const import RUNNABLE_BLOCK_TYPES, BenchType, EditKind
+from bench.language import C, ConditionalOp, Field, Package, QueryEngine, SortMode, SortOp
+from bench.language.const import BenchType, BlockType, EditKind, NodeType
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -22,197 +21,56 @@ from bench.language.expression import (
     S,
 )
 from bench.language.node import BENCH_CLASS_BY_TYPE, STRUCT_CLASS_BY_TYPE, Node, Property, Struct
-from bench.language.run import HasRun
 from bench.os import core as os
-from bench.os.client import get_os_errors, os_client, os_client_sync
-from bench.os.core import SubfieldType
+from bench.os.client import get_os_errors, os_client
 from bench.proto import wire, wiring
 from bench.proto.wire import EditData
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 
 logger = structlog.get_logger(__name__)
 
 MAXIMUM_NESTING_DEPTH = 3
-
 
 #
 # Mapping schemas
 #
 
 
-class FieldMapper:
-    """
-    Maps a Bench Field to an OpenSearch field (possibly nested).
-    Don't bother with lists and optional here.
-    """
-
-    def to_os_type(self, type: Union[lang.Field, lang.Block], depth: int) -> os.Field:
-        raise NotImplementedError
-
-
-TypeSignature = NamedTuple("TypeSignature", [("tag", TypeTag), ("hint", Optional[TypeHint])])
-
-field_mappers: dict[TypeSignature, FieldMapper] = {}
-
-
-def register_mapper(
-    mapper: os.Field | FieldMapper,
-    tags: list[TypeTag] = None,
-    hints: list[TypeHint] = None,
-) -> None:
-    if not tags and not hints:
-        raise ValueError("at least one tag or hint must be specified")
-    if isinstance(mapper, os.Field):
-        mapper = StaticFieldMapper(mapper)
-    tags = tags or []
-    hints = hints or []
-    for tag in tags:
-        field_mappers[TypeSignature(tag, None)] = mapper
-    for hint in hints:
-        tag = TYPE_TAG_BY_TYPE_HINT[hint]
-        field_mappers[TypeSignature(tag, hint)] = mapper
+OS_FIELD_TYPE_BY_PRIMITIVE_TYPE: dict[PrimitiveType, os.FieldType] = {
+    PrimitiveType.STRING: os.FieldType.TEXT,
+    PrimitiveType.BOOLEAN: os.FieldType.BOOLEAN,
+    PrimitiveType.INT32: os.FieldType.INTEGER,
+    PrimitiveType.INT64: os.FieldType.LONG,
+    PrimitiveType.FLOAT32: os.FieldType.FLOAT,
+    PrimitiveType.DATETIME: os.FieldType.DATE,
+    PrimitiveType.INTERVAL: os.FieldType.LONG,
+    PrimitiveType.JSON: os.FieldType.FLAT_OBJECT,
+    PrimitiveType.VECTOR: os.FieldType.KNN_VECTOR,
+    PrimitiveType.UUID: os.FieldType.KEYWORD,
+    PrimitiveType.BYTES: os.FieldType.BINARY,
+}
 
 
-def get_mapper(type: Union[lang.Field, lang.Block]) -> FieldMapper:
-    if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Block):
-        return get_mapper(type.reference)  # skip the reference
-    exact_signature = TypeSignature(type.tag, type.hint)
-    mapping = field_mappers.get(exact_signature)
-    if mapping is not None:
-        return mapping
-    # no exact match, try generic without hint
-    stripped_signature = TypeSignature(type.tag, None)
-    mapping = field_mappers.get(stripped_signature)
-    if mapping is not None:
-        return mapping
-    raise LookupError(f"no mapping found for {type}")
+def map_field_to_os_field(field: Field) -> os.Field:
+    """Maps the dynamic Field to an indexed OS Field."""
+    raise NotImplementedError
 
 
-@dataclass
-class StaticFieldMapper(FieldMapper):
-    field: os.Field | os.FT
-
-    def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
-        return self.field
-
-
-class StructFieldMapper(FieldMapper):
-    def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
-        subfields = {TYPE_DISCRIMINATOR_KEY: os.Field(os.FT.KEYWORD)}
-        if isinstance(type.reference, lang.Block) and type.reference.issues:
-            # bail out early if there are issues from a reference
-            # (these don't get reported up to every reference, but we still can't map it)
-            return os.Field(os.FT.OBJECT, properties=subfields)
-
-        for f in type.fields:
-            if f._effective_tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH:
-                subfields[f.storage_key] = get_mapper(f).to_os_type(f, depth + 1)
-            else:
-                # treat as json (but not as flattened yet.. :BadJsonMapping)
-                subfields[f.storage_key] = os.Field(os.FT.OBJECT, dynamic=True, enabled=False)
-        return os.Field(os.FT.OBJECT, properties=subfields)
-
-
-class VectorFieldMapper(FieldMapper):
-    def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
-        # see https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#construction-parameters
-        # assumes byte-quantized vectors with <= 1024 dimensions
-        method = os.KnnMethod(
-            name=os.KnnMethodName.HNSW,
-            engine=os.KnnEngine.LUCENE,
-            space_type=os.KnnSpaceType.L2,
-            parameters=os.HnswParameters(ef_construction=128, m=24),
-        )
-        return os.Field(
-            os.FT.KNN_VECTOR, dimension=type.dimensions, method=method, data_type="byte"
-        )
-
-
-# string
-register_mapper(
-    os.Field(
-        os.FT.TEXT,
-    ),
-    tags=[TypeTag.STRING],
-)
-register_mapper(
-    os.Field(
-        os.FT.TEXT,
-        # :QuerySubfields
-        fields={
-            SubfieldType.key: os.Field(os.FT.KEYWORD),
-            SubfieldType.starts_with: os.Field(os.FT.SEARCH_AS_YOU_TYPE),
-        },
-        copy_to="name",  # :RecordNameField
-    ),
-    hints=[TypeHint.NAME, TypeHint.EMAIL],
-)
-register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.NODE], hints=[TypeHint.UUID, TypeHint.KEY])
-register_mapper(os.Field(os.FT.DATE), hints=[TypeHint.DATE, TypeHint.DATETIME])
-register_mapper(os.Field(os.FT.DOUBLE), tags=[TypeTag.NUMBER], hints=[TypeHint.DURATION])
-register_mapper(os.Field(os.FT.LONG), hints=[TypeHint.INTEGER])
-register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
-register_mapper(VectorFieldMapper(), tags=[TypeTag.VECTOR])
-register_mapper(os.Field(os.FT.FLAT_OBJECT), tags=[TypeTag.JSON])
-register_mapper(StructFieldMapper(), tags=[TypeTag.STRUCT])
-register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.ENUM])
-
-
-def map_to_os_field(field: lang.Field) -> os.Field:
-    os_field = get_mapper(field).to_os_type(field, depth=0)
-    if field.flags & TypeFlag.IS_STORE_ONLY:
-        os_field.index = False
-    return os_field
-
-
-async def update_os_schema(package: Package, dynamic: str = "strict") -> None:
+async def update_local_os_schema(package: Package, dynamic: str = "strict") -> None:
     """
     Updates *all* OpenSearch field mappings for a package
-    TODO @Performance: update OS field mappings more efficiently on field edit
-      (especially for library/dependency mappings)
+    TODO @Performance: update OS schema more efficiently on type changes
     """
     value_mappings: dict[str, os.Field] = {}
     inputs_mappings: dict[str, os.Field] = {}
     outputs_mappings: dict[str, os.Field] = {}
 
-    def _map_to_os_field_safe(field: lang.Field) -> os.Field | None:
-        try:
-            return map_to_os_field(field)
-        except LookupError:
-            logger.warning("os.update_mappings.field_mapping_failed", field=field)
-            return None
-
-    # get library mappings
-    for node in symbolx_lib._nodes:
-        if HasRun in node._components:
-            for field in node.fields:
-                if field.flags & TypeFlag.IS_OUTPUT:
-                    outputs_mappings[field.storage_key] = _map_to_os_field_safe(field)
-                else:
-                    inputs_mappings[field.storage_key] = _map_to_os_field_safe(field)
-    # ensure library vectors are not indexed (would be pointless waste of resources)
-    for field in (*inputs_mappings.values(), *outputs_mappings.values()):
-        for f in field.walk():
-            if f.type == os.FieldType.KNN_VECTOR:
-                f.index = False
-
     # add dynamic user mappings
-    for node in package._nodes:
-        if not isinstance(node, lang.Block):
-            continue
-        if node.self_errors:
-            continue  # ignore nodes with issues
-        elif node.type == lang.BlockType.DATABASE:
+    for node in package._tree.iter_descendants(package, NodeType.BLOCK, recursive=True):
+        if node.type == BlockType.DATABASE:
             # all fields go into Record.value
             for field in node.fields:
-                value_mappings[field.storage_key] = _map_to_os_field_safe(field)
-        elif node.type in RUNNABLE_BLOCK_TYPES:
-            # inputs into Execution.inputs, outputs into Execution.outputs
-            for field in node.fields:
-                if field.flags & TypeFlag.IS_OUTPUT:
-                    outputs_mappings[field.storage_key] = _map_to_os_field_safe(field)
-                else:
-                    inputs_mappings[field.storage_key] = _map_to_os_field_safe(field)
+                value_mappings[field.storage_key] = map_field_to_os_field(field)
 
     # actually update mappings
     mappings = {}
@@ -237,13 +95,6 @@ async def update_os_schema(package: Package, dynamic: str = "strict") -> None:
 #
 # Mapping queries
 #
-
-
-_SUPPORTED_SUBFIELDS_BY_TYPE: dict[TypeHint | TypeTag, tuple[SubfieldType, ...]] = {
-    # cumulative supported subfields by type
-    TypeHint.EMAIL: (SubfieldType.key, SubfieldType.starts_with),
-    TypeHint.NAME: (SubfieldType.key, SubfieldType.starts_with),
-}
 
 
 @dataclass
@@ -439,7 +290,7 @@ def os_compile_search(
 
 
 def _wrap_os_error(
-    e: Exception, expr: lang.Expression | list[lang.Expression]
+    e: Exception, expr: Expression | list[Expression]
 ) -> QueryEngineError | Exception:
     return QueryEngineError(QueryEngine.LOCAL_OPENSEARCH, expr, str(e))
 
@@ -459,31 +310,6 @@ async def os_search(
     logger.debug("os.search", os_name=os_name, search=search)
     try:
         os_results = await os_client.search(index=os_name, body=search.to_dict())
-    except Exception as e:
-        raise _wrap_os_error(e, [filter, sort]) from e
-    total = os_results["hits"]["total"]["value"] if search.count else None
-    results = os_results["hits"]["hits"]
-    cursors = [encode_os_cursor(r, search.after, i) for i, r in enumerate(results)]
-    return OsSearchResult(total=total, results=results, cursors=cursors, start_cursor=after)
-
-
-def os_search_sync(
-    os_name: str,
-    metatype: BenchType,
-    filter: Optional[Expression] = None,
-    sort: Optional[list[Expression]] = None,
-    limit: int | None = None,
-    skip: int | None = None,
-    count: bool = True,
-    after: Optional[str] = None,
-) -> OsSearchResult:
-    """
-    Executes a search query against OpenSearch.
-    """
-    search = os_compile_search(metatype, filter, sort, limit, skip, count, after)
-    logger.debug("os.search", os_name=os_name, search=search)
-    try:
-        os_results = os_client_sync.search(index=os_name, body=search.to_dict())
     except Exception as e:
         raise _wrap_os_error(e, [filter, sort]) from e
     total = os_results["hits"]["total"]["value"] if search.count else None
@@ -519,40 +345,33 @@ NAME_FIELD = os.Field(
 HTML_FIELD = os.Field(os.FieldType.TEXT, analyzer=os.Analyzer.HTML)
 TEXT_FIELD = HTML_FIELD
 
-FIELD_TYPE_BY_COLUMN_TYPE = {
-    ColumnType.BOOLEAN: os.FieldType.BOOLEAN,
-    ColumnType.DATETIME: os.FieldType.DATE,
-    ColumnType.FLOAT: os.FieldType.DOUBLE,
-    ColumnType.BIGINT: os.FieldType.LONG,
-    ColumnType.JSON: os.FieldType.OBJECT,
-    ColumnType.STRING: os.FieldType.TEXT,
-    ColumnType.UUID: os.FieldType.KEYWORD,
-}
 
-
-def _is_property_indexed(prop: lang.Property) -> bool:
+def _is_property_indexed_in_os(prop: Property) -> bool:
     return prop.is_stored and not prop.is_encrypted and not prop.is_deferred
 
 
-def map_struct_type_to_os_document(struct: type[Struct]) -> os.Document:
+def map_struct_type_to_os_document(
+    struct: type[Struct], seen_types: tuple[type[Struct], ...] = ()
+) -> os.Document:
     fields: dict[str, os.Field] = {}
 
     for prop in struct.__stored_properties__.values():
-        if not _is_property_indexed(prop):
+        if not _is_property_indexed_in_os(prop):
             continue
         if prop.is_enum:
             field = os.Field(os.FieldType.KEYWORD)
         elif prop.is_struct:
+            if prop.struct_type in seen_types:
+                continue  # no recursive indexing
             struct_cls = STRUCT_CLASS_BY_TYPE[prop.struct_type]
-            field = os.Field(
-                os.FieldType.OBJECT, properties=map_struct_type_to_os_document(struct_cls).fields
-            )
-        elif prop.column_type == ColumnType.JSON:
+            mapped = map_struct_type_to_os_document(struct_cls, seen_types + (prop.struct_type,))
+            field = os.Field(os.FieldType.OBJECT, properties=mapped.fields)
+        elif prop.primitive_type == PrimitiveType.JSON:
             field = os.Field(os.FieldType.OBJECT, dynamic="strict")
         else:
-            field_type = FIELD_TYPE_BY_COLUMN_TYPE.get(prop.column_type)
+            field_type = OS_FIELD_TYPE_BY_PRIMITIVE_TYPE.get(prop.primitive_type)
             if field_type is None:
-                raise ValueError(f"unsupported column type in {prop!r}: {prop.column_type}")
+                raise ValueError(f"unsupported column type in {prop!r}: {prop.primitive_type}")
             field = os.Field(field_type)
             if field.type == os.FieldType.DATE:
                 field.ignore_malformed = True  # allow 'resetting' dates to null
@@ -576,7 +395,7 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return [_pack_struct_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         return pack_struct(value)
-    elif prop.column_type == ColumnType.JSON:
+    elif prop.primitive_type == PrimitiveType.JSON:
         return wiring.pack_json_value(value)
     elif prop.is_enum:
         return wiring.pack_enum(value)
@@ -591,7 +410,7 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
         return [_unpack_struct_prop(prop, v, ignore_array=True) for v in value]
     elif prop.is_struct:
         return unpack_struct(value)
-    elif prop.column_type == ColumnType.JSON:
+    elif prop.primitive_type == PrimitiveType.JSON:
         return wiring.unpack_json_value(value)
     elif prop.is_enum:
         return wiring.unpack_enum(prop.enum_cls, value)
@@ -604,7 +423,7 @@ def pack_struct(node: wire.AnyNodeData | wire.AnyStructData) -> dict:
     bench_cls = BENCH_CLASS_BY_TYPE[metatype]
     document: dict[str, Any] = {TYPE_DISCRIMINATOR_KEY: metatype.name}
     for prop in bench_cls.__stored_properties__.values():
-        if not _is_property_indexed(prop):
+        if not _is_property_indexed_in_os(prop):
             continue
         value = getattr(node, prop.name)
         document[prop.name] = _pack_struct_prop(prop, value, ignore_array=False)
@@ -617,7 +436,7 @@ def unpack_struct(source: dict) -> wire.AnyNodeData | wire.AnyStructData:
     proto_cls = wiring.PROTO_CLASS_BY_TYPE[metatype]
     proto_kwargs = {}
     for prop in bench_cls.__stored_properties__.values():
-        if not _is_property_indexed(prop):
+        if not _is_property_indexed_in_os(prop):
             continue
         value = source.get(prop.name)
         proto_kwargs[prop.name] = _unpack_struct_prop(prop, value, ignore_array=False)
@@ -639,7 +458,7 @@ async def sync_pg_databases_to_os(
 
     log = logger.bind(package=package, databases=[r[0] for r in record_ids_by_db])
     log.debug("os.sync_pg_databases_to_os")
-    os_name = module.os_name
+    os_name = package.os_name
     ops: list[dict[str, Any]] = []
 
     async def _flush():
@@ -698,7 +517,7 @@ BENCH_INDEX_REPLICAS = 0
 BENCH_MAPPING_TOTAL_FIELDS_LIMIT = 10000  # TODO @Performance: reconsider OS mapping limit
 
 
-def _collect_fields(docs: list[os.Document]) -> dict[str, os.Field]:
+def _collect_fields(docs: Iterable[os.Document]) -> dict[str, os.Field]:
     fields = {}
     for doc in docs:
         for field_name, field in doc.fields.items():
@@ -711,12 +530,12 @@ def _collect_fields(docs: list[os.Document]) -> dict[str, os.Field]:
     return fields
 
 
-def _create_os_index(
+async def _create_os_index(
     index_name: str,
     *,
     shards: int,
     replicas: int,
-    documents: list[os.Document],
+    documents: Collection[os.Document],
     upsert: bool = False,
 ) -> None:
     fields = {**DEFAULT_FIELDS, **_collect_fields(documents)}
@@ -733,7 +552,7 @@ def _create_os_index(
         fields=list(fields.keys()),
     )
     log.info("os.create_index")
-    result = os_client_sync.indices.create(
+    result = await os_client.indices.create(
         index=index_name,
         body={
             "settings": {
@@ -751,26 +570,26 @@ def _create_os_index(
             raise IndexError(f"failed to create index {index_name}: {result}")
         logger.info("os.create_index.upsert", index_name=index_name)
         # close index
-        os_client_sync.indices.close(index=index_name)
+        await os_client.indices.close(index=index_name)
         # update mutable settings
-        os_client_sync.indices.put_settings(
+        await os_client.indices.put_settings(
             index=index_name,
             body={
                 "analysis": {"tokenizer": tokenizers, "analyzer": analyzers},
                 "mapping": {"total_fields": {"limit": BENCH_MAPPING_TOTAL_FIELDS_LIMIT}},
             },
         )
-        os_client_sync.indices.put_mapping(
+        await os_client.indices.put_mapping(
             index=index_name, body={"dynamic": "strict", "properties": mappings}
         )
         # reopen index
-        os_client_sync.indices.open(index=index_name)
+        await os_client.indices.open(index=index_name)
     log.info("os.create_index.done")
 
 
-def create_global_os_index(upsert: bool = False) -> None:
+async def create_global_os_index(upsert: bool = False) -> None:
     logger.info("os.create_global_index")
-    _create_os_index(
+    await _create_os_index(
         os.GLOBAL_INDEX_NAME,
         shards=GLOBAL_INDEX_SHARDS,
         replicas=GLOBAL_INDEX_REPLICAS,
@@ -779,12 +598,12 @@ def create_global_os_index(upsert: bool = False) -> None:
     )
 
 
-def create_global_os_role() -> None:
+async def create_global_os_role() -> None:
     # creates a global role (that doesn't do anything yet)
     # every user has this role to read public indices
-    rep = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
+    rep = await os_client.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
     if rep.get("status") == "NOT_FOUND":
-        rep = os_client_sync.security.create_role(
+        rep = await os_client.security.create_role(
             role=GLOBAL_READ_ONLY_ROLE,
             body={
                 "cluster_permissions": [],
@@ -799,7 +618,7 @@ def create_global_os_role() -> None:
         logger.info("os.global_role_exists", name=GLOBAL_READ_ONLY_ROLE, rep=rep)
 
 
-def create_local_os_index(
+async def create_local_os_index(
     *, os_name: str, os_username: str, os_password: str, is_public: bool, upsert: bool
 ) -> None:
     """
@@ -808,7 +627,7 @@ def create_local_os_index(
     log = logger.bind(os_name=os_name)
     log.info("os.create_local_index")
     # create index
-    _create_os_index(
+    await _create_os_index(
         index_name=os_name,
         shards=BENCH_INDEX_SHARDS,
         replicas=BENCH_INDEX_REPLICAS,
@@ -817,7 +636,7 @@ def create_local_os_index(
     )
 
     # get global read only role to modify
-    rep = os_client_sync.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
+    rep = await os_client.security.get_role(role=GLOBAL_READ_ONLY_ROLE, ignore=404)
     role = rep.get(GLOBAL_READ_ONLY_ROLE)
     assert role is not None, f"failed to get role {GLOBAL_READ_ONLY_ROLE}: {rep}"
     if is_public:
@@ -825,7 +644,7 @@ def create_local_os_index(
         #  (unfortunately the 'add' op doesn't seem to be actually additive?)
         # grant read access to global read only role
         log.info("os.grant_global_read_access")
-        rep = os_client_sync.security.patch_role(
+        rep = await os_client.security.patch_role(
             role=GLOBAL_READ_ONLY_ROLE,
             body=[
                 {
@@ -857,7 +676,7 @@ def create_local_os_index(
                 permission_idx = i
                 break
         if permission_idx >= 0:
-            rep = os_client_sync.security.patch_role(
+            rep = await os_client.security.patch_role(
                 role=GLOBAL_READ_ONLY_ROLE,
                 body={"op": "remove", "path": f"/index_permissions/{permission_idx}"},
             )
@@ -870,11 +689,11 @@ def create_local_os_index(
     # create write access role for bench owner
     log.info("os.create_owner_role")
     owner_role_name = f"{os_name}-rw"
-    rep = os_client_sync.security.get_role(role=owner_role_name, ignore=404)
+    rep = await os_client.security.get_role(role=owner_role_name, ignore=404)
     owner_role = rep.get(owner_role_name)
     if owner_role is not None:
-        os_client_sync.security.delete_role(role=owner_role_name)
-    rep = os_client_sync.security.create_role(
+        await os_client.security.delete_role(role=owner_role_name)
+    rep = await os_client.security.create_role(
         role=owner_role_name,
         body={
             "cluster_permissions": [
@@ -898,11 +717,11 @@ def create_local_os_index(
 
     # create user with those roles
     log.info("os.create_user")
-    rep = os_client_sync.security.get_user(username=os_username, ignore=404)
+    rep = await os_client.security.get_user(username=os_username, ignore=404)
     user = rep.get(os_username)
     if user is not None:
-        os_client_sync.security.delete_user(username=os_username)
-    rep = os_client_sync.security.create_user(
+        await os_client.security.delete_user(username=os_username)
+    rep = await os_client.security.create_user(
         username=os_username,
         body={
             "password": os_password,
@@ -924,7 +743,7 @@ async def os_write_edits(module: Package, edits: list[EditData], *, refresh: boo
     if not edits:
         if refresh:
             # just refresh the index
-            os_client_sync.indices.refresh(index=module.os_name)
+            await os_client.indices.refresh(index=module.os_name)
         return  # nothing to do
 
     # mut state
@@ -1002,10 +821,3 @@ async def os_write_records(module: Package, records: list[wire.RecordData]) -> N
     ret = await os_client.bulk(ops)
     if ret.get("errors"):
         raise RuntimeError(f"failed to write records to OpenSearch: {get_os_errors(ret)}")
-
-
-def enable_os_strict_mapping(index_name: str) -> None:
-    logger.info("os.enable_strict_dynamic_mapping", index=index_name)
-    rep = os_client_sync.indices.put_mapping(index=index_name, body={"dynamic": "strict"})
-    if rep.get("error"):
-        raise RuntimeError(f"failed to enable strict dynamic mapping: {rep['error']}")

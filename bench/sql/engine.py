@@ -14,12 +14,12 @@ import structlog
 from psycopg import sql
 from psycopg.types.json import Jsonb
 
-import bench.language as lang
-from bench.language import ConditionalOp, Field, Package, QueryEngine, Session, Block
-from bench.language.const import NODE_TYPES, EditKind, NodeType, to_bench_metatype
+from bench.language import Block, ConditionalOp, Field, Package, QueryEngine, Session, TypeInfo
+from bench.language.const import NODE_TYPES, EditKind, NodeType, SortOp, to_bench_metatype
 from bench.language.database import HasDatabase
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
+    C,
     Expression,
     ExpressionOps,
     QueryEngineIncapableError,
@@ -45,11 +45,11 @@ from bench.sql.core import (
     RECORD_BASE_TABLE,
     CascadeAction,
     Column,
-    ColumnType,
     Constraint,
     ConstraintType,
     Index,
     IndexType,
+    PrimitiveType,
     SqlPrimitive,
     Table,
 )
@@ -60,13 +60,105 @@ from bench.utils.utils import DEBUG, LOCAL_ENV
 
 logger = structlog.get_logger(__name__)
 
+CAST_TYPE_BY_STORAGE_FORMAT: dict[PrimitiveType, str] = {
+    PrimitiveType.BOOLEAN: "boolean",
+    PrimitiveType.INT32: "int",
+    PrimitiveType.INT64: "bigint",
+    PrimitiveType.FLOAT32: "float",
+    PrimitiveType.FLOAT64: "double",
+    PrimitiveType.DECIMAL: "decimal",
+    PrimitiveType.STRING: "text",
+    PrimitiveType.VECTOR: "float[]",
+    PrimitiveType.BYTES: "bytea",
+    PrimitiveType.DATETIME: "timestamptz",
+    PrimitiveType.JSON: "jsonb",
+    PrimitiveType.UUID: "uuid",
+}
 
-def get_record_table_name(statement_ck: UUID) -> str:
-    """First 16 hex digits without dashes."""
-    return f"bench_record_{str(statement_ck).replace('-', '')}"
+
+class PostgresConditionalOp(enum.StrEnum):
+    # logical
+    TRUE = "TRUE"
+    FALSE = "FALSE"
+    AND = "AND"
+    OR = "OR"
+    NOT = "NOT"
+    # standard
+    IS_NULL = "IS NULL"
+    IS_NOT_NULL = "IS NOT NULL"
+    EQ = "="
+    NEQ = "!="
+    LT = "<"
+    LTE = "<="
+    GT = ">"
+    GTE = ">="
+    IN = "IN"
+    NOT_IN = "NOT IN"
+    # string
+    LIKE = "LIKE"
+    ILIKE = "ILIKE"
+    REGEXP = "~"
+    # array/json
+    CONTAINS = "@>"
+    CONTAINED_BY = "<@"
+    OVERLAPS = "&&"
+
+
+PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalOp, PostgresConditionalOp] = {
+    # logical
+    ConditionalOp.TRUE: PostgresConditionalOp.TRUE,
+    ConditionalOp.FALSE: PostgresConditionalOp.FALSE,
+    ConditionalOp.AND: PostgresConditionalOp.AND,
+    ConditionalOp.OR: PostgresConditionalOp.OR,
+    ConditionalOp.NOT: PostgresConditionalOp.NOT,
+    # standard
+    ConditionalOp.EXISTS: PostgresConditionalOp.IS_NOT_NULL,
+    ConditionalOp.NOT_EXISTS: PostgresConditionalOp.IS_NULL,
+    ConditionalOp.EQUALS: PostgresConditionalOp.EQ,
+    ConditionalOp.NOT_EQUALS: PostgresConditionalOp.NEQ,
+    ConditionalOp.LESS_THAN: PostgresConditionalOp.LT,
+    ConditionalOp.LESS_THAN_OR_EQUALS: PostgresConditionalOp.LTE,
+    ConditionalOp.GREATER_THAN: PostgresConditionalOp.GT,
+    ConditionalOp.GREATER_THAN_OR_EQUALS: PostgresConditionalOp.GTE,
+    # string
+    ConditionalOp.MATCHES: PostgresConditionalOp.LIKE,
+    ConditionalOp.STARTS_WITH: PostgresConditionalOp.LIKE,
+    ConditionalOp.REGEX: PostgresConditionalOp.REGEXP,
+    # containment
+    ConditionalOp.CONTAINS: PostgresConditionalOp.CONTAINS,
+    ConditionalOp.IN: PostgresConditionalOp.IN,
+    ConditionalOp.NOT_IN: PostgresConditionalOp.NOT_IN,
+}
+
+
+class PostgresJoinOp(enum.StrEnum):
+    INNER_JOIN = "INNER JOIN"
+    LEFT_OUTER_JOIN = "LEFT OUTER JOIN"
+    RIGHT_OUTER_JOIN = "RIGHT OUTER JOIN"
+    FULL_OUTER_JOIN = "FULL OUTER JOIN"
+
+
+class PostgresSortOp(enum.StrEnum):
+    ASC = "ASC"
+    DESC = "DESC"
+
+
+POSTGRES_SORT_OP_BY_BENCH: dict[SortOp, PostgresSortOp] = {
+    SortOp.ASCENDING: PostgresSortOp.ASC,
+    SortOp.DESCENDING: PostgresSortOp.DESC,
+}
+
+
+def get_database_table_name(block_ck: UUID) -> str:
+    """
+    Gets the name for a table with the Records of a dynamically created DatabaseBlock.
+    NOTE: we rely on this table prefix to remain constant
+    """
+    return f"bench_record_{str(block_ck).replace('-', '')}"
 
 
 def get_bench_table_name(node_type: NodeType) -> str:
+    """Gets the name for a regular Bench node table."""
     return f"bench_{node_type.name.lower().replace('_', '')}"
 
 
@@ -86,7 +178,7 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
         column = Column(
             _source=prop.id,
             name=prop.name,
-            type=prop.column_type,
+            type=prop.primitive_type,
             is_array=prop.is_array,
             is_nullable=not prop.is_required,
             is_encrypted=prop.is_encrypted,
@@ -109,7 +201,7 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
                 raise TypeError(f"unexpected default in {prop!r}: {prop.default!r}")
         # is_encrypted
         if prop.is_encrypted:
-            column.type = ColumnType.BYTES  # all encrypted columns are bytes
+            column.type = PrimitiveType.BYTES  # all encrypted columns are bytes
         # references
         if (
             prop.reference_types
@@ -183,56 +275,53 @@ def map_node_class_to_pg_table(node: type[Node]) -> Table:
     return table
 
 
-CAST_TYPE_BY_STORAGE_FORMAT: dict[ColumnType, str] = {
-    ColumnType.STRING: "text",
-    ColumnType.FLOAT: "float",
-    ColumnType.INT: "int",
-    ColumnType.BIGINT: "bigint",
-    ColumnType.VECTOR: "float[]",
-    ColumnType.BINARY: "bytea",
-    ColumnType.DATETIME: "timestamptz",
-    ColumnType.BOOLEAN: "boolean",
-    ColumnType.JSON: "jsonb",
-    ColumnType.UUID: "uuid",
-}
-
-
-def get_field_column_name(field: lang.Field) -> str:
+def get_field_column_name(field: Field) -> str:
     storage_key = field.storage_key.replace(".", "_").replace("-", "_").lower()
     return f"value_{storage_key}"
 
 
-def map_field_to_pg_column(field: lang.Field) -> Column:
-    """Gets a column from a Field (1:1 mapping for now)."""
-    return Column(
-        _source=str(field.ck),
-        name=get_field_column_name(field),
-        type=field.derived_type.column_type,
-        is_array=field.derived_type.is_array,
-        is_nullable=True,
-    )
-
-
-def map_database_to_pg_table(statement: lang.Block) -> Table:
+def map_database_to_pg_table(database: Block) -> Table:
     """Gets the full table with all specific fields of a database and general record stuff."""
-    columns = [map_field_to_pg_column(f) for f in statement.fields]
-    indexes = []
-    constraints = []
+    columns: list[Column] = []
+    indexes: list[Index] = []
+    constraints: list[Constraint] = []
+
+    for field in database.fields:
+        type: TypeInfo = field.resolved_type
+        column = Column(
+            _source=str(field.ck),
+            name=get_field_column_name(field),
+            type=type.primitive_type,
+            is_array=type.is_array,
+            is_nullable=True,
+        )
+        if type.is_secret:
+            column.type = PrimitiveType.BYTES  # all encrypted columns are bytes
+            column.is_encrypted = True
+
+        columns.append(column)
 
     return Table(
-        _source=str(statement.ck),
-        name=get_record_table_name(statement.ck),
-        columns=(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
-        indexes=(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
-        constraints=(*(c.clone() for c in RECORD_BASE_TABLE.constraints), *constraints),
+        _source=str(database.ck),
+        name=get_database_table_name(database.ck),
+        columns=tuple(*(c.clone() for c in RECORD_BASE_TABLE.columns), *columns),
+        indexes=tuple(*(i.clone() for i in RECORD_BASE_TABLE.indexes), *indexes),
+        constraints=tuple(*(c.clone() for c in RECORD_BASE_TABLE.constraints), *constraints),
     )
 
 
 async def update_dynamic_local_pg_schema(pg_name: str, package: Package) -> None:
     """Updates the dynamic local record Postgres tables for a package's databases."""
+    from bench.sql.migration import (
+        MigrationOpKind,
+        apply_migration_ops,
+        generate_migration_ops,
+        introspect_tables_from_pg,
+    )
+
     log = logger.bind(pg_name=pg_name, package=package)
-    databases: list[lang.Block] = [
-        cast(lang.Block, s)
+    databases: list[Block] = [
+        cast(Block, s)
         for s in package._nodes
         if s.metatype == NodeType.BLOCK and HasDatabase in s._components and not s.ephemeral
     ]
@@ -240,85 +329,22 @@ async def update_dynamic_local_pg_schema(pg_name: str, package: Package) -> None
     log.info("pg.update_schema", databases=len(databases), tables=len(tables))
 
     try:
-        async with async_pg_cursor(pg_name, autocommit=False):
+        async with async_pg_cursor(pg_name, autocommit=False) as cur:
             # introspect and update schema
-            raise NotImplementedError("nocheckin: update_dynamic_local_pg_schema")
+            old_tables = await introspect_tables_from_pg(cur, table_prefix="bench_record_")
+            new_tables = [map_database_to_pg_table(d) for d in databases]
+            migration_ops = generate_migration_ops(old_tables, new_tables)
+            # we don't do deletes here
+            migration_ops = [
+                m
+                for m in migration_ops
+                if m.kind
+                in (MigrationOpKind.CREATE, MigrationOpKind.UPDATE, MigrationOpKind.RENAME)
+            ]
+            await apply_migration_ops(cur, migration_ops)
     except Exception as e:
         log.exception("pg.update_schema.failed", e=e)
         raise RuntimeError(f"failed to update {pg_name} schema: {e}") from e
-
-
-class PostgresConditionalOp(enum.StrEnum):
-    # logical
-    TRUE = "TRUE"
-    FALSE = "FALSE"
-    AND = "AND"
-    OR = "OR"
-    NOT = "NOT"
-    # standard
-    IS_NULL = "IS NULL"
-    IS_NOT_NULL = "IS NOT NULL"
-    EQ = "="
-    NEQ = "!="
-    LT = "<"
-    LTE = "<="
-    GT = ">"
-    GTE = ">="
-    IN = "IN"
-    NOT_IN = "NOT IN"
-    # string
-    LIKE = "LIKE"
-    NOT_LIKE = "NOT LIKE"
-    ILIKE = "ILIKE"
-    NOT_ILIKE = "NOT ILIKE"
-    # array/json
-    CONTAINS = "@>"
-    CONTAINED_BY = "<@"
-    OVERLAPS = "&&"
-
-
-PG_CONDITIONAL_OP_BY_BENCH: dict[ConditionalOp, PostgresConditionalOp] = {
-    # logical
-    ConditionalOp.TRUE: PostgresConditionalOp.TRUE,
-    ConditionalOp.FALSE: PostgresConditionalOp.FALSE,
-    ConditionalOp.AND: PostgresConditionalOp.AND,
-    ConditionalOp.OR: PostgresConditionalOp.OR,
-    ConditionalOp.NOT: PostgresConditionalOp.NOT,
-    # standard
-    ConditionalOp.EXISTS: PostgresConditionalOp.IS_NOT_NULL,
-    ConditionalOp.NOT_EXISTS: PostgresConditionalOp.IS_NULL,
-    ConditionalOp.EQUALS: PostgresConditionalOp.EQ,
-    ConditionalOp.NOT_EQUALS: PostgresConditionalOp.NEQ,
-    ConditionalOp.LESS_THAN: PostgresConditionalOp.LT,
-    ConditionalOp.LESS_THAN_OR_EQUALS: PostgresConditionalOp.LTE,
-    ConditionalOp.GREATER_THAN: PostgresConditionalOp.GT,
-    ConditionalOp.GREATER_THAN_OR_EQUALS: PostgresConditionalOp.GTE,
-    # string
-    ConditionalOp.MATCHES: PostgresConditionalOp.LIKE,
-    ConditionalOp.STARTS_WITH: PostgresConditionalOp.LIKE,
-    # containment
-    ConditionalOp.CONTAINS: PostgresConditionalOp.CONTAINS,
-    ConditionalOp.IN: PostgresConditionalOp.IN,
-    ConditionalOp.NOT_IN: PostgresConditionalOp.NOT_IN,
-}
-
-
-class PostgresJoinOp(enum.StrEnum):
-    INNER_JOIN = "INNER JOIN"
-    LEFT_OUTER_JOIN = "LEFT OUTER JOIN"
-    RIGHT_OUTER_JOIN = "RIGHT OUTER JOIN"
-    FULL_OUTER_JOIN = "FULL OUTER JOIN"
-
-
-class PostgresSortOp(enum.StrEnum):
-    ASC = "ASC"
-    DESC = "DESC"
-
-
-POSTGRES_SORT_OP_BY_BENCH: dict[lang.SortOp, PostgresSortOp] = {
-    lang.SortOp.ASCENDING: PostgresSortOp.ASC,
-    lang.SortOp.DESCENDING: PostgresSortOp.DESC,
-}
 
 
 class SqlError(Exception):
@@ -349,7 +375,7 @@ def sql_node_to_sql(node: SqlNode) -> sql.Composable:
 
 def _compile_expression_ref(
     node: typing.Union[type[Node], "HasDatabase"],
-    expr: lang.Expression,
+    expr: Expression,
 ) -> SqlNode:
     if expr.property_ptr is not None:
         return sql.Identifier(expr._stored_property_resolved.name)
@@ -365,7 +391,7 @@ def _compile_expression_ref(
 
 def compile_pg_conditional(
     node: typing.Union[type[Node], "HasDatabase"],
-    cond: lang.Expression | None,
+    cond: Expression | None,
 ) -> SqlNode:
     if cond.op == ConditionalOp.TRUE:
         return sql.SQL("TRUE")
@@ -412,7 +438,7 @@ def compile_pg_conditional(
 
 def compile_pg_sort(
     database: "HasDatabase",
-    sort: lang.Expression,
+    sort: Expression,
 ) -> SqlNode:
     field_ref = _compile_expression_ref(database, sort)
     return sql.SQL("{} {}").format(
@@ -422,7 +448,7 @@ def compile_pg_sort(
 
 def compile_pg_sorts(
     database: "HasDatabase",
-    sorts: list[lang.Expression],
+    sorts: list[Expression],
 ) -> SqlNode:
     return sql.SQL(", ").join(compile_pg_sort(database, sort) for sort in sorts)
 
@@ -525,7 +551,7 @@ async def pg_select(
 ) -> list[dict[str, any]]:
     """Selects from the given table."""
     columns = columns or table.columns
-    statement = pg_select_sql(
+    block = pg_select_sql(
         table=table,
         columns=columns,
         joins=joins,
@@ -534,9 +560,9 @@ async def pg_select(
         first=first,
         skip=skip,
     )
-    logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, statement))
+    logger.debug("pg.select_rows", table=table, query=sql_to_str(cur, block))
     try:
-        await cur.execute(statement, params)
+        await cur.execute(block, params)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     return await cur.fetchall()
@@ -551,21 +577,21 @@ def pg_select_sql(
     first: int | None = None,
     skip: int | None = None,
 ):
-    statement = sql.SQL("SELECT {fields} FROM {table}").format(
+    block = sql.SQL("SELECT {fields} FROM {table}").format(
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in columns),
         table=sql.Identifier(table.name),
     )
     if joins:
-        statement += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
+        block += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     if order_by:
-        statement += sql.SQL(" ORDER BY {}").format(sql_node_to_sql(order_by))
+        block += sql.SQL(" ORDER BY {}").format(sql_node_to_sql(order_by))
     if first:
-        statement += sql.SQL(" LIMIT {}").format(sql.Literal(first))
+        block += sql.SQL(" LIMIT {}").format(sql.Literal(first))
     if skip:
-        statement += sql.SQL(" OFFSET {}").format(sql.Literal(skip))
-    return statement
+        block += sql.SQL(" OFFSET {}").format(sql.Literal(skip))
+    return block
 
 
 async def pg_count(
@@ -575,14 +601,14 @@ async def pg_count(
     where: SqlNode | None = None,
 ) -> int:
     """Counts rows matching the given query."""
-    statement = sql.SQL("SELECT COUNT(*) FROM {table}").format(
+    block = sql.SQL("SELECT COUNT(*) FROM {table}").format(
         table=sql.Identifier(table.name),
     )
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
-    logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, statement))
+        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+    logger.debug("pg.count_rows", table=table, query=sql_to_str(cur, block))
     try:
-        await cur.execute(statement)
+        await cur.execute(block)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     return (await cur.fetchone())["count"]
@@ -596,17 +622,17 @@ async def pg_exists(
     joins: list[SqlJoin] | None = None,
 ) -> bool:
     """Checks if rows matching the given query exist."""
-    statement = sql.SQL("SELECT EXISTS (SELECT 1 FROM {table}").format(
+    block = sql.SQL("SELECT EXISTS (SELECT 1 FROM {table}").format(
         table=sql.Identifier(table.name),
     )
     if joins:
-        statement += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
+        block += sql.SQL(" ").join(sql_node_to_sql(j) for j in joins)
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
-    statement += sql.SQL(")")
-    logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, statement))
+        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+    block += sql.SQL(")")
+    logger.debug("pg.exists_rows", table=table, query=sql_to_str(cur, block))
     try:
-        await cur.execute(statement)
+        await cur.execute(block)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     return (await cur.fetchone())["exists"]
@@ -620,19 +646,19 @@ async def pg_insert(
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Inserts into the given table."""
-    statement = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
+    block = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
         table=sql.Identifier(table.name),
         fields=sql.SQL(", ").join(sql.Identifier(c.name) for c in table.columns),
         values=sql.SQL(", ".join(["%s"] * len(table.columns))),
     )
     if returning:
-        statement += sql.SQL(" RETURNING {}").format(
+        block += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
+    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, block))
     values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
     try:
-        await cur.executemany(statement, values, returning=bool(returning))
+        await cur.executemany(block, values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:
@@ -653,7 +679,7 @@ async def pg_upsert(
         conflict_columns = [table._primary_key]
     if update_columns is None:
         update_columns = [c for c in table.columns if c not in conflict_columns]
-    statement = sql.SQL(
+    block = sql.SQL(
         "INSERT INTO {table} ({fields}) VALUES ({values}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
     ).format(
         table=sql.Identifier(table.name),
@@ -666,13 +692,13 @@ async def pg_upsert(
         ),
     )
     if returning:
-        statement += sql.SQL(" RETURNING {}").format(
+        block += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, statement))
+    logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, block))
     values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
     try:
-        await cur.executemany(statement, values, returning=bool(returning))
+        await cur.executemany(block, values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:
@@ -688,7 +714,7 @@ async def pg_update_static(
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Updates the given table with static values."""
-    statement = sql.SQL("UPDATE {table} SET {values}").format(
+    block = sql.SQL("UPDATE {table} SET {values}").format(
         table=sql.Identifier(table.name),
         values=sql.SQL(", ").join(
             sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
@@ -696,14 +722,14 @@ async def pg_update_static(
         ),
     )
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
-        statement += sql.SQL(" RETURNING {}").format(
+        block += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, statement))
+    logger.debug("pg.update_rows.fixed", table=table, query=sql_to_str(cur, block))
     try:
-        await cur.execute(statement)
+        await cur.execute(block)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:
@@ -732,17 +758,17 @@ async def pg_update_list(
             (sql.SQL("{} = %s").format(sql.Identifier(c.name)) for c in dynamic_columns),
         ),
     )
-    statement = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
+    block = sql.SQL("UPDATE {table} SET {values} WHERE {pk} = %s").format(
         table=table_name, pk=sql.Identifier(table._primary_key.name), values=values_sql
     )
     if returning:
-        statement += sql.SQL(" RETURNING {}").format(
+        block += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.SQL("{}").format(sql.Identifier(c.name)) for c in returning)
         )
     logger.debug(
         "pg.update_rows.list",
         table=table,
-        query=sql_to_str(cur, statement),
+        query=sql_to_str(cur, block),
         rows=len(dynamic_values),
     )
     dynamic_values = [
@@ -750,7 +776,7 @@ async def pg_update_list(
         for value in dynamic_values
     ]
     try:
-        await cur.executemany(statement, dynamic_values, returning=bool(returning))
+        await cur.executemany(block, dynamic_values, returning=bool(returning))
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:
@@ -766,18 +792,18 @@ async def pg_delete(
 ) -> list[RowOut] | None:
     """Deletes from the given table."""
 
-    statement = sql.SQL("DELETE FROM {table}").format(
+    block = sql.SQL("DELETE FROM {table}").format(
         table=sql.Identifier(table.name),
     )
     if where:
-        statement += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
+        block += sql.SQL(" WHERE {}").format(sql_node_to_sql(where))
     if returning:
-        statement += sql.SQL(" RETURNING {}").format(
+        block += sql.SQL(" RETURNING {}").format(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
-    logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, statement))
+    logger.debug("pg.delete_rows", table=table, query=sql_to_str(cur, block))
     try:
-        await cur.execute(statement)
+        await cur.execute(block)
     except psycopg.errors.Error as e:
         raise _wrap_pg_error(table, e) from e
     if returning:
@@ -806,9 +832,9 @@ def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> An
     elif prop.is_struct:
         value = value.to_robust_dict(prop.struct_type)
         return wiring.pack_json_value(value)
-    elif prop.column_type == ColumnType.UUID:
+    elif prop.primitive_type == PrimitiveType.UUID:
         return to_uuid(value)
-    elif prop.column_type == ColumnType.JSON:
+    elif prop.primitive_type == PrimitiveType.JSON:
         return wiring.unpack_json_value(value)
     elif prop.is_enum:
         return value.value
@@ -825,9 +851,9 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
         proto_cls = PROTO_CLASS_BY_TYPE[prop.struct_type]
         value = wiring.unpack_json_value(value)
         return proto_cls().from_robust_dict(value, prop.struct_type)
-    elif prop.column_type == ColumnType.UUID:
+    elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)
-    elif prop.column_type == ColumnType.JSON:
+    elif prop.primitive_type == PrimitiveType.JSON:
         return wiring.pack_json_value(value)
     elif prop.is_enum:
         return prop.py_type_stripped(value)
@@ -910,8 +936,8 @@ async def pg_select_nodes_data(
     node_type: NodeType,
     *,
     properties: Collection[Property] | None = None,
-    where: lang.Expression | None = None,
-    sort: Collection[lang.Expression] | None = None,
+    where: Expression | None = None,
+    sort: Collection[Expression] | None = None,
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
@@ -957,7 +983,7 @@ async def pg_read_node_data_tree(
     *,
     ancestor_types: tuple[NodeType, ...] | None = None,
     descendant_types: tuple[NodeType, ...] | None = None,
-    global_filter: lang.Expression = DEFAULT_GLOBAL_FILTER,
+    global_filter: Expression = DEFAULT_GLOBAL_FILTER,
     select_properties_by_type: dict[NodeType, tuple[Property, ...]] = DEFAULT_SELECTED_PROPERTIES,
 ) -> NodeDataTree | None:
     """Reads 'regular' nodes from the given PG database. Returns an unordered list of all nodes."""
@@ -1022,16 +1048,16 @@ async def pg_read_node_data_tree(
                     continue
 
                 # build initial filter
-                parents_filters: list[lang.Expression] = []
+                parents_filters: list[Expression] = []
                 parent_property = NODE_CLASS_BY_TYPE[child_type].__parent_property__
                 for parent_property in parent_property.reference_stored_ptrs:
-                    filter = lang.C(
+                    filter = C(
                         op=ConditionalOp.IN,
                         property_ptr=parent_property.ptr,
                         value=parents_by_type[parent_property.reference_types[0]],
                     )
                     parents_filters.append(filter)
-                parent_filter = lang.C(op=ConditionalOp.OR, clauses=parents_filters)
+                parent_filter = C(op=ConditionalOp.OR, clauses=parents_filters)
 
                 # collect children
                 # TODO @Performance!: recurse read node in SQL if child is parent of itself
@@ -1058,7 +1084,7 @@ async def pg_read_nodes(
     root_ids: tuple[UUID, ...],
     ancestor_types: tuple[NodeType, ...] | None = None,
     descendant_types: tuple[NodeType, ...] | None = None,
-    global_filter: lang.Expression = DEFAULT_GLOBAL_FILTER,
+    global_filter: Expression = DEFAULT_GLOBAL_FILTER,
     select_properties_by_type: dict[NodeType, tuple[Property, ...]] = DEFAULT_SELECTED_PROPERTIES,
     parent: Node | None = None,
 ) -> tuple[NodeT, ...]:
@@ -1124,7 +1150,7 @@ async def pg_write_record_edits(
 ) -> list["AnyNodeData"] | None:
     """
     Writes record edits to the given PG database (unlike regular edits, these can act on materialized tables).
-    Pass in databases for statements that are no longer in the module (i.e. deleted record parent).
+    Pass in databases for blocks that are no longer in the module (i.e. deleted record parent).
     TODO @Performance: use psycopg3 pipelining to batch local edits
      see https://www.psycopg.org/psycopg3/docs/advanced/pipeline.html
     """
@@ -1274,11 +1300,11 @@ def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) ->
         "last_edited_at": record.last_edited_at,
         "last_edited_by_id": None,
         "revision": record.revision,
-        "statement_key": database.dynamic_key,
+        "block_key": database.dynamic_key,
     }
     if database.ephemeral:
-        row["statement_ck"] = database.ck
-        row["statement_id"] = database.id
+        row["block_ck"] = database.ck
+        row["block_id"] = database.id
         row["value"] = Jsonb(record.value)
     else:
         for field in database.fields:
@@ -1306,9 +1332,9 @@ def pg_wrap_record_field_value(
         raise ValueError(
             f"{record_str} field value '{field.py_ident}' is too large: {record_len_bytes} > {MAX_RECORD_FIELD_VALUE_SIZE} bytes (consider storing large values in a File instead)\nValue (truncated): {value_str}"
         )
-    if field._storage_format == ColumnType.JSON:
+    if field._storage_format == PrimitiveType.JSON:
         return Jsonb(value)
-    elif field._storage_format == ColumnType.VECTOR:
+    elif field._storage_format == PrimitiveType.VECTOR:
         if isinstance(value, bytes):
             return value
         elif not isinstance(value, list):
@@ -1324,9 +1350,9 @@ def pg_unwrap_record_field_value(database: "HasDatabase", field: "Field", value:
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
     if value is None:
         return None
-    elif field._storage_format == ColumnType.JSON:
+    elif field._storage_format == PrimitiveType.JSON:
         return value
-    elif field._storage_format == ColumnType.VECTOR:
+    elif field._storage_format == PrimitiveType.VECTOR:
         # turn bytea into [-128, 127]
         return [v - 128 for v in value]
     else:
@@ -1335,7 +1361,7 @@ def pg_unwrap_record_field_value(database: "HasDatabase", field: "Field", value:
 
 def pg_wrap_record_value(database: "HasDatabase", value_packed: dict) -> dict:
     assert isinstance(value_packed, dict), f"record value not a dict: {value_packed}"
-    if TYPE_DISCRIMINATOR_KEY in value_packed:  # not stored in database (implicit in statement_key)
+    if TYPE_DISCRIMINATOR_KEY in value_packed:  # not stored in database (implicit in block_key)
         del value_packed[TYPE_DISCRIMINATOR_KEY]
     if database.ephemeral:  # lift into generic 'value_packed' JSONB column
         value_packed = {
@@ -1384,8 +1410,8 @@ async def pg_select_records_data(
     cur: psycopg.AsyncCursor,
     database: "HasDatabase",
     *,
-    where: lang.Expression | None = None,
-    sort: list[lang.Expression] | None = None,
+    where: Expression | None = None,
+    sort: list[Expression] | None = None,
     first: int | None = None,
     skip: int | None = None,
     after: str | None = None,
@@ -1423,7 +1449,7 @@ async def pg_duplicate_records(
     target_database: "HasDatabase",
     *,
     keep_cks: bool,
-    where: lang.Expression,
+    where: Expression,
     copy_revisions: bool,
     return_nodes: bool = False,
 ) -> list[wire.RecordData] | None:
@@ -1437,8 +1463,8 @@ async def pg_duplicate_records(
     target_module_id = target_database.module.id
 
     # TODO @Performance: duplicate records within same database directly in postgres
-    where = where & lang.C(
-        ConditionalOp.EQUALS, field_key="statement_key", value=source_database.dynamic_key
+    where = where & C(
+        ConditionalOp.EQUALS, field_key="block_key", value=source_database.dynamic_key
     )
     log = logger.bind(source=source_database, target=target_database, where=where)
     log.debug("pg.duplicate_records", copy_revisions=copy_revisions, keep_cks=keep_cks)
@@ -1450,7 +1476,7 @@ async def pg_duplicate_records(
             if not keep_cks:
                 record_row["ck"] = uuid4()
             record_row["id"] = get_node_id(target_module_id, ck=record_row["ck"])
-            record_row["statement_key"] = target_database.dynamic_key
+            record_row["block_key"] = target_database.dynamic_key
             if not copy_revisions:
                 record_row["revision"] = 0
         await pg_insert(cur=target_cur, table=target_table, rows=record_rows)
@@ -1463,7 +1489,7 @@ async def pg_duplicate_records(
 
 
 if DEBUG or LOCAL_ENV:
-    # pretty print sql statements in dev mode
+    # pretty print sql blocks in dev mode
     def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
         import sqlparse
 

@@ -24,7 +24,7 @@ from bench.language.session import Session
 from bench.language.tree import NodeDataTree
 from bench.proto import wire
 from bench.proto.wire import AnyNodeData, AnyStructData, NodeReferenceData
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 from bench.utils.casing import Casing, to_casing
 from bench.utils.func import to_uuid
 
@@ -62,7 +62,7 @@ def copy_struct_data(data: AnyStructData) -> AnyStructData:
                     data_kwargs[prop.name] = list(value)
             elif prop.is_struct:
                 data_kwargs[prop.name] = copy_struct_data(value)
-            elif prop.column_type == ColumnType.JSON:
+            elif prop.primitive_type == PrimitiveType.JSON:
                 data_kwargs[prop.name] = copy(value)
             else:
                 data_kwargs[prop.name] = value
@@ -95,9 +95,9 @@ def _pack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
             id=str(value.id),
             ck=str(value.ck) if value.ck is not None else None,
         )
-    elif prop.column_type == ColumnType.UUID:
+    elif prop.primitive_type == PrimitiveType.UUID:
         return str(value)  # uuids are wired as strings
-    elif prop.column_type == ColumnType.JSON:
+    elif prop.primitive_type == PrimitiveType.JSON:
         return BetterprotoStruct.from_dict(value)
     else:
         return value
@@ -129,9 +129,9 @@ def _unpack_struct_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
                 id=to_uuid(value.id),
                 ck=to_uuid(value.ck) if value.ck else None,
             )
-        elif prop.column_type == ColumnType.UUID:
+        elif prop.primitive_type == PrimitiveType.UUID:
             return to_uuid(value)  # uuids are wired as strings
-        elif prop.column_type == ColumnType.JSON:
+        elif prop.primitive_type == PrimitiveType.JSON:
             return value.to_dict()
         else:
             return value

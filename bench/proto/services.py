@@ -1,22 +1,23 @@
 import asyncio
 import contextvars
 import functools
-from typing import Collection, TYPE_CHECKING, Mapping, final, Callable, TypeVar
+from typing import TYPE_CHECKING, Callable, Collection, Mapping, TypeVar, final
 
-from betterproto import ServiceStub
-from grpclib import GRPCError, Status as GRPCStatus
-from grpclib._typing import IServable
 import grpclib.server
 import structlog
+from betterproto import ServiceStub
+from grpclib import GRPCError
+from grpclib import Status as GRPCStatus
+from grpclib._typing import IServable
 
-from bench.language.auth import AuthError
+from bench.language.auth import AccessError
 from bench.language.const import BenchError
 from bench.language.link import NoNodeFoundError
 from bench.proto.wire import RpcMetadata
 from bench.server.utils import parse_metadata
-from bench.utils.casing import to_casing, Casing
+from bench.utils.casing import Casing, to_casing
 from bench.utils.monitoring import Monitored
-from bench.utils.utils import sentry_capture, DEBUG, TEST
+from bench.utils.utils import DEBUG, TEST, sentry_capture
 
 ServiceStubT = TypeVar("ServiceStubT", bound=ServiceStub)
 
@@ -98,7 +99,7 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
                 log.exception(f"{rpc_name}.error", duration=duration, error=e)
                 status_map = {
                     NoNodeFoundError: GRPCStatus.NOT_FOUND,
-                    AuthError: GRPCStatus.UNAUTHENTICATED,
+                    AccessError: GRPCStatus.UNAUTHENTICATED,
                 }
                 status = status_map.get(e.__class__, GRPCStatus.INVALID_ARGUMENT)
                 raise GRPCError(status, str(e)) from e

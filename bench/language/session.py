@@ -35,8 +35,8 @@ from bench.language.field import TypeInfo
 from bench.language.node import (
     _NC,
     UNSET,
-    Package,
     Node,
+    Package,
     ScopeNode,
     Struct,
     get_node_id,
@@ -51,14 +51,14 @@ from bench.language.value import HasValue
 from bench.os.client import get_os_errors, os_client
 from bench.proto.wire import EditData, PackageHostStub
 from bench.sql.client import get_pg_connection_pool
-from bench.sql.core import ColumnType
+from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import _auto_async_to_sync
 from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Policy, Block, Trigger, Worker
+    from bench.language import Block, Policy, Trigger, Worker
     from bench.language.cache import Cache
 
 logger = structlog.get_logger(__name__)
@@ -85,7 +85,7 @@ class LogEntry(Struct):
         40,
         require=False,
         default=None,
-        column_type=ColumnType.JSON,
+        primitive_type=PrimitiveType.JSON,
         ignore_conflicts_with=(HasValue,),
     )
 
@@ -183,6 +183,7 @@ class Session(ScopeNode):
 
     def _init_inner(self) -> None:
         self._session = self
+        self._log = logger.bind(session=self)
 
     @property
     def dangling(self) -> tuple[Node, ...]:
@@ -249,7 +250,6 @@ class Session(ScopeNode):
         self._stacktrace = []
         self._active_nodes_by_ck = {}
         self._cache = Cache(self.package)
-        self._log = logger.bind(session=self)
         self._stdout_collector = LogCollector(self._track_log, "stdout", self)
         self._stderr_collector = LogCollector(self._track_log, "stderr", self)
         self._stdout_collector.start()
@@ -367,8 +367,6 @@ class Session(ScopeNode):
         # commit
         try:
             # nocheckin: use global pg cursor if available? (and inject test pg cursor globally somewhere?)
-            if edits.global_edits:
-                await self._host.commit_edits(edits.global_edits)
             if edits.local_edits or edits.session_edits:
                 await pg_write_record_edits(
                     cur=self.local_pg_cursor,
@@ -376,6 +374,8 @@ class Session(ScopeNode):
                     edits=[*(edits.local_edits or ()), *(edits.session_edits or ())],
                     old_databases_by_id=touched_databases_by_id,
                 )
+            if edits.global_edits:
+                await self._host.commit_edits(edits.global_edits)
             await self._local_pg_cursor.connection.commit()
             self.package._apply_edits_to_source(edits.global_edits)
             log.debug("session.commit.done")
@@ -594,7 +594,7 @@ class Session(ScopeNode):
                     if ck not in local_seen_cks
                 }
 
-            if session:
+            if session and self._pending_runs_by_id:
                 runs = list(self._pending_runs_by_id.values())
                 self._pending_runs_by_id.clear()
                 if kill_pending_runs:
@@ -945,7 +945,7 @@ def _pack_and_truncate_value(
     from bench.language.value import map_value, pack_value_flat
 
     def _truncate_value(value: Any, type: "TypeInfo", *args, **kwargs) -> Any:
-        if type.column_type == ColumnType.VECTOR:
+        if type.primitive_type == PrimitiveType.VECTOR:
             if type.is_array:
                 return []
             else:
