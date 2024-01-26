@@ -7,7 +7,7 @@ from bench.utils.env import setup_dotenv
 from bench.utils.logging import configure_logging
 
 setup_dotenv()
-configure_logging(apply_logging=True, apply_structlog=True)
+configure_logging()
 
 # add all CLI 'apps' in our CLI folder
 cli = typer.Typer(pretty_exceptions_enable=False)

@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
 import sentry_sdk
 
 
-
 class UnreachableError(Exception):
     pass
 
@@ -150,32 +149,6 @@ class frozendict(dict):
 
 def freeze_dict(d: dict):
     return frozendict(d)
-
-
-SelfT = typing.TypeVar("SelfT")
-P = typing.ParamSpec("P")
-HybridT = typing.TypeVar("HybridT", covariant=True)
-
-
-class hybridmethod(typing.Generic[SelfT, P, HybridT]):
-    def __init__(
-        self,
-        func: Callable[
-            typing.Concatenate[type[SelfT], P], HybridT
-        ],  # Must be the classmethod version
-    ):
-        self.cls_func = func
-        self.__doc__ = func.__doc__
-
-    def instancemethod(self, func: Callable[typing.Concatenate[SelfT, P], HybridT]) -> typing.Self:
-        self.instance_func = func
-        return self
-
-    def __get__(self, instance: Optional[SelfT], owner: typing.Type[SelfT]) -> Callable[P, HybridT]:
-        if instance is None or self.instance_func is None:
-            # either bound to the class, or no instance method available
-            return self.cls_func.__get__(owner, None)
-        return self.instance_func.__get__(instance, owner)
 
 
 def format_python(code: str):

@@ -738,6 +738,7 @@ message RunErrorData {
 //            if node type is Field and reference ~ Block, values must be a Field in that block
 //            if node type is Signal and reference ~ Block, values must be Signals of that block type
 //            if node type is Block and reference ~ Block, values must be Blocks 'implementing' that block
+//             (as in structural subtyping, not necessarily like Rust traits, more like Python protocols)
 //            if node type is Block and reference is None, values must be instances of the combined newtype
 //             ...
 // 
@@ -1263,29 +1264,29 @@ message WorkerSetData {
 
 message SomeNodeData {
   oneof node {
-    FieldData field = 1;
-    ClientData client = 2;
+    RecordData record = 1;
+    RunData run = 2;
     TriggerData trigger = 3;
-    PackageData package = 4;
-    BucketObjectData bucket_object = 5;
-    HandleData handle = 6;
-    UserData user = 7;
-    TaggingData tagging = 8;
-    WorkerSetData worker_set = 9;
-    WorkerData worker = 10;
-    SignalData signal = 11;
-    BenchData bench = 12;
-    RecordData record = 13;
-    IssueData issue = 14;
-    SessionData session = 15;
-    OrganizationData organization = 16;
-    RunData run = 17;
-    NotificationData notification = 18;
-    ViewData view = 19;
-    BadgeData badge = 20;
-    PauseData pause = 21;
-    LinkData link = 22;
-    BlockData block = 23;
+    PauseData pause = 4;
+    TaggingData tagging = 5;
+    WorkerData worker = 6;
+    PackageData package = 7;
+    ViewData view = 8;
+    HandleData handle = 9;
+    WorkerSetData worker_set = 10;
+    OrganizationData organization = 11;
+    SessionData session = 12;
+    NotificationData notification = 13;
+    BenchData bench = 14;
+    UserData user = 15;
+    BadgeData badge = 16;
+    FieldData field = 17;
+    BucketObjectData bucket_object = 18;
+    IssueData issue = 19;
+    LinkData link = 20;
+    BlockData block = 21;
+    ClientData client = 22;
+    SignalData signal = 23;
   };
 }
 

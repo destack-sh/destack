@@ -29,6 +29,7 @@ from bench.language.const import (
     QueryEngine,
     SortOp,
     active_session,
+    BenchError,
 )
 from bench.language.validation import on_invalid_raise
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
@@ -60,9 +61,10 @@ def on_issue_raise(
     path: Optional[str] = None,
     **kwargs,
 ):
-    from bench.language.issue import Issue
+    from bench.language.issue import Issue, IssueError
 
-    raise Issue.from_subject(subject=subject, type=type, message=message, path=path).to_error()
+    issue = Issue.from_subject(subject=subject, type=type, message=message, path=path)
+    raise IssueError(issue)
 
 
 @dataclass(slots=True)
@@ -614,6 +616,21 @@ _NodeFetchResult = NamedTuple(
 )
 
 
+class QueryError(BenchError, ValueError):
+    def __init__(self, query: "NodeQuery", cause: Exception | None = None):
+        super().__init__(f"{query!r}: {query.filter!r}")
+        self.query = query
+        self.cause = cause
+
+
+class NoNodeFoundError(QueryError):
+    pass
+
+
+class MultipleNodesFoundError(QueryError):
+    pass
+
+
 class NodeQuery(Generic[NodeT]):
     def __init__(
         self,
@@ -723,10 +740,10 @@ class NodeQuery(Generic[NodeT]):
         results = await self.filter(filter).tolist()
         if len(results) == 1:
             return results[0]
+        elif len(results) == 0:
+            raise NoNodeFoundError(self)
         else:
-            raise ValueError(
-                f"expected 1 result from {self!r} (filter={filter!r}), got {len(results)}: {results!r}"
-            )
+            raise MultipleNodesFoundError(self)
 
     def filter(self, filter: "Expression" = None, **kwargs) -> "NodeQuery[NodeT]":
         """Adds a filter clause to the query."""

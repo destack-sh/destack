@@ -17,6 +17,7 @@ from bench.language.const import (
     RunStatus,
     StructType,
     TriggerType,
+    BenchError,
 )
 from bench.language.node import (
     NS,
@@ -233,7 +234,7 @@ class RunCodeFrame(Struct):
 
 
 @struct(StructType.RUN_ERROR)
-class RunError(Struct, Exception):
+class RunError(Struct, BenchError):
     kind: RunErrorKind = struct_internal(30)
     type: str = struct_internal(31)
     message: Optional[str] = struct_internal(32, default=None)

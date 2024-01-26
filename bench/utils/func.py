@@ -354,9 +354,18 @@ def generate_secret_password(length: int = 48) -> str:
 
 
 def get_subclasses(cls, seen=None):
+    """Gets all subclasses of a class recursively."""
     seen = seen or set()
     seen.add(cls)
     for subclass in cls.__subclasses__():
         if subclass not in seen:
             yield from get_subclasses(subclass, seen=seen)
             yield subclass
+
+
+def get_leaf_classes(cls, seen=None):
+    """Gets all the subclasses of a class that don't inherit from any other subclass."""
+    subclasses = get_subclasses(cls, seen=seen)
+    return [
+        subclass for subclass in subclasses if not any(subclass in s.__bases__ for s in subclasses)
+    ]

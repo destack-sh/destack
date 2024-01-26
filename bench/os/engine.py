@@ -10,15 +10,7 @@ import structlog
 from psycopg import sql
 
 from bench import language as lang
-from bench.language import (
-    C,
-    ConditionalOp,
-    Package,
-    QueryEngine,
-    SortMode,
-    SortOp,
-    symbolx_lib,
-)
+from bench.language import C, ConditionalOp, Package, QueryEngine, SortMode, SortOp
 from bench.language.const import RUNNABLE_BLOCK_TYPES, BenchType, EditKind
 from bench.language.database import HasDatabase
 from bench.language.expression import (

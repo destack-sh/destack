@@ -119,11 +119,11 @@ export interface LoginUserRequest {
          */
         userId: string;
     } | {
-        oneofKind: "username";
+        oneofKind: "slug";
         /**
-         * @generated from protobuf field: string username = 2;
+         * @generated from protobuf field: string slug = 2;
          */
-        username: string;
+        slug: string;
     } | {
         oneofKind: "email";
         /**
@@ -1004,7 +1004,7 @@ class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
     constructor() {
         super("symbolx.bench.LoginUserRequest", [
             { no: 1, name: "user_id", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "username", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "slug", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "email", kind: "scalar", oneof: "user", T: 9 /*ScalarType.STRING*/ },
             { no: 4, name: "password", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 5, name: "client", kind: "message", T: () => ClientData }
@@ -1029,10 +1029,10 @@ class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
                         userId: reader.string()
                     };
                     break;
-                case /* string username */ 2:
+                case /* string slug */ 2:
                     message.user = {
-                        oneofKind: "username",
-                        username: reader.string()
+                        oneofKind: "slug",
+                        slug: reader.string()
                     };
                     break;
                 case /* string email */ 3:
@@ -1062,9 +1062,9 @@ class LoginUserRequest$Type extends MessageType<LoginUserRequest> {
         /* string user_id = 1; */
         if (message.user.oneofKind === "userId")
             writer.tag(1, WireType.LengthDelimited).string(message.user.userId);
-        /* string username = 2; */
-        if (message.user.oneofKind === "username")
-            writer.tag(2, WireType.LengthDelimited).string(message.user.username);
+        /* string slug = 2; */
+        if (message.user.oneofKind === "slug")
+            writer.tag(2, WireType.LengthDelimited).string(message.user.slug);
         /* string email = 3; */
         if (message.user.oneofKind === "email")
             writer.tag(3, WireType.LengthDelimited).string(message.user.email);

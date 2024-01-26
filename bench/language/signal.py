@@ -28,7 +28,7 @@ class Signal(HasValue):
     value_packed: Any | None = struct_property(
         31, default=None, copy=deepcopy, column_type=ColumnType.JSON
     )
-    # source_run: Optional["Run"] = struct_internal(32, require=False, array=False, references=NodeType.RUN)
-    # source_block: Optional["Block"] = struct_internal(
+    # sender_run: Optional["Run"] = struct_internal(32, require=False, array=False, references=NodeType.RUN)
+    # sender_block: Optional["Block"] = struct_internal(
     #     33, require=False, array=False, references=NodeType.BLOCK
     # )

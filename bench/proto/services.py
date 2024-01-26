@@ -9,14 +9,18 @@ from grpclib._typing import IServable
 import grpclib.server
 import structlog
 
+from bench.language.auth import AuthError
+from bench.language.const import BenchError
+from bench.language.link import NoNodeFoundError
 from bench.proto.wire import RpcMetadata
 from bench.server.utils import parse_metadata
 from bench.utils.casing import to_casing, Casing
 from bench.utils.monitoring import Monitored
-
-logger = structlog.get_logger(__name__)
+from bench.utils.utils import sentry_capture, DEBUG, TEST
 
 ServiceStubT = TypeVar("ServiceStubT", bound=ServiceStub)
+
+logger = structlog.get_logger(__name__)
 
 
 class BenchServiceBase(IServable if TYPE_CHECKING else object):
@@ -41,20 +45,25 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
 
     async def start_quick(self) -> None:
         """Start the service. Should be ready for service when returning."""
-        raise NotImplementedError
+        pass
 
     def close(self) -> None:
         """Close the service.."""
-        raise NotImplementedError
+        pass
 
     async def wait_closed(self) -> None:
         """Wait for the service to be fully closed."""
-        raise NotImplementedError
+        pass
 
     def __mapping__(self) -> Mapping[str, grpclib.const.Handler]:
+        # combine mappings from non-overlapping superclasses
         patched_mapping = {}
-        for method, handler in super().__mapping__().items():
-            patched_mapping[method] = self._wrap_rpc(method, handler)
+        for cls in self.__class__.__bases__:
+            if cls is BenchServiceBase:
+                continue
+            for method, handler in cls.__mapping__(self).items():
+                patched_mapping[method] = self._wrap_rpc(method, handler)
+        assert len(patched_mapping) > 0, f"no RPCs found in {self!r}"
         return patched_mapping
 
     def _wrap_rpc_func(
@@ -72,32 +81,41 @@ class BenchServiceBase(IServable if TYPE_CHECKING else object):
 
         @functools.wraps(func)
         async def wrapped_method(stream: grpclib.server.Stream) -> None:
+            """Managed RPC call with some instrumentation and error handling."""
+
             start = asyncio.get_running_loop().time()
+            log = logger.bind(service=self, method=method)
             try:
                 self._stream.set(stream)
                 metadata = parse_metadata(stream.metadata)
                 self._metadata.set(metadata)
-                logger.info(rpc_name, service=self, method=method, metadata=metadata)
+                log.info(rpc_name, metadata=metadata)
                 await func(stream)
                 duration = asyncio.get_running_loop().time() - start
-                logger.info(f"{rpc_name}.done", service=self, method=method, duration=duration)
-            except GRPCError as e:
+                log.info(f"{rpc_name}.done", duration=duration)
+            except BenchError as e:  # wrap error
                 duration = asyncio.get_running_loop().time() - start
-                logger.error(
-                    f"{rpc_name}.error", service=self, method=method, duration=duration, error=e
-                )
-                raise  # pass through
-            except Exception as e:
-                # any remaining errors are internal server errors
+                log.exception(f"{rpc_name}.error", duration=duration, error=e)
+                status_map = {
+                    NoNodeFoundError: GRPCStatus.NOT_FOUND,
+                    AuthError: GRPCStatus.UNAUTHENTICATED,
+                }
+                status = status_map.get(e.__class__, GRPCStatus.INVALID_ARGUMENT)
+                raise GRPCError(status, str(e)) from e
+            except GRPCError as e:  # pass through GRPC errors
                 duration = asyncio.get_running_loop().time() - start
-                logger.exception(
-                    f"{rpc_name}.internal_error",
-                    service=self,
-                    method=method,
-                    duration=duration,
-                    error=e,
-                )
-                raise GRPCError(GRPCStatus.INTERNAL, str(e)) from e
+                sentry_capture(e)
+                log.exception(f"{rpc_name}.error", duration=duration, error=e)
+                raise
+            except Exception as e:  # internal error
+                duration = asyncio.get_running_loop().time() - start
+                sentry_capture(e)
+                log.exception(f"{rpc_name}.internal_error", duration=duration, error=e)
+                if DEBUG or TEST:
+                    details = f"{e.__class__.__name__}: {e}"
+                else:
+                    details = e.__class__.__name__
+                raise GRPCError(GRPCStatus.INTERNAL, details) from e
 
         return grpclib.const.Handler(wrapped_method, cardinality, request_type, reply_type)
 
@@ -117,6 +135,7 @@ class BenchServer(grpclib.server.Server):
         )
         self._host: str | None = None
         self._port: int | None = None
+        self._logger = structlog.get_logger(self.__class__.__name__)
 
     def __str__(self):
         return f"services={self._custom_handlers}, host={self._host}, port={self._port}"
@@ -128,13 +147,13 @@ class BenchServer(grpclib.server.Server):
     async def start(self, host: str = None, port: int = None, **kwargs) -> None:
         self._host = host
         self._port = port
-        logger.info("server.start", server=self)
+        self._logger.info("server.start", server=self)
         await asyncio.gather(*(h.start_quick() for h in self._custom_handlers))
         await super().start(host=host, port=port, **kwargs)
-        logger.info("server.start.done", server=self)
+        self._logger.info("server.start.done", server=self)
 
     def close(self) -> None:
-        logger.info("server.close", server=self)
+        self._logger.info("server.close", server=self)
         for task in self._custom_handlers:
             task.close()
         super().close()
@@ -143,4 +162,4 @@ class BenchServer(grpclib.server.Server):
     async def wait_closed(self) -> None:
         await super().wait_closed()
         await asyncio.gather(*(h.wait_closed() for h in self._custom_handlers))
-        logger.info("server.closed", server=self)
+        self._logger.info("server.closed", server=self)
