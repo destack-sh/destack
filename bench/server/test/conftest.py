@@ -12,17 +12,20 @@ async def prepared_test_db():
         apply_migration_ops,
     )
 
+    # create database
     async with async_pg_cursor(autocommit=True) as cur:
         await cur.execute("DROP DATABASE IF EXISTS test")
         await cur.execute("CREATE DATABASE test")
 
+    # migrate to current schema
     async with async_pg_cursor("test") as cur:
-        # migrate to current schema
         blank_tables = await introspect_tables_from_pg(cur)
         new_tables = [node.__table__ for node in NODE_CLASSES if node.__table__]
         blank_ops = generate_migration_ops(blank_tables, new_tables)
         await apply_migration_ops(cur, blank_ops)
         await cur.connection.commit()
+
+    # set as global & local pg
 
 
 @pytest.fixture(scope="module")

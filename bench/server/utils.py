@@ -12,7 +12,7 @@ from grpclib import Status as GRPCStatus
 from multidict import MultiDict
 
 from bench.language import Client, Worker, Session
-from bench.proto.wire import AnyNodeData, AnyStructData, ClientKind, RpcMetadata
+from bench.proto.wire import AnyNodeData, AnyStructData, ClientKind, RpcMetadata, PackageHostStub
 from bench.utils.func import to_uuid, uuid_to_str
 from bench.utils.utils import get_from_env
 
@@ -20,16 +20,18 @@ logger = structlog.get_logger(__name__)
 
 
 @asynccontextmanager
-async def detached_session(commit: bool = False, read_only: bool = False) -> "Session":
-    """Get a global session."""
+async def detached_session(
+    commit: bool = False, read_only: bool = False, host: PackageHostStub | None = None
+) -> "Session":
+    """Gets a global session."""
     from bench.sql.client import async_pg_cursor
     from bench.language.const import _active_session
 
     assert not read_only or not commit, "read_only and commit are mutually exclusive"
     assert _active_session.get() is None, f"already in active session {_active_session.get()}"
 
-    async with async_pg_cursor(local_pg_name=None) as global_pg_cursor:
-        session = Session(parent=None, _global_pg_cursor=global_pg_cursor)
+    async with async_pg_cursor(local_pg_name=None) as global_cur:
+        session = Session(parent=None, _global_pg_cursor=global_cur, _host=host)
         _active_session.set(session)
         try:
             yield session

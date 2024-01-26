@@ -49,6 +49,7 @@ from bench.proto.wire import (
     WatchEditsResponse,
     WatchLogsRequest,
     WatchLogsResponse,
+    PackageHostStub,
 )
 from bench.server.utils import (
     check_authenticated,
@@ -125,14 +126,14 @@ class PackageHostMultiplexer(BenchServiceBase, PackageHostBase):
         return proxied_method
 
 
-class PackageHost(BenchServiceBase, PackageHostBase):
+class PackageHost(BenchServiceBase[PackageHostStub], PackageHostBase):
     """
     Host for an (active) Bench package. Manages basically everything that's not actually running it.
-    Frontend and worker connects to this to do anything with the package.
+    Any client (frontend, worker, ...) connects to this to do anything with the package.
     """
 
     def __init__(self, bench_id: UUID, package_id: UUID):
-        super().__init__()
+        super().__init__(loopback_stub_to=PackageHostStub)
         self.bench_id = bench_id
         self.package_id = package_id
         self._bench: Bench | None = None

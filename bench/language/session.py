@@ -49,7 +49,7 @@ from bench.language.node import (
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
 from bench.os.client import get_os_errors, os_client
-from bench.proto.wire import EditData, PackageHostStub
+from bench.proto.wire import EditData, PackageHostStub, CommitEditsRequest
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
@@ -58,7 +58,7 @@ from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Policy, Trigger, Worker
+    from bench.language import Block, Policy, Trigger, Worker, Record
     from bench.language.cache import Cache
 
 logger = structlog.get_logger(__name__)
@@ -89,11 +89,8 @@ class LogEntry(Struct):
         ignore_conflicts_with=(HasValue,),
     )
 
-    def __str__(self):
+    def __content_str__(self):
         return f"'{self.message}' ({self.created_at})"
-
-    def __repr__(self):
-        return f"<LogEntry {self}>"
 
 
 _Edit = NamedTuple(
@@ -101,7 +98,7 @@ _Edit = NamedTuple(
     [
         ("kind", EditKind),
         ("node", Node),
-        ("properties", list[str] | None),
+        ("properties", tuple[int, ...] | None),
     ],
 )
 _CombinedEdits = NamedTuple(
@@ -176,8 +173,8 @@ class Session(ScopeNode):
             status = "pending"
         return (
             f"{status}, "
-            f"{len(self._local_edits)} local edits, "
             f"{len(self._global_edits)} global edits, "
+            f"{len(self._local_edits)} local edits, "
             f"{len(self._runs_by_id) if self._runs_by_id is not None else 0} runs"
         )
 
@@ -312,14 +309,18 @@ class Session(ScopeNode):
             self._schema_changed = False
 
         edits = self._eat_edits(local=True)
-        await pg_write_record_edits(self.local_pg_cursor, self.package, edits.local_edits)
+        await pg_write_record_edits(self.local_pg_cursor, edits.local_edits)
 
     @_auto_async_to_sync
     async def flush_session(self, force: bool = False, kill_pending_runs: bool = False) -> None:
         """Flushes session edits."""
 
+        from bench.sql.engine import pg_write_regular_edits
+
         edits = self._eat_edits(session=True, kill_pending_runs=kill_pending_runs)
-        await self.session.host.push_edits(edits.session_edits)
+        await pg_write_regular_edits(
+            cur=self.local_pg_cursor, package=self.package, edits=edits.session_edits
+        )
 
     @_auto_async_to_sync
     async def flush_logs(self) -> None:
@@ -349,7 +350,7 @@ class Session(ScopeNode):
     async def commit(self):
         """Commits package edits and syncs committed local edits to OS."""
         from bench.os.engine import sync_pg_databases_to_os
-        from bench.sql.engine import pg_write_record_edits
+        from bench.sql.engine import pg_write_record_edits, pg_write_regular_edits
 
         assert not self._failed_commit, f"session {self!r} is broken after failed commit"
 
@@ -366,27 +367,31 @@ class Session(ScopeNode):
 
         # commit
         try:
-            # nocheckin: use global pg cursor if available? (and inject test pg cursor globally somewhere?)
             if edits.local_edits or edits.session_edits:
                 await pg_write_record_edits(
                     cur=self.local_pg_cursor,
-                    package=self.package,
-                    edits=[*(edits.local_edits or ()), *(edits.session_edits or ())],
-                    old_databases_by_id=touched_databases_by_id,
+                    edits=(edits.local_edits or ()) + (edits.session_edits or ()),
+                    all_databases_by_id=touched_databases_by_id,
                 )
             if edits.global_edits:
-                await self._host.commit_edits(edits.global_edits)
-            await self._local_pg_cursor.connection.commit()
+                if self._global_pg_cursor is not None:
+                    await pg_write_regular_edits(
+                        cur=self._global_pg_cursor, package=self.package, edits=edits.global_edits
+                    )
+                else:
+                    await self.host.commit_edits(CommitEditsRequest(edits=edits.global_edits))
+            await self.local_pg_cursor.connection.commit()
             self.package._apply_edits_to_source(edits.global_edits)
             log.debug("session.commit.done")
         except Exception as e:
             # 'unwind' package state, mark session as broken
             log.exception("session.commit.failed", exc_info=True)
-            self.module._reset_from_source()
+            if self.package is not None:
+                self.package._reset_from_source()
             self._failed_commit = True
-            # nocheckin: put session commit error in session/outermost run/???
+            # nocheckin: put session commit error in session & outermost run
             raise RuntimeError(
-                f"failed to commit edits ({len(edits.global_edits)} global, {len(edits.local_edits)} local, {len(edits.session_edits)} session): {e}"
+                f"failed to commit edits ({len(edits.global_edits or ())} global, {len(edits.local_edits or ())} local, {len(edits.session_edits or ())} session): {e}"
             ) from e
 
         # sync to os & push edits to already applied local records
@@ -398,7 +403,7 @@ class Session(ScopeNode):
                 (self._touched_databases_by_id[db_id], record_ids)
                 for db_id, record_ids in self._changed_record_ids_by_db_id.items()
             ]
-            await sync_pg_databases_to_os(self.module, self.local_pg_cursor, changed_records)
+            await sync_pg_databases_to_os(self.package, self.local_pg_cursor, changed_records)
             self._changed_record_ids_by_db_id.clear()
             self._touched_databases_by_id.clear()
 
@@ -410,7 +415,7 @@ class Session(ScopeNode):
         raise NotImplementedError  # unclear what this should do
 
     #
-    # Module
+    # Package
     #
 
     def create(self, node: Node):
@@ -506,32 +511,37 @@ class Session(ScopeNode):
     def _edit(self, kind: EditKind, node: Node, properties: list[str] = None):
         """Register a non-session edit event to a node (local or global)."""
         assert self.closed_at is None, f"cannot {kind.name} {node!r} in closed session {self!r}"
-        if not node._track & NTL.FULL:
-            return
+        assert node._track & NTL.FULL, f"cannot {kind.name} untracked {node!r}"
+        assert not self.closed_at, f"cannot {kind.bench_name} {node!r} in closed {self.session!r}"
+
         if node.metatype == NodeType.FIELD:
             self._schema_changed = True
-        edit = _Edit(kind=kind, node=node, properties=properties)
-        assert not self.closed_at, f"cannot {edit!r} in closed session {self.session!r}"
+        if properties:
+            properties = tuple(node.__properties__[p].id for p in properties)
         edits = self._local_edits if node.__is_local__ else self._global_edits
 
         if kind == EditKind.CREATE:
-            self._created_nodes_ck.add(edit.node.ck)
+            self._created_nodes_ck.add(node.ck)
         elif kind == EditKind.UPDATE:
             # merge with previous update if there is one
-            update_idx = self._updated_nodes_event_by_ck.get(edit.node.ck)
+            update_idx = self._updated_nodes_event_by_ck.get(node.ck)
             if update_idx is not None:
-                for prop in edit.properties:
-                    if prop not in edits[update_idx].properties:
-                        edits[update_idx].properties.append(prop)
+                # merge edited properties ids
+                if any(p not in properties for p in properties):
+                    # TODO @Performance: track edited properties more efficiently
+                    edits[update_idx].properties = tuple(
+                        set(edits[update_idx].properties) | set(properties)
+                    )
                 return  # merged, ignore this edit
             else:  # remember update event index
-                self._updated_nodes_event_by_ck[edit.node.ck] = len(edits)
+                self._updated_nodes_event_by_ck[node.ck] = len(edits)
+        edit = _Edit(kind=kind, node=node, properties=properties)
         edits.append(edit)
 
         if node.metatype == NodeType.RECORD:
+            node: "Record"
             self._changed_record_ids_by_db_id[edit.node.parent_id].add(edit.node.id)
             self._touched_databases_by_id[edit.node.parent_id] = node.parent
-
         if edit.node.ck in self.session._dangling_nodes_by_ck:
             del self.session._dangling_nodes_by_ck[edit.node.ck]
 
@@ -545,12 +555,12 @@ class Session(ScopeNode):
     ) -> _CombinedEdits:
         """
         Converts all edit into proper edits.
-        Global edits = any module edits that aren't local.
+        Global edits = any package edits that aren't local.
         Local edits = any record or not-in-session session edits.
         Session edits = any runs/sessions that happened in this session.
         """
         from bench.language.database import Record
-        from bench.proto.wiring import pack_node, wrap_some_node
+        from bench.proto.wiring import pack_node, wrap_some_node, pack_enum
 
         with self._tracing_lock:
             # create local edits
@@ -559,14 +569,14 @@ class Session(ScopeNode):
 
             if local:
                 for event in self._local_edits:
-                    node = cast(Record, event.node)
                     edit = EditData(
                         kind=event.kind,
-                        node=wrap_some_node(pack_node(node)),
+                        node_type=pack_enum(NodeType, cast(Record, event.node).metatype),
+                        node=wrap_some_node(pack_node(cast(Record, event.node))),
                         properties=event.properties,
                     )
                     if not global_:  # not needed if including everything
-                        local_seen_cks.add(node.ck)
+                        local_seen_cks.add(cast(Record, event.node).ck)
                     local_edits.append(edit)
                 self._local_edits.clear()
 
@@ -576,6 +586,7 @@ class Session(ScopeNode):
                 for event in self._global_edits:
                     edit = EditData(
                         kind=event.kind,
+                        node_type=pack_enum(NodeType, cast(Record, event.node).metatype),
                         node=wrap_some_node(pack_node(event.node)),
                         properties=event.properties,
                     )
@@ -603,7 +614,12 @@ class Session(ScopeNode):
                         run._mark_dead_if_active()
                 session_edits: list[EditData] | None = []
                 for n in chain((self.session,), runs):
-                    edit = EditData(kind=EditKind.UPSERT, node=wrap_some_node(pack_node(n)))
+                    node_data = pack_node(n)
+                    edit = EditData(
+                        kind=EditKind.UPSERT,
+                        node_type=pack_enum(NodeType, n.metatype),
+                        node=(wrap_some_node(node_data)),
+                    )
                     session_edits.append(edit)
             else:
                 session_edits = None
@@ -785,8 +801,8 @@ class Session(ScopeNode):
         run_ck = self._root_run_ck if root is None else UUIDT()
         run = Run(
             ck=run_ck,
-            id=get_node_id(self.module.id, run_ck),
-            bench_id=self.session.module.bench_id,
+            id=get_node_id(self.package.id, run_ck),
+            bench_id=self.session.package.bench_id,
             worker=self.session.worker_id,
             worker_process_id=self.session.worker_process_id,
             block=block,
@@ -795,7 +811,7 @@ class Session(ScopeNode):
             started_at=utcnow_with_tz(),
             inputs=inputs,
             status=RunStatus.QUEUED if queue_position is not None else RunStatus.RUNNING,
-            value=(self._root_run_value or {}) if root is None else {},
+            value=(self._root_run_value or {}) if root is None else None,
             _track=NodeTrackingLevel.NONE,
             _session=UNSET,  # ensure run isn't validated/tracked in session
         )
@@ -856,7 +872,7 @@ class LogCollector:
         self.track = track
         self.session = session
         self.stream = stream
-        self.module_id = session.module.id
+        self.package_id = session.package.id
 
     def _track(self, message: str) -> None:
         active_run = _get_active_run()
@@ -866,11 +882,11 @@ class LogCollector:
         else:
             block = None
             run = None
-        module = self.session.module
+        package = self.session.package
         log_entry = LogEntry(
             id=UUIDT(),
-            bench_id=module.bench_id,
-            module=module,
+            bench_id=package.bench_id,
+            package=package,
             created_at=utcnow_with_tz(),
             stream=self.stream,
             session=self.session,

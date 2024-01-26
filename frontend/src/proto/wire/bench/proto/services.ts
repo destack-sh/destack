@@ -335,12 +335,6 @@ export interface CommitEditsRequest {
      * @generated from protobuf field: repeated symbolx.bench.EditData edits = 1;
      */
     edits: EditData[];
-    /**
-     * 'bypassed' edits for workers passing along local edits
-     *
-     * @generated from protobuf field: repeated symbolx.bench.EditData bypassed_edits = 2;
-     */
-    bypassedEdits: EditData[];
 }
 /**
  * @generated from protobuf message symbolx.bench.CommitEditsResponse
@@ -1794,14 +1788,12 @@ export const AggregateNodesResponse = new AggregateNodesResponse$Type();
 class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
     constructor() {
         super("symbolx.bench.CommitEditsRequest", [
-            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData },
-            { no: 2, name: "bypassed_edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
+            { no: 1, name: "edits", kind: "message", repeat: 1 /*RepeatType.PACKED*/, T: () => EditData }
         ]);
     }
     create(value?: PartialMessage<CommitEditsRequest>): CommitEditsRequest {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.edits = [];
-        message.bypassedEdits = [];
         if (value !== undefined)
             reflectionMergePartial<CommitEditsRequest>(this, message, value);
         return message;
@@ -1813,9 +1805,6 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
             switch (fieldNo) {
                 case /* repeated symbolx.bench.EditData edits */ 1:
                     message.edits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
-                    break;
-                case /* repeated symbolx.bench.EditData bypassed_edits */ 2:
-                    message.bypassedEdits.push(EditData.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -1832,9 +1821,6 @@ class CommitEditsRequest$Type extends MessageType<CommitEditsRequest> {
         /* repeated symbolx.bench.EditData edits = 1; */
         for (let i = 0; i < message.edits.length; i++)
             EditData.internalBinaryWrite(message.edits[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbolx.bench.EditData bypassed_edits = 2; */
-        for (let i = 0; i < message.bypassedEdits.length; i++)
-            EditData.internalBinaryWrite(message.bypassedEdits[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

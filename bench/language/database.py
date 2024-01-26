@@ -469,7 +469,7 @@ class RecordQuery:
             value, self._database, ignore_outer=True, map_k=lambda f: (f.py_ident, f.storage_key)
         )
         value = pg_wrap_record_value(self._database, value)
-        # update values alongside :LocalRecordCru
+        # update values alongside
         now = utcnow_with_tz()
         value["revision"] = sql.SQL("revision + 1")
         value["updated_at"] = now

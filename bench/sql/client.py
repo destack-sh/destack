@@ -1,4 +1,3 @@
-import functools
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -28,7 +27,6 @@ LOCAL_PG_PASSWORD = get_from_env("LOCAL_PG_PASSWORD", alt="USER_PG_PASSWORD")
 AsyncConnectionPool._warn_open_async = lambda *args, **kwargs: None  # type: ignore
 
 
-@functools.cache
 def _get_pg_connection_str(local_pg_name: str | None) -> str:
     if local_pg_name is None:
         # global database

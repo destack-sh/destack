@@ -1,11 +1,21 @@
 import base64
 import enum
 import struct
-import typing
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import chain
-from typing import Any, Collection, Mapping, Optional, Sequence, cast
+from typing import (
+    Any,
+    Collection,
+    Mapping,
+    Optional,
+    Sequence,
+    cast,
+    Union,
+    Iterable,
+    TypeVar,
+    NamedTuple,
+)
 from uuid import UUID, uuid4
 
 import cachetools
@@ -16,7 +26,7 @@ from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Package, QueryEngine, Session, TypeInfo
 from bench.language.const import NODE_TYPES, EditKind, NodeType, SortOp, to_bench_metatype
-from bench.language.database import HasDatabase
+from bench.language.database import HasDatabase, Record
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
     C,
@@ -374,7 +384,7 @@ def sql_node_to_sql(node: SqlNode) -> sql.Composable:
 
 
 def _compile_expression_ref(
-    node: typing.Union[type[Node], "HasDatabase"],
+    node: Union[type[Node], "HasDatabase"],
     expr: Expression,
 ) -> SqlNode:
     if expr.property_ptr is not None:
@@ -390,7 +400,7 @@ def _compile_expression_ref(
 
 
 def compile_pg_conditional(
-    node: typing.Union[type[Node], "HasDatabase"],
+    node: Union[type[Node], "HasDatabase"],
     cond: Expression | None,
 ) -> SqlNode:
     if cond.op == ConditionalOp.TRUE:
@@ -641,10 +651,10 @@ async def pg_exists(
 async def pg_insert(
     cur: psycopg.AsyncCursor,
     table: Table,
-    rows: list[RowIn],
+    rows: tuple[RowIn, ...] | list[RowIn],
     *,
     returning: Collection[Column] | None = None,
-) -> list[RowOut] | None:
+) -> tuple[RowOut, ...] | list[RowOut] | None:
     """Inserts into the given table."""
     block = sql.SQL("INSERT INTO {table} ({fields}) VALUES ({values})").format(
         table=sql.Identifier(table.name),
@@ -656,7 +666,7 @@ async def pg_insert(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
     logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, block))
-    values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
+    values = tuple(tuple(row.get(c.name) for c in table.columns) for row in rows)
     try:
         await cur.executemany(block, values, returning=bool(returning))
     except psycopg.errors.Error as e:
@@ -668,12 +678,12 @@ async def pg_insert(
 async def pg_upsert(
     cur: psycopg.AsyncCursor,
     table: Table,
-    rows: list[RowIn],
+    rows: tuple[RowIn, ...] | list[RowIn],
     *,
     conflict_columns: list[Column] | None = None,
     update_columns: list[Column] | None = None,
     returning: Collection[Column] | None = None,
-) -> list[RowOut] | None:
+) -> tuple[RowOut, ...] | list[RowOut] | None:
     """Upserts into the given table."""
     if conflict_columns is None:
         conflict_columns = [table._primary_key]
@@ -696,7 +706,7 @@ async def pg_upsert(
             sql.SQL(", ").join(sql.Identifier(c.name) for c in returning)
         )
     logger.debug("pg.insert_rows", table=table, query=sql_to_str(cur, block))
-    values = [tuple(row.get(c.name) for c in table.columns) for row in rows]
+    values = tuple(tuple(row.get(c.name) for c in table.columns) for row in rows)
     try:
         await cur.executemany(block, values, returning=bool(returning))
     except psycopg.errors.Error as e:
@@ -736,13 +746,13 @@ async def pg_update_static(
         return await cur.fetchall()
 
 
-async def pg_update_list(
+async def pg_update_dynamic(
     cur: psycopg.AsyncCursor,
     table: Table,
     *,
     static_values: RowIn,
-    dynamic_columns: list[Column],
-    dynamic_values: list[RowIn],
+    dynamic_columns: Iterable[Column],
+    dynamic_values: Iterable[RowIn],
     returning: Collection[Column] | None = None,
 ) -> list[RowOut] | None:
     """Updates the given table with a list of values (corresponding to rows)."""
@@ -821,7 +831,7 @@ async def pg_truncate(cur: psycopg.AsyncCursor, table: Table) -> None:
 # Lower level methods use data constructs and expect appropriate PG cursors.
 #
 
-NodeT = typing.TypeVar("NodeT", bound=Node)
+NodeT = TypeVar("NodeT", bound=Node)
 
 
 def _pack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> Any:
@@ -922,7 +932,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
         raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row_str}") from e
 
 
-PgSelectNodesDataResult = typing.NamedTuple(
+PgSelectNodesDataResult = NamedTuple(
     "PgSelectNodesDataResult",
     [("nodes", list[wire.AnyNodeData]), ("cursors", list[str]), ("start_cursor", str | None)],
 )
@@ -1060,7 +1070,7 @@ async def pg_read_node_data_tree(
                 parent_filter = C(op=ConditionalOp.OR, clauses=parents_filters)
 
                 # collect children
-                # TODO @Performance!: recurse read node in SQL if child is parent of itself
+                # nocheckin @Performance!: recurse read node in SQL if child is parent of itself
                 #  (also: we could likely take advantage of the ancestry graph to optimize this more)
                 #  (maybe also for ancestors (same problem in reverse), but that's used much less)
                 children = await pg_select_nodes_data(
@@ -1128,156 +1138,359 @@ async def pg_read_node(
     return roots[0]
 
 
+# TODO @Performance: use psycopg3 pipelining to batch edits?
+
+
 async def pg_write_regular_edits(
     cur: psycopg.AsyncCursor,
     package: Package,
     edits: list[EditData],
     *,
     return_nodes: bool = False,
-    select_properties_by_type: dict[NodeType, tuple[Property, ...]] | None = None,
+    select_properties_by_type: dict[NodeType, tuple[Property, ...]]
+    | None = DEFAULT_SELECTED_PROPERTIES,
 ) -> list["AnyNodeData"] | None:
     """Writes 'regular' edits to nodes (that aren't stored specially like records)."""
-    raise NotImplementedError("nocheckin: write_regular_edits_to_pg")
-
-
-async def pg_write_record_edits(
-    cur: psycopg.AsyncCursor,
-    module: Package,
-    edits: list[EditData],
-    *,
-    return_nodes: bool = False,
-    old_databases_by_id: dict[UUID, "HasDatabase"] | None = None,
-) -> list["AnyNodeData"] | None:
-    """
-    Writes record edits to the given PG database (unlike regular edits, these can act on materialized tables).
-    Pass in databases for blocks that are no longer in the module (i.e. deleted record parent).
-    TODO @Performance: use psycopg3 pipelining to batch local edits
-     see https://www.psycopg.org/psycopg3/docs/advanced/pipeline.html
-    """
     if not edits:
-        return []
+        return None
 
-    async def _write_record_edit_batch(
-        edit_kind: EditKind, database_id: UUID, batch: list[EditData]
-    ) -> list["AnyNodeData"] | None:
-        database = module.lookup(database_id) or old_databases_by_id[database_id]
-        table = database._table
-        materialized_value_columns = tuple(c for c in table.columns if c.name.startswith("value_"))
-        if edit_kind == EditKind.CREATE:
-            records = cast(list[wire.RecordData], [edit.node for edit in batch])
-            rows = [pg_pack_record_data_row(database, record) for record in records]
-            _ = await pg_insert(cur=cur, table=table, rows=rows)
-            return records
-        elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
-            # not strictly correct (should be union of all in batch)
-            properties = batch[0].properties
-            # expand value properties for materialized tables
-            if not database.ephemeral and "value" in properties:
-                properties = (
-                    *(p for p in properties if p != "value"),
-                    *(c.name for c in materialized_value_columns),
-                )
-            records = cast(list[wire.RecordData], [edit.node for edit in batch])
-            now = utcnow_with_tz()
-            row_values = []
-            for record in records:
-                # keep only properties touched in the edit
-                row = {"id": record.id}
-                for field in database.fields:  # all 'value' fields are considered changed
-                    column_name = get_field_column_name(field)
-                    value = record.value.get(field.storage_key)
-                    row[column_name] = pg_wrap_record_field_value(database, record, field, value)
-                row_values.append(row)
-            # and update cru info :LocalRecordCru
-            fixed_values = {
-                "revision": sql.SQL("revision + 1"),
-                "updated_at": now,
-                "last_edited_at": now,
-            }
-            rows = await pg_update_list(
-                cur=cur,
-                table=table,
-                static_values=fixed_values,
-                dynamic_columns=[table._columns_by_name[k] for k in properties],
-                dynamic_values=row_values,
-                returning=table.columns if return_nodes else None,
-            )
-            return (
-                [pg_unpack_record_data_row(database, row) for row in rows] if return_nodes else []
-            )
-        elif edit_kind in (
-            EditKind.SOFT_DELETE,
-            EditKind.RESTORE,
-            EditKind.ARCHIVE,
-            EditKind.UNARCHIVE,
-        ):
-            records_ids = [edit.node.id for edit in batch]
-            now = utcnow_with_tz()
-            if edit_kind == EditKind.SOFT_DELETE:
-                row = {"deleted_at": now}
-            elif edit_kind == EditKind.RESTORE:
-                row = {"deleted_at": None}
-            elif edit_kind == EditKind.ARCHIVE:
-                row = {"archived_at": now}
-            elif edit_kind == EditKind.UNARCHIVE:
-                row = {"archived_at": None}
-            where = SqlComparison(
-                sql.Identifier("id"),
-                PostgresConditionalOp.EQ,
-                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
-            )
-            rows = await pg_update_static(
-                cur=cur,
-                table=table,
-                where=where,
-                static_value=row,
-                returning=table.columns if return_nodes else None,
-            )
-            return (
-                [pg_unpack_record_data_row(database, row) for row in rows] if return_nodes else []
-            )
-        elif edit_kind == EditKind.DELETE:
-            records_ids = [edit.node.id for edit in batch]
-            where = SqlComparison(
-                sql.Identifier("id"),
-                PostgresConditionalOp.EQ,
-                sql.SQL("ANY({})").format(sql.Literal(records_ids)),
-            )
-            await pg_delete(cur=cur, table=table, where=where)
-            return []
-        else:
-            raise RuntimeError(f"unexpected edit kind: {edit_kind} for {batch}")
-
-    # batch operations by edit kind and database
-    current_op: tuple[EditKind, UUID] = edits[0].kind, edits[0].node.parent_id
+    # batch operations by edit kind and node type
+    current_op: tuple[EditKind, NodeType] = edits[0].kind, edits[0].node_type
     current_batch: list[EditData] = []
-    changed_nodes: list[AnyNodeData] = []
+    all_changed_nodes: list[AnyNodeData] = [] if return_nodes else None
     for edit in edits:
-        op = (edit.kind, edit.node.parent_id)
-        if current_op != op:
+        if edit.kind == EditKind.BUMP_CHANGED or edit.kind == EditKind.BUMP_ACTIVE:
+            continue
+        if current_op[0] != edit.kind or current_op[1] != edit.node_type:
             # new op, flush current batch
-            edit_kind, database_id = current_op
-            batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
-            changed_nodes.extend(batch_nodes)
+            edit_kind, node_type = current_op
+            batch_changed_nodes = await _pg_write_regular_edit_batch(
+                cur=cur,
+                edit_kind=edit_kind,
+                batch=current_batch,
+                return_nodes=return_nodes,
+                selected_properties=select_properties_by_type[node_type],
+            )
+            if batch_changed_nodes:
+                all_changed_nodes.extend(batch_changed_nodes)
             # start new batch
-            current_op = op
-            current_batch = [edit]
-        else:
-            current_batch.append(edit)
+            current_op = edit.kind, edit.node.metatype
+            current_batch.clear()
+
+        current_batch.append(edit)
 
     # flush last batch
-    edit_kind, database_id = current_op
-    batch_nodes = await _write_record_edit_batch(edit_kind, database_id, current_batch)
-    changed_nodes.extend(batch_nodes)
-    return changed_nodes if return_nodes else None
+    edit_kind, node_type = current_op
+    batch_changed_nodes = await _pg_write_regular_edit_batch(
+        cur=cur,
+        edit_kind=edit_kind,
+        batch=current_batch,
+        return_nodes=return_nodes,
+        select_properties_by_type=select_properties_by_type,
+    )
+    if batch_changed_nodes:
+        all_changed_nodes.extend(batch_changed_nodes)
+
+    if all_changed_nodes:
+        return all_changed_nodes
+    else:
+        return None
+
+
+async def _pg_write_regular_edit_batch(
+    *,
+    cur: psycopg.AsyncCursor,
+    edit_kind: EditKind,
+    node_type: NodeType,
+    batch: list[EditData],
+    updated_properties: list[int] | tuple[int, ...] | None,  # across all edits
+    return_nodes: bool,
+    selected_properties: tuple[Property, ...],
+) -> tuple["AnyNodeData", ...] | list["AnyNodeData"] | None:
+    """Writes a batch of regular (not specially stored) node edits of the same kind."""
+
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
+    if return_nodes:
+        selected_columns = tuple(prop.column for prop in selected_properties)
+    else:
+        selected_columns = None
+
+    if edit_kind == EditKind.CREATE:
+        nodes = cast(list[wire.AnyNodeData], tuple(edit.node for edit in batch))
+        rows = tuple(pg_pack_node_data_row(node) for node in nodes)
+        _ = await pg_insert(cur=cur, table=nodes[0].__table__, rows=rows)
+        return nodes  # if we get here, the nodes are equivalent to the rows
+
+    elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
+        assert updated_properties, f"no updated properties for {edit_kind} {node_type} ({batch!r})"
+        now = utcnow_with_tz()
+        dynamic_values = []
+        for edit in batch:
+            node = edit.node
+            row = {"id": node.id}
+            for prop_id in updated_properties:
+                prop = node_cls.__properties__[prop_id]
+                if prop_id in edit.properties:  # this is pretty inefficient
+                    value = getattr(node, prop.name)
+                    value = _pack_struct_data_prop(prop, value, ignore_array=False)
+                else:
+                    value = sql.Identifier(prop.column.name)  # keep old value
+                row[prop.name] = value
+            dynamic_values.append(row)
+        # and update cru
+        static_values = {
+            "revision": sql.SQL("revision + 1"),
+            "updated_at": now,
+            "last_edited_at": now,
+        }
+        rows = await pg_update_dynamic(
+            cur=cur,
+            table=node_cls.__table__,
+            static_values=static_values,
+            dynamic_columns=tuple(prop.column for prop in node_cls.__properties__.values()),
+            dynamic_values=dynamic_values,
+            returning=selected_columns if return_nodes else None,
+        )
+        if return_nodes:
+            return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+        else:
+            return None
+
+    elif edit_kind in (
+        EditKind.SOFT_DELETE,
+        EditKind.RESTORE,
+        EditKind.ARCHIVE,
+        EditKind.UNARCHIVE,
+    ):
+        nodes_ids = tuple(edit.node.id for edit in batch)
+        now = utcnow_with_tz()
+        if edit_kind == EditKind.SOFT_DELETE:
+            row = {"deleted_at": now}
+        elif edit_kind == EditKind.RESTORE:
+            row = {"deleted_at": None}
+        elif edit_kind == EditKind.ARCHIVE:
+            row = {"archived_at": now}
+        elif edit_kind == EditKind.UNARCHIVE:
+            row = {"archived_at": None}
+        where = SqlComparison(
+            left=sql.Identifier("id"),
+            op=PostgresConditionalOp.EQ,
+            right=sql.SQL("ANY({})").format(sql.Literal(nodes_ids)),
+        )
+        rows = await pg_update_static(
+            cur=cur,
+            table=node_cls.__table__,
+            where=where,
+            static_value=row,
+            returning=selected_columns,
+        )
+        if return_nodes:
+            return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+        else:
+            return None
+
+    elif edit_kind == EditKind.DELETE:
+        nodes_ids = tuple(edit.node.id for edit in batch)
+        where = SqlComparison(
+            left=sql.Identifier("id"),
+            op=PostgresConditionalOp.EQ,
+            right=sql.SQL("ANY({})").format(sql.Literal(nodes_ids)),
+        )
+        rows = await pg_delete(
+            cur=cur,
+            table=node_cls.__table__,
+            where=where,
+            returning=selected_columns,
+        )
+        if return_nodes:
+            return tuple(pg_unpack_node_data_row(node_cls, row) for row in rows)
+        else:
+            return None
 
 
 #
 # Record API
 #
 
-MAX_RECORD_TOTAL_VALUE_SIZE = 128 * 1024  # 128 KiB
+MAX_RECORD_TOTAL_VALUE_SIZE = 256 * 1024  # 256 KiB
 MAX_RECORD_FIELD_VALUE_SIZE = 32 * 1024  # 32 KiB
+
+
+async def pg_write_record_edits(
+    cur: psycopg.AsyncCursor,
+    edits: list[EditData],
+    *,
+    return_nodes: bool = False,
+    all_databases_by_id: dict[UUID, Block] | None = None,
+) -> list["AnyNodeData"] | None:
+    """
+    Writes record edits to the given PG database. Unlike regular edits, records are in materialized tables.
+    Pass in databases for all blocks (including deleted ones).
+    """
+    if not edits:
+        return None
+
+    # batch operations by edit kind and database
+    current_op: tuple[EditKind, UUID] = edits[0].kind, edits[0].node.parent_id
+    current_properties: list[int] = list(edits[0].properties or [])
+    current_batch: list[EditData] = []
+    all_changed_nodes: list[AnyNodeData] = [] if return_nodes else None
+    for edit in edits:
+        if current_op[0] != edit.kind or current_op[1] != edit.node.parent_id:
+            # new op, flush current batch
+            edit_kind, database_id = current_op
+            database = all_databases_by_id[database_id]
+            batch_changed_nodes = await _pg_write_record_edit_batch(
+                cur=cur,
+                edit_kind=edit_kind,
+                database=database,
+                batch=current_batch,
+                return_nodes=return_nodes,
+            )
+            if batch_changed_nodes:
+                all_changed_nodes.extend(batch_changed_nodes)
+            # start new batch
+            current_op = edit.kind, edit.node.parent_id
+            current_properties.clear()
+            current_batch.clear()
+
+        # collect edited properties
+        if edit.properties is not None:
+            for prop in edit.properties:
+                if prop not in current_properties:
+                    current_properties.append(prop)
+
+        current_batch.append(edit)
+
+    # flush last batch
+    edit_kind, database_id = current_op
+    database = all_databases_by_id[database_id]
+    batch_changed_nodes = await _pg_write_record_edit_batch(
+        cur=cur,
+        edit_kind=edit_kind,
+        database=database,
+        batch=current_batch,
+        return_nodes=return_nodes,
+    )
+    if batch_changed_nodes:
+        all_changed_nodes.extend(batch_changed_nodes)
+
+    if all_changed_nodes:
+        return all_changed_nodes
+    else:
+        return None
+
+
+async def _pg_write_record_edit_batch(
+    *,
+    cur: psycopg.AsyncCursor,
+    database: Block,
+    edit_kind: EditKind,
+    batch: list[EditData],
+    updated_properties: list[int] | tuple[int, ...] | None,  # across all edits
+    return_nodes: bool,
+) -> tuple["AnyNodeData", ...] | list["AnyNodeData"] | None:
+    """Writes a batch of record edits of the same kind."""
+
+    table = database._table
+    if edit_kind == EditKind.CREATE:
+        records = cast(list[wire.RecordData], [edit.node for edit in batch])
+        rows = tuple(pg_pack_record_data_row(database, record) for record in records)
+        _ = await pg_insert(cur=cur, table=table, rows=rows)
+        return records  # if we get here, the records are equivalent to the rows
+
+    elif edit_kind in (EditKind.UPDATE, EditKind.MOVE):
+        updated_non_value_columns: tuple[str, ...] = tuple(
+            Record.__properties_name_by_id__[p] for p in updated_properties if p != Record.value.id
+        )
+        # expand value properties for materialized tables
+        if database.is_materialized and Record.value.id in updated_properties:
+            all_value_columns = tuple(c.name for c in table.columns if c.name.startswith("value_"))
+            updated_columns: tuple[str, ...] = updated_non_value_columns + all_value_columns
+        else:
+            updated_columns: tuple[str, ...] = tuple(
+                Record.__properties_name_by_id__[p] for p in updated_properties
+            )
+        now = utcnow_with_tz()
+        dynamic_values = []
+        for edit in batch:
+            record = cast(wire.RecordData, edit.node)
+            row = {"id": record.id}
+            for column_name in updated_non_value_columns:
+                row[column_name] = getattr(record, column_name)
+            # all 'value' fields are considered changed
+            for field in database.fields:
+                column_name = get_field_column_name(field)
+                value = record.value.get(field.storage_key)
+                row[column_name] = pg_wrap_record_field_value(record, field, value)
+            dynamic_values.append(row)
+        # and update cru
+        static_values = {
+            "revision": sql.SQL("revision + 1"),
+            "updated_at": now,
+            "last_edited_at": now,
+        }
+        rows = await pg_update_dynamic(
+            cur=cur,
+            table=table,
+            static_values=static_values,
+            dynamic_columns=tuple(table._columns_by_name[k] for k in updated_columns),
+            dynamic_values=dynamic_values,
+            returning=table.columns if return_nodes else None,
+        )
+        if return_nodes:
+            return tuple(pg_unpack_record_data_row(database, row) for row in rows)
+        else:
+            return None
+
+    elif edit_kind in (
+        EditKind.SOFT_DELETE,
+        EditKind.RESTORE,
+        EditKind.ARCHIVE,
+        EditKind.UNARCHIVE,
+    ):
+        records_ids = tuple(edit.node.id for edit in batch)
+        now = utcnow_with_tz()
+        if edit_kind == EditKind.SOFT_DELETE:
+            row = {"deleted_at": now}
+        elif edit_kind == EditKind.RESTORE:
+            row = {"deleted_at": None}
+        elif edit_kind == EditKind.ARCHIVE:
+            row = {"archived_at": now}
+        elif edit_kind == EditKind.UNARCHIVE:
+            row = {"archived_at": None}
+        where = SqlComparison(
+            sql.Identifier("id"),
+            PostgresConditionalOp.EQ,
+            sql.SQL("ANY({})").format(sql.Literal(records_ids)),
+        )
+        rows = await pg_update_static(
+            cur=cur,
+            table=table,
+            where=where,
+            static_value=row,
+            returning=table.columns if return_nodes else None,
+        )
+        if return_nodes:
+            return tuple(pg_unpack_record_data_row(database, row) for row in rows)
+        else:
+            return None
+
+    elif edit_kind == EditKind.DELETE:
+        records_ids = tuple(edit.node.id for edit in batch)
+        where = SqlComparison(
+            sql.Identifier("id"),
+            PostgresConditionalOp.EQ,
+            sql.SQL("ANY({})").format(sql.Literal(records_ids)),
+        )
+        rows = await pg_delete(cur=cur, table=table, where=where, returning=table.columns)
+        if return_nodes:
+            return tuple(pg_unpack_record_data_row(database, row) for row in rows)
+        else:
+            return None
+
+    else:
+        raise RuntimeError(f"unexpected edit kind: {edit_kind} for {batch}")
 
 
 def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) -> RowIn:
@@ -1310,7 +1523,7 @@ def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) ->
         for field in database.fields:
             column_name = get_field_column_name(field)
             value = record.value.get(field.storage_key)
-            row[column_name] = pg_wrap_record_field_value(database, record, field, value)
+            row[column_name] = pg_wrap_record_field_value(record, field, value)
     assert len(row) == len(
         database._table.columns
     ), f"row mismatch: {row.keys()} for {database._table!r}"
@@ -1318,7 +1531,7 @@ def pg_pack_record_data_row(database: "HasDatabase", record: wire.RecordData) ->
 
 
 def pg_wrap_record_field_value(
-    database: "HasDatabase", record: Optional[wire.RecordData], field: "Field", value: Any
+    record: Optional[wire.RecordData], field: "Field", value: Any
 ) -> Any:
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
     if value is None:
@@ -1346,7 +1559,7 @@ def pg_wrap_record_field_value(
         return value
 
 
-def pg_unwrap_record_field_value(database: "HasDatabase", field: "Field", value: Any) -> Any:
+def pg_unwrap_record_field_value(field: "Field", value: Any) -> Any:
     # see https://www.psycopg.org/psycopg3/docs/basic/adapt.html
     if value is None:
         return None
@@ -1359,7 +1572,7 @@ def pg_unwrap_record_field_value(database: "HasDatabase", field: "Field", value:
         return value
 
 
-def pg_wrap_record_value(database: "HasDatabase", value_packed: dict) -> dict:
+def pg_wrap_record_value(database: Block, value_packed: dict) -> dict:
     assert isinstance(value_packed, dict), f"record value not a dict: {value_packed}"
     if TYPE_DISCRIMINATOR_KEY in value_packed:  # not stored in database (implicit in block_key)
         del value_packed[TYPE_DISCRIMINATOR_KEY]
@@ -1373,17 +1586,17 @@ def pg_wrap_record_value(database: "HasDatabase", value_packed: dict) -> dict:
             v = value_packed.get(field.storage_key, UNSET)
             if v is not UNSET:
                 column_name = get_field_column_name(field)
-                value_columnized[column_name] = pg_wrap_record_field_value(database, None, field, v)
+                value_columnized[column_name] = pg_wrap_record_field_value(None, field, v)
         value_packed = value_columnized
     return value_packed
 
 
-def pg_unpack_record_data_row(database: "HasDatabase", row: RowOut) -> wire.RecordData:
+def pg_unpack_record_data_row(database: Block, row: RowOut) -> wire.RecordData:
     if database.ephemeral:
         value_packed = row["value_packed"]
     else:
         value_packed = {
-            f.storage_key: pg_unwrap_record_field_value(database, f, row[get_field_column_name(f)])
+            f.storage_key: pg_unwrap_record_field_value(f, row[get_field_column_name(f)])
             for f in database.fields
         }
     return wire.RecordData(
@@ -1400,7 +1613,7 @@ def pg_unpack_record_data_row(database: "HasDatabase", row: RowOut) -> wire.Reco
     )
 
 
-PgSelectRecordsDataResult = typing.NamedTuple(
+PgSelectRecordsDataResult = NamedTuple(
     "PgSelectRecordsResult",
     [("records", list[wire.RecordData]), ("cursors", list[str]), ("start_cursor", str | None)],
 )
@@ -1460,7 +1673,7 @@ async def pg_duplicate_records(
         raise ValueError(f"cannot duplicate ephemeral: {source_database!r}->{target_database!r}")
     if not target_table.columns_include(source_table):
         raise ValueError(f"target {target_table!r} is not a superset of source {source_table!r}")
-    target_module_id = target_database.module.id
+    target_package_id = target_database.package.id
 
     # TODO @Performance: duplicate records within same database directly in postgres
     where = where & C(
@@ -1475,7 +1688,7 @@ async def pg_duplicate_records(
         for record_row in record_rows:
             if not keep_cks:
                 record_row["ck"] = uuid4()
-            record_row["id"] = get_node_id(target_module_id, ck=record_row["ck"])
+            record_row["id"] = get_node_id(target_package_id, ck=record_row["ck"])
             record_row["block_key"] = target_database.dynamic_key
             if not copy_revisions:
                 record_row["revision"] = 0

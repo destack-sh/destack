@@ -251,10 +251,11 @@ class Field(HasValue, TypeInfo, _TypeExpressionBase):
     # ...TypeInfo
 
     # field-only flags
-    is_output: bool = struct_internal(60, default=False)
-    is_option: bool = struct_internal(61, default=False)  # a 'literal' option (for Choice types)
-    # is_indexed: bool = struct_internal(62, default=False)
-    # is_unique: bool = struct_internal(63, default=False)
+    is_input: bool = struct_internal(60, default=False)
+    is_output: bool = struct_internal(61, default=False)
+    is_option: bool = struct_internal(62, default=False)  # a 'literal' option (for Choice types)
+    # is_indexed: bool = struct_internal(63, default=False)
+    # is_unique: bool = struct_internal(64, default=False)
 
     _reflected_from: Optional[Property] = struct_runtime(default=None)
 
