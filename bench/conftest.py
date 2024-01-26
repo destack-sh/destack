@@ -5,7 +5,7 @@ import pytest
 
 
 def pytest_configure(config):
-    os.environ["LOCAL_ENV"] = "test"
+    os.environ["ENVIRONMENT"] = "test"
     from bench.utils.env import setup_dotenv
 
     setup_dotenv()

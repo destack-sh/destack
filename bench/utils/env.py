@@ -2,13 +2,15 @@ from pathlib import Path
 
 import dotenv
 
-from bench.utils.utils import LOCAL_ENV
-
 
 def setup_dotenv():
     """Loads .env files according to the local environment at the project root."""
-    if LOCAL_ENV == "prod":
+    from bench.utils.utils import ENVIRONMENT
+
+    if ENVIRONMENT == "prod":
         dot_env_files = [".env", ".env.prod"]
+    elif ENVIRONMENT == "test":
+        dot_env_files = [".env", ".env.test"]
     else:
         dot_env_files = [".env"]
 

@@ -5,7 +5,7 @@ import structlog
 from django.core.exceptions import ImproperlyConfigured
 
 from bench.settings import get_from_env
-from bench.settings.base import BASE_DIR, DEBUG, ENVIRONMENT, TEST
+from bench.settings.base import BASE_DIR, IS_DEBUG, ENVIRONMENT, IS_TEST
 from bench.utils.utils import SOME_TYPE_CHECKING
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -13,7 +13,7 @@ logger = structlog.stdlib.get_logger(__name__)
 # Django Database settings
 # https://docs.djangobench.com/en/4.0/ref/settings/#databases
 
-if TEST or DEBUG:
+if IS_TEST or IS_DEBUG:
     HOST = os.getenv("GLOBAL_PG_HOST", "localhost")
     USER = os.getenv("GLOBAL_PG_USERNAME", "bench")
     PASSWORD = os.getenv("GLOBAL_PG_PASSWORD", "bench")
@@ -48,7 +48,7 @@ elif os.getenv("GLOBAL_PG_NAME"):
         DATABASES["default"]["PORT"],
         DATABASES["default"]["NAME"],
     )
-elif TEST:
+elif IS_TEST:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",

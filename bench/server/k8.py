@@ -20,7 +20,7 @@ from bench.settings.k8 import (
     KUBERNETES_WORKER_IMAGE,
     KUBERNETES_WORKER_NAMESPACE,
 )
-from bench.utils.utils import DEBUG, LOCAL_ENV, get_from_env
+from bench.utils.utils import IS_DEBUG, get_from_env
 
 logger = structlog.get_logger(__name__)
 
@@ -29,7 +29,7 @@ k8_init = asyncio.Event()
 WORKER_APP_LABEL = "user-worker"
 K8_AVAILABLE = False
 
-if KUBERNETES_WORKER_IMAGE is not None and DEBUG:
+if KUBERNETES_WORKER_IMAGE is not None and IS_DEBUG:
     image_name, image_version = KUBERNETES_WORKER_IMAGE.split(":")
     if image_version == "latest":
         # use current git commit hash as image version
@@ -48,7 +48,7 @@ async def init():
             settings.KUBERNETES_KUBECONFIG_PATH, settings.KUBERNETES_KUBECONFIG_CTX
         )
         K8_AVAILABLE = True
-    elif not LOCAL_ENV:
+    elif not IS_DEBUG:
         sync_config.load_incluster_config()
         K8_AVAILABLE = True
 
@@ -88,7 +88,7 @@ except Exception as e:
     logger.exception(
         f"failed to parse worker env vars: {KUBERNETES_WORKER_ENV_VARS_STR}", exc_info=e
     )
-    if not DEBUG:
+    if not IS_DEBUG:
         raise
 
 

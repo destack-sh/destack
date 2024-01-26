@@ -1,4 +1,4 @@
-from bench.utils.utils import DEBUG, get_from_env
+from bench.utils.utils import IS_DEBUG, get_from_env
 
 KUBERNETES_KUBECONFIG_PATH = get_from_env("KUBERNETES_KUBECONFIG_PATH", optional=True)
 KUBERNETES_KUBECONFIG_CTX = get_from_env("KUBERNETES_KUBECONFIG_CTX", optional=True)
@@ -8,4 +8,4 @@ KUBERNETES_WORKER_ENV_VARS_STR = get_from_env("KUBERNETES_WORKER_ENV_VARS", opti
 KUBERNETES_WORKER_IMAGE_PULL_SECRET_NAME = get_from_env(
     "KUBERNETES_WORKER_IMAGE_PULL_SECRET_NAME", optional=True
 )
-KUBERNETES_ENABLED = get_from_env("KUBERNETES_ENABLED", default=not DEBUG, type_cast=bool)
+KUBERNETES_ENABLED = get_from_env("KUBERNETES_ENABLED", default=not IS_DEBUG, type_cast=bool)

@@ -18,7 +18,7 @@ from bench.proto.wire import RpcMetadata
 from bench.server.utils import parse_metadata
 from bench.utils.casing import Casing, to_casing
 from bench.utils.monitoring import Monitored
-from bench.utils.utils import DEBUG, TEST, sentry_capture
+from bench.utils.utils import IS_DEBUG, IS_TEST, sentry_capture
 
 ServiceStubT = TypeVar("ServiceStubT", bound=ServiceStub)
 
@@ -129,7 +129,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                 duration = asyncio.get_running_loop().time() - start
                 sentry_capture(e)
                 log.exception(f"{rpc_name}.internal_error", duration=duration, error=e)
-                if DEBUG or TEST:
+                if IS_DEBUG or IS_TEST:
                     details = f"{e.__class__.__name__}: {e}"
                 else:
                     details = e.__class__.__name__

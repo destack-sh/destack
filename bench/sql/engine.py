@@ -66,7 +66,7 @@ from bench.sql.core import (
 from bench.utils.casing import Casing, to_casing
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type, to_uuid
-from bench.utils.utils import DEBUG, LOCAL_ENV
+from bench.utils.utils import IS_DEBUG, IS_LOCAL, IS_TEST
 
 logger = structlog.get_logger(__name__)
 
@@ -928,7 +928,7 @@ def pg_unpack_node_data_row(node_cls: type[Node], row: dict[str, any]) -> AnyNod
                 setattr(data, prop.reference_source.reference_wired_ptr.name, ptr)
         return data
     except (AttributeError, TypeError, ValueError, KeyError) as e:
-        row_str = repr(row) if DEBUG else describe_type(row)
+        row_str = repr(row) if IS_DEBUG else describe_type(row)
         raise ValueError(f"could not unpack row {node_cls.metatype.name}: {row_str}") from e
 
 
@@ -1143,7 +1143,6 @@ async def pg_read_node(
 
 async def pg_write_regular_edits(
     cur: psycopg.AsyncCursor,
-    package: Package,
     edits: list[EditData],
     *,
     return_nodes: bool = False,
@@ -1701,7 +1700,7 @@ async def pg_duplicate_records(
         return None
 
 
-if DEBUG or LOCAL_ENV:
+if IS_DEBUG or IS_LOCAL or IS_TEST:
     # pretty print sql blocks in dev mode
     def sql_to_str(cur: psycopg.Cursor | psycopg.AsyncCursor, s: sql.Composable) -> str:
         import sqlparse

@@ -163,11 +163,11 @@ def format_python(code: str):
 
 
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
-DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
-TEST: bool = (
+IS_DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
+IS_TEST: bool = (
     "test" in sys.argv
     or "pytest" in sys.argv[0]
     or get_from_env("TEST", False, type_cast=str_to_bool)
 )
-LOCAL_ENV = os.environ.get("LOCAL_ENV", "local") == "local"
-SOME_TYPE_CHECKING = TYPE_CHECKING or "mypy" in sys.argv[0] or TEST
+IS_LOCAL = ENVIRONMENT == "local"
+SOME_TYPE_CHECKING = TYPE_CHECKING or "mypy" in sys.argv[0] or IS_TEST

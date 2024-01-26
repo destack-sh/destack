@@ -10,7 +10,7 @@ from bench.runtime.node import Worker
 from bench.server.host import PackageHostMultiplexer
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.monitoring import restart_on_file_changes
-from bench.utils.utils import get_from_env, DEBUG
+from bench.utils.utils import get_from_env, IS_DEBUG
 
 app = typer.Typer(short_help="run the services")
 logger = structlog.get_logger(__name__)
@@ -26,7 +26,7 @@ async def server(host: str, port: int, watch: bool = False):
     logger.info("serve.server", host=host, port=port)
     services = [GlobalSupervisor(), PackageHostMultiplexer()]
     server = BenchServer(services)
-    if DEBUG and watch:
+    if IS_DEBUG and watch:
         asyncio.create_task(restart_on_file_changes())
     with graceful_exit([server]):
         await server.start(host=host, port=port)
@@ -50,7 +50,7 @@ async def worker(host: str, port: int, watch: bool = False):
     services = [worker]
     server = BenchServer(services)
 
-    if DEBUG and watch:
+    if IS_DEBUG and watch:
         asyncio.create_task(restart_on_file_changes())
     with graceful_exit([server]):
         await server.start(host=host, port=port)
