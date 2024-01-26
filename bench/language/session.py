@@ -54,7 +54,7 @@ from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import _auto_async_to_sync
-from bench.utils.utils import DEBUG
+from bench.utils.utils import IS_DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -318,9 +318,7 @@ class Session(ScopeNode):
         from bench.sql.engine import pg_write_regular_edits
 
         edits = self._eat_edits(session=True, kill_pending_runs=kill_pending_runs)
-        await pg_write_regular_edits(
-            cur=self.local_pg_cursor, package=self.package, edits=edits.session_edits
-        )
+        await pg_write_regular_edits(cur=self.local_pg_cursor, edits=edits.session_edits)
 
     @_auto_async_to_sync
     async def flush_logs(self) -> None:
@@ -376,7 +374,7 @@ class Session(ScopeNode):
             if edits.global_edits:
                 if self._global_pg_cursor is not None:
                     await pg_write_regular_edits(
-                        cur=self._global_pg_cursor, package=self.package, edits=edits.global_edits
+                        cur=self._global_pg_cursor, edits=edits.global_edits
                     )
                 else:
                     await self.host.commit_edits(CommitEditsRequest(edits=edits.global_edits))
@@ -915,7 +913,7 @@ class LogCollector:
 
 
 LOG_CACHE_SIZE = 1000
-MAX_STACK_DEPTH = 8 if DEBUG else 16
+MAX_STACK_DEPTH = 8 if IS_DEBUG else 16
 
 # We track the active root in a contextvar but not children
 #  because they may be in different contexts, and we cannot reset across contexts.

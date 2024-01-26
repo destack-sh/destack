@@ -12,8 +12,8 @@ async def prepared_test_db():
         apply_migration_ops,
     )
 
-    # create database
-    async with async_pg_cursor(autocommit=True) as cur:
+    # create database (connect to bench since we can't drop active db)
+    async with async_pg_cursor("bench", autocommit=True) as cur:
         await cur.execute("DROP DATABASE IF EXISTS test")
         await cur.execute("CREATE DATABASE test")
 
