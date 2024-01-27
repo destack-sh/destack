@@ -113,10 +113,10 @@ def get_node_id(package_id: UUID, ck: UUID):
     return uuid.uuid5(package_id, str(ck))
 
 
-PROPERTY_PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
+PRIMITIVE_TYPE_BY_PY_TYPE: dict[type, PrimitiveType] = {
     bool: PrimitiveType.BOOLEAN,
-    int: PrimitiveType.INT64,
-    float: PrimitiveType.FLOAT64,
+    int: PrimitiveType.INT32,
+    float: PrimitiveType.FLOAT32,
     str: PrimitiveType.STRING,
     bytes: PrimitiveType.BYTES,
     datetime: PrimitiveType.DATETIME,
@@ -133,7 +133,7 @@ class NodeReferenceKind(enum.StrEnum):
 
 @dataclass(eq=False)
 class Property(_TypeExpressionBase):
-    """A property of a package node or struct."""
+    """A system-defined attribute of a node or struct."""
 
     id: int | None = None  # stable id for wiring properties, must be unique per final struct/node
     name: str | None = None  # name from LHS of assignment
@@ -256,7 +256,7 @@ class Property(_TypeExpressionBase):
             raise ValueError(f"cannot determine type info for {self!r}")
 
     @functools.cached_property
-    def ptr(self) -> "PropertyReference":
+    def as_reference(self) -> "PropertyReference":
         """A pointer to this property."""
         assert self.component is not None, f"{self!r} is not finalized"
         from bench.language.expression import PropertyReference
@@ -383,7 +383,7 @@ class Property(_TypeExpressionBase):
             elif issubclass(annotation.type, Node):
                 raise ValueError(f"cannot store node directly: {self!r}")
             else:
-                primitive_type = PROPERTY_PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
+                primitive_type = PRIMITIVE_TYPE_BY_PY_TYPE.get(annotation.type)
                 if primitive_type is None:
                     raise ValueError(f"cannot determine storage for {self!r}: {self.py_type_raw!r}")
                 self.primitive_type = primitive_type
@@ -684,15 +684,16 @@ def node_children(
 
 
 class _ComponentMethod(enum.Enum):
+    # lifecycle
     init = "init"
-    walk = "walk"
     clear = "clear"
     interp = "interp"
-    visit = "visit"
     validate = "validate"
-    activate = "activate"
-    deactivate = "deactivate"
     updated = "updated"
+    track = "track"
+    untrack = "untrack"
+    visit = "visit"
+    # extra
     call = "call"
     iter = "iter"
     aiter = "aiter"
@@ -713,11 +714,11 @@ class _ComponentMethod(enum.Enum):
 
 
 # :NodeMethods
-_NODE_INNER_METHODS: list[str] = [m.inner for m in _ComponentMethod]
-_FORBIDDEN_NODE_METHODS = (
-    [m.self for m in _ComponentMethod]
-    + [m.rec for m in _ComponentMethod]
-    + ["__post_init__", "__del__"]
+_COMPONENT_INNER_METHODS: tuple[str, ...] = tuple(m.inner for m in _ComponentMethod)
+_FORBIDDEN_COMPONENT_METHODS = (
+    tuple(m.self for m in _ComponentMethod)
+    + tuple(m.rec for m in _ComponentMethod)
+    + ("__post_init__", "__del__")
 )
 NODE_CLASS_BY_TYPE: dict[NodeType, type["NodeT"]] = {}
 NODE_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
@@ -787,7 +788,7 @@ def _process_struct_base_cls(
     # check that no forbidden methods are defined in non-base classes
     CORE_TYPES = ("Struct", "Node", "ScopeNode")
     if cls.__name__ not in CORE_TYPES:
-        for name in _FORBIDDEN_NODE_METHODS:
+        for name in _FORBIDDEN_COMPONENT_METHODS:
             meth = getattr(cls, name, None)
             good_meths = (getattr(cls, name, None) for cls in (Struct, Node, ScopeNode))
             if meth is not None and meth not in good_meths:
@@ -1271,7 +1272,7 @@ class _Passthrough(enum.StrEnum):
 class Struct(abc.ABC):
     """
     A non-node data structure, usually inside a node (which is the only way to store/retrieve it).
-    Will activate, track, etc. when we start using these in nodes.
+    Will track, track, etc. when we start using these in nodes.
     """
 
     metatype: ClassVar[StructType]  # type discriminator is field 0 if needed?
@@ -1447,7 +1448,7 @@ class Struct(abc.ABC):
     _interp_rec = _make_rec_method(_ComponentMethod.interp, _interp_self)
     _visit_rec = _make_rec_method(_ComponentMethod.visit, _visit_self)
 
-    def _to_wire(self) -> AnyNodeData | AnyStructData:
+    def _to_data(self) -> AnyNodeData | AnyStructData:
         """Convert to wire format"""
         from bench.proto.wiring import pack_struct
 
@@ -1511,7 +1512,9 @@ class Node(Struct, _NodeExpressionBase):
     )
 
     # 10-29: reserved for node tracking
-    revision: int = struct_internal(10, default=0, require=True, system=True)
+    revision: int = struct_internal(
+        10, default=0, require=True, system=True, primitive_type=PrimitiveType.INT64
+    )
     created_at: datetime = struct_internal(11, default=None, require=True, system=True)
     updated_at: datetime = struct_internal(12, default=None, require=True, system=True)
     deleted_at: Optional[datetime] = struct_internal(13, default=None, system=True)
@@ -1568,7 +1571,7 @@ class Node(Struct, _NodeExpressionBase):
         if self._status == NS.INTERP and self._session is not None:
             on_issue = on_issue_raise if self.scope is None else self.scope._on_issue
             self._interp_self(self, on_issue=on_issue)
-            self._activate_self(self._session)
+            self._track_self(self._session)
 
     @property
     def _components(self) -> tuple[type["Node"], ...]:
@@ -1709,6 +1712,12 @@ class Node(Struct, _NodeExpressionBase):
     def session(self, session: Optional["Session"]):
         self._session = session
 
+    @property
+    def as_reference(self) -> "NodeReference":
+        from bench.language.expression import NodeReference
+
+        return NodeReference.from_node(self)
+
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.id == other.id and self.ck == other.ck
 
@@ -1716,7 +1725,7 @@ class Node(Struct, _NodeExpressionBase):
         return hash(self.id)
 
     def __setattr__(self, key, value):
-        if self._status != NS.ACTIVE:
+        if self._status != NS.TRACKED:
             return super().__setattr__(key, value)
 
         # tracked set
@@ -1758,7 +1767,7 @@ class Node(Struct, _NodeExpressionBase):
 
         # report set error with additional info
         candidates = {
-            **(self.__tracked_properties__ if self._status == NS.ACTIVE else self.__properties__),
+            **(self.__tracked_properties__ if self._status == NS.TRACKED else self.__properties__),
         }
         candidates.update(self._get_children_by_ident())
         did_you_mean = did_you_mean_str(candidates, key)
@@ -1826,13 +1835,13 @@ class Node(Struct, _NodeExpressionBase):
         for s in self._walk_structs():
             s._interp_rec(scope, on_issue)
 
-    def _activate_inner(self, session: "Session") -> None:
-        """'Instantiate' this object in the given session."""
+    def _track_inner(self, session: "Session") -> None:
+        """Track this object in the given session."""
         self._session = session
-        self._status = NS.ACTIVE
+        self._status = NS.TRACKED
 
-    def _deactivate_inner(self) -> None:
-        """'Deinstantiate' this object."""
+    def _untrack_inner(self) -> None:
+        """Stop tracking this object."""
         self._session = None
 
     def _attached_inner(self) -> None:
@@ -1910,11 +1919,9 @@ class Node(Struct, _NodeExpressionBase):
     # node has extended set of lifecycle methods
     _clear_self = _make_self_method(_ComponentMethod.clear, _clear_inner, NS.INTERP, NS.SOURCE)
     _interp_self = _make_self_method(_ComponentMethod.interp, _interp_inner, NS.SOURCE, NS.INTERP)
-    _activate_self = _make_self_method(
-        _ComponentMethod.activate, _activate_inner, NS.INTERP, NS.ACTIVE
-    )
-    _deactivate_self = _make_self_method(
-        _ComponentMethod.deactivate, _deactivate_inner, NS.ACTIVE, NS.INTERP
+    _track_self = _make_self_method(_ComponentMethod.track, _track_inner, NS.INTERP, NS.TRACKED)
+    _untrack_self = _make_self_method(
+        _ComponentMethod.untrack, _untrack_inner, NS.TRACKED, NS.INTERP
     )
     _updated_self = _make_self_method(_ComponentMethod.updated, _updated_inner)
 
@@ -1946,6 +1953,12 @@ class Node(Struct, _NodeExpressionBase):
     def _on_issue(self, subject: "Node", type: IssueType, message: str = None, **kwargs) -> None:
         # only scope nodes can host issues, forward to parent
         self.parent._on_issue(subject=self, type=type, message=message, **kwargs)
+
+    def _to_data_wrapped(self) -> SomeNodeData:
+        """To wire format, wrapped in the generic any node container."""
+        from bench.proto.wiring import pack_node, wrap_some_node
+
+        return wrap_some_node(pack_node(self))
 
 
 def _make_rec_method(
@@ -2018,8 +2031,8 @@ class ScopeNode(Node):
             properties=n.__tracked_properties__.keys(), on_invalid=on_invalid_raise
         ),
     )
-    _activate_rec = _make_rec_method(_ComponentMethod.activate, Node._activate_self)
-    _deactivate_rec = _make_rec_method(_ComponentMethod.deactivate, Node._deactivate_self)
+    _track_rec = _make_rec_method(_ComponentMethod.track, Node._track_self)
+    _untrack_rec = _make_rec_method(_ComponentMethod.untrack, Node._untrack_self)
 
     def _get_children_by_ident(self) -> Mapping[str, Node]:
         seen_by_ident = {}
@@ -2424,16 +2437,16 @@ class Package(ScopeNode):
             return resolved
         raise NotImplementedError
 
-    def _activate_inner(self, session: "Session"):
+    def _track_inner(self, session: "Session"):
         for dependency in self.dependencies.values():
-            if dependency._status != NS.ACTIVE:
-                # multiple packages can depend on the same package, only activate once
-                dependency._activate_rec(session)
+            if dependency._status != NS.TRACKED:
+                # multiple packages can depend on the same package, only track once
+                dependency._track_rec(session)
 
-    def _deactivate_inner(self) -> None:
+    def _untrack_inner(self) -> None:
         for dependency in self.dependencies.values():
-            if dependency._status == NS.ACTIVE:  # see above
-                dependency._deactivate_rec()
+            if dependency._status == NS.TRACKED:  # see above
+                dependency._untrack_rec()
 
     def _apply_edits(self, edits: list[EditData], old_source: NodeTree | None = None) -> NodeChange:
         """
@@ -2468,7 +2481,7 @@ class Package(ScopeNode):
 
         prev_session = self.package._session
         if prev_session:
-            self.package._deactivate_self()
+            self.package._untrack_self()
 
         if self.package._tree.nodes:  # may be force-reset (_rec methods wouldn't work)
             self.package._clear_rec()
@@ -2477,7 +2490,7 @@ class Package(ScopeNode):
         self.package._interp_rec()
 
         if prev_session:
-            self.package._activate_rec(prev_session)
+            self.package._track_rec(prev_session)
 
     def _apply_edits_to_source(self, edits: list[EditData]) -> None:
         """Applies the edits directly to the source without any interp."""

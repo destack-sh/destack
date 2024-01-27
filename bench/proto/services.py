@@ -15,7 +15,7 @@ from bench.language.auth import AccessError
 from bench.language.const import BenchError
 from bench.language.link import NoNodeFoundError
 from bench.proto.wire import RpcMetadata
-from bench.server.utils import parse_metadata
+from bench.sql.engine import SqlAlreadyExistsError
 from bench.utils.casing import Casing, to_casing
 from bench.utils.monitoring import Monitored
 from bench.utils.utils import IS_DEBUG, IS_TEST, sentry_capture
@@ -105,7 +105,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
             log = logger.bind(service=self, method=method)
             try:
                 self._stream.set(stream)
-                metadata = parse_metadata(stream.metadata)
+                metadata = RpcMetadata().from_headers(stream.metadata)
                 self._metadata.set(metadata)
                 log.info(rpc_name, metadata=metadata)
                 await func(stream)
@@ -114,9 +114,10 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
             except BenchError as e:  # wrap error
                 duration = asyncio.get_running_loop().time() - start
                 log.exception(f"{rpc_name}.error", duration=duration, error=e)
-                status_map = {
+                status_map: Mapping[type, GRPCStatus] = {
                     NoNodeFoundError: GRPCStatus.NOT_FOUND,
-                    AccessError: GRPCStatus.UNAUTHENTICATED,
+                    SqlAlreadyExistsError: GRPCStatus.ALREADY_EXISTS,
+                    AccessError: GRPCStatus.PERMISSION_DENIED,
                 }
                 status = status_map.get(e.__class__, GRPCStatus.INVALID_ARGUMENT)
                 raise GRPCError(status, str(e)) from e

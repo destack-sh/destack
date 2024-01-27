@@ -26,7 +26,7 @@ from psycopg import sql
 from psycopg.types.json import Jsonb
 
 from bench.language import Block, ConditionalOp, Field, Package, QueryEngine, Session, TypeInfo
-from bench.language.const import NODE_TYPES, EditKind, NodeType, SortOp, to_bench_metatype
+from bench.language.const import NODE_TYPES, EditKind, NodeType, SortOp, BenchError
 from bench.language.database import HasDatabase, Record
 from bench.language.expression import (
     TYPE_DISCRIMINATOR_KEY,
@@ -358,15 +358,19 @@ async def update_dynamic_local_pg_schema(pg_name: str, package: Package) -> None
         raise RuntimeError(f"failed to update {pg_name} schema: {e}") from e
 
 
-class SqlError(Exception):
+class SqlError(BenchError):
     pass
 
 
-class SqlUndefinedObject(SqlError):
+class SqlUndefinedObjectError(SqlError):
     pass
 
 
 class SqlViolation(SqlError):
+    pass
+
+
+class SqlAlreadyExistsError(SqlError):
     pass
 
 
@@ -535,7 +539,9 @@ RowOut = dict[str, SqlPrimitive]
 
 def _wrap_pg_error(resource: Any, e: psycopg.errors.Error) -> Exception:
     if isinstance(e, (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn)):
-        wrapped_t = SqlUndefinedObject
+        wrapped_t = SqlUndefinedObjectError
+    elif isinstance(e, (psycopg.errors.UniqueViolation,)):
+        wrapped_t = SqlAlreadyExistsError
     elif "Violation" in e.__class__.__name__:
         wrapped_t = SqlViolation
     else:
@@ -706,10 +712,14 @@ async def pg_upsert(
         sql.SQL("{} = EXCLUDED.{}").format(sql.Identifier(c.name), sql.Identifier(c.name))
         for c in static_update_columns
     )
-    dynamic_update = tuple(
-        sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
-        for k, v in update_values.items()
-    )
+    if update_values:
+        dynamic_update = tuple(
+            sql.SQL("{} = {}").format(sql.Identifier(k), sql_node_to_sql(v))
+            for k, v in update_values.items()
+        )
+    else:
+        dynamic_update = ()
+
     block = sql.SQL(
         "INSERT INTO {table} ({fields}) VALUES ({values}) ON CONFLICT ({conflict}) DO UPDATE SET {updates}"
     ).format(
@@ -896,7 +906,7 @@ def _unpack_struct_data_prop(prop: Property, value: Any, ignore_array: bool) -> 
 
 def pg_pack_node_data_row(node: AnyNodeData) -> dict[str, any]:
     """Packs a node's data into a row for the respective table."""
-    node_cls = NODE_CLASS_BY_TYPE[to_bench_metatype(node.metatype)]
+    node_cls = NODE_CLASS_BY_TYPE[wiring.unpack_enum(NodeType, node.metatype)]
     try:
         row: dict[str, any] = {}
         for prop in node_cls.__stored_properties__.values():
@@ -1086,7 +1096,7 @@ async def pg_read_node_data_tree(
                 for parent_property in parent_property.reference_stored_ptrs:
                     filter = C(
                         op=ConditionalOp.IN,
-                        property_ptr=parent_property.ptr,
+                        property_ptr=parent_property.as_reference,
                         value=parents_by_type[parent_property.reference_types[0]],
                     )
                     parents_filters.append(filter)
@@ -1118,7 +1128,10 @@ async def pg_read_nodes(
     ancestor_types: tuple[NodeType, ...] | None = None,
     descendant_types: tuple[NodeType, ...] | None = None,
     global_filter: Expression = DEFAULT_GLOBAL_FILTER,
-    select_properties_by_type: dict[NodeType, tuple[Property, ...]] = DEFAULT_SELECTED_PROPERTIES,
+    filter_by_type: Mapping[NodeType, Expression] | None = None,
+    select_properties_by_type: Mapping[
+        NodeType, tuple[Property, ...]
+    ] = DEFAULT_SELECTED_PROPERTIES,
     parent: Node | None = None,
 ) -> tuple[NodeT, ...]:
     """Reads 'regular' nodes from the given PG database and unpacks them into the session. Returns the roots."""
@@ -1131,6 +1144,7 @@ async def pg_read_nodes(
         ancestor_types=ancestor_types,
         descendant_types=descendant_types,
         global_filter=global_filter,
+        filter_by_type=filter_by_type,
         select_properties_by_type=select_properties_by_type,
     )
     if source_tree is None:

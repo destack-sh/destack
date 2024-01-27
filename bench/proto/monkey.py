@@ -347,3 +347,20 @@ _PatchedStruct()
 
 BetterprotoStruct.from_dict = _PatchedStruct.from_dict
 BetterprotoStruct.to_dict = _PatchedStruct.to_dict
+
+# add custom encode/decode methods for headers to RpcMetadata
+from bench.proto.wire import RpcMetadata
+
+
+class _PatchedRpcMetadata(RpcMetadata):
+    def to_headers(self) -> dict:
+        packed = self.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=False)
+        return {k.replace("_", "-"): str(v) for k, v in packed.items()}
+
+    def from_headers(self, headers: Mapping) -> RpcMetadata:
+        packed = {k.replace("-", "_"): v for k, v in headers.items()}
+        return RpcMetadata.from_dict(packed)
+
+
+RpcMetadata.to_headers = _PatchedRpcMetadata.to_headers
+RpcMetadata.from_headers = _PatchedRpcMetadata.from_headers

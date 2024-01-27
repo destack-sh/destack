@@ -30,7 +30,7 @@ from bench.sql.core import (
     Table,
     TableObject,
 )
-from bench.sql.engine import SqlUndefinedObject, pg_delete, pg_select, pg_select_raw, pg_upsert
+from bench.sql.engine import SqlUndefinedObjectError, pg_delete, pg_select, pg_select_raw, pg_upsert
 from bench.utils.func import partition
 from bench.utils.utils import format_python
 
@@ -105,7 +105,7 @@ async def read_migrations_from_pg(
         migrations_rows = await pg_select(cur, MIGRATION_TABLE, where=where, order_by=sql.SQL("id"))
         migrations = [unpack_migration_row(row) for row in migrations_rows]
         return migrations
-    except SqlUndefinedObject:
+    except SqlUndefinedObjectError:
         await cur.connection.rollback()
         return []
 

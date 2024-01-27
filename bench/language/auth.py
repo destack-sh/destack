@@ -24,7 +24,7 @@ from bench.language.node import (
 )
 
 if TYPE_CHECKING:
-    from bench.language import Block, Expression, User
+    from bench.language import Block, Expression, User, Worker
 
 
 @struct(StructType.POLICY)
@@ -48,11 +48,9 @@ class PolicyRule(Struct):
     """A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition]."""
 
     # subject
-    subject_is_system: bool = struct_runtime(
-        default=False
-    )  # not stored because only we can be system
-    subject_is_authenticated: bool = struct_internal(31, default=False)
-    subject_is_owner: bool = struct_internal(32, default=False)
+    subject_is_system: bool = struct_internal(30, default=False)
+    subject_is_owner: bool = struct_internal(31, default=False)
+    subject_is_authenticated: bool = struct_internal(32, default=False)
     subject_users: Optional[list["User"]] = struct_internal(
         33, require=False, array=True, references=NodeType.USER
     )
@@ -80,16 +78,19 @@ class PolicyRule(Struct):
     )
 
 
-@struct(StructType.CONTEXT)
-class Context(Struct):
+@struct(StructType.REQUEST_CONTEXT)
+class RequestContext(Struct):
     """The context of a request for evaluating a policy."""
 
     # subject
     subject_is_system: bool = struct_internal(30, default=False)
-    subject_is_authenticated: bool = struct_internal(31, default=False)
-    subject_is_owner: bool = struct_internal(32, default=False)
+    subject_is_owner: bool = struct_internal(31, default=False)
+    subject_is_authenticated: bool = struct_internal(32, default=False)
     subject_user: Optional["User"] = struct_internal(
         33, array=False, require=False, references=NodeType.USER
+    )
+    subject_worker: Optional["Worker"] = struct_internal(
+        34, array=False, require=False, references=NodeType.WORKER
     )
 
     # verb
@@ -128,7 +129,7 @@ class AccessError(BenchError, ValueError):
         self,
         node: Node,
         action: ActionKind,
-        context: Context | None = None,
+        context: RequestContext | None = None,
         cause: Exception | None = None,
     ):
         super().__init__(f"{node!r}: {action.value}")

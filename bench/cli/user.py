@@ -6,6 +6,6 @@ logger = structlog.get_logger(__name__)
 
 
 @app.command()
-def activate():
-    """Activate a User."""
+def track():
+    """Track a User."""
     raise NotImplementedError

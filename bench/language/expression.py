@@ -356,7 +356,7 @@ def coerce_conditional(
             raise TypeError(f"{node!r} has no field {field_key}")
         _check_field_supports(target._as_type, op)
         if isinstance(target, Property):
-            field, property = None, target.ptr
+            field, property = None, target.as_reference
         else:
             field, property = target, None
         if value is None:
@@ -412,7 +412,7 @@ def coerce_sort(
             if target is None:
                 raise TypeError(f"{node!r} has no field {item!r}")
             if isinstance(target, Property):
-                field, property = None, target.ptr
+                field, property = None, target.as_reference
             else:
                 field, property = target, None
             item = S(op, field=field, property_ptr=property)

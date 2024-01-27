@@ -64,7 +64,7 @@ def fabricate(bench_type: BenchType, path: tuple[BenchType, ...]) -> Node | Stru
     elif bench_type == StructType.PROPERTY_REFERENCE:
         type = random.choice(NODE_TYPES)
         prop = random.choice(tuple(NODE_CLASS_BY_TYPE[type].__properties__.values()))
-        return prop.ptr
+        return prop.as_reference
     else:  # default random and unconstrained jumble of properties
         kwargs = {}
         bench_cls = BENCH_CLASS_BY_TYPE[bench_type]

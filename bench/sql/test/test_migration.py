@@ -13,16 +13,16 @@ from bench.sql.migration import (
 logger = structlog.get_logger(__name__)
 
 
-@pytest.fixture(autouse=True, scope="module")
+@pytest.fixture(scope="module")
 async def blank_test_db():
     async with async_pg_cursor(autocommit=True) as cur:
-        await cur.execute("DROP DATABASE IF EXISTS test")
-        await cur.execute("CREATE DATABASE test")
+        await cur.execute("DROP DATABASE IF EXISTS migrate_test")
+        await cur.execute("CREATE DATABASE migrate_test")
 
 
 @pytest.fixture(scope="module")
-async def test_cur() -> psycopg.AsyncCursor:
-    async with async_pg_cursor("test") as cur:
+async def test_cur(blank_test_db) -> psycopg.AsyncCursor:
+    async with async_pg_cursor("migrate_test") as cur:
         yield cur
 
 

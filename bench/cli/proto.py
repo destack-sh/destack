@@ -65,17 +65,16 @@ def _regen_proto_artifacts(schema_str: str) -> None:
 
         # add/patch our extra stuff
         betterproto_code = Path(TARGET_PY_FILE).read_text()
-        patch_prefix_code = "import bench.proto.monkey # noqa\n"
         patch_postfix_code = f"""
+import bench.proto.monkey # noqa
+
 from typing import Union # noqa
 AnyNodeData = Union[{', '.join([cls.__name__ + 'Data' for cls in NODE_CLASSES])}]
 AnyStructData = Union[{', '.join([cls.__name__ + 'Data' for cls in STRUCT_CLASSES])}]
 
 VERSION = '{VERSION}'
         """
-        Path(TARGET_PY_FILE).write_text(
-            patch_prefix_code + "\n\n" + betterproto_code + "\n\n" + patch_postfix_code
-        )
+        Path(TARGET_PY_FILE).write_text(betterproto_code + "\n\n" + patch_postfix_code)
 
         # and fix it up
         shutil.rmtree(TARGET_PY_DIR, ignore_errors=True)

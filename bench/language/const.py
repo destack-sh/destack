@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.27.0"
+VERSION = "2024.01.27.2"
 
 
 #
@@ -105,7 +105,7 @@ class StructType(ProtoStrEnum):
 
     POLICY = "POLICY", 230
     POLICY_RULE = "POLICY_RULE", 231
-    CONTEXT = "CONTEXT", 232
+    REQUEST_CONTEXT = "REQUEST_CONTEXT", 232
 
     EXPRESSION = "EXPRESSION", 240
     AGGREGATION = "AGGREGATION", 241
@@ -122,7 +122,14 @@ class StructType(ProtoStrEnum):
     RICH_TEXT = "RICH_TEXT", 300
     RICH_TEXT_SPAN = "RICH_TEXT_SPAN", 301
 
+    # tiles
+    # ...
+
+    # shapes
+    # ...
+
     # workspace
+    # ...
 
     @property
     def bench_name(self):
@@ -141,21 +148,10 @@ else:
     BenchType.bench_name = NodeType.bench_name
 
 BENCH_TYPES: tuple[BenchType, ...] = tuple(BenchType)
-
-
-def to_bench_metatype(_type: typing.Union[BenchType, int]) -> BenchType:
-    from bench.proto.wire import BenchType as WireBenchType
-
-    if isinstance(_type, WireBenchType):
-        assert _type.name != "UNSPECIFIED", f"cannot convert unspecified type {_type!r}"
-        return BenchType[_type.name]
-    return _type
-
-
 BENCH_TYPE_NAME: dict[NodeType | StructType, str] = {
-    _type: to_casing(_type, Casing.CAMEL) for _type in chain(NodeType, StructType)
+    _type: to_casing(_type, Casing.CAMEL) for _type in chain(NODE_TYPES, STRUCT_TYPES)
 }
-INTERP_NODE_TYPES = {NodeType.ISSUE}
+INTERP_NODE_TYPES = (NodeType.ISSUE,)
 
 
 class BlockType(ProtoStrEnum):
@@ -275,9 +271,9 @@ NRel = NodeRelationType
 
 
 class NodeStatus(enum.IntEnum):
-    SOURCE = 0
-    INTERP = 1
-    ACTIVE = 2
+    SOURCE = 0  # just loaded
+    INTERP = 1  # everything resolved & ready
+    TRACKED = 2  # live in a session
 
 
 NS = NodeStatus
@@ -292,7 +288,8 @@ UNSET = object()
 class ReadKind(ProtoStrEnum):
     READ = "READ", 1  # any read action
     LIST = "LIST", 2  # list, search, filter, etc.
-    AGGREGATE = "AGGREGATE", 3  # count, sum, group, min, etc.
+    AGGREGATE_SCALAR = "AGGREGATE", 3  # count, sum, min, etc.
+    AGGREGATE_BUCKET = "AGGREGATE_BUCKET", 4  # histogram, etc.
 
     @property
     def bench_name(self):

@@ -482,7 +482,7 @@ class Session(ScopeNode):
             self._edit(EditKind.ARCHIVE, n=n)
 
     def unarchive(self, n: Node):
-        """Re-activate a node from the archive in its original place."""
+        """Re-track a node from the archive in its original place."""
         self._edit(EditKind.UNARCHIVE, n=n)
 
     def unarchive_many(self, *nodes: Node):
@@ -816,7 +816,7 @@ class Session(ScopeNode):
             _track=NodeTrackingLevel.NONE,
             _session=UNSET,  # ensure run isn't validated/tracked in session
         )
-        run._session = None  # reset to None so it can be activated
+        run._session = None  # reset to None so it can be trackd
         # we track session nodes manually :ManualSessionTracking
         parent.runs.append(run, _trigger=_NC.Ignore, _create=False)
         custom_value = _custom_value.get()

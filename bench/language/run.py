@@ -61,7 +61,7 @@ class HasRun(Node):
 
     def _call_inner(self, *args, **kwargs):
         assert (
-            self.attached and self._status == NS.ACTIVE
+            self.attached and self._status == NS.TRACKED
         ), f"cannot call {self!r} (status={self._status!r})"
         try:
             asyncio.get_running_loop()
@@ -99,7 +99,7 @@ class Run(ScopeNode, HasValue):
     A 'run' of a block (in a session).
     """
 
-    # NOTE we don't 'activate' runs in sessions yet
+    # NOTE we don't 'track' runs in sessions yet
     #  (because we don't edit them outside of the source session,
     #   and because it's unclear how run/session edits should interact with 'regular' package edits)
 
