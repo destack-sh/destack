@@ -1,11 +1,12 @@
-from typing import AsyncIterator
+from typing import AsyncIterator, cast
 
+import betterproto
 import grpclib
 import structlog
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
-from bench.language import Handle, User
+from bench.language import Expression, Handle, User
 from bench.language.const import to_bench_metatype
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.proto import wiring
@@ -18,6 +19,7 @@ from bench.proto.wire import (
     CreateBenchRequest,
     CreateBenchResponse,
     GlobalSupervisorBase,
+    GlobalSupervisorStub,
     LoginUserRequest,
     LoginUserResponse,
     LogoutUserRequest,
@@ -33,13 +35,12 @@ from bench.proto.wire import (
     SignupUserResponse,
     WatchEditsRequest,
     WatchEditsResponse,
-    GlobalSupervisorStub,
 )
-from bench.server.auth import generate_salt, hash_password, generate_access_token, check_password
+from bench.server.auth import check_password, generate_access_token, generate_salt, hash_password
 from bench.server.utils import (
     check_authenticated_client,
-    validate_bench_data_many,
     detached_session,
+    validate_bench_data_many,
 )
 
 logger = structlog.get_logger("global_supervisor")
@@ -81,27 +82,25 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             client = wiring.unpack_node(signup_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.create_many(user.handle, user, client)
-        return SignupUserResponse(user=wiring.pack_node(user), access_token=client.token)
+        return SignupUserResponse(user=user._to_wire(), access_token=client.token)
 
     async def login_user(self, login_user_request: "LoginUserRequest") -> "LoginUserResponse":
         async with detached_session(commit=True) as session:
-            if login_user_request.id:
-                user = await User.get(id=login_user_request.id)
-            elif login_user_request.slug:
-                user = await User.get(slug=login_user_request.slug)
-            elif login_user_request.email:
-                user = await User.get(email=login_user_request.email)
-            else:
+            key_name, key_value = betterproto.which_one_of(login_user_request, "user")
+            if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
+            user = await User.get(cast(Expression, User.__properties__[key_name] == key_value))
             if not await check_password(
                 login_user_request.password, user.password_salt, user.password_hash
             ):
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid password")
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "incorrect password")
 
             client = wiring.unpack_node(login_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.upsert(client)
-        return LoginUserResponse(user=wiring.pack_node(user), access_token=client.token)
+        return LoginUserResponse(
+            user=user._to_wire(), client=client._to_wire(), access_token=client.token
+        )
 
     async def logout_user(self, logout_user_request: "LogoutUserRequest") -> "LogoutUserResponse":
         async with detached_session(commit=True):

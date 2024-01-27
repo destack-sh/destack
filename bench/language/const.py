@@ -16,7 +16,7 @@ if typing.TYPE_CHECKING:
 
 # hard-coded, do not change ever :BenchUuidNamespace
 UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
-VERSION = "2024.01.26.3"
+VERSION = "2024.01.27.0"
 
 
 #
@@ -166,11 +166,12 @@ class BlockType(ProtoStrEnum):
 
     CLASS = "class", 10  # define a class type with fields
     CHOICE = "choice", 11  # define a choice type with fields
-    TAG = "tag", 12  # define a tag with fields
+    TAG = "tag", 12  # define a tag type with fields
     SIGNAL = "signal", 13  # define a signal type with fields
+    # BLOCK = "block", 14  # define a new block type?
 
     SINGLE_VARIABLE = "single_variable", 20  # define a single-value variable
-    MULTI_VARIABLE = "multi_variable", 22  # define a variable with (multiple) fields
+    MULTI_VARIABLE = "multi_variable", 21  # define a variable with (multiple) fields
 
     TASK = "task", 30  # define a task function with fields (incl. input/output)
     ROUTINE = "routine", 31  # define a code function with input/output fields (incl. input/output)
@@ -189,14 +190,32 @@ class BlockType(ProtoStrEnum):
     def bench_name(self):
         return to_casing(self.name, Casing.CAMEL)
 
+    @property
+    def is_type(self) -> bool:
+        return self in BlockTypes.TYPES
 
-RUNNABLE_BLOCK_TYPES: tuple[BlockType, ...] = (
-    BlockType.ROUTINE,
-    BlockType.SCRIPT,
-    BlockType.MODEL,
-    BlockType.TASK,
-    BlockType.FLOW,
-)
+    @property
+    def is_runnable(self) -> bool:
+        return self in BlockTypes.RUNNABLE
+
+    @property
+    def is_scriptable(self) -> bool:
+        return self in BlockTypes.SCRIPTABLE
+
+    @property
+    def is_nestable(self) -> bool:
+        return self not in BlockTypes.LEAVES
+
+
+BLOCK_TYPES: tuple[BlockType, ...] = tuple(BlockType)
+
+
+class BlockTypes:
+    TYPES = tuple(t for t in BLOCK_TYPES if 10 <= t.id < 20)
+    RUNNABLE = tuple(t for t in BLOCK_TYPES if 30 <= t.id < 40)
+    SCRIPTABLE = tuple(t for t in BLOCK_TYPES if 10 <= t.id < 50) + (BlockType.ALIAS,)
+    LEAVES = (BlockType.BLANK, BlockType.TEXT)
+    NESTABLE = tuple(t for t in BLOCK_TYPES if t not in (BlockType.BLANK, BlockType.TEXT))
 
 
 class NodeSource(ProtoStrEnum):

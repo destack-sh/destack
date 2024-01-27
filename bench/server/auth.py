@@ -1,6 +1,10 @@
 import asyncio
 from os import urandom
 
+import structlog
+
+logger = structlog.get_logger(__name__)
+
 PASSWORD_MIN_LENGTH = 8  # characters
 PASSWORD_MAX_LENGTH = 128  # characters
 SALT_LENGTH = 16  # bytes
@@ -22,12 +26,10 @@ def hash_password(password: str, salt: bytes) -> bytes:
     from hashlib import scrypt
 
     assert len(salt) == SALT_LENGTH, f"invalid salt length: {len(salt)} != {SALT_LENGTH}"
-    assert (
-        len(password) >= PASSWORD_MIN_LENGTH
-    ), f"password too short: {len(password)} < {PASSWORD_MIN_LENGTH}"
-    assert (
-        len(password) <= PASSWORD_MAX_LENGTH
-    ), f"password too long: {len(password)} > {PASSWORD_MAX_LENGTH}"
+    if PASSWORD_MIN_LENGTH < len(password) > PASSWORD_MAX_LENGTH:
+        raise ValueError(
+            f"password length ({len(password)}) is not in [{PASSWORD_MIN_LENGTH}, {PASSWORD_MAX_LENGTH}]"
+        )
 
     return scrypt(
         password.encode("utf-8"),

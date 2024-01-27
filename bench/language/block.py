@@ -157,6 +157,9 @@ class Block(ScopeNode, HasTags):
     secret_value_packed: Any | None = struct_internal(
         45, default=None, encrypt=True, defer=True, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
+    primary_screen: Optional["Block"] = struct_internal(
+        46, require=False, array=False, references=NodeType.BLOCK
+    )
 
     # specific
     code: str | None = struct_property(50, default=None, validate=validate_is_str)
@@ -186,7 +189,7 @@ class Block(ScopeNode, HasTags):
 
     @staticmethod
     def to_python(
-        node: "Block", props: dict, for_parent: Union["Block", "Package", None] = None
+        node, props: dict, for_parent: Union["Block", "Package", None] = None
     ) -> tuple[str, dict, dict]:
         init_name = f"{node.type.lower()}Block"
         if init_name == "Block.class":
@@ -214,8 +217,24 @@ class Block(ScopeNode, HasTags):
     def _instance_cache_key(self) -> str:
         return self.type
 
+    @property
+    def is_type(self) -> bool:
+        return self.type.is_type
+
+    @property
+    def is_runnable(self) -> bool:
+        return self.type.is_runnable
+
+    @property
+    def is_scriptable(self) -> bool:
+        return self.type.is_scriptable
+
+    @property
+    def is_nestable(self) -> bool:
+        return self.type.is_nestable
+
     def __content_str__(self):
-        return ""
+        return ""  # implemented by dynamic components
 
     def __repr__(self):  # noqa: we want to override the default repr
         return f"<{self.type.bench_name}Block {self}>"
@@ -228,11 +247,6 @@ class Block(ScopeNode, HasTags):
                     setattr(self, prop.name, prop.new())
 
     def morph(self, to_type: BlockType):
-        self.type = to_type
-        Block._init_inner(self)
-        if self.attached:
-            self._session.update(self, ["type"])
-        # what else to do? trigger global reinterp? flush local PG edits?
         raise NotImplementedError(f"{self!r} does not support morphing yet")
 
     @property

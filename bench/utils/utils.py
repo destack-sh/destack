@@ -4,7 +4,7 @@ import sys
 import textwrap
 import typing
 from dataclasses import field
-from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import sentry_sdk
 
@@ -111,32 +111,6 @@ def omit_empty(obj):
 
 
 T = typing.TypeVar("T")
-
-
-def flatten(*lists: list[T] | tuple[T]) -> list[T] | tuple[T]:
-    """Flatten a list, generator, element or mixed list of those."""
-    # try to unwrap inner directly
-    if len(lists) == 1:
-        if isinstance(lists[0], (list, tuple)):
-            if len(lists[0]) == 1:
-                if isinstance(lists[0][0], (list, tuple)):
-                    return lists[0][0]
-                elif isinstance(lists[0][0], Generator):
-                    return tuple(lists[0][0])
-            return lists[0]
-        elif isinstance(lists[0], Generator):
-            return tuple(lists[0])
-
-    # flatten out element by element
-    flattened: list[T] = []
-    for item in lists:
-        if isinstance(item, (list, tuple)):
-            flattened.extend(item)
-        elif isinstance(item, Generator):
-            flattened.extend(list(item))
-        else:
-            flattened.append(item)
-    return flattened
 
 
 class frozendict(dict):

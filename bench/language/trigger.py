@@ -70,9 +70,7 @@ class Trigger(Node):
             raise ValueError(f"invalid schedule: {schedule}")
 
     @staticmethod
-    def to_python(
-        node: "Trigger", props: dict, for_parent: "Block" = None
-    ) -> tuple[str, dict, dict]:
+    def to_python(node, props: dict, for_parent: "Block" = None) -> tuple[str, dict, dict]:
         if node.type == TriggerType.TIME:
             return (
                 "Trigger.time",
@@ -161,7 +159,7 @@ class TriggerScheduleIterator:
         else:
             raise ValueError(f"unexpected schedule type in {self.trigger}: {self.type}")
 
-    def advance(self, n: int = 1) -> list[datetime]:
+    def advance(self, n: int) -> list[datetime]:
         """Advance the iterator by n steps and return the next n occurrences."""
         # :TriggerSchedule
 

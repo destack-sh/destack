@@ -1,15 +1,15 @@
 import asyncio
 import contextvars
 import functools
-from typing import TYPE_CHECKING, Callable, Collection, Mapping, TypeVar, final, Generic
+from typing import TYPE_CHECKING, Callable, Collection, Generic, Mapping, TypeVar, final
 
 import grpclib.server
-from grpclib.testing import ChannelFor
 import structlog
 from betterproto import ServiceStub
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from grpclib._typing import IServable
+from grpclib.testing import ChannelFor
 
 from bench.language.auth import AccessError
 from bench.language.const import BenchError
@@ -98,7 +98,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
         func = self._wrap_rpc_func(func, method_slug, handler)
 
         @functools.wraps(func)
-        async def wrapped_method(stream: grpclib.server.Stream) -> None:
+        async def _wrapped_rpc(stream: grpclib.server.Stream) -> None:
             """Managed RPC call with some instrumentation and error handling."""
 
             start = asyncio.get_running_loop().time()
@@ -135,7 +135,7 @@ class BenchServiceBase((IServable, Generic[StubT]) if TYPE_CHECKING else Generic
                     details = e.__class__.__name__
                 raise GRPCError(GRPCStatus.INTERNAL, details) from e
 
-        return grpclib.const.Handler(wrapped_method, cardinality, request_type, reply_type)
+        return grpclib.const.Handler(_wrapped_rpc, cardinality, request_type, reply_type)
 
 
 class MonitoredServiceBase(BenchServiceBase, Monitored):

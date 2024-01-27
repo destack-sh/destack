@@ -49,7 +49,7 @@ from bench.language.node import (
 from bench.language.run import Run, RunError
 from bench.language.value import HasValue
 from bench.os.client import get_os_errors, os_client
-from bench.proto.wire import EditData, PackageHostStub, CommitEditsRequest
+from bench.proto.wire import CommitEditsRequest, EditData, PackageHostStub
 from bench.sql.client import get_pg_connection_pool
 from bench.sql.core import PrimitiveType
 from bench.utils.dt import utcnow_with_tz
@@ -58,7 +58,7 @@ from bench.utils.utils import IS_DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import Block, Policy, Trigger, Worker, Record
+    from bench.language import Block, Policy, Record, Trigger, Worker
     from bench.language.cache import Cache
 
 logger = structlog.get_logger(__name__)
@@ -113,7 +113,7 @@ _CombinedEdits = NamedTuple(
 _executor: ThreadPoolExecutor | None = ThreadPoolExecutor(max_workers=1)
 
 
-@node(NodeType.SESSION, local=True, index_in_os=True)
+@node(NodeType.SESSION, index_in_os=True, local=True)
 class Session(ScopeNode):
     """
     A managed context for running a Bench package (in a worker).
@@ -378,8 +378,11 @@ class Session(ScopeNode):
                     )
                 else:
                     await self.host.commit_edits(CommitEditsRequest(edits=edits.global_edits))
-            await self.local_pg_cursor.connection.commit()
-            self.package._apply_edits_to_source(edits.global_edits)
+            if self._local_pg_cursor is not None:
+                await self._local_pg_cursor.connection.commit()
+
+            if self.attached:
+                self.package._apply_edits_to_source(edits.global_edits)
             log.debug("session.commit.done")
         except Exception as e:
             # 'unwind' package state, mark session as broken
@@ -416,113 +419,113 @@ class Session(ScopeNode):
     # Package
     #
 
-    def create(self, node: Node):
+    def create(self, n: Node):
         """Creates a new node. Errors if the node already exists."""
-        self._edit(EditKind.CREATE, node=node)
+        self._edit(EditKind.CREATE, n=n)
 
     def create_many(self, *nodes: Node):
-        for node in nodes:
-            self._edit(EditKind.CREATE, node=node)
+        for n in nodes:
+            self._edit(EditKind.CREATE, n=n)
 
-    def upsert(self, node: Node):
+    def upsert(self, n: Node):
         """Creates or updates a node. Any non-id properties will be overwritten."""
-        self._edit(EditKind.UPSERT, node=node)
+        self._edit(EditKind.UPSERT, n=n)
 
     def upsert_many(self, *nodes: Node):
-        for node in nodes:
-            self._edit(EditKind.UPSERT, node=node)
+        for n in nodes:
+            self._edit(EditKind.UPSERT, n=n)
 
-    def update(self, node: Node, properties: list[str]):
+    def update(self, n: Node, properties: list[str]):
         """Updates an existing node. Cannot move. The given properties are overwritten."""
-        if node.ck not in self._created_nodes_ck:
-            self._edit(EditKind.UPDATE, node=node, properties=properties)
+        if n.ck not in self._created_nodes_ck:
+            self._edit(EditKind.UPDATE, n=n, properties=properties)
 
     def update_many(self, *nodes: Node, properties: list[str]):
-        for node in nodes:
-            if node.ck not in self._created_nodes_ck:
-                self._edit(EditKind.UPDATE, node=node, properties=properties)
+        for n in nodes:
+            if n.ck not in self._created_nodes_ck:
+                self._edit(EditKind.UPDATE, n=n, properties=properties)
 
-    def move(self, node: Node, properties: list[str] = None):
+    def move(self, n: Node, properties: list[str] = None):
         """Moves and updates an existing node. Can update any properties."""
-        self._edit(EditKind.MOVE, node=node, properties=properties)
+        self._edit(EditKind.MOVE, n=n, properties=properties)
 
     def move_many(self, *nodes: Node, properties: list[str] = None):
-        for node in nodes:
-            self._edit(EditKind.MOVE, node=node, properties=properties)
+        for n in nodes:
+            self._edit(EditKind.MOVE, n=n, properties=properties)
 
-    def soft_delete(self, node: Node):
+    def soft_delete(self, n: Node):
         """Deletes a node with the option to recover it for a limited time."""
-        self._check_not_active(node)
-        self._edit(EditKind.SOFT_DELETE, node=node)
+        self._check_not_active(n)
+        self._edit(EditKind.SOFT_DELETE, n=n)
 
     def soft_delete_many(self, *nodes: Node):
-        for node in nodes:
-            self._check_not_active(node)
-            self._edit(EditKind.SOFT_DELETE, node=node)
+        for n in nodes:
+            self._check_not_active(n)
+            self._edit(EditKind.SOFT_DELETE, n=n)
 
-    def restore(self, node: Node):
+    def restore(self, n: Node):
         """Restore a soft deleted node."""
-        self._edit(EditKind.RESTORE, node=node)
+        self._edit(EditKind.RESTORE, n=n)
 
     def restore_many(self, *nodes: Node):
-        for node in nodes:
-            self._edit(EditKind.RESTORE, node=node)
+        for n in nodes:
+            self._edit(EditKind.RESTORE, n=n)
 
-    def archive(self, node: Node):
+    def archive(self, n: Node):
         """Marks a node as archived, so it will be hidden by default."""
-        self._check_not_active(node)
-        self._edit(EditKind.ARCHIVE, node=node)
+        self._check_not_active(n)
+        self._edit(EditKind.ARCHIVE, n=n)
 
     def archive_many(self, *nodes: Node):
-        for node in nodes:
-            self._check_not_active(node)
-            self._edit(EditKind.ARCHIVE, node=node)
+        for n in nodes:
+            self._check_not_active(n)
+            self._edit(EditKind.ARCHIVE, n=n)
 
-    def unarchive(self, node: Node):
+    def unarchive(self, n: Node):
         """Re-activate a node from the archive in its original place."""
-        self._edit(EditKind.UNARCHIVE, node=node)
+        self._edit(EditKind.UNARCHIVE, n=n)
 
     def unarchive_many(self, *nodes: Node):
-        for node in nodes:
-            self._edit(EditKind.UNARCHIVE, node=node)
+        for n in nodes:
+            self._edit(EditKind.UNARCHIVE, n=n)
 
-    def delete(self, node: Node):
+    def delete(self, n: Node):
         """Irreversibly deletes a node."""
-        self._check_not_active(node)
-        self._edit(EditKind.DELETE, node=node)
+        self._check_not_active(n)
+        self._edit(EditKind.DELETE, n=n)
 
     def delete_many(self, *nodes: Node):
-        for node in nodes:
-            self._check_not_active(node)
-            self._edit(EditKind.DELETE, node=node)
+        for n in nodes:
+            self._check_not_active(n)
+            self._edit(EditKind.DELETE, n=n)
 
-    def _check_not_active(self, node: Node):
+    def _check_not_active(self, n: Node):
         """Checks if the node or any of its ancestors are active."""
-        if node.ck in self._active_nodes_by_ck:
-            block = self._active_nodes_by_ck[node.ck]
-            raise RuntimeError(f"cannot delete ancestor {node!r} of running block: {block!r}")
+        if n.ck in self._active_nodes_by_ck:
+            block = self._active_nodes_by_ck[n.ck]
+            raise RuntimeError(f"cannot delete ancestor {n!r} of running block: {block!r}")
 
     def _records_changed(self, database: "Block", record_ids: Collection[UUID]):
         self._touched_databases_by_id[database.id] = database
         self._changed_record_ids_by_db_id[database.id].update(record_ids)
 
-    def _edit(self, kind: EditKind, node: Node, properties: list[str] = None):
+    def _edit(self, kind: EditKind, n: Node, properties: list[str] = None):
         """Register a non-session edit event to a node (local or global)."""
-        assert self.closed_at is None, f"cannot {kind.name} {node!r} in closed session {self!r}"
-        assert node._track & NTL.FULL, f"cannot {kind.name} untracked {node!r}"
-        assert not self.closed_at, f"cannot {kind.bench_name} {node!r} in closed {self.session!r}"
+        assert self.closed_at is None, f"cannot {kind.name} {n!r} in closed session {self!r}"
+        assert n._track & NTL.FULL, f"cannot {kind.name} untracked {n!r}"
+        assert not self.closed_at, f"cannot {kind.bench_name} {n!r} in closed {self.session!r}"
 
-        if node.metatype == NodeType.FIELD:
+        if n.metatype == NodeType.FIELD:
             self._schema_changed = True
         if properties:
-            properties = tuple(node.__properties__[p].id for p in properties)
-        edits = self._local_edits if node.__is_local__ else self._global_edits
+            properties = tuple(n.__properties__[p].id for p in properties)
+        edits = self._local_edits if n.__is_local__ else self._global_edits
 
         if kind == EditKind.CREATE:
-            self._created_nodes_ck.add(node.ck)
+            self._created_nodes_ck.add(n.ck)
         elif kind == EditKind.UPDATE:
             # merge with previous update if there is one
-            update_idx = self._updated_nodes_event_by_ck.get(node.ck)
+            update_idx = self._updated_nodes_event_by_ck.get(n.ck)
             if update_idx is not None:
                 # merge edited properties ids
                 if any(p not in properties for p in properties):
@@ -532,14 +535,14 @@ class Session(ScopeNode):
                     )
                 return  # merged, ignore this edit
             else:  # remember update event index
-                self._updated_nodes_event_by_ck[node.ck] = len(edits)
-        edit = _Edit(kind=kind, node=node, properties=properties)
+                self._updated_nodes_event_by_ck[n.ck] = len(edits)
+        edit = _Edit(kind=kind, node=n, properties=properties)
         edits.append(edit)
 
-        if node.metatype == NodeType.RECORD:
-            node: "Record"
+        if n.metatype == NodeType.RECORD:
+            n: "Record"
             self._changed_record_ids_by_db_id[edit.node.parent_id].add(edit.node.id)
-            self._touched_databases_by_id[edit.node.parent_id] = node.parent
+            self._touched_databases_by_id[edit.node.parent_id] = n.parent
         if edit.node.ck in self.session._dangling_nodes_by_ck:
             del self.session._dangling_nodes_by_ck[edit.node.ck]
 
@@ -558,7 +561,7 @@ class Session(ScopeNode):
         Session edits = any runs/sessions that happened in this session.
         """
         from bench.language.database import Record
-        from bench.proto.wiring import pack_node, wrap_some_node, pack_enum
+        from bench.proto.wiring import pack_enum, pack_node, wrap_some_node
 
         with self._tracing_lock:
             # create local edits
