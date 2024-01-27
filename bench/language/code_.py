@@ -93,7 +93,7 @@ class HasCode(Node):
             if len(self.fields) > 0:
                 on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
 
-    def _deactivate_inner(self) -> None:
+    def _untrack_inner(self) -> None:
         self._callable_wrapped = None  # locals are bound to session
 
     @property

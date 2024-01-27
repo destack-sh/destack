@@ -157,9 +157,9 @@ class Block(ScopeNode, HasTags):
     secret_value_packed: Any | None = struct_internal(
         45, default=None, encrypt=True, defer=True, copy=deepcopy, primitive_type=PrimitiveType.JSON
     )
-    primary_screen: Optional["Block"] = struct_internal(
-        46, require=False, array=False, references=NodeType.BLOCK
-    )
+    # primary_screen: Optional["Block"] = struct_internal(
+    #     46, require=False, array=False, references=NodeType.BLOCK
+    # )
 
     # specific
     code: str | None = struct_property(50, default=None, validate=validate_is_str)

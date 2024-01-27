@@ -22,9 +22,9 @@ message ClientOrigin {
 // Core metadata for all RPC requests.
 // (This is passed as specially encoded headers, but it's useful to have a common definition here.)
 message RpcMetadata {
-  ClientKind client_kind = 1;
-  string client_id = 2;
-  string client_nonce = 3;
+  optional ClientKind client_kind = 1;
+  optional string client_id = 2;
+  optional string client_nonce = 3;
   optional string client_token = 4;
   optional string bench_id = 5;
   optional string package_id = 6;

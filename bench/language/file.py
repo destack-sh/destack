@@ -8,7 +8,7 @@ import aiohttp
 import requests
 import structlog
 
-from bench.language.const import FileStatus, NodeType, StructType, active_session
+from bench.language.const import FileStatus, NodeType, StructType, active_session, PrimitiveType
 from bench.language.node import (
     Bench,
     Node,
@@ -39,7 +39,7 @@ class BucketObject(Node):
 
     parent: Bench = node_parent(4, NodeType.BENCH)
     sha512: str = struct_internal(30)
-    content_length: int = struct_internal(31)
+    content_length: int = struct_internal(31, primitive_type=PrimitiveType.INT64)
     content_type: str = struct_internal(32)
     status: FileStatus = struct_internal(33)
 
@@ -59,12 +59,8 @@ class File(Struct):
 
     _cached_bytes: Optional[bytes] = struct_runtime(default=None)
 
-    def __str__(self):
-        return f"{self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
-
-    @property
-    def is_external(self) -> None:
-        return self.object_ptr is None
+    def __content_str__(self):
+        return f"{self.name} {self.status}, {self.content_type}, {self.content_length} bytes"
 
     def _validate_inner(self, properties: Collection[str], on_invalid: ValidationHandler) -> None:
         if len(self.name) > FILE_MAX_NAME_LENGTH:

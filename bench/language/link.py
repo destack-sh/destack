@@ -108,8 +108,8 @@ class _InterpChange:
         """Applies the effect of a trigger to update the affected nodes."""
         if level & _NC.Detach:
             for _node in self.affected:
-                if _node._session is not None and _node._status == NS.ACTIVE:
-                    _node._deactivate_self()
+                if _node._session is not None and _node._status == NS.TRACKED:
+                    _node._untrack_self()
             for _node in self.affected:
                 _node._clear_self(_node.scope)
 
@@ -118,8 +118,8 @@ class _InterpChange:
                 _node._interp_self(
                     _node.scope, on_issue=_node.scope._on_issue if _node.scope else on_issue_raise
                 )
-                if self.prev_session is not None and self.prev_status == NS.ACTIVE:
-                    _node._activate_self(self.prev_session)
+                if self.prev_session is not None and self.prev_status == NS.TRACKED:
+                    _node._track_self(self.prev_session)
 
 
 def _sort_nested_ordered_list(root_ck: UUID, nodes: list[NodeT]) -> list[NodeT]:
@@ -451,7 +451,7 @@ def _to_conditional(op: ConditionalOp, target: Union["Field", "Property"], value
     from bench.language.expression import C, Property
 
     if isinstance(target, Property):
-        field, property = None, target.ptr
+        field, property = None, target.as_reference
     else:
         field, property = target, None
     return C(op, field=field, property_ptr=property, value=value)
@@ -461,7 +461,7 @@ def _to_sort(op: SortOp, target: Union["Field", "Property"]):
     from bench.language.expression import Property, S
 
     if isinstance(target, Property):
-        field, property = None, target.ptr
+        field, property = None, target.as_reference
     else:
         field, property = target, None
     return S(op, field=field, property_ptr=property)
@@ -823,7 +823,7 @@ class NodeQuery(Generic[NodeT]):
         nodes: list[NodeT] = []
         for node_data in fetched.nodes:
             node = wiring.unpack_node(node_data, parent=None, session=session)
-            node._activate_self(session)
+            node._track_self(session)
             nodes.append(node)
 
         if self._cache:

@@ -9,7 +9,8 @@ enum ActionKind {
   ACTION_KIND_UNSPECIFIED = 0;
   ACTION_KIND_READ = 1;
   ACTION_KIND_LIST = 2;
-  ACTION_KIND_AGGREGATE = 3;
+  ACTION_KIND_AGGREGATE_SCALAR = 3;
+  ACTION_KIND_AGGREGATE_BUCKET = 4;
   ACTION_KIND_CREATE = 20;
   ACTION_KIND_UPSERT = 21;
   ACTION_KIND_UPDATE = 22;
@@ -96,7 +97,7 @@ enum BenchType {
   BENCH_TYPE_ICON = 221;
   BENCH_TYPE_POLICY = 230;
   BENCH_TYPE_POLICY_RULE = 231;
-  BENCH_TYPE_CONTEXT = 232;
+  BENCH_TYPE_REQUEST_CONTEXT = 232;
   BENCH_TYPE_EXPRESSION = 240;
   BENCH_TYPE_AGGREGATION = 241;
   BENCH_TYPE_AGGREGATION_BUCKET = 242;
@@ -285,7 +286,7 @@ enum NodeSource {
 enum NodeStatus {
   NODE_STATUS_SOURCE = 0;
   NODE_STATUS_INTERP = 1;
-  NODE_STATUS_ACTIVE = 2;
+  NODE_STATUS_TRACKED = 2;
 }
 
 enum NodeTrackingLevel {
@@ -384,7 +385,8 @@ enum ReadKind {
   READ_KIND_UNSPECIFIED = 0;
   READ_KIND_READ = 1;
   READ_KIND_LIST = 2;
-  READ_KIND_AGGREGATE = 3;
+  READ_KIND_AGGREGATE_SCALAR = 3;
+  READ_KIND_AGGREGATE_BUCKET = 4;
 }
 
 enum RichTextFlag {
@@ -468,7 +470,7 @@ enum StructType {
   STRUCT_TYPE_ICON = 221;
   STRUCT_TYPE_POLICY = 230;
   STRUCT_TYPE_POLICY_RULE = 231;
-  STRUCT_TYPE_CONTEXT = 232;
+  STRUCT_TYPE_REQUEST_CONTEXT = 232;
   STRUCT_TYPE_EXPRESSION = 240;
   STRUCT_TYPE_AGGREGATION = 241;
   STRUCT_TYPE_AGGREGATION_BUCKET = 242;
@@ -516,7 +518,7 @@ message AggregationData {
   BenchType metatype = 1;
   AggregationOp op = 30;
   optional bool exists = 31;
-  optional double scalar = 32;
+  optional float scalar = 32;
   repeated AggregationBucketData buckets = 33;
 }
 
@@ -524,7 +526,7 @@ message AggregationData {
 message AggregationBucketData {
   BenchType metatype = 1;
   google.protobuf.Struct key = 30;
-  int64 count = 31;
+  int32 count = 31;
 }
 
 // A human-readable Bench path to reference source nodes and fields/properties. Absolute or relative.
@@ -580,19 +582,6 @@ message BenchPathData {
   optional string package_slug = 35;
 }
 
-// The context of a request for evaluating a policy.
-message ContextData {
-  BenchType metatype = 1;
-  bool subject_is_system = 30;
-  bool subject_is_authenticated = 31;
-  bool subject_is_owner = 32;
-  optional NodeReferenceData subject_user_ptr = 33;
-  repeated ActionKind verbs = 41;
-  repeated BenchType object_types = 50;
-  repeated NodeReferenceData object_nodes_ptr = 51;
-  repeated PropertyReferenceData object_properties = 52;
-}
-
 // Dependency(name: str = <factory>, version: str = <factory>, _status: bench.language.const.NodeStatus = None)
 message DependencyData {
   BenchType metatype = 1;
@@ -628,7 +617,7 @@ message FieldPathSegmentData {
 message FileData {
   BenchType metatype = 1;
   optional string sha512 = 30;
-  optional int64 content_length = 31;
+  optional int32 content_length = 31;
   optional string content_type = 32;
   string name = 33;
   optional NodeReferenceData object_ptr = 34;
@@ -677,8 +666,9 @@ message PolicyData {
 // A rule in a policy: <subject> + can/cannot <verb> + <object> [if condition].
 message PolicyRuleData {
   BenchType metatype = 1;
-  bool subject_is_authenticated = 31;
-  bool subject_is_owner = 32;
+  bool subject_is_system = 30;
+  bool subject_is_owner = 31;
+  bool subject_is_authenticated = 32;
   repeated NodeReferenceData subject_users_ptr = 33;
   PolicyEffect effect = 40;
   repeated ActionKind verb = 41;
@@ -698,8 +688,22 @@ message PropertyPathData {
 message PropertyReferenceData {
   BenchType metatype = 1;
   BenchType type = 30;
-  optional int64 id = 31;
+  optional int32 id = 31;
   optional NodeType references_type = 32;
+}
+
+// The context of a request for evaluating a policy.
+message RequestContextData {
+  BenchType metatype = 1;
+  bool subject_is_system = 30;
+  bool subject_is_owner = 31;
+  bool subject_is_authenticated = 32;
+  optional NodeReferenceData subject_user_ptr = 33;
+  optional NodeReferenceData subject_worker_ptr = 34;
+  repeated ActionKind verbs = 41;
+  repeated BenchType object_types = 50;
+  repeated NodeReferenceData object_nodes_ptr = 51;
+  repeated PropertyReferenceData object_properties = 52;
 }
 
 // RichText(spans: list['RichTextSpan'] = <factory>, plain_text: str | None = None, _status: bench.language.const.NodeStatus = None)
@@ -721,7 +725,7 @@ message RichTextSpanData {
 message RunCodeFrameData {
   BenchType metatype = 1;
   optional NodeReferenceData node_ptr = 30;
-  int64 lineno = 31;
+  int32 lineno = 31;
   string name = 32;
   optional google.protobuf.Struct locals = 33;
   string line = 34;
@@ -766,9 +770,9 @@ message TypeInfoData {
   optional NodeReferenceData base_type_ptr = 42;
   optional FormatHint format_hint = 44;
   optional ExpressionData condition = 45;
-  optional int64 length = 46;
-  optional int64 precision = 47;
-  optional int64 scale = 48;
+  optional int32 length = 46;
+  optional int32 precision = 47;
+  optional int32 scale = 48;
   bool is_array = 50;
   bool is_required = 51;
   bool is_secret = 52;
@@ -867,7 +871,6 @@ message BlockData {
   optional string text = 43;
   optional google.protobuf.Struct value_packed = 44;
   optional google.protobuf.Struct secret_value_packed = 45;
-  optional NodeReferenceData primary_screen_ptr = 46;
   optional string code = 50;
   optional NodeReferenceData reference_ptr = 51;
 }
@@ -907,7 +910,7 @@ message ClientData {
   optional string access_token = 34;
 }
 
-// Field(primitive_type: Optional[bench.language.const.PrimitiveType] = None, bench_type: Optional[bench.language.const.BenchType] = None, base_type: Optional[ForwardRef('Block')] = None, format_hint: Optional[bench.language.const.FormatHint] = None, condition: Optional[ForwardRef('Expression')] = None, length: Optional[int] = None, precision: Optional[int] = None, scale: Optional[int] = None, is_array: bool = False, is_required: bool = False, is_secret: bool = False, _fields: tuple['Field', ...] | None = None, _resolved_type: Optional[ForwardRef('TypeInfo')] = None, base_type_ptr: 'NodeReference' = None, _status: bench.language.const.NodeStatus = None, parent: Optional[ForwardRef('Block')] = None, name: str | None = None, order_key: str | None = None, dynamic_key: str | None = None, text: str | None = None, value_packed: typing.Any | None = None, is_input: bool = False, is_output: bool = False, is_option: bool = False, _reflected_from: Optional[bench.language.node.Property] = None, parent_ptr: 'NodeReference' = None, id: uuid.UUID = None, ck: uuid.UUID = None, source: bench.language.const.NodeSource = <NodeSource.PERSISTED: 'PERSISTED'>, revision: int = 0, created_at: datetime.datetime = None, updated_at: datetime.datetime = None, deleted_at: Optional[datetime.datetime] = None, archived_at: Optional[datetime.datetime] = None, last_edited_at: Optional[datetime.datetime] = None, _session: Optional[ForwardRef('Session')] = None, _track: bench.language.const.NodeTrackingLevel = <NodeTrackingLevel.FULL: 2>, _is_new: bool = False, _deferred_properties: tuple[str, ...] | None = None, value: typing.Any | None = None)
+// A used-defined attribute of some value.
 message FieldData {
   BenchType metatype = 1;
   string id = 2;
@@ -930,9 +933,9 @@ message FieldData {
   optional NodeReferenceData base_type_ptr = 42;
   optional FormatHint format_hint = 44;
   optional ExpressionData condition = 45;
-  optional int64 length = 46;
-  optional int64 precision = 47;
-  optional int64 scale = 48;
+  optional int32 length = 46;
+  optional int32 precision = 47;
+  optional int32 scale = 48;
   bool is_array = 50;
   bool is_required = 51;
   bool is_secret = 52;
@@ -972,7 +975,7 @@ message IssueData {
   IssueKind kind = 31;
   string message = 32;
   optional FieldPathData path = 34;
-  repeated int64 properties = 35;
+  repeated int32 properties = 35;
 }
 
 // A link node refers to another node in some tree. The referenced subtree is inlined during interp.
@@ -1193,7 +1196,7 @@ message TriggerData {
   bool active = 32;
   optional ScheduleType schedule_type = 33;
   optional string timezone = 34;
-  optional int64 interval = 35;
+  optional int32 interval = 35;
   optional string cron = 36;
 }
 
@@ -1271,39 +1274,39 @@ message WorkerSetData {
   WorkerProfile profile = 31;
   bool sleeping = 32;
   WorkerSetStatus status = 33;
-  int64 desired_replicas = 34;
-  int64 target_replicas = 35;
-  int64 available_replicas = 36;
-  int64 ready_replicas = 37;
+  int32 desired_replicas = 34;
+  int32 target_replicas = 35;
+  int32 available_replicas = 36;
+  int32 ready_replicas = 37;
   optional google.protobuf.Timestamp last_active_at = 38;
   optional google.protobuf.Timestamp last_bumped_at = 39;
 }
 
 message SomeNodeData {
   oneof node {
-    BucketObjectData bucket_object = 1;
-    LinkData link = 2;
-    SessionData session = 3;
-    RunData run = 4;
-    FieldData field = 5;
-    WorkerData worker = 6;
-    ViewData view = 7;
-    OrganizationData organization = 8;
-    IssueData issue = 9;
-    TaggingData tagging = 10;
-    TriggerData trigger = 11;
-    RecordData record = 12;
-    HandleData handle = 13;
-    SignalData signal = 14;
+    LinkData link = 1;
+    PauseData pause = 2;
+    RunData run = 3;
+    BucketObjectData bucket_object = 4;
+    RecordData record = 5;
+    ViewData view = 6;
+    UserData user = 7;
+    BlockData block = 8;
+    OrganizationData organization = 9;
+    FieldData field = 10;
+    BadgeData badge = 11;
+    SignalData signal = 12;
+    NotificationData notification = 13;
+    IssueData issue = 14;
     PackageData package = 15;
-    PauseData pause = 16;
-    NotificationData notification = 17;
-    BenchData bench = 18;
-    BadgeData badge = 19;
-    ClientData client = 20;
-    WorkerSetData worker_set = 21;
-    BlockData block = 22;
-    UserData user = 23;
+    WorkerSetData worker_set = 16;
+    TaggingData tagging = 17;
+    ClientData client = 18;
+    WorkerData worker = 19;
+    TriggerData trigger = 20;
+    HandleData handle = 21;
+    BenchData bench = 22;
+    SessionData session = 23;
   };
 }
 

@@ -46,7 +46,9 @@ class HasValue(Node):
         # type may not be ready if not attached (e.g. Record in a Database)
         if "value" in properties and self._type is not None:
             try:
-                get_k = lambda f: f.py_ident if self._status == NS.ACTIVE else f.storage_key  # noqa
+                get_k = (
+                    lambda f: f.py_ident if self._status == NS.TRACKED else f.storage_key
+                )  # noqa
                 check_type(self.value or {}, self._type, get_k=get_k)
             except TypeError as e:
                 on_invalid(self, f"invalid value: {e}", ["value"])
@@ -70,7 +72,7 @@ class HasValue(Node):
         if self.value is None:
             self.value = unpack_value(self.value, self._type._typ, scope=scope, ignore_outer=True)
 
-    def _activate_inner(self, session: "Session") -> None:
+    def _track_inner(self, session: "Session") -> None:
         if self.value_packed is None:
             return
 
@@ -86,7 +88,7 @@ class HasValue(Node):
         value = TypedDict(value, self._type)
         self.value = proxy_value(value, onread=lambda *args: None, onwrite=_onwrite_value)
 
-    def _deactivate_inner(self) -> None:
+    def _untrack_inner(self) -> None:
         if self.value is not None:
             self.value = unproxy_value(self.value)
 

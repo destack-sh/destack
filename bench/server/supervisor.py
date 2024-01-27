@@ -7,7 +7,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 
 from bench.language import Expression, Handle, User
-from bench.language.const import to_bench_metatype
+from bench.language.const import NodeType
 from bench.language.node import NODE_CLASS_BY_TYPE
 from bench.proto import wiring
 from bench.proto.services import BenchServiceBase
@@ -74,7 +74,7 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
 
     async def signup_user(self, signup_user_request: "SignupUserRequest") -> "SignupUserResponse":
         validate_bench_data_many(signup_user_request.user, signup_user_request.client)
-        async with detached_session(commit=True) as session:
+        async with detached_session() as session:
             user = wiring.unpack_node(signup_user_request.user, parent=None, session=session)
             user.password_salt = generate_salt()
             user.password_hash = hash_password(signup_user_request.password, user.password_salt)
@@ -82,10 +82,11 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             client = wiring.unpack_node(signup_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.create_many(user.handle, user, client)
-        return SignupUserResponse(user=user._to_wire(), access_token=client.token)
+            await session.commit()
+        return SignupUserResponse(user=user._to_data(), access_token=client.token)
 
     async def login_user(self, login_user_request: "LoginUserRequest") -> "LoginUserResponse":
-        async with detached_session(commit=True) as session:
+        async with detached_session() as session:
             key_name, key_value = betterproto.which_one_of(login_user_request, "user")
             if key_value is None:
                 raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "no user provided")
@@ -98,8 +99,9 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
             client = wiring.unpack_node(login_user_request.client, parent=user, session=session)
             client.token = generate_access_token()
             session.upsert(client)
+            await session.commit()
         return LoginUserResponse(
-            user=user._to_wire(), client=client._to_wire(), access_token=client.token
+            user=user._to_data(), client=client._to_data(), access_token=client.token
         )
 
     async def logout_user(self, logout_user_request: "LogoutUserRequest") -> "LogoutUserResponse":
@@ -119,10 +121,10 @@ class GlobalSupervisor(BenchServiceBase[GlobalSupervisorStub], GlobalSupervisorB
 
     async def read_nodes(self, read_nodes_request: "ReadNodesRequest") -> "ReadNodesResponse":
         for root in read_nodes_request.roots:
-            node_type = to_bench_metatype(root.type)
+            node_type = wiring.unpack_enum(NodeType, root.type)
             node_cls = NODE_CLASS_BY_TYPE[node_type]
             if node_cls.__is_in_package__:
-                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "invalid root node type")
+                raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "can't read package in global scope")
 
         raise grpclib.GRPCError(GRPCStatus.UNIMPLEMENTED)
 

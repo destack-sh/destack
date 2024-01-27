@@ -21,8 +21,10 @@ message ReadNodesOptions {
   repeated PropertyReferenceData include_properties = 3;
   // Additional regular properties to defer.
   repeated PropertyReferenceData exclude_properties = 4;
+  // Select only these properties (override include/exclude).
+  repeated PropertyReferenceData select_properties = 5;
   // Additional filter for every node (incl. root node, e.g. to load non-deleted, only archived, etc.).
-  ExpressionData global_filter = 5;
+  optional ExpressionData global_filter = 6;
 }
 
 //
@@ -71,12 +73,11 @@ message CreateBenchRequest {
 }
 message CreateBenchResponse {
   BenchData bench = 1;
-  repeated SomeNodeData new_nodes = 2;
 }
 
 message ReadNodesRequest {
   repeated NodeReferenceData roots = 1;
-  ReadNodesOptions options = 2;
+  optional ReadNodesOptions options = 2;
 }
 message ReadNodesResponse {
   repeated SomeNodeData nodes = 1;
@@ -87,10 +88,10 @@ message SearchNodesRequest {
   NodeReferenceData parent = 2;
   ExpressionData filter = 3;
   repeated ExpressionData sort = 4;
-  int32 limit = 5;
-  string after = 6;
-  ReadNodesOptions options = 7;
-  bool count = 8;
+  optional int32 limit = 5;
+  optional string after = 6;
+  optional ReadNodesOptions options = 7;
+  optional bool count = 8;
 }
 message SearchNodesResponse {
   repeated SomeNodeData nodes = 1;
@@ -101,11 +102,11 @@ message SearchNodesResponse {
 
 message AggregateNodesRequest {
   NodeType node_type = 1;
-  NodeReferenceData parent = 2;
-  ExpressionData filter = 3;
+  optional NodeReferenceData parent = 2;
+  optional ExpressionData filter = 3;
   repeated ExpressionData sort = 4;
-  int32 limit = 5;
-  string after = 6;
+  optional int32 limit = 5;
+  optional string after = 6;
   ExpressionData aggregation = 7;
 }
 message AggregateNodesResponse {

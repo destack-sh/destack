@@ -238,6 +238,8 @@ class TypeInfo(Struct):
 
 @node(NodeType.FIELD)
 class Field(HasValue, TypeInfo, _TypeExpressionBase):
+    """A used-defined attribute of some value."""
+
     parent: Union["Block", None] = node_parent(4, NodeType.BLOCK)
     name: str | None = struct_property(30, default=None, validate=validate_name)
     order_key: str | None = struct_internal(31, default=None)

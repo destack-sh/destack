@@ -346,7 +346,7 @@ class RecordQuery:
         records: list[Record] = []
         for record_data in fetched.records:
             record: Record = wiring.unpack_node(record_data, self._database, session)
-            record._activate_self(session)
+            record._track_self(session)
             records.append(record)
 
         if self._cache:
@@ -538,7 +538,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
         if _trigger:
             node._attached_self()
             if self._parent._session:
-                node._activate_self(self._parent._session)
+                node._track_self(self._parent._session)
         # 'create' node in session
         if _create and self._parent._session and self._parent.attached:
             self._parent.session.create(node)
@@ -555,7 +555,7 @@ class RecordList(NodeListBase[Record], RecordQuery):
                 n._attached_self()
             if self._parent._session:
                 for n in nodes:
-                    n._activate_self(self._parent._session)
+                    n._track_self(self._parent._session)
         # 'create' nodes in session
         if _create and self._parent._session and self._parent.attached:
             self._parent.session.create(*nodes)

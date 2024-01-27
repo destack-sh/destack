@@ -1,9 +1,19 @@
+from contextlib import contextmanager
+
 import grpclib
 import pytest
 from grpclib.testing import ChannelFor
 
 from bench.language import Client, User
-from bench.proto.wire import GlobalSupervisorStub, LoginUserRequest, SignupUserRequest
+from bench.proto import wire
+from bench.proto.wire import (
+    GlobalSupervisorStub,
+    LoginUserRequest,
+    SignupUserRequest,
+    ReadNodesRequest,
+    ReadNodesOptions,
+    RpcMetadata,
+)
 from bench.server.supervisor import GlobalSupervisor
 from bench.utils.dt import utcnow_with_tz
 
@@ -21,42 +31,62 @@ async def supervisor(event_loop) -> GlobalSupervisorStub:
         await service.wait_closed()
 
 
+@contextmanager
+def raises_grpc_error(status: grpclib.const.Status):
+    with pytest.raises(grpclib.GRPCError) as exc_info:
+        yield
+    assert exc_info.value.status == status, f"expected {status}, got {exc_info!r}"
+
+
 async def test_user_signup_flow(supervisor: GlobalSupervisorStub, event_loop):
+    """Tests user account creation, login & logout."""
+
     user = User(slug="test", email="test@symbolx.com")
     client = Client(parent=user, name="test", device_name="pytest", last_seen_at=utcnow_with_tz())
 
     # signup -> success
     signup_req = SignupUserRequest(
-        user=user._to_wire(), client=client._to_wire(), password="Password123!"
+        user=user._to_data(), client=client._to_data(), password="Password123!"
     )
     signup_rep = await supervisor.signup_user(signup_req)
     assert signup_rep.user.id == str(user.id)
 
     # login, invalid password -> fail
-    login_req = LoginUserRequest(slug=user.slug, password="bad", client=client._to_wire())
-    with pytest.raises(grpclib.GRPCError):
+    login_req = LoginUserRequest(slug=user.slug, password="bad", client=client._to_data())
+    with raises_grpc_error(grpclib.Status.INVALID_ARGUMENT):
         _ = await supervisor.login_user(login_req)
 
     # login, wrong password -> fail
     login_req = LoginUserRequest(
-        slug=user.slug, password="321Password!!!", client=client._to_wire()
+        slug=user.slug, password="321Password!!!", client=client._to_data()
     )
-    with pytest.raises(grpclib.GRPCError):
+    with raises_grpc_error(grpclib.Status.INVALID_ARGUMENT):
         _ = await supervisor.login_user(login_req)
 
     # login, correct password -> success
-    login_req = LoginUserRequest(slug=user.slug, password="Password123!", client=client._to_wire())
+    login_req = LoginUserRequest(slug=user.slug, password="Password123!", client=client._to_data())
     login_rep = await supervisor.login_user(login_req)
     assert login_rep.access_token
 
-    # nocheckin: complete from here ...
-
     # read user, invalid token -> fail
+    read_user_req = ReadNodesRequest(
+        roots=[user.as_reference._to_data()],
+        options=ReadNodesOptions(descendant_types=[wire.NodeType.CLIENT]),
+    )
+    with raises_grpc_error(grpclib.Status.UNAUTHENTICATED):
+        _ = await supervisor.read_nodes(read_user_req)
 
     # read user, valid token -> success
+    access_metadata = RpcMetadata(
+        client_id=str(client.id),
+        client_kind=wire.ClientKind.USER,
+        client_token=login_rep.access_token,
+    )
+    read_user_rep = await supervisor.read_nodes(read_user_req, access_metadata.to_headers())
+    # nocheckin ...
 
     # logout, invalid token -> fail
 
     # logout, valid token -> success
 
-    # read user, logged out, "valid" token -> fail
+    # read user, logged out, "valid" (but expired) token -> fail

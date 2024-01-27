@@ -3,13 +3,11 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-import betterproto
 import boto3
 import structlog
 from botocore.config import Config
 from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
-from multidict import MultiDict
 
 from bench.language import Client, Worker, Session
 from bench.proto.wire import AnyNodeData, AnyStructData, ClientKind, RpcMetadata, PackageHostStub
@@ -21,13 +19,12 @@ logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def detached_session(
-    commit: bool = False, read_only: bool = False, host: PackageHostStub | None = None
+    read_only: bool = False, host: PackageHostStub | None = None
 ) -> "Session":
     """Gets a global session."""
     from bench.sql.client import async_pg_cursor
     from bench.language.const import _active_session
 
-    assert not read_only or not commit, "read_only and commit are mutually exclusive"
     assert _active_session.get() is None, f"already in active session {_active_session.get()}"
 
     async with async_pg_cursor(local_pg_name=None) as global_cur:
@@ -35,27 +32,13 @@ async def detached_session(
         _active_session.set(session)
         try:
             yield session
-            if commit:
-                await session.commit()
-            elif session.has_regular_edits:
+            if session.has_regular_edits:
                 if read_only:
                     raise RuntimeError(f"read_only session {session!r} has edits")
                 logger.warning("session.discard", session=session)
         finally:
             session.closed_at = datetime.utcnow()  # pretend close to prevent further use
             _active_session.set(None)
-
-
-def encode_metadata(metadata: RpcMetadata) -> dict:
-    """Encodes RPC call metadata for gRPC/HTTP headers."""
-    packed = metadata.to_dict(casing=betterproto.Casing.SNAKE, include_default_values=False)
-    return {k.replace("_", "-"): str(v) for k, v in packed.items()}
-
-
-def parse_metadata(metadata: MultiDict) -> RpcMetadata:
-    """Parses RPC call metadata from gRPC/HTTP headers."""
-    packed = {k.replace("-", "_"): v for k, v in metadata.items()}
-    return RpcMetadata.from_dict(packed)
 
 
 def validate_bench_data(
